@@ -446,6 +446,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 <div class="main">
   <div class="topbar">
     <div class="topbar-heading" id="tb-heading">Drama BGE <span>Tracker</span></div>
+    <div id="storage-indicator" class="topbar-actions" style="font-size:.7rem;color:var(--text3);margin-right:.5rem"></div>
     <div class="topbar-actions">
       <button class="btn btn-ghost" onclick="autoSave()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>Save</button>
       <button class="btn btn-primary" onclick="nav('export')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export</button>
@@ -768,8 +769,8 @@ let S={
   defaultsOn:{}, // {s1:{tp1:false,tp2:false,...}, s2:{...}, s3:{...}} — per-unit default settings toggle
 };
 function load(){return (window.DataService?DataService.get('drama-v3'):Promise.resolve(null)).then(function(d){if(d)Object.assign(S,d);}).catch(function(){});}
-function save(){if(window.DataService){DataService.set('drama-v3',S).catch(function(){toast('Save failed');});}else{try{localStorage.setItem('drama-v3',JSON.stringify(S));}catch(e){}}}
-function autoSave(){save();toast('Saved');}
+function save(){if(window.DataService){return DataService.set('drama-v3',S).catch(function(){toast('Save failed — sign in to save to cloud');});}else{try{localStorage.setItem('drama-v3',JSON.stringify(S));}catch(e){}return Promise.resolve();}}
+function autoSave(){save().then(function(){toast(window.DataService&&window.DataService.isUsingCloud&&window.DataService.isUsingCloud()?'Saved to cloud':'Saved');}).catch(function(){toast('Save failed — sign in to save to cloud');});}
 
 // ── UTILS ──
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2)}
@@ -837,7 +838,7 @@ function renderSetup(yg){
   const classes=Object.keys(S.pupils[yg]).sort();
   el.innerHTML=`
     <div class="sc" style="margin-bottom:1.2rem">
-      <div class="sc-header"><div><div class="sc-title">${yg.toUpperCase()} Drama — Class Setup</div><div class="sc-sub">Add class groups then enter pupil names. Data saves automatically in your browser.</div></div><div style="display:flex;gap:.4rem"><input type="file" id="dramaImportFile-${yg}" accept=".json" style="display:none" onchange="handleImportFile(event)"><button class="btn btn-ghost" style="font-size:.7rem" onclick="document.getElementById('dramaImportFile-${yg}').click()">Import from teacher</button></div></div>
+      <div class="sc-header"><div><div class="sc-title">${yg.toUpperCase()} Drama — Class Setup</div><div class="sc-sub">Add class groups then enter pupil names. Data saves to the cloud when signed in (available on other devices).</div></div><div style="display:flex;gap:.4rem"><input type="file" id="dramaImportFile-${yg}" accept=".json" style="display:none" onchange="handleImportFile(event)"><button class="btn btn-ghost" style="font-size:.7rem" onclick="document.getElementById('dramaImportFile-${yg}').click()">Import from teacher</button></div></div>
       <div class="sc-body">
         <div class="form-row">
           <div class="form-group"><label class="form-label">Class Name</label><input class="form-input" id="nc-${yg}" placeholder="e.g. 1A1, S1 Drama B" /></div>
@@ -1986,7 +1987,13 @@ const ICONS = {
 };
 
 // ── INIT ──
-load().then(function(){renderHome();});
+function updateStorageIndicator(){
+  var el=document.getElementById('storage-indicator');
+  if(!el)return;
+  if(window.DataService&&window.DataService.isUsingCloud&&window.DataService.isUsingCloud()){el.innerHTML='<span style="color:var(--accent);font-weight:600">● Cloud</span>';el.title='Data saves to the cloud — available on other devices';}
+  else{el.innerHTML='<span style="color:#b45309">● Local only</span>';el.title='Data saved in this browser only — sign in to sync to cloud';}
+}
+load().then(function(){updateStorageIndicator();renderHome();});
 </script>
 </body>
 </html>

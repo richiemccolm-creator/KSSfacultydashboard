@@ -22,6 +22,9 @@
   }
 
   window.DataService = {
+    isUsingCloud: function() {
+      return useSupabase();
+    },
     get: function(dataType) {
       return new Promise(function(resolve) {
         if (!useSupabase()) {
@@ -66,20 +69,19 @@
           }
           return;
         }
-        window.supabase.auth.getSession().then(function(_a) {
-          var session = _a.data.session;
-          if (!session) {
-            reject(new Error('Not authenticated'));
-            return;
-          }
-          var payload = { user_id: session.user.id, data_type: dataType, data: data };
-          window.supabase.from('pupil_data')
-            .upsert(payload, { onConflict: 'user_id,data_type' })
-            .then(function(r) {
-              if (r.error) reject(r.error);
-              else resolve();
-            });
-        });
+        window.supabase.auth.getSession()
+          .then(function(_a) {
+            var session = _a && _a.data && _a.data.session;
+            if (!session) throw new Error('Not authenticated');
+            var payload = { user_id: session.user.id, data_type: dataType, data: data };
+            return window.supabase.from('pupil_data')
+              .upsert(payload, { onConflict: 'user_id,data_type' });
+          })
+          .then(function(r) {
+            if (r && r.error) throw r.error;
+            resolve();
+          })
+          .catch(reject);
       });
     },
 

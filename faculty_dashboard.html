@@ -107,6 +107,8 @@ tr:hover td{background:#f8fafc}
   <button class="dash-nav-btn" data-view="classes" onclick="setView('classes')">Classes</button>
   <button class="dash-nav-btn" data-view="search" onclick="setView('search')">Search Pupil</button>
   <button class="dash-nav-btn" data-view="profile" onclick="setView('profile')">Pupil Profile</button>
+  <button class="dash-nav-btn" id="admin-console-btn" data-view="admin-console" onclick="setView('admin-console')" style="display:none">Admin Console</button>
+  <a href="expressive_arts_faculty%20(10).html" class="dash-nav-btn" style="text-decoration:none">Faculty Hub</a>
   <a href="login.html" class="dash-nav-btn" style="text-decoration:none;margin-top:auto" onclick="event.preventDefault();if(window.supabase){window.supabase.auth.signOut().then(function(){window.location.href='login.html';});}else{window.location.href='login.html';}">Sign out</a>
 </aside>
 <div class="dash-main">
@@ -212,6 +214,37 @@ tr:hover td{background:#f8fafc}
         <div><select id="profile-pupil" class="form-input" onchange="renderProfile()" style="min-width:260px"><option value="">— Select pupil —</option></select></div>
       </div>
       <div class="sc-body" id="profile-body"></div>
+    </div>
+  </div>
+
+  <div id="view-admin-console" class="view-panel" style="display:none">
+    <div class="sc">
+      <div class="sc-header">
+        <div>
+          <div class="sc-title">Admin Console</div>
+          <div class="sc-sub">Manage shared content that syncs to all users. Changes appear on everyone's calendars and faculty hub.</div>
+        </div>
+      </div>
+      <div class="sc-body">
+        <div class="sc" style="margin-bottom:1.5rem">
+          <div class="sc-header">
+            <div>
+              <div class="sc-title">Shared Calendar</div>
+              <div class="sc-sub">Events you add here appear on every user's calendar. They cannot edit or delete these — only you can.</div>
+            </div>
+          </div>
+          <div class="sc-body">
+            <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem;align-items:flex-end">
+              <div><label class="form-label">Event title</label><input type="text" id="admin-cal-title" class="form-input" placeholder="e.g. Departmental Meeting" style="min-width:200px"></div>
+              <div><label class="form-label">Date</label><input type="date" id="admin-cal-date" class="form-input"></div>
+              <div><label class="form-label">Category</label><select id="admin-cal-category" class="form-input"><option value="exam">Exam</option><option value="meeting">Department Meeting</option><option value="assessment">Assessment Deadline</option><option value="reporting">Reporting Deadline</option><option value="holiday">Holiday</option><option value="general">General</option></select></div>
+              <button class="btn btn-primary" onclick="adminAddSharedEvent()">Add shared event</button>
+            </div>
+            <div id="admin-shared-events-list" style="font-size:.85rem"></div>
+          </div>
+        </div>
+        <p style="font-size:.75rem;color:var(--text3)">More admin features (announcements, term dates) can be added here in future.</p>
+      </div>
     </div>
   </div>
 </div>
@@ -358,6 +391,7 @@ function setView(id) {
   else if (id === 'classes') renderClasses();
   else if (id === 'search') searchPupils();
   else if (id === 'profile') renderProfile();
+  else if (id === 'admin-console') renderAdminConsole();
 }
 
 function renderAll() {
@@ -726,9 +760,55 @@ function toast(msg) {
 function updateLoadCloudButton() {
   const btn = document.getElementById('load-cloud-btn');
   if (btn) btn.style.display = window.__authGuardIsAdmin ? 'inline-flex' : 'none';
+  const adminBtn = document.getElementById('admin-console-btn');
+  if (adminBtn) adminBtn.style.display = window.__authGuardIsAdmin ? 'block' : 'none';
 }
 updateLoadCloudButton();
-setTimeout(updateLoadCloudButton, 800);
+setTimeout(function(){updateLoadCloudButton();var v=new URLSearchParams(window.location.search).get('view');if(v==='admin-console'&&window.__authGuardIsAdmin)setView('admin-console');},800);
+
+var adminSharedEvents = [];
+function renderAdminConsole() {
+  if (!window.__authGuardIsAdmin || !window.DataService) return;
+  DataService.getSharedCalendarEvents().then(function(events) {
+    adminSharedEvents = events || [];
+    var list = document.getElementById('admin-shared-events-list');
+    if (!list) return;
+    var catLbl = { exam: 'Exam', meeting: 'Meeting', assessment: 'Assessment', reporting: 'Reporting', holiday: 'Holiday', general: 'General' };
+    if (!adminSharedEvents.length) {
+      list.innerHTML = '<div class="empty-s" style="padding:1rem">No shared events yet. Add one above — it will appear on everyone\'s calendar.</div>';
+      return;
+    }
+    list.innerHTML = '<table class="table-wrap" style="width:100%"><thead><tr><th>Date</th><th>Title</th><th>Category</th><th></th></tr></thead><tbody>' +
+      adminSharedEvents.map(function(e) {
+        return '<tr><td>' + (e.date || '') + '</td><td>' + (e.title || '').replace(/</g,'&lt;') + '</td><td>' + (catLbl[e.category] || e.category) + '</td><td><button class="btn btn-ghost" style="font-size:.7rem;padding:.25rem .5rem" onclick="adminDeleteSharedEvent(\'' + (e.id||'').replace(/'/g,"\\'") + '\')">Delete</button></td></tr>';
+      }).join('') + '</tbody></table>';
+  });
+}
+function adminAddSharedEvent() {
+  if (!window.__authGuardIsAdmin || !window.DataService) { toast('Admin only'); return; }
+  var title = document.getElementById('admin-cal-title').value.trim();
+  var date = document.getElementById('admin-cal-date').value;
+  var category = document.getElementById('admin-cal-category').value || 'general';
+  if (!title || !date) { toast('Enter title and date'); return; }
+  var newEv = { title: title, date: date, category: category, source: 'shared' };
+  var updated = adminSharedEvents.concat([newEv]);
+  DataService.setSharedCalendarEvents(updated).then(function() {
+    document.getElementById('admin-cal-title').value = '';
+    document.getElementById('admin-cal-date').value = '';
+    renderAdminConsole();
+    toast('Event added — synced to all users');
+  }).catch(function() { toast('Failed to add event'); });
+}
+function adminDeleteSharedEvent(id) {
+  if (!window.__authGuardIsAdmin || !window.DataService) return;
+  if (!confirm('Remove this event from everyone\'s calendar?')) return;
+  var updated = adminSharedEvents.filter(function(e) { return e.id !== id; });
+  DataService.setSharedCalendarEvents(updated).then(function() {
+    adminSharedEvents = updated;
+    renderAdminConsole();
+    toast('Event removed — synced to all users');
+  }).catch(function() { toast('Failed to remove event'); });
+}
 
 updateImportStatus();
 </script>

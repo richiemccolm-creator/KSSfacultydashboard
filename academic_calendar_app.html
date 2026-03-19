@@ -68,6 +68,8 @@ button:hover{opacity:0.9}
 .tooltip.visible{display:block}
 .tooltip .tooltip-item{font-weight:600;margin-bottom:2px}
 .tooltip .tooltip-meta{font-size:11px;color:rgba(255,255,255,.75);margin-bottom:6px}
+.cal-toast{position:fixed;bottom:1.5rem;right:1.5rem;background:#2a3f62;color:white;padding:.85rem 1.25rem;border-radius:6px;font-size:.82rem;opacity:0;transition:opacity .25s;z-index:99998;box-shadow:0 4px 12px rgba(0,0,0,.2);pointer-events:none}
+.cal-toast.show{opacity:1}
 </style>
 </head>
 
@@ -108,7 +110,7 @@ button:hover{opacity:0.9}
 <option value="general">General</option>
 </select>
 </div>
-<button onclick="addEvent()">Add Event</button>
+<button id="addEventBtn" onclick="addEvent()">Add Event</button>
 </div>
 
 <div class="calendar" id="calendar"></div>
@@ -116,6 +118,7 @@ button:hover{opacity:0.9}
 </div>
 
 <div id="tooltip" class="tooltip"></div>
+<div id="cal-toast" class="cal-toast"></div>
 
 <script>
 
@@ -229,16 +232,23 @@ promises.push(DataService.set(storageKey,personal).catch(function(){}));
 Promise.all(promises).catch(function(){});
 }
 
+function showToast(msg){
+ var el=document.getElementById("cal-toast");
+ if(el){el.textContent=msg;el.classList.add("show");setTimeout(function(){el.classList.remove("show");},3500);}
+}
 /* Load events on init */
 (function(){
-if(window.DataService){
- loadEvents().then(function(){render();});
-}else{
- var st=getEvents();
- if(st.length===0){saveEvents(defaultEvents);}
- else{var titles=st.map(function(e){return e.title+e.date;});defaultEvents.forEach(function(ev){if(titles.indexOf(ev.title+ev.date)===-1)st.push(ev);});saveEvents(st);}
- render();
-}
+ var btn=document.getElementById("addEventBtn");
+ if(btn)btn.disabled=true;
+ if(window.DataService){
+  loadEvents().then(function(){render();if(btn)btn.disabled=false;});
+ }else{
+  var st=getEvents();
+  if(st.length===0){saveEvents(defaultEvents);}
+  else{var titles=st.map(function(e){return e.title+e.date;});defaultEvents.forEach(function(ev){if(titles.indexOf(ev.title+ev.date)===-1)st.push(ev);});saveEvents(st);}
+  render();
+  if(btn)btn.disabled=false;
+ }
 })();
 
 function changeYear(dir){
@@ -247,15 +257,18 @@ render();
 }
 
 function addEvent(){
-const title=document.getElementById("title").value;
-const date=document.getElementById("date").value;
-const category=document.getElementById("category").value;
-if(!title||!date)return;
+var title=(document.getElementById("title").value||"").trim();
+var date=document.getElementById("date").value;
+var category=document.getElementById("category").value;
+if(!title||!date){showToast("Enter an event title and date.");return;}
 var source=(window.__authGuardIsAdmin)?"shared":"personal";
-const events=getEvents();
-events.push({title,date,category:category||"general",source:source});
+var events=getEvents();
+events.push({title:title,date:date,category:category||"general",source:source});
 saveEvents(events);
 render();
+document.getElementById("title").value="";
+document.getElementById("date").value="";
+showToast("Event added to "+(source==="shared"?"shared calendar (visible to all).":"your calendar."));
 }
 
 function snapshot(){
