@@ -70,8 +70,12 @@ body{font-family:'Inter',sans-serif;background:linear-gradient(135deg,#16243c,#1
     document.getElementById('errMsg').classList.add('show');
     return;
   }
+  var sb = window.supabase;
+  if (sb && typeof sb.createClient === 'function') {
+    window.supabase = sb.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+  }
   var supabase = window.supabase;
-  if (!supabase) {
+  if (!supabase || !supabase.auth) {
     document.getElementById('errMsg').textContent = 'Supabase client not loaded. Check config.js and script order.';
     document.getElementById('errMsg').classList.add('show');
     return;
