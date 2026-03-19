@@ -1,0 +1,1937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Art & Design BGE Tracker — Knightswood Secondary School</title>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-init.js"></script>
+<script src="allowlist-check.js"></script>
+<script src="auth-guard.js"></script>
+<script src="data-service.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Sora:wght@700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --navy:#1e2d4a;--navy-dark:#16243c;--navy-mid:#253352;
+  --accent:#c0622a;--accent-light:rgba(192,98,42,.1);--accent-glow:rgba(192,98,42,.25);
+  --bg:#f0f2f5;--white:#fff;--card:#fff;
+  --border:#e2e8f0;--border2:#cbd5e0;
+  --text:#1a202c;--text2:#4a5568;--text3:#718096;
+  --sidebar:252px;
+  --s1-bg:#fee2e2;--s1-text:#991b1b;--s1-bd:#fca5a5;
+  --s2-bg:#fef3c7;--s2-text:#92400e;--s2-bd:#fcd34d;
+  --s3-bg:#d1fae5;--s3-text:#065f46;--s3-bd:#6ee7b7;
+  --s4-bg:#dbeafe;--s4-text:#1e40af;--s4-bd:#93c5fd;
+  --cr:#7c3aed;--cr-bg:rgba(124,58,237,.07);--cr-bd:rgba(124,58,237,.22);
+  --pr:#0369a1;--pr-bg:rgba(3,105,161,.07);--pr-bd:rgba(3,105,161,.22);
+  --ev:#0f766e;--ev-bg:rgba(15,118,110,.07);--ev-bd:rgba(15,118,110,.22);
+}
+html{scroll-behavior:smooth}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;-webkit-font-smoothing:antialiased;font-size:14px}
+
+.sidebar{width:var(--sidebar);flex-shrink:0;background:var(--navy);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;overflow-y:auto;z-index:100}
+.sb-logo{padding:1.4rem 1.25rem .9rem;border-bottom:1px solid rgba(255,255,255,.08)}
+.sb-logo-title{font-family:'Sora',sans-serif;font-size:.92rem;font-weight:800;color:#fff;text-transform:uppercase;letter-spacing:.01em;line-height:1.2}
+.sb-logo-sub{font-size:.57rem;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.28);margin-top:.3rem}
+.sb-section{padding:.45rem 0}
+.sb-label{font-size:.52rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:rgba(255,255,255,.2);padding:.5rem 1.25rem .2rem}
+.sb-item{display:block;width:100%;text-align:left;border:none;background:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.77rem;font-weight:500;color:rgba(255,255,255,.56);padding:.5rem 1.25rem;border-left:3px solid transparent;transition:all .12s;line-height:1.3}
+.sb-item:hover{background:var(--navy-mid);color:#fff}
+.sb-item.active{background:rgba(192,98,42,.17);color:#fff;border-left-color:var(--accent);font-weight:600}
+.sb-divider{height:1px;background:rgba(255,255,255,.07);margin:.3rem 1.25rem}
+
+.main{margin-left:var(--sidebar);flex:1;display:flex;flex-direction:column;min-height:100vh}
+.topbar{background:var(--white);border-bottom:1px solid var(--border);padding:.82rem 2rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;gap:1rem}
+.topbar-heading{font-family:'Sora',sans-serif;font-size:.98rem;font-weight:700}
+.topbar-heading span{color:var(--accent)}
+.topbar-actions{display:flex;gap:.45rem;align-items:center}
+.btn{font-family:'DM Sans',sans-serif;font-size:.71rem;font-weight:600;padding:.4rem .9rem;border-radius:5px;border:none;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:.32rem}
+.btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:#a35220}
+.btn-ghost{background:none;color:var(--text2);border:1px solid var(--border2)}.btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+.btn-danger{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5}.btn-danger:hover{background:#fca5a5}
+.btn-green{background:#d1fae5;color:#065f46;border:1px solid #6ee7b7}.btn-green:hover{background:#a7f3d0}
+.badge{font-size:.57rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;padding:.19rem .52rem;border-radius:3px;background:var(--bg);border:1px solid var(--border2);color:var(--text3)}
+
+.content{padding:1.75rem 2rem;flex:1}
+.panel{display:none}.panel.active{display:block}
+
+/* HOME */
+.hero{background:linear-gradient(135deg,var(--navy-dark),var(--navy-mid));border-radius:10px;padding:2rem 2.5rem;margin-bottom:1.4rem;color:#fff;position:relative;overflow:hidden}
+.hero::before{content:'';position:absolute;top:-50px;right:-50px;width:230px;height:230px;border-radius:50%;background:rgba(192,98,42,.09);pointer-events:none}
+.hero-eyebrow{font-size:.57rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;color:rgba(255,255,255,.35);margin-bottom:.5rem}
+.hero-title{font-family:'Sora',sans-serif;font-size:1.7rem;font-weight:800;margin-bottom:.55rem;line-height:1.15}
+.hero-title span{color:#fdba74}
+.hero-desc{font-size:.79rem;color:rgba(255,255,255,.58);line-height:1.85;max-width:580px}
+.hero-stats{display:flex;gap:2rem;margin-top:1.4rem;flex-wrap:wrap}
+.hs-num{font-family:'Sora',sans-serif;font-size:1.45rem;font-weight:800}
+.hs-label{font-size:.59rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.35);margin-top:.1rem}
+
+.sc{background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:1.2rem;overflow:hidden}
+.sc-header{padding:.9rem 1.5rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:.65rem;flex-wrap:wrap}
+.sc-title{font-family:'Sora',sans-serif;font-size:.86rem;font-weight:700}
+.sc-sub{font-size:.69rem;color:var(--text3);margin-top:.1rem}
+.sc-body{padding:1.2rem 1.5rem}
+
+.yg-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.2rem}
+@media(max-width:860px){.yg-cards{grid-template-columns:1fr}}
+.yg-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:1.2rem 1.4rem;cursor:pointer;transition:all .15s;border-top:4px solid var(--accent)}
+.yg-card:hover{box-shadow:0 4px 16px rgba(192,98,42,.1);transform:translateY(-2px)}
+.yg-year{font-family:'Sora',sans-serif;font-size:1.35rem;font-weight:800;color:var(--accent)}
+.yg-sub{font-size:.63rem;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin:.22rem 0 .45rem}
+.yg-meta{font-size:.74rem;color:var(--text2)}
+
+/* FORMS */
+.form-row{display:flex;gap:.6rem;align-items:flex-end;margin-bottom:.65rem;flex-wrap:wrap}
+.form-group{display:flex;flex-direction:column;gap:.28rem;flex:1;min-width:110px}
+.form-label{font-size:.57rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--text3)}
+.form-input{font-family:'DM Sans',sans-serif;font-size:.8rem;padding:.46rem .68rem;border:1px solid var(--border2);border-radius:5px;background:var(--white);color:var(--text);transition:border-color .12s;width:100%}
+.form-input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-light)}
+.bulk-ta{font-family:'DM Mono',monospace;font-size:.75rem;border:1px solid var(--border2);border-radius:5px;padding:.58rem .78rem;width:100%;resize:vertical;min-height:90px;color:var(--text);line-height:1.7;transition:border-color .12s}
+.bulk-ta:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-light)}
+.helper{font-size:.64rem;color:var(--text3);margin-top:.28rem}
+
+.pupil-list{max-height:280px;overflow-y:auto;border:1px solid var(--border);border-radius:6px}
+.pupil-row{display:flex;align-items:center;gap:.6rem;padding:.48rem .88rem;border-bottom:1px solid var(--border);transition:background .1s}
+.pupil-row:last-child{border-bottom:none}
+.pupil-row:hover{background:#f8fafc}
+.p-num{font-family:'DM Mono',monospace;font-size:.6rem;color:var(--text3);width:17px;flex-shrink:0}
+.p-name{flex:1;font-size:.79rem;font-weight:500}
+.p-del{background:none;border:none;cursor:pointer;color:var(--text3);font-size:.8rem;padding:.16rem .35rem;border-radius:3px;transition:all .12s}
+.p-del:hover{color:#ef4444;background:#fee2e2}
+.empty-s{text-align:center;padding:1.65rem;color:var(--text3);font-size:.76rem}
+.empty-icon{font-size:1.9rem;margin-bottom:.45rem;opacity:.33}
+
+/* TRACKER */
+.tracker-ctrl{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:.85rem 1.4rem;margin-bottom:.95rem;display:flex;gap:.85rem;align-items:flex-start;flex-wrap:wrap}
+.tp-tabs{display:flex;gap:.28rem;flex-wrap:wrap}
+.tp-tab{font-family:'DM Mono',monospace;font-size:.63rem;font-weight:500;padding:.3rem .72rem;border-radius:4px;border:1px solid var(--border2);background:var(--white);color:var(--text2);cursor:pointer;transition:all .12s;white-space:nowrap;display:flex;align-items:center;gap:.28rem}
+.tp-tab:hover{border-color:var(--accent);color:var(--accent)}
+.tp-tab.active{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.has-dot{width:5px;height:5px;border-radius:50%;background:#10b981;flex-shrink:0}
+.tracker-meta{margin-left:auto;font-size:.63rem;color:var(--text3);padding-top:.08rem;white-space:nowrap}
+
+/* TP INFO */
+.tp-info{background:var(--navy-dark);border-radius:8px;padding:1.05rem 1.4rem;margin-bottom:.95rem;display:grid;grid-template-columns:1fr auto;gap:1.25rem;align-items:start}
+.tp-unit{font-family:'Sora',sans-serif;font-size:.92rem;font-weight:700;color:#fff;margin-bottom:.25rem}
+.tp-assessed{font-size:.73rem;color:rgba(255,255,255,.55);line-height:1.7;margin-bottom:.5rem}
+.tp-eos{display:flex;gap:.28rem;flex-wrap:wrap;margin-bottom:.5rem}
+.eo-chip{font-size:.58rem;font-weight:700;padding:.13rem .4rem;border-radius:3px;background:rgba(192,98,42,.18);border:1px solid rgba(192,98,42,.38);color:#fdba74}
+.bm-section-title{font-size:.55rem;font-weight:700;letter-spacing:.17em;text-transform:uppercase;color:rgba(255,255,255,.28);margin-bottom:.38rem}
+.bm-list{display:flex;flex-direction:column;gap:.28rem}
+.bm-item{display:flex;align-items:flex-start;gap:.45rem;font-size:.7rem;line-height:1.55}
+.bm-proc{font-size:.56rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:.09rem .35rem;border-radius:3px;white-space:nowrap;flex-shrink:0;margin-top:.1rem}
+.bm-cr{background:var(--cr-bg);border:1px solid var(--cr-bd);color:#c4b5fd}
+.bm-pr{background:var(--pr-bg);border:1px solid var(--pr-bd);color:#7dd3fc}
+.bm-ev{background:var(--ev-bg);border:1px solid var(--ev-bd);color:#5eead4}
+.bm-text{color:rgba(255,255,255,.55)}
+.tp-right{text-align:right;flex-shrink:0}
+.defaults-toggle-wrap{display:flex;align-items:center;gap:.45rem;margin-bottom:.65rem;flex-wrap:wrap;justify-content:flex-end}
+.defaults-toggle-lbl{font-size:.58rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.28)}
+.defaults-toggle-btn{width:36px;height:20px;border-radius:10px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.2);cursor:pointer;padding:0;position:relative;transition:all .2s}
+.defaults-toggle-btn:hover{background:rgba(255,255,255,.22)}
+.defaults-toggle-btn.on{background:rgba(192,98,42,.5);border-color:var(--accent)}
+.defaults-toggle-slider{width:16px;height:16px;border-radius:50%;background:#fff;position:absolute;top:1px;left:2px;transition:transform .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.defaults-toggle-btn.on .defaults-toggle-slider{transform:translateX(16px)}
+.defaults-toggle-state{font-size:.6rem;font-weight:600;color:rgba(255,255,255,.4);min-width:24px}
+.tp-timing{font-size:.58rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.28);margin-bottom:.45rem}
+.mode-chips{display:flex;gap:.28rem;flex-wrap:wrap;justify-content:flex-end}
+.mc{font-size:.58rem;font-weight:700;padding:.12rem .42rem;border-radius:3px}
+.mc-say{background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.3);color:#93c5fd}
+.mc-write{background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.3);color:#6ee7b7}
+.mc-make{background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);color:#fcd34d}
+.mc-do{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);color:#fca5a5}
+
+/* SUMMARY */
+.sum-strip{display:grid;grid-template-columns:repeat(4,1fr);gap:.45rem;margin-bottom:.95rem}
+@media(max-width:1080px){.sum-strip{grid-template-columns:repeat(2,1fr)}}
+.sum-c{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:.65rem .9rem;text-align:center}
+.sum-n{font-family:'Sora',sans-serif;font-size:1.25rem;font-weight:800}
+.sum-l{font-size:.56rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-top:.1rem}
+
+/* CLASS FILTER */
+.cls-filter{display:flex;gap:.3rem;flex-wrap:wrap;margin-bottom:.8rem}
+.cf-btn{font-size:.65rem;font-weight:600;padding:.26rem .65rem;border-radius:4px;border:1px solid var(--border2);background:var(--white);color:var(--text2);cursor:pointer;transition:all .12s}
+.cf-btn:hover{border-color:var(--accent);color:var(--accent)}
+.cf-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+
+/* SCORE TABLE */
+.tbl-wrap{overflow-x:auto;border-radius:8px;border:1px solid var(--border)}
+.tbl{width:100%;border-collapse:collapse;font-size:.77rem;background:var(--white);min-width:820px}
+.tbl thead{background:var(--navy-dark);position:sticky;top:0;z-index:5}
+.tbl thead th{color:rgba(255,255,255,.62);font-size:.53rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;padding:.58rem .62rem;text-align:left;border-right:1px solid rgba(255,255,255,.05);white-space:nowrap}
+.tbl thead th:last-child{border-right:none}
+.tbl thead th.sc-col{text-align:center;width:66px}
+.tbl thead th.h-cr{color:#c4b5fd}.tbl thead th.h-pr{color:#7dd3fc}.tbl thead th.h-ev{color:#5eead4}
+.tbl thead th.h-ef{color:#fcd34d}.tbl thead th.h-bh{color:#f9a8d4}.tbl thead th.h-hl{color:#fdba74}
+.tbl tbody td{padding:.45rem .62rem;border-bottom:1px solid var(--border);vertical-align:middle}
+.tbl tbody tr:last-child td{border-bottom:none}
+.tbl tbody tr:hover td{background:#f8fafc}
+.grp-start{border-left:2px solid rgba(255,255,255,.1)!important}
+.tbl tbody td.grp-start{border-left:2px solid var(--border2)!important}
+.p-name-th{font-weight:600;font-size:.8rem}
+.p-cls-th{font-size:.6rem;color:var(--text3);margin-top:.07rem}
+.notes-inp{font-family:'DM Sans',sans-serif;font-size:.71rem;border:1px solid transparent;border-radius:4px;padding:.26rem .45rem;background:transparent;color:var(--text2);width:100%;resize:none;height:33px;transition:all .15s}
+.notes-inp:hover{border-color:var(--border2)}
+.notes-inp:focus{outline:none;border-color:var(--accent);background:var(--white);box-shadow:0 0 0 2px var(--accent-light)}
+
+/* SCORE BTNS */
+.sc-wrap{text-align:center}
+.sc-group{display:flex;gap:2px;justify-content:center}
+.sc-btn{width:25px;height:25px;border-radius:4px;border:1px solid var(--border2);background:var(--white);color:var(--text3);font-family:'DM Mono',monospace;font-size:.68rem;font-weight:600;cursor:pointer;transition:all .12s;display:flex;align-items:center;justify-content:center}
+.sc-btn:hover{border-color:var(--accent);color:var(--accent)}
+.sc-btn.s1.active{background:var(--s1-bg);color:var(--s1-text);border-color:var(--s1-bd)}
+.sc-btn.s2.active{background:var(--s2-bg);color:var(--s2-text);border-color:var(--s2-bd)}
+.sc-btn.s3.active{background:var(--s3-bg);color:var(--s3-text);border-color:var(--s3-bd)}
+.sc-btn.s4.active{background:var(--s4-bg);color:var(--s4-text);border-color:var(--s4-bd)}
+.na-btn{width:25px;height:25px;border-radius:4px;border:1px solid var(--border2);background:var(--white);color:var(--text3);font-size:.53rem;font-weight:700;cursor:pointer;transition:all .12s;display:flex;align-items:center;justify-content:center}
+.na-btn.active{background:#f1f5f9;color:var(--text2);border-color:var(--border2)}
+
+/* BENCHMARK PANEL */
+.bm-ov-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:.9rem;margin-bottom:1.4rem}
+@media(max-width:860px){.bm-ov-grid{grid-template-columns:1fr}}
+.bm-ov-card{border-radius:8px;padding:1.15rem;border:1px solid}
+.bm-ov-card.cr{background:var(--cr-bg);border-color:var(--cr-bd)}
+.bm-ov-card.pr{background:var(--pr-bg);border-color:var(--pr-bd)}
+.bm-ov-card.ev{background:var(--ev-bg);border-color:var(--ev-bd)}
+.bm-ov-title{font-family:'Sora',sans-serif;font-size:.88rem;font-weight:700;margin-bottom:.18rem}
+.bm-ov-title.cr{color:#6d28d9}.bm-ov-title.pr{color:#0369a1}.bm-ov-title.ev{color:#0f766e}
+.bm-ov-desc{font-size:.69rem;color:var(--text3);margin-bottom:.75rem;line-height:1.6}
+.bm-ov-avg{font-family:'Sora',sans-serif;font-size:2rem;font-weight:800;line-height:1}
+.bm-ov-avg.cr{color:#7c3aed}.bm-ov-avg.pr{color:#0369a1}.bm-ov-avg.ev{color:#0f766e}
+.bm-ov-lbl{font-size:.59rem;color:var(--text3);margin-top:.18rem}
+.bm-bar-wrap{height:5px;background:var(--border);border-radius:99px;margin-top:.7rem;overflow:hidden}
+.bm-bar-fill{height:100%;border-radius:99px}
+.f-cr{background:#7c3aed}.f-pr{background:#0369a1}.f-ev{background:#0f766e}
+
+/* GAP TABLE */
+.gap-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:8px;margin-bottom:1.2rem}
+.gap-tbl{width:100%;border-collapse:collapse;font-size:.74rem;min-width:520px}
+.gap-tbl thead th{background:var(--navy-dark);color:rgba(255,255,255,.58);font-size:.54rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;padding:.52rem .8rem;text-align:left;border-right:1px solid rgba(255,255,255,.06)}
+.gap-tbl thead th:last-child{border-right:none}
+.gap-tbl tbody td{padding:.52rem .8rem;border-bottom:1px solid var(--border);color:var(--text2)}
+.gap-tbl tbody tr:last-child td{border-bottom:none}
+.gap-tbl tbody tr:hover td{background:#f8fafc}
+.gp{display:inline-flex;align-items:center;font-size:.62rem;font-weight:700;padding:.13rem .45rem;border-radius:3px}
+.gp-cr{background:var(--cr-bg);border:1px solid var(--cr-bd);color:#6d28d9}
+.gp-pr{background:var(--pr-bg);border:1px solid var(--pr-bd);color:#0369a1}
+.gp-ev{background:var(--ev-bg);border:1px solid var(--ev-bd);color:#0f766e}
+.bar-row{display:flex;align-items:center;gap:.45rem}
+.bar-inner{flex:1;height:6px;background:var(--bg);border-radius:99px;overflow:hidden}
+.bar-fill{height:100%;border-radius:99px}
+
+/* OVERVIEW */
+/* AT RISK */
+.at-risk-section{margin-bottom:1.5rem}
+.at-risk-header{display:flex;align-items:center;gap:.65rem;margin-bottom:.85rem;flex-wrap:wrap}
+.at-risk-title{font-family:'Sora',sans-serif;font-size:.92rem;font-weight:700;color:#991b1b}
+.at-risk-count{font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:.2rem .55rem;border-radius:3px;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5}
+.at-risk-threshold{margin-left:auto;display:flex;align-items:center;gap:.5rem;font-size:.7rem;color:var(--text3)}
+.threshold-label{white-space:nowrap}
+.threshold-select{font-family:'DM Sans',sans-serif;font-size:.7rem;padding:.28rem .55rem;border:1px solid var(--border2);border-radius:4px;background:var(--white);color:var(--text);cursor:pointer}
+.threshold-select:focus{outline:none;border-color:var(--accent)}
+.at-risk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:.7rem}
+.ar-card{background:var(--white);border:1px solid #fca5a5;border-radius:8px;border-left:4px solid #ef4444;overflow:hidden;transition:box-shadow .15s}
+.ar-card:hover{box-shadow:0 3px 12px rgba(239,68,68,.12)}
+.ar-card-head{padding:.65rem 1rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #fee2e2}
+.ar-name{font-weight:600;font-size:.82rem;color:var(--text)}
+.ar-meta{font-size:.62rem;color:var(--text3)}
+.ar-body{padding:.7rem 1rem}
+.ar-flags{display:flex;flex-direction:column;gap:.3rem}
+.ar-flag{display:flex;align-items:center;gap:.5rem;font-size:.71rem;color:var(--text2)}
+.ar-flag-dim{font-size:.58rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;padding:.1rem .38rem;border-radius:3px;white-space:nowrap;flex-shrink:0}
+.ar-flag-cr{background:var(--cr-bg);border:1px solid var(--cr-bd);color:#6d28d9}
+.ar-flag-pr{background:var(--pr-bg);border:1px solid var(--pr-bd);color:#0369a1}
+.ar-flag-ev{background:var(--ev-bg);border:1px solid var(--ev-bd);color:#0f766e}
+.ar-flag-ef{background:#fef9ee;border:1px solid #fcd34d;color:#92400e}
+.ar-flag-bh{background:#fdf2f8;border:1px solid #f9a8d4;color:#be185d}
+.ar-flag-hl{background:#fff7ed;border:1px solid #fdba74;color:#b45309}
+.ar-score{font-family:'DM Mono',monospace;font-weight:700;color:#ef4444}
+.ar-tp{font-size:.62rem;color:var(--text3);margin-left:auto;white-space:nowrap}
+.ar-empty{text-align:center;padding:1.5rem;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;color:#065f46}
+.ar-empty-title{font-family:'Sora',sans-serif;font-size:.86rem;font-weight:700;margin-bottom:.25rem}
+.ar-empty-sub{font-size:.72rem}
+.ar-section-label{font-size:.57rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--text3);margin-bottom:.45rem}
+.ov-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:.95rem}
+.ov-card{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.ov-head{padding:.72rem 1.2rem;background:var(--navy-dark);display:flex;justify-content:space-between;align-items:center}
+.ov-title{font-family:'Sora',sans-serif;font-size:.8rem;font-weight:700;color:#fff}
+.ov-meta{font-size:.58rem;color:rgba(255,255,255,.38)}
+.ov-body{padding:.95rem 1.2rem}
+.ov-bar-row{display:flex;align-items:center;gap:.6rem;margin-bottom:.5rem}
+.ov-bar-lbl{font-size:.6rem;font-weight:600;width:70px;flex-shrink:0;color:var(--text2)}
+.ov-bar-wrap{flex:1;height:6px;background:var(--bg);border-radius:99px;overflow:hidden}
+.ov-bar-fill{height:100%;border-radius:99px;transition:width .5s ease}
+.ov-bar-val{font-family:'DM Mono',monospace;font-size:.6rem;font-weight:600;color:var(--text2);width:22px;text-align:right;flex-shrink:0}
+.ov-sec{font-size:.56rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--text3);margin:.8rem 0 .42rem;padding-top:.7rem;border-top:1px solid var(--border)}
+
+/* EXPORT */
+.export-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:.95rem;margin-bottom:1.4rem}
+.exp-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:1.35rem}
+.exp-icon{margin-bottom:.75rem;display:flex;align-items:center}
+.exp-icon svg{width:28px;height:28px;color:var(--text3)}
+.empty-icon{margin-bottom:.6rem;display:flex;justify-content:center}
+.empty-icon svg{width:32px;height:32px;color:var(--border2)}
+.exp-title{font-family:'Sora',sans-serif;font-size:.86rem;font-weight:700;margin-bottom:.28rem}
+.exp-desc{font-size:.71rem;color:var(--text2);line-height:1.6;margin-bottom:.85rem}
+.email-strip{background:var(--accent-light);border:1px solid var(--accent-glow);border-radius:6px;padding:.75rem 1.2rem;margin-bottom:1.2rem;display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;font-size:.76rem;color:var(--text2)}
+.mono{font-family:'DM Mono',monospace;color:var(--accent)}
+
+/* BULK APPLY TOOLBAR */
+.bulk-bar{background:var(--navy-dark);border-radius:8px;padding:.7rem 1.25rem;margin-bottom:.75rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap}
+.bulk-bar-label{font-size:.58rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:rgba(255,255,255,.35);white-space:nowrap}
+.bulk-col{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap}
+.bulk-col-lbl{font-size:.62rem;font-weight:600;color:rgba(255,255,255,.45);white-space:nowrap;min-width:58px}
+.bulk-btn{width:26px;height:26px;border-radius:4px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:rgba(255,255,255,.55);font-family:'DM Mono',monospace;font-size:.7rem;font-weight:700;cursor:pointer;transition:all .12s;display:flex;align-items:center;justify-content:center}
+.bulk-btn:hover{background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.35)}
+.bulk-btn.s1:hover,.bulk-btn.s1.sel{background:var(--s1-bg);color:var(--s1-text);border-color:var(--s1-bd)}
+.bulk-btn.s2:hover,.bulk-btn.s2.sel{background:var(--s2-bg);color:var(--s2-text);border-color:var(--s2-bd)}
+.bulk-btn.s3:hover,.bulk-btn.s3.sel{background:var(--s3-bg);color:var(--s3-text);border-color:var(--s3-bd)}
+.bulk-btn.s4:hover,.bulk-btn.s4.sel{background:var(--s4-bg);color:var(--s4-text);border-color:var(--s4-bd)}
+.bulk-divider{width:1px;height:24px;background:rgba(255,255,255,.1);flex-shrink:0}
+.bulk-apply-btn{font-family:'DM Sans',sans-serif;font-size:.65rem;font-weight:700;padding:.3rem .75rem;border-radius:4px;border:1px solid rgba(192,98,42,.5);background:rgba(192,98,42,.15);color:#fdba74;cursor:pointer;transition:all .12s;white-space:nowrap}
+.bulk-apply-btn:hover{background:rgba(192,98,42,.3);border-color:#fdba74;color:#fff}
+/* row remove btn */
+.row-del{background:none;border:none;cursor:pointer;color:rgba(255,255,255,.25);padding:.25rem;border-radius:3px;transition:all .12s;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.row-del:hover{color:#fca5a5;background:rgba(239,68,68,.15)}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;padding:1rem}
+.modal-overlay.open{display:flex}
+.modal{background:var(--white);border-radius:10px;padding:1.9rem;max-width:460px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal-title{font-family:'Sora',sans-serif;font-size:.98rem;font-weight:700;margin-bottom:.45rem}
+.modal-desc{font-size:.78rem;color:var(--text2);margin-bottom:1.4rem;line-height:1.7}
+.modal-actions{display:flex;gap:.6rem;justify-content:flex-end}
+.toast{position:fixed;bottom:1.4rem;right:1.4rem;z-index:300;background:var(--navy-dark);color:#fff;font-size:.76rem;font-weight:500;padding:.65rem 1.15rem;border-radius:6px;box-shadow:0 8px 32px rgba(0,0,0,.2);transform:translateY(80px);opacity:0;transition:all .25s cubic-bezier(.34,1.56,.64,1);pointer-events:none}
+.toast.show{transform:translateY(0);opacity:1}
+
+/* PUPIL PROFILES */
+.profile-select{display:flex;gap:.85rem;flex-wrap:wrap;margin-bottom:1.2rem;align-items:flex-end}
+.profile-select .form-group{min-width:140px}
+.profile-card{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:1rem}
+.profile-head{padding:1rem 1.4rem;background:var(--navy-dark);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:1rem}
+.profile-name{font-family:'Sora',sans-serif;font-size:1.1rem;font-weight:700;margin-bottom:.2rem}
+.profile-meta{font-size:.7rem;color:rgba(255,255,255,.55)}
+.profile-body{padding:1.2rem 1.4rem}
+.profile-section{margin-bottom:1.4rem}
+.profile-section:last-child{margin-bottom:0}
+.profile-section-title{font-size:.58rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--text3);margin-bottom:.5rem}
+.profile-ta{font-family:'DM Sans',sans-serif;font-size:.8rem;width:100%;min-height:90px;padding:.65rem .85rem;border:1px solid var(--border2);border-radius:6px;resize:vertical;line-height:1.6;transition:border-color .12s}
+.profile-ta:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-light)}
+.profile-prompts{background:var(--bg);border-radius:6px;padding:.9rem 1.1rem;border:1px solid var(--border)}
+.profile-prompt-item{font-size:.75rem;color:var(--text2);line-height:1.7;margin-bottom:.45rem;padding-left:1rem;position:relative}
+.profile-prompt-item:last-child{margin-bottom:0}
+.profile-prompt-item::before{content:'•';position:absolute;left:0;color:var(--accent);font-weight:700}
+.profile-scores-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:.5rem}
+.profile-score-cell{background:var(--bg);border-radius:5px;padding:.5rem .65rem;text-align:center;border:1px solid var(--border)}
+.profile-score-lbl{font-size:.55rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:.15rem}
+.profile-score-val{font-family:'DM Mono',monospace;font-size:.85rem;font-weight:700;color:var(--text)}
+/* Profile visuals */
+.profile-badges{display:flex;flex-wrap:wrap;gap:.45rem;margin-bottom:1.2rem}
+.profile-badge{display:inline-flex;align-items:center;gap:.35rem;padding:.4rem .75rem;border-radius:999px;font-size:.7rem;font-weight:600;white-space:nowrap}
+.profile-badge.gold{background:linear-gradient(135deg,#fef3c7,#fde68a);color:#92400e;border:1px solid #fcd34d}
+.profile-badge.green{background:linear-gradient(135deg,#d1fae5,#a7f3d0);color:#065f46;border:1px solid #6ee7b7}
+.profile-badge.blue{background:linear-gradient(135deg,#dbeafe,#bfdbfe);color:#1e40af;border:1px solid #93c5fd}
+.profile-badge.amber{background:linear-gradient(135deg,#fef3c7,#fde68a);color:#b45309;border:1px solid #fcd34d}
+.profile-badge-icon{font-size:1rem;line-height:1}
+.profile-visual-row{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin-bottom:1.2rem}
+@media(max-width:720px){.profile-visual-row{grid-template-columns:1fr}}
+.profile-report-card{background:linear-gradient(135deg,#f8fafc,#f1f5f9);border:1px solid var(--border);border-radius:8px;padding:1rem 1.2rem}
+.profile-report-card h4{font-size:.72rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:.5rem}
+.profile-report-card p{font-size:.8rem;color:var(--text2);line-height:1.7;margin:0}
+.profile-dim-bar{display:flex;align-items:center;gap:.6rem;margin-bottom:.5rem}
+.profile-dim-bar:last-child{margin-bottom:0}
+.profile-dim-lbl{font-size:.68rem;font-weight:600;width:85px;flex-shrink:0;color:var(--text2)}
+.profile-dim-track{flex:1;height:8px;background:var(--bg);border-radius:999px;overflow:hidden}
+.profile-dim-fill{height:100%;border-radius:999px;transition:width .4s ease}
+.profile-dim-val{font-family:'DM Mono',monospace;font-size:.7rem;font-weight:700;width:24px;text-align:right;flex-shrink:0}
+/* Scale guide - child friendly */
+.profile-scale-section{background:linear-gradient(135deg,#f8fafc,#f1f5f9);border:1px solid var(--border);border-radius:8px;padding:1rem 1.2rem;margin-bottom:1.2rem}
+.profile-scale-title{font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:.6rem}
+.profile-scale-cards{display:grid;grid-template-columns:repeat(4,1fr);gap:.6rem}
+@media(max-width:800px){.profile-scale-cards{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:480px){.profile-scale-cards{grid-template-columns:1fr}}
+.profile-scale-card{background:#fff;border-radius:6px;padding:.75rem .9rem;border:1px solid var(--border);box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.profile-scale-num{font-family:'Sora',sans-serif;font-size:1.5rem;font-weight:800;line-height:1;margin-bottom:.35rem}
+.profile-scale-num.s1{color:#64748b}
+.profile-scale-num.s2{color:#0369a1}
+.profile-scale-num.s3{color:#059669}
+.profile-scale-num.s4{color:#ea580c}
+.profile-scale-card-title{font-size:.72rem;font-weight:700;color:var(--text);margin-bottom:.3rem;line-height:1.3}
+.profile-scale-card-desc{font-size:.65rem;color:var(--text2);line-height:1.55}
+.profile-scale-note{font-size:.62rem;color:var(--text3);margin-top:.6rem;font-style:italic}
+.profile-print-btn{display:inline-flex;align-items:center;gap:.4rem;padding:.45rem .9rem;border-radius:6px;border:1px solid rgba(255,255,255,.3);background:rgba(255,255,255,.12);color:#fff;font-size:.72rem;font-weight:600;cursor:pointer;transition:all .15s}
+.profile-print-btn:hover{background:rgba(255,255,255,.25);border-color:rgba(255,255,255,.5)}
+.profile-print-header{display:none}
+
+@media print{
+  @page{size:A4;margin:12mm}
+  html,body{background:#fff!important;margin:0!important;padding:0!important}
+  .sidebar,.topbar,.profile-select,.no-print,.profile-print-btn{display:none!important}
+  .main{margin-left:0!important}
+  .content{padding:0!important}
+  #panel-home,#panel-setup-s1,#panel-setup-s2,#panel-setup-s3,#panel-tracker-s1,#panel-tracker-s2,#panel-tracker-s3,#panel-benchmarks,#panel-overview,#panel-export{display:none!important}
+  #panel-profiles{display:block!important;padding:0}
+  #panel-profiles .sc{margin:0;border:none;box-shadow:none}
+  #panel-profiles .sc-header{display:none!important}
+  #panel-profiles .sc-body{padding:0!important}
+  .profile-card{box-shadow:none;border:1px solid #cbd5e0;break-inside:avoid}
+  .profile-print-header{display:block!important;text-align:center;padding:0 0 3mm;margin-bottom:4mm;border-bottom:2px solid #1e2d4a}
+  .profile-print-header .school{font-size:11pt;font-weight:800;color:#1e2d4a;letter-spacing:.03em}
+  .profile-print-header .title{font-size:9pt;color:#64748b;margin-top:1mm}
+  .profile-print-header .date{font-size:8pt;color:#94a3b8;margin-top:1mm}
+  .profile-head{background:#1e2d4a!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;padding:3mm 4mm}
+  .profile-body{padding:3mm 4mm 0}
+  .profile-section{margin-bottom:3mm}
+  .profile-section-title{font-size:7pt;margin-bottom:2mm}
+  .profile-badges{gap:2mm;margin-bottom:3mm}
+  .profile-badge{font-size:6pt;padding:2mm 3mm;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .profile-badge-icon{font-size:8pt}
+  .profile-visual-row{gap:3mm;margin-bottom:3mm;grid-template-columns:1fr 1fr}
+  .profile-report-card{padding:3mm;break-inside:avoid}
+  .profile-report-card h4{font-size:7pt;margin-bottom:2mm}
+  .profile-report-card p,.profile-report-card li{font-size:8pt;line-height:1.5}
+  .profile-dim-bar{margin-bottom:2mm}
+  .profile-dim-lbl{font-size:6pt;width:70px}
+  .profile-dim-track{height:5px}
+  .profile-dim-val{font-size:6pt}
+  .profile-scores-grid{gap:2mm;grid-template-columns:repeat(6,1fr)}
+  .profile-score-cell{padding:2mm}
+  .profile-score-lbl{font-size:5pt}
+  .profile-score-val{font-size:8pt}
+  .profile-scale-section{padding:2mm;margin-bottom:2mm}
+  .profile-scale-cards{gap:2mm}
+  .profile-scale-card{padding:2mm}
+  .profile-scale-num{font-size:12pt}
+  .profile-scale-card-title{font-size:6pt}
+  .profile-scale-card-desc{font-size:5pt}
+  .profile-scale-note{font-size:5pt;margin-top:2mm}
+  -webkit-print-color-adjust:exact;print-color-adjust:exact
+}
+</style>
+</head>
+<body>
+
+<aside class="sidebar">
+  <div class="sb-logo">
+    <div class="sb-logo-title">Art & Design BGE Tracker</div>
+    <div class="sb-logo-sub">Knightswood Secondary School</div>
+  </div>
+  <div class="sb-section">
+    <button class="sb-item active" onclick="nav('home')" data-panel="home"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:.45rem;vertical-align:-1px;flex-shrink:0"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/><polyline points="9 21 9 12 15 12 15 21"/></svg>Home</button>
+    <div class="sb-divider"></div>
+    <div class="sb-label">Class Setup</div>
+    <button class="sb-item" onclick="nav('setup-s1')" data-panel="setup-s1"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:.45rem;vertical-align:-1px;flex-shrink:0"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>S1 — Set Up Classes</button>
+    <button class="sb-item" onclick="nav('setup-s2')" data-panel="setup-s2"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:.45rem;vertical-align:-1px;flex-shrink:0"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>S2 — Set Up Classes</button>
+    <button class="sb-item" onclick="nav('setup-s3')" data-panel="setup-s3"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:.45rem;vertical-align:-1px;flex-shrink:0"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>S3 — Set Up Classes</button>
+    <div class="sb-divider"></div>
+    <div class="sb-label">Enter Scores</div>
+    <button class="sb-item" onclick="nav('tracker-s1')" data-panel="tracker-s1"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:.45rem;vertical-align:-1px;flex-shrink:0"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>S1 — Enter Scores</button>
+    <button class="sb-item" onclick="nav('tracker-s2')" data-panel="tracker-s2"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:.45rem;vertical-align:-1px;flex-shrink:0"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>S2 — Enter Scores</button>
+    <button class="sb-item" onclick="nav('tracker-s3')" data-panel="tracker-s3"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:.45rem;vertical-align:-1px;flex-shrink:0"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>S3 — Enter Scores</button>
+    <div class="sb-divider"></div>
+    <div class="sb-label">Learner Conversations</div>
+    <button class="sb-item" onclick="nav('profiles')" data-panel="profiles"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:.45rem;vertical-align:-1px;flex-shrink:0"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Pupil Profiles</button>
+    <div class="sb-divider"></div>
+    <div class="sb-label">Analysis</div>
+    <button class="sb-item" onclick="nav('benchmarks')" data-panel="benchmarks"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:.45rem;vertical-align:-1px;flex-shrink:0"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>Benchmark Analysis</button>
+    <button class="sb-item" onclick="nav('overview')" data-panel="overview"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:.45rem;vertical-align:-1px;flex-shrink:0"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>Progress Overview</button>
+    <button class="sb-item" onclick="nav('export')" data-panel="export"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:.45rem;vertical-align:-1px;flex-shrink:0"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export &amp; Send</button>
+    <div class="sb-divider"></div>
+    <a href="login.html" class="sb-item" onclick="event.preventDefault();if(window.supabase){window.supabase.auth.signOut().then(function(){window.location.href='login.html';});}else{window.location.href='login.html';}">Sign out</a>
+  </div>
+</aside>
+
+<div class="main">
+  <div class="topbar">
+    <div class="topbar-heading" id="tb-heading">Art & Design BGE <span>Tracker</span></div>
+    <div class="topbar-actions">
+      <button class="btn btn-ghost" onclick="autoSave()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>Save</button>
+      <button class="btn btn-primary" onclick="nav('export')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- HOME -->
+    <div id="panel-home" class="panel active">
+      <div class="hero">
+        <div class="hero-eyebrow">Knightswood Secondary School · Faculty of Art &amp; Drama</div>
+        <div class="hero-title">Art &amp; Design BGE <span>Pupil Tracker</span></div>
+        <div class="hero-desc">Score each Tracking Period across Art &amp; Design units — <strong style="color:#c0622a">Progress</strong> (1–4 scale) plus <strong style="color:#92400e">Effort</strong>, <strong style="color:#be185d">Behaviour</strong>, and <strong style="color:#b45309">Home Learning</strong>. Six TPs per year align to unit completion (order varies by teacher). Progress Analysis shows gaps across the year. Export clean CSV for dashboard reporting.</div>
+        <div class="hero-stats" id="home-stats"></div>
+      </div>
+
+      <div class="sc" style="margin-bottom:1.2rem">
+        <div class="sc-header"><div class="sc-title">What is tracked at each TP?</div></div>
+        <div class="sc-body">
+          <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:.7rem;margin-bottom:.9rem">
+            <div style="padding:.85rem 1rem;border-radius:6px;background:rgba(192,98,42,.08);border:1px solid rgba(192,98,42,.22)">
+              <div style="font-family:'Sora',sans-serif;font-size:.8rem;font-weight:700;color:#c0622a;margin-bottom:.2rem">Progress</div>
+              <div style="font-size:.71rem;color:var(--text2);line-height:1.65">1–4 scale — practical work, design solutions, evaluation against brief. Make, Write, Say, Do modes.</div>
+            </div>
+            <div style="padding:.85rem 1rem;border-radius:6px;background:#fef9ee;border:1px solid #fcd34d">
+              <div style="font-family:'Sora',sans-serif;font-size:.8rem;font-weight:700;color:#92400e;margin-bottom:.2rem">Effort</div>
+              <div style="font-size:.71rem;color:var(--text2);line-height:1.65">Engagement and application in practical and written work.</div>
+            </div>
+            <div style="padding:.85rem 1rem;border-radius:6px;background:#fdf2f8;border:1px solid #f9a8d4">
+              <div style="font-family:'Sora',sans-serif;font-size:.8rem;font-weight:700;color:#be185d;margin-bottom:.2rem">Behaviour</div>
+              <div style="font-size:.71rem;color:var(--text2);line-height:1.65">Classroom conduct and collaboration.</div>
+            </div>
+            <div style="padding:.85rem 1rem;border-radius:6px;background:#fff7ed;border:1px solid #fdba74">
+              <div style="font-family:'Sora',sans-serif;font-size:.8rem;font-weight:700;color:#b45309;margin-bottom:.2rem">Home Learning</div>
+              <div style="font-size:.71rem;color:var(--text2);line-height:1.65">Completion and quality of homework and sketchbook work.</div>
+            </div>
+          </div>
+          <div style="background:var(--bg);border-radius:5px;padding:.7rem 1rem;font-size:.71rem;color:var(--text2);line-height:1.8">
+            <strong>Score scale:</strong>&nbsp;
+            <span style="padding:.09rem .38rem;border-radius:3px;background:var(--s1-bg);color:var(--s1-text);font-weight:700;margin-right:.25rem">1</span>Working on Targets &nbsp;·&nbsp;
+            <span style="padding:.09rem .38rem;border-radius:3px;background:var(--s2-bg);color:var(--s2-text);font-weight:700;margin-right:.25rem">2</span>Not Yet on Track &nbsp;·&nbsp;
+            <span style="padding:.09rem .38rem;border-radius:3px;background:var(--s3-bg);color:var(--s3-text);font-weight:700;margin-right:.25rem">3</span>On Track &nbsp;·&nbsp;
+            <span style="padding:.09rem .38rem;border-radius:3px;background:var(--s4-bg);color:var(--s4-text);font-weight:700;margin-right:.25rem">4</span>Above Expectations &nbsp;·&nbsp;
+            <span style="padding:.09rem .38rem;border-radius:3px;background:#f1f5f9;color:var(--text2);font-weight:700;margin-right:.25rem">N/A</span>Not assessed this TP
+          </div>
+        </div>
+      </div>
+
+      <div class="yg-cards" id="yg-cards">
+        <div class="yg-card" onclick="nav('setup-s1')">
+          <div class="yg-year">S1</div><div class="yg-sub">Art &amp; Design · CfE Third Level</div>
+          <div class="yg-meta" id="hm-s1">0 classes · 0 pupils</div>
+          <div style="margin-top:.6rem;font-size:.68rem;color:var(--text3)">Set up classes →</div>
+        </div>
+        <div class="yg-card" onclick="nav('setup-s2')">
+          <div class="yg-year">S2</div><div class="yg-sub">Art &amp; Design · CfE Third Level</div>
+          <div class="yg-meta" id="hm-s2">0 classes · 0 pupils</div>
+          <div style="margin-top:.6rem;font-size:.68rem;color:var(--text3)">Set up classes →</div>
+        </div>
+        <div class="yg-card" onclick="nav('setup-s3')">
+          <div class="yg-year">S3</div><div class="yg-sub">Art &amp; Design · BGE → N4/N5</div>
+          <div class="yg-meta" id="hm-s3">0 classes · 0 pupils</div>
+          <div style="margin-top:.6rem;font-size:.68rem;color:var(--text3)">Set up classes →</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="panel-setup-s1" class="panel"></div>
+    <div id="panel-setup-s2" class="panel"></div>
+    <div id="panel-setup-s3" class="panel"></div>
+    <div id="panel-tracker-s1" class="panel"></div>
+    <div id="panel-tracker-s2" class="panel"></div>
+    <div id="panel-tracker-s3" class="panel"></div>
+
+    <!-- PUPIL PROFILES -->
+    <div id="panel-profiles" class="panel">
+      <div class="sc">
+        <div class="sc-header">
+          <div><div class="sc-title">Pupil Profiles — Learner Conversations</div><div class="sc-sub">Share information about individual pupils and use prompts to reflect on learning together</div></div>
+        </div>
+        <div class="sc-body" id="profiles-body"></div>
+      </div>
+    </div>
+
+    <!-- BENCHMARK ANALYSIS -->
+    <div id="panel-benchmarks" class="panel">
+      <div class="sc">
+        <div class="sc-header">
+          <div><div class="sc-title">Benchmark Analysis</div><div class="sc-sub">CfE Expressive Arts benchmarks · Progress, Effort, Behaviour &amp; Home Learning averages</div></div>
+          <button class="btn btn-ghost" onclick="renderBenchmarks()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Refresh</button>
+        </div>
+        <div class="sc-body" id="bm-body"><div class="empty-s"><div class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg></div>Enter scores first, then refresh.</div></div>
+      </div>
+    </div>
+
+    <!-- OVERVIEW -->
+    <div id="panel-overview" class="panel">
+      <div class="sc">
+        <div class="sc-header">
+          <div><div class="sc-title">Progress Overview</div><div class="sc-sub">Average scores per class — Progress, Effort, Behaviour, Home Learning and tracking periods</div></div>
+          <button class="btn btn-ghost" onclick="renderOverview()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>Refresh</button>
+        </div>
+        <div class="sc-body" style="padding:.85rem 1.5rem;border-bottom:1px solid var(--border)">
+          <div id="ov-filter-bar" style="display:flex;gap:.85rem;align-items:center;flex-wrap:wrap">
+            <div style="font-size:.58rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--text3)">Filter</div>
+            <div id="ov-yg-filters" style="display:flex;gap:.3rem;flex-wrap:wrap"></div>
+            <div style="width:1px;height:18px;background:var(--border2);flex-shrink:0"></div>
+            <div id="ov-cls-filters" style="display:flex;gap:.3rem;flex-wrap:wrap"><span style="font-size:.7rem;color:var(--text3)">Add pupils to see classes</span></div>
+          </div>
+        </div>
+        <div class="sc-body" id="ov-body"><div class="empty-s"><div class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div>Enter scores first, then refresh.</div></div>
+      </div>
+    </div>
+
+    <!-- EXPORT -->
+    <div id="panel-export" class="panel">
+      <div class="email-strip">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:var(--accent)"><rect x="2" y="4" width="20" height="16" rx="2"/><polyline points="2 4 12 13 22 4"/></svg>
+        <div>Export then email to <span class="mono">r.mccolm@knightswood.glasgow.sch.uk</span> — subject: <span class="mono">Art Tracker – [Year] – [TP] – [Your Name]</span></div>
+      </div>
+      <div style="font-size:.72rem;color:var(--text3);margin-bottom:1rem;padding:.6rem 1rem;background:var(--bg);border-radius:6px;border:1px solid var(--border)"><strong>Handover to another teacher:</strong> Use <strong>Export</strong> on a class card in Class Setup to download a JSON file. Give it to the receiving teacher — they use <strong>Import from teacher</strong> to load the class and all scores.</div>
+      <div class="export-cards">
+        <div class="exp-card">
+          <div class="exp-icon"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></div>
+          <div class="exp-title">Export S1</div><div class="exp-desc">All S1 pupils — Progress, Effort, Behaviour, Home Learning scores per TP and notes.</div>
+          <button class="btn btn-green" onclick="exportCSV('s1')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download S1</button>
+        </div>
+        <div class="exp-card">
+          <div class="exp-icon"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></div>
+          <div class="exp-title">Export S2</div><div class="exp-desc">All S2 pupils — full scores across all 6 TPs plus teacher notes.</div>
+          <button class="btn btn-green" onclick="exportCSV('s2')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download S2</button>
+        </div>
+        <div class="exp-card">
+          <div class="exp-icon"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></div>
+          <div class="exp-title">Export S3</div><div class="exp-desc">All S3 pupils — full scores, N4/N5 pathway data, and notes per TP.</div>
+          <button class="btn btn-green" onclick="exportCSV('s3')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download S3</button>
+        </div>
+        <div class="exp-card" style="border-top:4px solid var(--accent)">
+          <div class="exp-icon"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7H8a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 7V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h2"/></svg></div>
+          <div class="exp-title">Full Faculty Export</div><div class="exp-desc">All year groups in one file — S1, S2, and S3 in separate sections. Best for end-of-year dashboard.</div>
+          <button class="btn btn-primary" onclick="exportCSV('all')"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Download All</button>
+        </div>
+        <div class="exp-card" style="border-top:4px solid #7c3aed">
+          <div class="exp-icon"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+          <div class="exp-title">Export for Faculty Head</div><div class="exp-desc">Export your full tracker data for the Faculty Head Dashboard. Enter your name when prompted — the Faculty Head imports all staff files to see attainment and pupils at risk.</div>
+          <button class="btn btn-ghost" onclick="exportForFacultyHead()" style="border-color:#7c3aed;color:#7c3aed"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export for Faculty Head</button>
+        </div>
+      </div>
+      <div class="sc"><div class="sc-header"><div class="sc-title">Export Preview</div></div><div class="sc-body" id="exp-preview"><div class="empty-s"><div class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg></div>No scored data yet.</div></div></div>
+    </div>
+
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <div class="modal-title" id="m-title">Confirm</div>
+    <div class="modal-desc" id="m-desc"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-danger" id="m-ok">Confirm</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+// CURRICULUM DATA
+// ══════════════════════════════════════════════════════════
+
+// Art & Design uses Progress + Effort + Behaviour + Home Learning (4 dimensions)
+const TPS = {
+  s1:[
+    {id:'tp1',label:'TP1',unit:'Pattern',timing:'On unit completion',eos:['EXA 3-02a','EXA 3-03a','EXA 3-06a'],modes:['Make','Write'],assessed:'Completed pattern design in response to brief with written/verbal evaluation'},
+    {id:'tp2',label:'TP2',unit:'Colour',timing:'On unit completion',eos:['EXA 3-02a','EXA 3-03a','EXA 3-07a'],modes:['Make','Say'],assessed:'Colour theory exercises and colour study painting — mixing, tints, shades'},
+    {id:'tp3',label:'TP3',unit:'Shape, Texture & Form',timing:'On unit completion',eos:['EXA 3-02a','EXA 3-03a','EXA 3-07a'],modes:['Make','Do'],assessed:'3D tile or relief piece with verbal evaluation using art vocabulary'},
+    {id:'tp4',label:'TP4',unit:'Line',timing:'On unit completion',eos:['EXA 3-03a'],modes:['Make','Do'],assessed:'Continuous line drawing and observational study demonstrating line variation'},
+    {id:'tp5',label:'TP5',unit:'Mid-year review',timing:'Mid-year',eos:['EXA 3-07a'],modes:['Write','Say'],assessed:'Written/verbal self-evaluation across first two completed units'},
+    {id:'tp6',label:'TP6',unit:'End-of-year review',timing:'End of year',eos:['EXA 3-02a','EXA 3-03a','EXA 3-06a','EXA 3-07a'],modes:['Make','Write','Say'],assessed:'Holistic portfolio review across all S1 units — informs S2 planning'},
+  ],
+  s2:[
+    {id:'tp1',label:'TP1',unit:'3D Design',timing:'On unit completion',eos:['EXA 3-02a','EXA 3-03a','EXA 3-06a','EXA 3-07a'],modes:['Make','Do','Write'],assessed:'3D piece with development drawings and evaluation explaining how brief was met'},
+    {id:'tp2',label:'TP2',unit:'Graphic Design',timing:'On unit completion',eos:['EXA 3-02a','EXA 3-03a','EXA 3-06a','EXA 3-07a'],modes:['Make','Write'],assessed:'Design compositions evaluated against brief — layout, typography, colour'},
+    {id:'tp3',label:'TP3',unit:'Expressive',timing:'On unit completion',eos:['EXA 3-02a','EXA 3-03a','EXA 3-07a'],modes:['Make','Say'],assessed:'Two-media expressive piece with observational drawing and style exploration'},
+    {id:'tp4',label:'TP4',unit:'Portraiture',timing:'On unit completion',eos:['EXA 3-03a','EXA 3-04a','EXA 3-07a'],modes:['Make','Write'],assessed:'Final portrait — accurate proportions, applied tone and texture. Artist influence explained'},
+    {id:'tp5',label:'TP5',unit:'Mid-year review',timing:'Mid-year',eos:['EXA 3-07a'],modes:['Write','Say'],assessed:'Written/verbal self-evaluation across first two completed units'},
+    {id:'tp6',label:'TP6',unit:'End-of-year review',timing:'End of year',eos:['EXA 3-02a','EXA 3-03a','EXA 3-06a','EXA 3-07a'],modes:['Make','Write','Say'],assessed:'Holistic review — all S2 units. Data used for senior phase pathway planning'},
+  ],
+  s3:[
+    {id:'tp1',label:'TP1',unit:'Expressive Investigations',timing:'Term 1',eos:['EXA 4-02a','EXA 4-03a','EXA 4-07a'],modes:['Make','Write'],assessed:'Sketchbook investigations, series of expressive studies, artist research page'},
+    {id:'tp2',label:'TP2',unit:'Expressive Developments',timing:'Term 2a',eos:['EXA 4-02a','EXA 4-03a','EXA 4-07a'],modes:['Make','Write'],assessed:'Developed sketchbook work, refined studies, resolved expressive artwork'},
+    {id:'tp3',label:'TP3',unit:'Critical Study — Expressive (Frida Kahlo)',timing:'Term 2b',eos:['EXA 4-04a','EXA 4-07a'],modes:['Write'],assessed:'Critical analysis writing, artist research notes, visual response study'},
+    {id:'tp4',label:'TP4',unit:'Critical Study — Design (Philippe Starck)',timing:'Term 3',eos:['EXA 4-05a','EXA 4-06a','EXA 4-07a'],modes:['Write'],assessed:'Critical analysis writing, designer research notes, design response study'},
+    {id:'tp5',label:'TP5',unit:'Expressive Final + Evaluation',timing:'Term 4a',eos:['EXA 4-02a','EXA 4-03a','EXA 4-07a'],modes:['Make','Write'],assessed:'Final resolved artwork, written evaluation, annotated sketchbook'},
+    {id:'tp6',label:'TP6',unit:'Design — Market Research + Brief',timing:'Term 4b',eos:['EXA 4-05a','EXA 4-06a','EXA 4-07a'],modes:['Write','Make'],assessed:'Market research notes, design brief document, range of initial ideas'},
+  ],
+};
+
+// Benchmarks per TP — CfE Expressive Arts Art & Design Third Level (EXA 3-02a, 3-03a, 3-04a, 3-06a, 3-07a) and Fourth Level (EXA 4-02a, 4-03a, 4-04a, 4-05a, 4-06a, 4-07a)
+// Source: Education Scotland CfE Expressive Arts Benchmarks
+const BM = {
+  s1:{
+    tp1:[
+      {proc:'cr', text:'When creating images and objects to express ideas, thoughts and feelings: shows understanding of how visual elements and visual concepts can be combined, for example, to create mood and atmosphere; selects independently and applies media and techniques, giving reasons for their choices (EXA 3-03a).'},
+      {proc:'pr', text:'Researches, develops and communicates a solution to a design brief by working through a process. Investigates, discusses and explains how artists and designers handle media, use techniques and processes, use visual elements and concepts (EXA 3-02a, 3-06a, 3-07a).'},
+      {proc:'ev', text:'Evaluates what works well and what could be improved or different in their own and others\' work, using appropriate art and design vocabulary (EXA 3-07a).'},
+    ],
+    tp2:[
+      {proc:'cr', text:'When creating images and objects to express ideas, thoughts and feelings: shows understanding of media properties and the effect of techniques and technology used; shows understanding of how visual elements and visual concepts can be combined (EXA 3-02a, 3-03a).'},
+      {proc:'pr', text:'Investigates, discusses and explains how artists and designers handle media, use techniques and processes, use visual elements and concepts (EXA 3-07a).'},
+      {proc:'ev', text:'Evaluates what works well and what could be improved or different in their own and others\' work, using appropriate art and design vocabulary (EXA 3-07a).'},
+    ],
+    tp3:[
+      {proc:'cr', text:'When creating images and objects to express ideas, thoughts and feelings: shows increasing accuracy in representing what is seen; selects independently and applies media and techniques, giving reasons for their choices (EXA 3-03a, 3-04a).'},
+      {proc:'pr', text:'Investigates, discusses and explains how artists and designers handle media, use techniques and processes, use visual elements and concepts (EXA 3-07a).'},
+      {proc:'ev', text:'Evaluates what works well and what could be improved or different in their own and others\' work, using appropriate art and design vocabulary (EXA 3-07a).'},
+    ],
+    tp4:[
+      {proc:'cr', text:'When creating images and objects to express ideas, thoughts and feelings: shows increasing accuracy in representing what is seen; shows understanding of how visual elements and visual concepts can be combined (EXA 3-03a, 3-04a).'},
+      {proc:'pr', text:'Investigates, discusses and explains how artists and designers handle media, use techniques and processes, use visual elements and concepts (EXA 3-07a).'},
+      {proc:'ev', text:'Evaluates what works well and what could be improved or different in their own and others\' work, using appropriate art and design vocabulary (EXA 3-07a).'},
+    ],
+    tp5:[
+      {proc:'cr', text:'When creating images and objects to express ideas, thoughts and feelings: shows understanding of media properties and the effect of techniques and technology used; selects independently and applies media and techniques, giving reasons for their choices (EXA 3-02a, 3-03a).'},
+      {proc:'pr', text:'Investigates, discusses and explains how artists and designers handle media, use techniques and processes, use visual elements and concepts (EXA 3-07a).'},
+      {proc:'ev', text:'Evaluates what works well and what could be improved or different in their own and others\' work, using appropriate art and design vocabulary (EXA 3-07a).'},
+    ],
+    tp6:[
+      {proc:'cr', text:'When creating images and objects to express ideas, thoughts and feelings: shows increasing accuracy in representing what is seen; shows understanding of media properties and the effect of techniques and technology used; selects independently and applies media and techniques, giving reasons for their choices (EXA 3-02a, 3-03a, 3-04a).'},
+      {proc:'pr', text:'Researches, develops and communicates a solution to a design brief by working through a process. Investigates, discusses and explains how artists and designers handle media, use techniques and processes, use visual elements and concepts (EXA 3-06a, 3-07a).'},
+      {proc:'ev', text:'Evaluates what works well and what could be improved or different in their own and others\' work, using appropriate art and design vocabulary (EXA 3-07a).'},
+    ],
+  },
+  s2:{
+    tp1:[
+      {proc:'cr', text:'Researches, develops and communicates a solution to a design brief by working through a process. When creating images and objects: shows understanding of media properties and the effect of techniques and technology used; selects independently and applies media and techniques, giving reasons for their choices (EXA 3-02a, 3-06a).'},
+      {proc:'pr', text:'Investigates, discusses and explains how artists and designers handle media, use techniques and processes, use visual elements and concepts (EXA 3-07a).'},
+      {proc:'ev', text:'Evaluates what works well and what could be improved or different in their own and others\' work, using appropriate art and design vocabulary (EXA 3-07a).'},
+    ],
+    tp2:[
+      {proc:'cr', text:'Researches, develops and communicates a solution to a design brief by working through a process. When creating images and objects: shows understanding of how visual elements and visual concepts can be combined; selects independently and applies media and techniques, giving reasons for their choices (EXA 3-03a, 3-06a).'},
+      {proc:'pr', text:'Investigates, discusses and explains how artists and designers handle media, use techniques and processes, use visual elements and concepts (EXA 3-07a).'},
+      {proc:'ev', text:'Evaluates what works well and what could be improved or different in their own and others\' work, using appropriate art and design vocabulary (EXA 3-07a).'},
+    ],
+    tp3:[
+      {proc:'cr', text:'When creating images and objects to express ideas, thoughts and feelings: shows increasing accuracy in representing what is seen; shows understanding of media properties and the effect of techniques and technology used; shows understanding of how visual elements and visual concepts can be combined (EXA 3-02a, 3-03a).'},
+      {proc:'pr', text:'Investigates, discusses and explains how artists and designers handle media, use techniques and processes, use visual elements and concepts (EXA 3-07a).'},
+      {proc:'ev', text:'Evaluates what works well and what could be improved or different in their own and others\' work, using appropriate art and design vocabulary (EXA 3-07a).'},
+    ],
+    tp4:[
+      {proc:'cr', text:'When creating images and objects to express ideas, thoughts and feelings: shows increasing accuracy in representing what is seen; selects independently and applies media and techniques, giving reasons for their choices (EXA 3-03a, 3-04a).'},
+      {proc:'pr', text:'Investigates, discusses and explains how artists and designers handle media, use techniques and processes, use visual elements and concepts (EXA 3-07a).'},
+      {proc:'ev', text:'Evaluates what works well and what could be improved or different in their own and others\' work, using appropriate art and design vocabulary (EXA 3-07a).'},
+    ],
+    tp5:[
+      {proc:'cr', text:'When creating images and objects to express ideas, thoughts and feelings: shows understanding of media properties and the effect of techniques and technology used; selects independently and applies media and techniques, giving reasons for their choices (EXA 3-02a, 3-03a).'},
+      {proc:'pr', text:'Investigates, discusses and explains how artists and designers handle media, use techniques and processes, use visual elements and concepts (EXA 3-07a).'},
+      {proc:'ev', text:'Evaluates what works well and what could be improved or different in their own and others\' work, using appropriate art and design vocabulary (EXA 3-07a).'},
+    ],
+    tp6:[
+      {proc:'cr', text:'Researches, develops and communicates a solution to a design brief by working through a process. When creating images and objects: shows understanding of how visual elements and visual concepts can be combined; selects independently and applies media and techniques, giving reasons for their choices (EXA 3-02a, 3-03a, 3-06a).'},
+      {proc:'pr', text:'Investigates, discusses and explains how artists and designers handle media, use techniques and processes, use visual elements and concepts (EXA 3-07a).'},
+      {proc:'ev', text:'Evaluates what works well and what could be improved or different in their own and others\' work, using appropriate art and design vocabulary (EXA 3-07a).'},
+    ],
+  },
+  s3:{
+    tp1:[
+      {proc:'cr', text:'When creating images and objects to express ideas, thoughts and feelings: demonstrates sensitivity and a consistent level of accuracy in representing what is seen; shows depth of understanding of media properties and the effect of techniques and technology used; selects independently and applies media and techniques with control and assurance, giving reasons for their choices (EXA 4-02a, 4-03a).'},
+      {proc:'pr', text:'Analyses and compares how artists and designers use techniques and processes, handle media and use visual elements and concepts (EXA 4-07a).'},
+      {proc:'ev', text:'Evaluates and makes informed judgements about what works well and what could be improved or different in their own and others\' work, using appropriate art and design vocabulary consistently (EXA 4-07a).'},
+    ],
+    tp2:[
+      {proc:'cr', text:'When creating images and objects to express ideas, thoughts and feelings: demonstrates how visual elements and visual concepts can be combined to express more complex ideas, for example, in relation to social or emotional themes; selects independently and applies media and techniques with control and assurance, giving reasons for their choices (EXA 4-03a, 4-05a).'},
+      {proc:'pr', text:'Analyses and compares how artists and designers use techniques and processes, handle media and use visual elements and concepts (EXA 4-07a).'},
+      {proc:'ev', text:'Evaluates and makes informed judgements about what works well and what could be improved or different in their own and others\' work, using appropriate art and design vocabulary consistently (EXA 4-07a).'},
+    ],
+    tp3:[
+      {proc:'cr', text:'Through creating a range of reference material, demonstrates skills of observing and recording. When creating images and objects: demonstrates sensitivity and a consistent level of accuracy in representing what is seen (EXA 4-04a, 4-05a).'},
+      {proc:'pr', text:'Analyses and compares how artists and designers use techniques and processes, handle media and use visual elements and concepts (EXA 4-07a).'},
+      {proc:'ev', text:'Evaluates and makes informed judgements about what works well and what could be improved or different in their own and others\' work, using appropriate art and design vocabulary consistently (EXA 4-07a).'},
+    ],
+    tp4:[
+      {proc:'cr', text:'By working through a design process in response to a design brief, develops and communicates imaginative and original design solutions. Researches, develops and communicates solutions to a design brief by working independently and systematically through a process (EXA 4-05a, 4-06a).'},
+      {proc:'pr', text:'Analyses and compares how artists and designers use techniques and processes, handle media and use visual elements and concepts (EXA 4-07a).'},
+      {proc:'ev', text:'Evaluates and makes informed judgements about what works well and what could be improved or different in their own and others\' work, using appropriate art and design vocabulary consistently (EXA 4-07a).'},
+    ],
+    tp5:[
+      {proc:'cr', text:'When creating images and objects to express ideas, thoughts and feelings: demonstrates sensitivity and a consistent level of accuracy in representing what is seen; demonstrates how visual elements and visual concepts can be combined to express more complex ideas; selects independently and applies media and techniques with control and assurance, giving reasons for their choices (EXA 4-03a, 4-05a).'},
+      {proc:'pr', text:'Analyses and compares how artists and designers use techniques and processes, handle media and use visual elements and concepts (EXA 4-07a).'},
+      {proc:'ev', text:'Evaluates and makes informed judgements about what works well and what could be improved or different in their own and others\' work, using appropriate art and design vocabulary consistently (EXA 4-07a).'},
+    ],
+    tp6:[
+      {proc:'cr', text:'By working through a design process in response to a design brief, develops and communicates imaginative and original design solutions. Researches, develops and communicates solutions to a design brief by working independently and systematically through a process (EXA 4-05a, 4-06a).'},
+      {proc:'pr', text:'Analyses and compares how artists and designers use techniques and processes, handle media and use visual elements and concepts (EXA 4-07a).'},
+      {proc:'ev', text:'Evaluates and makes informed judgements about what works well and what could be improved or different in their own and others\' work, using appropriate art and design vocabulary consistently (EXA 4-07a).'},
+    ],
+  },
+};
+
+const DIMS = ['progress','effort','behaviour','homelearning'];
+const DIM_LABELS = {progress:'Progress',effort:'Effort',behaviour:'Behaviour',homelearning:'Home Learning'};
+
+// ══════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════
+let S={
+  pupils:{s1:{},s2:{},s3:{}},
+  scores:{s1:{},s2:{},s3:{}},
+  profiles:{s1:{},s2:{},s3:{}},
+  curTP:{s1:'tp1',s2:'tp1',s3:'tp1'},
+  curCls:{s1:'all',s2:'all',s3:'all'},
+  defaultsOn:{}, // {s1:{tp1:false,tp2:false,...}, s2:{...}, s3:{...}} — per-unit default settings toggle
+};
+function load(){return (window.DataService?DataService.get('art-v2'):Promise.resolve(null)).then(function(d){if(d)Object.assign(S,d);}).catch(function(){});}
+function save(){if(window.DataService){DataService.set('art-v2',S).catch(function(){toast('Save failed');});}else{try{localStorage.setItem('art-v2',JSON.stringify(S));}catch(e){}}}
+function autoSave(){save();toast('Saved');}
+
+// ── UTILS ──
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2)}
+function toast(msg,ms=2300){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),ms);}
+function closeModal(){document.getElementById('modal-overlay').classList.remove('open')}
+function showModal(title,desc,okLbl,okFn,danger=true){
+  document.getElementById('m-title').textContent=title;
+  document.getElementById('m-desc').innerHTML=desc;
+  const b=document.getElementById('m-ok');b.textContent=okLbl;b.className='btn '+(danger?'btn-danger':'btn-primary');
+  b.onclick=()=>{okFn();closeModal();};
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function avg(arr){const f=arr.filter(v=>v&&v>0);return f.length?(f.reduce((a,b)=>a+b,0)/f.length):null;}
+function pct(a){return a?((a/4)*100):0;}
+
+// ── NAVIGATION ──
+const HEADS={
+  home:'Art &amp; Design BGE <span>Tracker</span>',
+  'setup-s1':'S1 — <span>Set Up Classes</span>','setup-s2':'S2 — <span>Set Up Classes</span>','setup-s3':'S3 — <span>Set Up Classes</span>',
+  'tracker-s1':'S1 Art &amp; Design — <span>Enter Scores</span>','tracker-s2':'S2 Art &amp; Design — <span>Enter Scores</span>','tracker-s3':'S3 Art &amp; Design — <span>Enter Scores</span>',
+  profiles:'<span>Pupil Profiles</span>',benchmarks:'<span>Benchmark Analysis</span>',overview:'<span>Progress Overview</span>',export:'<span>Export &amp; Send</span>',
+};
+function nav(id){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.sb-item').forEach(b=>b.classList.remove('active'));
+  const panel=document.getElementById('panel-'+id);if(!panel)return;
+  panel.classList.add('active');
+  const btn=document.querySelector(`.sb-item[data-panel="${id}"]`);if(btn)btn.classList.add('active');
+  document.getElementById('tb-heading').innerHTML=HEADS[id]||id;
+  if(id==='home')renderHome();
+  else if(id.startsWith('setup-'))renderSetup(id.replace('setup-',''));
+  else if(id.startsWith('tracker-'))renderTracker(id.replace('tracker-',''));
+  else if(id==='profiles')renderProfiles();
+  else if(id==='benchmarks')renderBenchmarks();
+  else if(id==='overview'){_ovYG='all';_ovCls='all';renderOverview();}
+  else if(id==='export')renderExportPreview();
+}
+
+// ══════════════════════════════════════════════════════════
+// HOME
+// ══════════════════════════════════════════════════════════
+function renderHome(){
+  let total=0;
+  ['s1','s2','s3'].forEach(yg=>{
+    let t=0;Object.values(S.pupils[yg]).forEach(a=>t+=a.length);
+    const el=document.getElementById('hm-'+yg);
+    if(el)el.textContent=`${Object.keys(S.pupils[yg]).length} class${Object.keys(S.pupils[yg]).length!==1?'es':''} · ${t} pupil${t!==1?'s':''}`;
+    total+=t;
+  });
+  const allScores=Object.values(S.scores).flatMap(yg=>Object.values(yg).flatMap(p=>Object.values(p).flatMap(tp=>DIMS.map(d=>tp[d]).filter(Boolean))));
+  const el=document.getElementById('home-stats');
+  if(el)el.innerHTML=`
+    <div><div class="hs-num">${total}</div><div class="hs-label">Pupils Registered</div></div>
+    <div><div class="hs-num">${allScores.length}</div><div class="hs-label">Process Scores</div></div>
+    <div><div class="hs-num">3</div><div class="hs-label">Year Groups</div></div>
+    <div><div class="hs-num">4</div><div class="hs-label">Score Dimensions</div></div>
+  `;
+}
+
+// ══════════════════════════════════════════════════════════
+// SETUP
+// ══════════════════════════════════════════════════════════
+function renderSetup(yg){
+  const el=document.getElementById('panel-setup-'+yg);
+  const classes=Object.keys(S.pupils[yg]).sort();
+  el.innerHTML=`
+    <div class="sc" style="margin-bottom:1.2rem">
+      <div class="sc-header"><div><div class="sc-title">${yg.toUpperCase()} Art &amp; Design — Class Setup</div><div class="sc-sub">Add class groups then enter pupil names. Data saves automatically in your browser.</div></div><div style="display:flex;gap:.4rem"><input type="file" id="artImportFile-${yg}" accept=".json" style="display:none" onchange="handleImportFile(event)"><button class="btn btn-ghost" style="font-size:.7rem" onclick="document.getElementById('artImportFile-${yg}').click()">Import from teacher</button></div></div>
+      <div class="sc-body">
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Class Name</label><input class="form-input" id="nc-${yg}" placeholder="e.g. 1A1, S1 Drama B" /></div>
+          <button class="btn btn-primary" style="margin-top:1.02rem" onclick="addClass('${yg}')">+ Add Class</button>
+        </div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(295px,1fr));gap:.95rem">
+      ${classes.length===0?`<div class="sc"><div class="sc-body"><div class="empty-s"><div class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>No classes yet — add one above.</div></div></div>`:''}
+      ${classes.map(c=>classCard(yg,c)).join('')}
+    </div>
+  `;
+}
+function classCard(yg,cls){
+  const pupils=S.pupils[yg][cls]||[];
+  return `<div class="sc" data-cls="${String(cls).replace(/"/g,'&quot;')}">
+    <div class="sc-header">
+      <div><div class="sc-title">${cls}</div><div class="sc-sub">${pupils.length} pupil${pupils.length!==1?'s':''}</div></div>
+      <div style="display:flex;gap:.32rem;flex-wrap:wrap">
+        <button class="btn btn-ghost" style="font-size:.61rem;padding:.26rem .58rem" onclick="bulkAdd('${yg}','${cls}')">Bulk Add</button>
+        ${yg!=='s3'?`<button class="btn btn-ghost" style="font-size:.61rem;padding:.26rem .58rem" onclick="promoteClass('${yg}',this.closest('.sc').dataset.cls)" title="Copy class and pupils to ${yg==='s1'?'S2':'S3'}">Promote</button>`:''}
+        <button class="btn btn-ghost" style="font-size:.61rem;padding:.26rem .58rem" onclick="exportForHandover('${yg}',this.closest('.sc').dataset.cls)" title="Download for another teacher">Export</button>
+        <button class="btn btn-danger" style="font-size:.61rem;padding:.26rem .58rem" onclick="delClass('${yg}','${cls}')">Delete</button>
+      </div>
+    </div>
+    <div class="sc-body">
+      <div class="form-row" style="margin-bottom:.65rem">
+        <div class="form-group"><input class="form-input" id="np-${yg}-${cls.replace(/\s/g,'_')}" placeholder="Pupil name" onkeydown="if(event.key==='Enter')addPupil('${yg}','${cls}')" /></div>
+        <button class="btn btn-primary" style="margin-top:1.02rem" onclick="addPupil('${yg}','${cls}')">Add</button>
+      </div>
+      <div class="pupil-list">
+        ${pupils.length===0?`<div class="empty-s" style="padding:.9rem;font-size:.74rem">No pupils yet.</div>`:''}
+        ${pupils.map((p,i)=>`<div class="pupil-row"><span class="p-num">${String(i+1).padStart(2,'0')}</span><span class="p-name">${p.name}</span><button class="p-del" onclick="delPupil('${yg}','${cls}','${p.id}')" title="Remove"><svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>`).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+function addClass(yg){
+  const inp=document.getElementById('nc-'+yg);const n=inp.value.trim();
+  if(!n){toast('Enter a class name');return;}
+  if(S.pupils[yg][n]){toast('Already exists');return;}
+  S.pupils[yg][n]=[];save();inp.value='';renderSetup(yg);toast(`"${n}" added`);
+}
+function delClass(yg,cls){
+  showModal(`Delete "${cls}"?`,`This removes all ${(S.pupils[yg][cls]||[]).length} pupils and their scores. Cannot be undone.`,'Delete',()=>{
+    (S.pupils[yg][cls]||[]).forEach(p=>{delete S.scores[yg][p.id];if(S.profiles[yg])delete S.profiles[yg][p.id];});
+    delete S.pupils[yg][cls];save();renderSetup(yg);toast('Class deleted');
+  });
+}
+function addPupil(yg,cls){
+  const k=`np-${yg}-${cls.replace(/\s/g,'_')}`;const inp=document.getElementById(k);
+  const n=inp.value.trim();if(!n){toast('Enter a name');return;}
+  S.pupils[yg][cls].push({id:uid(),name:n});save();inp.value='';renderSetup(yg);toast(`Added: ${n}`);
+}
+function delPupil(yg,cls,pid){
+  S.pupils[yg][cls]=S.pupils[yg][cls].filter(p=>p.id!==pid);
+  delete S.scores[yg][pid];if(S.profiles[yg])delete S.profiles[yg][pid];save();renderSetup(yg);toast('Pupil removed');
+}
+let _bYG='',_bCLS='';
+function bulkAdd(yg,cls){
+  _bYG=yg;_bCLS=cls;
+  showModal(`Bulk Add to ${cls}`,'Paste names — one per line:<br><br><textarea class="bulk-ta" id="bta" placeholder="First Last&#10;First Last&#10;First Last"></textarea><div class="helper">Duplicates skipped automatically.</div>','Add Pupils',processBulk,false);
+}
+function processBulk(){
+  const ta=document.getElementById('bta');if(!ta)return;
+  const existing=(S.pupils[_bYG][_bCLS]||[]).map(p=>p.name.toLowerCase());
+  let added=0;
+  ta.value.split('\n').map(l=>l.trim()).filter(Boolean).forEach(n=>{
+    if(!existing.includes(n.toLowerCase())){S.pupils[_bYG][_bCLS].push({id:uid(),name:n});existing.push(n.toLowerCase());added++;}
+  });
+  save();renderSetup(_bYG);toast(`Added ${added} pupil${added!==1?'s':''}`);
+}
+
+// ── PROMOTE CLASS (copy to next year, keep data) ──
+function promoteClass(yg,cls){
+  if(!cls)return;
+  const nextYg=yg==='s1'?'s2':yg==='s2'?'s3':null;
+  if(!nextYg){toast('S3 is the highest year group');return;}
+  const pupils=S.pupils[yg][cls]||[];
+  if(!pupils.length){toast('No pupils to promote');return;}
+  const targetCls=S.pupils[nextYg][cls]?cls+' (promoted)':cls;
+  if(S.pupils[nextYg][targetCls]){toast(`"${targetCls}" already exists in ${nextYg.toUpperCase()}`);return;}
+  showModal(`Promote "${cls}" to ${nextYg.toUpperCase()}?`,`${pupils.length} pupils will be copied to ${nextYg.toUpperCase()} as "${targetCls}". Their ${yg.toUpperCase()} data stays in ${yg.toUpperCase()} for reference. You can continue tracking them in the new year with fresh TP columns.`,'Promote',()=>{
+    const newPupils=pupils.map(p=>({id:uid(),name:p.name}));
+    S.pupils[nextYg][targetCls]=newPupils;
+    save();renderSetup(yg);nav('setup-'+nextYg);toast(`Promoted to ${nextYg.toUpperCase()} as "${targetCls}"`);
+  },false);
+}
+
+// ── EXPORT FOR HANDOVER ──
+function exportForHandover(yg,cls){
+  if(!cls)return;
+  const pupils=S.pupils[yg][cls]||[];
+  const scores={};const profiles={};
+  pupils.forEach(p=>{if(S.scores[yg][p.id])scores[p.id]=S.scores[yg][p.id];if(S.profiles[yg]?.[p.id])profiles[p.id]=S.profiles[yg][p.id];});
+  const exportData={subject:'art',version:1,exportDate:new Date().toISOString(),yearGroup:yg,className:cls,pupils:pupils.map(p=>({id:p.id,name:p.name})),scores,profiles};
+  const blob=new Blob([JSON.stringify(exportData,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`Art_${yg.toUpperCase()}_${cls.replace(/[^a-z0-9]/gi,'_')}_handover.json`;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(a.href);
+  toast('Downloaded — give file to receiving teacher');
+}
+
+// ── IMPORT FROM HANDOVER ──
+function handleImportFile(ev){
+  const f=ev.target.files[0];if(!f)return;
+  const r=new FileReader();r.onload=()=>{
+    try{
+      const d=JSON.parse(r.result);
+      if(!d.subject||!d.yearGroup||!d.className||!Array.isArray(d.pupils)){toast('Invalid handover file');return;}
+      if(d.subject!=='art'){toast('This file is for Art tracker — use the Drama tracker for Drama files');return;}
+      const yg=d.yearGroup;if(!['s1','s2','s3'].includes(yg)){toast('Invalid year group');return;}
+      const targetCls=d.className;
+      // Find existing class to replace (exact match or previous "imported" variant) — refresh instead of duplicate
+      const existingCls=Object.keys(S.pupils[yg]||{}).find(c=>c===targetCls||c.startsWith(targetCls+' (imported '));
+      if(existingCls){
+        (S.pupils[yg][existingCls]||[]).forEach(p=>{if(S.scores[yg])delete S.scores[yg][p.id];if(S.profiles[yg])delete S.profiles[yg][p.id];});
+        delete S.pupils[yg][existingCls];
+      }
+      const pidMap={};const newPupils=d.pupils.map(p=>{const np={id:uid(),name:p.name};pidMap[p.id]=np.id;return np;});
+      S.pupils[yg][targetCls]=newPupils;
+      if(!S.scores[yg])S.scores[yg]={};
+      Object.entries(d.scores||{}).forEach(([oldPid,sc])=>{const newPid=pidMap[oldPid];if(newPid)S.scores[yg][newPid]=sc;});
+      if(!S.profiles[yg])S.profiles[yg]={};
+      Object.entries(d.profiles||{}).forEach(([oldPid,prof])=>{const newPid=pidMap[oldPid];if(newPid)S.profiles[yg][newPid]=prof;});
+      save();renderSetup(yg);toast(existingCls?`Refreshed "${targetCls}" — ${newPupils.length} pupils`:`Imported "${targetCls}" — ${newPupils.length} pupils`);
+    }catch(e){toast('Could not parse file');}
+  };
+  r.readAsText(f);ev.target.value='';
+}
+
+// ══════════════════════════════════════════════════════════
+// TRACKER
+// ══════════════════════════════════════════════════════════
+
+// Tracks which bulk score is selected per dimension for the current view
+let _bulkSel = {}; // {dim: value|null}
+
+function renderTracker(yg){
+  _bulkSel = {};
+  const el=document.getElementById('panel-tracker-'+yg);
+  const tps=TPS[yg];const tpId=S.curTP[yg];
+  const tp=tps.find(t=>t.id===tpId)||tps[0];
+  const classes=Object.keys(S.pupils[yg]).sort();
+  const curCls=S.curCls[yg];
+  let pupils=[];
+  if(curCls==='all')classes.forEach(c=>(S.pupils[yg][c]||[]).forEach(p=>pupils.push({...p,cls:c})));
+  else(S.pupils[yg][curCls]||[]).forEach(p=>pupils.push({...p,cls:curCls}));
+  const totalAll=classes.reduce((a,c)=>a+(S.pupils[yg][c]||[]).length,0);
+  const scored=pupils.filter(p=>DIMS.some(d=>S.scores[yg]?.[p.id]?.[tpId]?.[d]>0)).length;
+
+  const tabsHTML=tps.map(t=>{
+    const hasData=classes.some(c=>(S.pupils[yg][c]||[]).some(p=>DIMS.some(d=>S.scores[yg]?.[p.id]?.[t.id]?.[d]>0)));
+    return `<button class="tp-tab ${t.id===tpId?'active':''}" onclick="setTP('${yg}','${t.id}')">${t.label}: ${t.unit}${hasData?'<span class="has-dot"></span>':''}</button>`;
+  }).join('');
+
+  const filterHTML=`
+    <button class="cf-btn ${curCls==='all'?'active':''}" onclick="setCls('${yg}','all')">All (${totalAll})</button>
+    ${classes.map(c=>`<button class="cf-btn ${curCls===c?'active':''}" onclick="setCls('${yg}','${c}')">${c} (${(S.pupils[yg][c]||[]).length})</button>`).join('')}
+  `;
+
+  const modeMap={Say:'mc-say',Write:'mc-write',Make:'mc-make',Do:'mc-do'};
+
+  // Benchmarks from CfE Expressive Arts
+  const bmList=BM[yg]?.[tpId]||[];
+  const bmHTML=bmList.map(b=>`<div class="bm-item"><span class="bm-proc bm-${b.proc}">${b.proc==='cr'?'Creating':b.proc==='pr'?'Presenting':'Evaluating'}</span><span class="bm-text">${b.text}</span></div>`).join('');
+
+  // Summary
+  const dimAvgs={};
+  DIMS.forEach(d=>{dimAvgs[d]=avg(pupils.map(p=>S.scores[yg]?.[p.id]?.[tpId]?.[d]).filter(v=>v>0));});
+
+  const dimConfigs=[
+    {d:'progress',lbl:'Progress',col:'#c0622a',avg:dimAvgs.progress},
+    {d:'effort',lbl:'Effort',col:'#92400e',avg:dimAvgs.effort},
+    {d:'behaviour',lbl:'Behaviour',col:'#be185d',avg:dimAvgs.behaviour},
+    {d:'homelearning',lbl:'Home Learning',col:'#b45309',avg:dimAvgs.homelearning},
+  ];
+
+  const sumHTML=dimConfigs.map(({lbl,col,avg:a})=>`
+    <div class="sum-c">
+      <div class="sum-n" style="color:${col}">${a?a.toFixed(1):'—'}</div>
+      <div class="sum-l">${lbl}</div>
+    </div>`).join('');
+
+  // Apply defaults only when teacher has enabled "Default settings" for this unit
+  const defaultsEnabled=S.defaultsOn?.[yg]?.[tpId]===true;
+  if(defaultsEnabled){
+    const PROC_DEFAULT=3,ATTIT_DEFAULT=4;
+    pupils.forEach(p=>{
+      if(!S.scores[yg])S.scores[yg]={};
+      if(!S.scores[yg][p.id])S.scores[yg][p.id]={};
+      if(!S.scores[yg][p.id][tpId])S.scores[yg][p.id][tpId]={};
+      const sc=S.scores[yg][p.id][tpId];
+      if(sc.progress===undefined)sc.progress=PROC_DEFAULT;
+      ['effort','behaviour','homelearning'].forEach(d=>{if(sc[d]===undefined)sc[d]=ATTIT_DEFAULT;});
+    });
+    save();
+  }
+
+  // Bulk-apply toolbar — one score selector per dimension
+  const bulkColsHTML=DIMS.map((d,i)=>{
+    const lbl=DIM_LABELS[d];
+    const btns=[1,2,3,4].map(n=>`<button class="bulk-btn s${n}" id="bb-${yg}-${d}-${n}" onclick="selectBulk('${yg}','${d}',${n})">${n}</button>`).join('');
+    return `${i===1?'<div class="bulk-divider"></div>':''}<div class="bulk-col"><span class="bulk-col-lbl">${lbl}</span>${btns}</div>`;
+  }).join('');
+
+  const tableHTML=pupils.length===0?`<div class="empty-s" style="padding:2rem"><div class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>No pupils. <span style="color:var(--accent);cursor:pointer" onclick="nav('setup-${yg}')">Set up classes first</span></div>`:`
+    <div class="bulk-bar">
+      <span class="bulk-bar-label">Set all to</span>
+      ${bulkColsHTML}
+      <button class="bulk-apply-btn" onclick="applyBulk('${yg}','${tpId}')">Apply to all visible pupils</button>
+    </div>
+    <div class="tbl-wrap">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th rowspan="2" style="width:32px;padding:.6rem .4rem"></th>
+            <th rowspan="2" style="min-width:148px">Pupil</th>
+            <th rowspan="2" style="min-width:140px">Notes</th>
+            <th class="sc-col h-cr grp-start">Progress</th>
+            <th class="sc-col h-ef">Effort</th>
+            <th class="sc-col h-bh">Behaviour</th>
+            <th class="sc-col h-hl">Home Learning</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${pupils.map(p=>{
+            const sc=S.scores[yg]?.[p.id]?.[tpId]||{};
+            return `<tr data-pid="${p.id}">
+              <td style="text-align:center;padding:.4rem .4rem">
+                <button class="row-del" onclick="removePupilFromTracker('${yg}','${p.cls||curCls}','${p.id}')" title="Remove ${p.name}">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+                </button>
+              </td>
+              <td><div class="p-name-th">${p.name}</div><div class="p-cls-th">${p.cls}</div></td>
+              <td><textarea class="notes-inp" placeholder="Notes…" onblur="setNote('${yg}','${p.id}','${tpId}',this.value)">${sc.notes||''}</textarea></td>
+              ${DIMS.map((d,i)=>`<td class="${i===0?'grp-start':''}">${scoreCell(yg,p.id,tpId,d,sc[d])}</td>`).join('')}
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>
+    </div>`;
+
+  el.innerHTML=`
+    <div class="tracker-ctrl">
+      <div style="flex:1">
+        <div style="font-size:.53rem;font-weight:700;letter-spacing:.17em;text-transform:uppercase;color:var(--text3);margin-bottom:.35rem">${yg.toUpperCase()} — Select Tracking Period</div>
+        <div class="tp-tabs">${tabsHTML}</div>
+      </div>
+      <div class="tracker-meta">${scored} / ${pupils.length} scored this TP</div>
+    </div>
+
+    <div class="tp-info">
+      <div>
+        <div class="tp-unit">${tp.label}: ${tp.unit}</div>
+        <div class="tp-assessed">${tp.assessed}</div>
+        <div class="tp-eos">${tp.eos.map(e=>`<span class="eo-chip">${e}</span>`).join('')}</div>
+        <div class="bm-section-title">CfE Benchmarks assessed this unit</div>
+        <div class="bm-list">${bmHTML||'<span style="font-size:.7rem;color:rgba(255,255,255,.25)">No benchmarks.</span>'}</div>
+      </div>
+      <div class="tp-right">
+        <div class="defaults-toggle-wrap">
+          <span class="defaults-toggle-lbl">Default settings</span>
+          <button class="defaults-toggle-btn ${defaultsEnabled?'on':''}" onclick="toggleDefaults('${yg}','${tpId}')" title="${defaultsEnabled?'Defaults applied — Progress 3, Attitudinal 4. Click to turn off.':'No defaults until you turn this on. Click to apply Progress 3, Attitudinal 4 for unscored cells.'}">
+            <span class="defaults-toggle-slider"></span>
+          </button>
+          <span class="defaults-toggle-state">${defaultsEnabled?'On':'Off'}</span>
+        </div>
+        <div class="tp-timing">${tp.timing}</div>
+        <div class="mode-chips">${tp.modes.map(m=>`<span class="mc ${modeMap[m]||''}">${m}</span>`).join('')}</div>
+      </div>
+    </div>
+
+    <div class="sum-strip">${sumHTML}</div>
+    <div class="cls-filter">${filterHTML}</div>
+    ${tableHTML}
+  `;
+}
+
+function scoreCell(yg,pid,tpId,dim,current){
+  const btns=[1,2,3,4].map(n=>`<button class="sc-btn s${n} ${current===n?'active':''}" onclick="setScore('${yg}','${pid}','${tpId}','${dim}',${n},this)">${n}</button>`).join('');
+  const na=`<button class="na-btn ${current===0?'active':''}" onclick="setScore('${yg}','${pid}','${tpId}','${dim}',0,this)" title="Not assessed this TP">N/A</button>`;
+  return `<div class="sc-wrap"><div class="sc-group">${btns}${na}</div></div>`;
+}
+function setTP(yg,id){S.curTP[yg]=id;renderTracker(yg);}
+function setCls(yg,cls){S.curCls[yg]=cls;renderTracker(yg);}
+function isDefaultsOn(yg,tpId){return S.defaultsOn?.[yg]?.[tpId]===true;}
+function toggleDefaults(yg,tpId){
+  if(!S.defaultsOn[yg])S.defaultsOn[yg]={};
+  S.defaultsOn[yg][tpId]=!S.defaultsOn[yg][tpId];
+  save();renderTracker(yg);
+}
+function setScore(yg,pid,tpId,dim,val,btn){
+  if(!S.scores[yg])S.scores[yg]={};
+  if(!S.scores[yg][pid])S.scores[yg][pid]={};
+  if(!S.scores[yg][pid][tpId])S.scores[yg][pid][tpId]={};
+  const cur=S.scores[yg][pid][tpId][dim];
+  S.scores[yg][pid][tpId][dim]=(cur===val)?null:val;
+  save();
+  const cell=btn.closest('td');const nv=S.scores[yg][pid][tpId][dim];
+  cell.querySelectorAll('.sc-btn').forEach(b=>b.classList.toggle('active',nv===parseInt(b.textContent)));
+  cell.querySelectorAll('.na-btn').forEach(b=>b.classList.toggle('active',nv===0));
+}
+function setNote(yg,pid,tpId,val){
+  if(!S.scores[yg])S.scores[yg]={};
+  if(!S.scores[yg][pid])S.scores[yg][pid]={};
+  if(!S.scores[yg][pid][tpId])S.scores[yg][pid][tpId]={};
+  S.scores[yg][pid][tpId].notes=val;save();
+}
+
+// ── BULK APPLY ──
+function selectBulk(yg,dim,val){
+  // Toggle — click same value again to deselect
+  _bulkSel[dim] = (_bulkSel[dim]===val) ? null : val;
+  // Update button highlight states for this dimension
+  [1,2,3,4].forEach(n=>{
+    const b=document.getElementById(`bb-${yg}-${dim}-${n}`);
+    if(b) b.classList.toggle('sel', _bulkSel[dim]===n);
+  });
+}
+
+function applyBulk(yg,tpId){
+  const dims=Object.keys(_bulkSel).filter(d=>_bulkSel[d]!=null);
+  if(!dims.length){toast('Select a score for at least one column first');return;}
+
+  // Get currently visible pupils from the table rows
+  const rows=document.querySelectorAll(`#panel-tracker-${yg} tbody tr[data-pid]`);
+  let count=0;
+  rows.forEach(row=>{
+    const pid=row.dataset.pid;
+    if(!pid)return;
+    if(!S.scores[yg])S.scores[yg]={};
+    if(!S.scores[yg][pid])S.scores[yg][pid]={};
+    if(!S.scores[yg][pid][tpId])S.scores[yg][pid][tpId]={};
+    dims.forEach(d=>{
+      S.scores[yg][pid][tpId][d]=_bulkSel[d];
+      // Update buttons in this row visually without re-rendering
+      const colIdx=DIMS.indexOf(d);
+      // Find score cells in row — 3 header cols (del, pupil, notes) then score cols
+      const cells=row.querySelectorAll('td');
+      // Score cells start at index 3
+      const scoreCell=cells[3+colIdx];
+      if(scoreCell){
+        scoreCell.querySelectorAll('.sc-btn').forEach(b=>b.classList.toggle('active',parseInt(b.textContent)===_bulkSel[d]));
+        scoreCell.querySelectorAll('.na-btn').forEach(b=>b.classList.remove('active'));
+      }
+    });
+    count++;
+  });
+  save();
+  toast(`Applied to ${count} pupil${count!==1?'s':''} — adjust individually as needed`);
+}
+
+// ── REMOVE PUPIL from tracker (also removes from class list) ──
+function removePupilFromTracker(yg,cls,pid){
+  // Find pupil name for confirmation
+  const pupil=(S.pupils[yg][cls]||[]).find(p=>p.id===pid);
+  const name=pupil?pupil.name:'this pupil';
+  showModal(
+    `Remove ${name}?`,
+    `This will permanently remove <strong>${name}</strong> from <strong>${cls}</strong> and delete all their scores. This cannot be undone.`,
+    'Remove Pupil',
+    ()=>{
+      S.pupils[yg][cls]=S.pupils[yg][cls].filter(p=>p.id!==pid);
+      delete S.scores[yg][pid];if(S.profiles[yg])delete S.profiles[yg][pid];
+      save();
+      // Remove the row from DOM without full re-render
+      const row=document.querySelector(`#panel-tracker-${yg} tr[data-pid="${pid}"]`);
+      if(row){
+        row.style.transition='opacity .2s';
+        row.style.opacity='0';
+        setTimeout(()=>{row.remove();},220);
+      }
+      toast(`${name} removed`);
+    }
+  );
+}
+
+// ══════════════════════════════════════════════════════════
+// PUPIL PROFILES — Learner Conversations
+// ══════════════════════════════════════════════════════════
+const SCALE_GUIDE = [
+  {n:1,cls:'s1',title:'I\'m working on my targets',desc:'I\'m getting help with my learning and I\'m trying hard to reach my targets. I\'m making small steps forward.'},
+  {n:2,cls:'s2',title:'I\'m getting there',desc:'I\'m making progress but I\'m not quite there yet. I\'m working towards what\'s expected and I\'m getting better.'},
+  {n:3,cls:'s3',title:'I\'m on track',desc:'I\'m doing what\'s expected for my stage. I\'m showing the skills and knowledge I need.'},
+  {n:4,cls:'s4',title:'I\'m doing really well',desc:'I\'m doing more than expected! I can work on my own and show deep understanding.'},
+];
+const SCALE_NOTE = 'This scale is used for: Progress (your art work) · Effort (how hard you try) · Behaviour (working well with others) · Home Learning (homework & sketchbook).';
+
+const PROFILE_PROMPTS = {
+  teacher:[
+    'What do you think you have done well in Art & Design this term?',
+    'What would you like to improve in your practical work or evaluation?',
+    'What support do you need to progress?',
+    'Can you give me an example of when you felt confident in your art work?',
+    'How do you feel about your progress in using media and techniques?',
+    'What is your next step in learning Art & Design?',
+  ],
+  pupil:[
+    'What am I most proud of in Art & Design this term?',
+    'What would I do differently next time?',
+    'What do I need to practise more?',
+    'What help do I need from my teacher?',
+    'What is my next step in learning?',
+    'What have I learned about evaluating my own and others\' work?',
+  ],
+};
+let _profYG='s1',_profCls='',_profPid='';
+
+function buildArtProfileAnalysis(yg,pid){
+  const tps=TPS[yg];const sc=S.scores[yg]?.[pid]||{};
+  const dims={progress:[],effort:[],behaviour:[],homelearning:[]};
+  tps.forEach(tp=>{
+    const s=sc[tp.id]||{};
+    ['progress','effort','behaviour','homelearning'].forEach(d=>{if(s[d]>0)dims[d].push(s[d]);});
+  });
+  const avgs={};Object.keys(dims).forEach(d=>{avgs[d]=avg(dims[d]);});
+  const progAvg=avgs.progress;
+  const badges=[];const strengths=[];const areas=[];const nextSteps=[];
+  if(progAvg>=3.5)badges.push({cls:'gold',icon:'★',text:'Above Expectations'});
+  else if(progAvg>=2.5)badges.push({cls:'green',icon:'✓',text:'On Track'});
+  else if(progAvg!=null)badges.push({cls:'amber',icon:'↗',text:'Developing'});
+  if(progAvg!=null&&progAvg<2.5)badges.push({cls:'blue',icon:'💪',text:'Needs Support'});
+  if(avgs.progress>=3)badges.push({cls:'gold',icon:'◆',text:'Strong Progress'});
+  if(avgs.effort>=3)badges.push({cls:'green',icon:'↑',text:'Consistent Effort'});
+  if(avgs.behaviour>=3)badges.push({cls:'green',icon:'◎',text:'Positive Behaviour'});
+  if(avgs.homelearning>=3)badges.push({cls:'green',icon:'📋',text:'Home Learning on Track'});
+  const tpsScored=tps.filter(tp=>(sc[tp.id]||{}).progress>0).length;
+  if(tpsScored>=4)badges.push({cls:'blue',icon:'📊',text:'Good Coverage'});
+  if(avgs.progress>=2.5&&avgs.progress!=null)strengths.push('practical work and design solutions');
+  if(avgs.effort>=2.5&&avgs.effort!=null)strengths.push('effort and engagement');
+  if(avgs.progress<2.5&&avgs.progress!=null)areas.push('Progress');if(avgs.effort<2.5&&avgs.effort!=null)areas.push('Effort');if(avgs.behaviour<2.5&&avgs.behaviour!=null)areas.push('Behaviour');if(avgs.homelearning<2.5&&avgs.homelearning!=null)areas.push('Home learning');
+  if(areas.includes('Progress'))nextSteps.push('Develop practical skills and evaluation against brief; use art vocabulary when discussing work.');
+  if(areas.includes('Effort'))nextSteps.push('Increase engagement in practical tasks and class activities.');
+  if(areas.includes('Behaviour'))nextSteps.push('Focus on positive collaboration and classroom conduct.');
+  if(areas.includes('Home learning'))nextSteps.push('Complete homework and sketchbook tasks to support learning.');
+  if(nextSteps.length===0&&progAvg!=null)nextSteps.push('Continue to extend learning through more challenging design briefs and media exploration.');
+  const progressComment=progAvg==null?'No scores entered yet — add data in the tracker to generate a progress report.'
+    :`Is ${progAvg>=3?'progressing well':progAvg>=2.5?'making steady progress':'working towards'} in Art & Design with an average Progress score of ${progAvg.toFixed(1)}. ${strengths.length?`Strengths include ${strengths.join(', ')}. `:''}${areas.length?`Areas to develop: ${areas.join(', ')}.`:''}`;
+  return {badges,avgs,progAvg,progressComment,nextSteps,dims:['progress','effort','behaviour','homelearning'],dimLabels:{progress:'Progress',effort:'Effort',behaviour:'Behaviour',homelearning:'Home Learning'}};
+}
+
+function setProfPupil(yg,cls,pid){ _profYG=yg;_profCls=cls;_profPid=pid;renderProfiles(); }
+function saveProfileField(yg,pid,field,val){
+  if(!S.profiles[yg])S.profiles[yg]={};
+  if(!S.profiles[yg][pid])S.profiles[yg][pid]={};
+  S.profiles[yg][pid][field]=val;
+  S.profiles[yg][pid].lastUpdated=new Date().toISOString().slice(0,10);
+  save();
+}
+
+function renderProfiles(){
+  const body=document.getElementById('profiles-body');
+  const classes=Object.keys(S.pupils[_profYG]||{}).sort();
+  const allPupils=[];classes.forEach(c=>(S.pupils[_profYG][c]||[]).forEach(p=>allPupils.push({...p,cls:c})));
+
+  if(!classes.length){
+    body.innerHTML='<div class="empty-s"><div class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>No classes set up yet. Add classes and pupils in Class Setup first.</div>';
+    return;
+  }
+
+  const prof=S.profiles[_profYG]?.[_profPid]||{};
+  const pupil=allPupils.find(p=>p.id===_profPid);
+
+  let html=`
+    <div class="profile-select no-print">
+      <div class="form-group">
+        <label class="form-label">Year group</label>
+        <select class="form-input" onchange="setProfPupil(this.value,'','')">
+          ${['s1','s2','s3'].map(y=>`<option value="${y}" ${_profYG===y?'selected':''}>${y.toUpperCase()}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Class</label>
+        <select class="form-input" onchange="setProfPupil(_profYG,this.value||this.options[this.selectedIndex].value,'')">
+          <option value="">— Select class —</option>
+          ${classes.map(c=>`<option value="${c}" ${_profCls===c?'selected':''}>${c}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group" style="flex:1;min-width:180px">
+        <label class="form-label">Pupil</label>
+        <select class="form-input" onchange="setProfPupil(_profYG,_profCls,this.value)">
+          <option value="">— Select pupil —</option>
+          ${(_profCls?(S.pupils[_profYG][_profCls]||[]):allPupils).map(p=>`<option value="${p.id}" ${_profPid===p.id?'selected':''}>${p.name}${p.cls?' ('+p.cls+')':''}</option>`).join('')}
+        </select>
+      </div>
+    </div>`;
+
+  if(pupil){
+    const tps=TPS[_profYG];const sc=S.scores[_profYG]?.[pupil.id]||{};
+    const scoreSummary=tps.map(tp=>{
+      const s=sc[tp.id]||{};
+      const prog=s.progress;
+      return {tp:tp.label,unit:tp.unit,progress:prog};
+    });
+    const analysis=buildArtProfileAnalysis(_profYG,pupil.id);
+    const dimCols={progress:'#c0622a',effort:'#92400e',behaviour:'#be185d',homelearning:'#b45309'};
+
+    const printDate=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+    html+=`
+    <div class="profile-card">
+      <div class="profile-print-header">
+        <div class="school">Knightswood Secondary School</div>
+        <div class="title">Pupil Progress Profile — Art &amp; Design</div>
+        <div class="date">${printDate} · Use "Save as PDF" when printing to email to parents</div>
+      </div>
+      <div class="profile-head">
+        <div><div class="profile-name">${pupil.name}</div><div class="profile-meta">${pupil.cls} · ${_profYG.toUpperCase()} Art &amp; Design</div></div>
+        <button class="profile-print-btn no-print" onclick="window.print()" title="Print or Save as PDF to email"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print / Save PDF</button>
+      </div>
+      <div class="profile-body">
+        <div class="profile-section">
+          <div class="profile-section-title">Achievement badges</div>
+          <div class="profile-badges">
+            ${analysis.badges.length?analysis.badges.map(b=>`<span class="profile-badge ${b.cls}"><span class="profile-badge-icon">${b.icon}</span>${b.text}</span>`).join(''):'<span style="font-size:.75rem;color:var(--text3)">Enter scores to generate badges</span>'}
+          </div>
+        </div>
+        <div class="profile-visual-row">
+          <div class="profile-report-card">
+            <h4>Progress report</h4>
+            <p><strong>${pupil.name}</strong> ${analysis.progressComment}</p>
+          </div>
+          <div class="profile-report-card">
+            <h4>Progress by dimension</h4>
+            ${analysis.dims.map(d=>{
+              const a=analysis.avgs[d];const pct=a?((a/4)*100):0;const col=dimCols[d];const lbl=analysis.dimLabels[d];
+              return `<div class="profile-dim-bar"><span class="profile-dim-lbl">${lbl}</span><div class="profile-dim-track"><div class="profile-dim-fill" style="width:${pct}%;background:${col}"></div></div><span class="profile-dim-val" style="color:${col}">${a?a.toFixed(1):'—'}</span></div>`;
+            }).join('')}
+          </div>
+        </div>
+        <div class="profile-section">
+          <div class="profile-section-title">What do the numbers mean?</div>
+          <div class="profile-scale-section">
+            <div class="profile-scale-cards">
+              ${SCALE_GUIDE.map(s=>`<div class="profile-scale-card"><div class="profile-scale-num ${s.cls}">${s.n}</div><div class="profile-scale-card-title">${s.title}</div><div class="profile-scale-card-desc">${s.desc}</div></div>`).join('')}
+            </div>
+            <div class="profile-scale-note">${SCALE_NOTE}</div>
+          </div>
+        </div>
+        <div class="profile-section">
+          <div class="profile-section-title">Next steps</div>
+          <div class="profile-report-card">
+            ${analysis.nextSteps.length?`<ul style="margin:0;padding-left:1.2rem;font-size:.8rem;color:var(--text2);line-height:1.8">${analysis.nextSteps.map(s=>`<li>${s}</li>`).join('')}</ul>`:'<p style="color:var(--text3)">Enter scores to generate suggested next steps.</p>'}
+          </div>
+        </div>
+        <div class="profile-section">
+          <div class="profile-section-title">Scores by TP</div>
+          <div class="profile-scores-grid">
+            ${scoreSummary.map(r=>`<div class="profile-score-cell"><div class="profile-score-lbl">${r.tp}</div><div class="profile-score-val">${r.progress?r.progress.toFixed(1):'—'}</div><div class="profile-score-lbl" style="font-size:.5rem">${r.unit}</div></div>`).join('')}
+          </div>
+        </div>
+        <div class="profile-section no-print">
+          <div class="profile-section-title">Teacher notes — for learner conversation</div>
+          <textarea class="profile-ta" placeholder="Add notes about this pupil's progress to share during learner conversations…" onblur="saveProfileField('${_profYG}','${pupil.id}','teacherNotes',this.value)">${(prof.teacherNotes||'').replace(/</g,'&lt;')}</textarea>
+        </div>
+        <div class="profile-section no-print">
+          <div class="profile-section-title">Pupil reflection</div>
+          <textarea class="profile-ta" placeholder="Pupil can complete this before or during the conversation…" onblur="saveProfileField('${_profYG}','${pupil.id}','pupilReflection',this.value)">${(prof.pupilReflection||'').replace(/</g,'&lt;')}</textarea>
+        </div>
+        <div class="profile-section no-print">
+          <div class="profile-section-title">Question prompts for teacher</div>
+          <div class="profile-prompts">${PROFILE_PROMPTS.teacher.map(q=>`<div class="profile-prompt-item">${q}</div>`).join('')}</div>
+        </div>
+        <div class="profile-section no-print">
+          <div class="profile-section-title">Question prompts for pupil reflection</div>
+          <div class="profile-prompts">${PROFILE_PROMPTS.pupil.map(q=>`<div class="profile-prompt-item">${q}</div>`).join('')}</div>
+        </div>
+      </div>
+    </div>`;
+  } else {
+    html+='<div class="empty-s" style="padding:2rem"><div class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>Select a pupil to view and edit their profile.</div>';
+  }
+
+  body.innerHTML=html;
+}
+
+// ══════════════════════════════════════════════════════════
+// BENCHMARK ANALYSIS
+// ══════════════════════════════════════════════════════════
+function renderBenchmarks(){
+  const body=document.getElementById('bm-body');
+  let html='';let anyData=false;
+
+  // Global dimension averages
+  const global={progress:[],effort:[],behaviour:[],homelearning:[]};
+  ['s1','s2','s3'].forEach(yg=>{
+    Object.keys(S.pupils[yg]).forEach(cls=>{
+      (S.pupils[yg][cls]||[]).forEach(p=>{
+        TPS[yg].forEach(tp=>{
+          const sc=S.scores[yg]?.[p.id]?.[tp.id]||{};
+          DIMS.forEach(d=>{if(sc[d]>0){global[d].push(sc[d]);anyData=true;}});
+        });
+      });
+    });
+  });
+
+  if(!anyData){body.innerHTML='<div class="empty-s"><div class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg></div>No scores entered yet. Enter scores in the tracker panels first.</div>';return;}
+
+  const dimConfigs=[
+    {d:'progress',cls:'pr',col:'#c0622a',title:'Progress',desc:'CfE benchmarks: creating, presenting & evaluating'},
+    {d:'effort',cls:'ef',col:'#92400e',title:'Effort',desc:'Engagement and application'},
+    {d:'behaviour',cls:'bh',col:'#be185d',title:'Behaviour',desc:'Classroom conduct and collaboration'},
+    {d:'homelearning',cls:'hl',col:'#b45309',title:'Home Learning',desc:'Homework and sketchbook completion'},
+  ];
+
+  // Global overview
+  html+=`<div class="bm-ov-grid" style="grid-template-columns:repeat(4,1fr)">
+    ${dimConfigs.map(({d,cls,col,title,desc})=>{
+      const a=avg(global[d]);const p=pct(a);
+      return `<div class="bm-ov-card" style="background:rgba(192,98,42,.07);border:1px solid rgba(192,98,42,.22)">
+        <div class="bm-ov-title" style="color:${col}">${title}</div>
+        <div class="bm-ov-desc">${desc}</div>
+        <div class="bm-ov-avg" style="color:${col}">${a?a.toFixed(2):'—'}</div>
+        <div class="bm-ov-lbl">Faculty-wide average / 4 &nbsp;(${global[d].length} scores)</div>
+        <div class="bm-bar-wrap"><div class="bm-bar-fill" style="width:${p}%;background:${col}"></div></div>
+      </div>`;
+    }).join('')}
+  </div>`;
+
+  // Per year group — CfE benchmarks with Progress per TP
+  ['s1','s2','s3'].forEach(yg=>{
+    const classes=Object.keys(S.pupils[yg]);
+    if(!classes.length)return;
+    const allPupils=[];
+    classes.forEach(c=>(S.pupils[yg][c]||[]).forEach(p=>allPupils.push({...p,cls:c})));
+    if(!allPupils.length)return;
+
+    const ygData=[];
+    TPS[yg].forEach(tp=>{
+      (BM[yg]?.[tp.id]||[]).forEach(bm=>{
+        const scores=allPupils.map(p=>S.scores[yg]?.[p.id]?.[tp.id]?.progress).filter(v=>v>0);
+        const a=avg(scores);
+        ygData.push({tp:tp.label,unit:tp.unit,proc:bm.proc,text:bm.text,avg:a,n:scores.length,total:allPupils.length});
+      });
+    });
+
+    const hasAny=ygData.some(r=>r.avg);
+    const progSummary=dimConfigs.map(({d,col,title})=>{
+      const vals=[];['s1','s2','s3'].forEach(y=>Object.keys(S.pupils[y]||{}).forEach(c=>(S.pupils[y][c]||[]).forEach(p=>TPS[y].forEach(t=>{const v=S.scores[y]?.[p.id]?.[t.id]?.[d];if(v>0)vals.push(v);}))));
+      const a=avg(vals);
+      return `<div style="text-align:center;padding:.45rem .8rem;border-radius:6px;background:rgba(192,98,42,.08);border:1px solid rgba(192,98,42,.22)">
+        <div style="font-family:'Sora',sans-serif;font-size:1.05rem;font-weight:800;color:${col}">${a?a.toFixed(1):'—'}</div>
+        <div style="font-size:.55rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:${col};opacity:.75">${title}</div>
+      </div>`;
+    }).join('');
+
+    html+=`<div class="sc" style="margin-bottom:1.2rem">
+      <div class="sc-header">
+        <div><div class="sc-title">${yg.toUpperCase()} Art &amp; Design — Benchmark Analysis</div><div class="sc-sub">${allPupils.length} pupils · ${TPS[yg].length} tracking periods · CfE Expressive Arts benchmarks</div></div>
+        <div style="display:flex;gap:.55rem">${progSummary}</div>
+      </div>
+      <div class="sc-body" style="padding:0">
+        ${hasAny?`<div class="gap-wrap">
+          <table class="gap-tbl">
+            <thead><tr>
+              <th>TP</th><th>Unit</th><th>Process</th><th>Benchmark</th><th style="width:130px">Progress Avg</th><th style="width:75px">Scored</th>
+            </tr></thead>
+            <tbody>
+              ${ygData.map(r=>{
+                const col=r.proc==='cr'?'#7c3aed':r.proc==='pr'?'#0369a1':'#0f766e';
+                const lbl=r.proc==='cr'?'Creating':r.proc==='pr'?'Presenting':'Evaluating';
+                const flagLow=r.avg&&r.avg<2.5;
+                return `<tr ${flagLow?'style="background:#fffbeb"':''}>
+                  <td style="font-family:'DM Mono',monospace;font-size:.7rem;font-weight:600;white-space:nowrap">${r.tp}</td>
+                  <td style="font-size:.73rem;color:var(--text2)">${r.unit}</td>
+                  <td><span class="gp gp-${r.proc}" style="font-size:.6rem;padding:.12rem .4rem;border-radius:3px;background:${r.proc==='cr'?'var(--cr-bg)':r.proc==='pr'?'var(--pr-bg)':'var(--ev-bg)'};border:1px solid ${r.proc==='cr'?'var(--cr-bd)':r.proc==='pr'?'var(--pr-bd)':'var(--ev-bd)'};color:${col}">${lbl}</span></td>
+                  <td style="font-size:.71rem;color:var(--text2);line-height:1.55">${r.text}</td>
+                  <td>
+                    ${r.avg?`<div class="bar-row">
+                      <div class="bar-inner"><div class="bar-fill" style="width:${pct(r.avg)}%;background:${col}"></div></div>
+                      <span style="font-family:'DM Mono',monospace;font-size:.68rem;font-weight:600;color:${col};flex-shrink:0">${r.avg.toFixed(1)}</span>
+                    </div>`:'<span style="font-size:.68rem;color:var(--text3)">No data</span>'}
+                  </td>
+                  <td style="font-family:'DM Mono',monospace;font-size:.68rem;color:var(--text3)">${r.n}/${r.total}</td>
+                </tr>`;
+              }).join('')}
+            </tbody>
+          </table>
+        </div>`:`<div class="empty-s" style="padding:1.5rem;font-size:.75rem">No scores entered for ${yg.toUpperCase()} yet.</div>`}
+      </div>
+    </div>`;
+  });
+
+  body.innerHTML=html;
+}
+
+// ══════════════════════════════════════════════════════════
+// OVERVIEW
+// ══════════════════════════════════════════════════════════
+let _arThreshold = 2;
+let _ovYG = 'all';       // 'all' | 's1' | 's2' | 's3'
+let _ovCls = 'all';      // 'all' | specific class name
+
+function setThreshold(val){ _arThreshold=parseFloat(val); renderOverview(); }
+function setOvYG(yg){ _ovYG=yg; _ovCls='all'; renderOverview(); }
+function setOvCls(cls){ _ovCls=cls; renderOverview(); }
+
+function renderOverview(){
+  const body = document.getElementById('ov-body');
+
+  // ── Build filter bar ──
+  const ygFilterEl = document.getElementById('ov-yg-filters');
+  const clsFilterEl = document.getElementById('ov-cls-filters');
+
+  if(ygFilterEl){
+    const ygs = ['all','s1','s2','s3'];
+    ygFilterEl.innerHTML = ygs.map(yg=>{
+      const lbl = yg==='all' ? 'All Years' : yg.toUpperCase();
+      return `<button class="cf-btn ${_ovYG===yg?'active':''}" onclick="setOvYG('${yg}')">${lbl}</button>`;
+    }).join('');
+  }
+
+  if(clsFilterEl){
+    // Collect classes for the active YG filter
+    const activeYGs = _ovYG==='all' ? ['s1','s2','s3'] : [_ovYG];
+    const allClasses = [];
+    activeYGs.forEach(yg=>{
+      Object.keys(S.pupils[yg]).sort().forEach(cls=>{
+        if(!allClasses.includes(cls)) allClasses.push(cls);
+      });
+    });
+    if(allClasses.length){
+      clsFilterEl.innerHTML = [
+        `<button class="cf-btn ${_ovCls==='all'?'active':''}" onclick="setOvCls('all')">All Classes</button>`,
+        ...allClasses.map(cls=>`<button class="cf-btn ${_ovCls===cls?'active':''}" onclick="setOvCls('${cls.replace(/'/g,"\\'")}')">${cls}</button>`)
+      ].join('');
+    } else {
+      clsFilterEl.innerHTML='<span style="font-size:.7rem;color:var(--text3)">No classes set up yet</span>';
+    }
+  }
+
+  // ── Determine which YGs + classes to show ──
+  const activeYGs = _ovYG==='all' ? ['s1','s2','s3'] : [_ovYG];
+
+  // ── Collect at-risk pupils — holistic composite approach ──
+  // A pupil is flagged only if their OVERALL picture is concerning,
+  // not because of one low score in one dimension.
+  // We calculate:
+  //   processAvg   = mean of all Creating/Presenting/Evaluating scores entered
+  //   attitudeAvg  = mean of all Effort/Behaviour/HomeLearning scores entered
+  //   overallAvg   = mean of all six dimensions combined
+  // Flag if: overallAvg <= 2.0  AND at least 2 TPs have been scored
+  // (so we don't flag someone with one score entered)
+  // Also capture which specific areas are dragging the average down.
+
+  const allAtRisk=[];
+  let anyData=false;
+
+  const dimCfg={
+    progress:    {lbl:'Progress',     flagCls:'ar-flag-cr', group:'process'},
+    effort:      {lbl:'Effort',       flagCls:'ar-flag-ef', group:'attitude'},
+    behaviour:   {lbl:'Behaviour',    flagCls:'ar-flag-bh', group:'attitude'},
+    homelearning:{lbl:'Home Learning',flagCls:'ar-flag-hl', group:'attitude'},
+  };
+
+  activeYGs.forEach(yg=>{
+    Object.keys(S.pupils[yg]).sort().forEach(cls=>{
+      if(_ovCls!=='all' && cls!==_ovCls) return;
+      (S.pupils[yg][cls]||[]).forEach(p=>{
+
+        // Gather all scores per dimension across all TPs
+        const dimScores={};
+        DIMS.forEach(d=>dimScores[d]=[]);
+        let tpsScoredCount=0;
+
+        TPS[yg].forEach(tp=>{
+          const sc=S.scores[yg]?.[p.id]?.[tp.id]||{};
+          const hasAny=DIMS.some(d=>sc[d]>0);
+          if(hasAny){ tpsScoredCount++; anyData=true; }
+          DIMS.forEach(d=>{
+            if(sc[d]>0) dimScores[d].push(sc[d]);
+          });
+        });
+
+        if(tpsScoredCount < 1) return; // needs at least one TP scored
+
+        // Per-dimension averages (only for dims that have been scored)
+        const dimAvgs={};
+        DIMS.forEach(d=>{
+          dimAvgs[d] = dimScores[d].length
+            ? dimScores[d].reduce((a,b)=>a+b,0)/dimScores[d].length
+            : null;
+        });
+
+        // Dims that are at or below threshold
+        const weakDims=DIMS.filter(d=>dimAvgs[d]!==null && dimAvgs[d]<=_arThreshold);
+
+        // Flag if 2 or more dimensions are at/below threshold
+        // OR if any single dimension averages 1.5 or below (serious individual concern)
+        const seriousSingle=DIMS.some(d=>dimAvgs[d]!==null && dimAvgs[d]<=1.5);
+        if(weakDims.length < 2 && !seriousSingle) return;
+
+        const processVals = ['progress'].map(d=>dimAvgs[d]).filter(v=>v!==null);
+        const attitudeVals= ['effort','behaviour','homelearning'].map(d=>dimAvgs[d]).filter(v=>v!==null);
+        const allVals     = [...processVals,...attitudeVals];
+        const processAvg  = processVals.length  ? processVals.reduce((a,b)=>a+b,0)/processVals.length  : null;
+        const attitudeAvg = attitudeVals.length ? attitudeVals.reduce((a,b)=>a+b,0)/attitudeVals.length: null;
+        const overallAvg  = allVals.length ? allVals.reduce((a,b)=>a+b,0)/allVals.length : null;
+        if(!overallAvg) return;
+
+        // concerns = dims below 2.5 for the card detail
+        const concerns=DIMS
+          .filter(d=>dimAvgs[d]!==null && dimAvgs[d]<2.5)
+          .map(d=>({dim:d, avg:dimAvgs[d], group:dimCfg[d].group}));
+
+        allAtRisk.push({
+          name:p.name, cls, yg:yg.toUpperCase(),
+          overallAvg, processAvg, attitudeAvg,
+          weakDims, concerns, tpsScoredCount, dimAvgs, seriousSingle
+        });
+      });
+    });
+  });
+
+  // Sort — most weak dims first, then lowest overall avg
+  allAtRisk.sort((a,b)=> b.weakDims.length - a.weakDims.length || a.overallAvg - b.overallAvg);
+
+  // ── At Risk section ──
+  const arHTML=`
+    <div class="at-risk-section">
+      <div class="at-risk-header">
+        <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        <div class="at-risk-title">At Risk</div>
+        ${allAtRisk.length ? `<span class="at-risk-count">${allAtRisk.length} pupil${allAtRisk.length!==1?'s':''} flagged</span>` : ''}
+        <div class="at-risk-threshold">
+          <span class="threshold-label">Overall avg at or below</span>
+          <select class="threshold-select" onchange="setThreshold(this.value)">
+            <option value="1.5" ${_arThreshold===1.5?'selected':''}>1.5 — serious concern</option>
+            <option value="2"   ${_arThreshold===2  ?'selected':''}>2 — cause for concern</option>
+            <option value="2.5" ${_arThreshold===2.5?'selected':''}>2.5 — monitor closely</option>
+          </select>
+          <span style="font-size:.62rem;color:var(--text3);margin-left:.35rem">(2+ dimensions at or below)</span>
+        </div>
+      </div>
+      ${allAtRisk.length===0 ? `
+        <div class="ar-empty">
+          <div class="ar-empty-title">No pupils flagged at this threshold</div>
+          <div class="ar-empty-sub">${anyData?'No pupils have 2 or more dimensions averaging at or below the threshold.':'Enter scores in the tracker first.'}</div>
+        </div>
+      ` : `
+        <div class="at-risk-grid">
+          ${allAtRisk.map(p=>{
+            // Colour the overall avg by severity
+            const avgCol = p.overallAvg<=1.5?'#ef4444':p.overallAvg<=2?'#f97316':'#f59e0b';
+
+            // Process vs attitude split display
+            const procBar = p.processAvg!==null ? `
+              <div class="ar-flag" style="margin-bottom:.2rem">
+                <span class="ar-flag-dim" style="background:rgba(124,58,237,.1);border:1px solid rgba(124,58,237,.25);color:#6d28d9;min-width:60px">Process</span>
+                <div style="flex:1;height:5px;background:var(--border);border-radius:99px;overflow:hidden;margin:0 .4rem">
+                  <div style="height:100%;border-radius:99px;background:#7c3aed;width:${(p.processAvg/4)*100}%"></div>
+                </div>
+                <span class="ar-score" style="color:#7c3aed">${p.processAvg.toFixed(1)}</span>
+              </div>` : '';
+            const attBar = p.attitudeAvg!==null ? `
+              <div class="ar-flag">
+                <span class="ar-flag-dim" style="background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.25);color:#92400e;min-width:60px">Attitude</span>
+                <div style="flex:1;height:5px;background:var(--border);border-radius:99px;overflow:hidden;margin:0 .4rem">
+                  <div style="height:100%;border-radius:99px;background:#f59e0b;width:${(p.attitudeAvg/4)*100}%"></div>
+                </div>
+                <span class="ar-score" style="color:#f59e0b">${p.attitudeAvg.toFixed(1)}</span>
+              </div>` : '';
+
+            // Specific weak areas (only show dims clearly below average)
+            const weakAreas = p.concerns.map(c=>`<span class="ar-flag-dim ${dimCfg[c.dim]?.flagCls||''}" style="margin:.1rem .15rem .1rem 0">${dimCfg[c.dim]?.lbl} ${c.avg.toFixed(1)}</span>`).join('');
+
+            return `<div class="ar-card">
+              <div class="ar-card-head">
+                <div><div class="ar-name">${p.name}</div><div class="ar-meta">${p.yg} · ${p.cls} · ${p.tpsScoredCount} TPs scored</div></div>
+                <div style="text-align:right">
+                  <div style="font-family:'DM Mono',monospace;font-size:1.25rem;font-weight:800;color:${avgCol}">${p.overallAvg.toFixed(1)}</div>
+                  <div style="font-size:.56rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#fca5a5">overall avg</div>
+                </div>
+              </div>
+              <div class="ar-body">
+                <div class="ar-section-label">Process vs Attitude</div>
+                ${procBar}${attBar}
+                ${p.concerns.length ? `
+                  <div class="ar-section-label" style="margin-top:.6rem">Weak areas (avg below 2.5)</div>
+                  <div style="display:flex;flex-wrap:wrap">${weakAreas}</div>
+                ` : ''}
+              </div>
+            </div>`;
+          }).join('')}
+        </div>
+      `}
+    </div>`;
+
+  // ── Class overview cards ──
+  let classHTML='';
+  let anyClass=false;
+
+  activeYGs.forEach(yg=>{
+    Object.keys(S.pupils[yg]).sort().forEach(cls=>{
+      if(_ovCls!=='all' && cls!==_ovCls) return;
+      const pupils=S.pupils[yg][cls]||[];
+      if(!pupils.length) return;
+      anyClass=true;
+      const tps=TPS[yg];
+
+      const procCfg=[
+        {d:'progress',  lbl:'Progress',  col:'#c0622a',fill:'f-pr'},
+        {d:'effort',   lbl:'Effort',    col:'#92400e',fill:'f-ef'},
+        {d:'behaviour',lbl:'Behaviour', col:'#be185d',fill:'f-bh'},
+        {d:'homelearning',lbl:'Home Learning',col:'#b45309',fill:'f-hl'},
+      ];
+
+      const procBars=procCfg.map(({d,lbl,col,fill})=>{
+        const vals=tps.flatMap(tp=>pupils.map(p=>S.scores[yg]?.[p.id]?.[tp.id]?.[d]).filter(v=>v>0));
+        const a=avg(vals);
+        return `<div class="ov-bar-row">
+          <div class="ov-bar-lbl" style="color:${col};font-weight:700">${lbl}</div>
+          <div class="ov-bar-wrap"><div class="ov-bar-fill" style="width:${pct(a)}%;background:${col}"></div></div>
+          <div class="ov-bar-val">${a?a.toFixed(1):'—'}</div>
+        </div>`;
+      }).join('');
+
+      const tpRows=tps.map(tp=>{
+        const vals=pupils.flatMap(p=>DIMS.map(d=>S.scores[yg]?.[p.id]?.[tp.id]?.[d]).filter(v=>v>0));
+        const a=avg(vals);
+        const bg=a?(a<2?'#ef4444':a<3?'#f59e0b':'#10b981'):'var(--border2)';
+        const atRiskCount=pupils.filter(p=>DIMS.some(d=>{const v=S.scores[yg]?.[p.id]?.[tp.id]?.[d];return v>0&&v<=_arThreshold;})).length;
+        return `<div class="ov-bar-row">
+          <div class="ov-bar-lbl" style="font-family:'DM Mono',monospace;font-size:.59rem">${tp.label}</div>
+          <div class="ov-bar-wrap"><div class="ov-bar-fill" style="width:${pct(a)}%;background:${bg}"></div></div>
+          <div class="ov-bar-val">${a?a.toFixed(1):'—'}</div>
+          ${atRiskCount?`<span style="font-family:'DM Mono',monospace;font-size:.58rem;font-weight:700;color:#ef4444;margin-left:.3rem;flex-shrink:0">${atRiskCount}⚠</span>`:''}
+        </div>`;
+      }).join('');
+
+      // Per-pupil score rows for deep-dive when a single class is selected
+      let pupilRowsHTML='';
+      if(_ovCls!=='all'){
+        const dimLabels={progress:'Pro',effort:'Ef',behaviour:'Bh',homelearning:'HL'};
+        const dimCols={progress:'#c0622a',effort:'#92400e',behaviour:'#be185d',homelearning:'#b45309'};
+        const scoreBg={1:'var(--s1-bg)',2:'var(--s2-bg)',3:'var(--s3-bg)',4:'var(--s4-bg)'};
+        const scoreCol={1:'var(--s1-text)',2:'var(--s2-text)',3:'var(--s3-text)',4:'var(--s4-text)'};
+
+        pupilRowsHTML=`
+          <div class="ov-sec">Individual Pupils</div>
+          <div style="overflow-x:auto;border:1px solid var(--border);border-radius:6px;margin-top:.25rem">
+            <table style="width:100%;border-collapse:collapse;font-size:.7rem;min-width:560px">
+              <thead>
+                <tr style="background:var(--navy-dark)">
+                  <th style="padding:.45rem .75rem;text-align:left;color:rgba(255,255,255,.55);font-size:.55rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;white-space:nowrap;position:sticky;left:0;background:var(--navy-dark)">Pupil</th>
+                  ${tps.map(tp=>`<th colspan="${DIMS.length}" style="padding:.45rem .5rem;text-align:center;color:rgba(255,255,255,.45);font-size:.53rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;border-left:1px solid rgba(255,255,255,.07)">${tp.label}</th>`).join('')}
+                </tr>
+                <tr style="background:#1a2744">
+                  <th style="padding:.3rem .75rem;position:sticky;left:0;background:#1a2744"></th>
+                  ${tps.map(()=>DIMS.map(d=>`<th style="padding:.28rem .3rem;text-align:center;font-size:.56rem;font-weight:700;color:${dimCols[d]};opacity:.8;white-space:nowrap;border-left:1px solid rgba(255,255,255,.04)">${dimLabels[d]}</th>`).join('')).join('')}
+                </tr>
+              </thead>
+              <tbody>
+                ${pupils.map((p,i)=>{
+                  const arEntry=allAtRisk.find(r=>r.name===p.name&&r.cls===cls&&r.yg===yg.toUpperCase());
+                  const atRisk=!!arEntry;
+                  return `<tr style="${i%2===0?'':'background:#f8fafc'}${atRisk?';outline:1px solid #fca5a5':''}" ${atRisk?'title="At risk"':''}>
+                    <td style="padding:.38rem .75rem;font-weight:${atRisk?'600':'500'};white-space:nowrap;position:sticky;left:0;background:${i%2===0?'#fff':'#f8fafc'};${atRisk?'color:#991b1b':''}">${atRisk?'▲ ':''} ${p.name}${arEntry?` <span style="font-family:'DM Mono',monospace;font-size:.6rem;color:#ef4444">${arEntry.overallAvg.toFixed(1)}</span>`:''}</td>
+                    ${tps.map(tp=>{
+                      const sc=S.scores[yg]?.[p.id]?.[tp.id]||{};
+                      return DIMS.map(d=>{
+                        const v=sc[d];
+                        const isLow=v>0&&v<=_arThreshold;
+                        return `<td style="padding:.3rem .3rem;text-align:center;border-left:1px solid var(--border)">
+                          ${v>0?`<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:3px;font-family:'DM Mono',monospace;font-size:.65rem;font-weight:700;background:${isLow?'#fee2e2':scoreBg[v]||'var(--bg)'};color:${isLow?'#991b1b':scoreCol[v]||'var(--text3)'};${isLow?'outline:1px solid #fca5a5':''}">${v}</span>`:'<span style="color:var(--border2);font-size:.6rem">·</span>'}
+                        </td>`;
+                      }).join('');
+                    }).join('')}
+                  </tr>`;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>`;
+      }
+
+      const classAtRisk=allAtRisk.filter(r=>r.yg===yg.toUpperCase()&&r.cls===cls).length;
+      classHTML+=`<div class="ov-card" ${classAtRisk?'style="border-color:#fca5a5"':''}>
+        <div class="ov-head" ${classAtRisk?'style="background:#7f1d1d"':''}>
+          <div class="ov-title">${yg.toUpperCase()} · ${cls}</div>
+          <div style="display:flex;align-items:center;gap:.5rem">
+            ${classAtRisk?`<span style="font-size:.6rem;font-weight:700;padding:.14rem .45rem;border-radius:3px;background:#ef4444;color:#fff">${classAtRisk} at risk</span>`:''}
+            <div class="ov-meta">${pupils.length} pupils</div>
+          </div>
+        </div>
+        <div class="ov-body">
+          <div style="font-size:.55rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--text3);margin-bottom:.45rem">Year-to-date — Dimensions</div>
+          ${procBars}
+          <div class="ov-sec">By Tracking Period (process avg)</div>
+          ${tpRows}
+          ${pupilRowsHTML}
+        </div>
+      </div>`;
+    });
+  });
+
+  if(!anyData){
+    body.innerHTML='<div class="empty-s"><div class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg></div>No data yet. Enter scores in the tracker panels first.</div>';
+    return;
+  }
+
+  const viewLabel = _ovCls!=='all' ? `Showing: ${_ovYG==='all'?'All Years':_ovYG.toUpperCase()} · ${_ovCls}` : _ovYG!=='all' ? `Showing: ${_ovYG.toUpperCase()} · All Classes` : 'Showing: All Years · All Classes';
+
+  body.innerHTML=`
+    ${arHTML}
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem;flex-wrap:wrap;gap:.5rem">
+      <div style="font-size:.57rem;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--text3)">Class Overview</div>
+      <div style="font-size:.65rem;color:var(--text3);font-style:italic">${viewLabel}</div>
+    </div>
+    <div class="ov-grid">${anyClass?classHTML:'<div class="empty-s" style="grid-column:1/-1">No classes match the current filter.</div>'}</div>
+  `;
+}
+
+// ══════════════════════════════════════════════════════════
+// EXPORT
+// ══════════════════════════════════════════════════════════
+function renderExportPreview(){
+  const el=document.getElementById('exp-preview');
+  let rows=0;
+  ['s1','s2','s3'].forEach(yg=>{
+    Object.keys(S.pupils[yg]).forEach(cls=>{
+      (S.pupils[yg][cls]||[]).forEach(p=>{
+        TPS[yg].forEach(tp=>{
+          const sc=S.scores[yg]?.[p.id]?.[tp.id]||{};
+          if(DIMS.some(d=>sc[d]>0))rows++;
+        });
+      });
+    });
+  });
+  el.innerHTML=rows?`<div style="font-size:.73rem;color:var(--text2)">${rows} scored TP rows ready across all year groups. The CSV includes one row per pupil per TP with all four dimensions plus notes.</div>`:'<div class="empty-s"><div class="empty-icon">📋</div>No scored data yet.</div>';
+}
+
+function exportForFacultyHead(){
+  const name=prompt('Enter your name (for Faculty Head to identify your data):','');
+  if(!name||!name.trim()){toast('Export cancelled');return;}
+  const tp=prompt('Tracking period (e.g. TP1, TP2, Nov 2025 — helps avoid duplicates):',S.curTP?.s1||'TP1');
+  const exportData={version:1,type:'staff_export',teacherName:name.trim(),trackingPeriod:(tp||'').trim()||null,subject:'art',exportDate:new Date().toISOString(),data:{pupils:S.pupils,scores:S.scores,profiles:S.profiles}};
+  const blob=new Blob([JSON.stringify(exportData,null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`Art_StaffExport_${name.trim().replace(/\s+/g,'_')}_${(tp||'TP').trim().replace(/\s+/g,'_')}_${new Date().toISOString().slice(0,10)}.json`;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(a.href);
+  toast('Exported — give this file to your Faculty Head');
+}
+
+function exportCSV(target){
+  const ygs=target==='all'?['s1','s2','s3']:[target];
+  const date=new Date().toLocaleDateString('en-GB').replace(/\//g,'-');
+  ygs.forEach(yg=>{
+    const tps=TPS[yg];const rows=[];
+    // header
+    const h=['Year Group','Class','Pupil Name'];
+    tps.forEach(tp=>{
+      h.push(`${tp.label} Unit`);
+      DIMS.forEach(d=>h.push(`${tp.label} ${DIM_LABELS[d]}`));
+      h.push(`${tp.label} Notes`);
+    });
+    rows.push(h);
+    Object.keys(S.pupils[yg]).sort().forEach(cls=>{
+      (S.pupils[yg][cls]||[]).forEach(p=>{
+        const r=[yg.toUpperCase(),cls,p.name];
+        tps.forEach(tp=>{
+          const sc=S.scores[yg]?.[p.id]?.[tp.id]||{};
+          r.push(tp.unit);
+          DIMS.forEach(d=>r.push(sc[d]||''));
+          r.push((sc.notes||'').replace(/,/g,';').replace(/\n/g,' '));
+        });
+        rows.push(r);
+      });
+    });
+    if(rows.length<2){toast(`⚠️ No data for ${yg.toUpperCase()}`);return;}
+    const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+    const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download=`Art_Tracker_${yg.toUpperCase()}_${date}.csv`;
+    document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+  });
+  toast('✅ Exported — check Downloads');
+}
+
+// ══════════════════════════════════════════════════════════
+// SVG ICONS — flat, single-colour, 16px stroke-based
+// ══════════════════════════════════════════════════════════
+const ICONS = {
+  home:     `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/><polyline points="9 21 9 12 15 12 15 21"/></svg>`,
+  benchmark:`<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>`,
+  overview: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>`,
+  export:   `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`,
+  save:     `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>`,
+  refresh:  `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>`,
+  mail:     `<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><polyline points="2 4 12 13 22 4"/></svg>`,
+  download: `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>`,
+  file:     `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>`,
+  files:    `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7H8a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M16 7V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h2"/></svg>`,
+  chart:    `<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>`,
+  users:    `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>`,
+  bar:      `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>`,
+  clipboard:`<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>`,
+  ruler:    `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21.3 8.7l-9 9a1 1 0 0 1-1.4 0l-5.6-5.6a1 1 0 0 1 0-1.4l9-9a1 1 0 0 1 1.4 0l5.6 5.6a1 1 0 0 1 0 1.4z"/><line x1="7.5" y1="10.5" x2="9" y2="12"/><line x1="10.5" y1="7.5" x2="12" y2="9"/><line x1="13.5" y1="4.5" x2="15" y2="6"/></svg>`,
+  trash:    `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`,
+  close:    `<svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
+  warn:     `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`,
+  check:    `<svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`,
+};
+
+// ── INIT ──
+load().then(function(){renderHome();});
+</script>
+</body>
+</html>

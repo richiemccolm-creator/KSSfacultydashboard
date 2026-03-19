@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Faculty Head Dashboard — Art & Drama — Knightswood Secondary</title>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-init.js"></script>
+<script src="allowlist-check.js"></script>
+<script src="auth-guard.js"></script>
+<script src="data-service.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--navy:#1e2d4a;--navy-dark:#16243c;--accent-drama:#4a7fd4;--accent-ad:#c0622a;--white:#fff;--bg:#f0f2f5;--card:#fff;--border:#e2e8f0;--text:#1a202c;--text2:#4a5568;--text3:#718096}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;font-size:14px}
+
+.hero{background:linear-gradient(135deg,var(--navy-dark),var(--navy));border-radius:10px;padding:2rem 2.5rem;margin-bottom:1.5rem;color:var(--white)}
+.hero-title{font-family:'Sora',sans-serif;font-size:1.6rem;font-weight:800;margin-bottom:.4rem}
+.hero-sub{font-size:.82rem;opacity:.85;line-height:1.6}
+
+.sc{background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:1.2rem;overflow:hidden}
+.sc-header{padding:1rem 1.5rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem}
+.sc-title{font-family:'Sora',sans-serif;font-size:.95rem;font-weight:700}
+.sc-sub{font-size:.72rem;color:var(--text3);margin-top:.2rem}
+.sc-body{padding:1.25rem 1.5rem}
+
+.btn{font-size:.78rem;font-weight:600;padding:.5rem 1rem;border-radius:6px;border:none;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:.4rem}
+.btn-primary{background:var(--navy);color:var(--white)}.btn-primary:hover{background:var(--navy-dark)}
+.btn-ghost{background:var(--bg);color:var(--text2);border:1px solid var(--border)}.btn-ghost:hover{border-color:var(--navy);color:var(--navy)}
+.btn-danger{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.form-input{font-size:.85rem;padding:.5rem .75rem;border:1px solid var(--border);border-radius:6px;width:100%;max-width:280px}
+.form-input:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 2px rgba(30,45,74,.15)}
+.form-label{font-size:.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:.35rem;display:block}
+
+.nav-tabs{display:flex;gap:.25rem;flex-wrap:wrap;margin-bottom:1rem;border-bottom:1px solid var(--border);padding-bottom:.5rem}
+.nav-tab{padding:.5rem 1rem;border-radius:6px;font-size:.8rem;font-weight:500;cursor:pointer;background:none;border:none;color:var(--text2);transition:all .12s}
+.nav-tab:hover{background:var(--bg);color:var(--text)}
+.nav-tab.active{background:var(--navy);color:var(--white)}
+
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:1rem}
+.stat-card{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:1rem;text-align:center}
+.stat-num{font-family:'Sora',sans-serif;font-size:1.5rem;font-weight:800;color:var(--navy)}
+.stat-lbl{font-size:.62rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin-top:.25rem}
+.stat-card.warn .stat-num{color:#b45309}
+.stat-card.drama .stat-num{color:var(--accent-drama)}
+.stat-card.ad .stat-num{color:var(--accent-ad)}
+
+.pupil-row{display:flex;align-items:center;gap:1rem;padding:.65rem 1rem;border-bottom:1px solid var(--border);transition:background .1s}
+.pupil-row:hover{background:#f8fafc}
+.pupil-row:last-child{border-bottom:none}
+.pupil-name{font-weight:600;font-size:.88rem}
+.pupil-meta{font-size:.72rem;color:var(--text3)}
+.pupil-badges{display:flex;gap:.35rem;flex-wrap:wrap}
+.badge{font-size:.6rem;font-weight:700;padding:.2rem .5rem;border-radius:4px}
+.badge-drama{background:rgba(74,127,212,.15);color:var(--accent-drama)}
+.badge-ad{background:rgba(192,98,42,.15);color:var(--accent-ad)}
+.badge-risk{background:#fef3c7;color:#92400e}
+.badge-s1{background:#fee2e2;color:#991b1b}.badge-s2{background:#fef3c7;color:#92400e}.badge-s3{background:#d1fae5;color:#065f46}
+
+.table-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.8rem}
+th{text-align:left;padding:.5rem .75rem;font-weight:600;font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);border-bottom:1px solid var(--border);background:var(--bg)}
+td{padding:.55rem .75rem;border-bottom:1px solid var(--border)}
+tr:hover td{background:#f8fafc}
+.avg-cell{font-weight:600;font-family:monospace}
+.avg-low{color:#b45309}
+.avg-ok{color:#059669}
+
+.profile-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:1.5rem;margin-bottom:1rem}
+.profile-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1.25rem;flex-wrap:wrap;gap:1rem}
+.profile-name{font-family:'Sora',sans-serif;font-size:1.2rem;font-weight:700}
+.profile-meta{font-size:.75rem;color:var(--text3);margin-top:.25rem}
+.profile-section{margin-bottom:1.25rem}
+.profile-section-title{font-size:.65rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin-bottom:.6rem}
+.profile-dim-bar{display:flex;align-items:center;gap:.75rem;margin-bottom:.4rem;font-size:.78rem}
+.profile-dim-track{flex:1;height:8px;background:var(--bg);border-radius:4px;overflow:hidden}
+.profile-dim-fill{height:100%;border-radius:4px;min-width:4px}
+.profile-dim-val{font-weight:600;min-width:2rem}
+
+.empty-s{text-align:center;padding:2rem;color:var(--text3);font-size:.82rem}
+.empty-icon{font-size:2rem;margin-bottom:.5rem;opacity:.4}
+.toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:var(--navy);color:var(--white);padding:.75rem 1.25rem;border-radius:8px;font-size:.82rem;opacity:0;pointer-events:none;transition:opacity .25s;z-index:9999}
+.toast.show{opacity:1}
+
+/* Sidebar — light text on dark */
+.dash-sidebar{width:220px;flex-shrink:0;background:var(--navy);position:fixed;top:0;left:0;bottom:0;overflow-y:auto;z-index:100;padding:1.25rem 0}
+.dash-sidebar-title{font-family:'Sora',sans-serif;font-size:.95rem;font-weight:800;color:var(--white);padding:0 1.25rem 1rem;letter-spacing:.02em}
+.dash-sidebar-sub{font-size:.6rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.4);padding:0 1.25rem .5rem}
+.dash-nav-btn{display:block;width:100%;text-align:left;border:none;background:none;cursor:pointer;font-size:.8rem;font-weight:500;color:rgba(255,255,255,.7);padding:.55rem 1.25rem;border-left:3px solid transparent;transition:all .12s;line-height:1.3}
+.dash-nav-btn:hover{background:rgba(255,255,255,.08);color:var(--white)}
+.dash-nav-btn.active{background:rgba(255,255,255,.12);color:var(--white);border-left-color:var(--accent-drama);font-weight:600}
+.dash-main{margin-left:220px;min-height:100vh;display:flex;flex-direction:column}
+.content{padding:1.5rem 2rem;max-width:1000px;flex:1}
+</style>
+</head>
+<body style="display:flex">
+<aside class="dash-sidebar">
+  <div class="dash-sidebar-title">Faculty Head</div>
+  <div class="dash-sidebar-sub">Dashboard</div>
+  <button class="dash-nav-btn active" data-view="overview" onclick="setView('overview')">Overview</button>
+  <button class="dash-nav-btn" data-view="at-risk" onclick="setView('at-risk')">Pupils at Risk</button>
+  <button class="dash-nav-btn" data-view="classes" onclick="setView('classes')">Classes</button>
+  <button class="dash-nav-btn" data-view="search" onclick="setView('search')">Search Pupil</button>
+  <button class="dash-nav-btn" data-view="profile" onclick="setView('profile')">Pupil Profile</button>
+  <a href="login.html" class="dash-nav-btn" style="text-decoration:none;margin-top:auto" onclick="event.preventDefault();if(window.supabase){window.supabase.auth.signOut().then(function(){window.location.href='login.html';});}else{window.location.href='login.html';}">Sign out</a>
+</aside>
+<div class="dash-main">
+<div class="content">
+  <div class="hero">
+    <div class="hero-title">Faculty Head Dashboard</div>
+    <div class="hero-sub">Import staff tracker data to see attainment, pupils at risk, class performance, and individual pupil profiles across Drama and Art & Design.</div>
+  </div>
+
+  <div class="sc">
+    <div class="sc-header">
+      <div>
+        <div class="sc-title">Import Staff Data</div>
+        <div class="sc-sub">Staff use "Export for Faculty Head" in their Drama or Art tracker. Import one or more JSON files — data is merged. Also accepts full backup files from Data Backup.</div>
+      </div>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
+        <input type="file" id="import-file" accept=".json,application/json" multiple style="display:none" onchange="handleImport(event)">
+        <button class="btn btn-primary" onclick="document.getElementById('import-file').click()">Choose files to import</button>
+        <button class="btn btn-ghost" id="load-cloud-btn" onclick="loadFromCloud()" style="display:none">Load from cloud</button>
+      </div>
+    </div>
+    <div class="sc-body">
+      <div id="import-status" class="empty-s" style="padding:1rem;text-align:left">No data imported yet. Import staff export files or a full backup.</div>
+      <div id="imported-sources" style="margin-top:.75rem;font-size:.75rem;color:var(--text3)"></div>
+    </div>
+  </div>
+
+  <div class="sc">
+    <div class="sc-header">
+      <div>
+        <div class="sc-title">Snapshot for Staff Review</div>
+        <div class="sc-sub">Create a snapshot of the current dashboard data to share with staff. Includes overview stats, at-risk pupils, and full data for review.</div>
+      </div>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+        <button class="btn btn-primary" onclick="createSnapshot('json')" id="snapshot-json-btn" disabled>Create & Download Snapshot</button>
+        <button class="btn btn-ghost" onclick="createSnapshot('report')" id="snapshot-report-btn" disabled>Generate Staff Report (HTML)</button>
+      </div>
+    </div>
+    <div class="sc-body">
+      <div id="snapshot-status" class="empty-s" style="padding:1rem;text-align:left;font-size:.82rem">No snapshot created yet. Import data first, then create a snapshot to send to staff.</div>
+    </div>
+  </div>
+
+  <div id="view-overview" class="view-panel">
+    <div class="sc">
+      <div class="sc-header"><div class="sc-title">Faculty Overview</div></div>
+      <div class="sc-body">
+        <div id="overview-stats" class="stats-grid"></div>
+        <div id="overview-detail" style="margin-top:1.5rem"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="view-at-risk" class="view-panel" style="display:none">
+    <div class="sc">
+      <div class="sc-header">
+        <div>
+          <div class="sc-title">Pupils at Risk</div>
+          <div class="sc-sub">Pupils with 2+ dimensions (Progress/Creating/Presenting/Evaluating, Effort, Behaviour, Home Learning) averaging ≤ 2.5</div>
+        </div>
+      </div>
+      <div class="sc-body" id="at-risk-list"></div>
+    </div>
+  </div>
+
+  <div id="view-classes" class="view-panel" style="display:none">
+    <div class="sc">
+      <div class="sc-header">
+        <div>
+          <div class="sc-title">Class Performance</div>
+          <div class="sc-sub">Select subject and class to see average scores</div>
+        </div>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+          <div><label class="form-label">Subject</label><select id="cls-subject" class="form-input" onchange="renderClasses()"><option value="drama">Drama</option><option value="art">Art & Design</option></select></div>
+          <div><label class="form-label">Year</label><select id="cls-yg" class="form-input" onchange="renderClasses()"><option value="s1">S1</option><option value="s2">S2</option><option value="s3">S3</option></select></div>
+          <div><label class="form-label">Class</label><select id="cls-name" class="form-input" onchange="renderClasses()"></select></div>
+        </div>
+      </div>
+      <div class="sc-body" id="classes-body"></div>
+    </div>
+  </div>
+
+  <div id="view-search" class="view-panel" style="display:none">
+    <div class="sc">
+      <div class="sc-header">
+        <div>
+          <div class="sc-title">Search Pupil</div>
+          <div class="sc-sub">Search by name across all subjects</div>
+        </div>
+        <div><input type="text" id="search-input" class="form-input" placeholder="Enter pupil name..." oninput="searchPupils()" style="min-width:220px"></div>
+      </div>
+      <div class="sc-body" id="search-results"></div>
+    </div>
+  </div>
+
+  <div id="view-profile" class="view-panel" style="display:none">
+    <div class="sc">
+      <div class="sc-header">
+        <div>
+          <div class="sc-title">Pupil Profile</div>
+          <div class="sc-sub">Select a pupil from search or at-risk list to view full profile</div>
+        </div>
+        <div><select id="profile-pupil" class="form-input" onchange="renderProfile()" style="min-width:260px"><option value="">— Select pupil —</option></select></div>
+      </div>
+      <div class="sc-body" id="profile-body"></div>
+    </div>
+  </div>
+</div>
+</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// Aggregated data: { drama: { teacherName, pupils, scores, profiles }[], art: [...] }
+let D = { drama: [], art: [] };
+
+function loadFromCloud() {
+  if (!window.__authGuardIsAdmin) { toast('Admin only'); return; }
+  if (!window.DataService || typeof DataService.getAllForAdmin !== 'function') { toast('Cloud not available'); return; }
+  DataService.getAllForAdmin().then(function(rows) {
+    if (!rows || !rows.length) { toast('No staff data in cloud'); return; }
+    rows.forEach(function(r) {
+      const subj = r.data_type === 'drama-v3' ? 'drama' : r.data_type === 'art-v2' ? 'art' : null;
+      if (!subj || !r.data) return;
+      const entry = { teacherName: r.teacherName || r.email || 'Unknown', trackingPeriod: null, exportDate: null, ...r.data };
+      const existing = D[subj].findIndex(s => (s.teacherName || '') === (entry.teacherName || '') && (s.trackingPeriod || '') === (entry.trackingPeriod || ''));
+      if (existing >= 0) D[subj][existing] = entry; else D[subj].push(entry);
+    });
+    updateImportStatus();
+    renderAll();
+    toast('Loaded ' + rows.length + ' source(s) from cloud');
+  }).catch(function() { toast('Could not load from cloud'); });
+}
+
+function handleImport(ev) {
+  const files = ev.target.files;
+  if (!files || !files.length) return;
+  let processed = 0;
+  function doFile(i) {
+    if (i >= files.length) {
+      ev.target.value = '';
+      updateImportStatus();
+      renderAll();
+      toast('Imported ' + processed + ' file(s)');
+      return;
+    }
+    const f = files[i];
+    const r = new FileReader();
+    r.onload = () => {
+      try {
+        const d = JSON.parse(r.result);
+        if (d.type === 'staff_export' && d.teacherName && d.subject && d.data) {
+          const subj = d.subject === 'drama' ? 'drama' : 'art';
+          const tp = (d.trackingPeriod || '').trim() || null;
+          const existing = D[subj].findIndex(s => (s.teacherName || '') === (d.teacherName || '') && (s.trackingPeriod || '') === (tp || ''));
+          const entry = { teacherName: d.teacherName, trackingPeriod: tp, exportDate: d.exportDate, ...d.data };
+          if (existing >= 0) D[subj][existing] = entry; else D[subj].push(entry);
+          processed++;
+        } else if (d['drama-v3'] || d['art-v2']) {
+          if (d['drama-v3']) D.drama.push({ teacherName: 'Backup', exportDate: d.exportDate, ...d['drama-v3'] });
+          if (d['art-v2']) D.art.push({ teacherName: 'Backup', exportDate: d.exportDate, ...d['art-v2'] });
+          processed++;
+        } else {
+          toast('Skipped: ' + f.name + ' (unknown format)');
+        }
+      } catch (e) { toast('Could not parse ' + f.name); }
+      doFile(i + 1);
+    };
+    r.readAsText(f);
+  }
+  doFile(0);
+}
+
+function updateImportStatus() {
+  const st = document.getElementById('import-status');
+  const src = document.getElementById('imported-sources');
+  const dCount = D.drama.reduce((a, s) => a + countPupils(s.pupils), 0);
+  const aCount = D.art.reduce((a, s) => a + countPupils(s.pupils), 0);
+  st.innerHTML = dCount + aCount > 0
+    ? `<strong>${dCount + aCount} pupils</strong> loaded — Drama: ${dCount} from ${D.drama.length} source(s), Art: ${aCount} from ${D.art.length} source(s)`
+    : 'No data imported yet. Import staff export files or a full backup.';
+  const parts = [];
+  D.drama.forEach(s => parts.push('Drama: ' + (s.teacherName || 'Unknown') + (s.trackingPeriod ? ' (' + s.trackingPeriod + ')' : '')));
+  D.art.forEach(s => parts.push('Art: ' + (s.teacherName || 'Unknown') + (s.trackingPeriod ? ' (' + s.trackingPeriod + ')' : '')));
+  src.textContent = parts.length ? 'Sources: ' + parts.join(' · ') : '';
+  const hasData = dCount + aCount > 0;
+  const jsonBtn = document.getElementById('snapshot-json-btn');
+  const reportBtn = document.getElementById('snapshot-report-btn');
+  if (jsonBtn) jsonBtn.disabled = !hasData;
+  if (reportBtn) reportBtn.disabled = !hasData;
+}
+
+function countPupils(p) {
+  if (!p) return 0;
+  let n = 0;
+  ['s1','s2','s3'].forEach(yg => { Object.values(p[yg] || {}).forEach(arr => n += (arr || []).length); });
+  return n;
+}
+
+function avg(arr) {
+  const f = (arr || []).filter(v => v && v > 0);
+  return f.length ? f.reduce((a, b) => a + b, 0) / f.length : null;
+}
+
+function getAllPupils() {
+  const out = [];
+  ['drama','art'].forEach(subj => {
+    D[subj].forEach(src => {
+      ['s1','s2','s3'].forEach(yg => {
+        const pupils = src.pupils?.[yg] || {};
+        Object.entries(pupils).forEach(([cls, arr]) => {
+          (arr || []).forEach(p => out.push({ ...p, cls, yg, subject: subj, teacher: src.teacherName, scores: src.scores?.[yg]?.[p.id], profiles: src.profiles?.[yg]?.[p.id] }));
+        });
+      });
+    });
+  });
+  return out;
+}
+
+function getAtRiskPupils() {
+  const all = getAllPupils();
+  const risk = [];
+  all.forEach(p => {
+    const dims = p.subject === 'drama'
+      ? ['creating','presenting','evaluating','effort','behaviour','homelearning']
+      : ['progress','effort','behaviour','homelearning'];
+    const avgs = {};
+    dims.forEach(d => {
+      const vals = [];
+      Object.values(p.scores || {}).forEach(tp => { if (tp[d] > 0) vals.push(tp[d]); });
+      avgs[d] = avg(vals);
+    });
+    const lowCount = dims.filter(d => avgs[d] != null && avgs[d] <= 2.5).length;
+    if (lowCount >= 2) risk.push({ ...p, avgs, lowCount });
+  });
+  return risk.sort((a, b) => a.lowCount - b.lowCount).reverse();
+}
+
+function setView(id) {
+  document.querySelectorAll('.dash-nav-btn').forEach(t => t.classList.remove('active'));
+  const btn = document.querySelector(`.dash-nav-btn[data-view="${id}"]`);
+  if (btn) btn.classList.add('active');
+  document.querySelectorAll('.view-panel').forEach(p => p.style.display = 'none');
+  const panel = document.getElementById('view-' + id);
+  if (panel) panel.style.display = 'block';
+  if (id === 'overview') renderOverview();
+  else if (id === 'at-risk') renderAtRisk();
+  else if (id === 'classes') renderClasses();
+  else if (id === 'search') searchPupils();
+  else if (id === 'profile') renderProfile();
+}
+
+function renderAll() {
+  renderOverview();
+  renderClasses();
+  updateProfileSelect();
+}
+
+function renderOverview() {
+  const stats = document.getElementById('overview-stats');
+  const detail = document.getElementById('overview-detail');
+  const all = getAllPupils();
+  const risk = getAtRiskPupils();
+  const dPupils = all.filter(p => p.subject === 'drama');
+  const aPupils = all.filter(p => p.subject === 'art');
+  const uniq = new Set(all.map(p => p.name.toLowerCase() + '|' + p.yg));
+  stats.innerHTML = `
+    <div class="stat-card"><div class="stat-num">${all.length}</div><div class="stat-lbl">Total pupil entries</div></div>
+    <div class="stat-card"><div class="stat-num">${uniq.size}</div><div class="stat-lbl">Unique pupils (est.)</div></div>
+    <div class="stat-card warn"><div class="stat-num">${risk.length}</div><div class="stat-lbl">Pupils at risk</div></div>
+    <div class="stat-card drama"><div class="stat-num">${dPupils.length}</div><div class="stat-lbl">Drama entries</div></div>
+    <div class="stat-card ad"><div class="stat-num">${aPupils.length}</div><div class="stat-lbl">Art entries</div></div>
+  `;
+  let detailHtml = '<div class="sc" style="margin-top:0"><div class="sc-header"><div class="sc-title">By subject</div></div><div class="sc-body">';
+  ['drama','art'].forEach(subj => {
+    const pts = all.filter(p => p.subject === subj);
+    const r = getAtRiskPupils().filter(p => p.subject === subj);
+    const lbl = subj === 'drama' ? 'Drama' : 'Art & Design';
+    const col = subj === 'drama' ? 'var(--accent-drama)' : 'var(--accent-ad)';
+    detailHtml += `<div style="margin-bottom:1rem"><strong style="color:${col}">${lbl}</strong>: ${pts.length} pupil entries, ${r.length} at risk</div>`;
+  });
+  detailHtml += '</div></div>';
+  detail.innerHTML = detailHtml;
+}
+
+function renderAtRisk() {
+  const el = document.getElementById('at-risk-list');
+  const risk = getAtRiskPupils();
+  if (!risk.length) {
+    el.innerHTML = '<div class="empty-s"><div class="empty-icon">✓</div>No pupils currently at risk, or no data imported.</div>';
+    return;
+  }
+  const subjLbl = s => s === 'drama' ? 'Drama' : 'Art & Design';
+  const esc = s => (s||'').replace(/'/g,"\\'").replace(/\\/g,'\\\\');
+  el.innerHTML = risk.map(p => {
+    const dims = p.subject === 'drama' ? ['creating','presenting','evaluating','effort','behaviour','homelearning'] : ['progress','effort','behaviour','homelearning'];
+    const dimLbl = d => d === 'creating' ? 'Creating' : d === 'presenting' ? 'Presenting' : d === 'evaluating' ? 'Evaluating' : d === 'progress' ? 'Progress' : d === 'effort' ? 'Effort' : d === 'behaviour' ? 'Behaviour' : 'Home Learning';
+    const lowDims = dims.filter(d => p.avgs[d] != null && p.avgs[d] <= 2.5).map(d => `${dimLbl(d)} ${p.avgs[d].toFixed(1)}`);
+    return `<div class="pupil-row" onclick="selectForProfile('${esc(p.id)}','${p.subject}','${p.yg}','${esc(p.cls)}','${esc(p.teacher)}')">
+      <div><div class="pupil-name">${p.name}</div><div class="pupil-meta">${p.cls} · ${p.yg.toUpperCase()} ${subjLbl(p.subject)} · ${p.teacher}</div></div>
+      <div class="pupil-badges"><span class="badge badge-${p.yg}">${p.yg.toUpperCase()}</span><span class="badge badge-${p.subject}">${subjLbl(p.subject)}</span><span class="badge badge-risk">${p.lowCount} low</span></div>
+      <div style="font-size:.72rem;color:var(--text3)">${lowDims.join(', ')}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderClasses() {
+  const subj = document.getElementById('cls-subject').value;
+  const yg = document.getElementById('cls-yg').value;
+  const clsSel = document.getElementById('cls-name');
+  const body = document.getElementById('classes-body');
+  const sources = D[subj] || [];
+  const classKeys = [];
+  sources.forEach(s => {
+    const pupils = s.pupils?.[yg] || {};
+    Object.keys(pupils).forEach(c => {
+      const key = sources.length > 1 ? c + '|' + (s.teacherName || '') : c;
+      classKeys.push({ cls: c, teacher: s.teacherName, key });
+    });
+  });
+  const uniq = [];
+  const seen = new Set();
+  classKeys.forEach(({ cls, teacher, key }) => {
+    if (seen.has(key)) return;
+    seen.add(key);
+    uniq.push({ cls, teacher, key });
+  });
+  uniq.sort((a, b) => (a.cls + a.teacher).localeCompare(b.cls + b.teacher));
+  clsSel.innerHTML = '<option value="">— All classes —</option>' + uniq.map(({ cls, teacher, key }) => `<option value="${key}">${cls}${teacher ? ' · ' + teacher : ''}</option>`).join('');
+  const selVal = clsSel.value;
+  const [cls, selTeacher] = selVal ? selVal.split('|') : ['', ''];
+  let pupils = [];
+  sources.forEach(s => {
+    if (selVal && s.teacherName !== selTeacher && selTeacher) return;
+    const p = s.pupils?.[yg] || {};
+    const target = cls ? (p[cls] || []) : Object.entries(p).flatMap(([c, arr]) => (arr || []).map(x => ({ ...x, cls: c })));
+    (Array.isArray(target) ? target : []).forEach(x => {
+      const pp = typeof x === 'object' && x.cls ? x : { ...x, cls };
+      pupils.push({ ...pp, teacher: s.teacherName, scores: s.scores?.[yg]?.[pp.id] });
+    });
+  });
+  if (!pupils.length) {
+    body.innerHTML = '<div class="empty-s">No pupils in selected class.</div>';
+    return;
+  }
+  const dims = subj === 'drama' ? ['creating','presenting','evaluating','effort','behaviour','homelearning'] : ['progress','effort','behaviour','homelearning'];
+  const dimLbl = d => d.charAt(0).toUpperCase() + d.slice(1);
+  const rows = pupils.map(p => {
+    const avgs = {};
+    dims.forEach(d => {
+      const vals = Object.values(p.scores || {}).flatMap(tp => (tp[d] > 0 ? [tp[d]] : []));
+      avgs[d] = avg(vals);
+    });
+    const avgStr = dims.map(d => avgs[d] != null ? avgs[d].toFixed(1) : '—').join(' · ');
+    const lowCount = dims.filter(d => avgs[d] != null && avgs[d] <= 2.5).length;
+    const esc = s => (s||'').replace(/'/g,"\\'").replace(/\\/g,'\\\\');
+    return `<tr onclick="selectForProfile('${esc(p.id)}','${subj}','${yg}','${esc(p.cls)}','${esc(p.teacher)}')"><td>${p.name}</td><td>${p.cls || ''}</td><td>${avgStr}</td><td>${lowCount >= 2 ? '<span class="badge badge-risk">At risk</span>' : '—'}</td></tr>`;
+  });
+  const hdrs = dims.map(d => dimLbl(d)).join('</th><th>');
+  body.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Pupil</th><th>Class</th><th>${hdrs}</th><th>Flag</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
+}
+
+function searchPupils() {
+  const q = (document.getElementById('search-input').value || '').toLowerCase().trim();
+  const el = document.getElementById('search-results');
+  const all = getAllPupils();
+  const matches = q ? all.filter(p => p.name.toLowerCase().includes(q)) : [];
+  if (!q) {
+    el.innerHTML = '<div class="empty-s">Enter a name to search.</div>';
+    return;
+  }
+  if (!matches.length) {
+    el.innerHTML = '<div class="empty-s">No pupils found.</div>';
+    return;
+  }
+  const subjLbl = s => s === 'drama' ? 'Drama' : 'Art & Design';
+  const esc = s => (s||'').replace(/'/g,"\\'").replace(/\\/g,'\\\\');
+  el.innerHTML = matches.map(p => `<div class="pupil-row" onclick="selectForProfile('${esc(p.id)}','${p.subject}','${p.yg}','${esc(p.cls)}','${esc(p.teacher)}')">
+    <div><div class="pupil-name">${p.name}</div><div class="pupil-meta">${p.cls} · ${p.yg.toUpperCase()} ${subjLbl(p.subject)} · ${p.teacher}</div></div>
+    <div class="pupil-badges"><span class="badge badge-${p.subject}">${subjLbl(p.subject)}</span></div>
+  </div>`).join('');
+}
+
+function updateProfileSelect() {
+  const sel = document.getElementById('profile-pupil');
+  const all = getAllPupils();
+  const seen = new Set();
+  const opts = all.filter(p => {
+    const k = p.name + '|' + p.yg + '|' + p.subject + '|' + (p.cls || '') + '|' + (p.teacher || '');
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  }).sort((a, b) => a.name.localeCompare(b.name));
+  const sep = '\u001F';
+  const enc = s => encodeURIComponent(String(s||'').replace(/"/g,''));
+  sel.innerHTML = '<option value="">— Select pupil —</option>' + opts.map(p => `<option value="${enc(p.id)}${sep}${p.subject}${sep}${p.yg}${sep}${enc(p.cls)}${sep}${enc(p.teacher)}">${p.name} — ${p.yg.toUpperCase()} ${p.subject === 'drama' ? 'Drama' : 'Art'} (${p.cls || '?'}) · ${p.teacher || ''}</option>`).join('');
+}
+
+function selectForProfile(pid, subj, yg, cls, teacher) {
+  setView('profile');
+  const sel = document.getElementById('profile-pupil');
+  const sep = '\u001F';
+  const enc = s => encodeURIComponent(String(s||'').replace(/"/g,''));
+  const val = enc(pid) + sep + subj + sep + yg + sep + enc(cls) + sep + enc(teacher||'');
+  for (let i = 0; i < sel.options.length; i++) {
+    if (sel.options[i].value === val) { sel.selectedIndex = i; break; }
+  }
+  renderProfile();
+}
+
+function renderProfile() {
+  const v = document.getElementById('profile-pupil').value;
+  const body = document.getElementById('profile-body');
+  if (!v) {
+    body.innerHTML = '<div class="empty-s">Select a pupil to view their profile.</div>';
+    return;
+  }
+  const sep = '\u001F';
+  const parts = v.split(sep);
+  const pid = decodeURIComponent(parts[0] || '');
+  const subj = parts[1] || '';
+  const yg = parts[2] || '';
+  const cls = decodeURIComponent(parts[3] || '');
+  const teacher = decodeURIComponent(parts[4] || '');
+  const src = (D[subj] || []).find(s => (s.teacherName || '') === teacher || (!teacher && (D[subj] || []).length === 1));
+  if (!src) {
+    const src2 = (D[subj] || []).find(s => {
+      const p = s.pupils?.[yg] || {};
+      const arr = cls ? (p[cls] || []) : Object.entries(p).flatMap(([c, a]) => (a || []).map(x => ({ ...x, cls: c })));
+      return (arr || []).some(x => x.id === pid);
+    });
+    if (!src2) { body.innerHTML = '<div class="empty-s">Pupil data not found.</div>'; return; }
+    return renderProfileFromSource(body, pid, subj, yg, cls, src2);
+  }
+  return renderProfileFromSource(body, pid, subj, yg, cls, src);
+}
+
+function renderProfileFromSource(body, pid, subj, yg, cls, src) {
+  const pupils = src.pupils?.[yg] || {};
+  const arr = cls ? (pupils[cls] || []) : Object.entries(pupils).flatMap(([c, a]) => (a || []).map(x => ({ ...x, cls: c })));
+  const pupil = (arr || []).find(x => x.id === pid);
+  if (!pupil) {
+    body.innerHTML = '<div class="empty-s">Pupil not found.</div>';
+    return;
+  }
+  const scores = src.scores?.[yg]?.[pid] || {};
+  const profiles = src.profiles?.[yg]?.[pid] || {};
+  const dims = subj === 'drama' ? ['creating','presenting','evaluating','effort','behaviour','homelearning'] : ['progress','effort','behaviour','homelearning'];
+  const dimLbl = d => d.charAt(0).toUpperCase() + d.slice(1);
+  const dimCol = { creating:'#7c3aed',presenting:'#0369a1',evaluating:'#0f766e',progress:'#c0622a',effort:'#92400e',behaviour:'#be185d',homelearning:'#b45309' };
+  const avgs = {};
+  dims.forEach(d => {
+    const vals = Object.values(scores).flatMap(tp => (tp[d] > 0 ? [tp[d]] : []));
+    avgs[d] = avg(vals);
+  });
+  let html = `<div class="profile-card">
+    <div class="profile-head">
+      <div><div class="profile-name">${pupil.name}</div><div class="profile-meta">${pupil.cls || cls} · ${yg.toUpperCase()} ${subj === 'drama' ? 'Drama' : 'Art & Design'} · ${src.teacherName}</div></div>
+    </div>
+    <div class="profile-section">
+      <div class="profile-section-title">Scores by dimension</div>
+      ${dims.map(d => {
+        const a = avgs[d];
+        const pct = a ? (a / 4) * 100 : 0;
+        const col = dimCol[d] || '#64748b';
+        return `<div class="profile-dim-bar"><span style="min-width:90px">${dimLbl(d)}</span><div class="profile-dim-track"><div class="profile-dim-fill" style="width:${pct}%;background:${col}"></div></div><span class="profile-dim-val" style="color:${col}">${a != null ? a.toFixed(1) : '—'}</span></div>`;
+      }).join('')}
+    </div>
+    <div class="profile-section">
+      <div class="profile-section-title">Teacher notes</div>
+      <p style="font-size:.82rem;color:var(--text2);line-height:1.7">${(profiles.teacherNotes || 'No notes yet.').replace(/</g,'&lt;')}</p>
+    </div>
+    <div class="profile-section">
+      <div class="profile-section-title">Pupil reflection</div>
+      <p style="font-size:.82rem;color:var(--text2);line-height:1.7">${(profiles.pupilReflection || 'No reflection yet.').replace(/</g,'&lt;')}</p>
+    </div>
+  </div>`;
+  body.innerHTML = html;
+}
+
+function createSnapshot(format) {
+  const all = getAllPupils();
+  const risk = getAtRiskPupils();
+  const dCount = D.drama.reduce((a, s) => a + countPupils(s.pupils), 0);
+  const aCount = D.art.reduce((a, s) => a + countPupils(s.pupils), 0);
+  const uniq = new Set(all.map(p => p.name.toLowerCase() + '|' + p.yg));
+
+  const snapshot = {
+    type: 'faculty_snapshot',
+    school: 'Knightswood Secondary',
+    faculty: 'Art & Drama',
+    createdAt: new Date().toISOString(),
+    summary: {
+      totalPupilEntries: all.length,
+      uniquePupils: uniq.size,
+      pupilsAtRisk: risk.length,
+      dramaEntries: dCount,
+      artEntries: aCount,
+      sources: {
+        drama: D.drama.length,
+        art: D.art.length
+      }
+    },
+    atRiskPupils: risk.map(p => {
+      const dims = p.subject === 'drama' ? ['creating','presenting','evaluating','effort','behaviour','homelearning'] : ['progress','effort','behaviour','homelearning'];
+      const lowDims = dims.filter(d => p.avgs[d] != null && p.avgs[d] <= 2.5).map(d => ({ dimension: d, avg: p.avgs[d] }));
+      return {
+        id: p.id,
+        name: p.name,
+        class: p.cls,
+        yearGroup: p.yg,
+        subject: p.subject === 'drama' ? 'Drama' : 'Art & Design',
+        teacher: p.teacher,
+        lowDimensionCount: p.lowCount,
+        lowDimensions: lowDims
+      };
+    }),
+    data: D
+  };
+
+  if (format === 'json') {
+    const blob = new Blob([JSON.stringify(snapshot, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `faculty-snapshot-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    document.getElementById('snapshot-status').innerHTML = `<strong>Snapshot downloaded.</strong> Share the JSON file with staff for review. Created ${new Date().toLocaleString()}.`;
+    toast('Snapshot downloaded');
+  } else if (format === 'report') {
+    const reportHtml = generateStaffReportHtml(snapshot);
+    const blob = new Blob([reportHtml], { type: 'text/html' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `faculty-report-${new Date().toISOString().slice(0,10)}.html`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+    document.getElementById('snapshot-status').innerHTML = `<strong>Staff report generated.</strong> Open the HTML file to view or share with staff. Created ${new Date().toLocaleString()}.`;
+    toast('Staff report downloaded');
+  }
+}
+
+function generateStaffReportHtml(snap) {
+  const riskRows = snap.atRiskPupils.map(p => {
+    const dims = p.lowDimensions.map(d => `${d.dimension}: ${d.avg.toFixed(1)}`).join(', ');
+    return `<tr><td>${p.name}</td><td>${p.class}</td><td>${p.yearGroup.toUpperCase()}</td><td>${p.subject}</td><td>${p.teacher}</td><td>${p.lowDimensionCount}</td><td>${dims}</td></tr>`;
+  }).join('');
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Faculty Snapshot — Staff Review — ${snap.school}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,sans-serif;background:#f8fafc;color:#1e293b;padding:2rem;max-width:900px;margin:0 auto;line-height:1.6}
+h1{font-size:1.5rem;margin-bottom:.5rem;color:#1e2d4a}
+.sub{font-size:.85rem;color:#64748b;margin-bottom:1.5rem}
+.section{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:1.25rem;margin-bottom:1.25rem}
+.section h2{font-size:1rem;margin-bottom:.75rem;color:#334155}
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:1rem;margin-bottom:1rem}
+.stat{background:#f1f5f9;padding:.75rem;border-radius:6px;text-align:center}
+.stat-num{font-size:1.25rem;font-weight:700;color:#1e2d4a}
+.stat-lbl{font-size:.7rem;color:#64748b;text-transform:uppercase;letter-spacing:.05em;margin-top:.25rem}
+table{width:100%;border-collapse:collapse;font-size:.8rem}
+th,td{padding:.5rem .75rem;text-align:left;border-bottom:1px solid #e2e8f0}
+th{background:#f1f5f9;font-weight:600;font-size:.7rem;text-transform:uppercase;letter-spacing:.05em;color:#64748b}
+tr:hover td{background:#f8fafc}
+.empty{text-align:center;padding:2rem;color:#94a3b8}
+.footer{font-size:.75rem;color:#94a3b8;margin-top:2rem;padding-top:1rem;border-top:1px solid #e2e8f0}
+</style>
+</head>
+<body>
+<h1>Faculty Snapshot — Staff Review</h1>
+<div class="sub">${snap.school} · ${snap.faculty} · Created ${new Date(snap.createdAt).toLocaleString()}</div>
+
+<div class="section">
+<h2>Summary</h2>
+<div class="stats">
+<div class="stat"><div class="stat-num">${snap.summary.totalPupilEntries}</div><div class="stat-lbl">Total entries</div></div>
+<div class="stat"><div class="stat-num">${snap.summary.uniquePupils}</div><div class="stat-lbl">Unique pupils</div></div>
+<div class="stat"><div class="stat-num">${snap.summary.pupilsAtRisk}</div><div class="stat-lbl">At risk</div></div>
+<div class="stat"><div class="stat-num">${snap.summary.dramaEntries}</div><div class="stat-lbl">Drama</div></div>
+<div class="stat"><div class="stat-num">${snap.summary.artEntries}</div><div class="stat-lbl">Art & Design</div></div>
+</div>
+</div>
+
+<div class="section">
+<h2>Pupils at Risk</h2>
+<p style="font-size:.85rem;color:#64748b;margin-bottom:.75rem">Pupils with 2+ dimensions averaging ≤ 2.5</p>
+${snap.atRiskPupils.length ? `
+<table>
+<thead><tr><th>Pupil</th><th>Class</th><th>Year</th><th>Subject</th><th>Teacher</th><th>Low dims</th><th>Low dimensions</th></tr></thead>
+<tbody>${riskRows}</tbody>
+</table>
+` : '<div class="empty">No pupils currently at risk.</div>'}
+</div>
+
+<div class="section">
+<h2>Data sources</h2>
+<p style="font-size:.85rem">Drama: ${snap.summary.sources.drama} source(s) · Art: ${snap.summary.sources.art} source(s)</p>
+</div>
+
+<div class="footer">This snapshot was generated by the Faculty Head Dashboard. Share with staff for review and discussion.</div>
+</body>
+</html>`;
+}
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+function updateLoadCloudButton() {
+  const btn = document.getElementById('load-cloud-btn');
+  if (btn) btn.style.display = window.__authGuardIsAdmin ? 'inline-flex' : 'none';
+}
+updateLoadCloudButton();
+setTimeout(updateLoadCloudButton, 800);
+
+updateImportStatus();
+</script>
+</body>
+</html>

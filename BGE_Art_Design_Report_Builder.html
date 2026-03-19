@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BGE Art & Design — Report Builder</title>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-init.js"></script>
+<script src="allowlist-check.js"></script>
+<script src="auth-guard.js"></script>
+<script src="data-service.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#1e3a5f;--accent:#2563eb;--accent-lt:#eff6ff;
+  --green:#16a34a;--green-lt:#f0fdf4;--amber:#d97706;--amber-lt:#fffbeb;
+  --blue-sec:#1d4ed8;--blue-lt:#eff6ff;
+  --border:#e2e8f0;--bg:#f8fafc;--surface:#fff;
+  --text:#1e293b;--text-2:#475569;--text-3:#94a3b8;
+  --sidebar-bg:#1e3a5f;
+  /* Art & Design CPE colours */
+  --ec-color:#b45309;--ec-bg:#fffbeb;--ec-border:#fcd34d;
+  --ra-color:#0f766e;--ra-bg:#f0fdfa;--ra-border:#99f6e4;
+}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;font-size:14px;line-height:1.5}
+
+/* Header */
+header{background:var(--navy);color:white;height:56px;padding:0 24px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:100;flex-shrink:0;box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.header-brand{display:flex;align-items:center;gap:10px}
+.header-icon{width:32px;height:32px;background:rgba(255,255,255,.12);border-radius:6px;display:flex;align-items:center;justify-content:center}
+.header-text .logo{font-family:'IBM Plex Sans',sans-serif;font-size:.95rem;font-weight:600;color:white}
+.header-text .subtitle{font-size:.72rem;color:rgba(255,255,255,.5);margin-top:1px}
+.header-divider{width:1px;height:24px;background:rgba(255,255,255,.15)}
+.header-context{font-size:.78rem;color:rgba(255,255,255,.5)}
+header .spacer{flex:1}
+#exportBtn{background:var(--accent);color:white;border:none;padding:0 18px;height:34px;border-radius:5px;font-family:'Inter',sans-serif;font-size:.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:7px;transition:background .15s;letter-spacing:.01em}
+#exportBtn:hover{background:#1d4ed8}
+#exportBtn:disabled{background:var(--border);color:var(--text-3);cursor:not-allowed}
+
+/* Layout */
+.app{display:flex;flex:1;overflow:hidden;height:calc(100vh - 56px)}
+
+/* Sidebar */
+.sidebar{width:252px;min-width:200px;background:var(--sidebar-bg);color:white;display:flex;flex-direction:column;overflow:hidden;border-right:1px solid rgba(0,0,0,.2);flex-shrink:0}
+.sidebar-head{padding:14px 16px 10px;font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.1em;color:rgba(255,255,255,.4);display:flex;align-items:center}
+.select-mode-btn{margin-left:auto;background:none;border:1px solid rgba(255,255,255,.15);border-radius:4px;color:rgba(255,255,255,.45);font-size:.68rem;font-family:'Inter',sans-serif;font-weight:600;padding:2px 8px;cursor:pointer;transition:all .1s}
+.select-mode-btn:hover{border-color:rgba(255,255,255,.3);color:rgba(255,255,255,.7)}
+.select-mode-btn.active{background:rgba(239,68,68,.2);border-color:rgba(239,68,68,.4);color:#fca5a5}
+.select-toolbar{display:none;padding:6px 10px;background:rgba(239,68,68,.15);border-top:1px solid rgba(239,68,68,.2);border-bottom:1px solid rgba(239,68,68,.2);align-items:center;gap:6px;flex-shrink:0}
+.select-toolbar.visible{display:flex}
+.select-toolbar span{font-size:.75rem;color:rgba(255,255,255,.7);flex:1}
+.sel-tool-btn{border:none;border-radius:4px;padding:4px 10px;font-family:'Inter',sans-serif;font-size:.75rem;font-weight:600;cursor:pointer}
+.sel-tool-all{background:rgba(255,255,255,.12);color:rgba(255,255,255,.8)}
+.sel-tool-all:hover{background:rgba(255,255,255,.2)}
+.sel-tool-del{background:#ef4444;color:white}
+.sel-tool-del:hover{background:#dc2626}
+.sel-tool-del:disabled{background:rgba(239,68,68,.3);color:rgba(255,255,255,.4);cursor:not-allowed}
+.import-zone{margin:0 10px 6px;border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:10px 12px;text-align:center;cursor:pointer;transition:background .12s,border-color .12s;font-size:.78rem;color:rgba(255,255,255,.55);display:flex;align-items:center;gap:8px;justify-content:center}
+.import-zone:hover{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.25);color:white}
+.import-zone svg{opacity:.6;flex-shrink:0}
+.import-zone:hover svg{opacity:1}
+#pdfInput{display:none}
+.pupil-list{flex:1;overflow-y:auto;padding:4px 0}
+.pupil-list::-webkit-scrollbar{width:3px}
+.pupil-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:3px}
+.pupil-item{padding:8px 16px;cursor:pointer;font-size:.83rem;display:flex;align-items:center;gap:9px;transition:background .1s;border-left:2px solid transparent;color:rgba(255,255,255,.7)}
+.pupil-item:hover{background:rgba(255,255,255,.06);color:white}
+.pupil-item.active{background:rgba(37,99,235,.25);border-left-color:#60a5fa;color:white}
+.pupil-item .initials{width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.1);font-size:.7rem;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.pupil-item.active .initials{background:rgba(96,165,250,.3)}
+.pupil-item .tick{margin-left:auto;color:#4ade80;font-size:.7rem;display:none;flex-shrink:0}
+.pupil-item.done .tick{display:block}
+.pupil-item .pname{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.pupil-item .del-btn{display:none;flex-shrink:0;background:none;border:none;color:rgba(239,68,68,.5);cursor:pointer;font-size:.8rem;padding:2px 4px;border-radius:3px;line-height:1}
+.pupil-item:hover .del-btn{display:block}
+.pupil-item .del-btn:hover{color:#ef4444;background:rgba(239,68,68,.15)}
+.pupil-item .sel-cb{display:none;width:15px;height:15px;border:1.5px solid rgba(255,255,255,.3);border-radius:3px;flex-shrink:0;cursor:pointer;transition:all .1s;background:transparent}
+.select-mode .pupil-item .sel-cb{display:flex;align-items:center;justify-content:center}
+.select-mode .pupil-item .del-btn{display:none !important}
+.select-mode .pupil-item .initials{display:none}
+.pupil-item.selected .sel-cb{background:#ef4444;border-color:#ef4444}
+.pupil-item.selected .sel-cb::after{content:'✓';color:white;font-size:.6rem;font-weight:700}
+.pupil-item.selected{background:rgba(239,68,68,.15)}
+.sidebar-footer{padding:10px 10px 12px;border-top:1px solid rgba(255,255,255,.08);font-size:.75rem}
+#progressText{color:rgba(255,255,255,.5);padding:0 4px;margin-bottom:6px}
+.sidebar-btn{width:100%;border:1px solid rgba(255,255,255,.12);border-radius:5px;padding:7px 10px;font-family:'Inter',sans-serif;font-size:.78rem;font-weight:500;cursor:pointer;text-align:left;margin-bottom:4px;transition:background .1s;display:flex;align-items:center;gap:6px}
+.sidebar-btn-add{background:rgba(255,255,255,.07);color:rgba(255,255,255,.7)}
+.sidebar-btn-add:hover{background:rgba(255,255,255,.12);color:white}
+.sidebar-btn-clear{background:transparent;color:rgba(239,68,68,.6);border-color:rgba(239,68,68,.2)}
+.sidebar-btn-clear:hover{background:rgba(239,68,68,.1);color:rgba(239,68,68,.9)}
+
+/* Main */
+.main{flex:1;overflow-y:auto;padding:28px 32px;background:var(--bg)}
+.main::-webkit-scrollbar{width:5px}
+.main::-webkit-scrollbar-thumb{background:var(--border);border-radius:5px}
+
+/* Welcome */
+.welcome{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;text-align:center;color:var(--text-3)}
+.welcome-icon{width:56px;height:56px;background:var(--amber-lt);border-radius:14px;display:flex;align-items:center;justify-content:center;margin-bottom:18px}
+.welcome h2{font-family:'IBM Plex Sans',sans-serif;font-size:1.3rem;font-weight:600;color:var(--text);margin-bottom:8px}
+.welcome p{font-size:.88rem;max-width:380px;line-height:1.65;color:var(--text-2)}
+
+/* Pupil editor */
+/* Context summary */
+.context-summary-section{background:var(--surface);border:1px solid var(--border);border-radius:8px;margin-bottom:20px;overflow:hidden}
+.context-summary-section .section-head{padding:11px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);background:#fffbeb}
+.context-summary-section .section-head h3{font-family:'IBM Plex Sans',sans-serif;font-size:.85rem;font-weight:600;color:var(--text)}
+.context-summary-section .section-head .badge{font-size:.68rem;font-weight:600;padding:2px 7px;border-radius:4px;text-transform:uppercase;letter-spacing:.06em;background:rgba(180,83,9,.1);color:var(--ec-color)}
+.context-summary-section textarea{width:100%;min-height:80px;border:none;border-radius:0;padding:12px 16px;font-family:'Inter',sans-serif;font-size:.82rem;color:var(--text);background:var(--bg);resize:vertical;outline:none;line-height:1.6}
+.context-summary-section textarea::placeholder{color:var(--text-3)}
+.context-summary-section textarea:focus{background:white}
+
+.pupil-header{display:flex;align-items:flex-start;gap:14px;margin-bottom:20px;padding-bottom:18px;border-bottom:1px solid var(--border)}
+.pupil-avatar{width:44px;height:44px;border-radius:10px;background:var(--navy);color:white;font-family:'IBM Plex Sans',sans-serif;font-size:1rem;font-weight:600;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.pupil-name-edit{flex:1}
+.pupil-name-edit input{font-family:'IBM Plex Sans',sans-serif;font-size:1.25rem;font-weight:600;border:none;background:transparent;color:var(--text);width:100%;outline:none;padding:0}
+.pupil-name-edit .meta{font-size:.75rem;color:var(--text-3);margin-top:3px;display:flex;gap:12px;align-items:center}
+.year-select-row{display:flex;gap:6px;margin-bottom:16px;align-items:center}
+.year-label{font-size:.75rem;font-weight:600;color:var(--text-2);text-transform:uppercase;letter-spacing:.07em;margin-right:4px}
+.year-btn{padding:5px 14px;border:1px solid var(--border);border-radius:4px;background:var(--surface);font-family:'Inter',sans-serif;font-size:.8rem;font-weight:500;cursor:pointer;color:var(--text-2);transition:all .12s}
+.year-btn:hover{border-color:var(--accent);color:var(--accent)}
+.year-btn.active{border-color:var(--accent);background:var(--accent);color:white}
+
+/* Comment sections */
+.section{background:var(--surface);border-radius:8px;border:1px solid var(--border);margin-bottom:14px;overflow:hidden}
+.section-head{padding:11px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);background:#fafbfc}
+.section-head h3{font-family:'IBM Plex Sans',sans-serif;font-size:.85rem;font-weight:600;color:var(--text)}
+.section-head .badge{font-size:.68rem;font-weight:600;padding:2px 7px;border-radius:4px;text-transform:uppercase;letter-spacing:.06em}
+.badge-strengths{background:var(--green-lt);color:var(--green)}
+.badge-aod{background:var(--amber-lt);color:var(--amber)}
+.badge-next{background:var(--blue-lt);color:var(--blue-sec)}
+.section-head .count{margin-left:auto;font-size:.75rem;color:var(--text-3);font-weight:500}
+.comments-grid{padding:10px;display:flex;flex-direction:column;gap:5px;max-height:340px;overflow-y:auto}
+.comments-grid::-webkit-scrollbar{width:3px}
+.comments-grid::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.cpe-group{margin-bottom:6px}
+.cpe-group-label{font-size:.67rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;padding:3px 8px;border-radius:4px;border:1px solid;display:inline-block;margin:6px 0 4px 0}
+.comment-chip{display:flex;align-items:flex-start;gap:10px;padding:9px 11px;border:1px solid var(--border);border-radius:6px;cursor:pointer;transition:border-color .1s,background .1s;font-size:.81rem;line-height:1.5;color:var(--text-2);user-select:none;background:white}
+.comment-chip:hover{border-color:#93c5fd;background:var(--accent-lt);color:var(--text)}
+.comment-chip.selected{border-color:var(--accent);background:var(--accent-lt);color:var(--text)}
+.comment-chip .code{font-size:.65rem;font-weight:700;color:var(--text-3);min-width:28px;padding-top:2px;letter-spacing:.04em;font-family:'IBM Plex Sans',monospace}
+.comment-chip.selected .code{color:var(--accent)}
+.comment-chip .cb{width:15px;height:15px;border:1.5px solid var(--border);border-radius:3px;flex-shrink:0;margin-top:2px;display:flex;align-items:center;justify-content:center;transition:all .1s;background:white}
+.comment-chip.selected .cb{background:var(--accent);border-color:var(--accent)}
+.comment-chip.selected .cb::after{content:'✓';color:white;font-size:.6rem;font-weight:700}
+
+/* Preview */
+.preview-panel{width:300px;min-width:260px;background:var(--surface);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
+.preview-head{padding:12px 16px;border-bottom:1px solid var(--border);font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text-3);display:flex;align-items:center;gap:7px;background:#fafbfc}
+.preview-body{flex:1;padding:16px;overflow-y:auto;font-size:.79rem;line-height:1.65;color:var(--text-2)}
+.preview-body::-webkit-scrollbar{width:3px}
+.preview-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.preview-name{font-family:'IBM Plex Sans',sans-serif;font-size:.95rem;font-weight:600;margin-bottom:4px;color:var(--text)}
+.preview-year{font-size:.7rem;color:var(--text-3);margin-bottom:12px}
+.preview-section{margin-bottom:12px}
+.preview-section h4{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px;padding:2px 6px;border-radius:3px;display:inline-block}
+.preview-section.ps-s h4{background:var(--green-lt);color:var(--green)}
+.preview-section.ps-a h4{background:var(--amber-lt);color:var(--amber)}
+.preview-section.ps-n h4{background:var(--blue-lt);color:var(--blue-sec)}
+.preview-section .empty{color:var(--text-3);font-style:italic}
+.preview-rec{margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-style:italic;color:var(--text-3);font-size:.77rem}
+
+/* Recommend row */
+.recommend-row{display:flex;align-items:center;gap:12px;margin-bottom:20px;padding:12px 16px;background:var(--surface);border-radius:8px;border:1px solid var(--border)}
+.toggle{position:relative;width:40px;height:22px;flex-shrink:0}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;inset:0;background:var(--border);border-radius:22px;cursor:pointer;transition:background .15s}
+.toggle-slider::before{content:'';position:absolute;width:16px;height:16px;left:3px;top:3px;background:white;border-radius:50%;transition:transform .15s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.toggle input:checked + .toggle-slider{background:var(--green)}
+.toggle input:checked + .toggle-slider::before{transform:translateX(18px)}
+
+/* Confirm bar */
+.confirm-bar{position:sticky;bottom:0;background:var(--bg);border-top:1px solid var(--border);padding:12px 0 0;display:flex;gap:8px;align-items:center;margin-top:20px}
+.btn-confirm{background:var(--green);color:white;border:none;padding:0 20px;height:36px;border-radius:5px;font-family:'Inter',sans-serif;font-size:.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:background .12s}
+.btn-confirm:hover{background:#15803d}
+.btn-next{background:var(--navy);color:white;border:none;padding:0 20px;height:36px;border-radius:5px;font-family:'Inter',sans-serif;font-size:.82rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:6px;transition:background .12s}
+.btn-next:hover{background:#152d4a}
+.btn-next:disabled{background:var(--border);color:var(--text-3);cursor:not-allowed}
+.confirm-hint{font-size:.76rem;color:var(--text-3)}
+.confirmed-badge{background:var(--green-lt);color:var(--green);border:1px solid #bbf7d0;border-radius:4px;font-size:.72rem;font-weight:600;padding:2px 8px;display:inline-flex;align-items:center;gap:4px}
+
+/* Toast */
+#toast{position:fixed;bottom:20px;right:20px;background:var(--navy);color:white;padding:10px 18px;border-radius:6px;font-size:.82rem;font-weight:500;box-shadow:0 4px 16px rgba(0,0,0,.2);transform:translateY(60px);opacity:0;transition:transform .2s,opacity .2s;z-index:999}
+#toast.show{transform:translateY(0);opacity:1}
+
+/* Modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:200;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border-radius:10px;padding:24px;width:460px;max-width:95vw;box-shadow:0 20px 50px rgba(0,0,0,.25);border:1px solid var(--border)}
+.modal h3{font-family:'IBM Plex Sans',sans-serif;font-size:1rem;font-weight:600;color:var(--text);margin-bottom:6px}
+.modal p{font-size:.82rem;color:var(--text-2);margin-bottom:14px;line-height:1.55}
+.modal textarea{width:100%;height:180px;border:1px solid var(--border);border-radius:6px;padding:10px 12px;font-family:'Inter',sans-serif;font-size:.82rem;color:var(--text);background:var(--bg);resize:vertical;outline:none;transition:border-color .12s;line-height:1.6}
+.modal textarea:focus{border-color:var(--accent)}
+.modal-actions{display:flex;gap:8px;margin-top:12px;justify-content:flex-end}
+.modal-actions button{padding:0 18px;height:34px;border-radius:5px;font-family:'Inter',sans-serif;font-size:.82rem;font-weight:600;cursor:pointer;border:none}
+.btn-cancel{background:var(--bg);color:var(--text-2);border:1px solid var(--border) !important}
+.btn-cancel:hover{background:var(--border)}
+.btn-import-names{background:var(--accent);color:white}
+.btn-import-names:hover{background:#1d4ed8}
+.modal-preview{margin-top:8px;font-size:.77rem;color:var(--text-3);min-height:18px}
+
+@media(max-width:900px){.preview-panel{display:none}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-brand">
+    <div class="header-icon">
+      <svg width="16" height="16" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+    </div>
+    <div class="header-text">
+      <div class="logo">BGE Art &amp; Design — Report Builder</div>
+      <div class="subtitle">Knightswood Secondary School</div>
+    </div>
+  </div>
+  <div class="header-divider"></div>
+  <div class="header-context">Broad General Education · CfE</div>
+  <div class="spacer"></div>
+  <button id="exportBtn" disabled onclick="exportWord()">
+    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+    Export Word Document
+  </button>
+  <a href="login.html" style="font-size:.8rem;color:rgba(255,255,255,.7);text-decoration:none" onclick="event.preventDefault();if(window.supabase){window.supabase.auth.signOut().then(function(){window.location.href='login.html';});}else{window.location.href='login.html';}">Sign out</a>
+</header>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-head">
+      Class Pupils
+      <button class="select-mode-btn" id="selectModeBtn" onclick="toggleSelectMode()">Select</button>
+    </div>
+    <div class="select-toolbar" id="selectToolbar">
+      <span id="selectCount">0 selected</span>
+      <button class="sel-tool-btn sel-tool-all" onclick="selectAll()">All</button>
+      <button class="sel-tool-btn sel-tool-del" id="delSelectedBtn" onclick="deleteSelected()" disabled>Delete</button>
+      <button class="sel-tool-btn sel-tool-all" onclick="toggleSelectMode()">Cancel</button>
+    </div>
+    <div class="import-zone" onclick="document.getElementById('pdfInput').click()">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+      Import PDF class list
+    </div>
+    <div class="import-zone" onclick="openPasteModal()">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>
+      Paste names list
+    </div>
+    <input type="file" id="pdfInput" accept=".pdf" onchange="importPDF(event)">
+    <div class="pupil-list" id="pupilList"></div>
+    <div class="sidebar-footer">
+      <div id="progressText">No pupils loaded</div>
+      <button class="sidebar-btn sidebar-btn-add" onclick="addPupilManual()">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add pupil manually
+      </button>
+      <button class="sidebar-btn sidebar-btn-clear" onclick="clearData()">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+        Clear all &amp; start over
+      </button>
+    </div>
+  </aside>
+
+  <main class="main" id="mainPanel">
+    <div class="welcome" id="welcomeMsg">
+      <div class="welcome-icon">
+        <svg width="24" height="24" fill="none" stroke="#b45309" stroke-width="1.5" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      </div>
+      <h2>BGE Art &amp; Design Report Builder</h2>
+      <p>Import your class list from a PDF, paste names from a register, or add pupils manually. Select each pupil to choose their comments and build their report.</p>
+    </div>
+  </main>
+
+  <aside class="preview-panel">
+    <div class="preview-head">
+      <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      Preview
+    </div>
+    <div class="preview-body" id="previewBody">
+      <div style="color:var(--text-3);font-style:italic;margin-top:40px;text-align:center;font-size:.82rem">Select a pupil to preview their report</div>
+    </div>
+  </aside>
+</div>
+
+<!-- Paste modal -->
+<div class="modal-overlay" id="pasteModal" onclick="if(event.target===this)closePasteModal()">
+  <div class="modal">
+    <h3>Paste Class Names</h3>
+    <p>Paste your list of names — one per line, comma or tab separated. Works with "First Last", "Last, First", or copied from a spreadsheet.</p>
+    <textarea id="pasteArea" placeholder="e.g.&#10;Alfie Smith&#10;Ryan Jones&#10;Emma MacDonald" oninput="previewPaste()"></textarea>
+    <div class="modal-preview" id="pastePreview"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closePasteModal()">Cancel</button>
+      <button class="btn-import-names" onclick="commitPaste()">Import Names</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// ─── Comment Bank ─────────────────────────────────────────────────────────────
+// Structure: COMMENTS[year][section][code] = text
+// Sections: strengths (1-15), aod (16-30), next_steps (31-45) per year
+// CPE categories: Expressing & Creating (EC), Reflecting & Analysing (RA)
+// Codes: S1 = A1–A45, S2 = B1–B45, S3 = C1–C45
+// Category map: EC = Expressing & Creating | RA = Reflecting & Analysing
+
+const COMMENTS = {
+  S1: {
+    strengths: {
+      'A1': 'X explores a range of media and materials with curiosity and growing confidence, showing an emerging understanding of their properties and effects.',
+      'A2': 'X demonstrates developing skill in observing and recording from direct experience, producing drawings that show careful attention to detail.',
+      'A3': 'X uses the visual elements of line, shape, colour and tone with growing confidence in both expressive and design work.',
+      'A4': 'X engages enthusiastically with art and design activities, showing imagination in developing and communicating personal ideas.',
+      'A5': 'X shows a developing ability to plan and work through a design process, producing solutions that respond meaningfully to a brief.',
+      'A6': 'X demonstrates growing awareness of how artists and designers use visual elements and processes, making thoughtful connections to their own work.',
+      'A7': 'X uses colour with developing confidence, showing understanding of colour mixing and the effects different colour choices can create.',
+      'A8': 'X produces observational drawings that show increasing accuracy in proportion, scale and the representation of detail.',
+      'A9': 'X engages positively in group and independent tasks, contributing ideas and taking responsibility for the quality of their work.',
+      'A10': 'X shows developing skill in selecting and applying media appropriate to the task, demonstrating an understanding of their qualities and limitations.',
+      'A11': 'X is developing the ability to use art and design vocabulary when talking about visual work, both their own and that of others.',
+      'A12': 'X demonstrates a growing understanding of how visual elements such as pattern and texture can be used to create effects in artwork.',
+      'A13': 'X shows enthusiasm for investigating and experimenting with materials, often making creative and unexpected choices.',
+      'A14': 'X engages thoughtfully with the work of artists and designers, sharing personal responses and beginning to justify opinions.',
+      'A15': 'X shows a developing ability to reflect on their own work, identifying what has worked well and considering how it could be developed further.',
+    },
+    aod: {
+      'A16': 'X is encouraged to develop observational accuracy further, taking more time to study the subject carefully before committing marks to paper.',
+      'A17': 'X could strengthen work by making more deliberate and considered use of the visual elements, particularly tone and form.',
+      'A18': 'X is encouraged to extend their use of media and materials beyond familiar choices, exploring a broader range of tools and techniques.',
+      'A19': 'X could develop more detailed planning when responding to design briefs, thinking through possible solutions before beginning.',
+      'A20': 'X is encouraged to make stronger use of art and design vocabulary when discussing and evaluating work.',
+      'A21': 'X could develop the skill of sustained observation, working more slowly and carefully to capture greater accuracy and detail.',
+      'A22': 'X is encouraged to be more experimental with colour, exploring mixing and tonal variation to add depth and interest to work.',
+      'A23': 'X could engage more critically with the work of artists and designers, moving beyond likes and dislikes to consider how and why work has been made.',
+      'A24': 'X is encouraged to take greater ownership of the creative process, making more independent choices about materials and approaches.',
+      'A25': 'X could develop the habit of reviewing and refining work in progress, rather than accepting first attempts as final outcomes.',
+      'A26': 'X is encouraged to consider how the visual elements work together in a composition, thinking carefully about the overall effect of their choices.',
+      'A27': 'X could develop a more considered approach to the design process, ensuring that ideas are thoroughly explored before settling on a final solution.',
+      'A28': 'X is encouraged to take more creative risks, exploring unfamiliar ideas and approaches with greater confidence.',
+      'A29': 'X could strengthen evaluative responses by using more specific art and design terminology and providing more detailed reasoning.',
+      'A30': 'X is encouraged to show greater care and attention to craft in the finishing of artwork, ensuring that outcomes reflect their potential.',
+    },
+    next_steps: {
+      'A31': 'X should continue to develop observational drawing skills, focusing on accuracy of proportion, scale and detail.',
+      'A32': 'X is encouraged to extend their exploration of media and materials, experimenting more widely with their properties and effects.',
+      'A33': 'X should continue to develop a working knowledge of the visual elements and practise applying them purposefully in their work.',
+      'A34': 'X is encouraged to develop confidence in the design process, exploring multiple ideas and communicating solutions clearly.',
+      'A35': 'X should continue to build their knowledge of artists and designers, making connections between others\' work and their own practice.',
+      'A36': 'X is encouraged to develop the habit of evaluating their own work regularly, using art and design vocabulary to identify strengths and areas for development.',
+      'A37': 'X should continue to practise mixing and applying colour, exploring how tonal variation and colour relationships can enhance work.',
+      'A38': 'X is encouraged to develop the skill of sustained concentration when working, particularly during observational and detailed tasks.',
+      'A39': 'X should continue to explore how the visual elements of line, shape, form, tone, colour, pattern and texture work together in compositions.',
+      'A40': 'X is encouraged to develop a more reflective approach to making, pausing to assess progress and making adjustments to improve outcomes.',
+      'A41': 'X should continue to build confidence in expressing personal ideas creatively, trusting their own aesthetic judgements.',
+      'A42': 'X is encouraged to develop their ability to give and receive constructive feedback on artwork, using appropriate vocabulary.',
+      'A43': 'X should continue to explore and experiment with a wider range of media, developing an understanding of their individual properties.',
+      'A44': 'X is encouraged to develop the ability to work independently through a design process from initial ideas through to a finished outcome.',
+      'A45': 'X should continue to build confidence in discussing and analysing artwork, developing skills in using visual analysis vocabulary.',
+    }
+  },
+
+  S2: {
+    strengths: {
+      'B1': 'X demonstrates developing skill and confidence in using a range of media and materials, showing clear understanding of their properties and how to exploit them effectively.',
+      'B2': 'X produces observational work that shows good accuracy of representation, demonstrating sustained concentration and careful attention to detail.',
+      'B3': 'X uses the visual elements and concepts with growing confidence and intention, combining them effectively to convey ideas in expressive and design work.',
+      'B4': 'X shows a clear ability to develop and communicate imaginative ideas, working with independence and creativity across a range of tasks.',
+      'B5': 'X demonstrates a well-developed understanding of the design process, researching, developing and communicating solutions that respond thoughtfully to a brief.',
+      'B6': 'X engages meaningfully with the work of artists and designers, investigating and discussing how they handle media, use techniques and apply visual elements.',
+      'B7': 'X shows a strong ability to select and apply media and techniques independently, providing clear and reasoned justification for their choices.',
+      'B8': 'X produces work that demonstrates a developing understanding of how visual elements and visual concepts can be combined to create mood and atmosphere.',
+      'B9': 'X evaluates their own and others\' work with increasing confidence, using appropriate art and design vocabulary to identify what works well and what could be improved.',
+      'B10': 'X shows good understanding of how different media can be combined and layered to create a range of effects, applying this knowledge effectively in practical work.',
+      'B11': 'X demonstrates growing ability to work with increasing accuracy and control, showing careful craftsmanship in the execution of both expressive and design work.',
+      'B12': 'X engages enthusiastically and independently with creative tasks, showing imagination, initiative and personal voice in the development of ideas.',
+      'B13': 'X shows a developing ability to investigate the work of artists and designers in depth, identifying and explaining key influences and contextual factors.',
+      'B14': 'X demonstrates good understanding of how to represent form, tone and depth, applying these skills effectively in observational and expressive work.',
+      'B15': 'X shows a developing ability to work through a sustained and progressive design process, from initial research through to final resolution.',
+    },
+    aod: {
+      'B16': 'X is encouraged to develop greater accuracy and confidence in observational drawing, focusing particularly on proportion, scale and the representation of tonal variation.',
+      'B17': 'X could strengthen work by making more deliberate use of visual elements and concepts, thinking more carefully about how to use them to communicate ideas effectively.',
+      'B18': 'X is encouraged to be more adventurous in their selection and application of media, exploring a wider range of techniques and considering how they could enhance outcomes.',
+      'B19': 'X could develop the quality of design work by investing more time in initial research and idea generation, ensuring that final solutions are well-informed and inventive.',
+      'B20': 'X is encouraged to engage more critically with the work of artists and designers, moving beyond description to analyse and interpret the choices they have made.',
+      'B21': 'X could develop greater skill in combining the visual elements, thinking more carefully about how colour, tone, texture and composition work together in a piece.',
+      'B22': 'X is encouraged to develop more confidence in selecting and applying media independently, providing clearer reasoning for the choices made.',
+      'B23': 'X could develop more detailed and specific evaluative responses, making greater use of art and design vocabulary and providing well-reasoned judgements.',
+      'B24': 'X is encouraged to develop the ability to sustain the design process more fully, ensuring that all stages from research through to final outcome are carefully considered.',
+      'B25': 'X could improve the finish and presentation of work, demonstrating greater attention to craft and taking more care in the final stages of making.',
+      'B26': 'X is encouraged to develop the skill of working with increasing precision and control in both drawing and making activities.',
+      'B27': 'X could develop the ability to make stronger connections between the work of artists and designers and their own practical work.',
+      'B28': 'X is encouraged to develop a more reflective and self-critical approach, regularly reviewing progress and identifying opportunities to improve and develop work.',
+      'B29': 'X could strengthen evaluative skills by engaging in more detailed and perceptive analysis of visual qualities in artwork.',
+      'B30': 'X is encouraged to develop greater independence in the creative process, making more considered and personal choices about direction and approach.',
+    },
+    next_steps: {
+      'B31': 'X should continue to develop observational drawing skills, working towards greater accuracy in the representation of proportion, tone and detail.',
+      'B32': 'X is encouraged to extend their practical skills across a broader range of media and materials, developing a deeper understanding of their properties.',
+      'B33': 'X should continue to develop their ability to use visual elements and concepts purposefully and expressively in both 2D and 3D work.',
+      'B34': 'X is encouraged to develop the design process more fully, ensuring that all stages — research, development and resolution — are given appropriate attention.',
+      'B35': 'X should continue to develop critical engagement with the work of artists and designers, building knowledge and developing the ability to make analytical responses.',
+      'B36': 'X is encouraged to develop a consistent and reflective evaluative practice, using appropriate vocabulary to assess progress and plan next steps.',
+      'B37': 'X should continue to practise combining and layering media, developing a broader technical vocabulary and greater skill in their application.',
+      'B38': 'X is encouraged to develop greater independence in creative decision-making, trusting their own aesthetic judgements and developing a personal voice.',
+      'B39': 'X should continue to develop skill in representing form, tone and depth in observational and expressive work.',
+      'B40': 'X is encouraged to develop the ability to sustain effort and concentration across longer and more complex projects.',
+      'B41': 'X should continue to build confidence in discussing and evaluating artwork, developing the ability to make well-reasoned and perceptive critical responses.',
+      'B42': 'X is encouraged to develop more ambitious and inventive approaches to design, exploring a wider range of possibilities before settling on a solution.',
+      'B43': 'X should continue to develop an understanding of how visual elements and concepts work together, applying this knowledge with increasing confidence and skill.',
+      'B44': 'X is encouraged to develop the ability to work more independently across the full range of art and design activities, taking greater ownership of the creative process.',
+      'B45': 'X should continue to investigate and respond to the work of artists and designers, developing knowledge of contexts, styles and approaches.',
+    }
+  },
+
+  S3: {
+    strengths: {
+      'C1': 'X demonstrates strong and confident practical skills across a range of media and technologies, showing a secure understanding of their properties and how to use them to achieve intended effects.',
+      'C2': 'X produces observational work of a high standard, demonstrating considerable accuracy and skill in the representation of form, tone, proportion and detail.',
+      'C3': 'X uses the visual elements and concepts with skill and intention, combining them effectively and imaginatively in both expressive and design contexts.',
+      'C4': 'X shows an impressive ability to develop and communicate original and imaginative ideas, demonstrating a confident and distinctive personal voice.',
+      'C5': 'X demonstrates a thorough and well-developed approach to the design process, researching, developing and communicating design solutions that are inventive and well-resolved.',
+      'C6': 'X engages with the work of artists and designers with genuine insight and intellectual curiosity, producing critical and analytical responses that demonstrate depth of understanding.',
+      'C7': 'X shows a highly developed ability to select and apply media and techniques independently and with clear purpose, making thoughtful and well-justified decisions.',
+      'C8': 'X produces work that demonstrates a sophisticated understanding of how visual elements and concepts can be combined to convey complex ideas and emotions.',
+      'C9': 'X evaluates their own and others\' work with perceptiveness and confidence, using art and design vocabulary with precision to identify strengths and areas for development.',
+      'C10': 'X demonstrates exceptional skill and care in the craftsmanship of practical work, consistently producing outcomes that are finished to a high standard.',
+      'C11': 'X shows an impressive ability to make meaningful connections between the work of artists and designers and their own developing practice.',
+      'C12': 'X demonstrates a sophisticated understanding of how context, style and intention shape art and design practice, applying this knowledge effectively in their own work.',
+      'C13': 'X shows strong ability to work through an extended and sustained design process, making thoughtful and considered decisions at each stage.',
+      'C14': 'X demonstrates a well-developed and reflective approach to making, regularly reviewing progress and making purposeful adjustments to improve outcomes.',
+      'C15': 'X shows impressive skill in combining and layering media to create complex effects, demonstrating a broad and confident technical vocabulary.',
+    },
+    aod: {
+      'C16': 'X is encouraged to develop greater ambition in the development of ideas, pushing beyond initial responses to explore more challenging and inventive possibilities.',
+      'C17': 'X could strengthen practical work by developing greater precision and control in the application of media and techniques, working with more care in the finishing of outcomes.',
+      'C18': 'X is encouraged to develop more sophisticated analytical and critical responses to artwork, engaging more deeply with the social, cultural and historical contexts of practice.',
+      'C19': 'X could develop the design process more fully, investing more time and thought in research and idea generation to ensure final outcomes are more thoroughly informed.',
+      'C20': 'X is encouraged to develop a more distinctive and independent personal voice in creative work, moving beyond technical competence towards more expressive and original outcomes.',
+      'C21': 'X could develop stronger and more precise use of the visual elements and concepts, thinking more carefully about how each decision contributes to the overall intention of the work.',
+      'C22': 'X is encouraged to engage more deeply with the work of artists and designers, moving beyond surface description to develop more perceptive and analytical critical responses.',
+      'C23': 'X could develop more independent judgement in the creative process, making more considered and personally motivated decisions about direction, materials and approach.',
+      'C24': 'X is encouraged to develop the skill of sustained and critical self-evaluation, using this to drive meaningful development and improvement throughout the making process.',
+      'C25': 'X could improve the quality and depth of evaluative responses, making greater use of subject-specific vocabulary and engaging more fully with the visual and contextual qualities of work.',
+      'C26': 'X is encouraged to develop greater technical mastery in practical work, focusing on precision, control and the quality of finish in all areas.',
+      'C27': 'X could develop a stronger understanding of how the work of artists and designers relates to its broader social, cultural and historical context.',
+      'C28': 'X is encouraged to take greater creative risks, exploring more challenging and ambitious ideas with the confidence to develop them fully.',
+      'C29': 'X could develop a more systematic and reflective approach to the design process, ensuring that research and development stages are given greater depth and rigour.',
+      'C30': 'X is encouraged to develop a more personal and expressive approach to making, moving towards greater creative independence and self-direction.',
+    },
+    next_steps: {
+      'C31': 'X should continue to develop technical skills and knowledge of media and materials, working towards greater control, precision and expressive range.',
+      'C32': 'X is encouraged to develop their personal creative voice, exploring more ambitious and original ideas and pushing the boundaries of their practice.',
+      'C33': 'X should continue to develop the design process, working towards outcomes that demonstrate rigorous research, inventive idea generation and confident resolution.',
+      'C34': 'X is encouraged to develop critical and analytical skills further, building the ability to engage with art and design in its broader social, cultural and historical contexts.',
+      'C35': 'X should continue to develop a reflective and evaluative approach to their work, using self-assessment to drive progress and development.',
+      'C36': 'X is encouraged to continue building knowledge of a wide range of artists and designers, developing the ability to make perceptive analytical responses.',
+      'C37': 'X should continue to develop the ability to combine the visual elements and concepts with increasing skill, imagination and intention.',
+      'C38': 'X is encouraged to develop greater creative independence, making increasingly personal and self-directed decisions across all areas of art and design.',
+      'C39': 'X should continue to develop observational and representational skills, working towards greater subtlety and accuracy in the depiction of form, tone and detail.',
+      'C40': 'X is encouraged to develop the habit of sustained critical reflection throughout the making process, using evaluation to improve and develop work.',
+      'C41': 'X should continue to develop practical skills across a range of media and processes, building a broad and confident technical vocabulary.',
+      'C42': 'X is encouraged to develop the ability to make deep and contextually informed responses to the work of artists and designers.',
+      'C43': 'X should continue to develop skills in written and verbal evaluation, using art and design vocabulary with increasing accuracy and precision.',
+      'C44': 'X is encouraged to develop greater ambition and creative courage, committing to more complex and challenging projects with increasing confidence.',
+      'C45': 'X should continue to develop a distinctive personal style and creative identity, building a coherent and developing body of work across the BGE.',
+    }
+  }
+};
+
+// ─── CPE category map ─────────────────────────────────────────────────────────
+// EC = Expressing & Creating | RA = Reflecting & Analysing
+const CPE = {
+  // S1
+  'A1':'EC','A2':'EC','A3':'EC','A4':'EC','A5':'EC','A6':'RA','A7':'EC',
+  'A8':'EC','A9':'EC','A10':'EC','A11':'RA','A12':'EC','A13':'EC','A14':'RA','A15':'RA',
+  'A16':'EC','A17':'EC','A18':'EC','A19':'EC','A20':'RA','A21':'EC','A22':'EC',
+  'A23':'RA','A24':'EC','A25':'EC','A26':'EC','A27':'EC','A28':'EC','A29':'RA','A30':'EC',
+  'A31':'EC','A32':'EC','A33':'EC','A34':'EC','A35':'RA','A36':'RA','A37':'EC',
+  'A38':'EC','A39':'EC','A40':'EC','A41':'EC','A42':'RA','A43':'EC','A44':'EC','A45':'RA',
+  // S2
+  'B1':'EC','B2':'EC','B3':'EC','B4':'EC','B5':'EC','B6':'RA','B7':'EC',
+  'B8':'EC','B9':'RA','B10':'EC','B11':'EC','B12':'EC','B13':'RA','B14':'EC','B15':'EC',
+  'B16':'EC','B17':'EC','B18':'EC','B19':'EC','B20':'RA','B21':'EC','B22':'EC',
+  'B23':'RA','B24':'EC','B25':'EC','B26':'EC','B27':'RA','B28':'RA','B29':'RA','B30':'EC',
+  'B31':'EC','B32':'EC','B33':'EC','B34':'EC','B35':'RA','B36':'RA','B37':'EC',
+  'B38':'EC','B39':'EC','B40':'EC','B41':'RA','B42':'EC','B43':'EC','B44':'EC','B45':'RA',
+  // S3
+  'C1':'EC','C2':'EC','C3':'EC','C4':'EC','C5':'EC','C6':'RA','C7':'EC',
+  'C8':'EC','C9':'RA','C10':'EC','C11':'RA','C12':'RA','C13':'EC','C14':'EC','C15':'EC',
+  'C16':'EC','C17':'EC','C18':'RA','C19':'EC','C20':'EC','C21':'EC','C22':'RA',
+  'C23':'EC','C24':'RA','C25':'RA','C26':'EC','C27':'RA','C28':'EC','C29':'EC','C30':'EC',
+  'C31':'EC','C32':'EC','C33':'EC','C34':'RA','C35':'RA','C36':'RA','C37':'EC',
+  'C38':'EC','C39':'EC','C40':'RA','C41':'EC','C42':'RA','C43':'RA','C44':'EC','C45':'EC',
+};
+
+const CPE_LABELS = {
+  EC: { label: 'Expressing & Creating', color: '#b45309', bg: '#fffbeb', border: '#fcd34d' },
+  RA: { label: 'Reflecting & Analysing', color: '#0f766e', bg: '#f0fdfa', border: '#99f6e4' },
+};
+
+// ─── State ────────────────────────────────────────────────────────────────────
+let pupils = [];
+let activePupilId = null;
+let contextSummary = '';
+let selectMode = false;
+let selectedPupilIds = new Set();
+const STORAGE_KEY = 'bge_art_reports_v1';
+
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2); }
+
+// ─── Persistence ──────────────────────────────────────────────────────────────
+function saveData(){
+  var payload = { pupils, activePupilId, contextSummary };
+  if (window.DataService) {
+    DataService.set(STORAGE_KEY, payload).catch(function(){ showToast('Save failed'); });
+  } else {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(payload)); } catch(e) {}
+  }
+}
+function loadData(){
+  return (window.DataService ? DataService.get(STORAGE_KEY) : Promise.resolve(JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'))).then(function(d){
+    if (!d) return false;
+    pupils = d.pupils || [];
+    activePupilId = d.activePupilId || null;
+    contextSummary = d.contextSummary || '';
+    return pupils.length > 0;
+  });
+}
+
+// ─── Pupil creation ───────────────────────────────────────────────────────────
+function createPupil(firstName='New', lastName='Pupil'){
+  return {
+    id: uid(), firstName, lastName, year: 'S1',
+    selections: { strengths:[], aod:[], next_steps:[] },
+    recommend: false,
+    additionalComments: '',
+    confirmed: false,
+  };
+}
+
+// ─── Sidebar ──────────────────────────────────────────────────────────────────
+function renderSidebar(){
+  const list = document.getElementById('pupilList');
+  list.innerHTML = '';
+  list.classList.toggle('select-mode', selectMode);
+
+  for (const p of pupils){
+    const done = p.confirmed;
+    const isSel = selectedPupilIds.has(p.id);
+    const div = document.createElement('div');
+    div.className = 'pupil-item'
+      + (p.id === activePupilId && !selectMode ? ' active' : '')
+      + (done ? ' done' : '')
+      + (isSel ? ' selected' : '');
+    div.innerHTML = `
+      <span class="sel-cb"></span>
+      <span class="initials">${initials(p)}</span>
+      <span class="pname">${p.firstName} ${p.lastName}</span>
+      <span class="tick">✓</span>
+      <button class="del-btn" title="Remove" onclick="deletePupil(event,'${p.id}')">✕</button>`;
+    div.onclick = selectMode ? ()=>togglePupilSelection(p.id) : ()=>selectPupil(p.id);
+    list.appendChild(div);
+  }
+
+  const done = pupils.filter(p=>p.confirmed).length;
+  document.getElementById('progressText').textContent =
+    pupils.length === 0 ? 'No pupils loaded' : `${done} / ${pupils.length} confirmed`;
+  document.getElementById('exportBtn').disabled = pupils.length === 0;
+
+  if (selectMode){
+    const n = selectedPupilIds.size;
+    document.getElementById('selectCount').textContent = `${n} selected`;
+    document.getElementById('delSelectedBtn').disabled = n === 0;
+  }
+}
+
+function initials(p){ return (p.firstName[0]||'') + (p.lastName[0]||''); }
+
+// ─── Select mode ──────────────────────────────────────────────────────────────
+function toggleSelectMode(){
+  selectMode = !selectMode;
+  selectedPupilIds.clear();
+  const btn = document.getElementById('selectModeBtn');
+  const tb = document.getElementById('selectToolbar');
+  btn.textContent = selectMode ? 'Cancel' : 'Select';
+  btn.classList.toggle('active', selectMode);
+  tb.classList.toggle('visible', selectMode);
+  renderSidebar();
+}
+function togglePupilSelection(id){
+  if (selectedPupilIds.has(id)) selectedPupilIds.delete(id);
+  else selectedPupilIds.add(id);
+  renderSidebar();
+}
+function selectAll(){
+  if (selectedPupilIds.size === pupils.length) selectedPupilIds.clear();
+  else pupils.forEach(p=>selectedPupilIds.add(p.id));
+  renderSidebar();
+}
+function deleteSelected(){
+  const n = selectedPupilIds.size;
+  if (n === 0) return;
+  if (!confirm(`Remove ${n} pupil${n!==1?'s':''} from the list?`)) return;
+  pupils = pupils.filter(p=>!selectedPupilIds.has(p.id));
+  if (selectedPupilIds.has(activePupilId)) activePupilId = pupils[0]?.id || null;
+  selectedPupilIds.clear();
+  selectMode = false;
+  document.getElementById('selectModeBtn').textContent = 'Select';
+  document.getElementById('selectModeBtn').classList.remove('active');
+  document.getElementById('selectToolbar').classList.remove('visible');
+  saveData(); renderSidebar();
+  if (activePupilId){ renderEditor(); renderPreview(); }
+  else showWelcome();
+  showToast(`${n} pupil${n!==1?'s':''} removed`);
+}
+
+function deletePupil(e, id){
+  e.stopPropagation();
+  const p = pupils.find(x=>x.id===id);
+  if (!p) return;
+  if (!confirm(`Remove ${p.firstName} ${p.lastName}?`)) return;
+  pupils = pupils.filter(x=>x.id!==id);
+  if (activePupilId === id) activePupilId = pupils[0]?.id || null;
+  saveData(); renderSidebar();
+  if (activePupilId){ renderEditor(); renderPreview(); } else showWelcome();
+}
+
+function showWelcome(){
+  const ctxHtml = pupils.length > 0 ? `
+    <div class="context-summary-section">
+      <div class="section-head"><h3>Class / Term Context</h3><span class="badge">Optional</span></div>
+      <textarea id="contextSummary" placeholder="Add a summary of what pupils have been doing this term — e.g. units covered, topics explored, key activities. This will appear at the top of each report for context."
+        oninput="setContextSummary(this.value)"
+      >${(contextSummary||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>
+    </div>` : '';
+  document.getElementById('mainPanel').innerHTML = ctxHtml + `
+    <div class="welcome"><div class="welcome-icon">
+      <svg width="24" height="24" fill="none" stroke="#b45309" stroke-width="1.5" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+    </div>
+    <h2>BGE Art &amp; Design Report Builder</h2>
+    <p>Import your class list from a PDF, paste names from a register, or add pupils manually.${pupils.length > 0 ? ' Select a pupil from the list to start building their report.' : ''}</p></div>`;
+}
+
+// ─── Select pupil ─────────────────────────────────────────────────────────────
+function selectPupil(id){
+  activePupilId = id;
+  saveData(); renderSidebar(); renderEditor(); renderPreview();
+}
+
+// ─── Editor ───────────────────────────────────────────────────────────────────
+function renderEditor(){
+  const panel = document.getElementById('mainPanel');
+  const p = pupils.find(x=>x.id===activePupilId);
+  if (!p){ showWelcome(); return; }
+
+  panel.innerHTML = `
+    <div class="context-summary-section">
+      <div class="section-head">
+        <h3>Class / Term Context</h3>
+        <span class="badge">Optional</span>
+      </div>
+      <textarea id="contextSummary" placeholder="Add a summary of what pupils have been doing this term — e.g. units covered, topics explored, key activities. This will appear at the top of each report for context."
+        oninput="setContextSummary(this.value)"
+      >${(contextSummary||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>
+    </div>
+
+    <div class="pupil-header">
+      <div class="pupil-avatar">${initials(p)}</div>
+      <div class="pupil-name-edit">
+        <input id="nameInput" value="${p.firstName} ${p.lastName}" placeholder="First Surname"
+          onchange="updateName(this.value)" onkeyup="updateName(this.value)">
+        <div class="meta">
+          <span>Editing report</span>
+          ${p.confirmed ? '<span class="confirmed-badge">✓ Confirmed</span>' : ''}
+        </div>
+      </div>
+    </div>
+    <div class="year-select-row">
+      <span class="year-label">Year:</span>
+      ${['S1','S2','S3'].map(y=>`
+        <button class="year-btn ${p.year===y?'active':''}" onclick="setYear('${y}')">${y}</button>
+      `).join('')}
+    </div>
+    ${p.year !== 'S3' ? `
+    <div class="recommend-row">
+      <div style="flex:1">
+        <div style="font-size:.85rem;font-weight:500;color:var(--text)">Recommend continuing Art &amp; Design?</div>
+        <div style="font-size:.75rem;color:var(--text-3);margin-top:2px">Adds a recommendation sentence to the report</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="recToggle" ${p.recommend?'checked':''} onchange="setRecommend(this.checked)">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>` : ''}
+    ${renderSection(p,'strengths','Strengths','badge-strengths')}
+    ${renderSection(p,'aod','Areas of Development','badge-aod')}
+    ${renderSection(p,'next_steps','Next Steps','badge-next')}
+    <div class="section" style="margin-bottom:14px">
+      <div class="section-head">
+        <h3>Additional Comments</h3>
+        <span class="badge" style="background:#f1f5f9;color:var(--text-2)">Optional</span>
+        <span class="count">Free text</span>
+      </div>
+      <div style="padding:10px">
+        <textarea id="additionalComments"
+          placeholder="Add any additional comments here — these will appear at the end of the report as written..."
+          style="width:100%;height:90px;border:1px solid var(--border);border-radius:6px;padding:9px 11px;font-family:'Inter',sans-serif;font-size:.82rem;color:var(--text);background:var(--bg);resize:vertical;outline:none;line-height:1.6;transition:border-color .12s"
+          onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"
+          oninput="setAdditionalComments(this.value)"
+        >${p.additionalComments||''}</textarea>
+      </div>
+    </div>
+    <div class="confirm-bar">
+      <button class="btn-confirm" onclick="confirmPupil()">${p.confirmed?'✓ Confirmed':'✓ Confirm Report'}</button>
+      <button class="btn-next" onclick="confirmAndNext()" ${nextPupilId()?'':'disabled'}>
+        ${nextPupilId()?'Next Pupil →':'Last Pupil'}
+      </button>
+      <span class="confirm-hint">${p.confirmed?'<span style="color:#16a34a">✓ Report saved</span>':'Confirm to mark as done'}</span>
+    </div>`;
+}
+
+function renderSection(p, key, label, badgeClass){
+  const bank = COMMENTS[p.year][key];
+  const sel = p.selections[key];
+  const count = sel.length;
+
+  const groups = { EC:[], RA:[] };
+  for (const [code, text] of Object.entries(bank)){
+    const cat = CPE[code] || 'EC';
+    groups[cat].push({ code, text });
+  }
+
+  const groupHtml = Object.entries(groups).map(([cat, items])=>{
+    if (items.length === 0) return '';
+    const { label:catLabel, color, bg, border } = CPE_LABELS[cat];
+    const chips = items.map(({code,text})=>{
+      const selected = sel.includes(code);
+      return `<div class="comment-chip ${selected?'selected':''}" onclick="toggleComment('${key}','${code}')">
+        <div class="cb"></div>
+        <span class="code">${code}</span>
+        <span>${text.replace('X','<em style="color:var(--accent);font-style:normal;font-weight:600">NAME</em>')}</span>
+      </div>`;
+    }).join('');
+    return `<div class="cpe-group">
+      <div class="cpe-group-label" style="color:${color};background:${bg};border-color:${border}">${catLabel}</div>
+      ${chips}
+    </div>`;
+  }).join('');
+
+  return `<div class="section">
+    <div class="section-head">
+      <h3>${label}</h3>
+      <span class="badge ${badgeClass}">${label}</span>
+      <span class="count">${count} selected</span>
+    </div>
+    <div class="comments-grid">${groupHtml}</div>
+  </div>`;
+}
+
+// ─── Editor helpers ───────────────────────────────────────────────────────────
+function updateName(val){
+  const p = pupils.find(x=>x.id===activePupilId); if (!p) return;
+  const parts = val.trim().split(/\s+/);
+  p.firstName = parts[0]||'First'; p.lastName = parts.slice(1).join(' ')||'Surname';
+  const av = document.querySelector('.pupil-avatar'); if (av) av.textContent = initials(p);
+  saveData(); renderSidebar(); renderPreview();
+}
+function setYear(year){
+  const p = pupils.find(x=>x.id===activePupilId); if (!p) return;
+  p.year = year; p.selections = { strengths:[], aod:[], next_steps:[] };
+  saveData(); renderEditor(); renderPreview();
+}
+function setRecommend(val){
+  const p = pupils.find(x=>x.id===activePupilId); if (!p) return;
+  p.recommend = val; saveData(); renderPreview();
+}
+function setAdditionalComments(val){
+  const p = pupils.find(x=>x.id===activePupilId); if (!p) return;
+  p.additionalComments = val; saveData(); renderPreview();
+}
+function setContextSummary(val){
+  contextSummary = val||''; saveData(); renderPreview();
+}
+function toggleComment(key, code){
+  const p = pupils.find(x=>x.id===activePupilId); if (!p) return;
+  const idx = p.selections[key].indexOf(code);
+  if (idx===-1) p.selections[key].push(code); else p.selections[key].splice(idx,1);
+  saveData();
+  // Update chip without full re-render
+  const chip = document.querySelector(`.comment-chip[onclick="toggleComment('${key}','${code}')"]`);
+  if (chip){ chip.classList.toggle('selected', p.selections[key].includes(code)); }
+  // Update count
+  const heads = document.querySelectorAll('.section-head .count');
+  const keys = ['strengths','aod','next_steps'];
+  heads.forEach((h,i)=>{ if(keys[i]) h.textContent = `${p.selections[keys[i]].length} selected`; });
+  renderPreview();
+}
+
+// ─── Preview ──────────────────────────────────────────────────────────────────
+function renderPreview(){
+  const p = pupils.find(x=>x.id===activePupilId);
+  const body = document.getElementById('previewBody');
+  if (!p){ body.innerHTML='<div style="color:var(--text-3);font-style:italic;margin-top:40px;text-align:center;font-size:.82rem">Select a pupil to preview</div>'; return; }
+
+  const name = p.firstName;
+  const bank = COMMENTS[p.year];
+
+  function buildCPEGroups(key){
+    const groups = { EC:[], RA:[] };
+    for (const code of p.selections[key]){
+      const cat = CPE[code]||'EC';
+      if (bank[key][code]) groups[cat].push(bank[key][code].replace('X',name));
+    }
+    return groups;
+  }
+
+  function sectionHtml(key, cls, title){
+    const groups = buildCPEGroups(key);
+    const hasAny = Object.values(groups).some(g=>g.length>0);
+    const inner = hasAny
+      ? Object.entries(groups).filter(([,g])=>g.length>0).map(([cat,sents])=>
+          `<div style="margin-bottom:5px">
+            <span style="font-size:.63rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:${CPE_LABELS[cat].color}">${CPE_LABELS[cat].label}</span>
+            <p style="margin-top:2px;color:var(--text-2)">${sents.join(' ')}</p>
+          </div>`).join('')
+      : '<p class="empty">No comments selected</p>';
+    return `<div class="preview-section ${cls}"><h4>${title}</h4>${inner}</div>`;
+  }
+
+  body.innerHTML = `
+    ${contextSummary && contextSummary.trim() ? `<div class="preview-section" style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border)"><h4 style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-3);margin-bottom:4px">Context</h4><p style="font-size:.8rem;color:var(--text-2);line-height:1.6">${contextSummary.trim().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p></div>` : ''}
+    <div class="preview-name">${p.firstName} ${p.lastName}</div>
+    <div class="preview-year">Year Group: ${p.year}</div>
+    ${sectionHtml('strengths','ps-s','Strengths')}
+    ${sectionHtml('aod','ps-a','Areas of Development')}
+    ${sectionHtml('next_steps','ps-n','Next Steps')}
+    ${p.recommend ? `<div class="preview-rec">I would recommend that ${p.firstName} continues with Art &amp; Design. The skills developed through this subject — including creativity, critical thinking, visual communication and problem-solving — are highly valuable in a wide range of careers and in everyday life.</div>` : ''}
+    ${p.additionalComments ? `<div class="preview-rec" style="font-style:normal;color:var(--text-2)">${p.additionalComments}</div>` : ''}`;
+}
+
+// ─── Confirm / Next ───────────────────────────────────────────────────────────
+function nextPupilId(){
+  const idx = pupils.findIndex(x=>x.id===activePupilId);
+  return idx>=0 && idx<pupils.length-1 ? pupils[idx+1].id : null;
+}
+function confirmPupil(){
+  const p = pupils.find(x=>x.id===activePupilId); if (!p) return;
+  p.confirmed = true; saveData(); renderSidebar(); renderEditor();
+  showToast(`${p.firstName} ${p.lastName} confirmed ✓`);
+}
+function confirmAndNext(){
+  const p = pupils.find(x=>x.id===activePupilId); if (!p) return;
+  p.confirmed = true; saveData();
+  const nid = nextPupilId();
+  if (nid){ activePupilId=nid; saveData(); renderSidebar(); renderEditor(); renderPreview(); }
+}
+
+// ─── Pupil management ────────────────────────────────────────────────────────
+function addPupilManual(){
+  const p = createPupil(); pupils.push(p); activePupilId = p.id;
+  saveData(); renderSidebar(); renderEditor(); renderPreview();
+}
+function clearData(){
+  if (!confirm('Clear all pupils and start over?')) return;
+  pupils=[]; activePupilId=null; contextSummary=''; saveData(); renderSidebar(); showWelcome();
+  document.getElementById('previewBody').innerHTML='<div style="color:var(--text-3);font-style:italic;margin-top:40px;text-align:center;font-size:.82rem">Select a pupil to preview</div>';
+  showToast('All data cleared');
+}
+
+// ─── PDF Import ───────────────────────────────────────────────────────────────
+async function importPDF(event){
+  const file = event.target.files[0]; if (!file) return;
+  showToast('Reading PDF…');
+  try {
+    const ab = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({data:ab}).promise;
+    let found = [];
+    const skip = new Set(['thu','mon','tue','wed','fri','art','design','cfe','class','name','date','register','s1','s2','s3','mr','ms','mrs','miss']);
+    for (let i=1; i<=pdf.numPages; i++){
+      const page = await pdf.getPage(i);
+      const tc = await page.getTextContent();
+      const items = tc.items.map(it=>({t:it.str.trim(),x:Math.round(it.transform[4]),y:Math.round(it.transform[5])})).filter(it=>it.t.length>0);
+      const rows = {};
+      for (const it of items){ const yk=Math.round(it.y/5)*5; if(!rows[yk]) rows[yk]=[]; rows[yk].push(it); }
+      for (const row of Object.values(rows)){
+        row.sort((a,b)=>a.x-b.x);
+        const leftmost = row[0]?.t||'';
+        if (leftmost.length < 2) continue;
+        if (skip.has(leftmost.toLowerCase())) continue;
+        if (/^\d+$/.test(leftmost)) continue;
+        const parts = leftmost.split(/\s+/);
+        if (parts.length >= 2){
+          const fn = cap(parts[0]), ln = cap(parts.slice(1).join(' '));
+          if (!found.find(f=>f.firstName===fn&&f.lastName===ln))
+            found.push({ id:uid(), firstName:fn, lastName:ln });
+        }
+      }
+    }
+    if (found.length === 0){ showToast('No names found — try Paste Names'); return; }
+    const newPupils = found.filter(f=>!pupils.find(p=>p.firstName===f.firstName&&p.lastName===f.lastName));
+    newPupils.forEach(f=>pupils.push(createPupilFrom(f)));
+    if (!activePupilId && pupils.length>0) activePupilId=pupils[0].id;
+    saveData(); renderSidebar(); if(activePupilId){renderEditor();renderPreview();}
+    showToast(`${newPupils.length} pupils imported from PDF ✓`);
+  } catch(e){ showToast('Could not read PDF — try Paste Names'); }
+  event.target.value='';
+}
+function cap(s){ return s ? s.charAt(0).toUpperCase()+s.slice(1).toLowerCase() : ''; }
+function createPupilFrom(f){ const p=createPupil(f.firstName,f.lastName); return p; }
+
+// ─── Paste modal ──────────────────────────────────────────────────────────────
+function openPasteModal(){ document.getElementById('pasteModal').classList.add('open'); document.getElementById('pasteArea').value=''; document.getElementById('pastePreview').innerHTML=''; }
+function closePasteModal(){ document.getElementById('pasteModal').classList.remove('open'); }
+function parsePastedNames(raw){
+  return raw.split(/[\n]+/).map(l=>l.trim()).filter(Boolean).map(line=>{
+    if (line.includes('\t')){ const [fn,...rest]=line.split('\t'); return {firstName:cap(fn.trim()),lastName:cap(rest.join(' ').trim())}; }
+    if (line.includes(',')){ const [ln,fn]=line.split(','); return {firstName:cap((fn||'').trim()),lastName:cap((ln||'').trim())}; }
+    const parts=line.split(/\s+/); return {firstName:cap(parts[0]||''),lastName:cap(parts.slice(1).join(' '))||''};
+  }).filter(p=>p.firstName);
+}
+function previewPaste(){
+  const names = parsePastedNames(document.getElementById('pasteArea').value);
+  const el = document.getElementById('pastePreview');
+  if (names.length===0){ el.innerHTML=''; return; }
+  el.innerHTML = `<span style="color:var(--accent);font-weight:600">${names.length} name${names.length!==1?'s':''} detected:</span> ${names.slice(0,6).map(n=>`${n.firstName} ${n.lastName}`).join(', ')}${names.length>6?` … +${names.length-6} more`:''}`;
+}
+function commitPaste(){
+  const names = parsePastedNames(document.getElementById('pasteArea').value);
+  if (names.length===0){ showToast('No names found'); return; }
+  const newOnes = names.filter(n=>!pupils.find(p=>p.firstName===n.firstName&&p.lastName===n.lastName));
+  newOnes.forEach(n=>{ const p=createPupil(n.firstName,n.lastName); pupils.push(p); });
+  if (!activePupilId && pupils.length>0) activePupilId=pupils[0].id;
+  saveData(); closePasteModal(); renderSidebar();
+  if (activePupilId){renderEditor();renderPreview();}
+  showToast(`${newOnes.length} pupils added ✓`);
+}
+
+// ─── Word Export ──────────────────────────────────────────────────────────────
+function escXml(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function para(text, opts={}){
+  const { bold=false, italic=false, size=20, color='000000', spaceAfter=120, spaceBefore=0 } = opts;
+  const rPr = `<w:rPr>${bold?'<w:b/>':''}${italic?'<w:i/>':''}<w:color w:val="${color}"/><w:sz w:val="${size}"/><w:szCs w:val="${size}"/></w:rPr>`;
+  const pPr = `<w:pPr><w:spacing w:before="${spaceBefore}" w:after="${spaceAfter}"/></w:pPr>`;
+  return `<w:p>${pPr}<w:r>${rPr}<w:t xml:space="preserve">${escXml(text)}</w:t></w:r></w:p>`;
+}
+function hrPara(){
+  return `<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="CCCCCC"/></w:pBdr><w:spacing w:before="120" w:after="120"/></w:pPr></w:p>`;
+}
+const cpeDocColors = { EC:'92400E', RA:'065F46' };
+
+function buildDocXml(){
+  const date = new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+  let body = '';
+  body += para('BGE Art & Design — Pupil Reports',{bold:true,size:36,color:'1E3A5F',spaceAfter:80});
+  body += para(`Knightswood Secondary School  ·  ${date}`,{size:18,color:'888888',italic:true,spaceAfter:400});
+  if (contextSummary && contextSummary.trim()) {
+    body += para(contextSummary.trim(),{size:20,color:'444444',spaceAfter:200,spaceBefore:80});
+  }
+  body += hrPara();
+
+  for (const p of pupils){
+    const fullName = `${p.firstName} ${p.lastName}`.trim();
+    const name = p.firstName;
+    const bank = COMMENTS[p.year];
+
+    function cpeGroups(key){
+      const groups = {EC:[],RA:[]};
+      for (const code of p.selections[key]){
+        const cat = CPE[code]||'EC';
+        if (bank[key][code]) groups[cat].push(bank[key][code].replace('X',name));
+      }
+      return groups;
+    }
+
+    function addSection(key, sectionTitle, sectionColor){
+      const groups = cpeGroups(key);
+      const hasAny = Object.values(groups).some(g=>g.length>0);
+      if (!hasAny) return;
+      body += para(sectionTitle,{bold:true,size:22,color:sectionColor,spaceAfter:60});
+      for (const [cat,sents] of Object.entries(groups)){
+        if (sents.length===0) continue;
+        body += para(CPE_LABELS[cat].label,{bold:true,size:18,color:cpeDocColors[cat],spaceAfter:40,spaceBefore:60});
+        body += para(sents.join(' '),{size:20,color:'1A1A1A',spaceAfter:100});
+      }
+    }
+
+    body += para(fullName,{bold:true,size:28,color:'1E3A5F',spaceBefore:280,spaceAfter:40});
+    body += para(`Year Group: ${p.year}`,{size:18,color:'888888',italic:true,spaceAfter:160});
+
+    addSection('strengths',  'Strengths',            '2E7D32');
+    addSection('aod',        'Areas of Development', 'BF360C');
+    addSection('next_steps', 'Next Steps',           '0D47A1');
+
+    if (p.recommend){
+      body += para(`I would recommend that ${name} continues with Art & Design. The skills developed through this subject — including creativity, critical thinking, visual communication and problem-solving — are highly valuable in a wide range of careers and in everyday life.`,{size:20,italic:true,color:'555555',spaceAfter:120});
+    }
+    if (p.additionalComments && p.additionalComments.trim()){
+      body += para(p.additionalComments.trim(),{size:20,color:'1A1A1A',spaceAfter:120});
+    }
+    body += hrPara();
+  }
+
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+  xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+  mc:Ignorable="wpc">
+<w:body>${body}<w:sectPr><w:pgMar w:top="1080" w:right="1080" w:bottom="1080" w:left="1080"/></w:sectPr></w:body>
+</w:document>`;
+}
+
+async function exportWord(){
+  if (pupils.length===0){ showToast('No pupils to export'); return; }
+  const docXml = buildDocXml();
+  const zip = new JSZip();
+  zip.folder('_rels').file('.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`);
+  zip.folder('word').file('document.xml',docXml);
+  zip.folder('word/_rels').file('document.xml.rels',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>`);
+  zip.file('[Content_Types].xml',`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`);
+  const blob = await zip.generateAsync({type:'blob'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `BGE_Art_Design_Reports_${new Date().toISOString().slice(0,10)}.docx`;
+  a.click();
+  showToast('Word document downloaded ✓');
+}
+
+// ─── Toast ────────────────────────────────────────────────────────────────────
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+loadData().then(function(hadData){
+  renderSidebar();
+  if (hadData && activePupilId){ renderEditor(); renderPreview(); showToast('Session restored \u2713'); }
+});
+</script>
+</body>
+</html>

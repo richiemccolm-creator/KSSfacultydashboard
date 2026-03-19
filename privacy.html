@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy Policy — Expressive Arts Faculty</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#f8fafc;color:#1a202c;line-height:1.7;padding:2rem;max-width:720px;margin:0 auto}
+h1{font-family:'Sora',sans-serif;font-size:1.6rem;color:#1e2d4a;margin-bottom:.5rem}
+.sub{font-size:.9rem;color:#718096;margin-bottom:2rem}
+h2{font-size:1.1rem;color:#1e2d4a;margin:1.75rem 0 .75rem;padding-bottom:.35rem;border-bottom:1px solid #e2e8f0}
+p{margin-bottom:.85rem;font-size:.9rem}
+ul{margin:.5rem 0 1rem 1.5rem}
+li{margin-bottom:.35rem}
+a{color:#4a7fd4;text-decoration:none}
+a:hover{text-decoration:underline}
+.back{display:inline-block;margin-bottom:1.5rem;font-size:.85rem;font-weight:500}
+.gdpr-actions{background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:1.5rem;margin:2rem 0}
+.gdpr-actions h2{margin-top:0;border:none}
+.btn{display:inline-block;padding:.6rem 1.2rem;border-radius:6px;font-size:.85rem;font-weight:600;cursor:pointer;border:none;margin-right:.5rem;margin-top:.5rem;font-family:inherit}
+.btn-primary{background:#4a7fd4;color:#fff}
+.btn-primary:hover{background:#3a6fc4}
+.btn-danger{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5}
+.btn-danger:hover{background:#fca5a5}
+.gdpr-desc{font-size:.82rem;color:#4a5568;margin-bottom:1rem}
+</style>
+</head>
+<body>
+<a href="login.html" class="back">← Back to sign in</a>
+
+<h1>Privacy Policy</h1>
+<p class="sub">Expressive Arts Faculty · Knightswood Secondary School · Last updated March 2025</p>
+
+<p>This privacy policy explains how we collect, use, and protect your data when you use the Curriculum Design and Report Builder application.</p>
+
+<h2>Data we collect</h2>
+<p>We collect and store:</p>
+<ul>
+  <li><strong>Account data:</strong> Email address, name (if provided via sign-in)</li>
+  <li><strong>Pupil data:</strong> Names, year groups, attainment scores, report comments, and related educational information that you enter into the trackers and report builders</li>
+  <li><strong>Faculty data:</strong> Academic calendar events, moderation notes, and departmental improvement plan content</li>
+</ul>
+
+<h2>Legal basis</h2>
+<p>We process pupil data under <strong>legitimate interest</strong> for the purpose of delivering education and supporting teaching, assessment, and reporting at Knightswood Secondary School. This is necessary for the school to fulfil its educational duties.</p>
+
+<h2>Data storage and security</h2>
+<p>Data is stored in a secure cloud database (Supabase) with encryption at rest. Access is restricted to authenticated users only. Each user can only access their own data. All connections use HTTPS.</p>
+
+<h2>Data retention</h2>
+<p>Pupil data is retained for the duration of the school year plus one year, unless you request earlier deletion. You may export or delete your data at any time (see below).</p>
+
+<h2>Your rights under GDPR</h2>
+<p>You have the right to:</p>
+<ul>
+  <li><strong>Access</strong> your data (export a copy)</li>
+  <li><strong>Rectification</strong> of inaccurate data</li>
+  <li><strong>Erasure</strong> (delete your account and all associated data)</li>
+  <li><strong>Data portability</strong> (receive your data in a machine-readable format)</li>
+</ul>
+
+<div class="gdpr-actions">
+  <h2>Your data rights</h2>
+  <p class="gdpr-desc">If you are signed in, you can exercise your rights below.</p>
+  <button class="btn btn-primary" id="exportBtn" onclick="exportMyData()">Export my data</button>
+  <button class="btn btn-danger" id="deleteBtn" onclick="deleteMyAccount()">Delete my account and data</button>
+  <p id="gdprMsg" style="margin-top:1rem;font-size:.82rem;display:none"></p>
+</div>
+
+<h2>Cookies</h2>
+<p>We use essential cookies for authentication (session management). No analytics or tracking cookies are used.</p>
+
+<h2>Contact</h2>
+<p>For questions about this policy or to contact the Data Protection Officer, please contact the school office at Knightswood Secondary School.</p>
+
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-init.js"></script>
+<script src="data-service.js"></script>
+<script>
+(function(){
+  if(!window.supabase){document.getElementById('exportBtn').disabled=true;document.getElementById('deleteBtn').disabled=true;document.getElementById('gdprMsg').style.display='block';document.getElementById('gdprMsg').textContent='Sign in to export or delete your data.';return;}
+  window.supabase.auth.getSession().then(function(r){
+    if(!r.data.session){document.getElementById('exportBtn').disabled=true;document.getElementById('deleteBtn').disabled=true;document.getElementById('gdprMsg').style.display='block';document.getElementById('gdprMsg').textContent='Sign in to export or delete your data.';}
+  });
+})();
+function exportMyData(){
+  var msg=document.getElementById('gdprMsg');
+  msg.style.display='block';
+  msg.textContent='Exporting…';
+  if(!window.DataService){msg.textContent='Data service not available.';return;}
+  DataService.exportAll().then(function(data){
+    var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='my_data_export_'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(a.href);
+    msg.textContent='Data exported. Check your downloads.';
+  }).catch(function(){msg.textContent='Export failed. Please try again.';});
+}
+function deleteMyAccount(){
+  if(!confirm('Permanently delete your account and all your data? This cannot be undone.'))return;
+  var msg=document.getElementById('gdprMsg');
+  msg.style.display='block';
+  msg.textContent='Deleting…';
+  if(!window.DataService){msg.textContent='Data service not available.';return;}
+  DataService.deleteAll().then(function(){
+    if(window.supabase)window.supabase.auth.signOut();
+    msg.textContent='All your pupil and faculty data has been deleted. Redirecting to sign in…';
+    setTimeout(function(){window.location.href='login.html';},2000);
+  }).catch(function(){msg.textContent='Delete failed. Please try again.';});
+}
+</script>
+</body>
+</html>

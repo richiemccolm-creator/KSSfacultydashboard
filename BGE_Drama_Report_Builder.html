@@ -1,0 +1,1774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BGE Drama — Report Builder</title>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-init.js"></script>
+<script src="allowlist-check.js"></script>
+<script src="auth-guard.js"></script>
+<script src="data-service.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --navy:    #1e3a5f;
+    --navy-dk: #152d4a;
+    --navy-lt: #2a4f7c;
+    --accent:  #2563eb;
+    --accent-lt: #eff6ff;
+    --green:   #16a34a;
+    --green-lt:#f0fdf4;
+    --amber:   #d97706;
+    --amber-lt:#fffbeb;
+    --blue-sec:#1d4ed8;
+    --blue-lt: #eff6ff;
+    --border:  #e2e8f0;
+    --bg:      #f8fafc;
+    --surface: #ffffff;
+    --text:    #1e293b;
+    --text-2:  #475569;
+    --text-3:  #94a3b8;
+    --sidebar-bg: #1e3a5f;
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* ── Header ── */
+  header {
+    background: var(--navy);
+    color: white;
+    padding: 0 28px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.3);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    flex-shrink: 0;
+  }
+  .header-brand { display: flex; align-items: center; gap: 10px; }
+  .header-icon {
+    width: 32px; height: 32px;
+    background: rgba(255,255,255,.12);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .header-text .logo {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: .95rem;
+    font-weight: 600;
+    letter-spacing: .01em;
+    color: white;
+  }
+  .header-text .subtitle { font-size: .72rem; color: rgba(255,255,255,.5); margin-top: 1px; letter-spacing: .02em; }
+  .header-divider { width: 1px; height: 24px; background: rgba(255,255,255,.15); }
+  .header-context { font-size: .78rem; color: rgba(255,255,255,.55); }
+  header .spacer { flex: 1; }
+  #exportBtn {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 0 18px;
+    height: 34px;
+    border-radius: 5px;
+    font-family: 'Inter', sans-serif;
+    font-size: .8rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    transition: background .15s;
+    letter-spacing: .01em;
+  }
+  #exportBtn:hover { background: #1d4ed8; }
+  #exportBtn:disabled { background: var(--border); color: var(--text-3); cursor: not-allowed; }
+
+  .tracker-import-btn {
+    background: rgba(255,255,255,.1);
+    border: 1px solid rgba(255,255,255,.18);
+    color: rgba(255,255,255,.85);
+    padding: 0 14px;
+    height: 34px;
+    border-radius: 5px;
+    font-family: 'Inter', sans-serif;
+    font-size: .8rem;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    transition: background .12s;
+    margin-right: 8px;
+  }
+  .tracker-import-btn:hover { background: rgba(255,255,255,.18); }
+
+  /* ── Layout ── */
+  .app { display: flex; flex: 1; overflow: hidden; height: calc(100vh - 56px); }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 252px;
+    min-width: 200px;
+    background: var(--sidebar-bg);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-right: 1px solid rgba(0,0,0,.2);
+    flex-shrink: 0;
+  }
+  .sidebar-head {
+    padding: 14px 16px 10px;
+    font-size: .68rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: rgba(255,255,255,.4);
+  }
+  .import-zone {
+    margin: 0 10px 6px;
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 6px;
+    padding: 10px 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: background .12s, border-color .12s;
+    font-size: .78rem;
+    color: rgba(255,255,255,.55);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: center;
+  }
+  .import-zone:hover { background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.25); color: white; }
+  .import-zone svg { opacity: .6; flex-shrink: 0; }
+  .import-zone:hover svg { opacity: 1; }
+  #pdfInput { display: none; }
+
+  .pupil-list { flex: 1; overflow-y: auto; padding: 4px 0; }
+  .pupil-list::-webkit-scrollbar { width: 3px; }
+  .pupil-list::-webkit-scrollbar-track { background: transparent; }
+  .pupil-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,.15); border-radius: 3px; }
+
+  .pupil-item {
+    padding: 8px 16px;
+    cursor: pointer;
+    font-size: .83rem;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    transition: background .1s;
+    border-left: 2px solid transparent;
+    color: rgba(255,255,255,.7);
+  }
+  .pupil-item:hover { background: rgba(255,255,255,.06); color: white; }
+  .pupil-item.active { background: rgba(37,99,235,.25); border-left-color: #60a5fa; color: white; }
+  .pupil-item .initials {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.1);
+    font-size: .7rem;
+    font-weight: 600;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    letter-spacing: .02em;
+  }
+  .pupil-item.active .initials { background: rgba(96,165,250,.3); }
+  .pupil-item .tick { margin-left: auto; color: #4ade80; font-size: .7rem; display: none; flex-shrink: 0; }
+  .pupil-item.done .tick { display: block; }
+  .pupil-item .pname { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+  .pupil-item .del-btn { display: none; flex-shrink: 0; background: none; border: none; color: rgba(239,68,68,.5); cursor: pointer; font-size: .8rem; padding: 2px 4px; border-radius: 3px; line-height: 1; }
+  .pupil-item:hover .del-btn { display: block; }
+  .pupil-item .del-btn:hover { color: #ef4444; background: rgba(239,68,68,.15); }
+
+  /* Select mode */
+  .pupil-item .sel-cb { display: none; width: 15px; height: 15px; border: 1.5px solid rgba(255,255,255,.3); border-radius: 3px; flex-shrink: 0; cursor: pointer; transition: all .1s; background: transparent; }
+  .select-mode .pupil-item .sel-cb { display: flex; align-items: center; justify-content: center; }
+  .select-mode .pupil-item .del-btn { display: none !important; }
+  .select-mode .pupil-item .initials { display: none; }
+  .pupil-item.selected .sel-cb { background: #ef4444; border-color: #ef4444; }
+  .pupil-item.selected .sel-cb::after { content: '✓'; color: white; font-size: .6rem; font-weight: 700; }
+  .pupil-item.selected { background: rgba(239,68,68,.15); }
+
+  .select-toolbar {
+    display: none;
+    padding: 6px 10px;
+    background: rgba(239,68,68,.15);
+    border-top: 1px solid rgba(239,68,68,.2);
+    border-bottom: 1px solid rgba(239,68,68,.2);
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+  .select-toolbar.visible { display: flex; }
+  .select-toolbar span { font-size: .75rem; color: rgba(255,255,255,.7); flex: 1; }
+  .sel-tool-btn { border: none; border-radius: 4px; padding: 4px 10px; font-family: 'Inter', sans-serif; font-size: .75rem; font-weight: 600; cursor: pointer; }
+  .sel-tool-all { background: rgba(255,255,255,.12); color: rgba(255,255,255,.8); }
+  .sel-tool-all:hover { background: rgba(255,255,255,.2); }
+  .sel-tool-del { background: #ef4444; color: white; }
+  .sel-tool-del:hover { background: #dc2626; }
+  .sel-tool-del:disabled { background: rgba(239,68,68,.3); color: rgba(255,255,255,.4); cursor: not-allowed; }
+
+  .sidebar-head { display: flex; align-items: center; }
+  .select-mode-btn { margin-left: auto; background: none; border: 1px solid rgba(255,255,255,.15); border-radius: 4px; color: rgba(255,255,255,.45); font-size: .68rem; font-family: 'Inter', sans-serif; font-weight: 600; padding: 2px 8px; cursor: pointer; transition: all .1s; }
+  .select-mode-btn:hover { border-color: rgba(255,255,255,.3); color: rgba(255,255,255,.7); }
+  .select-mode-btn.active { background: rgba(239,68,68,.2); border-color: rgba(239,68,68,.4); color: #fca5a5; }
+
+  .sidebar-footer {
+    padding: 10px 10px 12px;
+    border-top: 1px solid rgba(255,255,255,.08);
+    font-size: .75rem;
+  }
+  #progressText { color: rgba(255,255,255,.5); padding: 0 4px; margin-bottom: 6px; }
+  .sidebar-btn {
+    width: 100%;
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 5px;
+    padding: 7px 10px;
+    font-family: 'Inter', sans-serif;
+    font-size: .78rem;
+    font-weight: 500;
+    cursor: pointer;
+    text-align: left;
+    margin-bottom: 4px;
+    transition: background .1s;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .sidebar-btn-add { background: rgba(255,255,255,.07); color: rgba(255,255,255,.7); }
+  .sidebar-btn-add:hover { background: rgba(255,255,255,.12); color: white; }
+  .sidebar-btn-clear { background: transparent; color: rgba(239,68,68,.6); border-color: rgba(239,68,68,.2); }
+  .sidebar-btn-clear:hover { background: rgba(239,68,68,.1); color: rgba(239,68,68,.9); }
+
+  /* ── Main panel ── */
+  .main {
+    flex: 1;
+    overflow-y: auto;
+    padding: 28px 32px;
+    background: var(--bg);
+  }
+  .main::-webkit-scrollbar { width: 5px; }
+  .main::-webkit-scrollbar-thumb { background: var(--border); border-radius: 5px; }
+
+  .welcome {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    text-align: center;
+    color: var(--text-3);
+  }
+  .welcome-icon {
+    width: 56px; height: 56px;
+    background: var(--accent-lt);
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 18px;
+  }
+  .welcome h2 { font-family: 'IBM Plex Sans', sans-serif; font-size: 1.3rem; font-weight: 600; color: var(--text); margin-bottom: 8px; }
+  .welcome p { font-size: .88rem; max-width: 380px; line-height: 1.65; color: var(--text-2); }
+
+  /* ── Context summary ── */
+  .context-summary-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 20px;
+    overflow: hidden;
+  }
+  .context-summary-section .section-head {
+    padding: 11px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--border);
+    background: #f0f9ff;
+  }
+  .context-summary-section .section-head h3 {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: .85rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .context-summary-section .section-head .badge {
+    font-size: .68rem;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    background: rgba(37,99,235,.1);
+    color: var(--accent);
+  }
+  .context-summary-section textarea {
+    width: 100%;
+    min-height: 80px;
+    border: none;
+    border-radius: 0;
+    padding: 12px 16px;
+    font-family: 'Inter', sans-serif;
+    font-size: .82rem;
+    color: var(--text);
+    background: var(--bg);
+    resize: vertical;
+    outline: none;
+    line-height: 1.6;
+    transition: border-color .12s;
+  }
+  .context-summary-section textarea::placeholder {
+    color: var(--text-3);
+  }
+  .context-summary-section textarea:focus {
+    background: white;
+  }
+
+  /* ── Pupil editor ── */
+  .pupil-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    margin-bottom: 20px;
+    padding-bottom: 18px;
+    border-bottom: 1px solid var(--border);
+  }
+  .pupil-avatar {
+    width: 44px; height: 44px;
+    border-radius: 10px;
+    background: var(--navy);
+    color: white;
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    letter-spacing: .02em;
+  }
+  .pupil-name-edit { flex: 1; }
+  .pupil-name-edit input {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 1.25rem;
+    font-weight: 600;
+    border: none;
+    background: transparent;
+    color: var(--text);
+    width: 100%;
+    outline: none;
+    padding: 0;
+  }
+  .pupil-name-edit .meta { font-size: .75rem; color: var(--text-3); margin-top: 3px; display: flex; gap: 12px; align-items: center; }
+
+  /* Year selector */
+  .year-select-row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 16px;
+    align-items: center;
+  }
+  .year-label { font-size: .75rem; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: .07em; margin-right: 4px; }
+  .year-btn {
+    padding: 5px 14px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--surface);
+    font-family: 'Inter', sans-serif;
+    font-size: .8rem;
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--text-2);
+    transition: all .12s;
+  }
+  .year-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .year-btn.active { border-color: var(--accent); background: var(--accent); color: white; }
+
+  /* Recommend toggle */
+  .recommend-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding: 12px 16px;
+    background: var(--surface);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+  .recommend-row label { font-size: .85rem; font-weight: 500; flex: 1; color: var(--text); }
+  .toggle {
+    position: relative;
+    width: 40px;
+    height: 22px;
+    flex-shrink: 0;
+  }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider {
+    position: absolute;
+    inset: 0;
+    background: var(--border);
+    border-radius: 22px;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 16px; height: 16px;
+    left: 3px; top: 3px;
+    background: white;
+    border-radius: 50%;
+    transition: transform .15s;
+    box-shadow: 0 1px 2px rgba(0,0,0,.2);
+  }
+  .toggle input:checked + .toggle-slider { background: var(--green); }
+  .toggle input:checked + .toggle-slider::before { transform: translateX(18px); }
+
+  /* Comment sections */
+  .section {
+    background: var(--surface);
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    margin-bottom: 14px;
+    overflow: hidden;
+  }
+  .section-head {
+    padding: 11px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--border);
+    background: #fafbfc;
+  }
+  .section-head h3 {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: .85rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .section-head .badge {
+    font-size: .68rem;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+  }
+  .badge-strengths { background: var(--green-lt); color: var(--green); }
+  .badge-aod { background: var(--amber-lt); color: var(--amber); }
+  .badge-next { background: var(--blue-lt); color: var(--blue-sec); }
+  .section-head .count { margin-left: auto; font-size: .75rem; color: var(--text-3); font-weight: 500; }
+
+  .comments-grid {
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    max-height: 320px;
+    overflow-y: auto;
+  }
+  .comments-grid::-webkit-scrollbar { width: 3px; }
+  .comments-grid::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .comment-chip {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 9px 11px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: border-color .1s, background .1s;
+    font-size: .81rem;
+    line-height: 1.5;
+    color: var(--text-2);
+    user-select: none;
+    background: white;
+  }
+  .comment-chip:hover { border-color: #93c5fd; background: var(--accent-lt); color: var(--text); }
+  .comment-chip.selected { border-color: var(--accent); background: var(--accent-lt); color: var(--text); }
+  .comment-chip .code {
+    font-size: .65rem;
+    font-weight: 700;
+    color: var(--text-3);
+    min-width: 26px;
+    padding-top: 2px;
+    letter-spacing: .04em;
+    font-family: 'IBM Plex Sans', monospace;
+  }
+  .comment-chip.selected .code { color: var(--accent); }
+  .comment-chip .cb {
+    width: 15px; height: 15px;
+    border: 1.5px solid var(--border);
+    border-radius: 3px;
+    flex-shrink: 0;
+    margin-top: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all .1s;
+    background: white;
+  }
+  .comment-chip.selected .cb { background: var(--accent); border-color: var(--accent); }
+  .comment-chip.selected .cb::after { content: '✓'; color: white; font-size: .6rem; font-weight: 700; }
+
+  /* Preview */
+  .preview-panel {
+    width: 300px;
+    min-width: 260px;
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .preview-head {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    font-size: .68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: var(--text-3);
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: #fafbfc;
+  }
+  .preview-body {
+    flex: 1;
+    padding: 16px;
+    overflow-y: auto;
+    font-size: .79rem;
+    line-height: 1.65;
+    color: var(--text-2);
+  }
+  .preview-body::-webkit-scrollbar { width: 3px; }
+  .preview-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .preview-name { font-family: 'IBM Plex Sans', sans-serif; font-size: .95rem; font-weight: 600; margin-bottom: 4px; color: var(--text); }
+  .preview-year { font-size: .7rem; color: var(--text-3); margin-bottom: 12px; }
+  .preview-section { margin-bottom: 12px; }
+  .preview-section h4 {
+    font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em;
+    margin-bottom: 4px; padding: 2px 6px; border-radius: 3px; display: inline-block;
+  }
+  .preview-section.ps-s h4 { background: var(--green-lt); color: var(--green); }
+  .preview-section.ps-a h4 { background: var(--amber-lt); color: var(--amber); }
+  .preview-section.ps-n h4 { background: var(--blue-lt); color: var(--blue-sec); }
+  .preview-section p { color: var(--text-2); }
+  .preview-section .empty { color: var(--text-3); font-style: italic; }
+  .preview-rec { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); font-style: italic; color: var(--text-3); font-size: .77rem; }
+
+  /* Toast */
+  #toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: var(--navy);
+    color: white;
+    padding: 10px 18px;
+    border-radius: 6px;
+    font-size: .82rem;
+    font-weight: 500;
+    box-shadow: 0 4px 16px rgba(0,0,0,.2);
+    transform: translateY(60px);
+    opacity: 0;
+    transition: transform .2s, opacity .2s;
+    z-index: 999;
+  }
+  #toast.show { transform: translateY(0); opacity: 1; }
+
+  /* Confirm bar */
+  .confirm-bar {
+    position: sticky;
+    bottom: 0;
+    background: var(--bg);
+    border-top: 1px solid var(--border);
+    padding: 12px 0 0;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin-top: 20px;
+  }
+  .btn-confirm {
+    background: var(--green);
+    color: white;
+    border: none;
+    padding: 0 20px;
+    height: 36px;
+    border-radius: 5px;
+    font-family: 'Inter', sans-serif;
+    font-size: .82rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: background .12s;
+  }
+  .btn-confirm:hover { background: #15803d; }
+  .btn-next {
+    background: var(--navy);
+    color: white;
+    border: none;
+    padding: 0 20px;
+    height: 36px;
+    border-radius: 5px;
+    font-family: 'Inter', sans-serif;
+    font-size: .82rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: background .12s;
+  }
+  .btn-next:hover { background: var(--navy-dk); }
+  .btn-next:disabled { background: var(--border); color: var(--text-3); cursor: not-allowed; }
+  .confirm-hint { font-size: .76rem; color: var(--text-3); }
+
+  /* Confirmed badge */
+  .confirmed-badge {
+    background: var(--green-lt);
+    color: var(--green);
+    border: 1px solid #bbf7d0;
+    border-radius: 4px;
+    font-size: .72rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  /* Paste modal */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(15,23,42,.5);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface);
+    border-radius: 10px;
+    padding: 24px;
+    width: 460px;
+    max-width: 95vw;
+    box-shadow: 0 20px 50px rgba(0,0,0,.25);
+    border: 1px solid var(--border);
+  }
+  .modal h3 {
+    font-family: 'IBM Plex Sans', sans-serif;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 6px;
+  }
+  .modal p { font-size: .82rem; color: var(--text-2); margin-bottom: 14px; line-height: 1.55; }
+  .modal textarea {
+    width: 100%;
+    height: 180px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-family: 'Inter', sans-serif;
+    font-size: .82rem;
+    color: var(--text);
+    background: var(--bg);
+    resize: vertical;
+    outline: none;
+    transition: border-color .12s;
+    line-height: 1.6;
+  }
+  .modal textarea:focus { border-color: var(--accent); }
+  .modal-actions { display: flex; gap: 8px; margin-top: 12px; justify-content: flex-end; }
+  .modal-actions button {
+    padding: 0 18px;
+    height: 34px;
+    border-radius: 5px;
+    font-family: 'Inter', sans-serif;
+    font-size: .82rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+  }
+  .btn-cancel { background: var(--bg); color: var(--text-2); border: 1px solid var(--border) !important; }
+  .btn-cancel:hover { background: var(--border); }
+  .btn-import-names { background: var(--accent); color: white; }
+  .btn-import-names:hover { background: #1d4ed8; }
+  .modal-preview { margin-top: 8px; font-size: .77rem; color: var(--text-3); min-height: 18px; }
+
+  .cpe-group { margin-bottom: 6px; }
+  .cpe-group-label {
+    font-size: .67rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    padding: 3px 8px;
+    border-radius: 4px;
+    border: 1px solid;
+    display: inline-block;
+    margin: 6px 0 4px 0;
+  }
+
+  @media (max-width: 900px) { .preview-panel { display: none; } }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-brand">
+    <div class="header-icon">
+      <svg width="16" height="16" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
+    </div>
+    <div class="header-text">
+      <div class="logo">BGE Drama — Report Builder</div>
+      <div class="subtitle">Knightswood Secondary School</div>
+    </div>
+  </div>
+  <div class="header-divider"></div>
+  <div class="header-context">Broad General Education · CfE</div>
+  <div class="spacer"></div>
+  <button class="tracker-import-btn" onclick="importFromTracker()" title="Import pupils and benchmarks from the Unit Tracker">
+    <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+    Import from Tracker
+  </button>
+  <button id="exportBtn" disabled onclick="exportWord()">
+    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+    Export Word Document
+  </button>
+  <a href="login.html" class="tracker-import-btn" style="text-decoration:none;color:inherit" onclick="event.preventDefault();if(window.supabase){window.supabase.auth.signOut().then(function(){window.location.href='login.html';});}else{window.location.href='login.html';}">Sign out</a>
+</header>
+
+<div class="app">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-head">
+      Class Pupils
+      <button class="select-mode-btn" id="selectModeBtn" onclick="toggleSelectMode()">Select</button>
+    </div>
+    <div class="select-toolbar" id="selectToolbar">
+      <span id="selectCount">0 selected</span>
+      <button class="sel-tool-btn sel-tool-all" onclick="selectAll()">All</button>
+      <button class="sel-tool-btn sel-tool-del" id="delSelectedBtn" onclick="deleteSelected()" disabled>Delete</button>
+      <button class="sel-tool-btn sel-tool-all" onclick="toggleSelectMode()">Cancel</button>
+    </div>
+    <div class="import-zone" onclick="document.getElementById('pdfInput').click()">
+      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+      Import PDF class list
+    </div>
+    <div class="import-zone" onclick="openPasteModal()" style="margin-top:0">
+      <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg>
+      Paste names list
+    </div>
+    <input type="file" id="pdfInput" accept=".pdf" onchange="importPDF(event)">
+    <div class="pupil-list" id="pupilList"></div>
+    <div class="sidebar-footer">
+      <div id="progressText">No pupils loaded</div>
+      <button class="sidebar-btn sidebar-btn-add" onclick="addPupilManual()">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add pupil manually
+      </button>
+      <button class="sidebar-btn sidebar-btn-clear" onclick="clearData()">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+        Clear all &amp; start over
+      </button>
+    </div>
+  </aside>
+
+  <!-- Main editor -->
+  <main class="main" id="mainPanel">
+    <div class="welcome" id="welcomeMsg">
+      <div class="welcome-icon">
+        <svg width="24" height="24" fill="none" stroke="#2563eb" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
+      </div>
+      <h2>BGE Drama Report Builder</h2>
+      <p>Import your class list from a PDF, paste names from a register, or add pupils manually. Select each pupil to choose their comments and build their report.</p>
+    </div>
+  </main>
+
+  <!-- Preview -->
+  <aside class="preview-panel">
+    <div class="preview-head">
+      <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      Report Preview
+    </div>
+    <div class="preview-body" id="previewBody">
+      <div style="color:var(--text-3);font-style:italic;margin-top:40px;text-align:center;font-size:.82rem">Select a pupil to preview their report</div>
+    </div>
+  </aside>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ─── Comment bank data ───────────────────────────────────────────────────────
+const COMMENTS = {"S1":{"strengths":{"A1":"X demonstrates enthusiasm and creativity when exploring roles, confidently using voice, movement, and expression to bring characters to life and communicate ideas to the audience.","A2":"X is able to develop short improvisations from a range of stimuli, showing imagination and an ability to adapt ideas collaboratively with peers.","A3":"X contributes thoughtfully to group work, offering ideas and listening carefully to others while applying feedback to enhance performances.","A4":"X communicates clearly in role, combining gestures, facial expressions, and vocal tone to convey character and emotion effectively.","A5":"X shows confidence when presenting both scripted and improvised drama, engaging the audience through expressive movement and energy.","A6":"X uses basic production elements, such as props or costume pieces, to enhance performance, demonstrating creativity and understanding of how these support storytelling.","A7":"X experiments with real and imaginary situations in drama, demonstrating curiosity and initiative when developing characters and scenarios.","A8":"X reflects on their own performance and that of others, beginning to use drama vocabulary to identify what works well and what could be improved.","A9":"X collaborates well, sharing ideas to develop group performances and contributing to the overall shape and story of the drama.","A10":"X demonstrates a developing understanding of scripts and timing, speaking or acting at the appropriate moments and following cues with confidence.","A11":"X combines movement, expression, and voice effectively, showing an understanding of how these elements work together to communicate character.","A12":"X engages with stimuli thoughtfully, generating imaginative ideas for performance and exploring different ways to interpret them.","A13":"X demonstrates focus and enthusiasm in rehearsals, maintaining energy and commitment to tasks while supporting peers.","A14":"X experiments with different approaches to characterisation, showing awareness of how gestures, posture, and vocal tone influence audience perception.","A15":"X shows increasing confidence in role-play and improvisation, demonstrating creativity, initiative, and enjoyment in drama activities."},"aod":{"A16":"X could focus on sustaining character throughout performances, using voice, movement, and expression consistently to strengthen portrayal.","A17":"X is encouraged to explore a wider range of gestures and movements to enhance characterisation and convey meaning more effectively.","A18":"X would benefit from applying feedback more consistently, considering how ideas from peers and teachers can improve their own work.","A19":"X is encouraged to practise using drama vocabulary when reflecting on performances to communicate insights more clearly.","A20":"X could develop confidence in presenting to larger groups, practising projection, timing, and expressive movement to engage audiences.","A21":"X is encouraged to take more risks with imaginative ideas, exploring real and imaginary scenarios fully to enrich performances.","A22":"X could collaborate more actively during group improvisations, building on others\u2019 ideas and contributing to the overall story development.","A23":"X is encouraged to combine voice, movement, and expression consistently to communicate character more convincingly.","A24":"X could practise working from scripts with greater focus on timing, cues, and delivery, ensuring clarity and smooth performance.","A25":"X is encouraged to explore production elements, such as props or simple sound effects, to enhance the atmosphere of performances.","A26":"X could further develop improvisation skills independently, taking initiative to explore new characters and ideas.","A27":"X is encouraged to maintain focus during rehearsals, ensuring all opportunities for learning and creativity are maximised.","A28":"X could extend understanding of audience awareness, considering how performances are received and making adjustments accordingly.","A29":"X is encouraged to experiment with short dramatic narratives, linking actions, voice, and gestures to create cohesive performances.","A30":"X could practise building confidence in sharing ideas during group discussions, offering opinions and listening actively to peers."},"next_steps":{"A31":"X should continue exploring different roles and approaches to characterisation, challenging themselves with both scripted and improvised tasks.","A32":"X is encouraged to practise integrating voice, movement, and expression consistently to enhance storytelling and audience engagement.","A33":"X should continue contributing ideas confidently in group work, collaborating effectively to develop collective performances.","A34":"X is encouraged to use drama vocabulary to describe performances, identify strengths, and suggest improvements for themselves and peers.","A35":"X should practise exploring imaginative scenarios from a variety of stimuli, developing richer narratives and more complex characters.","A36":"X is encouraged to experiment with props, costume, and movement to create atmosphere and enhance audience understanding.","A37":"X should continue reflecting on performances, analysing what works well and considering how to refine their own work.","A38":"X is encouraged to take creative risks in role-play and improvisation, developing confidence and originality in their characters.","A39":"X should practise sustaining focus during rehearsals and performances, ensuring consistency in characterisation and energy.","A40":"X is encouraged to continue building confidence when performing in front of others, using voice and body language to convey ideas clearly.","A41":"X should explore combining multiple stimuli into short dramas, linking actions, dialogue, and expression for more engaging performances.","A42":"X is encouraged to develop collaborative decision-making skills when creating group performances.","A43":"X should practise refining timing, pacing, and delivery to enhance dramatic impact.","A44":"X is encouraged to continue experimenting with movement, expression, and voice to create varied and dynamic characters.","A45":"X should continue applying learning from feedback to improve performance, reflecting on both personal and peer work."}},"S2":{"strengths":{"B1":"X creates, develops, and sustains realistic or stylised characters using voice, movement, and expression, demonstrating a strong understanding of characterisation techniques such as hot seating, thought tracking, and role on the wall.","B2":"X contributes ideas confidently during group discussions, clarifying and expanding on the contributions of others to help shape performances collaboratively.","B3":"X selects relevant ideas from a range of stimuli to create engaging scripts or devised dramas, showing imagination and initiative.","B4":"X presents short dramas to an audience effectively, adapting performances to entertain, inform, or communicate a message while considering audience response and atmosphere.","B5":"X reflects thoughtfully on their own work and the work of others, applying constructive feedback to enhance performance and using drama vocabulary appropriately.","B6":"X experiments with aspects of voice, including pitch, pace, volume, and tone, to communicate character and emotion convincingly.","B7":"X uses facial expression, body language, gesture, and eye contact to develop character and convey relationships and intentions clearly.","B8":"X engages fully with improvisation and devised scripts, demonstrating creativity, imagination, and initiative in performance tasks.","B9":"X collaborates well during rehearsals, listening attentively and contributing ideas to improve the development of group dramas.","B10":"X applies basic production skills, such as props, costume, or sound, thoughtfully to enhance atmosphere and support dramatic storytelling.","B11":"X demonstrates confidence and energy when performing, maintaining focus and commitment throughout rehearsals and presentations.","B12":"X explores real and imagined scenarios with creativity and flexibility, adapting ideas to enhance the narrative and characterisation.","B13":"X integrates movement, expression, and vocal techniques effectively, creating dynamic and engaging performances.","B14":"X contributes positively to developing plot, character relationships, and performance style in collaborative drama tasks.","B15":"X demonstrates growing awareness of performance form and structure, including mime, tableaux, and improvisation, when devising scripts."},"aod":{"B16":"X is encouraged to sustain character consistently across rehearsals and performances, combining voice, movement, and expression effectively throughout.","B17":"X could experiment further with levels, use of space, and physicality to enhance audience engagement and clarify character.","B18":"X is encouraged to give more detailed constructive feedback to peers, offering specific suggestions and using drama vocabulary confidently.","B19":"X could explore a wider range of forms and structures in performance, including linear and non-linear approaches, to extend creative expression.","B20":"X is encouraged to take greater creative risks, developing imaginative ideas and exploring complex character choices.","B21":"X could develop consistency in expression, gesture, and vocal delivery, ensuring performances are clear and engaging.","B22":"X is encouraged to integrate production elements more fully, such as props, lighting, and sound, to create atmosphere and support the narrative.","B23":"X could reflect more critically on performances, considering the impact of decisions and identifying ways to improve.","B24":"X is encouraged to share ideas confidently in group work, building on the contributions of others to strengthen collaborative dramas.","B25":"X could further develop timing and pacing in performance to maintain audience engagement and dramatic tension.","B26":"X is encouraged to build confidence when performing for different audiences, considering how delivery and expression communicate meaning.","B27":"X could refine improvisation skills and script work to achieve smoother transitions and more cohesive performances.","B28":"X is encouraged to maintain focus and energy during extended rehearsal periods to maximise learning and creative output.","B29":"X could make more use of stimuli to inspire original ideas and imaginative scenarios for both scripted and improvised drama.","B30":"X is encouraged to experiment with character interactions and relationships to deepen understanding of drama techniques."},"next_steps":{"B31":"X should continue exploring and developing characters in both scripted and improvised drama, focusing on consistency and depth of portrayal.","B32":"X is encouraged to practise integrating voice, movement, and expression creatively to enhance performances and audience engagement.","B33":"X should continue contributing confidently to group work, building on others\u2019 ideas to create stronger collaborative performances.","B34":"X is encouraged to use drama vocabulary when reflecting on performances and providing feedback to peers.","B35":"X should practise combining technical and performance elements, such as props, costume, and sound, to create atmosphere and support storytelling.","B36":"X is encouraged to take creative risks in role-play, improvisation, and script work to extend originality and engagement.","B37":"X should continue refining understanding of dramatic forms and structures, including mime, tableaux, and improvisation.","B38":"X is encouraged to reflect thoughtfully on performances, identifying improvements and evaluating the impact of creative choices.","B39":"X should continue practising characterisation techniques, such as hot seating or thought tracking, to deepen portrayal.","B40":"X is encouraged to maintain focus and energy during rehearsals to enhance consistency and performance quality.","B41":"X should practise improvisation and scripted performance regularly to build confidence, timing, and fluidity.","B42":"X is encouraged to explore different dramatic genres and styles to broaden performance skills.","B43":"X should continue developing collaboration skills, negotiating ideas and leading aspects of group work when appropriate.","B44":"X is encouraged to take on more challenging roles and character choices to extend performance skills.","B45":"X should continue building confidence when performing to varied audiences, integrating voice, movement, and expression effectively."}},"S3":{"strengths":{"C1":"X demonstrates sensitivity, precision, and depth in portraying characters, using voice, movement, and expression to convey complex relationships and emotions convincingly to different audiences.","C2":"X consistently applies characterisation techniques, such as hot seating, thought tracking, and role on the wall, to develop nuanced and believable performances.","C3":"X contributes confidently to devising and refining scripts, building on the ideas of others while also offering original and creative solutions.","C4":"X presents both scripted and improvised drama with assurance, considering audience, atmosphere, and performance purpose to maximise engagement.","C5":"X integrates voice, movement, expression, and gesture effectively, creating dynamic and captivating performances that communicate character and intention clearly.","C6":"X applies theatre arts technology, including sound, lighting, props, and costume, thoughtfully to enhance mood, atmosphere, and storytelling impact.","C7":"X reflects critically on their own work and the work of peers, analysing strengths and areas for improvement with well-justified, constructive comments.","C8":"X demonstrates confidence when performing for different audiences, adapting movement and voice to suit context and audience type effectively.","C9":"X engages fully in improvisation and devised work, showing creativity, initiative, and imagination while sustaining character throughout.","C10":"X collaborates effectively with peers, leading or supporting group work as needed, and contributes positively to the development of shared performances.","C11":"X demonstrates understanding of a range of dramatic forms, genres, and structures, experimenting confidently with linear and non-linear approaches.","C12":"X communicates character, relationships, and emotion with clarity and subtlety, using facial expression, gesture, posture, and timing strategically.","C13":"X consistently applies performance techniques to enhance dramatic effect, maintaining focus and commitment throughout rehearsals and presentations.","C14":"X integrates production elements, including props, costume, lighting, and sound, to support storytelling and enhance audience understanding.","C15":"X demonstrates a high level of creativity and imagination when developing characters, plots, and scenes, taking risks and exploring new ideas."},"aod":{"C16":"X is encouraged to explore even greater subtleties in characterisation, refining gestures, movement, and vocal choices to heighten dramatic impact.","C17":"X could further experiment with complex forms and structures to challenge performance skills and broaden understanding of dramatic conventions.","C18":"X is encouraged to make more extensive use of theatre arts technology, integrating sound, lighting, and props to create richer atmospheres.","C19":"X could take additional creative risks in role choice and characterisation, pushing boundaries to extend originality and engagement.","C20":"X is encouraged to deepen reflection on performances, analysing decisions and considering alternative approaches to enhance effectiveness.","C21":"X could sustain focus and energy over longer or more complex rehearsals to maximise learning and refine performance.","C22":"X is encouraged to take on leadership roles in collaborative drama tasks, guiding negotiation, planning, and decision-making effectively.","C23":"X could explore more challenging stimuli, including unfamiliar genres and topics, to extend creativity and adaptability.","C24":"X is encouraged to integrate production elements more seamlessly into performances to enhance audience experience.","C25":"X could provide more detailed, constructive feedback to peers, articulating observations clearly and suggesting improvements.","C26":"X is encouraged to refine timing, pacing, and rhythm in performances to strengthen dramatic effect and audience engagement.","C27":"X could develop confidence performing in high-pressure or unfamiliar settings, adapting voice and movement to communicate effectively.","C28":"X is encouraged to experiment with genre, style, and form, creating varied and distinctive performances.","C29":"X could challenge themselves further in improvisation, exploring complex situations and character interactions.","C30":"X is encouraged to combine movement, voice, and expression more consistently to create a cohesive and engaging character portrayal."},"next_steps":{"C31":"X should continue developing depth and nuance in characterisation, focusing on subtle expressions, gestures, and vocal variety to enhance performances.","C32":"X is encouraged to take creative risks in both scripted and improvised work, pushing boundaries to explore new ideas and character choices.","C33":"X should continue contributing confidently in group work, offering ideas, building on others\u2019 contributions, and leading collaborative tasks where appropriate.","C34":"X is encouraged to integrate theatre arts technology, such as lighting, sound, and props, more creatively to strengthen atmosphere and mood.","C35":"X should practise reflecting critically on performances, identifying strengths and considering refinements to improve future work.","C36":"X is encouraged to experiment with different dramatic genres, forms, and styles to develop versatility in performance.","C37":"X should continue developing leadership, negotiation, and decision-making skills during collaborative drama tasks.","C38":"X is encouraged to take on more challenging roles and scenarios to extend skills in characterisation, expression, and audience engagement.","C39":"X should continue practising the integration of voice, movement, and expression, ensuring consistency and precision throughout performances.","C40":"X is encouraged to maintain focus and energy in extended or complex rehearsals, sustaining high-quality performance.","C41":"X should continue exploring a variety of stimuli to inspire creativity and originality in both characterisation and plot development.","C42":"X is encouraged to refine timing, pacing, and rhythm to strengthen performance impact and engagement.","C43":"X should continue giving constructive, detailed feedback to peers, developing evaluative and collaborative skills.","C44":"X is encouraged to develop confidence performing for large or unfamiliar audiences, adapting delivery and expression effectively.","C45":"X should continue extending creative, technical, and collaborative skills to produce compelling, professional-standard drama work."}}};
+
+// ─── State ───────────────────────────────────────────────────────────────────
+let pupils = [];          // [{id, firstName, lastName, year, selections:{strengths:[], aod:[], next_steps:[]}, recommend}]
+let activePupilId = null;
+let contextSummary = '';  // Teacher summary of what pupils have been doing (global context)
+let selectMode = false;
+let selectedPupilIds = new Set();
+
+function uid() { return Math.random().toString(36).slice(2); }
+
+// ─── PDF Import ───────────────────────────────────────────────────────────────
+async function importPDF(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  event.target.value = '';
+  showToast('Reading PDF…');
+
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    await parseNamesFromPDF(arrayBuffer);
+  } catch(e) {
+    console.error(e);
+    showToast('Could not read PDF — try adding pupils manually');
+  }
+}
+
+async function parseNamesFromPDF(arrayBuffer) {
+  // This register PDF has names like "Alfie Surname" in the leftmost column of a grid.
+  // pdf.js extracts text items with x/y positions — group by y (row), take leftmost item per row.
+  // Strategy: collect all text items with positions, cluster by y-coordinate into rows,
+  // then from each row grab the leftmost chunk and test if it looks like a name.
+
+  let allItems = [];
+  try {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    const arrayBufferCopy = arrayBuffer.slice(0);
+    const pdf2 = await pdfjsLib.getDocument({ data: arrayBufferCopy }).promise;
+    for (let i = 1; i <= pdf2.numPages; i++) {
+      const page = await pdf2.getPage(i);
+      const content = await page.getTextContent();
+      for (const item of content.items) {
+        if (item.str && item.str.trim()) {
+          allItems.push({ str: item.str.trim(), x: item.transform[4], y: item.transform[5] });
+        }
+      }
+    }
+  } catch(e) { /* fallback to plain text below */ }
+
+  const found = [];
+
+  if (allItems.length > 0) {
+    // Group items into rows by y-coordinate (within 3px = same row)
+    allItems.sort((a, b) => b.y - a.y); // top to bottom
+    const rows = [];
+    for (const item of allItems) {
+      const row = rows.find(r => Math.abs(r.y - item.y) < 5);
+      if (row) { row.items.push(item); }
+      else { rows.push({ y: item.y, items: [item] }); }
+    }
+
+    // From each row, take the leftmost item(s) — that's the name column
+    for (const row of rows) {
+      row.items.sort((a, b) => a.x - b.x);
+      // Combine the 1-2 leftmost tokens (first + last name may be separate items)
+      const leftTokens = row.items.slice(0, 3).map(i => i.str).join(' ').trim();
+      // Try to extract "Firstname Surname" - both words capitalised, no digits
+      const nameMatch = leftTokens.match(/^([A-Z][a-zA-Z'-]{1,20})\s+([A-Z][a-zA-Z'-]{1,25})/);
+      if (nameMatch) {
+        const fn = nameMatch[1], ln = nameMatch[2];
+        // Skip obvious header/date words
+        const skip = /^(Thu|Mon|Tue|Wed|Fri|Sat|Sun|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec|Drama|CfE|Class|Name|Date|From|Register|\d)/.test(fn);
+        if (!skip && !found.find(f => f.firstName === fn && f.lastName === ln)) {
+          found.push({ firstName: fn, lastName: ln });
+        }
+      }
+    }
+  }
+
+  // Fallback: plain text scan if positional approach got nothing
+  if (found.length === 0) {
+    const text = allItems.map(i => i.str).join(' ');
+    const lines = text.split(/\s{2,}/).map(l => l.trim()).filter(Boolean);
+    for (const line of lines) {
+      if (line.length > 60 || /^\d/.test(line)) continue;
+      const m = line.match(/^([A-Z][a-z'-]+)\s+([A-Z][a-z'-]+)/);
+      if (m) {
+        const skip = /^(Thu|Mon|Tue|Wed|Fri|Drama|CfE|Class|Name|Date|Register)/.test(m[1]);
+        if (!skip) found.push({ firstName: m[1], lastName: m[2] });
+      }
+    }
+  }
+
+  if (found.length === 0) {
+    showToast('No names detected — please add pupils manually');
+    return;
+  }
+
+  const added = [];
+  for (const { firstName, lastName } of found) {
+    if (!pupils.find(p => p.firstName === firstName && p.lastName === lastName)) {
+      const pupil = createPupil(firstName, lastName);
+      pupils.push(pupil);
+      added.push(pupil);
+    }
+  }
+
+  renderSidebar();
+  showToast(`Imported ${added.length} pupil${added.length !== 1 ? 's' : ''}`);
+  if (added.length > 0) selectPupil(added[0].id);
+  saveData();
+}
+
+function createPupil(firstName = 'New', lastName = 'Pupil') {
+  return {
+    id: uid(),
+    firstName,
+    lastName,
+    year: 'S2',
+    recommend: false,
+    additionalComments: '',
+    confirmed: false,
+    selections: { strengths: [], aod: [], next_steps: [] }
+  };
+}
+
+function addPupilManual() {
+  const p = createPupil('First', 'Surname');
+  pupils.push(p);
+  renderSidebar();
+  selectPupil(p.id);
+  saveData();
+  setTimeout(() => {
+    const inp = document.getElementById('nameInput');
+    if (inp) { inp.select(); }
+  }, 50);
+}
+
+// ─── Sidebar ─────────────────────────────────────────────────────────────────
+function renderSidebar() {
+  const list = document.getElementById('pupilList');
+  list.innerHTML = '';
+  list.classList.toggle('select-mode', selectMode);
+
+  for (const p of pupils) {
+    const done = p.confirmed;
+    const isSel = selectedPupilIds.has(p.id);
+    const div = document.createElement('div');
+    div.className = 'pupil-item'
+      + (p.id === activePupilId && !selectMode ? ' active' : '')
+      + (done ? ' done' : '')
+      + (isSel ? ' selected' : '');
+    div.innerHTML = `
+      <span class="sel-cb"></span>
+      <span class="initials">${initials(p)}</span>
+      <span class="pname">${p.firstName} ${p.lastName}</span>
+      <span class="tick">✓</span>
+      <button class="del-btn" title="Remove pupil" onclick="deletePupil(event,'${p.id}')">✕</button>
+    `;
+    div.onclick = selectMode
+      ? () => togglePupilSelection(p.id)
+      : () => selectPupil(p.id);
+    list.appendChild(div);
+  }
+
+  const done = pupils.filter(p => p.confirmed).length;
+  document.getElementById('progressText').textContent =
+    pupils.length === 0 ? 'No pupils loaded' : `${done} / ${pupils.length} confirmed`;
+
+  document.getElementById('exportBtn').disabled = pupils.length === 0;
+
+  // Update select toolbar
+  if (selectMode) {
+    const n = selectedPupilIds.size;
+    document.getElementById('selectCount').textContent = `${n} selected`;
+    document.getElementById('delSelectedBtn').disabled = n === 0;
+  }
+}
+
+function initials(p) {
+  return (p.firstName[0] || '') + (p.lastName[0] || '');
+}
+
+// ─── Select pupil ─────────────────────────────────────────────────────────────
+function toggleSelectMode() {
+  selectMode = !selectMode;
+  selectedPupilIds.clear();
+  const btn = document.getElementById('selectModeBtn');
+  const toolbar = document.getElementById('selectToolbar');
+  btn.textContent = selectMode ? 'Cancel' : 'Select';
+  btn.classList.toggle('active', selectMode);
+  toolbar.classList.toggle('visible', selectMode);
+  renderSidebar();
+}
+
+function togglePupilSelection(id) {
+  if (selectedPupilIds.has(id)) selectedPupilIds.delete(id);
+  else selectedPupilIds.add(id);
+  renderSidebar();
+}
+
+function selectAll() {
+  if (selectedPupilIds.size === pupils.length) {
+    selectedPupilIds.clear();
+  } else {
+    pupils.forEach(p => selectedPupilIds.add(p.id));
+  }
+  renderSidebar();
+}
+
+function deleteSelected() {
+  const n = selectedPupilIds.size;
+  if (n === 0) return;
+  if (!confirm(`Remove ${n} pupil${n !== 1 ? 's' : ''} from the list?`)) return;
+  pupils = pupils.filter(p => !selectedPupilIds.has(p.id));
+  if (selectedPupilIds.has(activePupilId)) {
+    activePupilId = pupils[0]?.id || null;
+  }
+  selectedPupilIds.clear();
+  selectMode = false;
+  document.getElementById('selectModeBtn').textContent = 'Select';
+  document.getElementById('selectModeBtn').classList.remove('active');
+  document.getElementById('selectToolbar').classList.remove('visible');
+  saveData();
+  renderSidebar();
+  if (activePupilId) { renderEditor(); renderPreview(); }
+  else {
+    document.getElementById('mainPanel').innerHTML = `
+      <div class="welcome" id="welcomeMsg">
+        <div class="welcome-icon">
+          <svg width="24" height="24" fill="none" stroke="#2563eb" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
+        </div>
+        <h2>BGE Drama Report Builder</h2>
+        <p>Import your class list from a PDF, paste names from a register, or add pupils manually.</p>
+      </div>`;
+  }
+  showToast(`${n} pupil${n !== 1 ? 's' : ''} removed`);
+}
+
+function deletePupil(e, id) {
+  e.stopPropagation();
+  const p = pupils.find(x => x.id === id);
+  if (!p) return;
+  if (!confirm(`Remove ${p.firstName} ${p.lastName} from the list?`)) return;
+  pupils = pupils.filter(x => x.id !== id);
+  if (activePupilId === id) {
+    activePupilId = pupils[0]?.id || null;
+  }
+  saveData();
+  renderSidebar();
+  if (activePupilId) { renderEditor(); renderPreview(); }
+  else {
+    document.getElementById('mainPanel').innerHTML = `
+      <div class="welcome" id="welcomeMsg">
+        <div class="welcome-icon">
+          <svg width="24" height="24" fill="none" stroke="#2563eb" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
+        </div>
+        <h2>BGE Drama Report Builder</h2>
+        <p>Import your class list from a PDF, paste names from a register, or add pupils manually.</p>
+      </div>`;
+  }
+}
+
+function selectPupil(id) {
+  activePupilId = id;
+  saveData();
+  renderSidebar();
+  renderEditor();
+  renderPreview();
+}
+
+// ─── Editor ──────────────────────────────────────────────────────────────────
+function renderEditor() {
+  const p = pupils.find(x => x.id === activePupilId);
+  if (!p) return;
+
+  document.getElementById('welcomeMsg') && (document.getElementById('welcomeMsg').style.display = 'none');
+
+  const panel = document.getElementById('mainPanel');
+  panel.innerHTML = `
+    <div class="context-summary-section">
+      <div class="section-head">
+        <h3>Class / Term Context</h3>
+        <span class="badge">Optional</span>
+      </div>
+      <textarea id="contextSummary" placeholder="Add a summary of what pupils have been doing this term — e.g. units covered, topics explored, key activities. This will appear at the top of each report for context."
+        oninput="setContextSummary(this.value)"
+      >${(contextSummary || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</textarea>
+    </div>
+
+    <div class="pupil-header">
+      <div class="pupil-avatar">${initials(p)}</div>
+      <div class="pupil-name-edit">
+        <input id="nameInput" value="${p.firstName} ${p.lastName}" placeholder="First Surname"
+          onchange="updateName(this.value)" onkeyup="updateName(this.value)">
+        <div class="meta">
+          <span>Editing report</span>
+          ${p.confirmed ? '<span class="confirmed-badge">✓ Confirmed</span>' : ''}
+        </div>
+      </div>
+    </div>
+
+    <div class="year-select-row">
+      <span style="font-size:.85rem;color:var(--text-2);align-self:center;margin-right:4px">Year group:</span>
+      ${['S1','S2','S3'].map(y => `
+        <button class="year-btn ${p.year === y ? 'active' : ''}" onclick="setYear('${y}')">${y}</button>
+      `).join('')}
+    </div>
+
+    ${p.year !== 'S3' ? `
+    <div class="recommend-row">
+      <div style="flex:1">
+        <div style="font-size:.85rem;font-weight:500;color:var(--text)">Recommend taking Drama in S3?</div>
+        <div style="font-size:.75rem;color:var(--text-3);margin-top:2px">Adds a recommendation sentence to the report</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="recToggle" ${p.recommend ? 'checked' : ''} onchange="setRecommend(this.checked)">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>` : ''}
+
+    ${renderSection(p, 'strengths', 'Strengths', 'badge-strengths')}
+    ${renderSection(p, 'aod', 'Areas of Development', 'badge-aod')}
+    ${renderSection(p, 'next_steps', 'Next Steps', 'badge-next')}
+
+    <div class="section" style="margin-bottom:14px">
+      <div class="section-head">
+        <h3>Additional Comments</h3>
+        <span class="badge" style="background:#f1f5f9;color:var(--text-2)">Optional</span>
+        <span class="count">Free text</span>
+      </div>
+      <div style="padding:10px">
+        <textarea id="additionalComments"
+          placeholder="Add any additional comments here — these will appear at the end of the report as written..."
+          style="width:100%;height:90px;border:1px solid var(--border);border-radius:6px;padding:9px 11px;font-family:'Inter',sans-serif;font-size:.82rem;color:var(--text);background:var(--bg);resize:vertical;outline:none;line-height:1.6;transition:border-color .12s"
+          onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"
+          oninput="setAdditionalComments(this.value)"
+        >${p.additionalComments || ''}</textarea>
+      </div>
+    </div>
+
+    <div class="confirm-bar">
+      <button class="btn-confirm" onclick="confirmPupil()">
+        ${p.confirmed ? '✓ Confirmed' : '✓ Confirm Report'}
+      </button>
+      <button class="btn-next" onclick="confirmAndNext()" ${nextPupilId() ? '' : 'disabled'}>
+        ${nextPupilId() ? 'Next Pupil →' : 'Last Pupil'}
+      </button>
+      <span class="confirm-hint">${p.confirmed ? '<span style="color:#2e7d32">✓ Report saved</span>' : 'Confirm to mark as done'}</span>
+    </div>
+  `;
+}
+
+// ─── CPE Category map ─────────────────────────────────────────────────────────
+const CPE = {"A1":"Presenting","A2":"Creating","A3":"Creating","A4":"Presenting","A5":"Presenting","A6":"Presenting","A7":"Creating","A8":"Evaluating","A9":"Creating","A10":"Presenting","A11":"Presenting","A12":"Creating","A13":"Creating","A14":"Creating","A15":"Creating","A16":"Presenting","A17":"Presenting","A18":"Evaluating","A19":"Evaluating","A20":"Presenting","A21":"Creating","A22":"Creating","A23":"Presenting","A24":"Presenting","A25":"Presenting","A26":"Creating","A27":"Creating","A28":"Evaluating","A29":"Creating","A30":"Creating","A31":"Creating","A32":"Presenting","A33":"Creating","A34":"Evaluating","A35":"Creating","A36":"Presenting","A37":"Evaluating","A38":"Creating","A39":"Presenting","A40":"Presenting","A41":"Creating","A42":"Creating","A43":"Presenting","A44":"Presenting","A45":"Evaluating","B1":"Creating","B2":"Creating","B3":"Creating","B4":"Presenting","B5":"Evaluating","B6":"Presenting","B7":"Presenting","B8":"Creating","B9":"Creating","B10":"Presenting","B11":"Presenting","B12":"Creating","B13":"Presenting","B14":"Creating","B15":"Creating","B16":"Presenting","B17":"Presenting","B18":"Evaluating","B19":"Creating","B20":"Creating","B21":"Presenting","B22":"Presenting","B23":"Evaluating","B24":"Creating","B25":"Presenting","B26":"Presenting","B27":"Creating","B28":"Creating","B29":"Creating","B30":"Creating","B31":"Creating","B32":"Presenting","B33":"Creating","B34":"Evaluating","B35":"Presenting","B36":"Creating","B37":"Creating","B38":"Evaluating","B39":"Creating","B40":"Presenting","B41":"Presenting","B42":"Creating","B43":"Creating","B44":"Creating","B45":"Presenting","C1":"Presenting","C2":"Creating","C3":"Creating","C4":"Presenting","C5":"Presenting","C6":"Presenting","C7":"Evaluating","C8":"Presenting","C9":"Creating","C10":"Creating","C11":"Creating","C12":"Presenting","C13":"Presenting","C14":"Presenting","C15":"Creating","C16":"Presenting","C17":"Creating","C18":"Presenting","C19":"Creating","C20":"Evaluating","C21":"Creating","C22":"Creating","C23":"Creating","C24":"Presenting","C25":"Evaluating","C26":"Presenting","C27":"Presenting","C28":"Creating","C29":"Creating","C30":"Presenting","C31":"Creating","C32":"Creating","C33":"Creating","C34":"Presenting","C35":"Evaluating","C36":"Creating","C37":"Creating","C38":"Creating","C39":"Presenting","C40":"Presenting","C41":"Creating","C42":"Presenting","C43":"Evaluating","C44":"Presenting","C45":"Creating"};
+
+const CPE_LABELS = {
+  Creating:   { label: 'Creating',   color: '#7c3aed', bg: '#f5f3ff', border: '#ddd6fe' },
+  Presenting: { label: 'Presenting', color: '#0369a1', bg: '#f0f9ff', border: '#bae6fd' },
+  Evaluating: { label: 'Evaluating', color: '#0f766e', bg: '#f0fdfa', border: '#99f6e4' },
+};
+
+function renderSection(p, key, label, badgeClass) {
+  const bank = COMMENTS[p.year][key];
+  const sel = p.selections[key];
+  const count = sel.length;
+
+  // Group comments by CPE category
+  const groups = { Creating: [], Presenting: [], Evaluating: [] };
+  for (const [code, text] of Object.entries(bank)) {
+    const cat = CPE[code] || 'Creating';
+    groups[cat].push({ code, text });
+  }
+
+  const groupHtml = Object.entries(groups).map(([cat, items]) => {
+    if (items.length === 0) return '';
+    const { label: catLabel, color, bg, border } = CPE_LABELS[cat];
+    const chips = items.map(({ code, text }) => {
+      const selected = sel.includes(code);
+      return `
+        <div class="comment-chip ${selected ? 'selected' : ''}" onclick="toggleComment('${key}','${code}')">
+          <div class="cb"></div>
+          <span class="code">${code}</span>
+          <span>${text.replace('X', '<em style="color:var(--accent);font-style:normal;font-weight:600">NAME</em>')}</span>
+        </div>`;
+    }).join('');
+    return `
+      <div class="cpe-group">
+        <div class="cpe-group-label" style="color:${color};background:${bg};border-color:${border}">${catLabel}</div>
+        ${chips}
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="section">
+      <div class="section-head">
+        <h3>${label}</h3>
+        <span class="badge ${badgeClass}">${label}</span>
+        <span class="count">${count} selected</span>
+      </div>
+      <div class="comments-grid">${groupHtml}</div>
+    </div>
+  `;
+}
+
+function updateName(val) {
+  const p = pupils.find(x => x.id === activePupilId);
+  if (!p) return;
+  const parts = val.trim().split(/\s+/);
+  p.firstName = parts[0] || 'First';
+  p.lastName = parts.slice(1).join(' ') || 'Surname';
+  const av = document.querySelector('.pupil-avatar');
+  if (av) av.textContent = initials(p);
+  saveData();
+  renderSidebar();
+  renderPreview();
+}
+
+function setYear(year) {
+  const p = pupils.find(x => x.id === activePupilId);
+  if (!p) return;
+  p.year = year;
+  p.selections = { strengths: [], aod: [], next_steps: [] };
+  saveData();
+  renderEditor();
+  renderPreview();
+}
+
+function setRecommend(val) {
+  const p = pupils.find(x => x.id === activePupilId);
+  if (!p) return;
+  p.recommend = val;
+  saveData();
+  renderPreview();
+}
+
+function setAdditionalComments(val) {
+  const p = pupils.find(x => x.id === activePupilId);
+  if (!p) return;
+  p.additionalComments = val;
+  saveData();
+  renderPreview();
+}
+function setContextSummary(val) {
+  contextSummary = val || '';
+  saveData();
+  renderPreview();
+}
+
+function toggleComment(key, code) {
+  const p = pupils.find(x => x.id === activePupilId);
+  if (!p) return;
+  const idx = p.selections[key].indexOf(code);
+  if (idx === -1) {
+    p.selections[key].push(code);
+  } else {
+    p.selections[key].splice(idx, 1);
+  }
+  saveData();
+  // Update chip visually
+  const chips = document.querySelectorAll(`.comments-grid .comment-chip`);
+  // Re-render just this section for count update
+  renderEditor();
+  renderPreview();
+  renderSidebar();
+  // Scroll to keep position - re-select active chip area
+}
+
+// ─── Preview ─────────────────────────────────────────────────────────────────
+function renderPreview() {
+  const p = pupils.find(x => x.id === activePupilId);
+  const body = document.getElementById('previewBody');
+  if (!p) { body.innerHTML = '<div style="color:var(--text-3);font-style:italic;margin-top:40px;text-align:center;font-size:.82rem">Select a pupil to preview their report</div>'; return; }
+
+  const name = p.firstName;
+  const bank = COMMENTS[p.year];
+
+  function buildCPEGroups(key) {
+    const groups = { Creating: [], Presenting: [], Evaluating: [] };
+    for (const code of p.selections[key]) {
+      const cat = CPE[code] || 'Creating';
+      if (bank[key][code]) groups[cat].push(bank[key][code].replace('X', name));
+    }
+    return groups;
+  }
+
+  function sectionHtml(key, cls, title) {
+    const groups = buildCPEGroups(key);
+    const hasAny = Object.values(groups).some(g => g.length > 0);
+    const inner = hasAny
+      ? Object.entries(groups).filter(([,g]) => g.length > 0).map(([cat, sents]) =>
+          `<div style="margin-bottom:5px">
+            <span style="font-size:.63rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:${CPE_LABELS[cat].color}">${cat}</span>
+            <p style="margin-top:2px;color:var(--text-2)">${sents.join(' ')}</p>
+          </div>`).join('')
+      : '<p class="empty">No comments selected</p>';
+    return `<div class="preview-section ${cls}"><h4>${title}</h4>${inner}</div>`;
+  }
+
+  body.innerHTML = `
+    ${contextSummary && contextSummary.trim() ? `<div class="preview-section" style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border)"><h4 style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-3);margin-bottom:4px">Context</h4><p style="font-size:.8rem;color:var(--text-2);line-height:1.6">${contextSummary.trim().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p></div>` : ''}
+    <div class="preview-name">${p.firstName} ${p.lastName}</div>
+    <div class="preview-year">Year Group: ${p.year}</div>
+    ${sectionHtml('strengths', 'ps-s', 'Strengths')}
+    ${sectionHtml('aod', 'ps-a', 'Areas of Development')}
+    ${sectionHtml('next_steps', 'ps-n', 'Next Steps')}
+    ${p.recommend ? `<div class="preview-rec">I would recommend that ${p.firstName} continues with Drama into S3. Studying Drama will help ${p.firstName} to develop a range of skills that will be valuable in future employment and beyond, including communication, collaboration, creativity, and confidence.</div>` : ''}
+    ${p.additionalComments ? `<div class="preview-rec" style="font-style:normal;color:var(--text-2)">${p.additionalComments}</div>` : ''}
+  `;
+}
+
+// ─── Word Export ─────────────────────────────────────────────────────────────
+// ─── Confirm / Next ───────────────────────────────────────────────────────────
+function nextPupilId() {
+  const idx = pupils.findIndex(x => x.id === activePupilId);
+  return idx >= 0 && idx < pupils.length - 1 ? pupils[idx + 1].id : null;
+}
+
+function confirmPupil() {
+  const p = pupils.find(x => x.id === activePupilId);
+  if (!p) return;
+  p.confirmed = true;
+  saveData();
+  renderEditor();
+  renderSidebar();
+  showToast(`${p.firstName} ${p.lastName} confirmed \u2713`);
+}
+
+function confirmAndNext() {
+  confirmPupil();
+  const nid = nextPupilId();
+  if (nid) {
+    setTimeout(() => selectPupil(nid), 150);
+  }
+}
+
+// ─── Word Export (pure JS / JSZip) ────────────────────────────────────────────
+async function exportWord() {
+  if (pupils.length === 0) return;
+
+  const btn = document.getElementById('exportBtn');
+  btn.disabled = true;
+  btn.textContent = 'Generating…';
+
+  try {
+    const docXml = buildDocXml();
+    const blob = await buildDocxBlob(docXml);
+    const url = URL.createObjectURL(blob);
+    const a2 = document.createElement('a');
+    a2.href = url;
+    a2.download = `BGE_Drama_Reports_${new Date().toISOString().slice(0,10)}.docx`;
+    document.body.appendChild(a2);
+    a2.click();
+    document.body.removeChild(a2);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    showToast(`Downloaded ${pupils.length} report${pupils.length !== 1 ? 's' : ''} ✓`);
+  } catch(e) {
+    console.error(e);
+    showToast('Export failed — check browser console');
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = `<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg> Download Word Doc`;
+}
+
+function esc(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function para(text, { bold=false, italic=false, size=22, color='000000', spaceAfter=120, spaceBefore=0, underline=false } = {}) {
+  const rPr = [
+    bold ? '<w:b/>' : '',
+    italic ? '<w:i/>' : '',
+    underline ? '<w:u w:val="single"/>' : '',
+    `<w:sz w:val="${size}"/>`,
+    `<w:szCs w:val="${size}"/>`,
+    `<w:color w:val="${color}"/>`,
+    `<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/>`,
+  ].join('');
+  return `<w:p>
+    <w:pPr><w:spacing w:before="${spaceBefore}" w:after="${spaceAfter}"/></w:pPr>
+    <w:r><w:rPr>${rPr}</w:rPr><w:t xml:space="preserve">${esc(text)}</w:t></w:r>
+  </w:p>`;
+}
+
+function hrPara() {
+  return `<w:p><w:pPr><w:pBdr><w:bottom w:val="single" w:sz="6" w:space="1" w:color="CCCCCC"/></w:pBdr><w:spacing w:before="120" w:after="120"/></w:pPr></w:p>`;
+}
+
+function buildDocXml() {
+  const date = new Date().toLocaleDateString('en-GB', {day:'numeric',month:'long',year:'numeric'});
+  let body = '';
+
+  // Title page block
+  body += para('BGE Drama — Pupil Reports', { bold:true, size:36, color:'0F3460', spaceAfter:80 });
+  body += para(`Knightswood Secondary School  ·  ${date}`, { size:18, color:'888888', italic:true, spaceAfter:400 });
+  if (contextSummary && contextSummary.trim()) {
+    body += para(contextSummary.trim(), { size:20, color:'444444', spaceAfter:200, spaceBefore:80 });
+  }
+  body += hrPara();
+
+  for (const p of pupils) {
+    const fullName = `${p.firstName} ${p.lastName}`.trim();
+    const name = p.firstName;
+    const bank = COMMENTS[p.year];
+
+    // Build CPE-grouped text for a section key
+    function cpeGroups(key) {
+      const groups = { Creating: [], Presenting: [], Evaluating: [] };
+      for (const code of p.selections[key]) {
+        const cat = CPE[code] || 'Creating';
+        if (bank[key][code]) groups[cat].push(bank[key][code].replace('X', name));
+      }
+      return groups;
+    }
+
+    // CPE colours for Word (hex without #)
+    const cpeDocColors = { Creating: '6D28D9', Presenting: '0369A1', Evaluating: '0F766E' };
+
+    function addSection(key, sectionTitle, sectionColor) {
+      const groups = cpeGroups(key);
+      const hasAny = Object.values(groups).some(g => g.length > 0);
+      if (!hasAny) return;
+      body += para(sectionTitle, { bold:true, size:22, color:sectionColor, spaceAfter:60 });
+      for (const [cat, sents] of Object.entries(groups)) {
+        if (sents.length === 0) continue;
+        body += para(cat, { bold:true, size:18, color:cpeDocColors[cat], spaceAfter:40, spaceBefore:60 });
+        body += para(sents.join(' '), { size:20, color:'1A1A1A', spaceAfter:100 });
+      }
+    }
+
+    body += para(fullName, { bold:true, size:28, color:'0F3460', spaceBefore:280, spaceAfter:40 });
+    body += para(`Year Group: ${p.year}`, { size:18, color:'888888', italic:true, spaceAfter:160 });
+
+    addSection('strengths',  'Strengths',             '2E7D32');
+    addSection('aod',        'Areas of Development',  'BF360C');
+    addSection('next_steps', 'Next Steps',             '0D47A1');
+
+    if (p.recommend) {
+      body += para(`I would recommend that ${name} continues with Drama into S3. Studying Drama will help ${name} to develop a range of skills that will be valuable in future employment and beyond, including communication, collaboration, creativity, and confidence.`, { size:20, italic:true, color:'555555', spaceAfter:120 });
+    }
+    if (p.additionalComments && p.additionalComments.trim()) {
+      body += para(p.additionalComments.trim(), { size:20, color:'1A1A1A', spaceAfter:120 });
+    }
+
+    body += hrPara();
+  }
+
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas"
+  xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+  xmlns:o="urn:schemas-microsoft-com:office:office"
+  xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+  xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math"
+  xmlns:v="urn:schemas-microsoft-com:vml"
+  xmlns:wp14="http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing"
+  xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
+  xmlns:w10="urn:schemas-microsoft-com:office:word"
+  xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"
+  xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml"
+  xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup"
+  xmlns:wpi="http://schemas.microsoft.com/office/word/2010/wordprocessingInk"
+  xmlns:wne="http://schemas.microsoft.com/office/word/2006/wordml"
+  xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape"
+  mc:Ignorable="w14 wp14">
+  <w:body>
+    ${body}
+    <w:sectPr>
+      <w:pgSz w:w="11906" w:h="16838"/>
+      <w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/>
+    </w:sectPr>
+  </w:body>
+</w:document>`;
+}
+
+async function buildDocxBlob(docXml) {
+  const zip = new JSZip();
+
+  zip.file('[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>`);
+
+  zip.file('_rels/.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`);
+
+  zip.file('word/document.xml', docXml);
+
+  zip.file('word/_rels/document.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+</Relationships>`);
+
+  return await zip.generateAsync({
+    type: 'blob',
+    mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+  });
+}
+
+// ─── Paste names modal ────────────────────────────────────────────────────────
+function openPasteModal() {
+  document.getElementById('pasteArea').value = '';
+  document.getElementById('pastePreview').textContent = '';
+  document.getElementById('pasteModal').classList.add('open');
+  setTimeout(() => document.getElementById('pasteArea').focus(), 50);
+}
+
+function closePasteModal() {
+  document.getElementById('pasteModal').classList.remove('open');
+}
+
+function parsePastedNames(raw) {
+  // Split on newlines first, then handle comma/tab within lines
+  const results = [];
+  const lines = raw.split(/[\n\r]+/).map(l => l.trim()).filter(Boolean);
+
+  for (const line of lines) {
+    // Skip obvious header/non-name lines
+    if (/^\d+$/.test(line)) continue;
+    if (line.length > 80) continue;
+
+    let firstName = '', lastName = '';
+
+    // Format: "Last, First" (comma separated)
+    if (line.includes(',')) {
+      const parts = line.split(',').map(s => s.trim());
+      lastName  = parts[0];
+      firstName = parts[1] || '';
+    }
+    // Format: tab separated (copied from spreadsheet - could be "First[tab]Last" or "Last[tab]First")
+    else if (line.includes('\t')) {
+      const parts = line.split('\t').map(s => s.trim()).filter(Boolean);
+      firstName = parts[0];
+      lastName  = parts[1] || '';
+    }
+    // Format: "First Last" space separated
+    else {
+      const words = line.split(/\s+/).filter(Boolean);
+      if (words.length >= 2) {
+        firstName = words[0];
+        lastName  = words.slice(1).join(' ');
+      } else if (words.length === 1) {
+        firstName = words[0];
+        lastName  = '';
+      }
+    }
+
+    // Basic validation — must start with a letter
+    if (firstName && /^[A-Za-z]/.test(firstName)) {
+      results.push({ firstName: cap(firstName), lastName: cap(lastName) });
+    }
+  }
+  return results;
+}
+
+function cap(str) {
+  if (!str) return '';
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+function previewPaste() {
+  const raw = document.getElementById('pasteArea').value;
+  const names = parsePastedNames(raw);
+  const el = document.getElementById('pastePreview');
+  if (names.length === 0) {
+    el.textContent = '';
+  } else {
+    el.innerHTML = `<span style="color:var(--accent);font-weight:600">${names.length} name${names.length !== 1 ? 's' : ''} detected:</span> ${names.slice(0,6).map(n => `${n.firstName} ${n.lastName}`).join(', ')}${names.length > 6 ? ` … +${names.length - 6} more` : ''}`;
+  }
+}
+
+function importFromPaste() {
+  const raw = document.getElementById('pasteArea').value;
+  const names = parsePastedNames(raw);
+  if (names.length === 0) {
+    document.getElementById('pastePreview').innerHTML = '<span style="color:#dc2626">No names found — check the format and try again</span>';
+    return;
+  }
+  const added = [];
+  for (const { firstName, lastName } of names) {
+    if (!pupils.find(p => p.firstName === firstName && p.lastName === lastName)) {
+      const pupil = createPupil(firstName, lastName);
+      pupils.push(pupil);
+      added.push(pupil);
+    }
+  }
+  closePasteModal();
+  saveData();
+  renderSidebar();
+  showToast(`Added ${added.length} pupil${added.length !== 1 ? 's' : ''} \u2713`);
+  if (added.length > 0) selectPupil(added[0].id);
+}
+
+// ─── Persistence ─────────────────────────────────────────────────────────────
+const STORAGE_KEY = 'bge_drama_reports_v1';
+
+function saveData() {
+  var payload = { pupils, activePupilId, contextSummary };
+  if (window.DataService) {
+    DataService.set(STORAGE_KEY, payload).catch(function() { showToast('Save failed'); });
+  } else {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(payload)); } catch(e) {}
+  }
+}
+
+function loadData() {
+  return (window.DataService ? DataService.get(STORAGE_KEY) : Promise.resolve(JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'))).then(function(parsed) {
+    if (parsed && Array.isArray(parsed.pupils) && parsed.pupils.length > 0) {
+      pupils = parsed.pupils;
+      activePupilId = parsed.activePupilId || null;
+      contextSummary = parsed.contextSummary || '';
+      return true;
+    }
+    if (parsed && parsed.pupils) {
+      pupils = parsed.pupils || [];
+      activePupilId = parsed.activePupilId || null;
+      contextSummary = parsed.contextSummary || '';
+      return pupils.length > 0;
+    }
+    return false;
+  });
+}
+
+function clearData() {
+  if (!confirm('Clear all pupils and reports? This cannot be undone.')) return;
+  pupils = [];
+  activePupilId = null;
+  contextSummary = '';
+  document.getElementById('mainPanel').innerHTML = `
+    <div class="welcome" id="welcomeMsg">
+      <div class="welcome-icon">
+        <svg width="24" height="24" fill="none" stroke="#2563eb" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/></svg>
+      </div>
+      <h2>BGE Drama Report Builder</h2>
+      <p>Import your class list from a PDF, paste names from a register, or add pupils manually. Select each pupil to choose their comments and build their report.</p>
+    </div>`;
+  renderSidebar();
+  saveData();
+  showToast('All data cleared');
+}
+
+// ─── Toast ────────────────────────────────────────────────────────────────────
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+// ─── Import from Tracker ──────────────────────────────────────────────────────
+function importFromTracker() {
+  const TRACKER_KEY = 'bge_drama_tracker_export_v1';
+  (window.DataService ? DataService.get(TRACKER_KEY) : Promise.resolve(JSON.parse(localStorage.getItem(TRACKER_KEY) || 'null'))).then(function(data) {
+  if (!data || !Array.isArray(data) || data.length === 0) {
+    showToast('No tracker data found — use "Send to Report Builder" in the Tracker first');
+    return;
+  }
+  var added = 0, updated = 0;
+  for (var i = 0; i < data.length; i++) {
+    var entry = data[i];
+    if (!entry.firstName) continue;
+
+    // Find or create pupil
+    let p = pupils.find(x =>
+      x.firstName.toLowerCase() === entry.firstName.toLowerCase() &&
+      x.lastName.toLowerCase()  === entry.lastName.toLowerCase()
+    );
+
+    if (!p) {
+      p = createPupil(entry.firstName, entry.lastName);
+      pupils.push(p);
+      added++;
+    } else {
+      updated++;
+    }
+
+    // Set year
+    if (entry.year && ['S1','S2','S3'].includes(entry.year)) {
+      if (p.year !== entry.year) {
+        p.year = entry.year;
+        p.selections = { strengths: [], aod: [], next_steps: [] };
+      }
+    }
+
+    // Pre-select benchmarks — map code to section key
+    if (entry.benchmarks && entry.benchmarks.length > 0) {
+      const validCodes = entry.benchmarks.filter(code => {
+        // Only apply codes matching the pupil's year
+        const prefix = { S1:'A', S2:'B', S3:'C' }[p.year];
+        return code.startsWith(prefix);
+      });
+
+      for (const code of validCodes) {
+        const num = parseInt(code.slice(1));
+        let key;
+        if (num <= 15)       key = 'strengths';
+        else if (num <= 30)  key = 'aod';
+        else                 key = 'next_steps';
+
+        if (!p.selections[key].includes(code)) {
+          p.selections[key].push(code);
+        }
+      }
+    }
+  }
+
+  activePupilId = pupils[0] ? pupils[0].id : null;
+  saveData();
+  renderSidebar();
+  if (activePupilId) { renderEditor(); renderPreview(); }
+  var msg = added > 0 && updated > 0 ? 'Imported: ' + added + ' new, ' + updated + ' updated' : added > 0 ? added + ' pupils imported from Tracker' : updated + ' pupils updated from Tracker';
+  showToast(msg + ' \u2713');
+  });
+}
+
+// ─── Init ─────────────────────────────────────────────────────────────────────
+loadData().then(function(hadData) {
+  renderSidebar();
+  if (hadData && activePupilId) {
+    renderEditor();
+    renderPreview();
+    showToast('Session restored \u2713');
+  }
+});
+</script>
+<!-- Paste names modal -->
+<div class="modal-overlay" id="pasteModal" onclick="if(event.target===this)closePasteModal()">
+  <div class="modal">
+    <h3>Paste Class Names</h3>
+    <p>Paste your list of names below — one per line, or comma/tab separated. Works with any format: "First Last", "Last, First", or just a column copied straight from a spreadsheet or register.</p>
+    <textarea id="pasteArea" placeholder="e.g.&#10;Alfie Smith&#10;Ryan Jones&#10;Emma MacDonald&#10;&#10;or copied from Excel:&#10;Alfie	Smith&#10;Ryan	Jones" oninput="previewPaste()"></textarea>
+    <div class="modal-preview" id="pastePreview"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closePasteModal()">Cancel</button>
+      <button class="btn-import-names" onclick="importFromPaste()">Add Pupils</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

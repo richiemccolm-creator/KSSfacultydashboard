@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Academic Calendar</title>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-init.js"></script>
+<script src="allowlist-check.js"></script>
+<script src="auth-guard.js"></script>
+<script src="data-service.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@700&display=swap" rel="stylesheet">
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Inter,sans-serif;background:#f4f6f8;color:#1a1a1a;padding:40px}
+h1{font-family:Sora,sans-serif;font-size:28px;margin-bottom:6px}
+.container{max-width:1400px;margin:auto}
+
+.year-controls{display:flex;gap:10px;margin-bottom:20px}
+.year-btn{padding:6px 12px;border:none;border-radius:6px;background:#2a3f62;color:white;cursor:pointer}
+.year-display{font-weight:600;font-size:14px;align-self:center}
+
+.card{background:white;border-radius:10px;padding:20px;margin-bottom:25px;box-shadow:0 4px 16px rgba(0,0,0,0.05)}
+.section-title{font-weight:600;margin-bottom:15px}
+
+.snapshot{display:flex;gap:10px;flex-wrap:wrap}
+.snapshot-item{background:#eef2f7;padding:8px 12px;border-radius:8px;font-size:12px}
+
+.upcoming-list{display:flex;flex-direction:column;gap:10px}
+.event{padding:12px;border-radius:8px;border:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;font-size:14px}
+
+.badge{padding:4px 8px;border-radius:999px;font-size:11px;font-weight:600}
+.exam{background:#fdecea;color:#c0392b}
+.meeting{background:#e8f0ff;color:#1f6feb}
+.assessment{background:#f3e8ff;color:#8e44ad}
+.reporting{background:#fff4e5;color:#d97706}
+.general{background:#eef2f7;color:#475569}
+.holiday{background:#e7f7ec;color:#1e7e34}
+
+.form-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px}
+input,select{padding:8px;border:1px solid #cbd5e0;border-radius:6px;font-size:14px}
+button{padding:10px 14px;background:#2a3f62;color:white;border:none;border-radius:6px;font-weight:600;cursor:pointer}
+button:hover{opacity:0.9}
+
+.calendar{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.month{background:white;border-radius:10px;padding:10px;border:1px solid #e2e8f0}
+.month h3{font-size:14px;margin-bottom:8px}
+.weekdays,.days{display:grid;grid-template-columns:repeat(7,1fr);font-size:11px}
+.weekdays div{text-align:center;padding:3px;font-weight:600}
+
+.day{height:36px;font-size:11px;border:1px solid #edf2f7;position:relative;padding:2px}
+.day:hover{background:#f0f6ff}
+.day.day-has-events{cursor:pointer}
+
+.marker{width:6px;height:6px;border-radius:50%;position:absolute;bottom:2px;left:2px}
+.marker.exam{background:#c0392b}
+.marker.meeting{background:#1f6feb}
+.marker.assessment{background:#8e44ad}
+.marker.reporting{background:#d97706}
+.marker.general{background:#475569}
+.marker.holiday{background:#1e7e34}
+
+.tooltip{position:fixed;background:#16243c;color:white;padding:10px 12px;border-radius:6px;font-size:12px;max-width:280px;display:none;z-index:99999;box-shadow:0 4px 12px rgba(0,0,0,.35);pointer-events:auto}
+.tooltip.visible{display:block}
+.tooltip .tooltip-item{font-weight:600;margin-bottom:2px}
+.tooltip .tooltip-meta{font-size:11px;color:rgba(255,255,255,.75);margin-bottom:6px}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>Academic Calendar</h1>
+
+<div class="year-controls">
+<button class="year-btn" onclick="changeYear(-1)">◀</button>
+<div id="yearDisplay" class="year-display"></div>
+<button class="year-btn" onclick="changeYear(1)">▶</button>
+<a href="login.html" style="margin-left:auto;font-size:.8rem;color:#2a3f62;text-decoration:none" onclick="event.preventDefault();if(window.supabase){window.supabase.auth.signOut().then(function(){window.location.href='login.html';});}else{window.location.href='login.html';}">Sign out</a>
+</div>
+
+<div class="card">
+<div class="section-title">Snapshot of Upcoming Dates</div>
+<div id="snapshot" class="snapshot"></div>
+</div>
+
+<div class="card">
+<div class="section-title">Upcoming Events</div>
+<div id="upcoming" class="upcoming-list"></div>
+</div>
+
+<div class="card">
+<div class="section-title">Add Event</div>
+<div class="form-grid">
+<input id="title" placeholder="Event title">
+<input id="date" type="date">
+<select id="category">
+<option value="exam">Exam</option>
+<option value="meeting">Department Meeting</option>
+<option value="assessment">Assessment Deadline</option>
+<option value="reporting">Reporting Deadline</option>
+<option value="holiday">Holiday</option>
+<option value="general">General</option>
+</select>
+</div>
+<button onclick="addEvent()">Add Event</button>
+</div>
+
+<div class="calendar" id="calendar"></div>
+
+</div>
+
+<div id="tooltip" class="tooltip"></div>
+
+<script>
+
+const storageKey="academicCalendarEvents";
+let currentYear=new Date().getFullYear();
+
+/* PRELOADED GLASGOW TERM DATES (example session) */
+
+/* FULL GLASGOW TERM / HOLIDAY DATES PRELOADED */
+
+const defaultEvents=[
+
+{title:"Pupils Return",date:"2025-08-14",category:"general"},
+
+/* September Weekend */
+{title:"September Weekend Holiday",date:"2025-09-26",category:"holiday"},
+{title:"September Weekend Holiday",date:"2025-09-29",category:"holiday"},
+
+/* October Week (full week) */
+{title:"October Holiday",date:"2025-10-13",category:"holiday"},
+{title:"October Holiday",date:"2025-10-14",category:"holiday"},
+{title:"October Holiday",date:"2025-10-15",category:"holiday"},
+{title:"October Holiday",date:"2025-10-16",category:"holiday"},
+{title:"October Holiday",date:"2025-10-17",category:"holiday"},
+
+/* Christmas Holidays */
+{title:"Christmas Holiday",date:"2025-12-22",category:"holiday"},
+{title:"Christmas Holiday",date:"2025-12-23",category:"holiday"},
+{title:"Christmas Holiday",date:"2025-12-24",category:"holiday"},
+{title:"Christmas Holiday",date:"2025-12-25",category:"holiday"},
+{title:"Christmas Holiday",date:"2025-12-26",category:"holiday"},
+{title:"Christmas Holiday",date:"2025-12-29",category:"holiday"},
+{title:"Christmas Holiday",date:"2025-12-30",category:"holiday"},
+{title:"Christmas Holiday",date:"2025-12-31",category:"holiday"},
+{title:"Christmas Holiday",date:"2026-01-01",category:"holiday"},
+{title:"Christmas Holiday",date:"2026-01-02",category:"holiday"},
+
+{title:"Schools Return",date:"2026-01-05",category:"general"},
+
+/* February Mid-Term */
+{title:"February Holiday",date:"2026-02-16",category:"holiday"},
+{title:"February Holiday",date:"2026-02-17",category:"holiday"},
+{title:"In-Service Day",date:"2026-02-18",category:"meeting"},
+
+/* Spring Break (full period) */
+{title:"Spring Break",date:"2026-04-06",category:"holiday"},
+{title:"Spring Break",date:"2026-04-07",category:"holiday"},
+{title:"Spring Break",date:"2026-04-08",category:"holiday"},
+{title:"Spring Break",date:"2026-04-09",category:"holiday"},
+{title:"Spring Break",date:"2026-04-10",category:"holiday"},
+{title:"Spring Break",date:"2026-04-13",category:"holiday"},
+{title:"Spring Break",date:"2026-04-14",category:"holiday"},
+{title:"Spring Break",date:"2026-04-15",category:"holiday"},
+{title:"Spring Break",date:"2026-04-16",category:"holiday"},
+{title:"Spring Break",date:"2026-04-17",category:"holiday"},
+
+/* May Holidays */
+{title:"May Day Holiday",date:"2026-05-04",category:"holiday"},
+{title:"May Weekend",date:"2026-05-22",category:"holiday"},
+{title:"May Weekend",date:"2026-05-25",category:"holiday"},
+
+/* April–June 2026 Faculty Events */
+{title:"S2 Parents Evening",date:"2026-03-24",category:"general"},
+{title:"Departmental Meeting 18",date:"2026-03-31",category:"meeting"},
+{title:"Strategy Group Meeting 2",date:"2026-04-22",category:"meeting"},
+{title:"Departmental Meeting 19",date:"2026-04-28",category:"meeting"},
+{title:"S3 Parents Evening",date:"2026-05-06",category:"general"},
+{title:"In-Service Day 5",date:"2026-05-07",category:"meeting"},
+{title:"Moderation Meeting",date:"2026-05-11",category:"meeting"},
+{title:"Ped Pod 5",date:"2026-06-03",category:"meeting"},
+{title:"S1 Full Reports Deadline",date:"2026-06-05",category:"reporting"},
+{title:"Departmental Meeting 20",date:"2026-06-09",category:"meeting"},
+{title:"Staff Meeting 2",date:"2026-06-10",category:"meeting"},
+
+/* Summer Close */
+{title:"Schools Close for Summer",date:"2026-06-25",category:"holiday"}
+
+];
+
+var eventsCache=null;
+function getEvents(){
+if(eventsCache)return eventsCache;
+try{return JSON.parse(localStorage.getItem(storageKey)||"[]");}catch(x){return [];}
+}
+function loadEvents(){
+if(window.DataService&&typeof DataService.getCalendarMerged==="function"){
+return DataService.getCalendarMerged().then(function(merged){
+var base=merged&&Array.isArray(merged)?merged:[];
+var titles=base.map(function(e){return e.title+e.date;});
+defaultEvents.forEach(function(ev){if(titles.indexOf(ev.title+ev.date)===-1){base.push({title:ev.title,date:ev.date,category:ev.category||"general",source:"shared"});titles.push(ev.title+ev.date);}});
+base.sort(function(a,b){return (a.date||"").localeCompare(b.date||"");});
+eventsCache=base;
+return eventsCache;
+});
+}
+return (window.DataService?DataService.get(storageKey):Promise.resolve(JSON.parse(localStorage.getItem(storageKey)||"null"))).then(function(st){
+eventsCache=st||[];
+if(eventsCache.length===0){eventsCache=defaultEvents.slice();if(window.DataService)DataService.set(storageKey,eventsCache);}
+return eventsCache;
+});
+}
+function saveEvents(e){
+eventsCache=e;
+if(!window.DataService){try{localStorage.setItem(storageKey,JSON.stringify(e));}catch(x){}return;}
+var shared=(e||[]).filter(function(ev){return ev.source==="shared";});
+var personal=(e||[]).filter(function(ev){return ev.source==="personal"||!ev.source;}).map(function(ev){return {title:ev.title,date:ev.date,category:ev.category||"general"};});
+var isAdmin=!!(window.__authGuardIsAdmin);
+var promises=[];
+if(isAdmin){promises.push(DataService.setSharedCalendarEvents(shared).catch(function(){}));}
+promises.push(DataService.set(storageKey,personal).catch(function(){}));
+Promise.all(promises).catch(function(){});
+}
+
+/* Load events on init */
+(function(){
+if(window.DataService){
+ loadEvents().then(function(){render();});
+}else{
+ var st=getEvents();
+ if(st.length===0){saveEvents(defaultEvents);}
+ else{var titles=st.map(function(e){return e.title+e.date;});defaultEvents.forEach(function(ev){if(titles.indexOf(ev.title+ev.date)===-1)st.push(ev);});saveEvents(st);}
+ render();
+}
+})();
+
+function changeYear(dir){
+currentYear+=dir;
+render();
+}
+
+function addEvent(){
+const title=document.getElementById("title").value;
+const date=document.getElementById("date").value;
+const category=document.getElementById("category").value;
+if(!title||!date)return;
+var source=(window.__authGuardIsAdmin)?"shared":"personal";
+const events=getEvents();
+events.push({title,date,category:category||"general",source:source});
+saveEvents(events);
+render();
+}
+
+function snapshot(){
+const strip=document.getElementById("snapshot");
+strip.innerHTML="";
+const now=new Date();
+getEvents()
+.filter(e=>new Date(e.date)>=now)
+.sort((a,b)=>new Date(a.date)-new Date(b.date))
+.slice(0,8)
+.forEach(e=>{
+const div=document.createElement("div");
+div.className="snapshot-item";
+div.textContent=`${e.date} • ${e.title}`;
+strip.appendChild(div);
+});
+}
+
+function upcoming(){
+const list=document.getElementById("upcoming");
+list.innerHTML="";
+const now=new Date();
+getEvents()
+.filter(e=>new Date(e.date)>=now)
+.sort((a,b)=>new Date(a.date)-new Date(b.date))
+.slice(0,5)
+.forEach(e=>{
+const div=document.createElement("div");
+div.className="event";
+div.innerHTML=`<span>${e.title} — ${e.date}</span><span class="badge ${e.category}">${e.category}</span>`;
+list.appendChild(div);
+});
+}
+
+function formatDate(iso){
+const d=new Date(iso);
+const days=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const months=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+return days[d.getDay()]+" "+d.getDate()+" "+months[d.getMonth()]+" "+d.getFullYear();
+}
+
+const catLabels={exam:"Exam",meeting:"Meeting",assessment:"Assessment",reporting:"Reporting",holiday:"Holiday",general:"General"};
+
+/* ACADEMIC YEAR ORDER (Aug → Jul) */
+
+const academicMonths=[7,8,9,10,11,0,1,2,3,4,5,6];
+const monthNames=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+
+let tooltipHideTimeout=null;
+function showTooltip(tooltip,ev,day){
+if(!tooltip)return;
+const rect=day.getBoundingClientRect();
+tooltip.innerHTML=ev.map(x=>`<div class="tooltip-item">${x.title}</div><div class="tooltip-meta">${formatDate(x.date)} · ${catLabels[x.category]||x.category}</div>`).join("");
+tooltip.style.left=Math.max(8,Math.min(rect.left,window.innerWidth-290))+"px";
+tooltip.style.top=(rect.bottom+6)+"px";
+tooltip.classList.add("visible");
+if(tooltipHideTimeout){clearTimeout(tooltipHideTimeout);tooltipHideTimeout=null;}
+}
+function hideTooltip(tooltip,delay){
+if(!tooltip)return;
+if(delay){
+if(tooltipHideTimeout)clearTimeout(tooltipHideTimeout);
+tooltipHideTimeout=setTimeout(()=>{tooltip.classList.remove("visible");tooltipHideTimeout=null;},delay);
+}else{
+if(tooltipHideTimeout){clearTimeout(tooltipHideTimeout);tooltipHideTimeout=null;}
+tooltip.classList.remove("visible");
+}
+}
+
+function buildCalendar(){
+const cal=document.getElementById("calendar");
+cal.innerHTML="";
+
+document.getElementById("yearDisplay").textContent=`Academic Year ${currentYear}-${currentYear+1}`;
+
+academicMonths.forEach(m=>{
+
+const year=m>=7?currentYear:currentYear+1;
+
+const monthDiv=document.createElement("div");
+monthDiv.className="month";
+monthDiv.innerHTML=`<h3>${monthNames[m]} ${year}</h3>`;
+
+const weekdays=document.createElement("div");
+weekdays.className="weekdays";
+["M","T","W","T","F","S","S"].forEach(d=>{
+const el=document.createElement("div");
+el.textContent=d;
+weekdays.appendChild(el);
+});
+
+monthDiv.appendChild(weekdays);
+
+const days=document.createElement("div");
+days.className="days";
+
+const first=new Date(year,m,1);
+const start=(first.getDay()+6)%7;
+const total=new Date(year,m+1,0).getDate();
+
+for(let i=0;i<start;i++){
+const empty=document.createElement("div");
+empty.className="day";
+days.appendChild(empty);
+}
+
+for(let d=1;d<=total;d++){
+
+const day=document.createElement("div");
+day.className="day";
+day.textContent=d;
+
+const date=`${year}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+
+const ev=getEvents().filter(e=>e.date===date);
+
+if(ev.length){
+
+day.classList.add("day-has-events");
+const mark=document.createElement("div");
+mark.className="marker "+ev[0].category;
+day.appendChild(mark);
+
+day.setAttribute("title",ev.map(x=>x.title+" ("+(catLabels[x.category]||x.category)+")").join("\n"));
+
+let tooltip=document.getElementById("tooltip");
+if(!tooltip){tooltip=document.createElement("div");tooltip.id="tooltip";tooltip.className="tooltip";document.body.appendChild(tooltip);}
+else if(tooltip.parentElement!==document.body){document.body.appendChild(tooltip);}
+
+day.addEventListener("mouseenter",()=>showTooltip(tooltip,ev,day));
+day.addEventListener("mouseleave",()=>hideTooltip(tooltip,250));
+if(!tooltip.dataset.listenersAdded){tooltip.dataset.listenersAdded="1";tooltip.addEventListener("mouseenter",()=>{if(tooltipHideTimeout){clearTimeout(tooltipHideTimeout);tooltipHideTimeout=null;}});tooltip.addEventListener("mouseleave",()=>hideTooltip(tooltip,0));}
+
+}
+
+
+days.appendChild(day);
+
+}
+
+monthDiv.appendChild(days);
+cal.appendChild(monthDiv);
+
+});
+}
+
+function render(){
+snapshot();
+upcoming();
+buildCalendar();
+}
+
+</script>
+
+</body>
+</html>
