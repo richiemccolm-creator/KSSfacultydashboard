@@ -18,7 +18,7 @@
   window.doSignOut = function() {
     var go = function() {
       window.clearSupabaseAuth();
-      window.location.href = 'login.html';
+      window.location.replace('login.html?signout=1');
     };
     if (window.supabase && window.supabase.auth) {
       window.supabase.auth.signOut().then(go).catch(go);
