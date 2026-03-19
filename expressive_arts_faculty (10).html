@@ -1041,6 +1041,19 @@ a.subject-card-link{text-decoration:none;cursor:pointer}
   transition:all .12s;
 }
 .topbar-print-btn:hover{background:var(--navy-dark);color:var(--white);border-color:var(--navy-dark)}
+.topbar-save-btn{
+  display:inline-flex;align-items:center;gap:.4rem;
+  font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
+  padding:.35rem .85rem;border-radius:5px;cursor:pointer;
+  border:1px solid #10b981;background:#10b981;color:white;
+  transition:all .12s;
+}
+.topbar-save-btn:hover{background:#059669;border-color:#059669}
+.topbar-save-btn svg{width:13px;height:13px;flex-shrink:0}
+.cloud-sync-banner{
+  background:#fef3c7;color:#92400e;padding:.5rem 1rem;font-size:.75rem;text-align:center;border-bottom:1px solid #fcd34d;
+}
+@media print{.cloud-sync-banner{display:none!important}}
 .sidebar-toggle-btn{
   display:flex;align-items:center;justify-content:center;
   width:36px;height:36px;padding:0;margin-right:.5rem;
@@ -1367,6 +1380,7 @@ a.subject-card-link{text-decoration:none;cursor:pointer}
   <div class="sidebar-logo">
     <div class="sidebar-logo-title">Art &amp; Drama</div>
     <div class="sidebar-logo-sub">Knightswood Secondary School</div>
+    <div id="storage-indicator" style="font-size:.58rem;font-weight:600;letter-spacing:.08em;color:rgba(255,255,255,.5);margin-top:.5rem" title="Data sync status"></div>
   </div>
 
   <button class="sidebar-item home-pin active" data-panel="home" onclick="showPanel('home')">
@@ -1465,6 +1479,10 @@ a.subject-card-link{text-decoration:none;cursor:pointer}
         <span class="meta-badge">CfE</span>
         <span class="meta-badge">Knightswood Secondary</span>
       </div>
+      <button class="topbar-save-btn" id="topbar-save-btn" onclick="saveAllToCloud()" title="Save all data to cloud">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Save
+      </button>
       <button class="topbar-print-btn" onclick="printCurrentPanel()" title="Print current page">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>
@@ -1474,6 +1492,9 @@ a.subject-card-link{text-decoration:none;cursor:pointer}
     </div>
   </div>
 
+  <div id="cloud-sync-banner" class="cloud-sync-banner" style="display:none">
+    <span>Data is saved only on this device. Deploy the app and sign in to sync across devices.</span>
+  </div>
   <div class="content">
   <div class="print-header" id="print-header">
     <div>
@@ -6167,6 +6188,17 @@ function backupToast(msg){
   const el=document.getElementById('backup-toast');if(!el)return;
   el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),4500);
 }
+function saveAllToCloud(){
+  if(!window.DataService||!window.DataService.isUsingCloud||!window.DataService.isUsingCloud()){backupToast('Cloud not available. Deploy the app and sign in to sync.');return;}
+  var dipPayload={entries:dipCheckpoints,current:dipGetCurrentFormData()};
+  var ev=calGetEvents();
+  var shared=(ev||[]).filter(function(e){return e.source==='shared';});
+  var personal=(ev||[]).filter(function(e){return e.source==='personal'||!e.source;}).map(function(e){return{title:e.title,date:e.date,category:e.category||'general'};});
+  var modData=getModerationData();
+  var promises=[DataService.set(DIP_STORAGE_KEY,dipPayload),DataService.set(CAL_STORAGE_KEY,personal),DataService.set(MODERATION_STORAGE_KEY,modData)];
+  if(window.__authGuardIsAdmin&&shared.length>0){promises.push(DataService.setSharedCalendarEvents(shared));}
+  Promise.all(promises).then(function(){backupToast('Saved to cloud — available on other devices');}).catch(function(){backupToast('Save failed — check you are signed in');});
+}
 
 // ── MODERATION ─────────────────────────────────────────────────────────────
 const MODERATION_STORAGE_KEY='moderation-data';
@@ -6698,7 +6730,10 @@ document.addEventListener('DOMContentLoaded',function(){
   injectLiteracyNumeracyIntoCurriculumCards();
   var loadDip=window.DataService?DataService.get('dipSelfEvaluation'):Promise.resolve(JSON.parse(localStorage.getItem('dipSelfEvaluation')||'{}'));
   function updateStorageIndicator(){
+    var el=document.getElementById('storage-indicator');
+    if(el){if(window.DataService&&window.DataService.isUsingCloud&&window.DataService.isUsingCloud()){el.textContent='● Cloud sync';el.style.color='#6ee7b7';el.title='Calendar, moderation & improvement plan save to cloud — available on other devices';}else{el.textContent='● Local only';el.style.color='#fcd34d';el.title='Data saved in this browser only — sign in to sync to cloud';}}
     var adminLink=document.getElementById('admin-console-link');if(adminLink)adminLink.style.display=window.__authGuardIsAdmin?'block':'none';
+    var banner=document.getElementById('cloud-sync-banner');if(banner)banner.style.display=(window.DataService&&window.DataService.isUsingCloud&&window.DataService.isUsingCloud())?'none':'block';
   }
   Promise.all([calLoadEvents(),loadModerationData(),loadDip]).then(function(res){
     var dipData=res[2]||{};
