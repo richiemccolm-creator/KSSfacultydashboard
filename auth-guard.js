@@ -3,14 +3,17 @@
  * Include allowlist-check.js before this script.
  */
 (function() {
-  if (typeof window.supabase === 'undefined' || window.supabase === null) {
-    console.error('Auth guard: Supabase client not loaded. Include config.js and Supabase JS before auth-guard.js');
-    return;
-  }
   var path = window.location.pathname;
   if (path === '/' || path === '/index.html') path = 'expressive_arts_faculty%20(10).html';
   var redirect = encodeURIComponent(path + window.location.search);
   var loginUrl = 'login.html' + (redirect && redirect !== '/' ? '?redirect=' + redirect : '');
+
+  if (typeof window.supabase === 'undefined' || window.supabase === null) {
+    console.error('Auth guard: Supabase client not loaded. Include config.js and Supabase JS before auth-guard.js');
+    window.location.replace(loginUrl);
+    return;
+  }
+
   window.supabase.auth.getSession().then(function(_a) {
     var session = _a.data.session;
     if (!session) {
@@ -27,5 +30,7 @@
         }
       });
     }
+  }).catch(function() {
+    window.location.replace(loginUrl);
   });
 })();

@@ -70,9 +70,12 @@ body{font-family:'Inter',sans-serif;background:linear-gradient(135deg,#16243c,#1
     document.getElementById('errMsg').classList.add('show');
     return;
   }
-  var sb = typeof supabase !== 'undefined' ? supabase : window.supabase;
-  window.supabase = sb.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
   var supabase = window.supabase;
+  if (!supabase) {
+    document.getElementById('errMsg').textContent = 'Supabase client not loaded. Check config.js and script order.';
+    document.getElementById('errMsg').classList.add('show');
+    return;
+  }
 
   function showErr(msg) {
     var el = document.getElementById('errMsg');
@@ -112,9 +115,17 @@ body{font-family:'Inter',sans-serif;background:linear-gradient(135deg,#16243c,#1
   if (new URLSearchParams(window.location.search).get('error') === 'access_denied') {
     showErr('You do not have access to this system. Contact your administrator.');
   }
-  supabase.auth.getSession().then(function(r) {
-    if (r.data.session) checkAndGo();
-  });
+
+  function checkSession() {
+    supabase.auth.getSession().then(function(r) {
+      if (r.data.session) checkAndGo();
+    });
+  }
+  if (new URLSearchParams(window.location.search).get('signout') === '1') {
+    supabase.auth.signOut().then(checkSession).catch(checkSession);
+  } else {
+    checkSession();
+  }
 
   document.getElementById('loginForm').onsubmit = function(e) {
     e.preventDefault();
