@@ -42,6 +42,9 @@ body{font-family:'Inter',sans-serif;background:linear-gradient(135deg,#16243c,#1
   <h1 class="login-logo">Expressive Arts Faculty</h1>
   <p class="login-sub">Knightswood Secondary School</p>
   <div id="errMsg" class="err-msg"></div>
+  <div id="alreadySignedIn" class="err-msg" style="background:#e6fffa;border-color:#81e6d9;color:#234e52;display:none">
+    You're already signed in. <a href="#" id="continueLink" style="font-weight:600">Continue to app</a> or <a href="login.html?signout=1" style="font-weight:600">sign out</a> to use a different account.
+  </div>
   <form id="loginForm" class="login-form">
     <div class="form-group">
       <label class="form-label" for="email">Email</label>
@@ -122,7 +125,13 @@ body{font-family:'Inter',sans-serif;background:linear-gradient(135deg,#16243c,#1
 
   function checkSession() {
     supabase.auth.getSession().then(function(r) {
-      if (r.data.session) checkAndGo();
+      if (r.data.session) {
+        document.getElementById('alreadySignedIn').style.display = 'block';
+        document.getElementById('loginForm').style.display = 'none';
+        document.querySelector('.divider').style.display = 'none';
+        document.querySelectorAll('.btn-oauth').forEach(function(b){ b.style.display = 'none'; });
+        document.getElementById('continueLink').onclick = function(e) { e.preventDefault(); checkAndGo(); };
+      }
     });
   }
   if (new URLSearchParams(window.location.search).get('signout') === '1') {
