@@ -1367,7 +1367,6 @@ a.subject-card-link{text-decoration:none;cursor:pointer}
   <div class="sidebar-logo">
     <div class="sidebar-logo-title">Art &amp; Drama</div>
     <div class="sidebar-logo-sub">Knightswood Secondary School</div>
-    <div id="storage-indicator" style="font-size:.58rem;font-weight:600;letter-spacing:.08em;color:rgba(255,255,255,.5);margin-top:.5rem" title="Data sync status"></div>
   </div>
 
   <button class="sidebar-item home-pin active" data-panel="home" onclick="showPanel('home')">
@@ -6155,7 +6154,6 @@ function backupImport(ev){
       (window.DataService?DataService.importAll(d):Promise.resolve()).then(function(){
         if(!window.DataService){keys.forEach(function(k){if(d[k]!==undefined){try{localStorage.setItem(k,typeof d[k]==='string'?d[k]:JSON.stringify(d[k]));}catch(x){}}});}
         if(d.academicCalendarEvents){calEventsCache=d.academicCalendarEvents;}
-        var si=document.getElementById('storage-indicator');if(si&&window.DataService&&window.DataService.isUsingCloud&&window.DataService.isUsingCloud()){si.textContent='● Cloud sync';si.style.color='#6ee7b7';}
         backupToast((window.DataService&&window.DataService.isUsingCloud&&window.DataService.isUsingCloud()?'Backup restored and synced to cloud.':'Backup restored.')+' Reload the page (or open the Drama/Art trackers) to see your data.');
         ev.target.value='';
       }).catch(function(){
@@ -6700,8 +6698,6 @@ document.addEventListener('DOMContentLoaded',function(){
   injectLiteracyNumeracyIntoCurriculumCards();
   var loadDip=window.DataService?DataService.get('dipSelfEvaluation'):Promise.resolve(JSON.parse(localStorage.getItem('dipSelfEvaluation')||'{}'));
   function updateStorageIndicator(){
-    var el=document.getElementById('storage-indicator');
-    if(el){if(window.DataService&&window.DataService.isUsingCloud&&window.DataService.isUsingCloud()){el.textContent='● Cloud sync';el.style.color='#6ee7b7';el.title='Calendar, moderation & improvement plan save to cloud — available on other devices';}else{el.textContent='● Local only';el.style.color='#fcd34d';el.title='Data saved in this browser only — sign in to sync to cloud';}}
     var adminLink=document.getElementById('admin-console-link');if(adminLink)adminLink.style.display=window.__authGuardIsAdmin?'block':'none';
   }
   Promise.all([calLoadEvents(),loadModerationData(),loadDip]).then(function(res){
