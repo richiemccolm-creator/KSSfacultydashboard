@@ -56,9 +56,6 @@ body{font-family:'Inter',sans-serif;background:linear-gradient(135deg,#16243c,#1
     </div>
     <button type="submit" class="btn btn-primary" id="submitBtn">Sign in</button>
   </form>
-  <div class="divider"><span>or</span></div>
-  <button type="button" class="btn btn-oauth" id="googleBtn">Sign in with Google</button>
-  <button type="button" class="btn btn-oauth" id="microsoftBtn">Sign in with Microsoft</button>
   <p class="privacy-link"><a href="privacy.html">Privacy Policy</a> · GDPR compliant</p>
 </div>
 
@@ -128,14 +125,16 @@ body{font-family:'Inter',sans-serif;background:linear-gradient(135deg,#16243c,#1
       if (r.data.session) {
         document.getElementById('alreadySignedIn').style.display = 'block';
         document.getElementById('loginForm').style.display = 'none';
-        document.querySelector('.divider').style.display = 'none';
-        document.querySelectorAll('.btn-oauth').forEach(function(b){ b.style.display = 'none'; });
         document.getElementById('continueLink').onclick = function(e) { e.preventDefault(); checkAndGo(); };
       }
     });
   }
   if (new URLSearchParams(window.location.search).get('signout') === '1') {
-    supabase.auth.signOut().then(checkSession).catch(checkSession);
+    supabase.auth.signOut({ scope: 'local' }).then(function() {
+      window.location.replace('login.html');
+    }).catch(function() {
+      window.location.replace('login.html');
+    });
   } else {
     checkSession();
   }
@@ -161,15 +160,6 @@ body{font-family:'Inter',sans-serif;background:linear-gradient(135deg,#16243c,#1
       });
   };
 
-  var oauthRedirect = window.location.origin + '/login.html?redirect=' + encodeURIComponent(redirect);
-  document.getElementById('googleBtn').onclick = function() {
-    hideErr();
-    supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: oauthRedirect } });
-  };
-  document.getElementById('microsoftBtn').onclick = function() {
-    hideErr();
-    supabase.auth.signInWithOAuth({ provider: 'azure', options: { redirectTo: oauthRedirect } });
-  };
 })();
 </script>
 </body>
