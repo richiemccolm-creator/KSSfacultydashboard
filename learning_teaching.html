@@ -8,156 +8,39 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/png" href="apple-touch-icon.png">
 <title>Learning &amp; Teaching — Expressive Arts Faculty</title>
+<script src="clpl-courses.js" onerror="console.warn('CLPL: clpl-courses.js failed to load'); window.CLPL_LOAD_ERROR=true;"></script>
+<script>
+window.CLPL_COURSES = window.CLPL_COURSES || [];
+window.CLPL_STAGE_IDS = {
+  'restorative-practice': ['rp-1','rp-2','rp-3'],
+  'behaviour-management': ['bm-1','bm-2','bm-3'],
+  'effective-feedback': ['ef-1','ef-2','ef-3'],
+  'learning-intentions': ['li-1','li-2'],
+  'retrieval-practice': ['ret-1','ret-2','ret-3'],
+  'differentiation': ['diff-1','diff-2'],
+  'adaptive-teaching': ['at-1','at-2']
+};
+// Fallback when clpl-courses.js fails — minimal data for cards + stage nav; templates provide content
+if (!window.CLPL_COURSES || window.CLPL_COURSES.length === 0) {
+  var _sid = window.CLPL_STAGE_IDS || {};
+  window.CLPL_COURSES = [
+    { id: 'restorative-practice', title: 'Restorative Practice', description: 'Applying restorative approaches in Art, Drama and Photography contexts.', stages: (_sid['restorative-practice']||[]).map(function(id,i){ return { id: id, title: ['Principles in Creative Subjects','Restorative Conversations in the Studio','Repairing Harm in Group Work'][i] || ('Stage '+(i+1)); }; }) },
+    { id: 'behaviour-management', title: 'Behaviour Management', description: 'Managing practical spaces: drama studio, art room and darkroom.', stages: (_sid['behaviour-management']||[]).map(function(id,i){ return { id: id, title: ['Prevention in Practical Spaces','Interventions and Consistency','Subject-Specific Considerations'][i] || ('Stage '+(i+1)); }; }) },
+    { id: 'effective-feedback', title: 'Effective Feedback', description: 'Feeding back on performances, artwork and portfolios.', stages: (_sid['effective-feedback']||[]).map(function(id,i){ return { id: id, title: ['Feedback on Performances and Artwork','Verbal and Written Feedback in Creative Contexts','Peer and Self-Assessment'][i] || ('Stage '+(i+1)); }; }) },
+    { id: 'learning-intentions', title: 'Learning Intentions and Success Criteria', description: 'Writing and sharing LIs and SCs for practical tasks and EXA Es+Os.', stages: (_sid['learning-intentions']||[]).map(function(id,i){ return { id: id, title: ['Writing LIs and SCs for Practical Tasks','Sharing and Linking to Assessment'][i] || ('Stage '+(i+1)); }; }) },
+    { id: 'retrieval-practice', title: 'Retrieval Practice', description: 'Drama vocabulary, art theory and photography techniques.', stages: (_sid['retrieval-practice']||[]).map(function(id,i){ return { id: id, title: ['Retrieval in Practical Lessons','Techniques for Expressive Arts','Subject-Specific Retrieval Ideas'][i] || ('Stage '+(i+1)); }; }) },
+    { id: 'differentiation', title: 'Differentiation', description: 'Supporting diverse learners in mixed-ability Drama, Art and Photo.', stages: (_sid['differentiation']||[]).map(function(id,i){ return { id: id, title: ['Meeting Diverse Needs','Strategies and Adaptive Planning'][i] || ('Stage '+(i+1)); }; }) },
+    { id: 'adaptive-teaching', title: 'Adaptive Teaching', description: 'Responsive teaching in rehearsals, studio work and portfolio development.', stages: (_sid['adaptive-teaching']||[]).map(function(id,i){ return { id: id, title: ['Responsive Teaching','Flexible Grouping and Scaffolding'][i] || ('Stage '+(i+1)); }; }) }
+  ];
+}
+</script>
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-init.js"></script>
 <script src="allowlist-check.js"></script>
 <script src="auth-guard.js"></script>
 <script src="data-service.js"></script>
-<script src="clpl-courses.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script>
-// Fallback: if clpl-courses.js failed to load, use embedded content
-if (typeof window.CLPL_COURSES === 'undefined' || !Array.isArray(window.CLPL_COURSES) || window.CLPL_COURSES.length === 0) {
-window.CLPL_COURSES = [
-  { id: 'restorative-practice', title: 'Restorative Practice', description: 'Applying restorative approaches in Art, Drama and Photography.',
-    stages: [
-      { id: 'rp-1', title: 'Principles in Creative Subjects',
-        content: '<h3>What is Restorative Practice?</h3><p>Restorative practice prioritises relationships, responsibility and repairing harm rather than punishment. It aligns with GIRFEC, UNCRC and rights-based approaches in Scottish education.</p><h3>Why It Matters in Expressive Arts</h3><p>In Drama, Art and Photography, pupils work collaboratively: devising in groups, sharing studio space, using shared equipment. Conflict happens—disputes over roles, disagreements about creative decisions, arguments over materials or camera time. Restorative practice helps address these incidents and rebuild relationships.</p><h3>Key Principles</h3><p><strong>Fair Process</strong>: Pupils are involved in decisions that affect them.</p><p><strong>High Challenge, High Support</strong>: Hold high expectations while providing support.</p><p><strong>Working With, Not Doing To</strong>: Work with pupils to find solutions rather than imposing them.</p>',
-        quiz: { questions: [
-          { q: 'What is the focus of restorative practice?', options: ['Punishment', 'Relationships, responsibility and repairing harm', 'Rules only', 'Reporting'], correct: 'Relationships, responsibility and repairing harm' },
-          { q: 'Which principle involves pupils in decisions?', options: ['High Challenge', 'Fair Process', 'High Support', 'Repairing harm'], correct: 'Fair Process' },
-          { q: 'In a Drama dispute, what does "Working With" suggest?', options: ['Telling pupils what to do', 'Involving pupils in finding solutions', 'Sending pupils out', 'Ignoring'], correct: 'Involving pupils in finding solutions' }
-        ], passThreshold: 0.6 }
-      },
-      { id: 'rp-2', title: 'Restorative Conversations',
-        content: '<h3>The Restorative Questions</h3><ul><li>What happened?</li><li>What were you thinking?</li><li>Who has been affected?</li><li>What needs to happen to put things right?</li></ul><h3>In Art & Design</h3><p>When pupils argue over materials, use curiosity: "What was going on for you?" not "Why did you do that?"</p><h3>In Photography</h3><p>Equipment disputes or exclusion from a group shoot—let each person share their perspective before agreeing next steps.</p><h3>Affective Statements</h3><p>Model accountability: "I felt disappointed when the rehearsal stopped—I know you can work through this."</p>',
-        quiz: { questions: [
-          { q: 'Which question is most restorative?', options: ['Why did you do that?', 'What was going on for you?', 'Who started it?', 'Do you know you are in trouble?'], correct: 'What was going on for you?' },
-          { q: 'In an equipment dispute, what should happen first?', options: ['Remove equipment', 'Let each person share their perspective', 'Send to referral', 'Decide who was wrong'], correct: 'Let each person share their perspective' },
-          { q: 'What type of statement models accountability?', options: ['Threats', 'Affective statements ("I felt...")', 'Sarcasm', 'Silence'], correct: 'Affective statements ("I felt...")' }
-        ], passThreshold: 0.6 }
-      },
-      { id: 'rp-3', title: 'Repairing Harm in Group Work',
-        content: '<h3>Restorative Circles</h3><p>Everyone has a turn to speak without interruption. Use a talking object. Focus on impact and what is needed to move on.</p><p>In Drama: agree new rehearsal norms. In Art: re-establish trust for collaborative work. In Photography: agree how to share equipment.</p><h3>Follow-Up</h3><p>Check in later: "How is it going with the agreement you made?"</p>',
-        quiz: { questions: [
-          { q: 'In a restorative circle, what should happen when someone speaks?', options: ['Others can interrupt', 'No interruption; everyone has a turn', 'Only the teacher speaks', 'Pupils stay silent'], correct: 'No interruption; everyone has a turn' },
-          { q: 'What should happen after a restorative agreement?', options: ['Forget about it', 'Follow up to check if it is holding', 'Report to SLT only', 'Move pupils only'], correct: 'Follow up to check if it is holding' }
-        ], passThreshold: 0.6 }
-      }
-    ]
-  },
-  { id: 'behaviour-management', title: 'Behaviour Management', description: 'Managing drama studio, art room and darkroom.',
-    stages: [
-      { id: 'bm-1', title: 'Prevention in Practical Spaces',
-        content: '<h3>Behaviour is Best Managed Through Prevention</h3><p>Establish clear routines: entry, equipment, signals for attention, exit. Non-negotiables: no running in the studio, safe use of materials, listening when others perform. Predict problem points: transitions, equipment handouts, waiting times.</p>',
-        quiz: { questions: [
-          { q: 'Where is behaviour best managed?', options: ['Through detention', 'Through prevention', 'Through exclusion', 'Through reports'], correct: 'Through prevention' },
-          { q: 'What should be established for practical spaces?', options: ['No rules', 'Clear routines and non-negotiables', 'Flexible expectations only', 'Only verbal warnings'], correct: 'Clear routines and non-negotiables' }
-        ], passThreshold: 0.6 }
-      },
-      { id: 'bm-2', title: 'Interventions and Consistency',
-        content: '<h3>When Behaviour Slips</h3><p>Use low-level interventions first: proximity, quiet word, choice. Avoid public confrontations. Consistency is vital across Drama, Art and Photo. De-escalate: lower your voice, give wait time.</p>',
-        quiz: { questions: [
-          { q: 'What should come before public confrontation?', options: ['Shouting', 'Low-level interventions (proximity, quiet word)', 'Exclusion', 'Ignoring'], correct: 'Low-level interventions (proximity, quiet word)' },
-          { q: 'When de-escalating, what helps?', options: ['Raising your voice', 'Lowering your voice and giving wait time', 'Threatening immediately', 'Removing instantly'], correct: 'Lowering your voice and giving wait time' }
-        ], passThreshold: 0.6 }
-      }
-    ]
-  },
-  { id: 'effective-feedback', title: 'Effective Feedback', description: 'Feeding back on performances, artwork and portfolios.',
-    stages: [
-      { id: 'ef-1', title: 'Feedback on Performances and Artwork',
-        content: '<h3>Effective Feedback is Specific, Timely and Actionable</h3><p>In Drama: name what worked ("Your use of levels showed status") and one thing to improve ("Project your voice"). In Art: feed back on process and product. In Photography: comment on framing, exposure, intent. Link to success criteria.</p>',
-        quiz: { questions: [
-          { q: 'What makes feedback effective?', options: ['Vague praise only', 'Specific, timely and actionable', 'Long comments only', 'No feedback during process'], correct: 'Specific, timely and actionable' },
-          { q: 'When feeding back on a Drama performance, what should you name?', options: ['Nothing', 'What worked and one thing to improve', 'Only what went wrong', 'Only grades'], correct: 'What worked and one thing to improve' }
-        ], passThreshold: 0.6 }
-      },
-      { id: 'ef-2', title: 'Verbal and Written Feedback',
-        content: '<h3>Verbal Feedback</h3><p>Works well during practical work. Record it: "VF: discussed use of tone."</p><h3>Written Feedback</h3><p>One or two foci per piece. Balance strengths with next steps. Feed-forward: what to do in the next piece.</p>',
-        quiz: { questions: [
-          { q: 'When is verbal feedback especially useful?', options: ['Only at parents evening', 'During practical work', 'Never', 'Only in written form'], correct: 'During practical work' },
-          { q: 'What is feed-forward?', options: ['Only correcting past work', 'Focusing on what to do in the next piece', 'Forwarding emails', 'Moving pupils on'], correct: 'Focusing on what to do in the next piece' }
-        ], passThreshold: 0.6 }
-      }
-    ]
-  },
-  { id: 'learning-intentions', title: 'Learning Intentions and Success Criteria', description: 'Writing and sharing LIs and SCs for practical tasks.',
-    stages: [
-      { id: 'li-1', title: 'Writing LIs and SCs',
-        content: '<h3>Definitions</h3><p><strong>Learning Intentions</strong> state what pupils will learn. <strong>Success Criteria</strong> describe what good looks like.</p><p>Drama: "We are learning to use proxemics" / "I can position myself to show status." Art: "We are learning to blend tones" / "I can create smooth transitions." Photography: "We are learning to use aperture" / "I can demonstrate shallow and deep depth of field."</p>',
-        quiz: { questions: [
-          { q: 'What do Success Criteria describe?', options: ['What the teacher will do', 'What good looks like', 'Homework only', 'Attendance'], correct: 'What good looks like' },
-          { q: '"We are learning to use proxemics" is a...', options: ['Success Criterion', 'Learning Intention', 'Assessment', 'Homework'], correct: 'Learning Intention' }
-        ], passThreshold: 0.6 }
-      },
-      { id: 'li-2', title: 'Sharing and Linking to Assessment',
-        content: '<h3>Sharing</h3><p>Share at the start—visually and verbally. Refer back during the lesson. Use in plenaries.</p><h3>Linking to Es+Os</h3><p>In Drama, EXA 3-12a links to creating and presenting. In Art, EXA 3-02a, 3-03a relate to responding and creating. This makes assessment transparent.</p>',
-        quiz: { questions: [
-          { q: 'When should LIs and SCs be shared?', options: ['Only at the end', 'At the start and during the lesson', 'Never', 'In homework only'], correct: 'At the start and during the lesson' },
-          { q: 'What EXA outcome links to Drama performance?', options: ['EXA 3-01a', 'EXA 3-12a', 'MNU 3-01a', 'LIT 3-01a'], correct: 'EXA 3-12a' }
-        ], passThreshold: 0.6 }
-      }
-    ]
-  },
-  { id: 'retrieval-practice', title: 'Retrieval Practice', description: 'Drama vocabulary, art theory and photography techniques.',
-    stages: [
-      { id: 'ret-1', title: 'Retrieval in Practical Lessons',
-        content: '<h3>What is Retrieval Practice?</h3><p>Recalling information from memory strengthens it. In Expressive Arts: Drama (proxemics, blocking, levels), Art (elements of art, colour theory), Photography (aperture, ISO, rule of thirds). Keep it low-stakes. Use spacing—revisit across lessons.</p>',
-        quiz: { questions: [
-          { q: 'What does retrieval practice strengthen?', options: ['Equipment', 'Memory', 'Seating plans', 'Timetables'], correct: 'Memory' },
-          { q: 'How should retrieval be used?', options: ['High-stakes only', 'Low-stakes, quick recall', 'Never in practical', 'Only in exams'], correct: 'Low-stakes, quick recall' }
-        ], passThreshold: 0.6 }
-      },
-      { id: 'ret-2', title: 'Techniques',
-        content: '<h3>Do Now Starters</h3><p>"Write three Drama terms we used last week." "Draw the colour wheel." "Label: aperture, shutter, ISO."</p><h3>During and After</h3><p>Quick verbal checks. Pair-share. Link retrieval to application: after recalling "levels," pupils use them in the next scene.</p>',
-        quiz: { questions: [
-          { q: 'What is a Do Now starter good for?', options: ['Filling time', 'Quick retrieval at the start', 'Homework', 'Parents evening'], correct: 'Quick retrieval at the start' },
-          { q: 'What keeps retrieval low-pressure?', options: ['Grading every answer', 'Pair-share, show-me boards, no grading', 'Timed tests only', 'Public correction'], correct: 'Pair-share, show-me boards, no grading' }
-        ], passThreshold: 0.6 }
-      }
-    ]
-  },
-  { id: 'differentiation', title: 'Differentiation', description: 'Supporting diverse learners in Drama, Art and Photo.',
-    stages: [
-      { id: 'diff-1', title: 'Meeting Diverse Needs',
-        content: '<h3>Drama</h3><p>Offer backstage roles, script-writing, smaller audiences. Provide sentence starters, break devising into steps.</p><h3>Art</h3><p>Vary materials (2D/3D), extend for faster workers, scaffold for those who need it.</p><h3>Photography</h3><p>Guided practice, diagrams, peer buddies for those less confident with equipment.</p>',
-        quiz: { questions: [
-          { q: 'What does differentiation mean?', options: ['Treating everyone the same', 'Responding to the variety of needs in your class', 'Only for ASN', 'Lowering expectations'], correct: 'Responding to the variety of needs in your class' },
-          { q: 'For a pupil who struggles to perform in Drama, what might help?', options: ['Forcing them on stage', 'Backstage roles or smaller audiences first', 'Excluding', 'Ignoring'], correct: 'Backstage roles or smaller audiences first' }
-        ], passThreshold: 0.6 }
-      },
-      { id: 'diff-2', title: 'Strategies',
-        content: '<h3>Flexible Grouping</h3><p>By readiness, interest, or mixed. Rotate roles.</p><h3>Scaffolding</h3><p>Model, guided practice, independent. Remove gradually.</p><h3>Extension and Support</h3><p>Plan extension so no one waits. Plan support so no one is left behind.</p>',
-        quiz: { questions: [
-          { q: 'What is scaffolding?', options: ['Physical structures', 'Model, guided practice, independent; remove gradually', 'Never helping', 'Giving answers'], correct: 'Model, guided practice, independent; remove gradually' },
-          { q: 'Why plan extension tasks?', options: ['To punish fast workers', 'So no one is left waiting; maintain challenge', 'To fill time', 'School policy'], correct: 'So no one is left waiting; maintain challenge' }
-        ], passThreshold: 0.6 }
-      }
-    ]
-  },
-  { id: 'adaptive-teaching', title: 'Adaptive Teaching', description: 'Responsive teaching in rehearsals, studio work and portfolios.',
-    stages: [
-      { id: 'at-1', title: 'Responsive Teaching',
-        content: '<h3>What is Adaptive Teaching?</h3><p>Adjusting as you go based on what you see and hear. In Drama: if groups are stuck, pause for mini-input or modelling. In Art: if pupils struggle with technique, demo again or pair. In Photography: if technical issues block creativity, address those first. Check often: "Show me...", "Explain to your partner..."</p>',
-        quiz: { questions: [
-          { q: 'What does adaptive teaching mean?', options: ['Sticking to the plan', 'Adjusting as you go based on what you see and hear', 'Ignoring pupils', 'Only for S1'], correct: 'Adjusting as you go based on what you see and hear' },
-          { q: 'If Drama groups are stuck during devising, what might you do?', options: ['Wait', 'Pause for a mini-input or modelling', 'Tell them to get on with it', 'Cancel'], correct: 'Pause for a mini-input or modelling' }
-        ], passThreshold: 0.6 }
-      },
-      { id: 'at-2', title: 'Flexible Grouping and Scaffolding',
-        content: '<h3>Vary Roles</h3><p>In Drama: rotate who leads warm-ups. In Art: mix pairs for peer critique. In Photography: vary who operates the camera.</p><h3>When to Push</h3><p>If a pupil can do more, extend the challenge. Balance support and challenge.</p>',
-        quiz: { questions: [
-          { q: 'When should scaffolding be reduced?', options: ['Never', 'As pupils improve', 'Only at year end', 'Only for high attainers'], correct: 'As pupils improve' },
-          { q: 'When should you push a pupil?', options: ['Never', 'When they can do more—extend the challenge', 'Only in exams', 'When they misbehave'], correct: 'When they can do more—extend the challenge' }
-        ], passThreshold: 0.6 }
-      }
-    ]
-  }
-];
-}
-</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@700;800&display=swap" rel="stylesheet">
@@ -351,7 +234,43 @@ a.sidebar-item:hover{color:var(--white)}
             <button type="button" class="cpd-btn" onclick="ltExportCPD('docx')">Download Word</button>
           </div>
         </div>
-        <div class="course-grid" id="ltCourseGrid"></div>
+        <div class="course-grid" id="ltCourseGrid">
+          <div class="course-card" data-course-id="restorative-practice">
+            <div class="course-card-title">Restorative Practice</div>
+            <div class="course-card-desc">Applying restorative approaches in Art, Drama and Photography contexts.</div>
+            <div class="course-card-progress">0 / 3 stages complete</div>
+          </div>
+          <div class="course-card" data-course-id="behaviour-management">
+            <div class="course-card-title">Behaviour Management</div>
+            <div class="course-card-desc">Managing practical spaces: drama studio, art room and darkroom.</div>
+            <div class="course-card-progress">0 / 3 stages complete</div>
+          </div>
+          <div class="course-card" data-course-id="effective-feedback">
+            <div class="course-card-title">Effective Feedback</div>
+            <div class="course-card-desc">Feeding back on performances, artwork and portfolios.</div>
+            <div class="course-card-progress">0 / 3 stages complete</div>
+          </div>
+          <div class="course-card" data-course-id="learning-intentions">
+            <div class="course-card-title">Learning Intentions and Success Criteria</div>
+            <div class="course-card-desc">Clarity of purpose in Drama, Art and Photography lessons.</div>
+            <div class="course-card-progress">0 / 2 stages complete</div>
+          </div>
+          <div class="course-card" data-course-id="retrieval-practice">
+            <div class="course-card-title">Retrieval Practice</div>
+            <div class="course-card-desc">Strengthening recall in creative and practical contexts.</div>
+            <div class="course-card-progress">0 / 3 stages complete</div>
+          </div>
+          <div class="course-card" data-course-id="differentiation">
+            <div class="course-card-title">Differentiation</div>
+            <div class="course-card-desc">Adapting teaching for diverse learners in Expressive Arts.</div>
+            <div class="course-card-progress">0 / 2 stages complete</div>
+          </div>
+          <div class="course-card" data-course-id="adaptive-teaching">
+            <div class="course-card-title">Adaptive Teaching</div>
+            <div class="course-card-desc">Real-time responsiveness in Drama, Art and Photography.</div>
+            <div class="course-card-progress">0 / 2 stages complete</div>
+          </div>
+        </div>
       </div>
       <!-- Course detail view -->
       <div id="lt-view-course" class="lt-view">
@@ -364,6 +283,25 @@ a.sidebar-item:hover{color:var(--white)}
         <button type="button" class="back-btn" id="ltStageBackBtn">← Back to course</button>
         <div class="stage-content-panel" id="ltStageContentPanel"></div>
       </div>
+      <!-- Pre-rendered stage content (guaranteed to display) -->
+      <template id="stage-rp-1"><div class="stage-content-body"><h3>What is Restorative Practice?</h3><p>Restorative practice is an approach that prioritises relationships, responsibility, and repairing harm rather than punishment. In Scottish education, it aligns with Getting it Right for Every Child (GIRFEC), the United Nations Convention on the Rights of the Child (UNCRC), and rights-based approaches.</p><h3>Why It Matters in Expressive Arts</h3><p>In Drama, Art and Photography, pupils work collaboratively: devising in groups, sharing studio space, using shared equipment, and giving peer feedback. Conflict is inevitable—disputes over roles, disagreements about creative decisions, arguments over materials or camera time, exclusion from a group. Restorative practice offers a way to address these incidents that rebuilds relationships and keeps learning moving forward.</p><h3>Key Principles</h3><p><strong>Fair Process</strong>: Pupils are involved in decisions that affect them. In Drama, when a group decides how to divide tasks, everyone has a say. In Art, when setting up workspace norms, pupils contribute. Fair process increases buy-in and reduces resentment.</p><p><strong>High Challenge, High Support</strong>: Hold high expectations while providing the support needed to meet them. A pupil struggling with confidence in Drama still needs to be stretched—perhaps through a smaller role first, or script-writing alongside performing.</p><p><strong>Working With, Not Doing To</strong>: Avoid imposing solutions. Instead, work with pupils to find ways forward. When a devising group breaks down, a restorative conversation helps pupils hear each other and agree how to proceed—rather than the teacher simply reassigning roles.</p><h3>Reflective Question</h3><p>Think of a recent conflict in your Drama, Art or Photography class. How might a restorative approach have changed the outcome?</p></div></template>
+      <template id="stage-rp-2"><div class="stage-content-body"><h3>The Restorative Questions</h3><p>Restorative conversations use open, non-blaming questions:</p><ul><li><strong>What happened?</strong> (Allow each person to tell their version)</li><li><strong>What were you thinking at the time?</strong></li><li><strong>Who has been affected?</strong> (Acknowledge impact on others)</li><li><strong>What needs to happen to put things right?</strong> (Agree next steps)</li></ul><h3>In Art &amp; Design</h3><p>When pupils argue over materials or workspace—avoid blame-focused questions like "Why did you do that?" Use curiosity instead: "What was going on for you?" "What did you need?" Let each person share before problem-solving.</p><h3>In Photography</h3><p>Equipment disputes or exclusion from a group shoot can be addressed restoratively. Let each person share their perspective. Affective statements show your feelings without blame: "I felt disappointed when the rehearsal stopped—I know you can work through this."</p><h3>Practice Suggestion</h3><p>Role-play a restorative conversation with a colleague using a scenario from your subject.</p></div></template>
+      <template id="stage-rp-3"><div class="stage-content-body"><h3>When Harm Occurs</h3><p>When relationships break down—falling out in a devising group, exclusion in Art, conflict during a photo shoot—restorative circles or small-group conversations can repair harm.</p><h3>Structure of a Restorative Circle</h3><p>Everyone has a turn to speak without interruption. Use a talking object so only the holder speaks. The focus is on <strong>impact</strong> and <strong>what is needed to move on</strong>.</p><h3>Facilitating the Circle</h3><p>As the teacher, you facilitate—you do not impose solutions. Ask the restorative questions. Write down agreed actions and revisit them.</p><h3>Follow-Up</h3><p>Check in later: "How is it going with the agreement you made?" Restorative practice is part of a classroom culture where relationships are valued and harm is addressed.</p></div></template>
+      <template id="stage-bm-1"><div class="stage-content-body"><h3>Behaviour is Best Managed Through Prevention</h3><p>Reactive behaviour management is exhausting and less effective than preventing problems before they start. In Drama, Art and Photography, practical spaces have specific challenges: movement, equipment, noise, group work.</p><h3>Clear Routines</h3><p>Establish and teach routines explicitly:</p><ul><li><strong>Entry:</strong> How do pupils enter the drama studio? Where do bags go?</li><li><strong>Equipment:</strong> How do we get out and put away materials?</li><li><strong>Signals for attention:</strong> Freeze, lights off, clap pattern—pick one and use it consistently.</li><li><strong>Exit:</strong> How do we finish? Tidy, feedback, dismissal.</li></ul><h3>Non-Negotiables</h3><p>Identify your non-negotiables: no running in the studio, safe use of materials, listening when others perform or present.</p><h3>Predict Problem Points</h3><p>Transitions, equipment handouts, waiting times, and group formation are predictable problem points. Plan for them with time limits, visual timers, and structured roles.</p><h3>Reflective Question</h3><p>List three predictable problem points in your next lesson. How will you plan for them?</p></div></template>
+      <template id="stage-bm-2"><div class="stage-content-body"><h3>When Behaviour Slips</h3><p>Use a graduated approach. Start with the least intrusive interventions: <strong>Proximity</strong>, <strong>Quiet word</strong>, <strong>Choice</strong>, <strong>Redirect</strong>. Avoid public confrontations that escalate.</p><h3>Consistency is Vital</h3><p>Same rules in Drama, Art and Photography. If "phones away" is the rule, it applies in the darkroom too.</p><h3>De-escalation</h3><p>If a pupil is becoming agitated: lower your voice, give wait time, offer a way out ("Take a minute in the corridor, then come back when you're ready").</p><h3>Know Your Escalation Path</h3><p>Know the school's behaviour policy: warning, move, referral. Use the minimum necessary. Document when needed.</p></div></template>
+      <template id="stage-bm-3"><div class="stage-content-body"><h3>Drama Studio</h3><p>Establish clear boundaries: physical space (stage vs. audience), behaviour in role vs. out of role, safe physical contact.</p><h3>Art Room</h3><p>Art rooms have hazards: paint, sharp tools, kilns, chemicals. Behaviour management is also safety management. Teach safe use explicitly.</p><h3>Darkroom and Photography</h3><p>Darkrooms require strict routines: lights off, no phones, safe chemical handling. Clear rules for camera use and accountability.</p><h3>Different Spaces, Same Principles</h3><p>Routines, non-negotiables, predictability. The principles of prevention and consistency apply across all three.</p></div></template>
+      <template id="stage-ef-1"><div class="stage-content-body"><h3>What Makes Feedback Effective?</h3><p>Effective feedback is <strong>specific</strong>, <strong>timely</strong> and <strong>actionable</strong>. In Drama: name what worked and one thing to improve. In Art: feed back on both process and product. In Photography: comment on framing, exposure, lighting, and intent. Link to success criteria.</p><h3>Timing</h3><p>Feedback is most useful when the learner can act on it soon. After a performance, before the next rehearsal.</p></div></template>
+      <template id="stage-ef-2"><div class="stage-content-body"><h3>Verbal and Written Feedback</h3><p>Verbal feedback works particularly well during practical work. Written feedback should be concise—one or two foci per piece. Consider feed-forward: what to do in the next piece. Build in time for pupils to respond to feedback.</p></div></template>
+      <template id="stage-ef-3"><div class="stage-content-body"><h3>Peer and Self-Assessment</h3><p>Teach pupils how to give feedback using success criteria and WWW/EBI. Self-assessment encourages reflection. Initially peer and self-assessment may be shallow—teach it explicitly with sentence starters.</p></div></template>
+      <template id="stage-li-1"><div class="stage-content-body"><h3>Learning Intentions and Success Criteria</h3><p>LIs state what pupils will learn. SCs describe what good looks like. Drama example: "We are learning to use proxemics to show relationships." Art: "We are learning to blend tones for realistic shading." Photography: "We are learning to use aperture to control depth of field." SCs should be observable and achievable.</p></div></template>
+      <template id="stage-li-2"><div class="stage-content-body"><h3>Sharing and Linking</h3><p>Share LIs and SCs at the start—visually and verbally. Refer back during the lesson. Use them in plenaries. Link to EXA Es+Os in BGE and to assessment standards in Senior Phase.</p></div></template>
+      <template id="stage-ret-1"><div class="stage-content-body"><h3>What is Retrieval Practice?</h3><p>Retrieval practice is recalling information from memory—it strengthens memory more than re-reading. Use it as low-stakes starters, quick checks, or plenaries. Spacing—revisiting across lessons—improves retention. Flashcards, mini-whiteboards, quick verbal rounds. Keep it short: 3–5 minutes.</p></div></template>
+      <template id="stage-ret-2"><div class="stage-content-body"><h3>Techniques</h3><p>Do Now starters: "Write three Drama terms we used last week." During practical work: "What do we mean by blocking?" Plenaries: "In 30 seconds, write everything you can remember about..." Link retrieval to application—after recalling "levels", pupils use levels in the next scene.</p></div></template>
+      <template id="stage-ret-3"><div class="stage-content-body"><h3>Subject-Specific Retrieval</h3><p>Drama: proxemics, blocking, levels, gesture, conventions. Art: elements of art, colour theory, composition. Photography: exposure triangle, depth of field, rule of thirds. Make retrieval a regular part of your lessons.</p></div></template>
+      <template id="stage-diff-1"><div class="stage-content-body"><h3>What is Differentiation?</h3><p>Responding to the variety of needs in your class. Drama: offer backstage roles, script-writing, or smaller audiences for those who struggle to perform. Art: vary materials, scaffold, extend for faster workers. Photography: guided practice, diagrams, peer buddies. Differentiation is not about lowering expectations.</p></div></template>
+      <template id="stage-diff-2"><div class="stage-content-body"><h3>Strategies</h3><p>Flexible grouping: by readiness, interest, or mixed. Scaffolding: model, guided practice, then independent—remove support gradually. Extension tasks so no one waits. Support tasks so no one is left behind. Plan both.</p></div></template>
+      <template id="stage-at-1"><div class="stage-content-body"><h3>What is Adaptive Teaching?</h3><p>Adjusting your approach as you go, based on what you see and hear. In Drama: if groups are stuck, pause for mini-input or modelling. In Art: if technique is blocking creativity, demo again. In Photography: if technical issues block creativity, address those first. Check often: "Show me...", "Explain to your partner..."</p></div></template>
+      <template id="stage-at-2"><div class="stage-content-body"><h3>Flexible Grouping and Scaffolding</h3><p>Vary who leads and who follows. Rotate roles in Drama, Art and Photography. Provide sentence starters, templates, checklists—reduce support as pupils improve. Know when to push: if a pupil can do more, extend the challenge. Balance support and challenge for each pupil.</p></div></template>
       <!-- Quiz view -->
       <div id="lt-view-quiz" class="lt-view">
         <button type="button" class="back-btn" onclick="ltExitQuiz()">← Exit quiz</button>
@@ -434,15 +372,7 @@ a.sidebar-item:hover{color:var(--white)}
   }
 
   function getStaffName() {
-    if (state.staffName) return state.staffName;
-    var session = window.supabase && window.supabase.auth && window.supabase.auth.getSession && window.supabase.auth.getSession();
-    if (session && session.then) return '';
-    try {
-      var u = window.supabase.auth.user && window.supabase.auth.user();
-      if (u && u.user_metadata && u.user_metadata.full_name) return u.user_metadata.full_name;
-      if (u && u.email) return u.email;
-    } catch (e) {}
-    return 'Staff Member';
+    return state.staffName || 'Staff Member';
   }
 
   window.ltShowView = function(view, courseId, stageIdx) {
@@ -465,16 +395,18 @@ a.sidebar-item:hover{color:var(--white)}
     var grid = $id('ltCourseGrid');
     if (!grid) return;
     if (!window.CLPL_COURSES || !Array.isArray(window.CLPL_COURSES) || window.CLPL_COURSES.length === 0) {
-      grid.innerHTML = '<div class="empty-state"><strong>No courses available</strong><p style="margin-top:.5rem">If you expected to see courses, ensure you are signed in and the page has loaded correctly. Try refreshing.</p></div>';
+      grid.innerHTML = window.CLPL_LOAD_ERROR
+        ? '<div class="empty-state"><strong>Courses failed to load</strong><p style="margin-top:.5rem">clpl-courses.js could not be loaded. Check the console and ensure the file exists in the same directory. Try refreshing.</p></div>'
+        : '<div class="empty-state"><strong>No courses available</strong><p style="margin-top:.5rem">Refresh the page or check that course data has loaded correctly.</p></div>';
       return;
     }
     var html = '';
-    CLPL_COURSES.forEach(function(c) {
+    (window.CLPL_COURSES || []).forEach(function(c) {
       var prog = getCourseProgress(c.id);
       var completed = prog.completedStages.length;
       var total = c.stages.length;
       var isDone = completed >= total;
-      html += '<div class="course-card" onclick="ltShowView(\'course\',\'' + c.id + '\')">';
+      html += '<div class="course-card" data-course-id="' + escapeHtml(c.id) + '">';
       html += '<div class="course-card-title">' + escapeHtml(c.title) + '</div>';
       html += '<div class="course-card-desc">' + escapeHtml(c.description) + '</div>';
       html += '<div class="course-card-progress' + (isDone ? ' done' : '') + '">';
@@ -485,43 +417,69 @@ a.sidebar-item:hover{color:var(--white)}
   }
 
   function renderCourseDetail() {
-    var c = CLPL_COURSES.find(function(x) { return x.id === state.currentCourseId; });
+    var courses = window.CLPL_COURSES || [];
+    var c = courses.find(function(x) { return x.id === state.currentCourseId; });
     if (!c) { ltShowView('list'); return; }
     $id('ltTopbarHeading').textContent = c.title;
     $id('ltCourseDetailHeader').innerHTML = '<div class="course-detail-title">' + escapeHtml(c.title) + '</div><div class="course-detail-desc">' + escapeHtml(c.description) + '</div>';
     var list = $id('ltStageList');
+    if (!list) return;
+    var stages = Array.isArray(c.stages) ? c.stages : [];
     var prog = getCourseProgress(c.id);
     var html = '';
-    c.stages.forEach(function(s, i) {
+    for (var i = 0; i < stages.length; i++) {
+      var s = stages[i];
       var done = isStageComplete(c.id, s.id);
       var score = prog.quizScores[s.id];
-      html += '<div class="stage-item' + (done ? ' done' : '') + '" onclick="ltOpenStage(' + i + ')">';
-      html += '<div><div class="stage-item-num">Stage ' + (i + 1) + '</div><div class="stage-item-title">' + escapeHtml(s.title) + '</div>';
+      html += '<div class="stage-item' + (done ? ' done' : '') + '" data-stage-idx="' + i + '">';
+      html += '<div><div class="stage-item-num">Stage ' + (i + 1) + '</div><div class="stage-item-title">' + escapeHtml(s.title || 'Stage ' + (i + 1)) + '</div>';
       if (score) html += '<div class="stage-item-meta">Quiz: ' + score.score + '/' + score.total + (score.passed ? ' ✓' : '') + '</div>';
       html += '</div>';
       if (done) html += '<span class="stage-item-badge">Complete</span>';
       html += '</div>';
-    });
-    list.innerHTML = html;
+    }
+    list.innerHTML = html || '<div class="empty-state"><strong>No stages</strong><p>Check that clpl-courses.js loaded. Refresh the page and ensure the file exists in the same directory.</p></div>';
   }
 
   function renderStageContent() {
-    var c = CLPL_COURSES.find(function(x) { return x.id === state.currentCourseId; });
-    if (!c) { ltShowView('list'); return; }
-    var s = c.stages[state.currentStageIdx];
-    if (!s) { ltShowView('course', state.currentCourseId); return; }
-    $id('ltTopbarHeading').textContent = s.title;
-    $id('ltStageBackBtn').onclick = function() { ltShowView('course', state.currentCourseId); };
+    var courseId = state.currentCourseId;
+    var stageIdx = state.currentStageIdx;
+    var stageIds = (window.CLPL_STAGE_IDS || {})[courseId];
+    var stageId = stageIds && stageIds[stageIdx];
+    var c = (window.CLPL_COURSES || []).find(function(x) { return x.id === courseId; });
+    var s = c && Array.isArray(c.stages) ? c.stages[stageIdx] : null;
+    if (!stageId && !s) { ltShowView('course', courseId); return; }
     var panel = $id('ltStageContentPanel');
-    var done = isStageComplete(c.id, s.id);
-    var stageContent = (s.content && s.content.trim()) ? s.content : '<p>Content for this stage is being developed. Please check back soon.</p>';
-    panel.innerHTML = '<div class="stage-content-body">' + stageContent + '</div><div class="stage-actions">';
-    if (s.quiz && s.quiz.questions && s.quiz.questions.length > 0) {
-      panel.innerHTML += '<button type="button" class="btn btn-primary-clpl" onclick="ltStartQuiz(' + state.currentStageIdx + ')">' + (done ? 'Retake Quiz' : 'Start Quiz') + '</button>';
+    if (!panel) return;
+    var title = (s && s.title) || (stageId ? 'Stage ' + (stageIdx + 1)) : 'Stage';
+    $id('ltTopbarHeading').textContent = title;
+    var backBtn = $id('ltStageBackBtn');
+    if (backBtn) backBtn.onclick = function() { ltShowView('course', courseId); };
+    var done = c && s ? isStageComplete(c.id, s.id) : false;
+    var actions = (s && s.quiz && s.quiz.questions && s.quiz.questions.length > 0)
+      ? '<button type="button" class="btn btn-primary-clpl" onclick="ltStartQuiz(' + stageIdx + ')">' + (done ? 'Retake Quiz' : 'Start Quiz') + '</button>'
+      : '<button type="button" class="btn btn-primary-clpl" onclick="ltMarkCompleteNoQuiz()">Mark as complete</button>';
+    actions += '<button type="button" class="btn btn-ghost" onclick="ltShowView(\'course\',\'' + courseId + '\')">Back to course</button>';
+    panel.innerHTML = '';
+    var tpl = stageId ? document.getElementById('stage-' + stageId) : null;
+    if (tpl && tpl.content && tpl.content.cloneNode) {
+      var frag = tpl.content.cloneNode(true);
+      panel.appendChild(frag);
+      var actDiv = document.createElement('div');
+      actDiv.className = 'stage-actions';
+      actDiv.innerHTML = actions;
+      panel.appendChild(actDiv);
+    } else if (s) {
+      var raw = s.content;
+      var stageContent = (raw && typeof raw === 'string' && raw.length > 0) ? raw : '<p class="empty-state"><strong>Content not available</strong><br>Stage: ' + escapeHtml(title) + '</p>';
+      try {
+        panel.innerHTML = '<div class="stage-content-body">' + stageContent + '</div><div class="stage-actions">' + actions + '</div>';
+      } catch (e) {
+        panel.innerHTML = '<div class="stage-content-body"><p>Could not display content. Please refresh.</p></div><div class="stage-actions">' + actions + '</div>';
+      }
     } else {
-      panel.innerHTML += '<button type="button" class="btn btn-primary-clpl" onclick="ltMarkCompleteNoQuiz()">Mark as complete</button>';
+      panel.innerHTML = '<div class="stage-content-body"><p class="empty-state">Content not available. Ensure clpl-courses.js loaded.</p></div><div class="stage-actions">' + actions + '</div>';
     }
-    panel.innerHTML += '<button type="button" class="btn btn-ghost" onclick="ltShowView(\'course\',\'' + c.id + '\')">Back to course</button></div>';
   }
 
   window.ltOpenStage = function(idx) {
@@ -529,19 +487,58 @@ a.sidebar-item:hover{color:var(--white)}
     ltShowView('stage');
   };
 
+  function closest(el, selector, root) {
+    if (!el || el === root) return null;
+    if (el.closest) return el.closest(selector);
+    var cls = (selector.indexOf('.') === 0) ? selector.slice(1) : null;
+    while (el && el !== root) {
+      if (cls && el.classList && el.classList.contains(cls)) return el;
+      el = el.parentElement;
+    }
+    return null;
+  }
+  function setupClickDelegation() {
+    var grid = $id('ltCourseGrid');
+    if (grid) {
+      grid.addEventListener('click', function(e) {
+        var card = closest(e.target, '.course-card', grid);
+        if (card && card.dataset && card.dataset.courseId) {
+          ltShowView('course', card.dataset.courseId);
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      });
+    }
+    var stageList = $id('ltStageList');
+    if (stageList) {
+      stageList.addEventListener('click', function(e) {
+        var item = closest(e.target, '.stage-item', stageList);
+        if (item && item.dataset && item.dataset.stageIdx !== undefined) {
+          ltOpenStage(parseInt(item.dataset.stageIdx, 10));
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      });
+    }
+  }
+  setupClickDelegation();
+
   window.ltMarkCompleteNoQuiz = function() {
-    var c = CLPL_COURSES.find(function(x) { return x.id === state.currentCourseId; });
+    var c = (window.CLPL_COURSES || []).find(function(x) { return x.id === state.currentCourseId; });
     if (!c) return;
     var s = c.stages[state.currentStageIdx];
     if (!s) return;
     setStageComplete(c.id, s.id, null).then(function() {
       ltShowView('course', c.id);
+    }).catch(function(err) {
+      ltShowView('course', c.id);
+      if (typeof console !== 'undefined' && console.warn) console.warn('CLPL: Could not save progress', err);
     });
   };
 
   window.ltStartQuiz = function(stageIdx) {
     state.currentStageIdx = stageIdx;
-    var c = CLPL_COURSES.find(function(x) { return x.id === state.currentCourseId; });
+    var c = (window.CLPL_COURSES || []).find(function(x) { return x.id === state.currentCourseId; });
     if (!c) return;
     var s = c.stages[stageIdx];
     if (!s || !s.quiz || !s.quiz.questions || s.quiz.questions.length === 0) return;
@@ -622,7 +619,7 @@ a.sidebar-item:hover{color:var(--white)}
   };
 
   window.ltQuizDone = function() {
-    var c = CLPL_COURSES.find(function(x) { return x.id === state.currentCourseId; });
+    var c = (window.CLPL_COURSES || []).find(function(x) { return x.id === state.currentCourseId; });
     if (!c) { ltExitQuiz(); return; }
     var s = c.stages[state.currentStageIdx];
     if (!s) { ltExitQuiz(); return; }
@@ -636,6 +633,10 @@ a.sidebar-item:hover{color:var(--white)}
     setStageComplete(c.id, s.id, result).then(function() {
       ltExitQuiz();
       ltShowView('course', c.id);
+    }).catch(function(err) {
+      ltExitQuiz();
+      ltShowView('course', c.id);
+      if (typeof console !== 'undefined' && console.warn) console.warn('CLPL: Could not save progress', err);
     });
   };
 
@@ -744,6 +745,12 @@ a.sidebar-item:hover{color:var(--white)}
           state.staffName = (u.user_metadata && u.user_metadata.full_name) || u.email || 'Staff Member';
         }
       });
+    }
+    if (typeof console !== 'undefined' && console.log) {
+      var n = (window.CLPL_COURSES || []).length;
+      var tplCount = 0;
+      try { for (var k in (window.CLPL_STAGE_IDS || {})) tplCount += (window.CLPL_STAGE_IDS[k] || []).length; } catch(e) {}
+      console.log('CLPL: courses=' + n + ', stageIds mapped=' + tplCount + (window.CLPL_LOAD_ERROR ? ' (clpl-courses.js failed to load)' : ''));
     }
     renderCourseList();
   }).catch(function() {
