@@ -101,7 +101,27 @@ a.sidebar-item:hover{color:var(--white)}
 .active-ad .sidebar-item.active{border-left-color:var(--accent-ad)}
 .active-photo .sidebar-item.active{border-left-color:var(--accent-photo)}
 .sidebar-divider{height:1px;background:rgba(255,255,255,.08);margin:.5rem 1.25rem}
-.sidebar-signout{margin-top:auto;padding:1rem 0 1.5rem;border-top:1px solid rgba(255,255,255,.08)}
+.sidebar-admin{margin-top:auto;padding:0;border-top:1px solid rgba(255,255,255,.08)}
+.sidebar-admin-accordion{border:none;padding:0}
+.sidebar-admin-summary{
+  display:flex;align-items:center;gap:.6rem;width:100%;padding:.75rem 1.25rem;
+  background:none;border:none;cursor:pointer;
+  font-size:.82rem;font-weight:500;color:rgba(255,255,255,.65);
+  font-family:inherit;text-align:left;list-style:none;
+  transition:background .12s,color .12s;
+}
+.sidebar-admin-summary::-webkit-details-marker{display:none}
+.sidebar-admin-summary::after{
+  content:'';display:inline-block;width:0;height:0;margin-left:auto;
+  border-left:4px solid transparent;border-right:4px solid transparent;
+  border-top:5px solid rgba(255,255,255,.4);transform:rotate(0deg);transition:transform .2s ease;
+}
+.sidebar-admin-accordion[open] .sidebar-admin-summary::after{transform:rotate(180deg)}
+.sidebar-admin-summary:hover{background:var(--navy-hover);color:var(--white)}
+.sidebar-admin-summary svg{flex-shrink:0;width:18px;height:18px;opacity:.8}
+.sidebar-admin .sidebar-section{padding:.35rem 0 .75rem;border:none}
+.sidebar-admin .sidebar-section .sidebar-item{padding-left:2.6rem}
+.sidebar-signout{padding:1rem 0 1.5rem;border-top:1px solid rgba(255,255,255,.08)}
 .sidebar-signout .sidebar-item{color:rgba(255,255,255,.85);font-weight:600}
 .sidebar-signout .sidebar-item:hover{color:var(--white)}
 .sidebar-subject-label{
@@ -1080,15 +1100,26 @@ a.subject-card-link{text-decoration:none;cursor:pointer}
   background:#fef3c7;color:#92400e;padding:.5rem 1rem;font-size:.75rem;text-align:center;border-bottom:1px solid #fcd34d;
 }
 @media print{.cloud-sync-banner{display:none!important}}
-.sidebar-toggle-btn{
+.sidebar-toggle-floating{
+  position:fixed;top:.85rem;
+  left:calc(var(--sidebar-w) - 18px);
+  z-index:201;
   display:flex;align-items:center;justify-content:center;
-  width:36px;height:36px;padding:0;margin-right:.5rem;
-  background:var(--bg);border:1px solid var(--border2);
-  border-radius:6px;cursor:pointer;
-  color:var(--text2);transition:all .15s;
+  width:32px;height:32px;padding:0;
+  background:var(--navy-hover);border:1px solid rgba(255,255,255,.12);
+  border-left:none;border-radius:0 6px 6px 0;
+  color:rgba(255,255,255,.7);cursor:pointer;
+  transition:left .25s ease,background .15s,color .15s,border-color .15s;
 }
-.sidebar-toggle-btn:hover{background:var(--navy-dark);color:var(--white);border-color:var(--navy-dark)}
-.sidebar-toggle-btn svg{width:18px;height:18px}
+.sidebar-toggle-floating:hover{background:var(--navy-active);color:rgba(255,255,255,.95);border-color:rgba(255,255,255,.2)}
+.sidebar-toggle-floating svg{width:14px;height:14px}
+body.sidebar-collapsed .sidebar-toggle-floating{left:0;border-left:1px solid rgba(255,255,255,.12);background:var(--navy)}
+body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hover)}
+@media(max-width:768px){
+  .sidebar-toggle-floating{width:44px;height:44px;top:.75rem;left:0;border-left:1px solid rgba(255,255,255,.12);background:var(--navy)}
+  .sidebar-toggle-floating svg{width:16px;height:16px}
+  body:not(.sidebar-collapsed) .sidebar-toggle-floating{left:calc(var(--sidebar-w) - 20px);background:var(--navy-hover)}
+}
 .topbar-print-btn svg{width:13px;height:13px;flex-shrink:0}
 
 /* ── SLIDE DOWNLOAD BUTTON ── */
@@ -1243,7 +1274,7 @@ a.subject-card-link{text-decoration:none;cursor:pointer}
    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 @media print {
   /* Hide everything that isn't content */
-  .sidebar, .topbar, .slide-overlay { display:none !important }
+  .sidebar, .topbar, .slide-overlay, .sidebar-toggle-floating { display:none !important }
   .main { margin-left:0 !important }
   .content { padding:0 !important }
 
@@ -1415,17 +1446,14 @@ a.subject-card-link{text-decoration:none;cursor:pointer}
   <button class="sidebar-item home-pin" data-panel="academic-calendar" onclick="showPanel('academic-calendar')">
     Academic Calendar
   </button>
+  <a href="learning_teaching.html" class="sidebar-item home-pin" style="text-decoration:none">
+    Learning &amp; Teaching
+  </a>
   <a href="teacher_planner.html" class="sidebar-item home-pin" style="text-decoration:none">
     Teacher Planner
   </a>
-  <button class="sidebar-item home-pin" data-panel="data-backup" onclick="showPanel('data-backup')">
-    Data Backup &amp; Restore
-  </button>
   <a href="faculty_dashboard.html" class="sidebar-item home-pin" target="_blank" style="text-decoration:none">
     Faculty Head Dashboard
-  </a>
-  <a href="faculty_dashboard.html?view=admin-console" class="sidebar-item home-pin" id="admin-console-link" target="_blank" style="text-decoration:none;display:none">
-    Admin Console
   </a>
   <!-- DIP PINNED -->
   <button class="sidebar-item dip-pin" data-panel="dip-main" onclick="showPanel('dip-main')">
@@ -1490,19 +1518,32 @@ a.subject-card-link{text-decoration:none;cursor:pointer}
   </details>
 
   <div class="sidebar-divider"></div>
+  <div class="sidebar-admin">
+    <details class="sidebar-admin-accordion sidebar-accordion" id="sidebar-accordion-admin">
+      <summary class="sidebar-admin-summary">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span>Admin</span>
+      </summary>
+      <div class="sidebar-section">
+        <button class="sidebar-item home-pin" data-panel="data-backup" onclick="showPanel('data-backup')">Data Backup &amp; Restore</button>
+        <a href="faculty_dashboard.html?view=admin-console" class="sidebar-item home-pin" id="admin-console-link" target="_blank" style="text-decoration:none;display:none">Admin Console</a>
+      </div>
+    </details>
+  </div>
   <div class="sidebar-signout">
     <button type="button" class="sidebar-item" style="width:100%;text-align:left;background:none;border:none;cursor:pointer" onclick="try{(window.doSignOut||function(){window.clearSupabaseAuth&&window.clearSupabaseAuth();location.href='login.html?signout=1';})();}catch(e){window.clearSupabaseAuth&&window.clearSupabaseAuth();location.href='login.html?signout=1';}">Sign out</button>
   </div>
 </aside>
+
+<button class="sidebar-toggle-floating" id="sidebar-toggle" onclick="toggleSidebar()" title="Toggle sidebar" aria-label="Toggle navigation menu">
+  <svg id="sidebar-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+</button>
 
 <!-- MAIN -->
 <div class="main">
   <div class="topbar">
     <div id="topbar-heading" class="topbar-heading">S1 Drama</div>
     <div class="topbar-actions">
-      <button class="sidebar-toggle-btn" id="sidebar-toggle" onclick="toggleSidebar()" title="Toggle sidebar">
-        <svg id="sidebar-toggle-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
-      </button>
       <div class="topbar-meta">
         <span class="meta-badge">CfE</span>
         <span class="meta-badge">Knightswood Secondary</span>
@@ -1607,6 +1648,15 @@ a.subject-card-link{text-decoration:none;cursor:pointer}
                   <div class="home-priority-text">Embed digital technologies — OneNote for evidence, Satchel One for homework and home communication.</div>
                 </div>
               </div>
+            </div>
+          </div>
+          <div class="home-dash-card">
+            <div class="home-dash-header">
+              <span class="home-dash-title">Learning &amp; Teaching</span>
+              <a href="learning_teaching.html" class="home-dash-link" style="text-decoration:none">CLPL courses →</a>
+            </div>
+            <div class="home-dash-body">
+              <p style="font-size:.85rem;color:var(--text2);line-height:1.5;margin:0">Develop your pedagogy through staged courses: restorative practice, behaviour management, effective feedback, learning intentions, retrieval practice, differentiation and adaptive teaching. Track progress and download CPD records.</p>
             </div>
           </div>
         </div>
@@ -4221,6 +4271,7 @@ function showPanel(id){
   if(id.startsWith('drama')) acc=document.getElementById('sidebar-accordion-drama');
   else if(id.startsWith('ad')) acc=document.getElementById('sidebar-accordion-ad');
   else if(id.startsWith('photo')) acc=document.getElementById('sidebar-accordion-photo');
+  else if(id==='data-backup') acc=document.getElementById('sidebar-accordion-admin');
   if(acc) acc.setAttribute('open','');
   // Reflect subject colour on sidebar
   const sb=document.querySelector('.sidebar');
@@ -6190,7 +6241,7 @@ function dipExportImprovementPlan(){
 
 // ── DATA BACKUP & RESTORE ───────────────────────────────────────
 function backupExport(){
-  (window.DataService?DataService.exportAll():Promise.resolve((function(){var o={};var keys=['drama-v3','art-v2','academicCalendarEvents','bge_drama_reports_v1','bge_art_reports_v1','bge_drama_tracker_export_v1','bge_art_tracker_export_v1','dipSelfEvaluation','moderation-data','plannerTimetable','plannerLessons'];keys.forEach(function(k){try{var v=localStorage.getItem(k);if(v)o[k]=JSON.parse(v);}catch(e){}});return o;})())).then(function(data){
+  (window.DataService?DataService.exportAll():Promise.resolve((function(){var o={};var keys=['drama-v3','art-v2','academicCalendarEvents','bge_drama_reports_v1','bge_art_reports_v1','bge_drama_tracker_export_v1','bge_art_tracker_export_v1','dipSelfEvaluation','moderation-data','plannerTimetable','plannerLessons','plannerWeekNotes'];keys.forEach(function(k){try{var v=localStorage.getItem(k);if(v)o[k]=JSON.parse(v);}catch(e){}});return o;})())).then(function(data){
     if(!data.version)data={version:1,exportDate:new Date().toISOString(),source:'Expressive Arts Faculty'};
     var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
     var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ExpressiveArts_Backup_'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(a.href);
@@ -6763,7 +6814,7 @@ function injectLiteracyNumeracyIntoCurriculumCards(){
 document.addEventListener('DOMContentLoaded',function(){
   injectLiteracyNumeracyIntoCurriculumCards();
   // Restore sidebar accordion state from sessionStorage
-  ['sidebar-accordion-drama','sidebar-accordion-ad','sidebar-accordion-photo'].forEach(function(id){
+  ['sidebar-accordion-drama','sidebar-accordion-ad','sidebar-accordion-photo','sidebar-accordion-admin'].forEach(function(id){
     try{
       var el=document.getElementById(id);
       var key='faculty-sidebar-'+(id.replace('sidebar-accordion-',''));

@@ -8,6 +8,7 @@
   var state = {
     timetable: { slots: [] },
     lessons: { lessons: [] },
+    weekNotes: {},
     currentWeekStart: null,
     currentDayViewDate: null,
     editingLessonId: null
@@ -23,10 +24,12 @@
       var self = this;
       return Promise.all([
         (window.DataService && DataService.get ? DataService.get('plannerTimetable') : Promise.resolve(null)),
-        (window.DataService && DataService.get ? DataService.get('plannerLessons') : Promise.resolve(null))
+        (window.DataService && DataService.get ? DataService.get('plannerLessons') : Promise.resolve(null)),
+        (window.DataService && DataService.get ? DataService.get('plannerWeekNotes') : Promise.resolve(null))
       ]).then(function(res) {
         state.timetable = res[0] && res[0].slots ? res[0] : { slots: [] };
         state.lessons = res[1] && res[1].lessons ? res[1] : { lessons: [] };
+        state.weekNotes = res[2] && typeof res[2] === 'object' ? res[2] : {};
         return self.getState();
       });
     },
@@ -35,8 +38,25 @@
       return window.DataService ? DataService.set('plannerTimetable', state.timetable) : Promise.resolve();
     },
 
+    resetTimetableForNewYear: function() {
+      if (!state.timetable) state.timetable = {};
+      state.timetable.slots = [];
+      return this.saveTimetable();
+    },
+
     saveLessons: function() {
       return window.DataService ? DataService.set('plannerLessons', state.lessons) : Promise.resolve();
+    },
+
+    getWeekNote: function(weekStartStr) {
+      return (state.weekNotes || {})[weekStartStr] || '';
+    },
+    setWeekNote: function(weekStartStr, text) {
+      if (!state.weekNotes) state.weekNotes = {};
+      state.weekNotes[weekStartStr] = text || '';
+    },
+    saveWeekNotes: function() {
+      return window.DataService ? DataService.set('plannerWeekNotes', state.weekNotes) : Promise.resolve();
     },
 
     getState: function() { return state; },
@@ -88,20 +108,46 @@
     upsertLesson: function(payload, editingId) {
       var lessons = state.lessons.lessons || [];
       var existingIdx = lessons.findIndex(function(l) { return l.date === payload.date && l.slotKey === payload.slotKey; });
+      var existing = existingIdx >= 0 ? lessons[existingIdx] : null;
+      var todos = Array.isArray(payload.todos) ? payload.todos : (existing && existing.todos) ? existing.todos : [];
+      var normalized = Object.assign({}, payload, { todos: todos });
       if (editingId) {
         var idx = lessons.findIndex(function(l) { return l.id === editingId; });
         if (idx >= 0) {
-          lessons[idx] = Object.assign({ id: lessons[idx].id, createdAt: lessons[idx].createdAt }, payload);
+          lessons[idx] = Object.assign({ id: lessons[idx].id, createdAt: lessons[idx].createdAt }, normalized);
           state.lessons.lessons = lessons;
           return;
         }
       }
       if (existingIdx >= 0) {
-        lessons[existingIdx] = Object.assign({ id: lessons[existingIdx].id, createdAt: lessons[existingIdx].createdAt }, payload);
+        lessons[existingIdx] = Object.assign({ id: lessons[existingIdx].id, createdAt: lessons[existingIdx].createdAt }, normalized);
       } else {
-        lessons.push(Object.assign({ id: id(), createdAt: new Date().toISOString() }, payload));
+        lessons.push(Object.assign({ id: id(), createdAt: new Date().toISOString() }, normalized));
       }
       state.lessons.lessons = lessons;
+    },
+
+    toggleTodo: function(lessonId, todoId) {
+      var lessons = state.lessons.lessons || [];
+      var lesson = lessons.find(function(l) { return l.id === lessonId; });
+      if (!lesson || !Array.isArray(lesson.todos)) return;
+      var todo = lesson.todos.find(function(t) { return t.id === todoId; });
+      if (todo) todo.done = !todo.done;
+    },
+
+    addTodo: function(lessonId, text) {
+      var lessons = state.lessons.lessons || [];
+      var lesson = lessons.find(function(l) { return l.id === lessonId; });
+      if (!lesson) return;
+      if (!Array.isArray(lesson.todos)) lesson.todos = [];
+      lesson.todos.push({ id: id(), text: text || '', done: false });
+    },
+
+    removeTodo: function(lessonId, todoId) {
+      var lessons = state.lessons.lessons || [];
+      var lesson = lessons.find(function(l) { return l.id === lessonId; });
+      if (!lesson || !Array.isArray(lesson.todos)) return;
+      lesson.todos = lesson.todos.filter(function(t) { return t.id !== todoId; });
     },
 
     removeLesson: function(lessonId) {

@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Learning & Teaching">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="apple-touch-icon.png">
+<title>Learning &amp; Teaching — Expressive Arts Faculty</title>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-init.js"></script>
+<script src="allowlist-check.js"></script>
+<script src="auth-guard.js"></script>
+<script src="data-service.js"></script>
+<script src="clpl-courses.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+// Fallback: if clpl-courses.js failed to load, use embedded content
+if (typeof window.CLPL_COURSES === 'undefined' || !Array.isArray(window.CLPL_COURSES) || window.CLPL_COURSES.length === 0) {
+window.CLPL_COURSES = [
+  { id: 'restorative-practice', title: 'Restorative Practice', description: 'Applying restorative approaches in Art, Drama and Photography.',
+    stages: [
+      { id: 'rp-1', title: 'Principles in Creative Subjects',
+        content: '<h3>What is Restorative Practice?</h3><p>Restorative practice prioritises relationships, responsibility and repairing harm rather than punishment. It aligns with GIRFEC, UNCRC and rights-based approaches in Scottish education.</p><h3>Why It Matters in Expressive Arts</h3><p>In Drama, Art and Photography, pupils work collaboratively: devising in groups, sharing studio space, using shared equipment. Conflict happens—disputes over roles, disagreements about creative decisions, arguments over materials or camera time. Restorative practice helps address these incidents and rebuild relationships.</p><h3>Key Principles</h3><p><strong>Fair Process</strong>: Pupils are involved in decisions that affect them.</p><p><strong>High Challenge, High Support</strong>: Hold high expectations while providing support.</p><p><strong>Working With, Not Doing To</strong>: Work with pupils to find solutions rather than imposing them.</p>',
+        quiz: { questions: [
+          { q: 'What is the focus of restorative practice?', options: ['Punishment', 'Relationships, responsibility and repairing harm', 'Rules only', 'Reporting'], correct: 'Relationships, responsibility and repairing harm' },
+          { q: 'Which principle involves pupils in decisions?', options: ['High Challenge', 'Fair Process', 'High Support', 'Repairing harm'], correct: 'Fair Process' },
+          { q: 'In a Drama dispute, what does "Working With" suggest?', options: ['Telling pupils what to do', 'Involving pupils in finding solutions', 'Sending pupils out', 'Ignoring'], correct: 'Involving pupils in finding solutions' }
+        ], passThreshold: 0.6 }
+      },
+      { id: 'rp-2', title: 'Restorative Conversations',
+        content: '<h3>The Restorative Questions</h3><ul><li>What happened?</li><li>What were you thinking?</li><li>Who has been affected?</li><li>What needs to happen to put things right?</li></ul><h3>In Art & Design</h3><p>When pupils argue over materials, use curiosity: "What was going on for you?" not "Why did you do that?"</p><h3>In Photography</h3><p>Equipment disputes or exclusion from a group shoot—let each person share their perspective before agreeing next steps.</p><h3>Affective Statements</h3><p>Model accountability: "I felt disappointed when the rehearsal stopped—I know you can work through this."</p>',
+        quiz: { questions: [
+          { q: 'Which question is most restorative?', options: ['Why did you do that?', 'What was going on for you?', 'Who started it?', 'Do you know you are in trouble?'], correct: 'What was going on for you?' },
+          { q: 'In an equipment dispute, what should happen first?', options: ['Remove equipment', 'Let each person share their perspective', 'Send to referral', 'Decide who was wrong'], correct: 'Let each person share their perspective' },
+          { q: 'What type of statement models accountability?', options: ['Threats', 'Affective statements ("I felt...")', 'Sarcasm', 'Silence'], correct: 'Affective statements ("I felt...")' }
+        ], passThreshold: 0.6 }
+      },
+      { id: 'rp-3', title: 'Repairing Harm in Group Work',
+        content: '<h3>Restorative Circles</h3><p>Everyone has a turn to speak without interruption. Use a talking object. Focus on impact and what is needed to move on.</p><p>In Drama: agree new rehearsal norms. In Art: re-establish trust for collaborative work. In Photography: agree how to share equipment.</p><h3>Follow-Up</h3><p>Check in later: "How is it going with the agreement you made?"</p>',
+        quiz: { questions: [
+          { q: 'In a restorative circle, what should happen when someone speaks?', options: ['Others can interrupt', 'No interruption; everyone has a turn', 'Only the teacher speaks', 'Pupils stay silent'], correct: 'No interruption; everyone has a turn' },
+          { q: 'What should happen after a restorative agreement?', options: ['Forget about it', 'Follow up to check if it is holding', 'Report to SLT only', 'Move pupils only'], correct: 'Follow up to check if it is holding' }
+        ], passThreshold: 0.6 }
+      }
+    ]
+  },
+  { id: 'behaviour-management', title: 'Behaviour Management', description: 'Managing drama studio, art room and darkroom.',
+    stages: [
+      { id: 'bm-1', title: 'Prevention in Practical Spaces',
+        content: '<h3>Behaviour is Best Managed Through Prevention</h3><p>Establish clear routines: entry, equipment, signals for attention, exit. Non-negotiables: no running in the studio, safe use of materials, listening when others perform. Predict problem points: transitions, equipment handouts, waiting times.</p>',
+        quiz: { questions: [
+          { q: 'Where is behaviour best managed?', options: ['Through detention', 'Through prevention', 'Through exclusion', 'Through reports'], correct: 'Through prevention' },
+          { q: 'What should be established for practical spaces?', options: ['No rules', 'Clear routines and non-negotiables', 'Flexible expectations only', 'Only verbal warnings'], correct: 'Clear routines and non-negotiables' }
+        ], passThreshold: 0.6 }
+      },
+      { id: 'bm-2', title: 'Interventions and Consistency',
+        content: '<h3>When Behaviour Slips</h3><p>Use low-level interventions first: proximity, quiet word, choice. Avoid public confrontations. Consistency is vital across Drama, Art and Photo. De-escalate: lower your voice, give wait time.</p>',
+        quiz: { questions: [
+          { q: 'What should come before public confrontation?', options: ['Shouting', 'Low-level interventions (proximity, quiet word)', 'Exclusion', 'Ignoring'], correct: 'Low-level interventions (proximity, quiet word)' },
+          { q: 'When de-escalating, what helps?', options: ['Raising your voice', 'Lowering your voice and giving wait time', 'Threatening immediately', 'Removing instantly'], correct: 'Lowering your voice and giving wait time' }
+        ], passThreshold: 0.6 }
+      }
+    ]
+  },
+  { id: 'effective-feedback', title: 'Effective Feedback', description: 'Feeding back on performances, artwork and portfolios.',
+    stages: [
+      { id: 'ef-1', title: 'Feedback on Performances and Artwork',
+        content: '<h3>Effective Feedback is Specific, Timely and Actionable</h3><p>In Drama: name what worked ("Your use of levels showed status") and one thing to improve ("Project your voice"). In Art: feed back on process and product. In Photography: comment on framing, exposure, intent. Link to success criteria.</p>',
+        quiz: { questions: [
+          { q: 'What makes feedback effective?', options: ['Vague praise only', 'Specific, timely and actionable', 'Long comments only', 'No feedback during process'], correct: 'Specific, timely and actionable' },
+          { q: 'When feeding back on a Drama performance, what should you name?', options: ['Nothing', 'What worked and one thing to improve', 'Only what went wrong', 'Only grades'], correct: 'What worked and one thing to improve' }
+        ], passThreshold: 0.6 }
+      },
+      { id: 'ef-2', title: 'Verbal and Written Feedback',
+        content: '<h3>Verbal Feedback</h3><p>Works well during practical work. Record it: "VF: discussed use of tone."</p><h3>Written Feedback</h3><p>One or two foci per piece. Balance strengths with next steps. Feed-forward: what to do in the next piece.</p>',
+        quiz: { questions: [
+          { q: 'When is verbal feedback especially useful?', options: ['Only at parents evening', 'During practical work', 'Never', 'Only in written form'], correct: 'During practical work' },
+          { q: 'What is feed-forward?', options: ['Only correcting past work', 'Focusing on what to do in the next piece', 'Forwarding emails', 'Moving pupils on'], correct: 'Focusing on what to do in the next piece' }
+        ], passThreshold: 0.6 }
+      }
+    ]
+  },
+  { id: 'learning-intentions', title: 'Learning Intentions and Success Criteria', description: 'Writing and sharing LIs and SCs for practical tasks.',
+    stages: [
+      { id: 'li-1', title: 'Writing LIs and SCs',
+        content: '<h3>Definitions</h3><p><strong>Learning Intentions</strong> state what pupils will learn. <strong>Success Criteria</strong> describe what good looks like.</p><p>Drama: "We are learning to use proxemics" / "I can position myself to show status." Art: "We are learning to blend tones" / "I can create smooth transitions." Photography: "We are learning to use aperture" / "I can demonstrate shallow and deep depth of field."</p>',
+        quiz: { questions: [
+          { q: 'What do Success Criteria describe?', options: ['What the teacher will do', 'What good looks like', 'Homework only', 'Attendance'], correct: 'What good looks like' },
+          { q: '"We are learning to use proxemics" is a...', options: ['Success Criterion', 'Learning Intention', 'Assessment', 'Homework'], correct: 'Learning Intention' }
+        ], passThreshold: 0.6 }
+      },
+      { id: 'li-2', title: 'Sharing and Linking to Assessment',
+        content: '<h3>Sharing</h3><p>Share at the start—visually and verbally. Refer back during the lesson. Use in plenaries.</p><h3>Linking to Es+Os</h3><p>In Drama, EXA 3-12a links to creating and presenting. In Art, EXA 3-02a, 3-03a relate to responding and creating. This makes assessment transparent.</p>',
+        quiz: { questions: [
+          { q: 'When should LIs and SCs be shared?', options: ['Only at the end', 'At the start and during the lesson', 'Never', 'In homework only'], correct: 'At the start and during the lesson' },
+          { q: 'What EXA outcome links to Drama performance?', options: ['EXA 3-01a', 'EXA 3-12a', 'MNU 3-01a', 'LIT 3-01a'], correct: 'EXA 3-12a' }
+        ], passThreshold: 0.6 }
+      }
+    ]
+  },
+  { id: 'retrieval-practice', title: 'Retrieval Practice', description: 'Drama vocabulary, art theory and photography techniques.',
+    stages: [
+      { id: 'ret-1', title: 'Retrieval in Practical Lessons',
+        content: '<h3>What is Retrieval Practice?</h3><p>Recalling information from memory strengthens it. In Expressive Arts: Drama (proxemics, blocking, levels), Art (elements of art, colour theory), Photography (aperture, ISO, rule of thirds). Keep it low-stakes. Use spacing—revisit across lessons.</p>',
+        quiz: { questions: [
+          { q: 'What does retrieval practice strengthen?', options: ['Equipment', 'Memory', 'Seating plans', 'Timetables'], correct: 'Memory' },
+          { q: 'How should retrieval be used?', options: ['High-stakes only', 'Low-stakes, quick recall', 'Never in practical', 'Only in exams'], correct: 'Low-stakes, quick recall' }
+        ], passThreshold: 0.6 }
+      },
+      { id: 'ret-2', title: 'Techniques',
+        content: '<h3>Do Now Starters</h3><p>"Write three Drama terms we used last week." "Draw the colour wheel." "Label: aperture, shutter, ISO."</p><h3>During and After</h3><p>Quick verbal checks. Pair-share. Link retrieval to application: after recalling "levels," pupils use them in the next scene.</p>',
+        quiz: { questions: [
+          { q: 'What is a Do Now starter good for?', options: ['Filling time', 'Quick retrieval at the start', 'Homework', 'Parents evening'], correct: 'Quick retrieval at the start' },
+          { q: 'What keeps retrieval low-pressure?', options: ['Grading every answer', 'Pair-share, show-me boards, no grading', 'Timed tests only', 'Public correction'], correct: 'Pair-share, show-me boards, no grading' }
+        ], passThreshold: 0.6 }
+      }
+    ]
+  },
+  { id: 'differentiation', title: 'Differentiation', description: 'Supporting diverse learners in Drama, Art and Photo.',
+    stages: [
+      { id: 'diff-1', title: 'Meeting Diverse Needs',
+        content: '<h3>Drama</h3><p>Offer backstage roles, script-writing, smaller audiences. Provide sentence starters, break devising into steps.</p><h3>Art</h3><p>Vary materials (2D/3D), extend for faster workers, scaffold for those who need it.</p><h3>Photography</h3><p>Guided practice, diagrams, peer buddies for those less confident with equipment.</p>',
+        quiz: { questions: [
+          { q: 'What does differentiation mean?', options: ['Treating everyone the same', 'Responding to the variety of needs in your class', 'Only for ASN', 'Lowering expectations'], correct: 'Responding to the variety of needs in your class' },
+          { q: 'For a pupil who struggles to perform in Drama, what might help?', options: ['Forcing them on stage', 'Backstage roles or smaller audiences first', 'Excluding', 'Ignoring'], correct: 'Backstage roles or smaller audiences first' }
+        ], passThreshold: 0.6 }
+      },
+      { id: 'diff-2', title: 'Strategies',
+        content: '<h3>Flexible Grouping</h3><p>By readiness, interest, or mixed. Rotate roles.</p><h3>Scaffolding</h3><p>Model, guided practice, independent. Remove gradually.</p><h3>Extension and Support</h3><p>Plan extension so no one waits. Plan support so no one is left behind.</p>',
+        quiz: { questions: [
+          { q: 'What is scaffolding?', options: ['Physical structures', 'Model, guided practice, independent; remove gradually', 'Never helping', 'Giving answers'], correct: 'Model, guided practice, independent; remove gradually' },
+          { q: 'Why plan extension tasks?', options: ['To punish fast workers', 'So no one is left waiting; maintain challenge', 'To fill time', 'School policy'], correct: 'So no one is left waiting; maintain challenge' }
+        ], passThreshold: 0.6 }
+      }
+    ]
+  },
+  { id: 'adaptive-teaching', title: 'Adaptive Teaching', description: 'Responsive teaching in rehearsals, studio work and portfolios.',
+    stages: [
+      { id: 'at-1', title: 'Responsive Teaching',
+        content: '<h3>What is Adaptive Teaching?</h3><p>Adjusting as you go based on what you see and hear. In Drama: if groups are stuck, pause for mini-input or modelling. In Art: if pupils struggle with technique, demo again or pair. In Photography: if technical issues block creativity, address those first. Check often: "Show me...", "Explain to your partner..."</p>',
+        quiz: { questions: [
+          { q: 'What does adaptive teaching mean?', options: ['Sticking to the plan', 'Adjusting as you go based on what you see and hear', 'Ignoring pupils', 'Only for S1'], correct: 'Adjusting as you go based on what you see and hear' },
+          { q: 'If Drama groups are stuck during devising, what might you do?', options: ['Wait', 'Pause for a mini-input or modelling', 'Tell them to get on with it', 'Cancel'], correct: 'Pause for a mini-input or modelling' }
+        ], passThreshold: 0.6 }
+      },
+      { id: 'at-2', title: 'Flexible Grouping and Scaffolding',
+        content: '<h3>Vary Roles</h3><p>In Drama: rotate who leads warm-ups. In Art: mix pairs for peer critique. In Photography: vary who operates the camera.</p><h3>When to Push</h3><p>If a pupil can do more, extend the challenge. Balance support and challenge.</p>',
+        quiz: { questions: [
+          { q: 'When should scaffolding be reduced?', options: ['Never', 'As pupils improve', 'Only at year end', 'Only for high attainers'], correct: 'As pupils improve' },
+          { q: 'When should you push a pupil?', options: ['Never', 'When they can do more—extend the challenge', 'Only in exams', 'When they misbehave'], correct: 'When they can do more—extend the challenge' }
+        ], passThreshold: 0.6 }
+      }
+    ]
+  }
+];
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --navy:#1e2d4a;
+  --navy-dark:#16243c;
+  --navy-hover:#253352;
+  --accent-clpl:#0d9488;
+  --white:#ffffff;
+  --bg:#f0f2f5;
+  --card-bg:#ffffff;
+  --text:#1a202c;
+  --text2:#4a5568;
+  --text3:#718096;
+  --border:#e2e8f0;
+  --border2:#cbd5e0;
+  --success:#16a34a;
+  --sidebar-w:220px;
+}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;-webkit-font-smoothing:antialiased;font-size:14px}
+
+.app{display:flex;min-height:100vh;width:100%}
+
+.sidebar{
+  width:var(--sidebar-w);flex-shrink:0;
+  background:var(--navy);
+  display:flex;flex-direction:column;
+  position:fixed;top:0;left:0;bottom:0;
+  overflow-y:auto;z-index:100;
+}
+.sidebar-logo{padding:1.5rem 1.25rem 1rem;border-bottom:1px solid rgba(255,255,255,.08)}
+.sidebar-logo-title{font-family:'Sora',sans-serif;font-size:1rem;font-weight:800;color:var(--white);letter-spacing:.01em}
+.sidebar-logo-sub{font-size:.6rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.4);margin-top:.3rem}
+.sidebar-section{padding:.75rem 0}
+.sidebar-item{
+  display:block;width:100%;text-align:left;border:none;background:none;cursor:pointer;
+  font-family:'Inter',sans-serif;font-size:.82rem;font-weight:500;color:rgba(255,255,255,.65);
+  padding:.6rem 1.25rem;border-left:3px solid transparent;
+  transition:background .12s,color .12s;text-decoration:none;line-height:1.3;
+}
+.sidebar-item:hover{background:var(--navy-hover);color:var(--white)}
+a.sidebar-item{color:rgba(255,255,255,.65)}
+a.sidebar-item:hover{color:var(--white)}
+.sidebar-item.active{background:rgba(13,148,136,.2);color:var(--white);border-left-color:var(--accent-clpl)}
+.sidebar-signout{margin-top:auto;padding:1rem 0 1.5rem;border-top:1px solid rgba(255,255,255,.08)}
+.sidebar-signout .sidebar-item{color:rgba(255,255,255,.85);font-weight:600}
+
+.main{margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column;min-height:100vh}
+.topbar{
+  background:var(--white);border-bottom:1px solid var(--border);
+  padding:.9rem 2rem;display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:50;
+}
+.topbar-heading{font-family:'Sora',sans-serif;font-size:1.15rem;font-weight:700;color:var(--text)}
+.topbar-heading span{color:var(--accent-clpl)}
+.content{padding:2rem;flex:1}
+
+/* Views */
+.lt-view{display:none}
+.lt-view.active{display:block}
+
+/* Course list */
+.course-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1.25rem}
+.course-card{
+  background:var(--card-bg);border:1px solid var(--border);border-radius:10px;
+  padding:1.5rem;cursor:pointer;transition:all .15s;
+  border-left:4px solid var(--accent-clpl);
+}
+.course-card:hover{border-color:var(--border2);box-shadow:0 4px 12px rgba(0,0,0,.08)}
+.course-card-title{font-family:'Sora',sans-serif;font-size:1rem;font-weight:700;color:var(--text);margin-bottom:.4rem}
+.course-card-desc{font-size:.78rem;color:var(--text2);line-height:1.5;margin-bottom:.75rem}
+.course-card-progress{font-size:.7rem;font-weight:600;letter-spacing:.08em;color:var(--text3)}
+.course-card-progress span{color:var(--accent-clpl)}
+.course-card-progress.done{color:var(--success)}
+
+/* CPD export strip */
+.cpd-strip{
+  background:linear-gradient(135deg,var(--navy) 0%,#0f766e 100%);
+  border-radius:8px;padding:1.25rem 1.5rem;margin-bottom:2rem;
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;
+}
+.cpd-strip-text{color:rgba(255,255,255,.9);font-size:.88rem}
+.cpd-strip-text strong{color:var(--white)}
+.cpd-btns{display:flex;gap:.5rem}
+.cpd-btn{
+  padding:.5rem 1rem;border-radius:6px;font-size:.78rem;font-weight:600;
+  background:rgba(255,255,255,.2);color:var(--white);border:1px solid rgba(255,255,255,.3);
+  cursor:pointer;transition:all .15s;
+}
+.cpd-btn:hover{background:rgba(255,255,255,.3)}
+
+/* Course detail */
+.course-detail-header{margin-bottom:1.5rem}
+.course-detail-title{font-family:'Sora',sans-serif;font-size:1.4rem;font-weight:800;color:var(--text);margin-bottom:.35rem}
+.course-detail-desc{font-size:.85rem;color:var(--text2);line-height:1.6}
+.back-btn{display:inline-flex;align-items:center;gap:.4rem;font-size:.8rem;color:var(--text2);background:none;border:none;cursor:pointer;margin-bottom:1rem;padding:.35rem 0}
+.back-btn:hover{color:var(--accent-clpl)}
+
+.stage-list{display:flex;flex-direction:column;gap:.75rem}
+.stage-item{
+  background:var(--card-bg);border:1px solid var(--border);border-radius:8px;
+  padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;gap:1rem;
+  cursor:pointer;transition:all .15s;
+}
+.stage-item:hover{border-color:var(--accent-clpl);box-shadow:0 2px 8px rgba(13,148,136,.1)}
+.stage-item.done{border-left:4px solid var(--success)}
+.stage-item-num{font-size:.65rem;font-weight:700;letter-spacing:.1em;color:var(--text3);margin-bottom:.2rem}
+.stage-item-title{font-weight:600;color:var(--text)}
+.stage-item-meta{font-size:.75rem;color:var(--text3)}
+.stage-item-badge{font-size:.65rem;font-weight:700;letter-spacing:.08em;padding:.25rem .5rem;border-radius:4px;background:var(--success);color:var(--white)}
+
+/* Stage content */
+.stage-content-panel{max-width:720px}
+.stage-content-body{background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:2rem;margin-bottom:1.5rem;line-height:1.75}
+.stage-content-body p{margin-bottom:1rem}
+.stage-content-body p:last-child{margin-bottom:0}
+.stage-content-body strong{color:var(--text)}
+.stage-content-body h3{font-size:1rem;font-weight:700;color:var(--text);margin:1.5rem 0 .5rem}
+.stage-content-body h3:first-child{margin-top:0}
+.stage-content-body ul{margin:.75rem 0 1rem 1.25rem;padding:0}
+.stage-content-body li{margin-bottom:.4rem}
+.stage-actions{display:flex;gap:.75rem;flex-wrap:wrap}
+.stage-actions .btn{padding:.6rem 1.25rem;border-radius:6px;font-size:.82rem;font-weight:600;cursor:pointer;border:none;transition:all .15s}
+.btn-primary-clpl{background:var(--accent-clpl);color:var(--white)}
+.btn-primary-clpl:hover{background:#0f766e}
+.btn-ghost{background:var(--bg);color:var(--text2);border:1px solid var(--border)}
+.btn-ghost:hover{background:var(--border);color:var(--text)}
+
+/* Quiz */
+.quiz-view{padding:1.5rem 0}
+.quiz-score-bar{display:flex;align-items:center;gap:.75rem;padding:.65rem 1rem;background:var(--white);border:1px solid var(--border);border-radius:5px;margin-bottom:1.25rem;font-size:.75rem;color:var(--text3)}
+.score-val{font-weight:700;color:var(--text);font-size:.88rem}
+.quiz-card{background:var(--white);border:1px solid var(--border);border-radius:6px;padding:1.5rem;max-width:600px}
+.quiz-q-label{font-size:.6rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--text3);margin-bottom:.3rem}
+.quiz-q-num{font-size:.75rem;color:var(--text3);margin-bottom:.85rem}
+.quiz-def{font-size:.9rem;color:var(--text);margin-bottom:1.25rem;line-height:1.7}
+.quiz-options{display:flex;flex-direction:column;gap:.45rem;margin-bottom:.85rem}
+.quiz-opt{font-size:.78rem;font-weight:600;padding:.6rem 1rem;border-radius:4px;border:1px solid var(--border2);background:var(--bg);color:var(--text2);cursor:pointer;text-align:left;transition:all .12s}
+.quiz-opt:hover:not(:disabled){border-color:var(--accent-clpl);color:var(--text)}
+.quiz-opt.correct{background:rgba(52,211,153,.1);border-color:#16a34a;color:#15803d}
+.quiz-opt.wrong{background:rgba(248,113,113,.1);border-color:#dc2626;color:#b91c1c}
+.quiz-feedback{font-size:.78rem;font-weight:600;min-height:1.2rem;margin-bottom:.6rem}
+.quiz-feedback.ok{color:#16a34a}
+.quiz-feedback.bad{color:#dc2626}
+.quiz-next-btn{display:none;font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;padding:.45rem 1.25rem;border-radius:4px;cursor:pointer;border:none;color:var(--white);background:var(--accent-clpl)}
+.quiz-complete{background:var(--white);border:1px solid var(--border);border-radius:6px;padding:2.5rem;text-align:center;max-width:600px}
+.quiz-complete-title{font-family:'Sora',sans-serif;font-size:1.25rem;font-weight:800;color:var(--text);margin-bottom:.5rem}
+.quiz-complete-score{font-size:.82rem;color:var(--text3);margin-bottom:1.5rem}
+.quiz-restart{font-size:.7rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;padding:.45rem 1.5rem;border-radius:4px;cursor:pointer;background:none;border:1px solid var(--accent-clpl);color:var(--accent-clpl)}
+.quiz-restart:hover{background:var(--accent-clpl);color:var(--white)}
+
+.empty-state{text-align:center;padding:3rem 2rem;background:var(--card-bg);border:1px dashed var(--border);border-radius:8px;color:var(--text3)}
+.empty-state strong{color:var(--text);display:block;margin-bottom:.5rem}
+
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%);width:200px}
+  .main{margin-left:0}
+  .course-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-title">Learning &amp; Teaching</div>
+      <div class="sidebar-logo-sub">Expressive Arts CLPL</div>
+    </div>
+    <div class="sidebar-section">
+      <button type="button" class="sidebar-item active" onclick="ltShowView('list')">All Courses</button>
+    </div>
+    <a href="expressive_arts_faculty (10).html" class="sidebar-item">← Back to Faculty Hub</a>
+    <div class="sidebar-signout">
+      <button type="button" class="sidebar-item" onclick="try{(window.doSignOut||function(){window.clearSupabaseAuth&&window.clearSupabaseAuth();location.href='login.html?signout=1';})();}catch(e){location.href='login.html?signout=1';}">Sign out</button>
+    </div>
+  </aside>
+  <main class="main">
+    <header class="topbar">
+      <h1 class="topbar-heading" id="ltTopbarHeading">Learning &amp; Teaching <span>CLPL</span></h1>
+    </header>
+    <div class="content">
+      <!-- Course list view -->
+      <div id="lt-view-list" class="lt-view active">
+        <div class="cpd-strip">
+          <div class="cpd-strip-text"><strong>CPD Record</strong> — Download your completed courses for professional records.</div>
+          <div class="cpd-btns">
+            <button type="button" class="cpd-btn" onclick="ltExportCPD('pdf')">Download PDF</button>
+            <button type="button" class="cpd-btn" onclick="ltExportCPD('docx')">Download Word</button>
+          </div>
+        </div>
+        <div class="course-grid" id="ltCourseGrid"></div>
+      </div>
+      <!-- Course detail view -->
+      <div id="lt-view-course" class="lt-view">
+        <button type="button" class="back-btn" onclick="ltShowView('list')">← All Courses</button>
+        <div class="course-detail-header" id="ltCourseDetailHeader"></div>
+        <div class="stage-list" id="ltStageList"></div>
+      </div>
+      <!-- Stage content view -->
+      <div id="lt-view-stage" class="lt-view">
+        <button type="button" class="back-btn" id="ltStageBackBtn">← Back to course</button>
+        <div class="stage-content-panel" id="ltStageContentPanel"></div>
+      </div>
+      <!-- Quiz view -->
+      <div id="lt-view-quiz" class="lt-view">
+        <button type="button" class="back-btn" onclick="ltExitQuiz()">← Exit quiz</button>
+        <div class="quiz-view">
+          <div class="quiz-score-bar"><span>Score</span><span class="score-val" id="ltQuizScore">0 / 0</span></div>
+          <div id="ltQuizActiveCard" class="quiz-card">
+            <div class="quiz-q-label">Select the correct answer</div>
+            <div class="quiz-q-num" id="ltQuizNum"></div>
+            <div class="quiz-def" id="ltQuizQuestion"></div>
+            <div class="quiz-options" id="ltQuizOptions"></div>
+            <div class="quiz-feedback" id="ltQuizFeedback"></div>
+            <button type="button" class="quiz-next-btn" id="ltQuizNextBtn" onclick="ltQuizNext()">Next →</button>
+          </div>
+          <div id="ltQuizComplete" style="display:none" class="quiz-complete">
+            <div class="quiz-complete-title">Quiz complete</div>
+            <div class="quiz-complete-score" id="ltQuizFinalScore"></div>
+            <button type="button" class="quiz-restart" id="ltQuizRetryBtn" onclick="ltQuizRestart()">Try again</button>
+            <button type="button" class="quiz-restart" id="ltQuizDoneBtn" style="margin-left:.5rem;display:none" onclick="ltQuizDone()">Done — Return to course</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+(function() {
+  var state = {
+    view: 'list',
+    progress: {},
+    currentCourseId: null,
+    currentStageIdx: 0,
+    quiz: { index: 0, correct: 0, total: 0, answered: false, questions: [], passThreshold: 0.6 },
+    staffName: ''
+  };
+
+  function $id(id) { return document.getElementById(id); }
+
+  function loadProgress() {
+    return (window.DataService && DataService.get('clplProgress')) ? DataService.get('clplProgress') : Promise.resolve(null);
+  }
+
+  function saveProgress(data) {
+    state.progress = data || {};
+    return window.DataService ? DataService.set('clplProgress', data) : Promise.resolve();
+  }
+
+  function getCourseProgress(courseId) {
+    var p = state.progress[courseId] || {};
+    return {
+      completedStages: p.completedStages || [],
+      quizScores: p.quizScores || {}
+    };
+  }
+
+  function isStageComplete(courseId, stageId) {
+    return (state.progress[courseId] || {}).completedStages.indexOf(stageId) !== -1;
+  }
+
+  function setStageComplete(courseId, stageId, quizResult) {
+    var p = state.progress[courseId] || { completedStages: [], quizScores: {} };
+    if (p.completedStages.indexOf(stageId) === -1) p.completedStages.push(stageId);
+    if (quizResult) {
+      p.quizScores[stageId] = quizResult;
+    }
+    state.progress[courseId] = p;
+    return saveProgress(state.progress);
+  }
+
+  function getStaffName() {
+    if (state.staffName) return state.staffName;
+    var session = window.supabase && window.supabase.auth && window.supabase.auth.getSession && window.supabase.auth.getSession();
+    if (session && session.then) return '';
+    try {
+      var u = window.supabase.auth.user && window.supabase.auth.user();
+      if (u && u.user_metadata && u.user_metadata.full_name) return u.user_metadata.full_name;
+      if (u && u.email) return u.email;
+    } catch (e) {}
+    return 'Staff Member';
+  }
+
+  window.ltShowView = function(view, courseId, stageIdx) {
+    state.view = view;
+    state.currentCourseId = courseId || state.currentCourseId;
+    state.currentStageIdx = typeof stageIdx === 'number' ? stageIdx : state.currentStageIdx;
+    document.querySelectorAll('.lt-view').forEach(function(v) { v.classList.remove('active'); });
+    var el = $id('lt-view-' + view);
+    if (el) el.classList.add('active');
+    document.querySelectorAll('.sidebar-item').forEach(function(b) { b.classList.remove('active'); });
+    var sb = document.querySelector('.sidebar-item[onclick*="ltShowView(\'list\')"]');
+    if (sb) sb.classList.add('active');
+    if (view === 'list') renderCourseList();
+    else if (view === 'course') renderCourseDetail();
+    else if (view === 'stage') renderStageContent();
+  };
+
+  function renderCourseList() {
+    $id('ltTopbarHeading').innerHTML = 'Learning &amp; Teaching <span>CLPL</span>';
+    var grid = $id('ltCourseGrid');
+    if (!grid) return;
+    if (!window.CLPL_COURSES || !Array.isArray(window.CLPL_COURSES) || window.CLPL_COURSES.length === 0) {
+      grid.innerHTML = '<div class="empty-state"><strong>No courses available</strong><p style="margin-top:.5rem">If you expected to see courses, ensure you are signed in and the page has loaded correctly. Try refreshing.</p></div>';
+      return;
+    }
+    var html = '';
+    CLPL_COURSES.forEach(function(c) {
+      var prog = getCourseProgress(c.id);
+      var completed = prog.completedStages.length;
+      var total = c.stages.length;
+      var isDone = completed >= total;
+      html += '<div class="course-card" onclick="ltShowView(\'course\',\'' + c.id + '\')">';
+      html += '<div class="course-card-title">' + escapeHtml(c.title) + '</div>';
+      html += '<div class="course-card-desc">' + escapeHtml(c.description) + '</div>';
+      html += '<div class="course-card-progress' + (isDone ? ' done' : '') + '">';
+      html += (isDone ? '✓ Complete' : completed + ' / ' + total + ' stages complete');
+      html += '</div></div>';
+    });
+    grid.innerHTML = html || '<div class="empty-state"><strong>No courses available</strong></div>';
+  }
+
+  function renderCourseDetail() {
+    var c = CLPL_COURSES.find(function(x) { return x.id === state.currentCourseId; });
+    if (!c) { ltShowView('list'); return; }
+    $id('ltTopbarHeading').textContent = c.title;
+    $id('ltCourseDetailHeader').innerHTML = '<div class="course-detail-title">' + escapeHtml(c.title) + '</div><div class="course-detail-desc">' + escapeHtml(c.description) + '</div>';
+    var list = $id('ltStageList');
+    var prog = getCourseProgress(c.id);
+    var html = '';
+    c.stages.forEach(function(s, i) {
+      var done = isStageComplete(c.id, s.id);
+      var score = prog.quizScores[s.id];
+      html += '<div class="stage-item' + (done ? ' done' : '') + '" onclick="ltOpenStage(' + i + ')">';
+      html += '<div><div class="stage-item-num">Stage ' + (i + 1) + '</div><div class="stage-item-title">' + escapeHtml(s.title) + '</div>';
+      if (score) html += '<div class="stage-item-meta">Quiz: ' + score.score + '/' + score.total + (score.passed ? ' ✓' : '') + '</div>';
+      html += '</div>';
+      if (done) html += '<span class="stage-item-badge">Complete</span>';
+      html += '</div>';
+    });
+    list.innerHTML = html;
+  }
+
+  function renderStageContent() {
+    var c = CLPL_COURSES.find(function(x) { return x.id === state.currentCourseId; });
+    if (!c) { ltShowView('list'); return; }
+    var s = c.stages[state.currentStageIdx];
+    if (!s) { ltShowView('course', state.currentCourseId); return; }
+    $id('ltTopbarHeading').textContent = s.title;
+    $id('ltStageBackBtn').onclick = function() { ltShowView('course', state.currentCourseId); };
+    var panel = $id('ltStageContentPanel');
+    var done = isStageComplete(c.id, s.id);
+    var stageContent = (s.content && s.content.trim()) ? s.content : '<p>Content for this stage is being developed. Please check back soon.</p>';
+    panel.innerHTML = '<div class="stage-content-body">' + stageContent + '</div><div class="stage-actions">';
+    if (s.quiz && s.quiz.questions && s.quiz.questions.length > 0) {
+      panel.innerHTML += '<button type="button" class="btn btn-primary-clpl" onclick="ltStartQuiz(' + state.currentStageIdx + ')">' + (done ? 'Retake Quiz' : 'Start Quiz') + '</button>';
+    } else {
+      panel.innerHTML += '<button type="button" class="btn btn-primary-clpl" onclick="ltMarkCompleteNoQuiz()">Mark as complete</button>';
+    }
+    panel.innerHTML += '<button type="button" class="btn btn-ghost" onclick="ltShowView(\'course\',\'' + c.id + '\')">Back to course</button></div>';
+  }
+
+  window.ltOpenStage = function(idx) {
+    state.currentStageIdx = idx;
+    ltShowView('stage');
+  };
+
+  window.ltMarkCompleteNoQuiz = function() {
+    var c = CLPL_COURSES.find(function(x) { return x.id === state.currentCourseId; });
+    if (!c) return;
+    var s = c.stages[state.currentStageIdx];
+    if (!s) return;
+    setStageComplete(c.id, s.id, null).then(function() {
+      ltShowView('course', c.id);
+    });
+  };
+
+  window.ltStartQuiz = function(stageIdx) {
+    state.currentStageIdx = stageIdx;
+    var c = CLPL_COURSES.find(function(x) { return x.id === state.currentCourseId; });
+    if (!c) return;
+    var s = c.stages[stageIdx];
+    if (!s || !s.quiz || !s.quiz.questions || s.quiz.questions.length === 0) return;
+    state.quiz.questions = shuffleArray(s.quiz.questions.slice());
+    state.quiz.passThreshold = s.quiz.passThreshold || 0.6;
+    state.quiz.index = 0;
+    state.quiz.correct = 0;
+    state.quiz.total = state.quiz.questions.length;
+    ltShowView('quiz');
+    ltRenderQuizQuestion();
+  };
+
+  function ltRenderQuizQuestion() {
+    var q = state.quiz;
+    if (q.index >= q.questions.length) {
+      ltEndQuiz();
+      return;
+    }
+    var item = q.questions[q.index];
+    $id('ltQuizActiveCard').style.display = 'block';
+    $id('ltQuizComplete').style.display = 'none';
+    $id('ltQuizNum').textContent = 'Question ' + (q.index + 1) + ' of ' + q.total;
+    $id('ltQuizQuestion').textContent = item.q;
+    $id('ltQuizScore').textContent = q.correct + ' / ' + q.index;
+    $id('ltQuizFeedback').textContent = '';
+    $id('ltQuizFeedback').className = 'quiz-feedback';
+    $id('ltQuizNextBtn').style.display = 'none';
+    var opts = document.getElementById('ltQuizOptions');
+    opts.innerHTML = '';
+    shuffleArray(item.options.slice()).forEach(function(opt) {
+      var btn = document.createElement('button');
+      btn.className = 'quiz-opt';
+      btn.textContent = opt;
+      btn.onclick = function() { ltAnswerQuiz(opt, item.correct, btn); };
+      opts.appendChild(btn);
+    });
+  }
+
+  window.ltAnswerQuiz = function(chosen, correct, btn) {
+    if (state.quiz.answered) return;
+    state.quiz.answered = true;
+    var opts = $id('ltQuizOptions');
+    if (opts) opts.querySelectorAll('.quiz-opt').forEach(function(b) { b.disabled = true; if (b.textContent === correct) b.classList.add('correct'); });
+    if (chosen === correct) {
+      state.quiz.correct++;
+      btn.classList.add('correct');
+      $id('ltQuizFeedback').textContent = 'Correct!';
+      $id('ltQuizFeedback').className = 'quiz-feedback ok';
+    } else {
+      btn.classList.add('wrong');
+      $id('ltQuizFeedback').textContent = 'The answer was: ' + correct;
+      $id('ltQuizFeedback').className = 'quiz-feedback bad';
+    }
+    $id('ltQuizScore').textContent = state.quiz.correct + ' / ' + (state.quiz.index + 1);
+    $id('ltQuizNextBtn').style.display = 'inline-block';
+  };
+
+  window.ltQuizNext = function() {
+    state.quiz.index++;
+    state.quiz.answered = false;
+    ltRenderQuizQuestion();
+  };
+
+  function ltEndQuiz() {
+    $id('ltQuizActiveCard').style.display = 'none';
+    $id('ltQuizComplete').style.display = 'block';
+    var pct = Math.round(state.quiz.correct / state.quiz.total * 100);
+    $id('ltQuizFinalScore').textContent = state.quiz.correct + ' out of ' + state.quiz.total + ' correct — ' + pct + '%';
+    $id('ltQuizRetryBtn').style.display = pct >= state.quiz.passThreshold * 100 ? 'none' : 'inline-block';
+    $id('ltQuizDoneBtn').style.display = pct >= state.quiz.passThreshold * 100 ? 'inline-block' : 'none';
+  }
+
+  window.ltQuizRestart = function() {
+    state.quiz.index = 0;
+    state.quiz.correct = 0;
+    state.quiz.answered = false;
+    ltRenderQuizQuestion();
+  };
+
+  window.ltQuizDone = function() {
+    var c = CLPL_COURSES.find(function(x) { return x.id === state.currentCourseId; });
+    if (!c) { ltExitQuiz(); return; }
+    var s = c.stages[state.currentStageIdx];
+    if (!s) { ltExitQuiz(); return; }
+    var passed = state.quiz.correct / state.quiz.total >= state.quiz.passThreshold;
+    var result = {
+      score: state.quiz.correct,
+      total: state.quiz.total,
+      passed: passed,
+      completedAt: new Date().toISOString()
+    };
+    setStageComplete(c.id, s.id, result).then(function() {
+      ltExitQuiz();
+      ltShowView('course', c.id);
+    });
+  };
+
+  window.ltExitQuiz = function() {
+    ltShowView('stage');
+  };
+
+  function shuffleArray(arr) {
+    for (var i = arr.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = arr[i]; arr[i] = arr[j]; arr[j] = t;
+    }
+    return arr;
+  }
+
+  function escapeHtml(s) {
+    if (!s) return '';
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  function buildCPDHtml() {
+    state.staffName = getStaffName();
+    var html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>CPD Record — Learning &amp; Teaching</title>';
+    html += '<style>body{font-family:Inter,sans-serif;max-width:800px;margin:0 auto;padding:2rem;color:#1a202c;line-height:1.6}*{box-sizing:border-box}h1{font-size:1.5rem;color:#1e2d4a;margin-bottom:.5rem}h2{font-size:1rem;color:#0f766e;margin:1.5rem 0 .75rem;padding-bottom:.35rem;border-bottom:1px solid #0d9488}.course-block{background:#f0fdfa;border:1px solid #99f6e4;border-radius:6px;padding:1rem;margin:.75rem 0}.course-title{font-weight:700;color:#1a202c}.course-meta{font-size:.75rem;color:#4a5568;margin:.35rem 0}.stage-row{display:flex;justify-content:space-between;padding:.4rem 0;font-size:.85rem}.meta{font-size:.75rem;color:#718096;margin:.5rem 0}@media print{body{padding:1rem}}</style></head><body>';
+    html += '<h1>Learning &amp; Teaching CPD Record</h1>';
+    html += '<p class="meta"><strong>Staff:</strong> ' + escapeHtml(state.staffName) + '</p>';
+    html += '<p class="meta"><strong>Export date:</strong> ' + new Date().toLocaleDateString() + '</p>';
+    html += '<p class="meta">Expressive Arts Faculty — Knightswood Secondary School</p>';
+    html += '<h2>Completed Courses</h2>';
+    var hasAny = false;
+    (window.CLPL_COURSES || []).forEach(function(c) {
+      var prog = getCourseProgress(c.id);
+      if (prog.completedStages.length === 0) return;
+      hasAny = true;
+      html += '<div class="course-block"><div class="course-title">' + escapeHtml(c.title) + '</div>';
+      prog.completedStages.forEach(function(stageId) {
+        var stage = c.stages.find(function(s) { return s.id === stageId; });
+        var score = prog.quizScores[stageId];
+        var label = stage ? stage.title : stageId;
+        var meta = score ? 'Quiz: ' + score.score + '/' + score.total + (score.passed ? ' ✓ Passed' : '') + (score.completedAt ? ' · ' + new Date(score.completedAt).toLocaleDateString() : '') : 'Completed';
+        html += '<div class="stage-row"><span>' + escapeHtml(label) + '</span><span class="course-meta">' + escapeHtml(meta) + '</span></div>';
+      });
+      html += '</div>';
+    });
+    if (!hasAny) html += '<p class="meta">No completed courses yet.</p>';
+    html += '<p style="margin-top:2rem;font-size:.7rem;color:#718096">Exported from Expressive Arts Faculty Learning &amp; Teaching area.</p>';
+    html += '</body></html>';
+    return html;
+  }
+
+  window.ltExportCPD = function(format) {
+    if (format === 'pdf') {
+      var html = buildCPDHtml();
+      var w = window.open('', '_blank');
+      w.document.write(html);
+      w.document.close();
+      w.focus();
+      setTimeout(function() { w.print(); }, 400);
+    } else if (format === 'docx' && typeof JSZip !== 'undefined') {
+      var x = function(t) { return (t || '').toString().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+      var p = function(s) { return '<w:p><w:r><w:t xml:space="preserve">' + x(s) + '</w:t></w:r></w:p>'; };
+      var h = function(s) { return '<w:p><w:r><w:rPr><w:b/><w:sz w:val="28"/></w:rPr><w:t xml:space="preserve">' + x(s) + '</w:t></w:r></w:p>'; };
+      var body = '<w:p><w:r><w:rPr><w:b/><w:sz w:val="32"/></w:rPr><w:t xml:space="preserve">Learning &amp; Teaching CPD Record</w:t></w:r></w:p>';
+      body += p('Staff: ' + state.staffName);
+      body += p('Export date: ' + new Date().toLocaleDateString());
+      body += p('Expressive Arts Faculty — Knightswood Secondary School');
+      body += h('Completed Courses');
+      (window.CLPL_COURSES || []).forEach(function(c) {
+        var prog = getCourseProgress(c.id);
+        if (prog.completedStages.length === 0) return;
+        body += h(c.title);
+        prog.completedStages.forEach(function(stageId) {
+          var stage = c.stages.find(function(s) { return s.id === stageId; });
+          var score = prog.quizScores[stageId];
+          var label = stage ? stage.title : stageId;
+          var meta = score ? 'Quiz: ' + score.score + '/' + score.total + (score.passed ? ' (Passed)' : '') + (score.completedAt ? ' — ' + new Date(score.completedAt).toLocaleDateString() : '') : 'Completed';
+          body += p('  • ' + label + ' — ' + meta);
+        });
+      });
+      var docXml = '<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' + body + '<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/></w:sectPr></w:body></w:document>';
+      var zip = new JSZip();
+      zip.file('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>');
+      zip.file('_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
+      zip.file('word/document.xml', docXml);
+      zip.file('word/_rels/document.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>');
+      zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }).then(function(blob) {
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'CLPL_CPD_Record_' + new Date().toISOString().slice(0, 10) + '.docx';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(a.href);
+      });
+    }
+  };
+
+  loadProgress().then(function(data) {
+    if (data && typeof data === 'object') state.progress = data;
+    if (window.supabase && window.supabase.auth) {
+      window.supabase.auth.getSession().then(function(r) {
+        if (r && r.data && r.data.session && r.data.session.user) {
+          var u = r.data.session.user;
+          state.staffName = (u.user_metadata && u.user_metadata.full_name) || u.email || 'Staff Member';
+        }
+      });
+    }
+    renderCourseList();
+  }).catch(function() {
+    renderCourseList();
+  });
+})();
+</script>
+</body>
+</html>

@@ -19,18 +19,23 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
-  --navy:#1e2d4a;
-  --navy-dark:#16243c;
-  --accent:#4a7fd4;
+  --navy:#2d3a5a;
+  --navy-dark:#232f47;
+  --accent:#0ea5e9;
   --accent-art:#c0622a;
+  --accent-drama:#7c3aed;
+  --accent-photography:#0d9488;
   --white:#ffffff;
-  --bg:#f0f2f5;
-  --card:#ffffff;
+  --bg:#f8fafc;
+  --card:#fafbfc;
+  --card-elevated:#ffffff;
   --text:#1a202c;
   --text2:#4a5568;
   --text3:#718096;
   --border:#e2e8f0;
   --border2:#cbd5e0;
+  --shadow-card:0 2px 8px rgba(0,0,0,.06);
+  --shadow-card-hover:0 4px 12px rgba(0,0,0,.08);
 }
 html{scroll-behavior:smooth}
 body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;font-size:14px}
@@ -63,7 +68,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .planner-panel.active{display:block}
 
 /* Timetable grid */
-.timetable-section{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:1.5rem}
+.timetable-section{background:var(--card-elevated);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:1.5rem;box-shadow:var(--shadow-card)}
 .timetable-header{padding:1rem 1.25rem;background:var(--navy-dark);color:var(--white);font-size:.75rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
 .timetable-grid{display:grid;gap:0;overflow-x:auto}
 .timetable-table{width:100%;min-width:700px;border-collapse:collapse;font-size:.8rem}
@@ -77,16 +82,43 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .timetable-table tbody tr:hover td{background:#f8fafc}
 .slot-cell{min-width:120px}
 .slot-cell.empty{background:#fafafa}
+.slot-color-row{margin-top:.4rem;display:flex;align-items:center;gap:.4rem}
+.slot-color-label{font-size:.68rem;color:var(--text3);font-weight:500}
+.slot-color{padding:.25rem .4rem;font-size:.72rem;border:1px solid var(--border2);border-radius:4px;min-width:100px}
 .btn-save-timetable{margin-top:1rem;padding:.6rem 1.25rem;background:var(--accent);color:var(--white);border:none;border-radius:6px;font-weight:600;font-size:.8rem;cursor:pointer}
 .btn-save-timetable:hover{opacity:.9}
+
+/* Timetable display (read-only) */
+.timetable-display{display:grid;gap:.75rem;align-items:start}
+.timetable-display-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:1rem}
+.timetable-display-title{font-size:.9rem;font-weight:600;color:var(--text2)}
+.timetable-display-grid{display:grid;gap:.75rem}
+.timetable-display-card{
+  background:var(--card-elevated);border:1px solid var(--border);border-radius:10px;
+  padding:1rem 1.25rem;box-shadow:var(--shadow-card);
+  border-left:4px solid var(--accent)
+}
+.timetable-display-card[data-subject="drama"]{border-left-color:var(--accent-drama)}
+.timetable-display-card[data-subject="art"]{border-left-color:var(--accent-art)}
+.timetable-display-card[data-subject="photography"]{border-left-color:var(--accent-photography)}
+.timetable-display-period{font-size:.65rem;font-weight:700;letter-spacing:.1em;color:var(--text3);margin-bottom:.35rem}
+.timetable-display-subject{font-weight:600;color:var(--text);font-size:.95rem;margin-bottom:.25rem}
+.timetable-display-class{font-size:.88rem;color:var(--text2);margin-bottom:.15rem}
+.timetable-display-room{font-size:.78rem;color:var(--text3)}
+.timetable-display-empty{text-align:center;padding:3rem 2rem;background:var(--card-elevated);border:1px dashed var(--border);border-radius:10px;color:var(--text3)}
+.timetable-display-empty strong{color:var(--text);display:block;margin-bottom:.5rem}
+.btn-edit-timetable{padding:.5rem 1rem;font-size:.8rem;font-weight:600;background:var(--bg);color:var(--text2);border:1px solid var(--border);border-radius:6px;cursor:pointer}
+.btn-edit-timetable:hover{background:var(--border);color:var(--text)}
+.btn-new-year{padding:.5rem 1rem;font-size:.78rem;font-weight:500;background:transparent;color:var(--text3);border:1px dashed var(--border2);border-radius:6px;cursor:pointer}
+.btn-new-year:hover{background:var(--bg);color:var(--text2);border-color:var(--border)}
 
 /* Week view */
 .week-controls{display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem;flex-wrap:wrap}
 .week-nav{display:flex;align-items:center;gap:.35rem}
 .week-btn{
-  width:36px;height:36px;border:1px solid var(--border);border-radius:6px;
-  background:var(--white);cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;
-  transition:all .15s
+  min-width:36px;height:36px;padding:0 .65rem;border:1px solid var(--border);border-radius:6px;
+  background:var(--white);cursor:pointer;font-size:.9rem;font-weight:500;display:flex;align-items:center;justify-content:center;
+  white-space:nowrap;transition:all .15s
 }
 .week-btn:hover{background:var(--bg);border-color:var(--accent);color:var(--accent)}
 .week-display{font-weight:600;font-size:.95rem;min-width:180px;text-align:center}
@@ -100,7 +132,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .week-table td.has-lesson{background:rgba(74,127,212,.08);border-left:3px solid var(--accent)}
 .week-table td.day-weekend{background:#f8f8f8}
 .week-table td.day-holiday{background:#f0f0f0;opacity:.7}
-.week-calendar-strip{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:.75rem 1rem;margin-bottom:1rem;font-size:.78rem}
+.week-calendar-strip{background:var(--card-elevated);border:1px solid var(--border);border-radius:8px;padding:.75rem 1rem;margin-bottom:1rem;font-size:.78rem;box-shadow:var(--shadow-card)}
 .week-calendar-strip-title{font-weight:600;color:var(--text2);margin-bottom:.5rem;font-size:.7rem;letter-spacing:.06em}
 .week-calendar-events{display:flex;flex-wrap:wrap;gap:.5rem}
 .week-calendar-event{padding:.25rem .5rem;border-radius:4px;font-size:.72rem;background:var(--bg);border:1px solid var(--border2)}
@@ -112,15 +144,24 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .lesson-preview-title{font-weight:600;color:var(--text);margin-bottom:.2rem}
 .day-view-list{display:flex;flex-direction:column;gap:.75rem}
 .day-view-card{
-  background:var(--card);border:1px solid var(--border);border-radius:8px;
-  padding:1rem 1.25rem;cursor:pointer;transition:all .15s
+  background:var(--card-elevated);border:1px solid var(--border);border-radius:10px;
+  padding:1rem 1.25rem;cursor:pointer;transition:all .2s;box-shadow:var(--shadow-card);
+  border-left:4px solid var(--accent)
 }
-.day-view-card:hover{border-color:var(--accent);background:#f8fafc}
+.day-view-card:hover{border-color:var(--accent);background:var(--card-elevated);box-shadow:var(--shadow-card-hover)}
+.day-view-card[data-subject="drama"]{border-left-color:var(--accent-drama)}
+.day-view-card[data-subject="art"]{border-left-color:var(--accent-art)}
+.day-view-card[data-subject="photography"]{border-left-color:var(--accent-photography)}
 .day-view-card-period{font-size:.65rem;font-weight:700;letter-spacing:.1em;color:var(--text3);margin-bottom:.35rem}
 .day-view-card-title{font-weight:600;color:var(--text);margin-bottom:.25rem}
 .day-view-card-unit{font-size:.78rem;color:var(--text2)}
-.day-view-card-empty{cursor:pointer;border-style:dashed;color:var(--text3)}
+.day-view-card-empty{cursor:pointer;border-style:dashed;border-left-width:4px;color:var(--text3)}
 .day-view-card-empty:hover{color:var(--accent);border-color:var(--accent)}
+.day-view-card-todos{font-size:.72rem;color:var(--text3);margin-bottom:.4rem}
+.day-view-todo-item{display:flex;align-items:center;gap:.3rem;margin-bottom:.15rem;cursor:pointer}
+.day-view-todo-item.done{text-decoration:line-through;opacity:.8}
+.day-view-todo-check{font-size:.6rem}
+.day-view-todo-more{font-size:.65rem;color:var(--text3);margin-top:.1rem}
 .day-view-no-lessons{text-align:center;padding:3rem 2rem;color:var(--text3);font-size:.9rem}
 
 @media (max-width: 900px) {
@@ -129,8 +170,14 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
   .timetable-table td input,.timetable-table td select{padding:.3rem}
   .slot-cell{min-width:90px}
   #weekGridWrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
-  .week-table{font-size:.72rem;min-width:600px}
-  .week-table th,.week-table td{padding:.3rem}
+  .week-view-layout{flex-direction:column}
+  .week-sidebar{flex:1 1 auto;min-width:100%}
+  .week-card-grid{grid-template-columns:50px repeat(var(--week-cols, 5), minmax(120px, 1fr))}
+  .week-card{min-height:90px;padding:.65rem .85rem}
+  .week-btn{min-width:44px;min-height:44px}
+  .day-view-card{padding:1rem 1.25rem;min-height:44px}
+  .day-view-todo-item{min-height:36px;padding:.2rem 0}
+  .timetable-display-card{padding:.85rem 1rem;min-height:70px}
   .modal{max-height:85vh;margin:1rem}
   .modal-body{padding:1rem}
   .form-group{margin-bottom:.75rem}
@@ -138,6 +185,13 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
   .week-controls{flex-direction:column;align-items:stretch}
   .week-nav{justify-content:center}
   .planner-tabs{flex-wrap:wrap}
+}
+
+@media (max-width: 600px) {
+  .week-card-grid{gap:.5rem}
+  .week-grid-header{font-size:.65rem;padding:.4rem}
+  .week-grid-period-label{font-size:.65rem}
+  .week-card-title{font-size:.75rem}
 }
 .lesson-preview-unit{font-size:.65rem;color:var(--text3)}
 .week-table td.empty-slot{color:var(--text3);font-size:.7rem;font-style:italic}
@@ -149,7 +203,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 }
 .modal-overlay.visible{display:flex}
 .modal{
-  background:var(--card);border-radius:10px;max-width:560px;width:100%;max-height:90vh;
+  background:var(--card-elevated);border-radius:12px;max-width:560px;width:100%;max-height:90vh;
   overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25)
 }
 .modal-header{
@@ -177,6 +231,13 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 }
 .btn-add-resource:hover,.btn-remove-resource:hover{background:var(--bg)}
 .btn-remove-resource{color:#b91c1c;border-color:rgba(185,28,28,.3)}
+.todos-list{margin-bottom:.5rem}
+.todo-row{display:flex;align-items:center;gap:.5rem;margin-bottom:.4rem;font-size:.88rem}
+.todo-row input[type="checkbox"]{cursor:pointer;width:18px;height:18px}
+.todo-row.done .todo-text-input{text-decoration:line-through;opacity:.7}
+.todo-row .todo-text-input{flex:1;margin:0}
+.todo-row .btn-remove-todo{color:var(--text3);cursor:pointer;padding:.2rem;font-size:1rem;line-height:1}
+.todo-row .btn-remove-todo:hover{color:#b91c1c}
 .modal-footer{
   padding:1rem 1.5rem;border-top:1px solid var(--border);
   display:flex;gap:.75rem;justify-content:flex-end
@@ -186,9 +247,61 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .btn-secondary{padding:.6rem 1.25rem;background:var(--bg);color:var(--text2);border:1px solid var(--border);border-radius:6px;font-weight:500;cursor:pointer}
 .btn-secondary:hover{background:var(--border)}
 
+/* Week card grid */
+.week-view-layout{display:flex;gap:1.5rem;align-items:flex-start;flex-wrap:wrap}
+.week-view-main{flex:1;min-width:0}
+.week-sidebar{flex:0 0 280px;min-width:240px}
+.week-sidebar-panel{
+  background:var(--card-elevated);border:1px solid var(--border);border-radius:10px;
+  padding:1rem 1.25rem;margin-bottom:1rem;box-shadow:var(--shadow-card)
+}
+.week-sidebar-panel h3{font-size:.75rem;font-weight:700;letter-spacing:.08em;color:var(--text2);margin-bottom:.75rem;text-transform:uppercase}
+.week-notes-textarea{width:100%;min-height:120px;padding:.65rem;border:1px solid var(--border2);border-radius:6px;font-size:.82rem;font-family:inherit;resize:vertical}
+.week-notes-textarea:focus{outline:none;border-color:var(--accent)}
+.week-priorities-list{list-style:none;font-size:.82rem}
+.week-priorities-list li{padding:.5rem 0;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:.5rem}
+.week-priorities-list li:last-child{border-bottom:none}
+.week-priorities-list .event-date{flex:0 0 2.5rem;font-weight:600;color:var(--text2);font-size:.72rem}
+.week-priorities-list .event-title{flex:1}
+.week-priorities-list .event-cat{flex:0 0 auto;font-size:.65rem;padding:.2rem .4rem;border-radius:4px;background:var(--bg);color:var(--text2)}
+.week-priorities-list .event-cat.holiday{background:#fef3c7;color:#92400e}
+.week-priorities-list .event-cat.meeting{background:#e0e7ff;color:#3730a3}
+.week-priorities-list .event-cat.assessment{background:#fce7f3;color:#9d174d}
+.week-priorities-list .event-cat.exam{background:#fee2e2;color:#b91c1c}
+.week-priorities-list .event-cat.reporting{background:#dbeafe;color:#1e40af}
+.week-priorities-list .event-date{min-width:3.5rem}
+.week-priorities-empty{color:var(--text3);font-size:.82rem;font-style:italic}
+.week-card-grid{display:grid;gap:.75rem;overflow-x:auto;align-items:start}
+.week-card{
+  background:var(--card-elevated);border:1px solid var(--border);border-radius:10px;
+  min-height:100px;padding:.75rem 1rem;cursor:pointer;transition:all .2s;
+  box-shadow:var(--shadow-card);border-left:4px solid var(--accent)
+}
+.week-card:hover{box-shadow:var(--shadow-card-hover)}
+.week-card[data-subject="drama"]{border-left-color:var(--accent-drama)}
+.week-card[data-subject="art"]{border-left-color:var(--accent-art)}
+.week-card[data-subject="photography"]{border-left-color:var(--accent-photography)}
+.week-card-empty{border-style:dashed;border-left-width:4px}
+.week-card-todos{font-size:.68rem;color:var(--text3);margin-bottom:.4rem;min-height:1.2em}
+.week-card-todo-item{display:flex;align-items:center;gap:.3rem;margin-bottom:.15rem}
+.week-card-todo-item.done{text-decoration:line-through;opacity:.8}
+.week-card-period{font-size:.65rem;font-weight:700;letter-spacing:.1em;color:var(--text3);margin-bottom:.25rem}
+.week-card-title{font-weight:600;color:var(--text);font-size:.8rem;margin-bottom:.2rem}
+.week-card-unit{font-size:.7rem;color:var(--text2)}
+.week-card-class{font-size:.68rem;color:var(--text3);margin-top:.2rem}
+.week-empty-msg{text-align:center;padding:3rem 2rem;background:var(--card-elevated);border:1px dashed var(--border);border-radius:10px;color:var(--text3);font-size:.9rem}
+.week-empty-msg strong{color:var(--text);display:block;margin-bottom:.5rem}
+.week-grid-corner{min-width:60px}
+.week-grid-header{font-size:.7rem;font-weight:700;letter-spacing:.06em;color:var(--text2);padding:.5rem;text-align:center;background:var(--navy-dark);color:var(--white);border-radius:8px 8px 0 0}
+.week-grid-header.week-today{background:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.week-grid-period-label{font-size:.7rem;font-weight:700;color:var(--text3);padding:.5rem;display:flex;align-items:center}
+.week-card-holiday{opacity:.75}
+.week-card-todo-check{font-size:.6rem;margin-right:.2rem}
+.week-card-todo-more{font-size:.62rem;color:var(--text3);margin-top:.1rem}
+
 /* Empty state */
 .empty-state{
-  text-align:center;padding:3rem 2rem;background:var(--card);border:1px dashed var(--border);border-radius:8px;
+  text-align:center;padding:3rem 2rem;background:var(--card-elevated);border:1px dashed var(--border);border-radius:10px;
   color:var(--text3);font-size:.9rem
 }
 .empty-state strong{color:var(--text);display:block;margin-bottom:.5rem}
@@ -213,7 +326,17 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 
 <!-- Timetable panel -->
 <div id="panel-timetable" class="planner-panel active">
-  <div class="timetable-section">
+  <div id="timetableDisplaySection" class="timetable-section" style="display:none">
+    <div class="timetable-display-header">
+      <span class="timetable-display-title">My weekly timetable</span>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+        <button type="button" class="btn-edit-timetable" id="editTimetableBtn">Edit timetable</button>
+        <button type="button" class="btn-new-year" id="newAcademicYearBtn" title="Clear timetable to enter your new year schedule">Start new academic year</button>
+      </div>
+    </div>
+    <div id="timetableDisplayGrid" class="timetable-display-grid"></div>
+  </div>
+  <div id="timetableEditSection" class="timetable-section">
     <div class="timetable-header">Weekly timetable — enter your teaching slots</div>
     <div id="periodTimesSection" style="padding:.75rem 1.25rem;border-bottom:1px solid var(--border);font-size:.78rem">
       <details>
@@ -238,8 +361,9 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
         <tbody id="timetable-body"></tbody>
       </table>
     </div>
-    <div style="padding:1rem 1.25rem">
+    <div style="padding:1rem 1.25rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
       <button class="btn-save-timetable" id="saveTimetable">Save Timetable</button>
+      <button type="button" class="btn-new-year" id="newAcademicYearBtnEdit" title="Clear and start fresh for the new academic year">Start new academic year</button>
     </div>
   </div>
 </div>
@@ -296,6 +420,14 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
       <div class="form-group">
         <label class="form-label">Lesson title</label>
         <input type="text" class="form-input" id="lessonTitle" placeholder="e.g. Warm-up and character exploration">
+      </div>
+      <div class="form-group">
+        <label class="form-label">To-do (prep tasks)</label>
+        <div id="todosList" class="todos-list"></div>
+        <div style="display:flex;gap:.5rem;margin-top:.5rem">
+          <input type="text" id="todoNewInput" class="form-input" placeholder="e.g. Print handouts" style="flex:1">
+          <button type="button" class="btn-add-resource" id="addTodo">+ Add</button>
+        </div>
       </div>
       <div class="form-group">
         <label class="form-label">Learning objectives</label>
@@ -363,6 +495,25 @@ function collectPeriodTimes() {
   return Object.keys(pt).length ? pt : undefined;
 }
 
+function subjectLabel(s) {
+  if (s === 'drama') return 'Drama';
+  if (s === 'art') return 'Art & Design';
+  if (s === 'photography') return 'Photography';
+  return s || '';
+}
+
+var SLOT_COLOURS = [
+  { value: '', label: 'Subject default' },
+  { value: '#0ea5e9', label: 'Blue' },
+  { value: '#7c3aed', label: 'Purple' },
+  { value: '#c0622a', label: 'Orange' },
+  { value: '#0d9488', label: 'Teal' },
+  { value: '#22c55e', label: 'Green' },
+  { value: '#f59e0b', label: 'Amber' },
+  { value: '#f43f5e', label: 'Rose' },
+  { value: '#64748b', label: 'Slate' }
+];
+
 // ── Timetable UI ──
 function renderTimetable() {
   renderPeriodTimes();
@@ -376,13 +527,75 @@ function renderTimetable() {
       var td = document.createElement('td');
       td.className = 'slot-cell';
       var slot = PS.getSlot(day, p);
+      var colorOpts = SLOT_COLOURS.map(function(c) {
+        var sel = (slot && slot.color === c.value) ? ' selected' : (!slot || !slot.color) && c.value === '' ? ' selected' : '';
+        return '<option value="' + c.value + '"' + sel + '>' + c.label + '</option>';
+      }).join('');
       td.innerHTML = '<div><select class="slot-subject"><option value="">—</option><option value="drama"' + (slot && slot.subject==='drama'?' selected':'') + '>Drama</option><option value="art"' + (slot && slot.subject==='art'?' selected':'') + '>Art</option><option value="photography"' + (slot && slot.subject==='photography'?' selected':'') + '>Photography</option></select>' +
         '<input type="text" class="slot-class" placeholder="Class" value="' + (slot ? (slot.className||'') : '') + '">' +
-        '<input type="text" class="slot-room" placeholder="Room" value="' + (slot ? (slot.room||'') : '') + '">';
+        '<input type="text" class="slot-room" placeholder="Room" value="' + (slot ? (slot.room||'') : '') + '">' +
+        '<div class="slot-color-row"><label class="slot-color-label">Colour</label><select class="slot-color">' + colorOpts + '</select></div>';
       tr.appendChild(td);
     });
     tbody.appendChild(tr);
   }
+}
+
+function renderTimetableDisplay() {
+  var state = PS.getState();
+  var slots = state.timetable.slots || [];
+  var pt = state.timetable.periodTimes || {};
+  var displaySection = document.getElementById('timetableDisplaySection');
+  var editSection = document.getElementById('timetableEditSection');
+  var gridEl = document.getElementById('timetableDisplayGrid');
+  if (slots.length === 0) {
+    displaySection.style.display = 'none';
+    editSection.style.display = 'block';
+    return;
+  }
+  var dayOrder = {};
+  DAYS.forEach(function(d, i) { dayOrder[d] = i; });
+  var seenDays = {};
+  slots.forEach(function(s) {
+    var dayLower = (s.day || '').toLowerCase();
+    if (dayLower) seenDays[dayLower] = true;
+  });
+  var daysWithSlots = DAYS.filter(function(d) { return seenDays[d]; });
+  var periodsWithSlots = [];
+  var seenPeriods = {};
+  slots.forEach(function(s) {
+    if (!seenPeriods[s.period]) { seenPeriods[s.period] = true; periodsWithSlots.push(s.period); }
+  });
+  periodsWithSlots.sort(function(a, b) { return a - b; });
+  var byKey = {};
+  slots.forEach(function(s) { byKey[slotKey((s.day || '').toLowerCase(), s.period)] = s; });
+  var dayLabels = { monday: 'Monday', tuesday: 'Tuesday', wednesday: 'Wednesday', thursday: 'Thursday', friday: 'Friday' };
+  var html = '<div class="timetable-display" style="grid-template-columns:60px repeat(' + daysWithSlots.length + ', minmax(160px, 1fr));grid-template-rows:auto repeat(' + periodsWithSlots.length + ', minmax(80px, auto))">';
+  html += '<div style="grid-row:1;grid-column:1"></div>';
+  daysWithSlots.forEach(function(dayName, di) {
+    html += '<div class="week-grid-header" style="grid-row:1;grid-column:' + (di + 2) + '">' + (dayLabels[dayName] || dayName) + '</div>';
+  });
+  periodsWithSlots.forEach(function(period, ri) {
+    html += '<div class="week-grid-period-label" style="grid-row:' + (ri + 2) + ';grid-column:1">P' + period + '</div>';
+    daysWithSlots.forEach(function(dayName, di) {
+      var k = slotKey(dayName, period);
+      var slot = byKey[k];
+      if (!slot) return;
+      var timeLabel = pt[period] && (pt[period].start || pt[period].end) ? ' ' + (pt[period].start || '') + (pt[period].start && pt[period].end ? '–' : '') + (pt[period].end || '') : '';
+      var cardStyle = 'grid-row:' + (ri + 2) + ';grid-column:' + (di + 2);
+      if (slot.color) cardStyle += ';border-left-color:' + slot.color;
+      html += '<div class="timetable-display-card" style="' + cardStyle + '" data-subject="' + (slot.subject || '') + '">';
+      html += '<div class="timetable-display-period">Period ' + period + timeLabel + '</div>';
+      html += '<div class="timetable-display-subject">' + subjectLabel(slot.subject) + '</div>';
+      if (slot.className) html += '<div class="timetable-display-class">' + (slot.className || '').replace(/</g, '&lt;') + '</div>';
+      if (slot.room) html += '<div class="timetable-display-room">Room ' + (slot.room || '').replace(/</g, '&lt;') + '</div>';
+      html += '</div>';
+    });
+  });
+  html += '</div>';
+  gridEl.innerHTML = html;
+  displaySection.style.display = 'block';
+  editSection.style.display = 'none';
 }
 
 function collectTimetableFromDOM() {
@@ -399,6 +612,7 @@ function collectTimetableFromDOM() {
       var subj = cell.querySelector('.slot-subject');
       var cls = cell.querySelector('.slot-class');
       var room = cell.querySelector('.slot-room');
+      var colorSel = cell.querySelector('.slot-color');
       if (subj && subj.value) {
         slots.push({
           id: PS.id(),
@@ -406,7 +620,8 @@ function collectTimetableFromDOM() {
           period: period,
           subject: subj.value,
           className: cls ? cls.value : '',
-          room: room ? room.value : ''
+          room: room ? room.value : '',
+          color: colorSel && colorSel.value ? colorSel.value : undefined
         });
       }
     });
@@ -427,6 +642,50 @@ function isHolidayForDate(dateStr, weekEvents) {
   });
 }
 
+var CAL_DEFAULT_EVENTS = [
+  {title:'Pupils Return',date:'2025-08-14',category:'general'},
+  {title:'September Weekend Holiday',date:'2025-09-26',category:'holiday'},
+  {title:'September Weekend Holiday',date:'2025-09-29',category:'holiday'},
+  {title:'October Holiday',date:'2025-10-13',category:'holiday'},{title:'October Holiday',date:'2025-10-14',category:'holiday'},{title:'October Holiday',date:'2025-10-15',category:'holiday'},{title:'October Holiday',date:'2025-10-16',category:'holiday'},{title:'October Holiday',date:'2025-10-17',category:'holiday'},
+  {title:'Christmas Holiday',date:'2025-12-22',category:'holiday'},{title:'Christmas Holiday',date:'2025-12-23',category:'holiday'},{title:'Christmas Holiday',date:'2025-12-24',category:'holiday'},{title:'Christmas Holiday',date:'2025-12-25',category:'holiday'},{title:'Christmas Holiday',date:'2025-12-26',category:'holiday'},{title:'Christmas Holiday',date:'2025-12-29',category:'holiday'},{title:'Christmas Holiday',date:'2025-12-30',category:'holiday'},{title:'Christmas Holiday',date:'2025-12-31',category:'holiday'},{title:'Christmas Holiday',date:'2026-01-01',category:'holiday'},{title:'Christmas Holiday',date:'2026-01-02',category:'holiday'},
+  {title:'Schools Return',date:'2026-01-05',category:'general'},
+  {title:'February Holiday',date:'2026-02-16',category:'holiday'},{title:'February Holiday',date:'2026-02-17',category:'holiday'},{title:'In-Service Day',date:'2026-02-18',category:'meeting'},
+  {title:'Spring Break',date:'2026-04-06',category:'holiday'},{title:'Spring Break',date:'2026-04-07',category:'holiday'},{title:'Spring Break',date:'2026-04-08',category:'holiday'},{title:'Spring Break',date:'2026-04-09',category:'holiday'},{title:'Spring Break',date:'2026-04-10',category:'holiday'},{title:'Spring Break',date:'2026-04-13',category:'holiday'},{title:'Spring Break',date:'2026-04-14',category:'holiday'},{title:'Spring Break',date:'2026-04-15',category:'holiday'},{title:'Spring Break',date:'2026-04-16',category:'holiday'},{title:'Spring Break',date:'2026-04-17',category:'holiday'},
+  {title:'May Day Holiday',date:'2026-05-04',category:'holiday'},{title:'May Weekend',date:'2026-05-22',category:'holiday'},{title:'May Weekend',date:'2026-05-25',category:'holiday'},
+  {title:'S2 Parents Evening',date:'2026-03-24',category:'general'},{title:'Departmental Meeting 18',date:'2026-03-31',category:'meeting'},{title:'Strategy Group Meeting 2',date:'2026-04-22',category:'meeting'},{title:'Departmental Meeting 19',date:'2026-04-28',category:'meeting'},{title:'S3 Parents Evening',date:'2026-05-06',category:'general'},{title:'In-Service Day 5',date:'2026-05-07',category:'meeting'},{title:'Moderation Meeting',date:'2026-05-11',category:'meeting'},{title:'Ped Pod 5',date:'2026-06-03',category:'meeting'},{title:'S1 Full Reports Deadline',date:'2026-06-05',category:'reporting'},{title:'Departmental Meeting 20',date:'2026-06-09',category:'meeting'},{title:'Staff Meeting 2',date:'2026-06-10',category:'meeting'},{title:'Schools Close for Summer',date:'2026-06-25',category:'holiday'}
+];
+
+function buildWeekSidebar(weekStartStr, weekEvents, upcomingEvents) {
+  var note = PS.getWeekNote(weekStartStr);
+  var events = (upcomingEvents || weekEvents || []).slice().sort(function(a, b) { return (a.date || '').localeCompare(b.date || ''); });
+  var prioritiesHtml = '';
+  if (events.length > 0) {
+    prioritiesHtml = '<ul class="week-priorities-list">';
+    events.forEach(function(e) {
+      var dayNum = e.date ? e.date.slice(8, 10) : '';
+      var monthDay = e.date ? e.date.slice(5, 10) : '';
+      var cat = e.category || 'general';
+      var title = (e.title || 'Event').replace(/</g, '&lt;');
+      prioritiesHtml += '<li><span class="event-date" title="' + (e.date || '') + '">' + monthDay + '</span><span class="event-title">' + title + '</span><span class="event-cat ' + cat + '">' + cat + '</span></li>';
+    });
+    prioritiesHtml += '</ul>';
+  } else {
+    prioritiesHtml = '<p class="week-priorities-empty">No calendar events. Add events in Academic Calendar (Faculty Hub).</p>';
+  }
+  var heading = (upcomingEvents && upcomingEvents.length > weekEvents.length) ? 'This week &amp; upcoming' : 'This week\'s calendar priorities';
+  return '<div class="week-sidebar"><div class="week-sidebar-panel"><h3>Notes for the week</h3><textarea class="week-notes-textarea" id="weekNotesInput" data-week="' + weekStartStr + '" placeholder="Meeting notes, reminders, priorities...">' + (note || '').replace(/</g, '&lt;') + '</textarea></div><div class="week-sidebar-panel"><h3>' + heading + '</h3>' + prioritiesHtml + '</div></div>';
+}
+
+function bindWeekSidebarEvents(weekStartStr) {
+  var ta = document.getElementById('weekNotesInput');
+  if (!ta) return;
+  var saveNotes = function() {
+    PS.setWeekNote(weekStartStr, ta.value);
+    PS.saveWeekNotes().then(function() { showToast('Week notes saved'); }).catch(function() {});
+  };
+  ta.addEventListener('blur', saveNotes);
+}
+
 function renderWeekView() {
   var state = PS.getState();
   if (!state.currentWeekStart) PS.setCurrentWeekStart(PS.getWeekStart(new Date()));
@@ -434,32 +693,55 @@ function renderWeekView() {
   var weekEnd = new Date(start);
   weekEnd.setDate(weekEnd.getDate() + 6);
   var loadCal = (window.DataService && window.DataService.getCalendarMerged) ? DataService.getCalendarMerged() : Promise.resolve([]);
-  loadCal.then(function(allEvents) {
+  loadCal.catch(function() { return []; }).then(function(allEvents) {
+    if (!allEvents || !Array.isArray(allEvents) || allEvents.length === 0) {
+      var fallback = (window.DataService && DataService.get) ? DataService.get('academicCalendarEvents') : Promise.resolve(null);
+      return fallback.then(function(stored) {
+        if (stored && Array.isArray(stored) && stored.length > 0) return stored;
+        try {
+          var raw = localStorage.getItem('academicCalendarEvents');
+          var parsed = raw ? JSON.parse(raw) : null;
+          return (parsed && Array.isArray(parsed)) ? parsed : [];
+        } catch (e) { return []; }
+      });
+    }
+    return allEvents;
+  }).then(function(allEvents) {
+    if (!Array.isArray(allEvents)) allEvents = (allEvents && allEvents.events) ? allEvents.events : [];
+    if (!allEvents || allEvents.length === 0) {
+      allEvents = CAL_DEFAULT_EVENTS.slice();
+    } else {
+      var titlesMap = {};
+      allEvents.forEach(function(e) { titlesMap[(e.title||'')+(e.date||'')] = true; });
+      CAL_DEFAULT_EVENTS.forEach(function(ev) {
+        if (!titlesMap[(ev.title||'')+(ev.date||'')]) allEvents.push({ title: ev.title, date: ev.date, category: ev.category || 'general' });
+      });
+    }
+    return allEvents;
+  }).then(function(allEvents) {
     var state = PS.getState();
+    var weekStartStr = getDateStr(start);
+    var weekEndStr = getDateStr(weekEnd);
+    var upcomingEnd = new Date(start);
+    upcomingEnd.setDate(upcomingEnd.getDate() + 13);
+    var upcomingEndStr = getDateStr(upcomingEnd);
     var weekEvents = (allEvents || []).filter(function(e) {
       var d = e.date;
-      return d && d >= getDateStr(start) && d <= getDateStr(weekEnd);
+      return d && d >= weekStartStr && d <= weekEndStr;
+    });
+    var upcomingEvents = (allEvents || []).filter(function(e) {
+      var d = e.date;
+      return d && d >= weekStartStr && d <= upcomingEndStr;
     });
     var slots = state.timetable.slots || [];
     var slotKeys = [];
     var byKey = {};
     slots.forEach(function(s) {
-      var k = slotKey(s.day, s.period);
+      var dayLower = (s.day || '').toLowerCase();
+      var k = slotKey(dayLower, s.period);
       if (slotKeys.indexOf(k) === -1) slotKeys.push(k);
       byKey[k] = s;
     });
-    if (slotKeys.length === 0) {
-      for (var pi = 1; pi <= 6; pi++) {
-        DAYS.forEach(function(d) { slotKeys.push(slotKey(d, pi)); });
-      }
-    }
-    slotKeys.sort();
-    var weekDays = [];
-    for (var i = 0; i < 7; i++) {
-      var d = new Date(start);
-      d.setDate(d.getDate() + i);
-      weekDays.push(d);
-    }
     var calStrip = '';
     if (weekEvents.length > 0) {
       calStrip = '<div class="week-calendar-strip"><div class="week-calendar-strip-title">This week</div><div class="week-calendar-events">';
@@ -469,55 +751,99 @@ function renderWeekView() {
       });
       calStrip += '</div></div>';
     }
-    var html = calStrip + '<table class="week-table"><thead><tr><th class="period-th">Date</th>';
-    weekDays.forEach(function(d) {
-      html += '<th>' + d.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' }) + '</th>';
+    if (slotKeys.length === 0) {
+      var sidebarHtml = buildWeekSidebar(weekStartStr, weekEvents, upcomingEvents);
+      document.getElementById('weekGridWrap').innerHTML = '<div class="week-view-layout"><div class="week-view-main">' + calStrip + '<div class="week-empty-msg"><strong>No teaching slots yet</strong><br>Set up your timetable in My Timetable first.</div></div>' + sidebarHtml + '</div>';
+      document.getElementById('weekDisplay').textContent = PS.formatWeekLabel(start);
+      bindWeekSidebarEvents(weekStartStr);
+      return;
+    }
+    var dayOrder = {};
+    DAYS.forEach(function(d, i) { dayOrder[d] = i; });
+    var seenDays = {};
+    slots.forEach(function(s) {
+      var dayLower = (s.day || '').toLowerCase();
+      if (dayLower) seenDays[dayLower] = true;
     });
-    html += '</tr></thead><tbody>';
-    var periods = {};
-    slotKeys.forEach(function(k) {
-      var p = parseInt(k.split('-')[1], 10);
-      if (!periods[p]) periods[p] = [];
-      periods[p].push(k);
+    var daysWithSlots = DAYS.filter(function(d) { return seenDays[d]; });
+    var periodsWithSlots = [];
+    var seenPeriods = {};
+    slots.forEach(function(s) {
+      if (!seenPeriods[s.period]) { seenPeriods[s.period] = true; periodsWithSlots.push(s.period); }
     });
-    var periodList = Object.keys(periods).map(Number).sort(function(a,b){return a-b});
-    if (periodList.length === 0) periodList = [1];
-    periodList.forEach(function(period) {
-      html += '<tr><th class="period-th">P' + period + '</th>';
-      weekDays.forEach(function(d) {
-        var dateStr = getDateStr(d);
-        var dayName = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'][d.getDay()];
+    periodsWithSlots.sort(function(a, b) { return a - b; });
+    var weekDays = [];
+    for (var i = 0; i < 5; i++) {
+      var d = new Date(start);
+      d.setDate(d.getDate() + i);
+      weekDays.push(d);
+    }
+    var todayStr = getDateStr(new Date());
+    var dayIndex = {};
+    daysWithSlots.forEach(function(d, i) { dayIndex[d] = i; });
+    var pt = state.timetable.periodTimes || {};
+    var gridCols = daysWithSlots.length;
+    var gridRows = periodsWithSlots.length;
+    var html = calStrip + '<div class="week-card-grid" style="grid-template-columns:60px repeat(' + gridCols + ', minmax(140px, 1fr));grid-template-rows:auto repeat(' + gridRows + ', minmax(100px, auto))">';
+    html += '<div class="week-grid-corner" style="grid-row:1;grid-column:1"></div>';
+    daysWithSlots.forEach(function(dayName, di) {
+      var d = weekDays[dayOrder[dayName]];
+      var dateStr = d ? getDateStr(d) : '';
+      var isToday = dateStr === todayStr;
+      html += '<div class="week-grid-header' + (isToday ? ' week-today' : '') + '" style="grid-row:1;grid-column:' + (di + 2) + '">' + (d ? d.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' }) : dayName) + '</div>';
+    });
+    periodsWithSlots.forEach(function(period, ri) {
+      html += '<div class="week-grid-period-label" style="grid-row:' + (ri + 2) + ';grid-column:1">P' + period + '</div>';
+      daysWithSlots.forEach(function(dayName, di) {
         var k = slotKey(dayName, period);
         var slot = byKey[k];
+        if (!slot) return;
+        var d = weekDays[dayOrder[dayName]];
+        var dateStr = d ? getDateStr(d) : '';
+        var isHoliday = isHolidayForDate(dateStr, weekEvents);
         var lesson = PS.getLessonFor(dateStr, k);
-        var cellClass = 'week-cell';
-        if (isWeekend(d)) cellClass += ' day-weekend';
-        else if (isHolidayForDate(dateStr, weekEvents)) cellClass += ' day-holiday';
-        if (lesson) cellClass += ' has-lesson';
-        var isNonTeaching = isWeekend(d) || isHolidayForDate(dateStr, weekEvents);
-        html += '<td class="' + cellClass + '" data-date="' + dateStr + '" data-slot="' + k + '" data-nonteaching="' + (isNonTeaching ? '1' : '0') + '">';
+        var timeLabel = pt[period] && (pt[period].start || pt[period].end) ? ' ' + (pt[period].start || '') + (pt[period].start && pt[period].end ? '–' : '') + (pt[period].end || '') : '';
+        var cardClass = 'week-card' + (lesson ? '' : ' week-card-empty');
+        if (isHoliday) cardClass += ' week-card-holiday';
+        var weekCardStyle = 'grid-row:' + (ri + 2) + ';grid-column:' + (di + 2);
+        if (slot.color) weekCardStyle += ';border-left-color:' + slot.color;
+        html += '<div class="' + cardClass + '" style="' + weekCardStyle + '" data-date="' + dateStr + '" data-slot="' + k + '" data-lesson-id="' + (lesson ? lesson.id || '' : '') + '" data-subject="' + (slot.subject || '') + '">';
+        if (lesson && lesson.todos && lesson.todos.length > 0) {
+          html += '<div class="week-card-todos">';
+          lesson.todos.slice(0, 3).forEach(function(t) {
+            html += '<div class="week-card-todo-item' + (t.done ? ' done' : '') + '" data-lesson-id="' + (lesson.id || '') + '" data-todo-id="' + (t.id || '') + '"><span class="week-card-todo-check">' + (t.done ? '✓' : '○') + '</span>' + (t.text || '') + '</div>';
+          });
+          if (lesson.todos.length > 3) html += '<div class="week-card-todo-more">+' + (lesson.todos.length - 3) + ' more</div>';
+          html += '</div>';
+        }
+        html += '<div class="week-card-period">P' + period + timeLabel + (slot.className ? ' · ' + slot.className : '') + '</div>';
         if (lesson) {
-          html += '<div class="lesson-preview">';
-          html += '<div class="lesson-preview-title">' + (lesson.title || 'Untitled') + '</div>';
+          html += '<div class="week-card-title">' + (lesson.title || 'Untitled') + '</div>';
           if (lesson.unitKey && window.getUnitFromKey) {
             var u = window.getUnitFromKey(lesson.unitKey);
-            if (u) html += '<div class="lesson-preview-unit">' + u.unit + '</div>';
+            if (u) html += '<div class="week-card-unit">' + u.unit + '</div>';
           }
-          html += '</div>';
-        } else if (!isNonTeaching) {
-          html += '<span class="empty-slot">Click to add lesson</span>';
+        } else {
+          html += '<div class="week-card-title" style="font-style:italic;color:var(--text3)">Click to add lesson</div>';
         }
-        html += '</td>';
+        html += '</div>';
       });
-      html += '</tr>';
     });
-    html += '</tbody></table>';
-    document.getElementById('weekGridWrap').innerHTML = html;
+    html += '</div>';
+    var sidebarHtml = buildWeekSidebar(weekStartStr, weekEvents, upcomingEvents);
+    document.getElementById('weekGridWrap').innerHTML = '<div class="week-view-layout"><div class="week-view-main">' + html + '</div>' + sidebarHtml + '</div>';
     document.getElementById('weekDisplay').textContent = PS.formatWeekLabel(start);
-    document.querySelectorAll('.week-table td[data-date][data-slot]').forEach(function(cell) {
-      if (cell.dataset.nonteaching === '1') return;
-      cell.addEventListener('click', function() {
-        openLessonModal(cell.dataset.date, cell.dataset.slot);
+    bindWeekSidebarEvents(weekStartStr);
+    document.querySelectorAll('.week-card[data-date][data-slot]').forEach(function(card) {
+      card.addEventListener('click', function(e) {
+        var todoItem = e.target.closest('.week-card-todo-item');
+        if (todoItem && todoItem.dataset.lessonId && todoItem.dataset.todoId) {
+          e.stopPropagation();
+          PS.toggleTodo(todoItem.dataset.lessonId, todoItem.dataset.todoId);
+          PS.saveLessons().then(function() { renderWeekView(); });
+          return;
+        }
+        openLessonModal(card.dataset.date, card.dataset.slot);
       });
     });
   });
@@ -542,17 +868,25 @@ function getSlotsForDayView() {
   return out;
 }
 
+function snapToWeekday(d) {
+  var d2 = new Date(d);
+  var day = d2.getDay();
+  if (day === 0) d2.setDate(d2.getDate() + 1);
+  else if (day === 6) d2.setDate(d2.getDate() - 1);
+  return d2;
+}
+
 function renderDayView() {
   var state = PS.getState();
   var viewDate = state.currentDayViewDate || new Date();
-  if (!state.currentDayViewDate) PS.setCurrentDayViewDate(viewDate);
+  viewDate = snapToWeekday(viewDate);
+  PS.setCurrentDayViewDate(viewDate);
   var dateStr = getDateStr(viewDate);
   document.getElementById('dayViewDate').value = dateStr;
   var dayName = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'][viewDate.getDay()];
   var dayLessons = PS.getLessonsForDate(dateStr);
   var slots = getSlotsForDayView();
-  var slotsForDay = slots.filter(function(s) { return s.day === dayName; });
-  if (slotsForDay.length === 0) slotsForDay = [1,2,3,4,5,6].map(function(p) { return { day: dayName, period: p, className: '', subject: '' }; });
+  var slotsForDay = slots.filter(function(s) { return (s.day || '').toLowerCase() === dayName; }).sort(function(a, b) { return a.period - b.period; });
   var bySlot = {};
   dayLessons.forEach(function(l) { bySlot[l.slotKey] = l; });
   var html = '';
@@ -563,13 +897,23 @@ function renderDayView() {
     var timeLabel = pt[s.period] && (pt[s.period].start || pt[s.period].end) ? ' ' + (pt[s.period].start || '') + (pt[s.period].start && pt[s.period].end ? '–' : '') + (pt[s.period].end || '') : '';
     if (lesson) {
       var u = window.getUnitFromKey && window.getUnitFromKey(lesson.unitKey);
-      html += '<div class="day-view-card" data-date="' + dateStr + '" data-slot="' + k + '">';
+      var dayCardStyle = s.color ? 'border-left-color:' + s.color : '';
+      html += '<div class="day-view-card" ' + (dayCardStyle ? 'style="' + dayCardStyle + '"' : '') + ' data-date="' + dateStr + '" data-slot="' + k + '" data-lesson-id="' + (lesson.id || '') + '" data-subject="' + (lesson.subject || s.subject || '') + '">';
+      if (lesson.todos && lesson.todos.length > 0) {
+        html += '<div class="day-view-card-todos">';
+        lesson.todos.slice(0, 4).forEach(function(t) {
+          html += '<div class="day-view-todo-item' + (t.done ? ' done' : '') + '" data-lesson-id="' + (lesson.id || '') + '" data-todo-id="' + (t.id || '') + '"><span class="day-view-todo-check">' + (t.done ? '✓' : '○') + '</span>' + (t.text || '').replace(/</g, '&lt;') + '</div>';
+        });
+        if (lesson.todos.length > 4) html += '<div class="day-view-todo-more">+' + (lesson.todos.length - 4) + ' more</div>';
+        html += '</div>';
+      }
       html += '<div class="day-view-card-period">Period ' + s.period + timeLabel + (s.className ? ' · ' + s.className : '') + '</div>';
       html += '<div class="day-view-card-title">' + (lesson.title || 'Untitled') + '</div>';
       html += '<div class="day-view-card-unit">' + (u ? u.unit : '') + '</div>';
       html += '</div>';
     } else {
-      html += '<div class="day-view-card day-view-card-empty" data-date="' + dateStr + '" data-slot="' + k + '">';
+      var emptyCardStyle = s.color ? 'border-left-color:' + s.color : '';
+      html += '<div class="day-view-card day-view-card-empty" ' + (emptyCardStyle ? 'style="' + emptyCardStyle + '"' : '') + ' data-date="' + dateStr + '" data-slot="' + k + '">';
       html += '<div class="day-view-card-period">Period ' + s.period + timeLabel + '</div>';
       html += '<div class="day-view-card-title">Click to add lesson</div>';
       html += '</div>';
@@ -578,7 +922,16 @@ function renderDayView() {
   if (html === '') html = '<div class="day-view-no-lessons">No teaching slots for this day. Add lessons in Week View or set up your timetable.</div>';
   document.getElementById('dayViewList').innerHTML = html;
   document.querySelectorAll('.day-view-card').forEach(function(card) {
-    card.addEventListener('click', function() { openLessonModal(card.dataset.date, card.dataset.slot); });
+    card.addEventListener('click', function(e) {
+      var todoItem = e.target.closest('.day-view-todo-item');
+      if (todoItem && todoItem.dataset.lessonId && todoItem.dataset.todoId) {
+        e.stopPropagation();
+        PS.toggleTodo(todoItem.dataset.lessonId, todoItem.dataset.todoId);
+        PS.saveLessons().then(function() { renderDayView(); });
+        return;
+      }
+      openLessonModal(card.dataset.date, card.dataset.slot);
+    });
   });
 }
 
@@ -595,6 +948,7 @@ function openLessonModal(dateStr, slotKey) {
   document.getElementById('lessonNotes').value = lesson ? (lesson.notes || '') : '';
   populateUnitDropdown(document.getElementById('lessonSubject').value);
   renderResourcesList(lesson ? (lesson.resources || []) : []);
+  renderTodosList(lesson ? (lesson.todos || []) : []);
   if (lesson) PS.setEditingLessonId(lesson.id);
   document.getElementById('lessonDelete').style.display = lesson ? 'block' : 'none';
   document.getElementById('lessonCopyTo').style.display = 'block';
@@ -631,6 +985,32 @@ function renderResourcesList(resources) {
   });
 }
 
+function renderTodosList(todos) {
+  var div = document.getElementById('todosList');
+  div.innerHTML = '';
+  (todos || []).forEach(function(t) {
+    var row = document.createElement('div');
+    row.className = 'todo-row' + (t.done ? ' done' : '');
+    row.dataset.todoId = t.id || '';
+    row.innerHTML = '<input type="checkbox" class="todo-done" ' + (t.done ? 'checked' : '') + '>' +
+      '<input type="text" class="form-input todo-text-input" value="' + (t.text || '').replace(/"/g, '&quot;') + '" placeholder="Task">' +
+      '<button type="button" class="btn-remove-todo">&times;</button>';
+    div.appendChild(row);
+  });
+}
+
+function collectTodosFromModal() {
+  var rows = document.querySelectorAll('#todosList .todo-row');
+  var todos = [];
+  rows.forEach(function(r) {
+    var cb = r.querySelector('.todo-done');
+    var inp = r.querySelector('.todo-text-input');
+    var id = r.dataset.todoId || PS.id();
+    todos.push({ id: id, text: inp ? inp.value : '', done: cb ? cb.checked : false });
+  });
+  return todos;
+}
+
 document.getElementById('addResource').addEventListener('click', function() {
   var div = document.getElementById('resourcesList');
   var row = document.createElement('div');
@@ -643,6 +1023,31 @@ document.getElementById('addResource').addEventListener('click', function() {
 
 document.getElementById('resourcesList').addEventListener('click', function(e) {
   if (e.target.classList.contains('btn-remove-resource')) e.target.closest('.resource-row').remove();
+});
+
+document.getElementById('addTodo').addEventListener('click', function() {
+  var inp = document.getElementById('todoNewInput');
+  var text = inp && inp.value ? inp.value.trim() : '';
+  if (!text) return;
+  var div = document.getElementById('todosList');
+  var row = document.createElement('div');
+  row.className = 'todo-row';
+  row.dataset.todoId = PS.id();
+  row.innerHTML = '<input type="checkbox" class="todo-done">' +
+    '<input type="text" class="form-input todo-text-input" value="' + text.replace(/"/g, '&quot;') + '" placeholder="Task">' +
+    '<button type="button" class="btn-remove-todo">&times;</button>';
+  div.appendChild(row);
+  inp.value = '';
+});
+
+document.getElementById('todosList').addEventListener('change', function(e) {
+  if (e.target.classList.contains('todo-done')) {
+    e.target.closest('.todo-row').classList.toggle('done', e.target.checked);
+  }
+});
+
+document.getElementById('todosList').addEventListener('click', function(e) {
+  if (e.target.classList.contains('btn-remove-todo')) e.target.closest('.todo-row').remove();
 });
 
 document.getElementById('lessonSubject').addEventListener('change', function() {
@@ -664,7 +1069,8 @@ document.getElementById('lessonSave').addEventListener('click', function() {
     var url = r.querySelector('.res-url');
     if (url && url.value) resources.push({ label: lbl ? lbl.value : '', url: url.value });
   });
-  var payload = { date: dateStr, slotKey: slotKey, subject: subject, unitKey: unitKey, title: title, objectives: objectives, notes: notes, resources: resources, updatedAt: new Date().toISOString() };
+  var todos = collectTodosFromModal();
+  var payload = { date: dateStr, slotKey: slotKey, subject: subject, unitKey: unitKey, title: title, objectives: objectives, notes: notes, resources: resources, todos: todos, updatedAt: new Date().toISOString() };
   PS.upsertLesson(payload, PS.getEditingLessonId());
   PS.saveLessons().then(function() {
     document.getElementById('lessonModal').classList.remove('visible');
@@ -718,7 +1124,8 @@ document.getElementById('doCopy').addEventListener('click', function() {
     var url = r.querySelector('.res-url');
     if (url && url.value) resources.push({ label: lbl ? lbl.value : '', url: url.value });
   });
-  var payload = { date: toDate, slotKey: toSlotKey, subject: subject, unitKey: unitKey, title: title, objectives: objectives, notes: notes, resources: resources, updatedAt: new Date().toISOString() };
+  var todos = collectTodosFromModal();
+  var payload = { date: toDate, slotKey: toSlotKey, subject: subject, unitKey: unitKey, title: title, objectives: objectives, notes: notes, resources: resources, todos: todos, updatedAt: new Date().toISOString() };
   PS.upsertLesson(payload, null);
   PS.saveLessons().then(function() {
     document.getElementById('copyToForm').style.display = 'none';
@@ -748,10 +1155,31 @@ function showToast(msg) {
 document.getElementById('saveTimetable').addEventListener('click', function() {
   collectTimetableFromDOM();
   PS.saveTimetable().then(function() {
+    renderTimetableDisplay();
     renderWeekView();
     showToast('Timetable saved');
   });
 });
+
+document.getElementById('editTimetableBtn').addEventListener('click', function() {
+  document.getElementById('timetableDisplaySection').style.display = 'none';
+  document.getElementById('timetableEditSection').style.display = 'block';
+  renderTimetable();
+});
+
+function handleNewAcademicYear() {
+  if (!confirm('Clear your timetable to enter your new schedule for the academic year? Your lesson plans will be kept.')) return;
+  PS.resetTimetableForNewYear().then(function() {
+    document.getElementById('timetableDisplaySection').style.display = 'none';
+    document.getElementById('timetableEditSection').style.display = 'block';
+    renderTimetable();
+    renderTimetableDisplay();
+    renderWeekView();
+    showToast('Timetable cleared. Enter your new schedule.');
+  });
+}
+document.getElementById('newAcademicYearBtn').addEventListener('click', handleNewAcademicYear);
+document.getElementById('newAcademicYearBtnEdit').addEventListener('click', handleNewAcademicYear);
 
 document.getElementById('weekPrev').addEventListener('click', function() {
   var start = PS.getCurrentWeekStart();
@@ -784,20 +1212,24 @@ document.querySelectorAll('.planner-tab').forEach(function(tab) {
 document.getElementById('dayViewDate').addEventListener('change', function() {
   var val = this.value;
   if (val) {
-    PS.setCurrentDayViewDate(new Date(val));
+    var d = snapToWeekday(new Date(val));
+    PS.setCurrentDayViewDate(d);
+    this.value = getDateStr(d);
     renderDayView();
   }
 });
 
 document.getElementById('dayViewToday').addEventListener('click', function() {
-  PS.setCurrentDayViewDate(new Date());
-  document.getElementById('dayViewDate').value = getDateStr(new Date());
+  var d = snapToWeekday(new Date());
+  PS.setCurrentDayViewDate(d);
+  document.getElementById('dayViewDate').value = getDateStr(d);
   renderDayView();
 });
 
 // Init
 PS.load().then(function() {
   renderTimetable();
+  renderTimetableDisplay();
   renderWeekView();
 });
 
