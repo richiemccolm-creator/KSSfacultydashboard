@@ -7,7 +7,8 @@
   var DATA_TYPES = [
     'drama-v3', 'art-v2', 'academicCalendarEvents', 'bge_drama_reports_v1',
     'bge_art_reports_v1', 'bge_drama_tracker_export_v1', 'bge_art_tracker_export_v1',
-    'dipSelfEvaluation', 'moderation-data'
+    'dipSelfEvaluation', 'moderation-data',
+    'plannerTimetable', 'plannerLessons'
   ];
 
   function useSupabase() {
@@ -134,7 +135,9 @@
           'bge_drama_tracker_export_v1': all['bge_drama_tracker_export_v1'],
           'bge_art_tracker_export_v1': all['bge_art_tracker_export_v1'],
           'dipSelfEvaluation': all['dipSelfEvaluation'],
-          'moderation-data': all['moderation-data']
+          'moderation-data': all['moderation-data'],
+          'plannerTimetable': all['plannerTimetable'],
+          'plannerLessons': all['plannerLessons']
         };
       });
     },

@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Teacher Planner — Expressive Arts</title>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-init.js"></script>
+<script src="allowlist-check.js"></script>
+<script src="auth-guard.js"></script>
+<script src="data-service.js"></script>
+<script src="curriculum-units.js"></script>
+<script src="planner-service.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --navy:#1e2d4a;
+  --navy-dark:#16243c;
+  --accent:#4a7fd4;
+  --accent-art:#c0622a;
+  --white:#ffffff;
+  --bg:#f0f2f5;
+  --card:#ffffff;
+  --text:#1a202c;
+  --text2:#4a5568;
+  --text3:#718096;
+  --border:#e2e8f0;
+  --border2:#cbd5e0;
+}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;font-size:14px}
+
+.planner-app{max-width:1400px;margin:0 auto;padding:1.5rem 2rem;min-height:100vh}
+
+/* Header */
+.planner-header{
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;
+  margin-bottom:2rem;padding-bottom:1.25rem;border-bottom:1px solid var(--border)
+}
+.planner-title{font-family:'Sora',sans-serif;font-size:1.5rem;font-weight:800;color:var(--text)}
+.planner-title span{color:var(--accent)}
+.planner-nav{display:flex;gap:.5rem;align-items:center}
+.planner-nav a{font-size:.82rem;color:var(--text2);text-decoration:none;padding:.4rem .75rem;border-radius:4px;transition:all .15s}
+.planner-nav a:hover{background:var(--border);color:var(--text)}
+
+/* Tabs */
+.planner-tabs{display:flex;gap:.25rem;margin-bottom:1.5rem}
+.planner-tab{
+  font-size:.78rem;font-weight:600;padding:.6rem 1.25rem;border-radius:6px;
+  background:var(--white);border:1px solid var(--border);color:var(--text2);
+  cursor:pointer;transition:all .15s
+}
+.planner-tab:hover{color:var(--text);border-color:var(--border2)}
+.planner-tab.active{background:var(--navy);border-color:var(--navy);color:var(--white)}
+
+/* Panels */
+.planner-panel{display:none}
+.planner-panel.active{display:block}
+
+/* Timetable grid */
+.timetable-section{background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:1.5rem}
+.timetable-header{padding:1rem 1.25rem;background:var(--navy-dark);color:var(--white);font-size:.75rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase}
+.timetable-grid{display:grid;gap:0;overflow-x:auto}
+.timetable-table{width:100%;min-width:700px;border-collapse:collapse;font-size:.8rem}
+.timetable-table th,.timetable-table td{padding:.5rem .65rem;border:1px solid var(--border);text-align:left;vertical-align:top}
+.timetable-table th{background:var(--bg);font-weight:600;color:var(--text2);font-size:.7rem;letter-spacing:.05em}
+.timetable-table th.period-col{width:70px;text-align:center}
+.timetable-table td input,.timetable-table td select{
+  width:100%;padding:.35rem .5rem;border:1px solid var(--border2);border-radius:4px;font-size:.78rem
+}
+.timetable-table td input:focus,.timetable-table td select:focus{outline:none;border-color:var(--accent)}
+.timetable-table tbody tr:hover td{background:#f8fafc}
+.slot-cell{min-width:120px}
+.slot-cell.empty{background:#fafafa}
+.btn-save-timetable{margin-top:1rem;padding:.6rem 1.25rem;background:var(--accent);color:var(--white);border:none;border-radius:6px;font-weight:600;font-size:.8rem;cursor:pointer}
+.btn-save-timetable:hover{opacity:.9}
+
+/* Week view */
+.week-controls{display:flex;align-items:center;gap:1rem;margin-bottom:1.25rem;flex-wrap:wrap}
+.week-nav{display:flex;align-items:center;gap:.35rem}
+.week-btn{
+  width:36px;height:36px;border:1px solid var(--border);border-radius:6px;
+  background:var(--white);cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;
+  transition:all .15s
+}
+.week-btn:hover{background:var(--bg);border-color:var(--accent);color:var(--accent)}
+.week-display{font-weight:600;font-size:.95rem;min-width:180px;text-align:center}
+.week-grid{display:grid;overflow-x:auto}
+.week-table{width:100%;min-width:800px;border-collapse:collapse;font-size:.78rem;background:var(--card);border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.week-table th,.week-table td{border:1px solid var(--border);padding:.4rem .5rem;vertical-align:top}
+.week-table th{background:var(--navy-dark);color:var(--white);font-size:.65rem;font-weight:700;letter-spacing:.08em;text-align:center}
+.week-table th.period-th{width:60px}
+.week-table td{min-height:80px;cursor:pointer;transition:background .15s}
+.week-table td:hover{background:#e8f0ff}
+.week-table td.has-lesson{background:rgba(74,127,212,.08);border-left:3px solid var(--accent)}
+.week-table td.day-weekend{background:#f8f8f8}
+.week-table td.day-holiday{background:#f0f0f0;opacity:.7}
+.week-calendar-strip{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:.75rem 1rem;margin-bottom:1rem;font-size:.78rem}
+.week-calendar-strip-title{font-weight:600;color:var(--text2);margin-bottom:.5rem;font-size:.7rem;letter-spacing:.06em}
+.week-calendar-events{display:flex;flex-wrap:wrap;gap:.5rem}
+.week-calendar-event{padding:.25rem .5rem;border-radius:4px;font-size:.72rem;background:var(--bg);border:1px solid var(--border2)}
+.week-calendar-event.holiday{background:#fef3c7;border-color:#fcd34d}
+.week-calendar-event.meeting{background:#e0e7ff;border-color:#a5b4fc}
+.week-calendar-event.assessment{background:#fce7f3;border-color:#f9a8d4}
+.week-calendar-event.exam{background:#fee2e2;border-color:#fca5a5}
+.lesson-preview{font-size:.72rem;line-height:1.4}
+.lesson-preview-title{font-weight:600;color:var(--text);margin-bottom:.2rem}
+.day-view-list{display:flex;flex-direction:column;gap:.75rem}
+.day-view-card{
+  background:var(--card);border:1px solid var(--border);border-radius:8px;
+  padding:1rem 1.25rem;cursor:pointer;transition:all .15s
+}
+.day-view-card:hover{border-color:var(--accent);background:#f8fafc}
+.day-view-card-period{font-size:.65rem;font-weight:700;letter-spacing:.1em;color:var(--text3);margin-bottom:.35rem}
+.day-view-card-title{font-weight:600;color:var(--text);margin-bottom:.25rem}
+.day-view-card-unit{font-size:.78rem;color:var(--text2)}
+.day-view-card-empty{cursor:pointer;border-style:dashed;color:var(--text3)}
+.day-view-card-empty:hover{color:var(--accent);border-color:var(--accent)}
+.day-view-no-lessons{text-align:center;padding:3rem 2rem;color:var(--text3);font-size:.9rem}
+
+@media (max-width: 900px) {
+  .planner-app{padding:1rem}
+  .timetable-table{font-size:.75rem}
+  .timetable-table td input,.timetable-table td select{padding:.3rem}
+  .slot-cell{min-width:90px}
+  #weekGridWrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .week-table{font-size:.72rem;min-width:600px}
+  .week-table th,.week-table td{padding:.3rem}
+  .modal{max-height:85vh;margin:1rem}
+  .modal-body{padding:1rem}
+  .form-group{margin-bottom:.75rem}
+  .resource-row{flex-direction:column;align-items:stretch}
+  .week-controls{flex-direction:column;align-items:stretch}
+  .week-nav{justify-content:center}
+  .planner-tabs{flex-wrap:wrap}
+}
+.lesson-preview-unit{font-size:.65rem;color:var(--text3)}
+.week-table td.empty-slot{color:var(--text3);font-size:.7rem;font-style:italic}
+
+/* Lesson modal */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:1000;
+  display:none;align-items:center;justify-content:center;padding:2rem
+}
+.modal-overlay.visible{display:flex}
+.modal{
+  background:var(--card);border-radius:10px;max-width:560px;width:100%;max-height:90vh;
+  overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25)
+}
+.modal-header{
+  padding:1.25rem 1.5rem;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between
+}
+.modal-title{font-family:'Sora',sans-serif;font-size:1.1rem;font-weight:700;color:var(--text)}
+.modal-close{width:32px;height:32px;border:none;background:none;cursor:pointer;font-size:1.25rem;color:var(--text3);border-radius:4px}
+.modal-close:hover{background:var(--bg);color:var(--text)}
+.modal-body{padding:1.5rem}
+.form-group{margin-bottom:1rem}
+.form-label{display:block;font-size:.7rem;font-weight:600;letter-spacing:.06em;color:var(--text2);margin-bottom:.35rem}
+.form-input,.form-select,.form-textarea{
+  width:100%;padding:.6rem .75rem;border:1px solid var(--border2);border-radius:6px;
+  font-size:.88rem;font-family:inherit
+}
+.form-textarea{min-height:80px;resize:vertical}
+.form-input:focus,.form-select:focus,.form-textarea:focus{outline:none;border-color:var(--accent)}
+.resources-list{margin-top:.5rem}
+.resource-row{display:flex;gap:.5rem;margin-bottom:.5rem;align-items:center}
+.resource-row input{flex:1}
+.btn-add-resource,.btn-remove-resource{
+  padding:.35rem .65rem;font-size:.72rem;border-radius:4px;cursor:pointer;border:1px solid var(--border2);
+  background:var(--white);color:var(--text2)
+}
+.btn-add-resource:hover,.btn-remove-resource:hover{background:var(--bg)}
+.btn-remove-resource{color:#b91c1c;border-color:rgba(185,28,28,.3)}
+.modal-footer{
+  padding:1rem 1.5rem;border-top:1px solid var(--border);
+  display:flex;gap:.75rem;justify-content:flex-end
+}
+.btn-primary{padding:.6rem 1.25rem;background:var(--accent);color:var(--white);border:none;border-radius:6px;font-weight:600;cursor:pointer}
+.btn-primary:hover{opacity:.9}
+.btn-secondary{padding:.6rem 1.25rem;background:var(--bg);color:var(--text2);border:1px solid var(--border);border-radius:6px;font-weight:500;cursor:pointer}
+.btn-secondary:hover{background:var(--border)}
+
+/* Empty state */
+.empty-state{
+  text-align:center;padding:3rem 2rem;background:var(--card);border:1px dashed var(--border);border-radius:8px;
+  color:var(--text3);font-size:.9rem
+}
+.empty-state strong{color:var(--text);display:block;margin-bottom:.5rem}
+</style>
+</head>
+<body>
+
+<div class="planner-app">
+
+<div class="planner-header">
+  <h1 class="planner-title">Teacher <span>Planner</span></h1>
+  <nav class="planner-nav">
+    <a href="expressive_arts_faculty (10).html">← Faculty Hub</a>
+  </nav>
+</div>
+
+<div class="planner-tabs">
+  <button class="planner-tab active" data-tab="timetable">My Timetable</button>
+  <button class="planner-tab" data-tab="week">Week View</button>
+  <button class="planner-tab" data-tab="day">Day View</button>
+</div>
+
+<!-- Timetable panel -->
+<div id="panel-timetable" class="planner-panel active">
+  <div class="timetable-section">
+    <div class="timetable-header">Weekly timetable — enter your teaching slots</div>
+    <div id="periodTimesSection" style="padding:.75rem 1.25rem;border-bottom:1px solid var(--border);font-size:.78rem">
+      <details>
+        <summary style="cursor:pointer;font-weight:600">Optional: Set period times</summary>
+        <div style="display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.5rem">
+          <span id="periodTimesInputs"></span>
+        </div>
+      </details>
+    </div>
+    <div class="timetable-grid">
+      <table class="timetable-table">
+        <thead>
+          <tr>
+            <th class="period-col">Period</th>
+            <th>Monday</th>
+            <th>Tuesday</th>
+            <th>Wednesday</th>
+            <th>Thursday</th>
+            <th>Friday</th>
+          </tr>
+        </thead>
+        <tbody id="timetable-body"></tbody>
+      </table>
+    </div>
+    <div style="padding:1rem 1.25rem">
+      <button class="btn-save-timetable" id="saveTimetable">Save Timetable</button>
+    </div>
+  </div>
+</div>
+
+<!-- Week view panel -->
+<div id="panel-week" class="planner-panel">
+  <div class="week-controls">
+    <div class="week-nav">
+      <button class="week-btn" id="weekPrev">◀</button>
+      <div class="week-display" id="weekDisplay"></div>
+      <button class="week-btn" id="weekNext">▶</button>
+    </div>
+    <button class="week-btn" id="weekToday">Today</button>
+  </div>
+  <div id="weekGridWrap"></div>
+</div>
+
+<!-- Day view panel -->
+<div id="panel-day" class="planner-panel">
+  <div class="week-controls">
+    <input type="date" id="dayViewDate" class="form-input" style="width:160px">
+    <button class="week-btn" id="dayViewToday">Today</button>
+  </div>
+  <div id="dayViewList" class="day-view-list"></div>
+</div>
+
+</div>
+
+<!-- Lesson modal -->
+<div class="modal-overlay" id="lessonModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title" id="lessonModalTitle">Add Lesson</h2>
+      <button class="modal-close" id="modalClose">&times;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="lessonSlotKey">
+      <input type="hidden" id="lessonDate">
+      <div class="form-group">
+        <label class="form-label">Subject & Year Group</label>
+        <select class="form-select" id="lessonSubject">
+          <option value="">— Select —</option>
+          <option value="drama">Drama</option>
+          <option value="art">Art & Design</option>
+          <option value="photography">Photography</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Unit</label>
+        <select class="form-select" id="lessonUnit">
+          <option value="">— Select unit —</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Lesson title</label>
+        <input type="text" class="form-input" id="lessonTitle" placeholder="e.g. Warm-up and character exploration">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Learning objectives</label>
+        <textarea class="form-textarea" id="lessonObjectives" placeholder="What should pupils achieve today?"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Notes</label>
+        <textarea class="form-textarea" id="lessonNotes" placeholder="Teaching notes, reminders, adaptations..."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Resources</label>
+        <div id="resourcesList" class="resources-list"></div>
+        <button type="button" class="btn-add-resource" id="addResource">+ Add resource (URL)</button>
+      </div>
+      <div id="copyToForm" class="form-group" style="display:none;border-top:1px solid var(--border);padding-top:1rem;margin-top:1rem">
+        <label class="form-label">Copy to date & slot</label>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
+          <input type="date" id="copyToDate" class="form-input" style="width:140px">
+          <select id="copyToPeriod" class="form-select" style="width:100px"><option value="1">P1</option><option value="2">P2</option><option value="3">P3</option><option value="4">P4</option><option value="5">P5</option><option value="6">P6</option></select>
+          <button type="button" class="btn-primary" id="doCopy">Copy</button>
+          <button type="button" class="btn-secondary" id="cancelCopy">Cancel</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" id="lessonDelete" style="margin-right:auto;color:#b91c1c;border-color:rgba(185,28,28,.3)">Delete</button>
+      <button class="btn-secondary" id="lessonCopyTo">Copy to...</button>
+      <button class="btn-secondary" id="lessonCancel">Cancel</button>
+      <button class="btn-primary" id="lessonSave">Save Lesson</button>
+    </div>
+  </div>
+</div>
+
+<script>
+
+(function() {
+
+var PS = window.PlannerService;
+var DAYS = PS.DAYS;
+var PERIODS = PS.PERIODS;
+
+function slotKey(day, period) { return PS.slotKey(day, period); }
+
+function renderPeriodTimes() {
+  var state = PS.getState();
+  var pt = state.timetable.periodTimes || {};
+  var html = '';
+  for (var p = 1; p <= 6; p++) {
+    var s = pt[p] && pt[p].start ? pt[p].start : '';
+    var e = pt[p] && pt[p].end ? pt[p].end : '';
+    html += '<span style="display:inline-flex;align-items:center;gap:.25rem">P' + p + ' <input type="time" class="pt-start" data-p="' + p + '" value="' + s + '" style="width:75px">–<input type="time" class="pt-end" data-p="' + p + '" value="' + e + '" style="width:75px"></span>';
+  }
+  document.getElementById('periodTimesInputs').innerHTML = html;
+}
+
+function collectPeriodTimes() {
+  var pt = {};
+  document.querySelectorAll('.pt-start').forEach(function(inp) {
+    var p = parseInt(inp.dataset.p, 10);
+    var endInp = document.querySelector('.pt-end[data-p="' + p + '"]');
+    if (inp.value || (endInp && endInp.value)) {
+      pt[p] = { start: inp.value || '', end: endInp ? endInp.value : '' };
+    }
+  });
+  return Object.keys(pt).length ? pt : undefined;
+}
+
+// ── Timetable UI ──
+function renderTimetable() {
+  renderPeriodTimes();
+  var state = PS.getState();
+  var tbody = document.getElementById('timetable-body');
+  tbody.innerHTML = '';
+  for (var p = 1; p <= PERIODS; p++) {
+    var tr = document.createElement('tr');
+    tr.innerHTML = '<th class="period-col">P' + p + '</th>';
+    DAYS.forEach(function(day) {
+      var td = document.createElement('td');
+      td.className = 'slot-cell';
+      var slot = PS.getSlot(day, p);
+      td.innerHTML = '<div><select class="slot-subject"><option value="">—</option><option value="drama"' + (slot && slot.subject==='drama'?' selected':'') + '>Drama</option><option value="art"' + (slot && slot.subject==='art'?' selected':'') + '>Art</option><option value="photography"' + (slot && slot.subject==='photography'?' selected':'') + '>Photography</option></select>' +
+        '<input type="text" class="slot-class" placeholder="Class" value="' + (slot ? (slot.className||'') : '') + '">' +
+        '<input type="text" class="slot-room" placeholder="Room" value="' + (slot ? (slot.room||'') : '') + '">';
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  }
+}
+
+function collectTimetableFromDOM() {
+  var periodTimes = collectPeriodTimes();
+  var slots = [];
+  var tbody = document.getElementById('timetable-body');
+  var rows = tbody.querySelectorAll('tr');
+  for (var p = 0; p < rows.length; p++) {
+    var period = p + 1;
+    var cells = rows[p].querySelectorAll('td');
+    DAYS.forEach(function(day, di) {
+      var cell = cells[di];
+      if (!cell) return;
+      var subj = cell.querySelector('.slot-subject');
+      var cls = cell.querySelector('.slot-class');
+      var room = cell.querySelector('.slot-room');
+      if (subj && subj.value) {
+        slots.push({
+          id: PS.id(),
+          day: day,
+          period: period,
+          subject: subj.value,
+          className: cls ? cls.value : '',
+          room: room ? room.value : ''
+        });
+      }
+    });
+  }
+  PS.collectTimetable(slots, periodTimes);
+}
+
+function getDateStr(d) { return PS.getDateStr(d); }
+
+function isWeekend(d) {
+  var day = d.getDay();
+  return day === 0 || day === 6;
+}
+
+function isHolidayForDate(dateStr, weekEvents) {
+  return (weekEvents || []).some(function(e) {
+    return e.date === dateStr && e.category === 'holiday';
+  });
+}
+
+function renderWeekView() {
+  var state = PS.getState();
+  if (!state.currentWeekStart) PS.setCurrentWeekStart(PS.getWeekStart(new Date()));
+  var start = PS.getCurrentWeekStart();
+  var weekEnd = new Date(start);
+  weekEnd.setDate(weekEnd.getDate() + 6);
+  var loadCal = (window.DataService && window.DataService.getCalendarMerged) ? DataService.getCalendarMerged() : Promise.resolve([]);
+  loadCal.then(function(allEvents) {
+    var state = PS.getState();
+    var weekEvents = (allEvents || []).filter(function(e) {
+      var d = e.date;
+      return d && d >= getDateStr(start) && d <= getDateStr(weekEnd);
+    });
+    var slots = state.timetable.slots || [];
+    var slotKeys = [];
+    var byKey = {};
+    slots.forEach(function(s) {
+      var k = slotKey(s.day, s.period);
+      if (slotKeys.indexOf(k) === -1) slotKeys.push(k);
+      byKey[k] = s;
+    });
+    if (slotKeys.length === 0) {
+      for (var pi = 1; pi <= 6; pi++) {
+        DAYS.forEach(function(d) { slotKeys.push(slotKey(d, pi)); });
+      }
+    }
+    slotKeys.sort();
+    var weekDays = [];
+    for (var i = 0; i < 7; i++) {
+      var d = new Date(start);
+      d.setDate(d.getDate() + i);
+      weekDays.push(d);
+    }
+    var calStrip = '';
+    if (weekEvents.length > 0) {
+      calStrip = '<div class="week-calendar-strip"><div class="week-calendar-strip-title">This week</div><div class="week-calendar-events">';
+      weekEvents.forEach(function(e) {
+        var cat = e.category || 'general';
+        calStrip += '<span class="week-calendar-event ' + cat + '" title="' + (e.title || '') + '">' + (e.date ? e.date.slice(8) + ' ' : '') + (e.title || 'Event') + '</span>';
+      });
+      calStrip += '</div></div>';
+    }
+    var html = calStrip + '<table class="week-table"><thead><tr><th class="period-th">Date</th>';
+    weekDays.forEach(function(d) {
+      html += '<th>' + d.toLocaleDateString('en-GB', { weekday:'short', day:'numeric', month:'short' }) + '</th>';
+    });
+    html += '</tr></thead><tbody>';
+    var periods = {};
+    slotKeys.forEach(function(k) {
+      var p = parseInt(k.split('-')[1], 10);
+      if (!periods[p]) periods[p] = [];
+      periods[p].push(k);
+    });
+    var periodList = Object.keys(periods).map(Number).sort(function(a,b){return a-b});
+    if (periodList.length === 0) periodList = [1];
+    periodList.forEach(function(period) {
+      html += '<tr><th class="period-th">P' + period + '</th>';
+      weekDays.forEach(function(d) {
+        var dateStr = getDateStr(d);
+        var dayName = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'][d.getDay()];
+        var k = slotKey(dayName, period);
+        var slot = byKey[k];
+        var lesson = PS.getLessonFor(dateStr, k);
+        var cellClass = 'week-cell';
+        if (isWeekend(d)) cellClass += ' day-weekend';
+        else if (isHolidayForDate(dateStr, weekEvents)) cellClass += ' day-holiday';
+        if (lesson) cellClass += ' has-lesson';
+        var isNonTeaching = isWeekend(d) || isHolidayForDate(dateStr, weekEvents);
+        html += '<td class="' + cellClass + '" data-date="' + dateStr + '" data-slot="' + k + '" data-nonteaching="' + (isNonTeaching ? '1' : '0') + '">';
+        if (lesson) {
+          html += '<div class="lesson-preview">';
+          html += '<div class="lesson-preview-title">' + (lesson.title || 'Untitled') + '</div>';
+          if (lesson.unitKey && window.getUnitFromKey) {
+            var u = window.getUnitFromKey(lesson.unitKey);
+            if (u) html += '<div class="lesson-preview-unit">' + u.unit + '</div>';
+          }
+          html += '</div>';
+        } else if (!isNonTeaching) {
+          html += '<span class="empty-slot">Click to add lesson</span>';
+        }
+        html += '</td>';
+      });
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+    document.getElementById('weekGridWrap').innerHTML = html;
+    document.getElementById('weekDisplay').textContent = PS.formatWeekLabel(start);
+    document.querySelectorAll('.week-table td[data-date][data-slot]').forEach(function(cell) {
+      if (cell.dataset.nonteaching === '1') return;
+      cell.addEventListener('click', function() {
+        openLessonModal(cell.dataset.date, cell.dataset.slot);
+      });
+    });
+  });
+}
+
+function getSlotsForDayView() {
+  var state = PS.getState();
+  var slots = state.timetable.slots || [];
+  if (slots.length > 0) {
+    var seen = {};
+    return slots.filter(function(s) {
+      var k = s.day + '-' + s.period;
+      if (seen[k]) return false;
+      seen[k] = true;
+      return true;
+    }).sort(function(a, b) { return a.period - b.period; });
+  }
+  var out = [];
+  DAYS.forEach(function(d) {
+    for (var p = 1; p <= 6; p++) out.push({ day: d, period: p, subject: '', className: '', room: '' });
+  });
+  return out;
+}
+
+function renderDayView() {
+  var state = PS.getState();
+  var viewDate = state.currentDayViewDate || new Date();
+  if (!state.currentDayViewDate) PS.setCurrentDayViewDate(viewDate);
+  var dateStr = getDateStr(viewDate);
+  document.getElementById('dayViewDate').value = dateStr;
+  var dayName = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'][viewDate.getDay()];
+  var dayLessons = PS.getLessonsForDate(dateStr);
+  var slots = getSlotsForDayView();
+  var slotsForDay = slots.filter(function(s) { return s.day === dayName; });
+  if (slotsForDay.length === 0) slotsForDay = [1,2,3,4,5,6].map(function(p) { return { day: dayName, period: p, className: '', subject: '' }; });
+  var bySlot = {};
+  dayLessons.forEach(function(l) { bySlot[l.slotKey] = l; });
+  var html = '';
+  var pt = state.timetable.periodTimes || {};
+  slotsForDay.forEach(function(s) {
+    var k = slotKey(s.day, s.period);
+    var lesson = bySlot[k];
+    var timeLabel = pt[s.period] && (pt[s.period].start || pt[s.period].end) ? ' ' + (pt[s.period].start || '') + (pt[s.period].start && pt[s.period].end ? '–' : '') + (pt[s.period].end || '') : '';
+    if (lesson) {
+      var u = window.getUnitFromKey && window.getUnitFromKey(lesson.unitKey);
+      html += '<div class="day-view-card" data-date="' + dateStr + '" data-slot="' + k + '">';
+      html += '<div class="day-view-card-period">Period ' + s.period + timeLabel + (s.className ? ' · ' + s.className : '') + '</div>';
+      html += '<div class="day-view-card-title">' + (lesson.title || 'Untitled') + '</div>';
+      html += '<div class="day-view-card-unit">' + (u ? u.unit : '') + '</div>';
+      html += '</div>';
+    } else {
+      html += '<div class="day-view-card day-view-card-empty" data-date="' + dateStr + '" data-slot="' + k + '">';
+      html += '<div class="day-view-card-period">Period ' + s.period + timeLabel + '</div>';
+      html += '<div class="day-view-card-title">Click to add lesson</div>';
+      html += '</div>';
+    }
+  });
+  if (html === '') html = '<div class="day-view-no-lessons">No teaching slots for this day. Add lessons in Week View or set up your timetable.</div>';
+  document.getElementById('dayViewList').innerHTML = html;
+  document.querySelectorAll('.day-view-card').forEach(function(card) {
+    card.addEventListener('click', function() { openLessonModal(card.dataset.date, card.dataset.slot); });
+  });
+}
+
+function openLessonModal(dateStr, slotKey) {
+  PS.setEditingLessonId(null);
+  var lesson = PS.getLessonFor(dateStr, slotKey);
+  document.getElementById('lessonSlotKey').value = slotKey;
+  document.getElementById('lessonDate').value = dateStr;
+  document.getElementById('lessonModalTitle').textContent = lesson ? 'Edit Lesson' : 'Add Lesson';
+  document.getElementById('lessonSubject').value = lesson ? (lesson.subject || '') : '';
+  document.getElementById('lessonUnit').value = lesson ? (lesson.unitKey || '') : '';
+  document.getElementById('lessonTitle').value = lesson ? (lesson.title || '') : '';
+  document.getElementById('lessonObjectives').value = lesson ? (lesson.objectives || '') : '';
+  document.getElementById('lessonNotes').value = lesson ? (lesson.notes || '') : '';
+  populateUnitDropdown(document.getElementById('lessonSubject').value);
+  renderResourcesList(lesson ? (lesson.resources || []) : []);
+  if (lesson) PS.setEditingLessonId(lesson.id);
+  document.getElementById('lessonDelete').style.display = lesson ? 'block' : 'none';
+  document.getElementById('lessonCopyTo').style.display = 'block';
+  document.getElementById('copyToForm').style.display = 'none';
+  document.getElementById('lessonModal').classList.add('visible');
+}
+
+function populateUnitDropdown(subject) {
+  var sel = document.getElementById('lessonUnit');
+  sel.innerHTML = '<option value="">— Select unit —</option>';
+  if (!subject || !window.CURRICULUM_UNITS || !window.CURRICULUM_UNITS[subject]) return;
+  var units = window.CURRICULUM_UNITS[subject];
+  var yearGroups = subject === 'photography' ? ['npas3', 'npas4', 'higher'] : ['s1', 's2', 's3'];
+  yearGroups.forEach(function(yg) {
+    if (!units[yg]) return;
+    units[yg].forEach(function(u) {
+      var key = window.getUnitKey ? window.getUnitKey(subject, yg, u.id) : (subject + '-' + yg + '-' + u.id);
+      var ygLabel = yg.replace('npas', 'NPA S').replace('higher', 'Higher');
+      sel.innerHTML += '<option value="' + key + '">' + u.label + ': ' + u.unit + ' (' + ygLabel + ')</option>';
+    });
+  });
+}
+
+function renderResourcesList(resources) {
+  var div = document.getElementById('resourcesList');
+  div.innerHTML = '';
+  (resources || []).forEach(function(r, i) {
+    var row = document.createElement('div');
+    row.className = 'resource-row';
+    row.innerHTML = '<input type="text" class="form-input res-label" placeholder="Label" value="' + (r.label||'') + '">' +
+      '<input type="url" class="form-input res-url" placeholder="https://..." value="' + (r.url||'') + '">' +
+      '<button type="button" class="btn-remove-resource" data-i="' + i + '">Remove</button>';
+    div.appendChild(row);
+  });
+}
+
+document.getElementById('addResource').addEventListener('click', function() {
+  var div = document.getElementById('resourcesList');
+  var row = document.createElement('div');
+  row.className = 'resource-row';
+  row.innerHTML = '<input type="text" class="form-input res-label" placeholder="Label">' +
+    '<input type="url" class="form-input res-url" placeholder="https://...">' +
+    '<button type="button" class="btn-remove-resource">Remove</button>';
+  div.appendChild(row);
+});
+
+document.getElementById('resourcesList').addEventListener('click', function(e) {
+  if (e.target.classList.contains('btn-remove-resource')) e.target.closest('.resource-row').remove();
+});
+
+document.getElementById('lessonSubject').addEventListener('change', function() {
+  populateUnitDropdown(this.value);
+});
+
+document.getElementById('lessonSave').addEventListener('click', function() {
+  var slotKey = document.getElementById('lessonSlotKey').value;
+  var dateStr = document.getElementById('lessonDate').value;
+  var subject = document.getElementById('lessonSubject').value;
+  var unitKey = document.getElementById('lessonUnit').value;
+  var title = document.getElementById('lessonTitle').value;
+  var objectives = document.getElementById('lessonObjectives').value;
+  var notes = document.getElementById('lessonNotes').value;
+  var resourceRows = document.querySelectorAll('#resourcesList .resource-row');
+  var resources = [];
+  resourceRows.forEach(function(r) {
+    var lbl = r.querySelector('.res-label');
+    var url = r.querySelector('.res-url');
+    if (url && url.value) resources.push({ label: lbl ? lbl.value : '', url: url.value });
+  });
+  var payload = { date: dateStr, slotKey: slotKey, subject: subject, unitKey: unitKey, title: title, objectives: objectives, notes: notes, resources: resources, updatedAt: new Date().toISOString() };
+  PS.upsertLesson(payload, PS.getEditingLessonId());
+  PS.saveLessons().then(function() {
+    document.getElementById('lessonModal').classList.remove('visible');
+    renderWeekView();
+    if (document.getElementById('panel-day').classList.contains('active')) renderDayView();
+  });
+});
+
+document.getElementById('lessonCancel').addEventListener('click', function() {
+  document.getElementById('lessonModal').classList.remove('visible');
+});
+
+document.getElementById('lessonDelete').addEventListener('click', function() {
+  var editingId = PS.getEditingLessonId();
+  if (!editingId) return;
+  PS.removeLesson(editingId);
+  PS.saveLessons().then(function() {
+    document.getElementById('lessonModal').classList.remove('visible');
+    renderWeekView();
+    if (document.getElementById('panel-day').classList.contains('active')) renderDayView();
+    showToast('Lesson deleted');
+  });
+});
+
+document.getElementById('lessonCopyTo').addEventListener('click', function() {
+  document.getElementById('copyToForm').style.display = 'block';
+  var d = document.getElementById('lessonDate').value;
+  document.getElementById('copyToDate').value = d || new Date().toISOString().slice(0, 10);
+});
+
+document.getElementById('cancelCopy').addEventListener('click', function() {
+  document.getElementById('copyToForm').style.display = 'none';
+});
+
+document.getElementById('doCopy').addEventListener('click', function() {
+  var toDate = document.getElementById('copyToDate').value;
+  var toPeriod = parseInt(document.getElementById('copyToPeriod').value, 10);
+  if (!toDate) { showToast('Select a date'); return; }
+  var d = new Date(toDate);
+  var dayName = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'][d.getDay()];
+  var toSlotKey = slotKey(dayName, toPeriod);
+  var subject = document.getElementById('lessonSubject').value;
+  var unitKey = document.getElementById('lessonUnit').value;
+  var title = document.getElementById('lessonTitle').value;
+  var objectives = document.getElementById('lessonObjectives').value;
+  var notes = document.getElementById('lessonNotes').value;
+  var resourceRows = document.querySelectorAll('#resourcesList .resource-row');
+  var resources = [];
+  resourceRows.forEach(function(r) {
+    var lbl = r.querySelector('.res-label');
+    var url = r.querySelector('.res-url');
+    if (url && url.value) resources.push({ label: lbl ? lbl.value : '', url: url.value });
+  });
+  var payload = { date: toDate, slotKey: toSlotKey, subject: subject, unitKey: unitKey, title: title, objectives: objectives, notes: notes, resources: resources, updatedAt: new Date().toISOString() };
+  PS.upsertLesson(payload, null);
+  PS.saveLessons().then(function() {
+    document.getElementById('copyToForm').style.display = 'none';
+    showToast('Lesson copied');
+    renderWeekView();
+    if (document.getElementById('panel-day').classList.contains('active')) renderDayView();
+  });
+});
+
+document.getElementById('modalClose').addEventListener('click', function() {
+  document.getElementById('lessonModal').classList.remove('visible');
+});
+
+function showToast(msg) {
+  var t = document.getElementById('plannerToast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id = 'plannerToast';
+    t.style.cssText = 'position:fixed;bottom:1.5rem;right:1.5rem;background:var(--navy);color:white;padding:.75rem 1.25rem;border-radius:6px;font-size:.82rem;z-index:9999;opacity:0;transition:opacity .25s';
+    document.body.appendChild(t);
+  }
+  t.textContent = msg;
+  t.style.opacity = '1';
+  setTimeout(function() { t.style.opacity = '0'; }, 2000);
+}
+
+document.getElementById('saveTimetable').addEventListener('click', function() {
+  collectTimetableFromDOM();
+  PS.saveTimetable().then(function() {
+    renderWeekView();
+    showToast('Timetable saved');
+  });
+});
+
+document.getElementById('weekPrev').addEventListener('click', function() {
+  var start = PS.getCurrentWeekStart();
+  start.setDate(start.getDate() - 7);
+  renderWeekView();
+});
+
+document.getElementById('weekNext').addEventListener('click', function() {
+  var start = PS.getCurrentWeekStart();
+  start.setDate(start.getDate() + 7);
+  renderWeekView();
+});
+
+document.getElementById('weekToday').addEventListener('click', function() {
+  PS.setCurrentWeekStart(PS.getWeekStart(new Date()));
+  renderWeekView();
+});
+
+document.querySelectorAll('.planner-tab').forEach(function(tab) {
+  tab.addEventListener('click', function() {
+    document.querySelectorAll('.planner-tab').forEach(function(t){t.classList.remove('active')});
+    document.querySelectorAll('.planner-panel').forEach(function(p){p.classList.remove('active')});
+    tab.classList.add('active');
+    document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+    if (tab.dataset.tab === 'week') renderWeekView();
+    if (tab.dataset.tab === 'day') renderDayView();
+  });
+});
+
+document.getElementById('dayViewDate').addEventListener('change', function() {
+  var val = this.value;
+  if (val) {
+    PS.setCurrentDayViewDate(new Date(val));
+    renderDayView();
+  }
+});
+
+document.getElementById('dayViewToday').addEventListener('click', function() {
+  PS.setCurrentDayViewDate(new Date());
+  document.getElementById('dayViewDate').value = getDateStr(new Date());
+  renderDayView();
+});
+
+// Init
+PS.load().then(function() {
+  renderTimetable();
+  renderWeekView();
+});
+
+})();
+</script>
+</body>
+</html>
