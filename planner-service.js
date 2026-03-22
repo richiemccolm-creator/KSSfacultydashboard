@@ -12,7 +12,8 @@
     lessonPlanTemplates: { templates: [] },
     currentWeekStart: null,
     currentDayViewDate: null,
-    editingLessonId: null
+    editingLessonId: null,
+    editingTemplateId: null
   };
 
   function id() { return 'x' + Math.random().toString(36).substr(2, 9); }
@@ -186,6 +187,11 @@
     setCurrentWeekStart: function(d) { state.currentWeekStart = d; },
     getCurrentWeekStart: function() { return state.currentWeekStart; },
     setCurrentDayViewDate: function(d) { state.currentDayViewDate = d; },
-    getCurrentDayViewDate: function() { return state.currentDayViewDate; }
+    getCurrentDayViewDate: function() { return state.currentDayViewDate; },
+    setEditingTemplateId: function(id) { state.editingTemplateId = id; },
+    getEditingTemplateId: function() { return state.editingTemplateId; },
+    getTemplateById: function(id) {
+      return (state.lessonPlanTemplates.templates || []).find(function(t) { return t.id === id; });
+    }
   };
 })();

@@ -312,18 +312,24 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 }
 .empty-state strong{color:var(--text);display:block;margin-bottom:.5rem}
 
-/* Templates list */
-.templates-list{display:flex;flex-direction:column;gap:.5rem}
-.template-card{
-  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;
-  padding:.75rem 1rem;background:var(--card-elevated);border:1px solid var(--border);
-  border-radius:8px;font-size:.85rem
+/* Lesson cards grid */
+.lesson-cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem}
+.lesson-card{
+  background:var(--card-elevated);border:1px solid var(--border);border-radius:10px;
+  padding:1rem 1.25rem;transition:all .15s;box-shadow:var(--shadow-card);
+  border-left:4px solid var(--accent);cursor:default
 }
-.template-card-info{flex:1;min-width:0}
-.template-card-name{font-weight:600;color:var(--text);margin-bottom:.2rem}
-.template-card-meta{font-size:.75rem;color:var(--text3)}
-.template-card-actions{display:flex;gap:.35rem}
-.template-card-actions button{font-size:.72rem;padding:.35rem .6rem}
+.lesson-card:hover{box-shadow:var(--shadow-card-hover);border-color:var(--border2)}
+.lesson-card[data-subject="drama"]{border-left-color:var(--accent-drama)}
+.lesson-card[data-subject="art"]{border-left-color:var(--accent-art)}
+.lesson-card[data-subject="photography"]{border-left-color:var(--accent-photography)}
+.lesson-card-title{font-weight:600;color:var(--text);font-size:.95rem;margin-bottom:.35rem;line-height:1.3}
+.lesson-card-unit{font-size:.8rem;color:var(--text2);margin-bottom:.5rem}
+.lesson-card-preview{font-size:.75rem;color:var(--text3);line-height:1.4;margin-bottom:.75rem;max-height:3.6em;overflow:hidden;text-overflow:ellipsis}
+.lesson-card-actions{display:flex;gap:.4rem;flex-wrap:wrap}
+.lesson-card-actions button{font-size:.72rem;padding:.4rem .7rem}
+.lesson-card-actions .btn-apply{background:var(--accent);color:var(--white);border:none;border-radius:4px;font-weight:600;cursor:pointer}
+.lesson-card-actions .btn-apply:hover{opacity:.9}
 </style>
 </head>
 <body>
@@ -346,7 +352,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
   <button class="planner-tab active" data-tab="timetable">My Timetable</button>
   <button class="planner-tab" data-tab="week">Week View</button>
   <button class="planner-tab" data-tab="day">Day View</button>
-  <button class="planner-tab" data-tab="templates">Lesson Plan Templates</button>
+  <button class="planner-tab" data-tab="templates">Lesson Bank</button>
 </div>
 
 <!-- Timetable panel -->
@@ -415,20 +421,62 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
   <div id="dayViewList" class="day-view-list"></div>
 </div>
 
-<!-- Lesson Plan Templates panel -->
+<!-- Lesson Bank panel -->
 <div id="panel-templates" class="planner-panel">
   <div class="timetable-section">
-    <div class="timetable-header">My Lesson Plan Templates</div>
+    <div class="timetable-header">My Lesson Bank</div>
     <div style="padding:1rem 1.25rem">
-      <p style="font-size:.85rem;color:var(--text2);margin-bottom:1rem">Save lesson plans as reusable templates. Apply them when adding a lesson to pre-fill the form. Export or import template files to share with colleagues.</p>
-      <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem">
+      <p style="font-size:.85rem;color:var(--text2);margin-bottom:1rem">Build lessons here and save them as lesson cards. Over time you build a library of lessons you can filter, find, and apply to your classes.</p>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem">
+        <button type="button" class="btn-primary" id="createNewLessonBtn">+ Create new lesson</button>
         <input type="file" id="templateImportFile" accept=".json,application/json" style="display:none">
-        <button type="button" class="btn-secondary" id="templateImportBtn">Import template</button>
+        <button type="button" class="btn-secondary" id="templateImportBtn">Import lesson</button>
+        <div style="flex:1;min-width:200px;display:flex;gap:.5rem;flex-wrap:wrap">
+          <select class="form-select" id="lessonBankFilterSubject" style="width:140px">
+            <option value="">All subjects</option>
+            <option value="drama">Drama</option>
+            <option value="art">Art & Design</option>
+            <option value="photography">Photography</option>
+          </select>
+          <input type="text" class="form-input" id="lessonBankSearch" placeholder="Search lessons..." style="flex:1;min-width:160px">
+        </div>
       </div>
-      <div id="templatesList" class="templates-list"></div>
+      <div id="templatesList" class="lesson-cards-grid"></div>
       <div id="templatesEmpty" class="empty-state" style="display:none">
-        <strong>No templates yet</strong><br>Create a lesson in Week View or Day View, then click &quot;Save as template&quot; in the lesson modal. Or import a template file.
+        <strong>No lessons yet</strong><br>Click &quot;Create new lesson&quot; to build your first lesson plan. Once saved, it becomes a lesson card you can apply to classes.
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Apply to timetable modal -->
+<div class="modal-overlay" id="applyToTimetableModal">
+  <div class="modal" style="max-width:380px">
+    <div class="modal-header">
+      <h2 class="modal-title">Apply to class</h2>
+      <button class="modal-close" id="applyToTimetableClose">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:.85rem;color:var(--text2);margin-bottom:1rem">Choose the date and period to add this lesson to your timetable.</p>
+      <div class="form-group">
+        <label class="form-label">Date</label>
+        <input type="date" id="applyToDate" class="form-input">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Period</label>
+        <select id="applyToPeriod" class="form-select">
+          <option value="1">Period 1</option>
+          <option value="2">Period 2</option>
+          <option value="3">Period 3</option>
+          <option value="4">Period 4</option>
+          <option value="5">Period 5</option>
+          <option value="6">Period 6</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-secondary" id="applyToTimetableCancel">Cancel</button>
+      <button class="btn-primary" id="applyToTimetableConfirm">Apply</button>
     </div>
   </div>
 </div>
@@ -445,7 +493,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
     <div class="modal-body">
       <input type="hidden" id="lessonSlotKey">
       <input type="hidden" id="lessonDate">
-      <div class="form-group" style="background:var(--bg);padding:.6rem .75rem;border-radius:6px;margin-bottom:1rem">
+      <div class="form-group lesson-modal-apply-section" style="background:var(--bg);padding:.6rem .75rem;border-radius:6px;margin-bottom:1rem">
         <label class="form-label">Apply template</label>
         <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
           <select class="form-select" id="applyTemplateSelect" style="flex:1;min-width:160px">
@@ -932,79 +980,88 @@ function renderWeekView() {
   });
 }
 
+var applyToTimetableTemplateId = null;
+
+function openApplyToTimetableModal(templateId) {
+  applyToTimetableTemplateId = templateId;
+  document.getElementById('applyToDate').value = getDateStr(new Date());
+  document.getElementById('applyToTimetableModal').classList.add('visible');
+}
+
 function renderTemplatesList() {
-  var templates = PS.getTemplates ? PS.getTemplates() : [];
+  var allTemplates = PS.getTemplates ? PS.getTemplates() : [];
+  var subjectFilter = (document.getElementById('lessonBankFilterSubject') || {}).value || '';
+  var searchQ = ((document.getElementById('lessonBankSearch') || {}).value || '').toLowerCase().trim();
+  var templates = allTemplates.filter(function(t) {
+    if (subjectFilter && (t.subject || '') !== subjectFilter) return false;
+    if (searchQ) {
+      var title = (t.name || t.title || '').toLowerCase();
+      var unit = (t.unitKey && window.getUnitFromKey ? (window.getUnitFromKey(t.unitKey) || {}).unit : '') || '';
+      if (title.indexOf(searchQ) === -1 && unit.toLowerCase().indexOf(searchQ) === -1) return false;
+    }
+    return true;
+  });
   var listEl = document.getElementById('templatesList');
   var emptyEl = document.getElementById('templatesEmpty');
   if (!listEl || !emptyEl) return;
   if (templates.length === 0) {
     listEl.innerHTML = '';
     emptyEl.style.display = 'block';
+    emptyEl.innerHTML = allTemplates.length === 0
+      ? '<strong>No lessons yet</strong><br>Click &quot;Create new lesson&quot; to build your first lesson plan. Once saved, it becomes a lesson card you can apply to classes.'
+      : '<strong>No matching lessons</strong><br>Try changing the filter or search.';
     return;
   }
   emptyEl.style.display = 'none';
   var html = '';
   templates.forEach(function(t) {
     var u = t.unitKey && window.getUnitFromKey ? window.getUnitFromKey(t.unitKey) : null;
-    var meta = [t.subject ? subjectLabel(t.subject) : '', u ? u.unit : ''].filter(Boolean).join(' · ');
-    html += '<div class="template-card" data-template-id="' + (t.id || '') + '">';
-    html += '<div class="template-card-info"><div class="template-card-name">' + (t.name || 'Untitled').replace(/</g, '&lt;') + '</div>';
-    if (meta) html += '<div class="template-card-meta">' + meta.replace(/</g, '&lt;') + '</div>';
-    html += '</div>';
-    html += '<div class="template-card-actions">';
-    html += '<button type="button" class="btn-secondary template-apply-btn" title="Use in lesson modal">Apply</button>';
-    html += '<button type="button" class="btn-secondary template-export-btn" title="Export as file">Export</button>';
-    html += '<button type="button" class="btn-remove-resource template-delete-btn" title="Delete">Delete</button>';
+    var preview = (t.learningIntentions || t.successCriteria || t.activity || '').toString().slice(0, 100);
+    if (preview) preview = preview.replace(/</g, '&lt;');
+    var subj = t.subject || '';
+    html += '<div class="lesson-card" data-template-id="' + (t.id || '') + '" data-subject="' + subj + '">';
+    html += '<div class="lesson-card-title">' + (t.name || t.title || 'Untitled').replace(/</g, '&lt;') + '</div>';
+    html += '<div class="lesson-card-unit">' + (t.subject ? subjectLabel(t.subject) + (u ? ' · ' + u.unit : '') : (u ? u.unit : '')).replace(/</g, '&lt;') + '</div>';
+    if (preview) html += '<div class="lesson-card-preview">' + preview + '</div>';
+    html += '<div class="lesson-card-actions">';
+    html += '<button type="button" class="btn-apply lesson-card-apply-btn">Apply to class</button>';
+    html += '<button type="button" class="btn-secondary lesson-card-edit-btn">Edit</button>';
+    html += '<button type="button" class="btn-secondary lesson-card-export-btn">Export</button>';
+    html += '<button type="button" class="btn-remove-resource lesson-card-delete-btn">Delete</button>';
     html += '</div></div>';
   });
   listEl.innerHTML = html;
-  listEl.querySelectorAll('.template-apply-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      var card = btn.closest('.template-card');
-      var id = card && card.dataset.templateId;
-      if (!id) return;
-      var t = templates.find(function(x) { return x.id === id; });
-      if (t) {
-        var dateStr = document.getElementById('lessonDate').value || getDateStr(new Date());
-        var slotKeyVal = document.getElementById('lessonSlotKey').value;
-        if (!slotKeyVal) {
-          var slots = getSlotsForDayView();
-          var dayName = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'][new Date().getDay()];
-          var slot = slots.find(function(s) { return (s.day || '').toLowerCase() === dayName; });
-          slotKeyVal = slot ? slotKey(dayName, slot.period) : 'monday-1';
-        }
-        openLessonModal(dateStr, slotKeyVal);
-        applyTemplateToModal(t);
-        showToast('Template applied');
-      }
-    });
+  listEl.querySelectorAll('.lesson-card-apply-btn').forEach(function(btn) {
+    btn.addEventListener('click', function(e) { e.stopPropagation(); openApplyToTimetableModal(btn.closest('.lesson-card').dataset.templateId); });
   });
-  listEl.querySelectorAll('.template-export-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      var card = btn.closest('.template-card');
-      var id = card && card.dataset.templateId;
-      if (!id) return;
-      var t = templates.find(function(x) { return x.id === id; });
+  listEl.querySelectorAll('.lesson-card-edit-btn').forEach(function(btn) {
+    btn.addEventListener('click', function(e) { e.stopPropagation(); openLessonModalForLibrary(btn.closest('.lesson-card').dataset.templateId); });
+  });
+  listEl.querySelectorAll('.lesson-card-export-btn').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var id = btn.closest('.lesson-card').dataset.templateId;
+      var t = allTemplates.find(function(x) { return x.id === id; });
       if (!t) return;
       var blob = new Blob([JSON.stringify({ lessonPlanTemplate: t, exportedAt: new Date().toISOString() }, null, 2)], { type: 'application/json' });
       var a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = (t.name || 'template').replace(/[^a-zA-Z0-9\-_]/g, '_') + '.json';
+      a.download = (t.name || t.title || 'lesson').replace(/[^a-zA-Z0-9\-_]/g, '_') + '.json';
       a.click();
       URL.revokeObjectURL(a.href);
-      showToast('Template exported');
+      showToast('Lesson exported');
     });
   });
-  listEl.querySelectorAll('.template-delete-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      var card = btn.closest('.template-card');
-      var id = card && card.dataset.templateId;
+  listEl.querySelectorAll('.lesson-card-delete-btn').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var id = btn.closest('.lesson-card').dataset.templateId;
       if (!id) return;
-      if (!confirm('Delete this template?')) return;
+      if (!confirm('Delete this lesson from your bank?')) return;
       PS.deleteTemplate(id).then(function() {
         renderTemplatesList();
         populateApplyTemplateDropdown();
-        showToast('Template deleted');
+        showToast('Lesson deleted');
       });
     });
   });
@@ -1098,11 +1155,16 @@ function renderDayView() {
   });
 }
 
+function isLibraryMode() {
+  return !!PS.getEditingTemplateId && PS.getEditingTemplateId();
+}
+
 function openLessonModal(dateStr, slotKey) {
+  PS.setEditingTemplateId(null);
   PS.setEditingLessonId(null);
   var lesson = PS.getLessonFor(dateStr, slotKey);
-  document.getElementById('lessonSlotKey').value = slotKey;
-  document.getElementById('lessonDate').value = dateStr;
+  document.getElementById('lessonSlotKey').value = slotKey || '';
+  document.getElementById('lessonDate').value = dateStr || '';
   document.getElementById('lessonModalTitle').textContent = lesson ? 'Edit Lesson' : 'Add Lesson';
   document.getElementById('lessonSubject').value = lesson ? (lesson.subject || '') : '';
   document.getElementById('lessonUnit').value = lesson ? (lesson.unitKey || '') : '';
@@ -1120,10 +1182,43 @@ function openLessonModal(dateStr, slotKey) {
   renderTodosList(lesson ? (lesson.todos || []) : []);
   if (lesson) PS.setEditingLessonId(lesson.id);
   document.getElementById('lessonDelete').style.display = lesson ? 'block' : 'none';
+  document.getElementById('lessonSaveAsTemplate').style.display = 'block';
   document.getElementById('lessonCopyTo').style.display = 'block';
+  document.getElementById('lessonSave').textContent = 'Save Lesson';
+  document.querySelector('.lesson-modal-apply-section').style.display = 'block';
   document.getElementById('copyToForm').style.display = 'none';
   document.getElementById('lessonModal').classList.add('visible');
   populateApplyTemplateDropdown();
+}
+
+function openLessonModalForLibrary(templateId) {
+  PS.setEditingLessonId(null);
+  PS.setEditingTemplateId(templateId === undefined || templateId === null ? 'new' : templateId);
+  var template = templateId && PS.getTemplateById ? PS.getTemplateById(templateId) : null;
+  document.getElementById('lessonSlotKey').value = '';
+  document.getElementById('lessonDate').value = '';
+  document.getElementById('lessonModalTitle').textContent = template ? 'Edit lesson' : 'Create new lesson';
+  document.getElementById('lessonSubject').value = template ? (template.subject || '') : '';
+  document.getElementById('lessonUnit').value = template ? (template.unitKey || '') : '';
+  document.getElementById('lessonTitle').value = template ? (template.title || template.name || '') : '';
+  document.getElementById('lessonObjectives').value = template ? (template.objectives || '') : '';
+  document.getElementById('lessonLearningIntentions').value = template ? (template.learningIntentions || '') : '';
+  document.getElementById('lessonSuccessCriteria').value = template ? (template.successCriteria || '') : '';
+  document.getElementById('lessonActivity').value = template ? (template.activity || '') : '';
+  document.getElementById('lessonDifferentiation').value = template ? (template.differentiation || '') : '';
+  document.getElementById('lessonEffectiveQuestions').value = template ? (template.effectiveQuestions || '') : '';
+  document.getElementById('lessonDigitalTechnologies').value = template ? (template.digitalTechnologies || '') : '';
+  document.getElementById('lessonNotes').value = template ? (template.notes || '') : '';
+  populateUnitDropdown(document.getElementById('lessonSubject').value);
+  renderResourcesList(template ? (template.resources || []) : []);
+  renderTodosList(template ? (template.todos || []) : []);
+  document.getElementById('lessonDelete').style.display = template ? 'block' : 'none';
+  document.getElementById('lessonSaveAsTemplate').style.display = 'none';
+  document.getElementById('lessonCopyTo').style.display = 'none';
+  document.getElementById('lessonSave').textContent = template ? 'Update lesson' : 'Save to lesson bank';
+  document.querySelector('.lesson-modal-apply-section').style.display = 'none';
+  document.getElementById('copyToForm').style.display = 'none';
+  document.getElementById('lessonModal').classList.add('visible');
 }
 
 function populateApplyTemplateDropdown() {
@@ -1141,7 +1236,7 @@ function applyTemplateToModal(template) {
   document.getElementById('lessonSubject').value = template.subject || '';
   populateUnitDropdown(template.subject || '');
   document.getElementById('lessonUnit').value = template.unitKey || '';
-  document.getElementById('lessonTitle').value = template.title || '';
+  document.getElementById('lessonTitle').value = template.title || template.name || '';
   document.getElementById('lessonObjectives').value = template.objectives || '';
   document.getElementById('lessonLearningIntentions').value = template.learningIntentions || '';
   document.getElementById('lessonSuccessCriteria').value = template.successCriteria || '';
@@ -1151,6 +1246,7 @@ function applyTemplateToModal(template) {
   document.getElementById('lessonDigitalTechnologies').value = template.digitalTechnologies || '';
   document.getElementById('lessonNotes').value = template.notes || '';
   renderResourcesList(template.resources || []);
+  renderTodosList(template.todos || []);
 }
 
 function populateUnitDropdown(subject) {
@@ -1346,6 +1442,22 @@ document.getElementById('lessonSaveAsTemplate').addEventListener('click', functi
 
 document.getElementById('lessonSave').addEventListener('click', function() {
   var payload = collectLessonPayloadFromModal();
+  var templateId = PS.getEditingTemplateId && PS.getEditingTemplateId();
+  if (templateId) {
+    var template = Object.assign({ name: payload.title || 'Untitled' }, payload);
+    delete template.date;
+    delete template.slotKey;
+    delete template.updatedAt;
+    if (templateId !== 'new') template.id = templateId;
+    PS.saveTemplate(template).then(function() {
+      document.getElementById('lessonModal').classList.remove('visible');
+      PS.setEditingTemplateId(null);
+      renderTemplatesList();
+      populateApplyTemplateDropdown();
+      showToast('Lesson saved to bank');
+    });
+    return;
+  }
   PS.upsertLesson(payload, PS.getEditingLessonId());
   PS.saveLessons().then(function() {
     document.getElementById('lessonModal').classList.remove('visible');
@@ -1359,6 +1471,18 @@ document.getElementById('lessonCancel').addEventListener('click', function() {
 });
 
 document.getElementById('lessonDelete').addEventListener('click', function() {
+  var templateId = PS.getEditingTemplateId && PS.getEditingTemplateId();
+  if (templateId && templateId !== 'new') {
+    if (!confirm('Delete this lesson from your bank?')) return;
+    PS.deleteTemplate(templateId).then(function() {
+      document.getElementById('lessonModal').classList.remove('visible');
+      PS.setEditingTemplateId(null);
+      renderTemplatesList();
+      populateApplyTemplateDropdown();
+      showToast('Lesson deleted from bank');
+    });
+    return;
+  }
   var editingId = PS.getEditingLessonId();
   if (!editingId) return;
   PS.removeLesson(editingId);
@@ -1502,15 +1626,15 @@ document.getElementById('templateImportFile').addEventListener('change', functio
       var data = JSON.parse(reader.result);
       var t = data.lessonPlanTemplate || data;
       if (!t || (typeof t !== 'object')) {
-        showToast('Invalid template file');
+        showToast('Invalid lesson file');
         ev.target.value = '';
         return;
       }
       if (t.id) delete t.id;
       if (t.createdAt) delete t.createdAt;
-      t.name = t.name || 'Imported template';
+      t.name = t.name || t.title || 'Imported lesson';
       PS.saveTemplate(t).then(function() {
-        showToast('Template imported');
+        showToast('Lesson imported');
         renderTemplatesList();
         populateApplyTemplateDropdown();
       });
@@ -1520,6 +1644,70 @@ document.getElementById('templateImportFile').addEventListener('change', functio
     ev.target.value = '';
   };
   reader.readAsText(file);
+});
+
+document.getElementById('createNewLessonBtn').addEventListener('click', function() {
+  openLessonModalForLibrary(null);
+});
+
+(document.getElementById('lessonBankFilterSubject') || {}).addEventListener('change', function() {
+  renderTemplatesList();
+});
+(document.getElementById('lessonBankSearch') || {}).addEventListener('input', function() {
+  renderTemplatesList();
+});
+
+document.getElementById('applyToTimetableClose').addEventListener('click', function() {
+  document.getElementById('applyToTimetableModal').classList.remove('visible');
+  applyToTimetableTemplateId = null;
+});
+document.getElementById('applyToTimetableCancel').addEventListener('click', function() {
+  document.getElementById('applyToTimetableModal').classList.remove('visible');
+  applyToTimetableTemplateId = null;
+});
+document.getElementById('applyToTimetableConfirm').addEventListener('click', function() {
+  if (!applyToTimetableTemplateId) return;
+  var t = PS.getTemplateById && PS.getTemplateById(applyToTimetableTemplateId);
+  if (!t) { showToast('Lesson not found'); return; }
+  var dateStr = document.getElementById('applyToDate').value;
+  if (!dateStr) { showToast('Select a date'); return; }
+  var period = parseInt(document.getElementById('applyToPeriod').value, 10);
+  var d = new Date(dateStr);
+  var dayName = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'][d.getDay()];
+  var toSlotKey = slotKey(dayName, period);
+  var payload = {
+    date: dateStr,
+    slotKey: toSlotKey,
+    subject: t.subject,
+    unitKey: t.unitKey,
+    title: t.title || t.name,
+    objectives: t.objectives,
+    learningIntentions: t.learningIntentions,
+    successCriteria: t.successCriteria,
+    activity: t.activity,
+    differentiation: t.differentiation,
+    effectiveQuestions: t.effectiveQuestions,
+    digitalTechnologies: t.digitalTechnologies,
+    notes: t.notes,
+    resources: t.resources || [],
+    todos: (t.todos || []).map(function(x) { return { id: PS.id(), text: x.text || '', done: false }; }),
+    updatedAt: new Date().toISOString()
+  };
+  PS.upsertLesson(payload, null);
+  PS.saveLessons().then(function() {
+    document.getElementById('applyToTimetableModal').classList.remove('visible');
+    applyToTimetableTemplateId = null;
+    showToast('Lesson added to timetable');
+    if (document.getElementById('panel-week').classList.contains('active')) renderWeekView();
+    if (document.getElementById('panel-day').classList.contains('active')) renderDayView();
+  });
+});
+
+document.getElementById('applyToTimetableModal').addEventListener('click', function(e) {
+  if (e.target === this) {
+    this.classList.remove('visible');
+    applyToTimetableTemplateId = null;
+  }
 });
 
 // Init
