@@ -405,7 +405,13 @@ a.sidebar-item:hover{color:var(--white)}
 .moderation-unit-card{
   background:var(--card-bg);border:1px solid var(--border);border-radius:8px;padding:1.25rem;cursor:pointer;transition:all .15s;
   display:flex;flex-direction:column;gap:.5rem;
+  border-left:3px solid transparent;
 }
+.moderation-unit-card.year-s1{border-left-color:rgba(59,130,246,.35);background:linear-gradient(90deg,rgba(59,130,246,.04) 0%,var(--card-bg) 12%)}
+.moderation-unit-card.year-s2{border-left-color:rgba(34,197,94,.35);background:linear-gradient(90deg,rgba(34,197,94,.04) 0%,var(--card-bg) 12%)}
+.moderation-unit-card.year-s3{border-left-color:rgba(234,179,8,.35);background:linear-gradient(90deg,rgba(234,179,8,.04) 0%,var(--card-bg) 12%)}
+.moderation-unit-card.year-bge{border-left-color:rgba(168,85,247,.35);background:linear-gradient(90deg,rgba(168,85,247,.04) 0%,var(--card-bg) 12%)}
+.moderation-unit-card.year-n5,.moderation-unit-card.year-higher{border-left-color:rgba(236,72,153,.35);background:linear-gradient(90deg,rgba(236,72,153,.04) 0%,var(--card-bg) 12%)}
 .moderation-unit-card:hover{border-color:var(--border2);box-shadow:0 4px 12px rgba(0,0,0,.06)}
 #panel-drama .moderation-unit-card:hover{border-color:var(--accent-drama)}
 #panel-ad .moderation-unit-card:hover{border-color:var(--accent-ad)}
@@ -447,7 +453,12 @@ a.sidebar-item:hover{color:var(--white)}
 .moderation-mod-export{background:var(--accent-drama);color:var(--white);border:none}
 .moderation-form-ad .moderation-mod-export{background:var(--accent-ad)}
 .moderation-form-photo .moderation-mod-export{background:var(--accent-photo)}
-.moderation-list-item{display:flex;align-items:center;justify-content:space-between;padding:.6rem 1rem;border-bottom:1px solid var(--border);font-size:.82rem}
+.moderation-list-item{display:flex;align-items:center;justify-content:space-between;padding:.6rem 1rem;border-bottom:1px solid var(--border);font-size:.82rem;padding-left:1.25rem;border-left:3px solid transparent}
+.moderation-list-item.year-s1{border-left-color:rgba(59,130,246,.4);background:linear-gradient(90deg,rgba(59,130,246,.03) 0%,transparent 20%)}
+.moderation-list-item.year-s2{border-left-color:rgba(34,197,94,.4);background:linear-gradient(90deg,rgba(34,197,94,.03) 0%,transparent 20%)}
+.moderation-list-item.year-s3{border-left-color:rgba(234,179,8,.4);background:linear-gradient(90deg,rgba(234,179,8,.03) 0%,transparent 20%)}
+.moderation-list-item.year-bge{border-left-color:rgba(168,85,247,.4);background:linear-gradient(90deg,rgba(168,85,247,.03) 0%,transparent 20%)}
+.moderation-list-item.year-n5,.moderation-list-item.year-higher{border-left-color:rgba(236,72,153,.4);background:linear-gradient(90deg,rgba(236,72,153,.03) 0%,transparent 20%)}
 .moderation-list-item:last-child{border-bottom:none}
 .moderation-list-item:hover{background:#f8fafc}
 .moderation-list-empty{color:var(--text3);font-size:.82rem;padding:1rem;text-align:center}
@@ -6368,7 +6379,8 @@ function renderModerationCards(subject){
     const status=getModerationStatus(u.id);
     const statusClass=status==='completed'?'completed':status==='draft'?'draft':'none';
     const statusLabel=status==='completed'?'Completed':status==='draft'?'In progress':'Not started';
-    return `<div class="moderation-unit-card" data-unit-id="${u.id}" data-subject="${subject}">
+    const yearClass='year-'+(u.year||'s1').toLowerCase().replace(/\s/g,'-');
+    return `<div class="moderation-unit-card ${yearClass}" data-unit-id="${u.id}" data-subject="${subject}" data-year="${u.year||''}">
       <div class="moderation-unit-card-num">${u.num}</div>
       <div class="moderation-unit-card-title">${u.title}</div>
       <div class="moderation-unit-card-meta">${u.year.toUpperCase()} · ${u.timing}</div>
@@ -6382,9 +6394,13 @@ function renderModerationList(subject){
   const container=document.getElementById(subject+'-moderation-list');
   if(!container) return;
   if(!entries.length){container.innerHTML='<div class="moderation-list-empty">No moderations yet. Select a unit above to get started.</div>';return;}
+  const key=subject==='ad'?'ad':subject;
+  const units=MODERATION_UNITS[key]||[];
   container.innerHTML=entries.map(e=>{
+    const unit=units.find(u=>u.id===e.id);
+    const yearClass='year-'+(unit?.year||'s1').toLowerCase().replace(/\s/g,'-');
     const date=e.completedAt||e.updatedAt||e.savedAt?' · '+(e.completedAt||e.updatedAt||e.savedAt||'').slice(0,10):'';
-    return `<div class="moderation-list-item">
+    return `<div class="moderation-list-item ${yearClass}">
       <span><strong>${e.unitTitle||e.id}</strong> — ${e.status||'draft'}${date}</span>
       <span>
         <button type="button" class="btn btn-ghost" style="padding:.25rem .5rem;font-size:.7rem" onclick="openModerationForm('${e.id}','${subject}');event.stopPropagation()">Edit</button>
@@ -6580,7 +6596,11 @@ function exportModerationSingle(unitId,format){
   const line=(t,c='')=>`<tr><td style="padding:.4rem 0;font-weight:600;color:#475569;font-size:.75rem">${t}</td><td style="padding:.4rem 0;font-size:.85rem">${c}</td></tr>`;
   let html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Moderation — ${unit?.title||unitId}</title><style>body{font-family:Inter,sans-serif;max-width:720px;margin:2rem auto;line-height:1.6;color:#1e293b}h1{font-size:1.25rem;margin-bottom:1rem}table{width:100%;border-collapse:collapse}.sc-item{margin:.35rem 0;padding-left:1rem;border-left:2px solid #e2e8f0}.reflection-q{font-size:.85rem;color:#475569;margin:.5rem 0}.reflection-a{margin-bottom:1rem}.footer{font-size:.75rem;color:#94a3b8;margin-top:2rem}</style></head><body>`;
   html+=`<h1>Unit Moderation — ${unit?.title||unitId}</h1>`;
-  html+=`<p style="color:#64748b;font-size:.85rem">Knightswood Secondary School · Art &amp; Drama Faculty · Exported ${new Date().toLocaleDateString()}</p>`;
+  const completedDate=entry.completedAt||entry.savedAt||entry.updatedAt;
+  const completedStr=completedDate?new Date(completedDate).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'}):'';
+  html+=`<p style="color:#64748b;font-size:.85rem">Knightswood Secondary School · Art &amp; Drama Faculty</p>`;
+  if(completedStr){html+=`<p style="color:#475569;font-size:.85rem;margin-top:.25rem"><strong>Moderation completed:</strong> ${completedStr}</p>`;}
+  html+=`<p style="color:#94a3b8;font-size:.75rem;margin-top:.25rem">Exported ${new Date().toLocaleDateString()}</p>`;
   html+=`<table style="margin-top:1.5rem">`;
   html+=line('Evidence Code',fd.evidenceCode||'');
   html+=line('Curriculum Area',fd.curriculumArea||'');
@@ -6625,9 +6645,13 @@ function exportModerationSingle(unitId,format){
     return;
   }
   if(format==='docx'&&typeof JSZip!=='undefined'){
+    const completedDate=entry.completedAt||entry.savedAt||entry.updatedAt;
+    const completedStr=completedDate?new Date(completedDate).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'}):'';
     const docXml=`<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${[
       ['Unit Moderation — '+(unit?.title||unitId),'heading'],
-      ['Knightswood Secondary School · Art & Drama Faculty · '+new Date().toLocaleDateString(),'normal'],
+      ['Knightswood Secondary School · Art & Drama Faculty','normal'],
+      ...(completedStr?[['Moderation completed: '+completedStr,'normal']]:[]),
+      ['Exported '+new Date().toLocaleDateString(),'normal'],
       ['Evidence Code: '+(fd.evidenceCode||''),'normal'],
       ['Curriculum Area: '+(fd.curriculumArea||''),'normal'],
       ['Level/Stage: '+(fd.levelStage||''),'normal'],
