@@ -54,6 +54,11 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .stat-lbl{font-size:.62rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin-top:.25rem}
 .stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:1rem}
 .empty-s{text-align:center;padding:2rem;color:var(--text3);font-size:.82rem}
+.strength-card{background:#f0fdf4;border:1px solid #86efac;border-radius:6px;padding:.75rem 1rem;margin-bottom:.5rem;font-size:.82rem}
+.dev-card{background:#fef2f2;border:1px solid #fca5a5;border-radius:6px;padding:.75rem 1rem;margin-bottom:.5rem;font-size:.82rem}
+.voice-quote{background:var(--bg);border-left:4px solid var(--accent);padding:.75rem 1rem;margin-bottom:.5rem;font-size:.82rem;font-style:italic;color:var(--text2)}
+.voice-section{margin-bottom:1.25rem}
+.voice-section-title{font-size:.75rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:.5rem}
 .toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:var(--navy);color:var(--white);padding:.75rem 1.25rem;border-radius:8px;font-size:.82rem;opacity:0;pointer-events:none;transition:opacity .25s;z-index:9999}
 .toast.show{opacity:1}
 
@@ -111,8 +116,13 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
       </div>
       <div class="sc-body">
         <div id="survey-uploads-list" style="margin-bottom:1rem"></div>
+        <div id="survey-filter-row" style="display:flex;align-items:center;gap:1rem;flex-wrap:wrap;margin-bottom:1rem;display:none">
+          <div><label class="form-label">Filter by subject</label><select id="survey-subject-filter" class="form-input" onchange="renderSurveyView(window._surveyUploads||[])" style="max-width:180px"><option value="">All subjects</option></select></div>
+        </div>
         <div id="survey-status" class="empty-s" style="text-align:left">No survey data uploaded yet.</div>
+        <div id="survey-strengths-dev" style="margin-top:1.5rem"></div>
         <div id="survey-infographics" style="margin-top:1.5rem"></div>
+        <div id="survey-pupil-voice" style="margin-top:1.5rem"></div>
       </div>
     </div>
   </div>
@@ -261,17 +271,80 @@ function loadAllEvidence() {
   }).catch(function() { toast('Could not load data'); });
 }
 
+function mergeSurveyData(surveys, subjectFilter) {
+  var merged = { likert: {}, overall: [], freeText: { whyRating: [], enjoyMost: [], improve: [] }, bySubject: {} };
+  var themeKeys = ['learningIntentions','successCriteria','activeLearning','support','feedback','challenge','digitalLearning'];
+  themeKeys.forEach(function(k) { merged.likert[k] = {}; });
+  function addTo(t, d) {
+    if (!d) return;
+    themeKeys.forEach(function(k) {
+      t.likert[k] = t.likert[k] || {};
+      Object.keys(d.likert && d.likert[k] || {}).forEach(function(v) {
+        t.likert[k][v] = (t.likert[k][v] || 0) + (d.likert[k][v] || 0);
+      });
+    });
+    (d.overallRating || d.overall || []).forEach(function(v) { t.overall.push(v); });
+    ['whyRating','enjoyMost','improve'].forEach(function(f) {
+      (d.freeText && d.freeText[f] || []).forEach(function(x) { if (x) t.freeText[f].push(x); });
+    });
+  }
+  surveys.forEach(function(s) {
+    var d = s.data || {};
+    if (d.bySubject) {
+      Object.keys(d.bySubject).forEach(function(subj) {
+        if (!merged.bySubject[subj]) merged.bySubject[subj] = { likert: {}, overall: [], freeText: { whyRating: [], enjoyMost: [], improve: [] } };
+        themeKeys.forEach(function(k) { merged.bySubject[subj].likert[k] = merged.bySubject[subj].likert[k] || {}; });
+        addTo(merged.bySubject[subj], d.bySubject[subj]);
+      });
+    }
+    if (subjectFilter && d.bySubject && d.bySubject[subjectFilter]) {
+      addTo(merged, d.bySubject[subjectFilter]);
+    } else if (!subjectFilter) {
+      addTo(merged, { likert: d.likert, overallRating: d.overallRating, freeText: d.freeText });
+    }
+  });
+  if (subjectFilter) {
+    var subjData = merged.bySubject && merged.bySubject[subjectFilter];
+    if (subjData) return { likert: subjData.likert, overall: subjData.overall, overallRating: subjData.overall, freeText: subjData.freeText, bySubject: merged.bySubject };
+    return { likert: merged.likert, overall: merged.overall, overallRating: merged.overall, freeText: merged.freeText, bySubject: merged.bySubject };
+  }
+  return merged;
+}
+
+function computeStrengthAndDev(likert, themeLabels) {
+  var likertOrder = ['Strongly agree','Agree','Neutral','Disagree','Strongly disagree'];
+  var strengths = [], dev = [];
+  Object.keys(themeLabels).forEach(function(k) {
+    var dist = likert[k] || {};
+    var total = Object.values(dist).reduce(function(a,b){return a+b},0);
+    if (total < 5) return;
+    var agree = (dist['Strongly agree'] || 0) + (dist['Agree'] || 0);
+    var disagree = (dist['Disagree'] || 0) + (dist['Strongly disagree'] || 0);
+    var agreePct = (agree / total * 100).toFixed(0);
+    var disagreePct = (disagree / total * 100).toFixed(0);
+    if (agreePct >= 80 && disagreePct < 10) strengths.push({ theme: themeLabels[k], agreePct: agreePct, total: total });
+    if (disagreePct >= 15 || agreePct < 60) dev.push({ theme: themeLabels[k], agreePct: agreePct, disagreePct: disagreePct, total: total });
+  });
+  return { strengths: strengths, dev: dev };
+}
+
 function renderSurveyView(surveys) {
   var st = document.getElementById('survey-status');
   var inf = document.getElementById('survey-infographics');
   var listEl = document.getElementById('survey-uploads-list');
   var deleteAllBtn = document.getElementById('survey-delete-all-btn');
+  var strengthsEl = document.getElementById('survey-strengths-dev');
+  var voiceEl = document.getElementById('survey-pupil-voice');
+  var subjectFilterEl = document.getElementById('survey-subject-filter');
   window._surveyUploads = surveys || [];
   if (!surveys || !surveys.length) {
     st.textContent = 'No survey data uploaded yet.';
     inf.innerHTML = '';
     if (listEl) listEl.innerHTML = '';
     if (deleteAllBtn) deleteAllBtn.style.display = 'none';
+    if (strengthsEl) strengthsEl.innerHTML = '';
+    if (voiceEl) voiceEl.innerHTML = '';
+    if (subjectFilterEl) subjectFilterEl.innerHTML = '<option value="">All subjects</option>';
     return;
   }
   if (deleteAllBtn) deleteAllBtn.style.display = 'inline-flex';
@@ -280,36 +353,56 @@ function renderSurveyView(surveys) {
       var meta = s.metadata || {};
       var fn = meta.filename || 'Upload';
       var dt = meta.uploaded_at ? new Date(meta.uploaded_at).toLocaleDateString('en-GB') : '';
-      var resp = (s.data && s.data.overallRating && s.data.overallRating.length) || 0;
+      var resp = (s.data && (s.data.overallRating || s.data.overall) && (s.data.overallRating || s.data.overall).length) || 0;
       return '<div style="display:flex;align-items:center;justify-content:space-between;padding:.5rem 0;border-bottom:1px solid var(--border);font-size:.82rem">' +
         '<span>' + fn + (dt ? ' · ' + dt : '') + (resp ? ' · ' + resp + ' responses' : '') + '</span>' +
         '<button class="btn btn-danger" style="padding:.25rem .5rem;font-size:.7rem" onclick="deleteSurveyItem(\'' + (s.id||'').replace(/'/g,"\\'") + '\')">Delete</button>' +
         '</div>';
     }).join('');
   }
-  var merged = { likert: {}, overall: [], freeText: { whyRating: [], enjoyMost: [], improve: [] } };
-  surveys.forEach(function(s) {
-    var d = s.data || {};
-    Object.keys(d.likert || {}).forEach(function(k) {
-      merged.likert[k] = merged.likert[k] || {};
-      Object.keys(d.likert[k] || {}).forEach(function(v) {
-        merged.likert[k][v] = (merged.likert[k][v] || 0) + (d.likert[k][v] || 0);
-      });
-    });
-    (d.overallRating || []).forEach(function(v) { merged.overall.push(v); });
-    (d.freeText && d.freeText.whyRating || []).forEach(function(t) { if (t) merged.freeText.whyRating.push(t); });
-    (d.freeText && d.freeText.enjoyMost || []).forEach(function(t) { if (t) merged.freeText.enjoyMost.push(t); });
-    (d.freeText && d.freeText.improve || []).forEach(function(t) { if (t) merged.freeText.improve.push(t); });
-  });
-  st.innerHTML = '<strong>' + surveys.length + ' survey upload(s)</strong> · ' + merged.overall.length + ' responses';
+  var subjectFilter = subjectFilterEl ? subjectFilterEl.value : '';
+  var merged = mergeSurveyData(surveys, subjectFilter || null);
+  var subjKeys = Object.keys(merged.bySubject || {}).filter(function(k) { return k && k !== 'All subjects'; }).sort();
+  var filterRow = document.getElementById('survey-filter-row');
+  if (filterRow) filterRow.style.display = subjKeys.length ? 'flex' : 'none';
+  if (subjectFilterEl) {
+    var opts = '<option value="">All subjects</option>';
+    subjKeys.forEach(function(k) { opts += '<option value="' + (k.replace(/"/g,'&quot;')) + '"' + (subjectFilter === k ? ' selected' : '') + '>' + (k.replace(/</g,'&lt;')) + '</option>'; });
+    subjectFilterEl.innerHTML = opts;
+  }
+  var respCount = (merged.overallRating || merged.overall || []).length;
+  st.innerHTML = '<strong>' + surveys.length + ' survey upload(s)</strong> · ' + respCount + ' responses' + (subjectFilter ? ' · ' + subjectFilter : '');
   var themeLabels = { learningIntentions: 'Learning Intentions', successCriteria: 'Success Criteria', activeLearning: 'Active Learning', support: 'Support / Ethos', feedback: 'Feedback', challenge: 'Challenge', digitalLearning: 'Digital Learning' };
+  var sa = computeStrengthAndDev(merged.likert || {}, themeLabels);
+  if (strengthsEl) {
+    var sh = '';
+    if (sa.strengths.length) sh += '<div class="form-label" style="color:#15803d;margin-bottom:.25rem">Areas of strength</div>' + sa.strengths.map(function(x) {
+      return '<div class="strength-card"><strong>' + x.theme + '</strong> — ' + x.agreePct + '% positive (' + x.total + ' responses)</div>';
+    }).join('');
+    if (sa.dev.length) sh += '<div class="form-label" style="color:#991b1b;margin:1rem 0 .25rem">Areas for development</div>' + sa.dev.map(function(x) {
+      return '<div class="dev-card"><strong>' + x.theme + '</strong> — ' + x.agreePct + '% positive, ' + x.disagreePct + '% negative (' + x.total + ' responses)</div>';
+    }).join('');
+    strengthsEl.innerHTML = sh || '<div class="empty-s" style="padding:1rem;text-align:left">Add more responses to identify strengths and development areas.</div>';
+  }
+  var freeText = merged.freeText || {};
+  if (voiceEl) {
+    var vh = '';
+    ['enjoyMost','whyRating','improve'].forEach(function(key) {
+      var arr = freeText[key] || [];
+      var title = key === 'enjoyMost' ? 'What pupils enjoy most' : key === 'whyRating' ? 'Why they gave that rating' : 'What could be improved';
+      if (arr.length) vh += '<div class="voice-section"><div class="voice-section-title">' + title + '</div>' + arr.slice(0, 12).map(function(t) {
+        return '<div class="voice-quote">' + (String(t).replace(/</g,'&lt;').substring(0, 200) + (t.length > 200 ? '…' : '')) + '</div>';
+      }).join('') + (arr.length > 12 ? '<div style="font-size:.75rem;color:var(--text3);margin-top:.25rem">+ ' + (arr.length - 12) + ' more</div>' : '') + '</div>';
+    });
+    voiceEl.innerHTML = vh || '<div class="empty-s" style="padding:1rem;text-align:left">No pupil voice comments yet. Free-text responses will appear here.</div>';
+  }
   var html = '<div class="stats-grid" style="margin-bottom:1.5rem">';
-  var avg = merged.overall.length ? merged.overall.reduce(function(a,b){return a+b},0) / merged.overall.length : 0;
+  var avg = respCount ? (merged.overallRating || merged.overall || []).reduce(function(a,b){return a+b},0) / respCount : 0;
   html += '<div class="stat-card"><div class="stat-num">' + (avg ? avg.toFixed(1) : '—') + '</div><div class="stat-lbl">Avg rating (1–10)</div></div>';
-  html += '<div class="stat-card"><div class="stat-num">' + merged.overall.length + '</div><div class="stat-lbl">Responses</div></div></div>';
+  html += '<div class="stat-card"><div class="stat-num">' + respCount + '</div><div class="stat-lbl">Responses</div></div></div>';
   var likertOrder = ['Strongly agree','Agree','Neutral','Disagree','Strongly disagree'];
   Object.keys(themeLabels).forEach(function(k) {
-    var dist = merged.likert[k] || {};
+    var dist = (merged.likert || {})[k] || {};
     var total = Object.values(dist).reduce(function(a,b){return a+b},0);
     if (total === 0) return;
     var keys = Object.keys(dist);
@@ -359,13 +452,27 @@ function parseSurveyExcel(workbook) {
   var likert = {};
   var overall = [];
   var freeText = { whyRating: [], enjoyMost: [], improve: [] };
+  var bySubject = {};
   var likertKeys = ['learningIntentions','successCriteria','activeLearning','support','feedback','challenge','digitalLearning'];
   likertKeys.forEach(function(k) { likert[k] = {}; });
+  function ensureSubject(subj) {
+    if (!subj) subj = 'Not specified';
+    if (!bySubject[subj]) {
+      bySubject[subj] = { likert: {}, overall: [], freeText: { whyRating: [], enjoyMost: [], improve: [] } };
+      likertKeys.forEach(function(k) { bySubject[subj].likert[k] = {}; });
+    }
+    return subj;
+  }
   dataRows.forEach(function(r) {
+    var subj = (colMap.subject && String(r[colMap.subject] || '').trim()) || 'All subjects';
+    subj = ensureSubject(subj);
     var col = colMap.overallRating;
     if (col) {
       var v = parseInt(r[col], 10);
-      if (!isNaN(v) && v >= 1 && v <= 10) overall.push(v);
+      if (!isNaN(v) && v >= 1 && v <= 10) {
+        overall.push(v);
+        bySubject[subj].overall.push(v);
+      }
     }
     likertKeys.forEach(function(k) {
       var col = colMap[k];
@@ -374,13 +481,14 @@ function parseSurveyExcel(workbook) {
       if (v) {
         var canonical = normalizeLikertValue(v) || v;
         likert[k][canonical] = (likert[k][canonical] || 0) + 1;
+        bySubject[subj].likert[k][canonical] = (bySubject[subj].likert[k][canonical] || 0) + 1;
       }
     });
-    if (colMap.whyRating) { var t = String(r[colMap.whyRating]||'').trim(); if (t) freeText.whyRating.push(t); }
-    if (colMap.enjoyMost) { var t = String(r[colMap.enjoyMost]||'').trim(); if (t) freeText.enjoyMost.push(t); }
-    if (colMap.improve) { var t = String(r[colMap.improve]||'').trim(); if (t) freeText.improve.push(t); }
+    if (colMap.whyRating) { var t = String(r[colMap.whyRating]||'').trim(); if (t) { freeText.whyRating.push(t); bySubject[subj].freeText.whyRating.push(t); } }
+    if (colMap.enjoyMost) { var t = String(r[colMap.enjoyMost]||'').trim(); if (t) { freeText.enjoyMost.push(t); bySubject[subj].freeText.enjoyMost.push(t); } }
+    if (colMap.improve) { var t = String(r[colMap.improve]||'').trim(); if (t) { freeText.improve.push(t); bySubject[subj].freeText.improve.push(t); } }
   });
-  return { likert: likert, overallRating: overall, freeText: freeText };
+  return { likert: likert, overallRating: overall, freeText: freeText, bySubject: bySubject };
 }
 
 function handleSurveyUpload(ev) {
