@@ -8,6 +8,11 @@
 <link rel="apple-touch-icon" href="faculty-hub-logo.png" sizes="180x180">
 <link rel="icon" type="image/png" href="faculty-hub-logo.png">
 <title>Class Visit Feedback — Knightswood Secondary School</title>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-init.js"></script>
+<script src="allowlist-check.js"></script>
+<script src="triangulation-service.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@700;800&display=swap" rel="stylesheet">
@@ -724,6 +729,9 @@ a.sidebar-item:hover{color:var(--white)}
         <button class="btn btn-ghost" onclick="exportText()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export
         </button>
+        <button class="btn btn-ghost" id="export-triangulation-btn" onclick="exportToTriangulation()" title="Save this observation to Triangulation of Evidence (admin only)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>Export to Triangulation
+        </button>
         <button class="btn btn-ghost" onclick="window.print()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print / PDF
         </button>
@@ -837,6 +845,36 @@ a.sidebar-item:hover{color:var(--white)}
     if (!confirm('Clear all data? This cannot be undone.')) return;
     localStorage.removeItem('kss_obs_v2');
     location.reload();
+  }
+
+  function exportToTriangulation() {
+    if (!window.TriangulationService) { alert('Triangulation service not loaded. Sign in to use Export to Triangulation.'); return; }
+    const d = gatherData();
+    const schoolYear = (window.getCurrentSchoolYear && window.getCurrentSchoolYear()) || (new Date().getMonth() >= 7 ? new Date().getFullYear() + '-' + String(new Date().getFullYear() + 1).slice(-2) : (new Date().getFullYear() - 1) + '-' + String(new Date().getFullYear()).slice(-2));
+    TriangulationService.saveEvidence({
+      school_year: schoolYear,
+      evidence_type: 'observation',
+      data: {
+        teacher: d.teacher,
+        class: d.class,
+        observer: d.observer,
+        date: d.date,
+        focus: d.focus,
+        reflections: d.reflections,
+        nextsteps: d.nextsteps,
+        pods: d.pods,
+        ratings: d.ratings,
+        feedback: d.feedback
+      },
+      metadata: { source: 'class_visit_feedback' }
+    }).then(function() {
+      const s = document.getElementById('saveStatus');
+      s.textContent = 'Exported to Triangulation of Evidence';
+      s.style.color = '#15803d';
+      setTimeout(function() { s.textContent = 'All changes saved'; s.style.color = ''; }, 2500);
+    }).catch(function(err) {
+      alert('Export failed. Sign in as an administrator to export to Triangulation of Evidence.');
+    });
   }
 
   function exportText() {
