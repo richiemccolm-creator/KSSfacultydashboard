@@ -9,6 +9,7 @@
     timetable: { slots: [] },
     lessons: { lessons: [] },
     weekNotes: {},
+    lessonPlanTemplates: { templates: [] },
     currentWeekStart: null,
     currentDayViewDate: null,
     editingLessonId: null
@@ -25,11 +26,13 @@
       return Promise.all([
         (window.DataService && DataService.get ? DataService.get('plannerTimetable') : Promise.resolve(null)),
         (window.DataService && DataService.get ? DataService.get('plannerLessons') : Promise.resolve(null)),
-        (window.DataService && DataService.get ? DataService.get('plannerWeekNotes') : Promise.resolve(null))
+        (window.DataService && DataService.get ? DataService.get('plannerWeekNotes') : Promise.resolve(null)),
+        (window.DataService && DataService.get ? DataService.get('lessonPlanTemplates') : Promise.resolve(null))
       ]).then(function(res) {
         state.timetable = res[0] && res[0].slots ? res[0] : { slots: [] };
         state.lessons = res[1] && res[1].lessons ? res[1] : { lessons: [] };
         state.weekNotes = res[2] && typeof res[2] === 'object' ? res[2] : {};
+        state.lessonPlanTemplates = res[3] && res[3].templates ? res[3] : { templates: [] };
         return self.getState();
       });
     },
@@ -152,6 +155,30 @@
 
     removeLesson: function(lessonId) {
       state.lessons.lessons = (state.lessons.lessons || []).filter(function(l) { return l.id !== lessonId; });
+    },
+
+    getTemplates: function() {
+      return (state.lessonPlanTemplates.templates || []).slice();
+    },
+
+    saveTemplate: function(template) {
+      if (!state.lessonPlanTemplates) state.lessonPlanTemplates = { templates: [] };
+      var templates = state.lessonPlanTemplates.templates || [];
+      var existing = template.id ? templates.find(function(t) { return t.id === template.id; }) : null;
+      var toSave = Object.assign({ id: template.id || id(), createdAt: (existing && existing.createdAt) || new Date().toISOString() }, template);
+      if (existing) {
+        var idx = templates.indexOf(existing);
+        templates[idx] = toSave;
+      } else {
+        templates.push(toSave);
+      }
+      state.lessonPlanTemplates.templates = templates;
+      return window.DataService ? DataService.set('lessonPlanTemplates', state.lessonPlanTemplates) : Promise.resolve();
+    },
+
+    deleteTemplate: function(templateId) {
+      state.lessonPlanTemplates.templates = (state.lessonPlanTemplates.templates || []).filter(function(t) { return t.id !== templateId; });
+      return window.DataService ? DataService.set('lessonPlanTemplates', state.lessonPlanTemplates) : Promise.resolve();
     },
 
     setEditingLessonId: function(id) { state.editingLessonId = id; },

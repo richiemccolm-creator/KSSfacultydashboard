@@ -8,7 +8,7 @@
     'drama-v3', 'art-v2', 'academicCalendarEvents', 'bge_drama_reports_v1',
     'bge_art_reports_v1', 'bge_drama_tracker_export_v1', 'bge_art_tracker_export_v1',
     'dipSelfEvaluation', 'moderation-data',
-    'plannerTimetable', 'plannerLessons', 'plannerWeekNotes',
+    'plannerTimetable', 'plannerLessons', 'plannerWeekNotes', 'lessonPlanTemplates',
     'clplProgress'
   ];
 
@@ -140,6 +140,7 @@
           'plannerTimetable': all['plannerTimetable'],
           'plannerLessons': all['plannerLessons'],
           'plannerWeekNotes': all['plannerWeekNotes'],
+          'lessonPlanTemplates': all['lessonPlanTemplates'],
           'clplProgress': all['clplProgress']
         };
       });

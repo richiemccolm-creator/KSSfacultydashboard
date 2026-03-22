@@ -311,6 +311,19 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
   color:var(--text3);font-size:.9rem
 }
 .empty-state strong{color:var(--text);display:block;margin-bottom:.5rem}
+
+/* Templates list */
+.templates-list{display:flex;flex-direction:column;gap:.5rem}
+.template-card{
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;
+  padding:.75rem 1rem;background:var(--card-elevated);border:1px solid var(--border);
+  border-radius:8px;font-size:.85rem
+}
+.template-card-info{flex:1;min-width:0}
+.template-card-name{font-weight:600;color:var(--text);margin-bottom:.2rem}
+.template-card-meta{font-size:.75rem;color:var(--text3)}
+.template-card-actions{display:flex;gap:.35rem}
+.template-card-actions button{font-size:.72rem;padding:.35rem .6rem}
 </style>
 </head>
 <body>
@@ -333,6 +346,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
   <button class="planner-tab active" data-tab="timetable">My Timetable</button>
   <button class="planner-tab" data-tab="week">Week View</button>
   <button class="planner-tab" data-tab="day">Day View</button>
+  <button class="planner-tab" data-tab="templates">Lesson Plan Templates</button>
 </div>
 
 <!-- Timetable panel -->
@@ -401,6 +415,24 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
   <div id="dayViewList" class="day-view-list"></div>
 </div>
 
+<!-- Lesson Plan Templates panel -->
+<div id="panel-templates" class="planner-panel">
+  <div class="timetable-section">
+    <div class="timetable-header">My Lesson Plan Templates</div>
+    <div style="padding:1rem 1.25rem">
+      <p style="font-size:.85rem;color:var(--text2);margin-bottom:1rem">Save lesson plans as reusable templates. Apply them when adding a lesson to pre-fill the form. Export or import template files to share with colleagues.</p>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem">
+        <input type="file" id="templateImportFile" accept=".json,application/json" style="display:none">
+        <button type="button" class="btn-secondary" id="templateImportBtn">Import template</button>
+      </div>
+      <div id="templatesList" class="templates-list"></div>
+      <div id="templatesEmpty" class="empty-state" style="display:none">
+        <strong>No templates yet</strong><br>Create a lesson in Week View or Day View, then click &quot;Save as template&quot; in the lesson modal. Or import a template file.
+      </div>
+    </div>
+  </div>
+</div>
+
 </div>
 
 <!-- Lesson modal -->
@@ -413,6 +445,15 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
     <div class="modal-body">
       <input type="hidden" id="lessonSlotKey">
       <input type="hidden" id="lessonDate">
+      <div class="form-group" style="background:var(--bg);padding:.6rem .75rem;border-radius:6px;margin-bottom:1rem">
+        <label class="form-label">Apply template</label>
+        <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
+          <select class="form-select" id="applyTemplateSelect" style="flex:1;min-width:160px">
+            <option value="">— Select template —</option>
+          </select>
+          <button type="button" class="btn-add-resource" id="applyTemplateBtn">Apply</button>
+        </div>
+      </div>
       <div class="form-group">
         <label class="form-label">Subject & Year Group</label>
         <select class="form-select" id="lessonSubject">
@@ -431,6 +472,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
       <div class="form-group">
         <label class="form-label">Lesson title</label>
         <input type="text" class="form-input" id="lessonTitle" placeholder="e.g. Warm-up and character exploration">
+        <button type="button" class="btn-add-resource" id="useExampleBtn" style="margin-top:.4rem;font-size:.72rem">Start from example</button>
       </div>
       <div class="form-group">
         <label class="form-label">To-do (prep tasks)</label>
@@ -443,6 +485,30 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
       <div class="form-group">
         <label class="form-label">Learning objectives</label>
         <textarea class="form-textarea" id="lessonObjectives" placeholder="What should pupils achieve today?"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Learning intentions</label>
+        <textarea class="form-textarea" id="lessonLearningIntentions" placeholder="e.g. Understand the importance of cooperation and safety in Drama; Work effectively as part of a group" style="min-height:60px"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Success criteria</label>
+        <textarea class="form-textarea" id="lessonSuccessCriteria" placeholder="e.g. I can follow Drama rules and use safe working practices; I can listen and respond to others positively" style="min-height:60px"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Activity</label>
+        <textarea class="form-textarea" id="lessonActivity" placeholder="e.g. Warm-up (5 min), paired rehearsal (15 min), teacher-led demonstration (10 min), group reflection (5 min)" style="min-height:70px"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Differentiation</label>
+        <textarea class="form-textarea" id="lessonDifferentiation" placeholder="e.g. Support: sentence stems, mixed-ability pairs; Challenge: peer-coach another group" style="min-height:60px"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Effective questions</label>
+        <textarea class="form-textarea" id="lessonEffectiveQuestions" placeholder="e.g. What makes this moment effective? How could you improve your staging?" style="min-height:60px"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Digital technologies</label>
+        <textarea class="form-textarea" id="lessonDigitalTechnologies" placeholder="e.g. iPad for filming rehearsals, Padlet for peer feedback" style="min-height:50px"></textarea>
       </div>
       <div class="form-group">
         <label class="form-label">Notes</label>
@@ -465,6 +531,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
     </div>
     <div class="modal-footer">
       <button class="btn-secondary" id="lessonDelete" style="margin-right:auto;color:#b91c1c;border-color:rgba(185,28,28,.3)">Delete</button>
+      <button class="btn-secondary" id="lessonSaveAsTemplate">Save as template</button>
       <button class="btn-secondary" id="lessonCopyTo">Copy to...</button>
       <button class="btn-secondary" id="lessonCancel">Cancel</button>
       <button class="btn-primary" id="lessonSave">Save Lesson</button>
@@ -821,7 +888,9 @@ function renderWeekView() {
         if (isHoliday) cardClass += ' week-card-holiday';
         var weekCardStyle = 'grid-row:' + (ri + 2) + ';grid-column:' + (di + 2);
         if (slot.color) weekCardStyle += ';border-left-color:' + slot.color;
-        html += '<div class="' + cardClass + '" style="' + weekCardStyle + '" data-date="' + dateStr + '" data-slot="' + k + '" data-lesson-id="' + (lesson ? lesson.id || '' : '') + '" data-subject="' + (slot.subject || '') + '">';
+        var hoverTip = lesson && (lesson.learningIntentions || lesson.successCriteria) ? ((lesson.learningIntentions || '').toString().slice(0, 80) || (lesson.successCriteria || '').toString().slice(0, 80)) : '';
+        if (hoverTip) hoverTip = hoverTip.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        html += '<div class="' + cardClass + '" style="' + weekCardStyle + '" data-date="' + dateStr + '" data-slot="' + k + '" data-lesson-id="' + (lesson ? lesson.id || '' : '') + '" data-subject="' + (slot.subject || '') + '"' + (hoverTip ? ' title="' + hoverTip + '"' : '') + '>';
         if (lesson && lesson.todos && lesson.todos.length > 0) {
           html += '<div class="week-card-todos">';
           lesson.todos.slice(0, 3).forEach(function(t) {
@@ -858,6 +927,84 @@ function renderWeekView() {
           return;
         }
         openLessonModal(card.dataset.date, card.dataset.slot);
+      });
+    });
+  });
+}
+
+function renderTemplatesList() {
+  var templates = PS.getTemplates ? PS.getTemplates() : [];
+  var listEl = document.getElementById('templatesList');
+  var emptyEl = document.getElementById('templatesEmpty');
+  if (!listEl || !emptyEl) return;
+  if (templates.length === 0) {
+    listEl.innerHTML = '';
+    emptyEl.style.display = 'block';
+    return;
+  }
+  emptyEl.style.display = 'none';
+  var html = '';
+  templates.forEach(function(t) {
+    var u = t.unitKey && window.getUnitFromKey ? window.getUnitFromKey(t.unitKey) : null;
+    var meta = [t.subject ? subjectLabel(t.subject) : '', u ? u.unit : ''].filter(Boolean).join(' · ');
+    html += '<div class="template-card" data-template-id="' + (t.id || '') + '">';
+    html += '<div class="template-card-info"><div class="template-card-name">' + (t.name || 'Untitled').replace(/</g, '&lt;') + '</div>';
+    if (meta) html += '<div class="template-card-meta">' + meta.replace(/</g, '&lt;') + '</div>';
+    html += '</div>';
+    html += '<div class="template-card-actions">';
+    html += '<button type="button" class="btn-secondary template-apply-btn" title="Use in lesson modal">Apply</button>';
+    html += '<button type="button" class="btn-secondary template-export-btn" title="Export as file">Export</button>';
+    html += '<button type="button" class="btn-remove-resource template-delete-btn" title="Delete">Delete</button>';
+    html += '</div></div>';
+  });
+  listEl.innerHTML = html;
+  listEl.querySelectorAll('.template-apply-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var card = btn.closest('.template-card');
+      var id = card && card.dataset.templateId;
+      if (!id) return;
+      var t = templates.find(function(x) { return x.id === id; });
+      if (t) {
+        var dateStr = document.getElementById('lessonDate').value || getDateStr(new Date());
+        var slotKeyVal = document.getElementById('lessonSlotKey').value;
+        if (!slotKeyVal) {
+          var slots = getSlotsForDayView();
+          var dayName = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'][new Date().getDay()];
+          var slot = slots.find(function(s) { return (s.day || '').toLowerCase() === dayName; });
+          slotKeyVal = slot ? slotKey(dayName, slot.period) : 'monday-1';
+        }
+        openLessonModal(dateStr, slotKeyVal);
+        applyTemplateToModal(t);
+        showToast('Template applied');
+      }
+    });
+  });
+  listEl.querySelectorAll('.template-export-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var card = btn.closest('.template-card');
+      var id = card && card.dataset.templateId;
+      if (!id) return;
+      var t = templates.find(function(x) { return x.id === id; });
+      if (!t) return;
+      var blob = new Blob([JSON.stringify({ lessonPlanTemplate: t, exportedAt: new Date().toISOString() }, null, 2)], { type: 'application/json' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = (t.name || 'template').replace(/[^a-zA-Z0-9\-_]/g, '_') + '.json';
+      a.click();
+      URL.revokeObjectURL(a.href);
+      showToast('Template exported');
+    });
+  });
+  listEl.querySelectorAll('.template-delete-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var card = btn.closest('.template-card');
+      var id = card && card.dataset.templateId;
+      if (!id) return;
+      if (!confirm('Delete this template?')) return;
+      PS.deleteTemplate(id).then(function() {
+        renderTemplatesList();
+        populateApplyTemplateDropdown();
+        showToast('Template deleted');
       });
     });
   });
@@ -912,7 +1059,9 @@ function renderDayView() {
     if (lesson) {
       var u = window.getUnitFromKey && window.getUnitFromKey(lesson.unitKey);
       var dayCardStyle = s.color ? 'border-left-color:' + s.color : '';
-      html += '<div class="day-view-card" ' + (dayCardStyle ? 'style="' + dayCardStyle + '"' : '') + ' data-date="' + dateStr + '" data-slot="' + k + '" data-lesson-id="' + (lesson.id || '') + '" data-subject="' + (lesson.subject || s.subject || '') + '">';
+      var dayHoverTip = (lesson.learningIntentions || lesson.successCriteria) ? ((lesson.learningIntentions || '').toString().slice(0, 80) || (lesson.successCriteria || '').toString().slice(0, 80)) : '';
+      if (dayHoverTip) dayHoverTip = dayHoverTip.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      html += '<div class="day-view-card" ' + (dayCardStyle ? 'style="' + dayCardStyle + '"' : '') + ' data-date="' + dateStr + '" data-slot="' + k + '" data-lesson-id="' + (lesson.id || '') + '" data-subject="' + (lesson.subject || s.subject || '') + '"' + (dayHoverTip ? ' title="' + dayHoverTip + '"' : '') + '">';
       if (lesson.todos && lesson.todos.length > 0) {
         html += '<div class="day-view-card-todos">';
         lesson.todos.slice(0, 4).forEach(function(t) {
@@ -959,6 +1108,12 @@ function openLessonModal(dateStr, slotKey) {
   document.getElementById('lessonUnit').value = lesson ? (lesson.unitKey || '') : '';
   document.getElementById('lessonTitle').value = lesson ? (lesson.title || '') : '';
   document.getElementById('lessonObjectives').value = lesson ? (lesson.objectives || '') : '';
+  document.getElementById('lessonLearningIntentions').value = lesson ? (lesson.learningIntentions || '') : '';
+  document.getElementById('lessonSuccessCriteria').value = lesson ? (lesson.successCriteria || '') : '';
+  document.getElementById('lessonActivity').value = lesson ? (lesson.activity || '') : '';
+  document.getElementById('lessonDifferentiation').value = lesson ? (lesson.differentiation || '') : '';
+  document.getElementById('lessonEffectiveQuestions').value = lesson ? (lesson.effectiveQuestions || '') : '';
+  document.getElementById('lessonDigitalTechnologies').value = lesson ? (lesson.digitalTechnologies || '') : '';
   document.getElementById('lessonNotes').value = lesson ? (lesson.notes || '') : '';
   populateUnitDropdown(document.getElementById('lessonSubject').value);
   renderResourcesList(lesson ? (lesson.resources || []) : []);
@@ -968,6 +1123,34 @@ function openLessonModal(dateStr, slotKey) {
   document.getElementById('lessonCopyTo').style.display = 'block';
   document.getElementById('copyToForm').style.display = 'none';
   document.getElementById('lessonModal').classList.add('visible');
+  populateApplyTemplateDropdown();
+}
+
+function populateApplyTemplateDropdown() {
+  var sel = document.getElementById('applyTemplateSelect');
+  sel.innerHTML = '<option value="">— Select template —</option>';
+  var templates = PS.getTemplates ? PS.getTemplates() : [];
+  templates.forEach(function(t) {
+    var label = (t.name || 'Untitled') + (t.subject ? ' (' + subjectLabel(t.subject) + ')' : '');
+    sel.innerHTML += '<option value="' + (t.id || '') + '">' + label.replace(/</g, '&lt;') + '</option>';
+  });
+}
+
+function applyTemplateToModal(template) {
+  if (!template) return;
+  document.getElementById('lessonSubject').value = template.subject || '';
+  populateUnitDropdown(template.subject || '');
+  document.getElementById('lessonUnit').value = template.unitKey || '';
+  document.getElementById('lessonTitle').value = template.title || '';
+  document.getElementById('lessonObjectives').value = template.objectives || '';
+  document.getElementById('lessonLearningIntentions').value = template.learningIntentions || '';
+  document.getElementById('lessonSuccessCriteria').value = template.successCriteria || '';
+  document.getElementById('lessonActivity').value = template.activity || '';
+  document.getElementById('lessonDifferentiation').value = template.differentiation || '';
+  document.getElementById('lessonEffectiveQuestions').value = template.effectiveQuestions || '';
+  document.getElementById('lessonDigitalTechnologies').value = template.digitalTechnologies || '';
+  document.getElementById('lessonNotes').value = template.notes || '';
+  renderResourcesList(template.resources || []);
 }
 
 function populateUnitDropdown(subject) {
@@ -1068,14 +1251,8 @@ document.getElementById('lessonSubject').addEventListener('change', function() {
   populateUnitDropdown(this.value);
 });
 
-document.getElementById('lessonSave').addEventListener('click', function() {
-  var slotKey = document.getElementById('lessonSlotKey').value;
-  var dateStr = document.getElementById('lessonDate').value;
-  var subject = document.getElementById('lessonSubject').value;
-  var unitKey = document.getElementById('lessonUnit').value;
-  var title = document.getElementById('lessonTitle').value;
-  var objectives = document.getElementById('lessonObjectives').value;
-  var notes = document.getElementById('lessonNotes').value;
+function collectLessonPayloadFromModal(overrides) {
+  overrides = overrides || {};
   var resourceRows = document.querySelectorAll('#resourcesList .resource-row');
   var resources = [];
   resourceRows.forEach(function(r) {
@@ -1084,7 +1261,91 @@ document.getElementById('lessonSave').addEventListener('click', function() {
     if (url && url.value) resources.push({ label: lbl ? lbl.value : '', url: url.value });
   });
   var todos = collectTodosFromModal();
-  var payload = { date: dateStr, slotKey: slotKey, subject: subject, unitKey: unitKey, title: title, objectives: objectives, notes: notes, resources: resources, todos: todos, updatedAt: new Date().toISOString() };
+  return Object.assign({
+    date: document.getElementById('lessonDate').value,
+    slotKey: document.getElementById('lessonSlotKey').value,
+    subject: document.getElementById('lessonSubject').value,
+    unitKey: document.getElementById('lessonUnit').value,
+    title: document.getElementById('lessonTitle').value,
+    objectives: document.getElementById('lessonObjectives').value,
+    learningIntentions: document.getElementById('lessonLearningIntentions').value,
+    successCriteria: document.getElementById('lessonSuccessCriteria').value,
+    activity: document.getElementById('lessonActivity').value,
+    differentiation: document.getElementById('lessonDifferentiation').value,
+    effectiveQuestions: document.getElementById('lessonEffectiveQuestions').value,
+    digitalTechnologies: document.getElementById('lessonDigitalTechnologies').value,
+    notes: document.getElementById('lessonNotes').value,
+    resources: resources,
+    todos: todos,
+    updatedAt: new Date().toISOString()
+  }, overrides);
+}
+
+var LESSON_EXAMPLE = {
+  title: 'Warm-up and character exploration',
+  objectives: 'Pupils will develop cooperation and safe working practices.',
+  learningIntentions: 'Understand the importance of cooperation and safety in Drama; Work effectively as part of a group',
+  successCriteria: 'I can follow Drama rules and use safe working practices; I can listen and respond to others positively',
+  activity: 'Warm-up (5 min), paired rehearsal (15 min), teacher-led demonstration (10 min), group reflection (5 min)',
+  differentiation: 'Support: sentence stems, mixed-ability pairs; Challenge: peer-coach another group',
+  effectiveQuestions: 'What makes this moment effective? How could you improve your staging?',
+  digitalTechnologies: 'iPad for filming rehearsals, Padlet for peer feedback'
+};
+
+document.getElementById('useExampleBtn').addEventListener('click', function() {
+  document.getElementById('lessonSubject').value = 'drama';
+  populateUnitDropdown('drama');
+  document.getElementById('lessonTitle').value = LESSON_EXAMPLE.title;
+  document.getElementById('lessonObjectives').value = LESSON_EXAMPLE.objectives;
+  document.getElementById('lessonLearningIntentions').value = LESSON_EXAMPLE.learningIntentions;
+  document.getElementById('lessonSuccessCriteria').value = LESSON_EXAMPLE.successCriteria;
+  document.getElementById('lessonActivity').value = LESSON_EXAMPLE.activity;
+  document.getElementById('lessonDifferentiation').value = LESSON_EXAMPLE.differentiation;
+  document.getElementById('lessonEffectiveQuestions').value = LESSON_EXAMPLE.effectiveQuestions;
+  document.getElementById('lessonDigitalTechnologies').value = LESSON_EXAMPLE.digitalTechnologies;
+  showToast('Example loaded — edit as needed');
+});
+
+document.getElementById('applyTemplateBtn').addEventListener('click', function() {
+  var sel = document.getElementById('applyTemplateSelect');
+  var id = sel.value;
+  if (!id) { showToast('Select a template'); return; }
+  var templates = PS.getTemplates ? PS.getTemplates() : [];
+  var t = templates.find(function(x) { return x.id === id; });
+  if (t) {
+    applyTemplateToModal(t);
+    showToast('Template applied');
+  }
+});
+
+document.getElementById('lessonSaveAsTemplate').addEventListener('click', function() {
+  var name = prompt('Template name', document.getElementById('lessonTitle').value || 'My lesson plan');
+  if (name === null || !name.trim()) return;
+  var payload = collectLessonPayloadFromModal();
+  var template = {
+    name: name.trim(),
+    subject: payload.subject,
+    unitKey: payload.unitKey,
+    title: payload.title,
+    objectives: payload.objectives,
+    learningIntentions: payload.learningIntentions,
+    successCriteria: payload.successCriteria,
+    activity: payload.activity,
+    differentiation: payload.differentiation,
+    effectiveQuestions: payload.effectiveQuestions,
+    digitalTechnologies: payload.digitalTechnologies,
+    notes: payload.notes,
+    resources: payload.resources || []
+  };
+  PS.saveTemplate(template).then(function() {
+    showToast('Template saved');
+    populateApplyTemplateDropdown();
+    if (document.getElementById('panel-templates').classList.contains('active')) renderTemplatesList();
+  });
+});
+
+document.getElementById('lessonSave').addEventListener('click', function() {
+  var payload = collectLessonPayloadFromModal();
   PS.upsertLesson(payload, PS.getEditingLessonId());
   PS.saveLessons().then(function() {
     document.getElementById('lessonModal').classList.remove('visible');
@@ -1126,20 +1387,7 @@ document.getElementById('doCopy').addEventListener('click', function() {
   var d = new Date(toDate);
   var dayName = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'][d.getDay()];
   var toSlotKey = slotKey(dayName, toPeriod);
-  var subject = document.getElementById('lessonSubject').value;
-  var unitKey = document.getElementById('lessonUnit').value;
-  var title = document.getElementById('lessonTitle').value;
-  var objectives = document.getElementById('lessonObjectives').value;
-  var notes = document.getElementById('lessonNotes').value;
-  var resourceRows = document.querySelectorAll('#resourcesList .resource-row');
-  var resources = [];
-  resourceRows.forEach(function(r) {
-    var lbl = r.querySelector('.res-label');
-    var url = r.querySelector('.res-url');
-    if (url && url.value) resources.push({ label: lbl ? lbl.value : '', url: url.value });
-  });
-  var todos = collectTodosFromModal();
-  var payload = { date: toDate, slotKey: toSlotKey, subject: subject, unitKey: unitKey, title: title, objectives: objectives, notes: notes, resources: resources, todos: todos, updatedAt: new Date().toISOString() };
+  var payload = collectLessonPayloadFromModal({ date: toDate, slotKey: toSlotKey });
   PS.upsertLesson(payload, null);
   PS.saveLessons().then(function() {
     document.getElementById('copyToForm').style.display = 'none';
@@ -1220,6 +1468,7 @@ document.querySelectorAll('.planner-tab').forEach(function(tab) {
     document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
     if (tab.dataset.tab === 'week') renderWeekView();
     if (tab.dataset.tab === 'day') renderDayView();
+    if (tab.dataset.tab === 'templates') renderTemplatesList();
   });
 });
 
@@ -1238,6 +1487,39 @@ document.getElementById('dayViewToday').addEventListener('click', function() {
   PS.setCurrentDayViewDate(d);
   document.getElementById('dayViewDate').value = getDateStr(d);
   renderDayView();
+});
+
+document.getElementById('templateImportBtn').addEventListener('click', function() {
+  document.getElementById('templateImportFile').click();
+});
+
+document.getElementById('templateImportFile').addEventListener('change', function(ev) {
+  var file = ev.target && ev.target.files && ev.target.files[0];
+  if (!file) return;
+  var reader = new FileReader();
+  reader.onload = function() {
+    try {
+      var data = JSON.parse(reader.result);
+      var t = data.lessonPlanTemplate || data;
+      if (!t || (typeof t !== 'object')) {
+        showToast('Invalid template file');
+        ev.target.value = '';
+        return;
+      }
+      if (t.id) delete t.id;
+      if (t.createdAt) delete t.createdAt;
+      t.name = t.name || 'Imported template';
+      PS.saveTemplate(t).then(function() {
+        showToast('Template imported');
+        renderTemplatesList();
+        populateApplyTemplateDropdown();
+      });
+    } catch (e) {
+      showToast('Invalid JSON file');
+    }
+    ev.target.value = '';
+  };
+  reader.readAsText(file);
 });
 
 // Init
