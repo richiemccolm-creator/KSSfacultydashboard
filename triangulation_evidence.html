@@ -224,9 +224,9 @@ function normalizeLikertValue(v) {
   if (!v || typeof v !== 'string') return null;
   var s = v.trim().toLowerCase().replace(/\u2019|\u2018/g, "'");
   if (/^strongly\s+agree$/i.test(s)) return 'Strongly agree';
-  if (/^agree$/i.test(s)) return 'Agree';
-  if (/^neutral$/i.test(s) || /^neither\s+agree\s+nor\s+disagree$/i.test(s)) return 'Neutral';
-  if (/^disagree$/i.test(s)) return 'Disagree';
+  if (/^agree$/i.test(s) || /^yes$/i.test(s)) return 'Agree';
+  if (/^neutral$/i.test(s) || /^neither\s+agree\s+nor\s+disagree$/i.test(s) || /^sometimes$/i.test(s)) return 'Neutral';
+  if (/^disagree$/i.test(s) || /^no$/i.test(s)) return 'Disagree';
   if (/^strongly\s+disagree$/i.test(s)) return 'Strongly disagree';
   return v.trim();
 }
@@ -312,18 +312,19 @@ function mergeSurveyData(surveys, subjectFilter) {
 }
 
 function computeStrengthAndDev(likert, themeLabels) {
-  var likertOrder = ['Strongly agree','Agree','Neutral','Disagree','Strongly disagree'];
+  var positiveKeys = ['Strongly agree', 'Agree', 'Yes'];
+  var negativeKeys = ['Disagree', 'Strongly disagree', 'No'];
   var strengths = [], dev = [];
   Object.keys(themeLabels).forEach(function(k) {
     var dist = likert[k] || {};
     var total = Object.values(dist).reduce(function(a,b){return a+b},0);
     if (total < 5) return;
-    var agree = (dist['Strongly agree'] || 0) + (dist['Agree'] || 0);
-    var disagree = (dist['Disagree'] || 0) + (dist['Strongly disagree'] || 0);
-    var agreePct = (agree / total * 100).toFixed(0);
-    var disagreePct = (disagree / total * 100).toFixed(0);
-    if (agreePct >= 80 && disagreePct < 10) strengths.push({ theme: themeLabels[k], agreePct: agreePct, total: total });
-    if (disagreePct >= 15 || agreePct < 60) dev.push({ theme: themeLabels[k], agreePct: agreePct, disagreePct: disagreePct, total: total });
+    var positive = positiveKeys.reduce(function(sum, key) { return sum + (dist[key] || 0); }, 0);
+    var negative = negativeKeys.reduce(function(sum, key) { return sum + (dist[key] || 0); }, 0);
+    var positivePct = Math.round(positive / total * 100);
+    var negativePct = Math.round(negative / total * 100);
+    if (positivePct >= 80 && negativePct < 10) strengths.push({ theme: themeLabels[k], positivePct: positivePct, total: total });
+    else if (negativePct >= 15 || positivePct < 60) dev.push({ theme: themeLabels[k], positivePct: positivePct, negativePct: negativePct, total: total });
   });
   return { strengths: strengths, dev: dev };
 }
@@ -377,10 +378,10 @@ function renderSurveyView(surveys) {
   if (strengthsEl) {
     var sh = '';
     if (sa.strengths.length) sh += '<div class="form-label" style="color:#15803d;margin-bottom:.25rem">Areas of strength</div>' + sa.strengths.map(function(x) {
-      return '<div class="strength-card"><strong>' + x.theme + '</strong> — ' + x.agreePct + '% positive (' + x.total + ' responses)</div>';
+      return '<div class="strength-card"><strong>' + x.theme + '</strong> — ' + x.positivePct + '% positive (' + x.total + ' responses)</div>';
     }).join('');
     if (sa.dev.length) sh += '<div class="form-label" style="color:#991b1b;margin:1rem 0 .25rem">Areas for development</div>' + sa.dev.map(function(x) {
-      return '<div class="dev-card"><strong>' + x.theme + '</strong> — ' + x.agreePct + '% positive, ' + x.disagreePct + '% negative (' + x.total + ' responses)</div>';
+      return '<div class="dev-card"><strong>' + x.theme + '</strong> — ' + x.positivePct + '% positive, ' + x.negativePct + '% negative (' + x.total + ' responses)</div>';
     }).join('');
     strengthsEl.innerHTML = sh || '<div class="empty-s" style="padding:1rem;text-align:left">Add more responses to identify strengths and development areas.</div>';
   }
@@ -400,7 +401,7 @@ function renderSurveyView(surveys) {
   var avg = respCount ? (merged.overallRating || merged.overall || []).reduce(function(a,b){return a+b},0) / respCount : 0;
   html += '<div class="stat-card"><div class="stat-num">' + (avg ? avg.toFixed(1) : '—') + '</div><div class="stat-lbl">Avg rating (1–10)</div></div>';
   html += '<div class="stat-card"><div class="stat-num">' + respCount + '</div><div class="stat-lbl">Responses</div></div></div>';
-  var likertOrder = ['Strongly agree','Agree','Neutral','Disagree','Strongly disagree'];
+  var likertOrder = ['Strongly agree','Agree','Yes','Neutral','Sometimes','Disagree','No','Strongly disagree'];
   Object.keys(themeLabels).forEach(function(k) {
     var dist = (merged.likert || {})[k] || {};
     var total = Object.values(dist).reduce(function(a,b){return a+b},0);
