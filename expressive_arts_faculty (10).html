@@ -801,6 +801,21 @@ a.subject-card-link{text-decoration:none;cursor:pointer}
 .home-event-badge.cpd{background:#e0e7ff;color:#3730a3}
 .home-event-badge.inset{background:#fce7f3;color:#9d174d}
 .home-dash-empty{font-size:.8rem;color:var(--text3);padding:1rem;text-align:center}
+
+/* Announcements — distinct from calendar, block layout for long content */
+.home-announcements-card{grid-column:1/-1;border-left:4px solid #d97706}
+.home-announcements-card .home-dash-header{background:linear-gradient(to right,rgba(217,119,6,.06),transparent)}
+.home-announcements-list{display:flex;flex-direction:column;gap:12px}
+.home-announcement-item{
+  padding:1rem 1.25rem;border-radius:8px;border:1px solid var(--border);
+  background:var(--white);border-left:3px solid #d97706;
+  display:block;text-align:left;transition:all .15s;
+}
+.home-announcement-item:hover{border-color:#d97706;box-shadow:0 2px 12px rgba(217,119,6,.1)}
+.home-announcement-title{font-weight:600;font-size:.9rem;color:var(--text);display:block;margin-bottom:.35rem;line-height:1.3}
+.home-announcement-body{font-size:.82rem;color:var(--text2);line-height:1.55;margin:0;white-space:pre-wrap;word-break:break-word}
+.home-announcement-meta{font-size:.68rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-top:.5rem;display:block}
+
 .home-priorities-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.65rem}
 @media(max-width:600px){.home-priorities-grid{grid-template-columns:1fr}}
 .home-priority-card{
@@ -1672,12 +1687,13 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
 
         <!-- DASHBOARD: Announcements + Upcoming Events + Improvement Plan Priorities -->
         <div class="home-dashboard">
-          <div class="home-dash-card">
+          <div class="home-dash-card home-announcements-card">
             <div class="home-dash-header">
-              <span class="home-dash-title">Announcements</span>
+              <span class="home-dash-title">Latest announcements</span>
+              <span style="font-size:.65rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)">Updated regularly</span>
             </div>
             <div class="home-dash-body">
-              <div id="homeAnnouncements" class="home-events-list"></div>
+              <div id="homeAnnouncements" class="home-announcements-list"></div>
             </div>
           </div>
           <div class="home-dash-card">
@@ -6993,13 +7009,14 @@ function homeDashboardRender(){
         return;
       }
       var esc=function(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
+      var monthNames=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
       anns.forEach(function(a){
         var d=a.created_at?a.created_at.slice(0,10):'';
-        var shortDate=d?d.slice(8)+'/'+d.slice(5,7):'';
-        var preview=(a.body||'').slice(0,80);
-        if((a.body||'').length>80)preview+='…';
-        var div=document.createElement('div');div.className='home-event-item';
-        div.innerHTML='<span class="home-event-date">'+esc(shortDate)+'</span><span class="home-event-title">'+esc(a.title)+'</span>'+(preview?'<span style="font-size:.72rem;color:var(--text3);display:block;margin-top:.25rem">'+esc(preview)+'</span>':'');
+        var day=d?parseInt(d.slice(8),10):0;
+        var month=d?parseInt(d.slice(5,7),10)-1:0;
+        var postedStr=d?('Posted '+day+' '+monthNames[month]):'';
+        var div=document.createElement('div');div.className='home-announcement-item';
+        div.innerHTML='<span class="home-announcement-title">'+esc(a.title)+'</span>'+(a.body?'<p class="home-announcement-body">'+esc(a.body)+'</p>':'')+'<span class="home-announcement-meta">'+postedStr+'</span>';
         annList.appendChild(div);
       });
     }).catch(function(){annList.innerHTML='<div class="home-dash-empty">No announcements.</div>';});
