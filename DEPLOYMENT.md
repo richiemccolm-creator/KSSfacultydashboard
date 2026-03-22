@@ -22,6 +22,7 @@
    - `supabase/migrations/20250318000000_initial_schema.sql`
    - `supabase/migrations/20250318100000_allowed_emails.sql`
    - `supabase/migrations/20250318100001_admin_and_shared_calendar.sql`
+   - `supabase/migrations/20250322000000_audit_log.sql`
 
 ### Disable public sign-up (recommended)
 
@@ -58,6 +59,18 @@
 
 1. Go to **Project Settings → API**
 2. Copy **Project URL** and **anon public** key
+
+### Deploy the GDPR delete-user Edge Function
+
+The app uses an Edge Function for full account deletion (auth + profiles + pupil_data). Deploy it from your project root:
+
+```bash
+supabase login
+supabase link --project-ref YOUR_PROJECT_REF
+supabase functions deploy delete-user
+```
+
+Or use the Supabase Dashboard: **Edge Functions** → create function `delete-user` and paste the code from `supabase/functions/delete-user/index.ts`.
 
 ---
 
@@ -135,17 +148,20 @@ If you prefer not to store credentials in `config.js`, you can use a build step 
 
 ## Post-deployment checklist
 
-- [ ] Run all Supabase migrations (initial, allowed_emails, admin + shared calendar)
+- [ ] Run all Supabase migrations (initial, allowed_emails, admin + shared calendar, audit_log)
+- [ ] Deploy the `delete-user` Edge Function (required for GDPR account deletion)
 - [ ] Add your email to `allowed_emails` with `is_admin = true`
 - [ ] Disable email signups in Supabase Auth (if using allowlist-only access)
 - [ ] Update `config.js` with real credentials
 - [ ] Add redirect URLs in Supabase
+- [ ] **GDPR:** Sign or confirm Data Processing Agreement with Supabase (Dashboard → Settings → Infrastructure)
+- [ ] **GDPR:** Verify Supabase project is in UK/EU region (e.g. eu-west-1)
 - [ ] Test sign in (email/password)
 - [ ] Test OAuth (if configured)
 - [ ] Test data save/load in a tracker
 - [ ] Test Faculty Head Dashboard "Load from cloud" (admin only)
 - [ ] Test shared calendar (admin adds event, staff sees it)
-- [ ] Verify Privacy Policy and GDPR export/delete
+- [ ] Test Privacy Policy: Export my data and Delete my account (full erasure)
 
 ---
 

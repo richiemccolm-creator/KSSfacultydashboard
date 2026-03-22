@@ -40,6 +40,9 @@ a:hover{text-decoration:underline}
 
 <p>This privacy policy explains how we collect, use, and protect your data when you use the Curriculum Design and Report Builder application.</p>
 
+<h2>Data processors</h2>
+<p>We use Supabase as our cloud provider for storing data. Our agreement with Supabase includes a Data Processing Agreement (DPA) compliant with UK GDPR. Data is stored in the UK/EU region where you deploy your project.</p>
+
 <h2>Data we collect</h2>
 <p>We collect and store:</p>
 <ul>
@@ -74,11 +77,14 @@ a:hover{text-decoration:underline}
   <p id="gdprMsg" style="margin-top:1rem;font-size:.82rem;display:none"></p>
 </div>
 
+<h2>Pupil and parent rights</h2>
+<p>Pupil data (names, progress, effort, behaviour, home learning) is processed for educational purposes. Pupils and parents/carers have the right to access, rectification, and erasure of pupil data. To exercise these rights, please contact the school office or Data Protection Officer. Requests will be processed in line with our statutory duties and within 30 days.</p>
+
 <h2>Cookies</h2>
 <p>We use essential cookies for authentication (session management). No analytics or tracking cookies are used.</p>
 
 <h2>Contact</h2>
-<p>For questions about this policy or to contact the Data Protection Officer, please contact the school office at Knightswood Secondary School.</p>
+<p>For questions about this policy, data subject access requests, or to contact the Data Protection Officer, please contact the school office at Knightswood Secondary School.</p>
 
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -103,16 +109,34 @@ function exportMyData(){
   }).catch(function(){msg.textContent='Export failed. Please try again.';});
 }
 function deleteMyAccount(){
-  if(!confirm('Permanently delete your account and all your data? This cannot be undone.'))return;
+  if(!confirm('Permanently delete your account and all your data (including profile and login)? This cannot be undone.'))return;
   var msg=document.getElementById('gdprMsg');
   msg.style.display='block';
   msg.textContent='Deleting…';
-  if(!window.DataService){msg.textContent='Data service not available.';return;}
-  DataService.deleteAll().then(function(){
-    if(window.supabase)window.supabase.auth.signOut();
-    msg.textContent='All your pupil and faculty data has been deleted. Redirecting to sign in…';
-    setTimeout(function(){window.location.href='login.html';},2000);
-  }).catch(function(){msg.textContent='Delete failed. Please try again.';});
+  if(!window.supabase){msg.textContent='Supabase not available.';return;}
+  window.supabase.auth.getSession().then(function(r){
+    var session=r.data.session;
+    if(!session){msg.textContent='Please sign in to delete your account.';return;}
+    var fnUrl=(window.SUPABASE_URL||'')+'/functions/v1/delete-user';
+    fetch(fnUrl,{
+      method:'POST',
+      headers:{
+        'Authorization':'Bearer '+session.access_token,
+        'Content-Type':'application/json'
+      },
+      body:'{}'
+    }).then(function(res){return res.json().then(function(data){return {ok:res.ok,data:data};});}).catch(function(){return {ok:false,data:{error:'Network error'}};})
+    .then(function(result){
+      if(result.ok&&result.data&&result.data.success){
+        window.supabase.auth.signOut().catch(function(){});
+        try{for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k&&k.indexOf('sb-')===0)localStorage.removeItem(k);}}catch(e){}
+        msg.textContent='Account and all data deleted. Redirecting…';
+        setTimeout(function(){window.location.href='login.html';},1500);
+      }else{
+        msg.textContent=result.data&&result.data.error?result.data.error:'Delete failed. Try again or contact support.';
+      }
+    });
+  });
 }
 </script>
 </body>

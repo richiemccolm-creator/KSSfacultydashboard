@@ -206,6 +206,14 @@
                   data: row.data
                 };
               });
+              if (!r1.error && (r1.data || []).length > 0) {
+                window.supabase.from('audit_log').insert({
+                  actor_id: session.user.id,
+                  actor_email: session.user.email,
+                  action: 'admin_viewed_all_pupil_data',
+                  target_type: 'pupil_data'
+                }).then(function() {});
+              }
               resolve(out);
             });
           });

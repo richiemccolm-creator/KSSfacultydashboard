@@ -44,6 +44,16 @@ h1{font-family:Sora,sans-serif;font-size:28px;margin-bottom:6px}
 .reporting{background:#fff4e5;color:#d97706}
 .general{background:#eef2f7;color:#475569}
 .holiday{background:#e7f7ec;color:#1e7e34}
+.deadline{background:#fef3c7;color:#92400e}
+.training{background:#dbeafe;color:#1d4ed8}
+.cpd{background:#e0e7ff;color:#3730a3}
+.inset{background:#fce7f3;color:#9d174d}
+.event-actions{display:flex;gap:4px;align-items:center}
+.event-actions button{font-size:11px;padding:4px 8px;border-radius:4px;border:1px solid #cbd5e0;background:#fff;cursor:pointer;color:#475569}
+.event-actions button:hover{background:#f1f5f9}
+.event-actions .btn-del{color:#991b1b;border-color:#fca5a5}
+.event-actions .btn-del:hover{background:#fee2e2}
+.event-actions .btn-edit:hover{background:#e0f2fe;color:#0369a1}
 
 .form-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px}
 input,select{padding:8px;border:1px solid #cbd5e0;border-radius:6px;font-size:14px}
@@ -67,6 +77,10 @@ button:hover{opacity:0.9}
 .marker.reporting{background:#d97706}
 .marker.general{background:#475569}
 .marker.holiday{background:#1e7e34}
+.marker.deadline{background:#92400e}
+.marker.training{background:#1d4ed8}
+.marker.cpd{background:#3730a3}
+.marker.inset{background:#9d174d}
 
 .tooltip{position:fixed;background:#16243c;color:white;padding:10px 12px;border-radius:6px;font-size:12px;max-width:280px;display:none;z-index:99999;box-shadow:0 4px 12px rgba(0,0,0,.35);pointer-events:auto}
 .tooltip.visible{display:block}
@@ -107,14 +121,20 @@ button:hover{opacity:0.9}
 <input id="date" type="date">
 <select id="category">
 <option value="exam">Exam</option>
-<option value="meeting">Department Meeting</option>
+<option value="meeting">Meeting</option>
+<option value="deadline">Deadline</option>
 <option value="assessment">Assessment Deadline</option>
 <option value="reporting">Reporting Deadline</option>
+<option value="training">Training</option>
+<option value="cpd">CPD</option>
+<option value="inset">In-Service Day</option>
 <option value="holiday">Holiday</option>
 <option value="general">General</option>
 </select>
 </div>
 <button id="addEventBtn" onclick="addEvent()">Add Event</button>
+<button id="updateEventBtn" onclick="updateEvent()" style="display:none;background:#0369a1">Update Event</button>
+<button id="cancelEditBtn" onclick="cancelEdit()" style="display:none;background:#64748b">Cancel</button>
 </div>
 
 <div class="calendar" id="calendar"></div>
@@ -264,6 +284,7 @@ currentYear+=dir;
 render();
 }
 
+var editingEvent=null;
 function addEvent(){
 var title=(document.getElementById("title").value||"").trim();
 var date=document.getElementById("date").value;
@@ -277,6 +298,58 @@ render();
 document.getElementById("title").value="";
 document.getElementById("date").value="";
 showToast("Event added to "+(source==="shared"?"shared calendar (visible to all).":"your calendar."));
+}
+function deleteEvent(ev){
+var canDel=ev.source==="personal"||ev.source===undefined||(ev.source==="shared"&&!!window.__authGuardIsAdmin);
+if(!canDel){showToast("Only admins can delete shared events.");return;}
+if(!confirm("Delete this event?"))return;
+var events=getEvents().filter(function(e){
+if(e.source==="shared"&&e.id)return e.id!==ev.id;
+if(e.source==="personal"||!e.source)return!(e.title===ev.title&&e.date===ev.date&&(e.category||"general")===(ev.category||"general"));
+return true;
+});
+saveEvents(events);
+if(editingEvent&&(editingEvent.title===ev.title&&editingEvent.date===ev.date))cancelEdit();
+render();
+showToast("Event deleted.");
+}
+function editEvent(ev){
+var canEdit=ev.source==="personal"||ev.source===undefined||(ev.source==="shared"&&!!window.__authGuardIsAdmin);
+if(!canEdit){showToast("Only admins can edit shared events.");return;}
+editingEvent=ev;
+document.getElementById("title").value=ev.title||"";
+document.getElementById("date").value=ev.date||"";
+document.getElementById("category").value=ev.category||"general";
+document.getElementById("addEventBtn").style.display="none";
+document.getElementById("updateEventBtn").style.display="inline-block";
+document.getElementById("cancelEditBtn").style.display="inline-block";
+}
+function cancelEdit(){
+editingEvent=null;
+document.getElementById("title").value="";
+document.getElementById("date").value="";
+document.getElementById("addEventBtn").style.display="inline-block";
+document.getElementById("updateEventBtn").style.display="none";
+document.getElementById("cancelEditBtn").style.display="none";
+}
+function updateEvent(){
+if(!editingEvent){cancelEdit();return;}
+var title=(document.getElementById("title").value||"").trim();
+var date=document.getElementById("date").value;
+var category=document.getElementById("category").value;
+if(!title||!date){showToast("Enter an event title and date.");return;}
+var events=getEvents();
+var idx=events.findIndex(function(e){
+if(e.source==="shared"&&e.id)return e.id===editingEvent.id;
+return e===editingEvent||(e.title===editingEvent.title&&e.date===editingEvent.date&&(e.category||"general")===(editingEvent.category||"general"));
+});
+if(idx>=0){
+events[idx]={title:title,date:date,category:category||"general",source:editingEvent.source||"personal",id:editingEvent.id};
+saveEvents(events);
+showToast("Event updated.");
+}
+cancelEdit();
+render();
 }
 
 function snapshot(){
@@ -299,16 +372,28 @@ function upcoming(){
 const list=document.getElementById("upcoming");
 list.innerHTML="";
 const now=new Date();
-getEvents()
+const isAdmin=!!window.__authGuardIsAdmin;
+const evList=getEvents()
 .filter(e=>new Date(e.date)>=now)
 .sort((a,b)=>new Date(a.date)-new Date(b.date))
-.slice(0,5)
-.forEach(e=>{
+.slice(0,10);
+evList.forEach(function(e,i){
+const canEdit=e.source==="personal"||e.source===undefined||(e.source==="shared"&&isAdmin);
 const div=document.createElement("div");
 div.className="event";
-div.innerHTML=`<span>${e.title} — ${e.date}</span><span class="badge ${e.category}">${e.category}</span>`;
+div.dataset.eventIdx=i;
+div.innerHTML='<span>'+e.title+' — '+e.date+'</span><span class="badge '+e.category+'">'+(catLabels[e.category]||e.category)+'</span>'+(canEdit?'<div class="event-actions"><button class="btn-edit" type="button" onclick="editEventByIdx('+i+')">Edit</button><button class="btn-del" type="button" onclick="deleteEventByIdx('+i+')">Delete</button></div>':'');
 list.appendChild(div);
 });
+window.__upcomingEvents=evList;
+}
+function editEventByIdx(i){
+var ev=window.__upcomingEvents&&window.__upcomingEvents[i];
+if(ev)editEvent(ev);
+}
+function deleteEventByIdx(i){
+var ev=window.__upcomingEvents&&window.__upcomingEvents[i];
+if(ev)deleteEvent(ev);
 }
 
 function formatDate(iso){
@@ -318,7 +403,7 @@ const months=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov",
 return days[d.getDay()]+" "+d.getDate()+" "+months[d.getMonth()]+" "+d.getFullYear();
 }
 
-const catLabels={exam:"Exam",meeting:"Meeting",assessment:"Assessment",reporting:"Reporting",holiday:"Holiday",general:"General"};
+const catLabels={exam:"Exam",meeting:"Meeting",deadline:"Deadline",assessment:"Assessment",reporting:"Reporting",training:"Training",cpd:"CPD",inset:"In-Service",holiday:"Holiday",general:"General"};
 
 /* ACADEMIC YEAR ORDER (Aug → Jul) */
 
