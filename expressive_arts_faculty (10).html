@@ -1670,8 +1670,16 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
           </div>
         </div>
 
-        <!-- DASHBOARD: Upcoming Events + Improvement Plan Priorities -->
+        <!-- DASHBOARD: Announcements + Upcoming Events + Improvement Plan Priorities -->
         <div class="home-dashboard">
+          <div class="home-dash-card">
+            <div class="home-dash-header">
+              <span class="home-dash-title">Announcements</span>
+            </div>
+            <div class="home-dash-body">
+              <div id="homeAnnouncements" class="home-events-list"></div>
+            </div>
+          </div>
           <div class="home-dash-card">
             <div class="home-dash-header">
               <span class="home-dash-title">Upcoming Events</span>
@@ -6976,6 +6984,28 @@ function homeDashboardRender(){
     div.innerHTML=`<span class="home-event-date">${shortDate}</span><span class="home-event-title">${e.title}</span><span class="home-event-badge ${e.category}">${catLabels[e.category]||e.category}</span>`;
     list.appendChild(div);
   });
+  var annList=document.getElementById('homeAnnouncements');
+  if(annList&&window.DataService&&typeof window.DataService.getAnnouncements==='function'){
+    DataService.getAnnouncements().then(function(anns){
+      annList.innerHTML='';
+      if(!anns||!anns.length){
+        annList.innerHTML='<div class="home-dash-empty">No announcements.</div>';
+        return;
+      }
+      var esc=function(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
+      anns.forEach(function(a){
+        var d=a.created_at?a.created_at.slice(0,10):'';
+        var shortDate=d?d.slice(8)+'/'+d.slice(5,7):'';
+        var preview=(a.body||'').slice(0,80);
+        if((a.body||'').length>80)preview+='…';
+        var div=document.createElement('div');div.className='home-event-item';
+        div.innerHTML='<span class="home-event-date">'+esc(shortDate)+'</span><span class="home-event-title">'+esc(a.title)+'</span>'+(preview?'<span style="font-size:.72rem;color:var(--text3);display:block;margin-top:.25rem">'+esc(preview)+'</span>':'');
+        annList.appendChild(div);
+      });
+    }).catch(function(){annList.innerHTML='<div class="home-dash-empty">No announcements.</div>';});
+  }else if(annList){
+    annList.innerHTML='<div class="home-dash-empty">No announcements.</div>';
+  }
 }
 
 function injectLiteracyNumeracyIntoCurriculumCards(){

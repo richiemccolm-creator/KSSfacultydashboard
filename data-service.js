@@ -326,6 +326,54 @@
         combined.sort(function(a, b) { return (a.date || '').localeCompare(b.date || ''); });
         return combined;
       });
+    },
+
+    getAnnouncements: function() {
+      return new Promise(function(resolve, reject) {
+        if (!useSupabase()) { resolve([]); return; }
+        window.supabase.from('announcements')
+          .select('id, title, body, expires_at, created_at')
+          .order('created_at', { ascending: false })
+          .then(function(r) {
+            if (r.error) { resolve([]); return; }
+            var today = new Date().toISOString().slice(0, 10);
+            var list = (r.data || []).filter(function(a) {
+              return !a.expires_at || a.expires_at >= today;
+            });
+            resolve(list);
+          });
+      });
+    },
+
+    createAnnouncement: function(obj) {
+      if (!useSupabase()) return Promise.reject(new Error('Supabase required'));
+      var row = {
+        title: (obj.title || '').trim(),
+        body: (obj.body || '').trim() || null,
+        expires_at: obj.expires_at || null
+      };
+      return window.supabase.from('announcements').insert(row).then(function(r) {
+        if (r.error) throw r.error;
+      });
+    },
+
+    updateAnnouncement: function(id, obj) {
+      if (!useSupabase()) return Promise.reject(new Error('Supabase required'));
+      var row = {
+        title: (obj.title || '').trim(),
+        body: (obj.body || '').trim() || null,
+        expires_at: obj.expires_at || null
+      };
+      return window.supabase.from('announcements').update(row).eq('id', id).then(function(r) {
+        if (r.error) throw r.error;
+      });
+    },
+
+    deleteAnnouncement: function(id) {
+      if (!useSupabase()) return Promise.reject(new Error('Supabase required'));
+      return window.supabase.from('announcements').delete().eq('id', id).then(function(r) {
+        if (r.error) throw r.error;
+      });
     }
   };
 })();

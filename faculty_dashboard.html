@@ -275,6 +275,25 @@ tr:hover td{background:#f8fafc}
         <div class="sc" style="margin-bottom:1.5rem">
           <div class="sc-header">
             <div>
+              <div class="sc-title">Announcements</div>
+              <div class="sc-sub">Announcements appear on the Faculty Hub home page for all staff.</div>
+            </div>
+          </div>
+          <div class="sc-body">
+            <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem;align-items:flex-end">
+              <div><label class="form-label">Title</label><input type="text" id="admin-ann-title" class="form-input" placeholder="e.g. Department Meeting Reminder" style="min-width:220px"></div>
+              <div><label class="form-label">Body</label><textarea id="admin-ann-body" class="form-input" placeholder="Optional details..." rows="2" style="min-width:280px;resize:vertical"></textarea></div>
+              <div><label class="form-label">Expires (optional)</label><input type="date" id="admin-ann-expires" class="form-input"></div>
+              <button class="btn btn-primary" id="admin-ann-add-btn" onclick="adminAddAnnouncement()">Add announcement</button>
+              <button class="btn btn-primary" id="admin-ann-update-btn" onclick="adminUpdateAnnouncement()" style="display:none;background:#0369a1">Update</button>
+              <button class="btn btn-ghost" id="admin-ann-cancel-btn" onclick="adminCancelAnnouncementEdit()" style="display:none">Cancel</button>
+            </div>
+            <div id="admin-announcements-list" style="font-size:.85rem"></div>
+          </div>
+        </div>
+        <div class="sc" style="margin-bottom:1.5rem">
+          <div class="sc-header">
+            <div>
               <div class="sc-title">Shared Calendar</div>
               <div class="sc-sub">Events you add here appear on every user's calendar. They cannot edit or delete these — only you can.</div>
             </div>
@@ -291,7 +310,7 @@ tr:hover td{background:#f8fafc}
             <div id="admin-shared-events-list" style="font-size:.85rem"></div>
           </div>
         </div>
-        <p style="font-size:.75rem;color:var(--text3)">More admin features (announcements, term dates) can be added here in future.</p>
+        <p style="font-size:.75rem;color:var(--text3)">Term dates and other shared content can be added here in future.</p>
       </div>
     </div>
   </div>
@@ -911,9 +930,27 @@ function showStaffDetail(userId) {
 
 var adminSharedEvents = [];
 var adminEditingEventId = null;
+var adminAnnouncements = [];
+var adminEditingAnnouncementId = null;
 var catLbl = { exam: 'Exam', meeting: 'Meeting', deadline: 'Deadline', assessment: 'Assessment', reporting: 'Reporting', training: 'Training', cpd: 'CPD', inset: 'In-Service', holiday: 'Holiday', general: 'General' };
 function renderAdminConsole() {
   if (!window.__authGuardIsAdmin || !window.DataService) return;
+  DataService.getAnnouncements().then(function(list) {
+    adminAnnouncements = list || [];
+    var annList = document.getElementById('admin-announcements-list');
+    if (annList) {
+      if (!adminAnnouncements.length) {
+        annList.innerHTML = '<div class="empty-s" style="padding:1rem">No announcements yet. Add one above — it will appear on the Faculty Hub home page.</div>';
+      } else {
+        var esc = function(s) { return (s||'').replace(/'/g,"\\'").replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+        annList.innerHTML = '<table class="table-wrap" style="width:100%"><thead><tr><th>Title</th><th>Created</th><th></th></tr></thead><tbody>' +
+          adminAnnouncements.map(function(a) {
+            var d = a.created_at ? a.created_at.slice(0, 10) : '';
+            return '<tr><td>' + esc(a.title) + '</td><td>' + esc(d) + '</td><td><button class="btn btn-ghost" style="font-size:.7rem;padding:.25rem .5rem" onclick="adminEditAnnouncement(\'' + (a.id||'').replace(/'/g,"\\'") + '\')">Edit</button> <button class="btn btn-danger" style="font-size:.7rem;padding:.25rem .5rem" onclick="adminDeleteAnnouncement(\'' + (a.id||'').replace(/'/g,"\\'") + '\')">Delete</button></td></tr>';
+          }).join('') + '</tbody></table>';
+      }
+    }
+  });
   DataService.getSharedCalendarEvents().then(function(events) {
     adminSharedEvents = events || [];
     var list = document.getElementById('admin-shared-events-list');
@@ -990,6 +1027,62 @@ function adminDeleteSharedEvent(id) {
     renderAdminConsole();
     toast('Event removed — synced to all users');
   }).catch(function() { toast('Failed to remove event'); });
+}
+
+function adminEditAnnouncement(id) {
+  var a = adminAnnouncements.find(function(x) { return x.id === id; });
+  if (!a) return;
+  adminEditingAnnouncementId = id;
+  document.getElementById('admin-ann-title').value = a.title || '';
+  document.getElementById('admin-ann-body').value = a.body || '';
+  document.getElementById('admin-ann-expires').value = a.expires_at || '';
+  document.getElementById('admin-ann-add-btn').style.display = 'none';
+  document.getElementById('admin-ann-update-btn').style.display = 'inline-flex';
+  document.getElementById('admin-ann-cancel-btn').style.display = 'inline-flex';
+}
+function adminCancelAnnouncementEdit() {
+  adminEditingAnnouncementId = null;
+  document.getElementById('admin-ann-title').value = '';
+  document.getElementById('admin-ann-body').value = '';
+  document.getElementById('admin-ann-expires').value = '';
+  document.getElementById('admin-ann-add-btn').style.display = 'inline-flex';
+  document.getElementById('admin-ann-update-btn').style.display = 'none';
+  document.getElementById('admin-ann-cancel-btn').style.display = 'none';
+}
+function adminUpdateAnnouncement() {
+  if (!adminEditingAnnouncementId || !window.__authGuardIsAdmin || !window.DataService) return;
+  var title = document.getElementById('admin-ann-title').value.trim();
+  var body = document.getElementById('admin-ann-body').value.trim();
+  var expires = document.getElementById('admin-ann-expires').value || null;
+  if (!title) { toast('Enter a title'); return; }
+  DataService.updateAnnouncement(adminEditingAnnouncementId, { title: title, body: body || null, expires_at: expires }).then(function() {
+    adminCancelAnnouncementEdit();
+    renderAdminConsole();
+    toast('Announcement updated');
+  }).catch(function() { toast('Failed to update announcement'); });
+}
+function adminAddAnnouncement() {
+  if (!window.__authGuardIsAdmin || !window.DataService) { toast('Admin only'); return; }
+  var title = document.getElementById('admin-ann-title').value.trim();
+  var body = document.getElementById('admin-ann-body').value.trim();
+  var expires = document.getElementById('admin-ann-expires').value || null;
+  if (!title) { toast('Enter a title'); return; }
+  DataService.createAnnouncement({ title: title, body: body || null, expires_at: expires }).then(function() {
+    document.getElementById('admin-ann-title').value = '';
+    document.getElementById('admin-ann-body').value = '';
+    document.getElementById('admin-ann-expires').value = '';
+    renderAdminConsole();
+    toast('Announcement added — visible on Faculty Hub');
+  }).catch(function() { toast('Failed to add announcement'); });
+}
+function adminDeleteAnnouncement(id) {
+  if (!window.__authGuardIsAdmin || !window.DataService) return;
+  if (!confirm('Remove this announcement?')) return;
+  DataService.deleteAnnouncement(id).then(function() {
+    adminAnnouncements = adminAnnouncements.filter(function(a) { return a.id !== id; });
+    renderAdminConsole();
+    toast('Announcement removed');
+  }).catch(function() { toast('Failed to remove announcement'); });
 }
 
 updateImportStatus();
