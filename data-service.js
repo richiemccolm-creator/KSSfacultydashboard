@@ -186,9 +186,10 @@
         window.supabase.auth.getSession().then(function(_a) {
           var session = _a.data.session;
           if (!session) { reject(new Error('Not authenticated')); return; }
+          var adminDataTypes = ['drama-v3', 'art-v2', 'moderation-data', 'plannerTimetable', 'plannerLessons', 'plannerWeekNotes'];
           window.supabase.from('pupil_data')
             .select('user_id, data_type, data')
-            .in('data_type', ['drama-v3', 'art-v2'])
+            .in('data_type', adminDataTypes)
             .then(function(r1) {
               if (r1.error) { reject(r1.error); return; }
               window.supabase.from('profiles')
@@ -217,6 +218,67 @@
               resolve(out);
             });
           });
+        });
+      });
+    },
+
+    /** Admin only: returns staff list with planner, moderation, and tracker data grouped by user. Includes all profiles. */
+    getStaffListWithWorkForAdmin: function() {
+      return new Promise(function(resolve, reject) {
+        if (!useSupabase()) { resolve([]); return; }
+        window.supabase.auth.getSession().then(function(_a) {
+          var session = _a.data.session;
+          if (!session) { reject(new Error('Not authenticated')); return; }
+          Promise.all([
+            window.supabase.from('profiles').select('id, email, display_name'),
+            window.supabase.from('pupil_data')
+              .select('user_id, data_type, data')
+              .in('data_type', ['drama-v3', 'art-v2', 'moderation-data', 'plannerTimetable', 'plannerLessons', 'plannerWeekNotes'])
+          ]).then(function(results) {
+            if (results[0].error || results[1].error) {
+              reject(results[0].error || results[1].error);
+              return;
+            }
+            var profiles = (results[0].data || []).reduce(function(acc, p) {
+              acc[p.id] = p;
+              return acc;
+            }, {});
+            var rows = results[1].data || [];
+            var byUser = {};
+            Object.keys(profiles).forEach(function(id) {
+              var p = profiles[id];
+              byUser[id] = {
+                user_id: id,
+                teacherName: p.display_name || p.email || 'Unknown',
+                email: p.email || '',
+                drama: null,
+                art: null,
+                moderation: null,
+                planner: { timetable: null, lessons: null, weekNotes: null }
+              };
+            });
+            rows.forEach(function(r) {
+              if (!byUser[r.user_id]) {
+                byUser[r.user_id] = {
+                  user_id: r.user_id,
+                  teacherName: 'Unknown',
+                  email: '',
+                  drama: null,
+                  art: null,
+                  moderation: null,
+                  planner: { timetable: null, lessons: null, weekNotes: null }
+                };
+              }
+              var u = byUser[r.user_id];
+              if (r.data_type === 'drama-v3') u.drama = r.data;
+              else if (r.data_type === 'art-v2') u.art = r.data;
+              else if (r.data_type === 'moderation-data') u.moderation = r.data;
+              else if (r.data_type === 'plannerTimetable') u.planner.timetable = r.data;
+              else if (r.data_type === 'plannerLessons') u.planner.lessons = r.data;
+              else if (r.data_type === 'plannerWeekNotes') u.planner.weekNotes = r.data;
+            });
+            resolve(Object.values(byUser).sort(function(a, b) { return (a.teacherName || '').localeCompare(b.teacherName || ''); }));
+          }).catch(reject);
         });
       });
     },

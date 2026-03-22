@@ -46,6 +46,18 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .nav-tab:hover{background:var(--bg);color:var(--text)}
 .nav-tab.active{background:var(--navy);color:var(--white)}
 
+.staff-row{display:flex;align-items:center;gap:1rem;padding:.75rem 1rem;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s}
+.staff-row:hover{background:#f8fafc}
+.staff-row:last-child{border-bottom:none}
+.staff-name{font-weight:600;font-size:.9rem}
+.staff-email{font-size:.72rem;color:var(--text3)}
+.staff-detail-back{margin-bottom:1rem}
+.staff-detail-section{margin-bottom:1.5rem}
+.staff-detail-section h3{font-size:.8rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:.5rem;padding-bottom:.35rem;border-bottom:1px solid var(--border)}
+.staff-planner-summary,.staff-moderation-list{font-size:.82rem;color:var(--text2);line-height:1.6}
+.staff-moderation-item{padding:.5rem .75rem;margin-bottom:.35rem;background:var(--bg);border-radius:6px;border-left:3px solid var(--border)}
+.staff-empty{color:var(--text3);font-style:italic}
+
 .stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:1rem}
 .stat-card{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:1rem;text-align:center}
 .stat-num{font-family:'Sora',sans-serif;font-size:1.5rem;font-weight:800;color:var(--navy)}
@@ -114,6 +126,7 @@ tr:hover td{background:#f8fafc}
   <button class="dash-nav-btn" data-view="classes" onclick="setView('classes')">Classes</button>
   <button class="dash-nav-btn" data-view="search" onclick="setView('search')">Search Pupil</button>
   <button class="dash-nav-btn" data-view="profile" onclick="setView('profile')">Pupil Profile</button>
+  <button class="dash-nav-btn" id="staff-btn" data-view="staff" onclick="setView('staff')" style="display:none">Staff</button>
   <button class="dash-nav-btn" id="admin-console-btn" data-view="admin-console" onclick="setView('admin-console')" style="display:none">Admin Console</button>
   <a href="expressive_arts_faculty%20(10).html" class="dash-nav-btn" style="text-decoration:none">Faculty Hub</a>
   <div class="dash-signout">
@@ -226,6 +239,25 @@ tr:hover td{background:#f8fafc}
     </div>
   </div>
 
+  <div id="view-staff" class="view-panel" style="display:none">
+    <div class="sc">
+      <div class="sc-header">
+        <div>
+          <div class="sc-title">Staff</div>
+          <div class="sc-sub">View planner, moderation, and tracker data for each staff member. Click a name to see their work.</div>
+        </div>
+        <button class="btn btn-primary" id="staff-refresh-btn" onclick="loadStaffList()">Refresh</button>
+      </div>
+      <div class="sc-body">
+        <div id="staff-list-container"></div>
+        <div id="staff-detail-container" style="display:none">
+          <button class="btn btn-ghost staff-detail-back" onclick="showStaffList()">← Back to list</button>
+          <div id="staff-detail-body"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div id="view-admin-console" class="view-panel" style="display:none">
     <div class="sc">
       <div class="sc-header">
@@ -282,7 +314,8 @@ function loadFromCloud() {
     });
     updateImportStatus();
     renderAll();
-    toast('Loaded ' + rows.length + ' source(s) from cloud');
+    var trackerCount = rows.filter(function(r) { return r.data_type === 'drama-v3' || r.data_type === 'art-v2'; }).length;
+    toast('Loaded ' + trackerCount + ' tracker source(s) from cloud');
   }).catch(function() { toast('Could not load from cloud'); });
 }
 
@@ -402,6 +435,7 @@ function setView(id) {
   else if (id === 'classes') renderClasses();
   else if (id === 'search') searchPupils();
   else if (id === 'profile') renderProfile();
+  else if (id === 'staff') renderStaffView();
   else if (id === 'admin-console') renderAdminConsole();
 }
 
@@ -771,11 +805,104 @@ function toast(msg) {
 function updateLoadCloudButton() {
   const btn = document.getElementById('load-cloud-btn');
   if (btn) btn.style.display = window.__authGuardIsAdmin ? 'inline-flex' : 'none';
+  const staffBtn = document.getElementById('staff-btn');
+  if (staffBtn) staffBtn.style.display = window.__authGuardIsAdmin ? 'block' : 'none';
   const adminBtn = document.getElementById('admin-console-btn');
   if (adminBtn) adminBtn.style.display = window.__authGuardIsAdmin ? 'block' : 'none';
 }
 updateLoadCloudButton();
 setTimeout(function(){updateLoadCloudButton();var v=new URLSearchParams(window.location.search).get('view');if(v==='admin-console'&&window.__authGuardIsAdmin)setView('admin-console');},800);
+
+var staffListCache = [];
+function renderStaffView() {
+  if (!window.__authGuardIsAdmin) return;
+  document.getElementById('staff-list-container').style.display = 'block';
+  document.getElementById('staff-detail-container').style.display = 'none';
+  loadStaffList();
+}
+function loadStaffList() {
+  if (!window.__authGuardIsAdmin || !window.DataService || typeof DataService.getStaffListWithWorkForAdmin !== 'function') {
+    document.getElementById('staff-list-container').innerHTML = '<div class="empty-s">Admin only. Cloud required.</div>';
+    return;
+  }
+  document.getElementById('staff-list-container').innerHTML = '<div class="empty-s" style="padding:1.5rem">Loading staff...</div>';
+  DataService.getStaffListWithWorkForAdmin().then(function(list) {
+    staffListCache = list || [];
+    renderStaffList();
+  }).catch(function() {
+    document.getElementById('staff-list-container').innerHTML = '<div class="empty-s">Could not load staff data.</div>';
+  });
+}
+function renderStaffList() {
+  var el = document.getElementById('staff-list-container');
+  if (!staffListCache.length) {
+    el.innerHTML = '<div class="empty-s">No staff found. Staff appear here once they have signed in.</div>';
+    return;
+  }
+  var esc = function(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
+  el.innerHTML = staffListCache.map(function(s) {
+    var badges = [];
+    var hasPlanner = s.planner && ((s.planner.timetable && s.planner.timetable.slots && s.planner.timetable.slots.length) || (s.planner.lessons && s.planner.lessons.lessons && s.planner.lessons.lessons.length) || (s.planner.weekNotes && Object.keys(s.planner.weekNotes).length));
+    if (hasPlanner) badges.push('<span class="badge" style="background:rgba(74,127,212,.15);color:var(--accent-drama)">Planner</span>');
+    if (s.moderation && (s.moderation.entries || []).length) badges.push('<span class="badge badge-ad">Moderation</span>');
+    if (s.drama && (s.drama.pupils || s.drama.scores)) badges.push('<span class="badge badge-drama">Drama</span>');
+    if (s.art && (s.art.pupils || s.art.scores)) badges.push('<span class="badge badge-ad">Art</span>');
+    if (!badges.length) badges.push('<span class="badge" style="background:var(--bg);color:var(--text3)">No data yet</span>');
+    return '<div class="staff-row" data-user-id="' + esc(s.user_id) + '" onclick="showStaffDetail(this.getAttribute(\'data-user-id\'))"><div><div class="staff-name">' + esc(s.teacherName) + '</div><div class="staff-email">' + esc(s.email) + '</div></div><div class="pupil-badges">' + badges.join('') + '</div></div>';
+  }).join('');
+}
+function showStaffList() {
+  document.getElementById('staff-list-container').style.display = 'block';
+  document.getElementById('staff-detail-container').style.display = 'none';
+}
+function showStaffDetail(userId) {
+  var s = staffListCache.find(function(x) { return x.user_id === userId; });
+  if (!s) return;
+  document.getElementById('staff-list-container').style.display = 'none';
+  document.getElementById('staff-detail-container').style.display = 'block';
+  var body = document.getElementById('staff-detail-body');
+  var esc = function(x) { return (x||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+  var html = '<div class="profile-card"><div class="profile-head"><div><div class="profile-name">' + esc(s.teacherName) + '</div><div class="profile-meta">' + esc(s.email) + '</div></div></div></div>';
+  html += '<div class="staff-detail-section"><h3>Planner</h3><div class="staff-planner-summary">';
+  var t = s.planner?.timetable;
+  var slots = (t && t.slots) ? t.slots : [];
+  var lessons = (s.planner?.lessons?.lessons) || [];
+  var notes = s.planner?.weekNotes || {};
+  var noteKeys = Object.keys(notes).filter(function(k) { return notes[k]; });
+  if (slots.length || lessons.length || noteKeys.length) {
+    html += 'Timetable slots: ' + slots.length + ' · Lessons: ' + lessons.length + ' · Week notes: ' + noteKeys.length;
+  } else {
+    html += '<span class="staff-empty">No planner data yet.</span>';
+  }
+  html += '</div></div>';
+  html += '<div class="staff-detail-section"><h3>Moderation</h3><div class="staff-moderation-list">';
+  var entries = (s.moderation?.entries) || [];
+  if (entries.length) {
+    entries.forEach(function(e) {
+      var subj = (e.subject || 'drama').replace('ad','Art & Design').replace('photo','Photography').replace('drama','Drama');
+      var status = e.status || (e.formData && e.formData.status) || 'draft';
+      html += '<div class="staff-moderation-item">' + esc(e.unitTitle || e.id) + ' · ' + subj + ' · ' + status + '</div>';
+    });
+  } else {
+    html += '<span class="staff-empty">No moderation data yet.</span>';
+  }
+  html += '</div></div>';
+  html += '<div class="staff-detail-section"><h3>Drama Tracker</h3><div class="staff-planner-summary">';
+  var dp = s.drama?.pupils;
+  var dpCount = 0;
+  if (dp) { ['s1','s2','s3'].forEach(function(yg) { Object.values(dp[yg] || {}).forEach(function(arr) { dpCount += (arr || []).length; }); }); }
+  if (dpCount) html += dpCount + ' pupils tracked.';
+  else html += '<span class="staff-empty">No Drama tracker data yet.</span>';
+  html += '</div></div>';
+  html += '<div class="staff-detail-section"><h3>Art & Design Tracker</h3><div class="staff-planner-summary">';
+  var ap = s.art?.pupils;
+  var apCount = 0;
+  if (ap) { ['s1','s2','s3'].forEach(function(yg) { Object.values(ap[yg] || {}).forEach(function(arr) { apCount += (arr || []).length; }); }); }
+  if (apCount) html += apCount + ' pupils tracked.';
+  else html += '<span class="staff-empty">No Art & Design tracker data yet.</span>';
+  html += '</div></div>';
+  body.innerHTML = html;
+}
 
 var adminSharedEvents = [];
 var adminEditingEventId = null;
