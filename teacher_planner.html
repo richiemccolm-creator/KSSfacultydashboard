@@ -502,6 +502,7 @@ function subjectLabel(s) {
   if (s === 'drama') return 'Drama';
   if (s === 'art') return 'Art & Design';
   if (s === 'photography') return 'Photography';
+  if (s === 'other') return 'Other';
   return s || '';
 }
 
@@ -515,20 +516,6 @@ var SLOT_COLOURS = [
   { value: '#f59e0b', label: 'Amber' },
   { value: '#f43f5e', label: 'Rose' },
   { value: '#64748b', label: 'Slate' }
-];
-
-var CLASS_OPTIONS = [
-  { value: '', label: '—' },
-  { value: 'S1', label: 'S1' },
-  { value: 'S2', label: 'S2' },
-  { value: 'S3', label: 'S3' },
-  { value: 'S4', label: 'S4' },
-  { value: 'S5', label: 'S5' },
-  { value: 'S6', label: 'S6' },
-  { value: 'NPA S3', label: 'NPA S3' },
-  { value: 'NPA S4', label: 'NPA S4' },
-  { value: 'Higher', label: 'Higher' },
-  { value: 'other', label: 'Other' }
 ];
 
 // ── Timetable UI ──
@@ -548,18 +535,8 @@ function renderTimetable() {
         var sel = (slot && slot.color === c.value) ? ' selected' : (!slot || !slot.color) && c.value === '' ? ' selected' : '';
         return '<option value="' + c.value + '"' + sel + '>' + c.label + '</option>';
       }).join('');
-      var cn = slot ? (slot.className || '') : '';
-      var isOther = cn && CLASS_OPTIONS.filter(function(o) { return o.value && o.value !== 'other'; }).every(function(o) { return o.value !== cn; });
-      var classSel = isOther ? 'other' : cn;
-      var classOtherVal = isOther ? cn : '';
-      var classOtherStyle = classSel === 'other' ? '' : ' style="display:none"';
-      var classOpts = CLASS_OPTIONS.map(function(o) {
-        var sel = (classSel === o.value) ? ' selected' : '';
-        return '<option value="' + o.value + '"' + sel + '>' + o.label + '</option>';
-      }).join('');
-      td.innerHTML = '<div><select class="slot-subject"><option value="">—</option><option value="drama"' + (slot && slot.subject==='drama'?' selected':'') + '>Drama</option><option value="art"' + (slot && slot.subject==='art'?' selected':'') + '>Art</option><option value="photography"' + (slot && slot.subject==='photography'?' selected':'') + '>Photography</option></select>' +
-        '<select class="slot-class">' + classOpts + '</select>' +
-        '<input type="text" class="slot-class-other" placeholder="Specify class" value="' + (classOtherVal || '').replace(/"/g, '&quot;') + '"' + classOtherStyle + '>' +
+      td.innerHTML = '<div><select class="slot-subject"><option value="">—</option><option value="drama"' + (slot && slot.subject==='drama'?' selected':'') + '>Drama</option><option value="art"' + (slot && slot.subject==='art'?' selected':'') + '>Art</option><option value="photography"' + (slot && slot.subject==='photography'?' selected':'') + '>Photography</option><option value="other"' + (slot && slot.subject==='other'?' selected':'') + '>Other</option></select>' +
+        '<input type="text" class="slot-class" placeholder="Class" value="' + (slot ? (slot.className||'') : '') + '">' +
         '<input type="text" class="slot-room" placeholder="Room" value="' + (slot ? (slot.room||'') : '') + '">' +
         '<div class="slot-color-row"><label class="slot-color-label">Colour</label><select class="slot-color">' + colorOpts + '</select></div>';
       tr.appendChild(td);
@@ -637,22 +614,16 @@ function collectTimetableFromDOM() {
       var cell = cells[di];
       if (!cell) return;
       var subj = cell.querySelector('.slot-subject');
-      var classSel = cell.querySelector('.slot-class');
-      var classOther = cell.querySelector('.slot-class-other');
+      var cls = cell.querySelector('.slot-class');
       var room = cell.querySelector('.slot-room');
       var colorSel = cell.querySelector('.slot-color');
-      var className = '';
-      if (classSel) {
-        if (classSel.value === 'other' && classOther) className = classOther.value || '';
-        else if (classSel.value) className = classSel.value;
-      }
       if (subj && subj.value) {
         slots.push({
           id: PS.id(),
           day: day,
           period: period,
           subject: subj.value,
-          className: className,
+          className: cls ? cls.value : '',
           room: room ? room.value : '',
           color: colorSel && colorSel.value ? colorSel.value : undefined
         });
@@ -1200,14 +1171,6 @@ document.getElementById('editTimetableBtn').addEventListener('click', function()
   document.getElementById('timetableDisplaySection').style.display = 'none';
   document.getElementById('timetableEditSection').style.display = 'block';
   renderTimetable();
-});
-
-document.getElementById('timetable-body').addEventListener('change', function(e) {
-  if (e.target.classList.contains('slot-class')) {
-    var cell = e.target.closest('.slot-cell');
-    var otherInp = cell ? cell.querySelector('.slot-class-other') : null;
-    if (otherInp) otherInp.style.display = e.target.value === 'other' ? '' : 'none';
-  }
 });
 
 function handleNewAcademicYear() {
