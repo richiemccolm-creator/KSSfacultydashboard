@@ -440,6 +440,7 @@ a.sidebar-item:hover{color:var(--white)}
 .moderation-mod-field{margin-bottom:1.25rem}
 .moderation-mod-label{font-size:.65rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);margin-bottom:.4rem;display:block}
 .moderation-mod-input,.moderation-mod-textarea{width:100%;padding:.6rem .85rem;border:1px solid var(--border);border-radius:6px;font-size:.85rem;font-family:inherit}
+.moderation-mod-input::placeholder,.moderation-mod-textarea::placeholder{color:var(--text3);opacity:.9}
 .moderation-mod-textarea{min-height:80px;resize:vertical}
 .moderation-mod-input:focus,.moderation-mod-textarea:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 2px rgba(30,45,74,.1)}
 .moderation-benchmark-checks{display:flex;flex-direction:column;gap:.5rem;max-height:180px;overflow-y:auto;padding:.5rem;background:var(--bg);border-radius:6px;border:1px solid var(--border)}
@@ -6420,10 +6421,12 @@ function openModerationForm(unitId,subject){
   const entry=getModerationEntry(unitId);
   const fd=entry?.formData||{};
   const esc=v=>(v||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+  const modDate=fd.moderationDate||(entry?.completedAt||entry?.savedAt||'').slice(0,10)||new Date().toISOString().slice(0,10);
   let bodyHtml='';
-  bodyHtml+=`<div class="moderation-mod-field"><label class="moderation-mod-label">Evidence Code</label><input type="text" class="moderation-mod-input" id="mod-evidenceCode" value="${esc(fd.evidenceCode)}" placeholder="e.g. DR-S1-01"></div>`;
-  bodyHtml+=`<div class="moderation-mod-field"><label class="moderation-mod-label">Curriculum Area(s)</label><input type="text" class="moderation-mod-input" id="mod-curriculumArea" value="${esc(fd.curriculumArea)}" placeholder="e.g. Drama / Art & Design"></div>`;
-  bodyHtml+=`<div class="moderation-mod-field"><label class="moderation-mod-label">Level / Stage(s)</label><input type="text" class="moderation-mod-input" id="mod-levelStage" value="${esc(fd.levelStage)}" placeholder="e.g. Third Level, S1"></div>`;
+  bodyHtml+=`<div class="moderation-mod-field"><label class="moderation-mod-label">Moderation completed date</label><input type="date" class="moderation-mod-input" id="mod-moderationDate" value="${esc(modDate)}" style="max-width:180px"></div>`;
+  bodyHtml+=`<div class="moderation-mod-field"><label class="moderation-mod-label">Evidence Code</label><input type="text" class="moderation-mod-input" id="mod-evidenceCode" value="${esc(fd.evidenceCode)}" placeholder="e.g. DR-S1-01, AD-S2-03, or PH-S3-01"></div>`;
+  bodyHtml+=`<div class="moderation-mod-field"><label class="moderation-mod-label">Curriculum Area(s)</label><input type="text" class="moderation-mod-input" id="mod-curriculumArea" value="${esc(fd.curriculumArea)}" placeholder="e.g. Drama, Art & Design, or Art & Design (Photography)"></div>`;
+  bodyHtml+=`<div class="moderation-mod-field"><label class="moderation-mod-label">Level / Stage(s)</label><input type="text" class="moderation-mod-input" id="mod-levelStage" value="${esc(fd.levelStage)}" placeholder="e.g. Third Level, S1 or Fourth Level, S3"></div>`;
   bodyHtml+=`<div class="moderation-mod-field"><label class="moderation-mod-label">Experiences &amp; Outcomes</label><div style="font-size:.8rem;color:var(--text2);padding:.5rem 0">${(unit.eos||[]).join(', ')}</div></div>`;
   bodyHtml+=`<div class="moderation-mod-field"><label class="moderation-mod-label">Learning Intentions</label><div style="font-size:.8rem;color:var(--text2);padding:.5rem 0"><ul style="margin:.25rem 0 0 1rem">${(unit.learningIntentions||[]).map(li=>'<li>'+esc(li)+'</li>').join('')}</ul></div></div>`;
   bodyHtml+=`<div class="moderation-mod-field"><label class="moderation-mod-label">Success Criteria</label><div style="font-size:.8rem;color:var(--text2);padding:.5rem 0">${(unit.successCriteria||[]).map(sc=>'<div class="sc-item" style="margin-bottom:.3rem">'+esc(sc)+'</div>').join('')}</div></div>`;
@@ -6438,21 +6441,21 @@ function openModerationForm(unitId,subject){
     bodyHtml+=`<div class="moderation-mod-field"><label class="moderation-mod-label">Numeracy focus</label><div class="moderation-lit-mnu-block moderation-mnu-block">${mnuPills}<ul style="margin:.25rem 0 0 1rem">${(nf.learningIntentions||[]).map(li=>'<li>'+esc(li)+'</li>').join('')}</ul>${(nf.successCriteria||[]).map(sc=>'<div class="sc-item" style="margin:.3rem 0 0 1rem">'+esc(sc)+'</div>').join('')}</div></div>`;
   }
   const subjectBenchmarks=fd.benchmarks||getSubjectBenchmarksForUnit(unit);
-  bodyHtml+=`<div class="moderation-mod-field"><label class="moderation-mod-label">Benchmarks (pre-populated from CfE ${unit.subject==='ad'?'Art & Design':unit.subject==='photo'?'Art & Design (Photography)':'Drama'})</label><textarea class="moderation-mod-textarea" id="mod-benchmarks" rows="4" placeholder="Relevant benchmark statements">${esc(subjectBenchmarks)}</textarea></div>`;
+  bodyHtml+=`<div class="moderation-mod-field"><label class="moderation-mod-label">Benchmarks (pre-populated from CfE ${unit.subject==='ad'?'Art & Design':unit.subject==='photo'?'Art & Design (Photography)':'Drama'})</label><textarea class="moderation-mod-textarea" id="mod-benchmarks" rows="4" placeholder="e.g. I can create and develop ideas; I can apply skills and techniques to create drama. Add or edit the pre-populated CfE benchmarks as relevant to this unit.">${esc(subjectBenchmarks)}</textarea></div>`;
   bodyHtml+=`<div class="moderation-mod-field"><label class="moderation-mod-label">Literacy benchmarks — select applicable</label><div class="moderation-benchmark-checks" id="mod-literacy-checks">${(CFE_LIT_BENCHMARKS||[]).map(b=>`<label class="moderation-check-label"><input type="checkbox" value="${esc(b.code)}" ${(fd.literacyBenchmarks||[]).includes(b.code)?'checked':''}> <span>${esc(b.code)}</span> — ${esc(b.text)}</label>`).join('')}</div></div>`;
   bodyHtml+=`<div class="moderation-mod-field"><label class="moderation-mod-label">Numeracy benchmarks — select applicable</label><div class="moderation-benchmark-checks" id="mod-numeracy-checks">${(CFE_MNU_BENCHMARKS||[]).map(b=>`<label class="moderation-check-label"><input type="checkbox" value="${esc(b.code)}" ${(fd.numeracyBenchmarks||[]).includes(b.code)?'checked':''}> <span>${esc(b.code)}</span> — ${esc(b.text)}</label>`).join('')}</div></div>`;
-  bodyHtml+=`<div class="moderation-mod-field"><label class="moderation-mod-label">Breadth — context and range of learning experiences</label><textarea class="moderation-mod-textarea" id="mod-breadth" rows="3">${esc(fd.breadth)}</textarea></div>`;
-  bodyHtml+=`<div class="moderation-mod-field"><label class="moderation-mod-label">Challenge</label><textarea class="moderation-mod-textarea" id="mod-challenge" rows="2">${esc(fd.challenge)}</textarea></div>`;
-  bodyHtml+=`<div class="moderation-mod-field"><label class="moderation-mod-label">Application</label><textarea class="moderation-mod-textarea" id="mod-application" rows="2">${esc(fd.application)}</textarea></div>`;
-  bodyHtml+=`<div class="moderation-mod-field"><label class="moderation-mod-label">Assessment methods (say/write/make and do)</label><textarea class="moderation-mod-textarea" id="mod-assessmentMethods" rows="2">${esc(fd.assessmentMethods)||(unit.assessment||[]).join(', ')}</textarea></div>`;
-  bodyHtml+=`<div class="moderation-mod-field"><label class="moderation-mod-label">Meta-skills — how addressed</label><textarea class="moderation-mod-textarea" id="mod-metaskills" rows="2">${esc(fd.metaskills)}</textarea></div>`;
-  bodyHtml+=`<div class="moderation-mod-field"><label class="moderation-mod-label">Feedback — What have you learned? How did you learn? Skills developed?</label><textarea class="moderation-mod-textarea" id="mod-feedback" rows="3">${esc(fd.feedback)}</textarea></div>`;
+  bodyHtml+=`<div class="moderation-mod-field"><label class="moderation-mod-label">Breadth — context and range of learning experiences</label><textarea class="moderation-mod-textarea" id="mod-breadth" rows="3" placeholder="e.g. Pupils explored scripted drama through group read-throughs, character hot-seating and blocking exercises. Range included contemporary and period texts to develop understanding of different styles.">${esc(fd.breadth)}</textarea></div>`;
+  bodyHtml+=`<div class="moderation-mod-field"><label class="moderation-mod-label">Challenge</label><textarea class="moderation-mod-textarea" id="mod-challenge" rows="2" placeholder="e.g. Stretch activities included adapting scenes for different audiences; pupils analysed subtext and given circumstances to deepen characterisation.">${esc(fd.challenge)}</textarea></div>`;
+  bodyHtml+=`<div class="moderation-mod-field"><label class="moderation-mod-label">Application</label><textarea class="moderation-mod-textarea" id="mod-application" rows="2" placeholder="e.g. Learners applied vocal and movement techniques in performance; used feedback to refine character portrayal and blocking choices.">${esc(fd.application)}</textarea></div>`;
+  bodyHtml+=`<div class="moderation-mod-field"><label class="moderation-mod-label">Assessment methods (say/write/make and do)</label><textarea class="moderation-mod-textarea" id="mod-assessmentMethods" rows="2" placeholder="e.g. Performance of scripted scene, written evaluation, peer feedback, annotated script. (Say: performance, discussion. Write: evaluation, annotations. Make/do: rehearsal, performance.)">${esc(fd.assessmentMethods)}</textarea></div>`;
+  bodyHtml+=`<div class="moderation-mod-field"><label class="moderation-mod-label">Meta-skills — how addressed</label><textarea class="moderation-mod-textarea" id="mod-metaskills" rows="2" placeholder="e.g. Collaboration and communication through group rehearsals; critical thinking when analysing scripts and giving peer feedback; creativity in interpreting character.">${esc(fd.metaskills)}</textarea></div>`;
+  bodyHtml+=`<div class="moderation-mod-field"><label class="moderation-mod-label">Feedback — What have you learned? How did you learn? Skills developed?</label><textarea class="moderation-mod-textarea" id="mod-feedback" rows="3" placeholder="e.g. Pupils could identify strengths in voice and movement. Most developed clearer characterisation through rehearsal. Next steps: develop use of subtext and staging to show relationships.">${esc(fd.feedback)}</textarea></div>`;
   bodyHtml+=`<div class="moderation-mod-field"><label class="moderation-mod-label">Did learner attain outcomes?</label><select class="moderation-mod-input" id="mod-outcome"><option value="">— Select —</option><option value="YES" ${fd.outcome==='YES'?'selected':''}>YES</option><option value="NO" ${fd.outcome==='NO'?'selected':''}>NO</option></select></div>`;
   bodyHtml+=`<div class="moderation-mod-field" style="margin-top:1.5rem"><label class="moderation-mod-label">Post-unit reflection (1–10 scale)</label>`;
   (REFLECTION_QUESTIONS||[]).forEach((q,i)=>{
     const r=fd.reflection||{};
     const rv=r['q'+(i+1)]||{};
-    bodyHtml+=`<div style="margin-bottom:.85rem"><div style="font-size:.78rem;color:var(--text2);margin-bottom:.3rem">${i+1}. ${esc(q)}</div><div style="display:flex;gap:.5rem;align-items:flex-start"><select class="moderation-mod-input" id="mod-r${i+1}-rating" style="width:70px"><option value="">—</option>${[1,2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}" ${rv.rating==n?'selected':''}>${n}</option>`).join('')}</select><input type="text" class="moderation-mod-input" id="mod-r${i+1}-comment" value="${esc(rv.comment)}" placeholder="Comments" style="flex:1"></div></div>`;
+    bodyHtml+=`<div style="margin-bottom:.85rem"><div style="font-size:.78rem;color:var(--text2);margin-bottom:.3rem">${i+1}. ${esc(q)}</div><div style="display:flex;gap:.5rem;align-items:flex-start"><select class="moderation-mod-input" id="mod-r${i+1}-rating" style="width:70px"><option value="">—</option>${[1,2,3,4,5,6,7,8,9,10].map(n=>`<option value="${n}" ${rv.rating==n?'selected':''}>${n}</option>`).join('')}</select><input type="text" class="moderation-mod-input" id="mod-r${i+1}-comment" value="${esc(rv.comment)}" placeholder="e.g. Clear improvement in X; next step is Y" style="flex:1"></div></div>`;
   });
   bodyHtml+=`</div>`;
   const slideInner=document.getElementById('slide-modal-inner');
@@ -6499,7 +6502,7 @@ function closeModerationForm(){
 function collectModerationFormData(){
   if(!currentModerationUnit) return null;
   const fd={};
-  ['evidenceCode','curriculumArea','levelStage','benchmarks','breadth','challenge','application','assessmentMethods','metaskills','feedback','outcome'].forEach(k=>{
+  ['moderationDate','evidenceCode','curriculumArea','levelStage','benchmarks','breadth','challenge','application','assessmentMethods','metaskills','feedback','outcome'].forEach(k=>{
     const el=document.getElementById('mod-'+k);
     if(el) fd[k]=el.value||el.value.trim?.()||'';
   });
@@ -6540,7 +6543,14 @@ function markModerationComplete(){
   saveModerationForm();
   const d=getModerationData();
   const e=(d.entries||[]).find(x=>x.id===currentModerationUnit.id);
-  if(e){e.status='completed';e.completedAt=new Date().toISOString();saveModerationData(d);}
+  if(e){
+    e.status='completed';
+    const dateEl=document.getElementById('mod-moderationDate');
+    const selectedDate=dateEl?.value||new Date().toISOString().slice(0,10);
+    e.completedAt=selectedDate?new Date(selectedDate+'T12:00:00').toISOString():new Date().toISOString();
+    if(e.formData)e.formData.moderationDate=selectedDate;
+    saveModerationData(d);
+  }
   renderModerationCards(currentModerationSubject);
   renderModerationList(currentModerationSubject);
   backupToast('Marked as complete.');
@@ -6596,7 +6606,7 @@ function exportModerationSingle(unitId,format){
   const line=(t,c='')=>`<tr><td style="padding:.4rem 0;font-weight:600;color:#475569;font-size:.75rem">${t}</td><td style="padding:.4rem 0;font-size:.85rem">${c}</td></tr>`;
   let html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Moderation — ${unit?.title||unitId}</title><style>body{font-family:Inter,sans-serif;max-width:720px;margin:2rem auto;line-height:1.6;color:#1e293b}h1{font-size:1.25rem;margin-bottom:1rem}table{width:100%;border-collapse:collapse}.sc-item{margin:.35rem 0;padding-left:1rem;border-left:2px solid #e2e8f0}.reflection-q{font-size:.85rem;color:#475569;margin:.5rem 0}.reflection-a{margin-bottom:1rem}.footer{font-size:.75rem;color:#94a3b8;margin-top:2rem}</style></head><body>`;
   html+=`<h1>Unit Moderation — ${unit?.title||unitId}</h1>`;
-  const completedDate=entry.completedAt||entry.savedAt||entry.updatedAt;
+  const completedDate=fd.moderationDate?(fd.moderationDate+'T12:00:00'):(entry.completedAt||entry.savedAt||entry.updatedAt);
   const completedStr=completedDate?new Date(completedDate).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'}):'';
   html+=`<p style="color:#64748b;font-size:.85rem">Knightswood Secondary School · Art &amp; Drama Faculty</p>`;
   if(completedStr){html+=`<p style="color:#475569;font-size:.85rem;margin-top:.25rem"><strong>Moderation completed:</strong> ${completedStr}</p>`;}
@@ -6626,7 +6636,7 @@ function exportModerationSingle(unitId,format){
   html+=line('Breadth',fd.breadth||'');
   html+=line('Challenge',fd.challenge||'');
   html+=line('Application',fd.application||'');
-  html+=line('Assessment methods',fd.assessmentMethods||(unit?.assessment||[]).join(', '));
+  html+=line('Assessment methods',fd.assessmentMethods||'');
   html+=line('Meta-skills',fd.metaskills||'');
   html+=line('Feedback',fd.feedback||'');
   html+=line('Outcome attained',fd.outcome||'');
@@ -6645,7 +6655,7 @@ function exportModerationSingle(unitId,format){
     return;
   }
   if(format==='docx'&&typeof JSZip!=='undefined'){
-    const completedDate=entry.completedAt||entry.savedAt||entry.updatedAt;
+    const completedDate=fd.moderationDate?(fd.moderationDate+'T12:00:00'):(entry.completedAt||entry.savedAt||entry.updatedAt);
     const completedStr=completedDate?new Date(completedDate).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'}):'';
     const docXml=`<?xml version="1.0" encoding="UTF-8"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>${[
       ['Unit Moderation — '+(unit?.title||unitId),'heading'],
@@ -6666,7 +6676,7 @@ function exportModerationSingle(unitId,format){
       ['Breadth: '+(fd.breadth||''),'normal'],
       ['Challenge: '+(fd.challenge||''),'normal'],
       ['Application: '+(fd.application||''),'normal'],
-      ['Assessment: '+(fd.assessmentMethods||(unit?.assessment||[]).join(', ')),'normal'],
+      ['Assessment: '+(fd.assessmentMethods||''),'normal'],
       ['Meta-skills: '+(fd.metaskills||''),'normal'],
       ['Feedback: '+(fd.feedback||''),'normal'],
       ['Outcome: '+(fd.outcome||''),'normal'],
