@@ -35,6 +35,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .btn{font-size:.78rem;font-weight:600;padding:.5rem 1rem;border-radius:6px;border:none;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:.4rem}
 .btn-primary{background:var(--navy);color:var(--white)}.btn-primary:hover{background:var(--navy-dark)}
 .btn-ghost{background:var(--bg);color:var(--text2);border:1px solid var(--border)}.btn-ghost:hover{border-color:var(--navy);color:var(--navy)}
+.btn-danger{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5}.btn-danger:hover{background:#fecaca}
 .form-input{font-size:.85rem;padding:.5rem .75rem;border:1px solid var(--border);border-radius:6px;width:100%;max-width:280px}
 .form-input:focus{outline:none;border-color:var(--navy)}
 .form-label{font-size:.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:.35rem;display:block}
@@ -100,14 +101,16 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
       <div class="sc-header">
         <div>
           <div class="sc-title">Upload Survey Excel</div>
-          <div class="sc-sub">Export from Microsoft Forms ("Open in Excel" or "Download a copy"), then upload here.</div>
+          <div class="sc-sub">Export from Microsoft Forms ("Open in Excel" or "Download a copy"), then upload here. Delete existing uploads to replace with a new file.</div>
         </div>
-        <div>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap">
           <input type="file" id="survey-file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" style="display:none" onchange="handleSurveyUpload(event)">
           <button class="btn btn-primary" onclick="document.getElementById('survey-file').click()">Choose Excel file</button>
+          <button class="btn btn-ghost" id="survey-delete-all-btn" onclick="deleteAllSurveys()" style="display:none">Delete all survey data</button>
         </div>
       </div>
       <div class="sc-body">
+        <div id="survey-uploads-list" style="margin-bottom:1rem"></div>
         <div id="survey-status" class="empty-s" style="text-align:left">No survey data uploaded yet.</div>
         <div id="survey-infographics" style="margin-top:1.5rem"></div>
       </div>
@@ -203,6 +206,21 @@ var SURVEY_COL_MAP = {
   'improved to help you learn': 'improve', 'what could be improved to help you learn even better': 'improve'
 };
 
+function normalizeHeader(h) {
+  return (h || '').toLowerCase().replace(/\u2019|\u2018/g, "'").replace(/\u201c|\u201d/g, '"').trim();
+}
+
+function normalizeLikertValue(v) {
+  if (!v || typeof v !== 'string') return null;
+  var s = v.trim().toLowerCase().replace(/\u2019|\u2018/g, "'");
+  if (/^strongly\s+agree$/i.test(s)) return 'Strongly agree';
+  if (/^agree$/i.test(s)) return 'Agree';
+  if (/^neutral$/i.test(s) || /^neither\s+agree\s+nor\s+disagree$/i.test(s)) return 'Neutral';
+  if (/^disagree$/i.test(s)) return 'Disagree';
+  if (/^strongly\s+disagree$/i.test(s)) return 'Strongly disagree';
+  return v.trim();
+}
+
 function setTab(id) {
   document.querySelectorAll('.dash-nav-btn').forEach(function(b) { b.classList.remove('active'); });
   var btn = document.querySelector('.dash-nav-btn[data-tab="' + id + '"]');
@@ -246,10 +264,28 @@ function loadAllEvidence() {
 function renderSurveyView(surveys) {
   var st = document.getElementById('survey-status');
   var inf = document.getElementById('survey-infographics');
+  var listEl = document.getElementById('survey-uploads-list');
+  var deleteAllBtn = document.getElementById('survey-delete-all-btn');
+  window._surveyUploads = surveys || [];
   if (!surveys || !surveys.length) {
     st.textContent = 'No survey data uploaded yet.';
     inf.innerHTML = '';
+    if (listEl) listEl.innerHTML = '';
+    if (deleteAllBtn) deleteAllBtn.style.display = 'none';
     return;
+  }
+  if (deleteAllBtn) deleteAllBtn.style.display = 'inline-flex';
+  if (listEl) {
+    listEl.innerHTML = '<div class="form-label" style="margin-bottom:.5rem">Uploaded files</div>' + surveys.map(function(s) {
+      var meta = s.metadata || {};
+      var fn = meta.filename || 'Upload';
+      var dt = meta.uploaded_at ? new Date(meta.uploaded_at).toLocaleDateString('en-GB') : '';
+      var resp = (s.data && s.data.overallRating && s.data.overallRating.length) || 0;
+      return '<div style="display:flex;align-items:center;justify-content:space-between;padding:.5rem 0;border-bottom:1px solid var(--border);font-size:.82rem">' +
+        '<span>' + fn + (dt ? ' · ' + dt : '') + (resp ? ' · ' + resp + ' responses' : '') + '</span>' +
+        '<button class="btn btn-danger" style="padding:.25rem .5rem;font-size:.7rem" onclick="deleteSurveyItem(\'' + (s.id||'').replace(/'/g,"\\'") + '\')">Delete</button>' +
+        '</div>';
+    }).join('');
   }
   var merged = { likert: {}, overall: [], freeText: { whyRating: [], enjoyMost: [], improve: [] } };
   surveys.forEach(function(s) {
@@ -271,11 +307,14 @@ function renderSurveyView(surveys) {
   var avg = merged.overall.length ? merged.overall.reduce(function(a,b){return a+b},0) / merged.overall.length : 0;
   html += '<div class="stat-card"><div class="stat-num">' + (avg ? avg.toFixed(1) : '—') + '</div><div class="stat-lbl">Avg rating (1–10)</div></div>';
   html += '<div class="stat-card"><div class="stat-num">' + merged.overall.length + '</div><div class="stat-lbl">Responses</div></div></div>';
+  var likertOrder = ['Strongly agree','Agree','Neutral','Disagree','Strongly disagree'];
   Object.keys(themeLabels).forEach(function(k) {
     var dist = merged.likert[k] || {};
     var total = Object.values(dist).reduce(function(a,b){return a+b},0);
     if (total === 0) return;
-    var order = ['Strongly agree','Agree','Neutral','Disagree','Strongly disagree'];
+    var keys = Object.keys(dist);
+    var order = likertOrder.filter(function(lbl) { return keys.indexOf(lbl) >= 0; });
+    keys.forEach(function(key) { if (order.indexOf(key) < 0) order.push(key); });
     html += '<div style="margin-bottom:1rem"><div class="form-label">' + themeLabels[k] + '</div>';
     order.forEach(function(lbl) {
       var n = dist[lbl] || 0;
@@ -306,9 +345,16 @@ function parseSurveyExcel(workbook) {
   var headers = rows[0];
   var dataRows = rows.slice(1);
   var colMap = {};
+  var mapKeys = Object.keys(SURVEY_COL_MAP).sort(function(a, b) { return b.length - a.length; });
   for (var c = 0; c <= range.e.c; c++) {
-    var h = (headers['_col' + c] || '').toLowerCase();
-    for (var k in SURVEY_COL_MAP) { if (h.indexOf(k) !== -1) { colMap[SURVEY_COL_MAP[k]] = '_col' + c; break; } }
+    var h = normalizeHeader(headers['_col' + c] || '');
+    for (var i = 0; i < mapKeys.length; i++) {
+      var k = mapKeys[i];
+      if (h.indexOf(k.toLowerCase()) !== -1) {
+        colMap[SURVEY_COL_MAP[k]] = '_col' + c;
+        break;
+      }
+    }
   }
   var likert = {};
   var overall = [];
@@ -325,7 +371,10 @@ function parseSurveyExcel(workbook) {
       var col = colMap[k];
       if (!col) return;
       var v = String(r[col] || '').trim();
-      if (v) likert[k][v] = (likert[k][v] || 0) + 1;
+      if (v) {
+        var canonical = normalizeLikertValue(v) || v;
+        likert[k][canonical] = (likert[k][canonical] || 0) + 1;
+      }
     });
     if (colMap.whyRating) { var t = String(r[colMap.whyRating]||'').trim(); if (t) freeText.whyRating.push(t); }
     if (colMap.enjoyMost) { var t = String(r[colMap.enjoyMost]||'').trim(); if (t) freeText.enjoyMost.push(t); }
@@ -356,6 +405,28 @@ function handleSurveyUpload(ev) {
   };
   r.readAsArrayBuffer(f);
   ev.target.value = '';
+}
+
+function deleteSurveyItem(id) {
+  if (!id || !confirm('Delete this survey upload? This cannot be undone.')) return;
+  TriangulationService.deleteEvidence(id).then(function() {
+    toast('Survey deleted');
+    loadAllEvidence();
+  }).catch(function() { toast('Delete failed'); });
+}
+
+function deleteAllSurveys() {
+  var surveys = window._surveyUploads || [];
+  if (!surveys.length || !confirm('Delete all ' + surveys.length + ' survey upload(s) for this year? This cannot be undone.')) return;
+  var done = 0;
+  function doNext() {
+    if (done >= surveys.length) { toast('All survey data deleted'); loadAllEvidence(); return; }
+    TriangulationService.deleteEvidence(surveys[done].id).then(function() {
+      done++;
+      doNext();
+    }).catch(function() { toast('Delete failed'); });
+  }
+  doNext();
 }
 
 function submitFocusGroup() {
