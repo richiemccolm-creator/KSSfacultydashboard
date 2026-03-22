@@ -5,7 +5,7 @@
  *        <script src="supabase-init.js"></script>
  */
 (function() {
-  if (typeof window.supabase !== 'undefined') return;
+  if (window.supabase && window.supabase.auth) return;  // Already have a client instance
   var url = window.SUPABASE_URL;
   var key = window.SUPABASE_ANON_KEY;
   if (!url || !key || url.indexOf('your-project') !== -1) {
