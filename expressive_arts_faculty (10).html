@@ -611,22 +611,37 @@ a.sidebar-item:hover{color:var(--white)}
 .dip-progress-title{font-family:'Sora',sans-serif;font-size:1rem;font-weight:700;color:#1e2d4a;margin-bottom:.5rem;display:flex;align-items:center;gap:.5rem}
 .dip-progress-title::before{content:'';display:inline-block;width:4px;height:20px;background:#3b82f6;border-radius:2px}
 .dip-progress-sub{font-size:.7rem;color:#64748b;margin-bottom:1rem;line-height:1.5}
-.dip-progress-timeline{display:flex;flex-direction:column;gap:.75rem}
-.dip-checkpoint-card{display:flex;align-items:flex-start;gap:1rem;padding:1rem;background:var(--white);border:1px solid rgba(30,45,74,.1);border-radius:8px;cursor:pointer;transition:all .15s}
+.dip-progress-timeline{display:flex;flex-direction:column;gap:0;position:relative;padding-left:0}
+.dip-progress-timeline::before{content:'';position:absolute;left:11px;top:12px;bottom:12px;width:2px;background:linear-gradient(180deg,#3b82f6 0%,rgba(59,130,246,.3) 100%);border-radius:1px}
+.dip-timeline-item{display:flex;align-items:flex-start;gap:1rem;position:relative;margin-bottom:0}
+.dip-timeline-node{flex-shrink:0;width:24px;height:24px;border-radius:50%;background:#3b82f6;border:3px solid #fff;box-shadow:0 0 0 2px #3b82f6;margin-top:2px}
+.dip-timeline-content{flex:1;min-width:0}
+.dip-checkpoint-card{display:flex;align-items:flex-start;gap:1rem;padding:1rem;background:var(--white);border:1px solid rgba(30,45,74,.1);border-radius:8px;cursor:pointer;transition:all .15s;flex:1}
 .dip-checkpoint-card:hover{border-color:#3b82f6;box-shadow:0 2px 8px rgba(59,130,246,.12)}
 .dip-checkpoint-card.active{border-color:#3b82f6;background:rgba(59,130,246,.04);box-shadow:0 0 0 2px rgba(59,130,246,.2)}
-.dip-checkpoint-date{font-size:.7rem;font-weight:700;letter-spacing:.08em;color:#3b82f6;min-width:5rem;flex-shrink:0}
+.dip-checkpoint-card.expanded .dip-checkpoint-preview{display:none}
+.dip-checkpoint-card.expanded .dip-checkpoint-full{display:block}
+.dip-checkpoint-date{font-size:.7rem;font-weight:700;letter-spacing:.08em;color:#3b82f6;min-width:5.5rem;flex-shrink:0}
 .dip-checkpoint-period{font-size:.8rem;font-weight:600;color:#1e2d4a;margin-bottom:.25rem}
-.dip-checkpoint-preview{font-size:.72rem;color:#64748b;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.dip-checkpoint-actions{display:flex;gap:.5rem;margin-left:auto;flex-shrink:0}
+.dip-checkpoint-preview{font-size:.72rem;color:#64748b;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.dip-checkpoint-full{display:none;font-size:.75rem;color:#475569;line-height:1.55;white-space:pre-wrap;margin-top:.5rem;padding-top:.5rem;border-top:1px solid #e2e8f0}
+.dip-checkpoint-full-section{margin-bottom:.75rem}
+.dip-checkpoint-full-label{font-size:.65rem;font-weight:700;letter-spacing:.08em;color:#64748b;margin-bottom:.2rem}
+.dip-checkpoint-actions{display:flex;gap:.35rem;margin-left:auto;flex-shrink:0}
 .dip-checkpoint-btn{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border:none;border-radius:6px;background:rgba(30,45,74,.06);color:#64748b;cursor:pointer;transition:all .12s}
 .dip-checkpoint-btn:hover{background:rgba(239,68,68,.1);color:#dc2626}
 .dip-checkpoint-btn.load-btn:hover{background:rgba(59,130,246,.1);color:#3b82f6}
+.dip-checkpoint-btn.edit-btn:hover{background:rgba(34,197,94,.15);color:#16a34a}
 .dip-progress-empty{text-align:center;padding:2rem;color:#94a3b8;font-size:.8rem}
 .dip-progress-empty svg{width:40px;height:40px;margin-bottom:.75rem;opacity:.5}
-.dip-add-checkpoint-btn{display:inline-flex;align-items:center;gap:.5rem;padding:.6rem 1.25rem;background:#3b82f6;color:var(--white);border:none;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer;transition:background .15s;margin-top:1rem}
+.dip-add-checkpoint-btn,.dip-update-checkpoint-btn{display:inline-flex;align-items:center;gap:.5rem;padding:.6rem 1.25rem;border:none;border-radius:6px;font-size:.78rem;font-weight:600;cursor:pointer;transition:background .15s;margin-top:1rem}
+.dip-add-checkpoint-btn{background:#3b82f6;color:var(--white)}
 .dip-add-checkpoint-btn:hover{background:#2563eb}
-.dip-add-checkpoint-btn svg{width:16px;height:16px;flex-shrink:0}
+.dip-update-checkpoint-btn{background:#16a34a;color:var(--white)}
+.dip-update-checkpoint-btn:hover{background:#15803d}
+.dip-add-checkpoint-btn svg,.dip-update-checkpoint-btn svg{width:16px;height:16px;flex-shrink:0}
+.dip-scroll-to-progress{font-size:.72rem;color:#3b82f6;cursor:pointer;text-decoration:underline;margin-left:.5rem}
+.dip-scroll-to-progress:hover{color:#2563eb}
 
 /* ── HOME PIN ── */
 .home-pin{
@@ -1669,6 +1684,7 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
             <div class="home-dash-header">
               <span class="home-dash-title">Improvement Plan Priorities</span>
               <span class="home-dash-link" onclick="showPanel('dip-main')">Full Plan →</span>
+              <span class="home-dash-link" onclick="showPanel('dip-main');setTimeout(function(){document.getElementById('dip-progress-section')?.scrollIntoView({behavior:'smooth'});},150)" style="margin-left:.5rem">Progress Timeline →</span>
             </div>
             <div class="home-dash-body">
               <div class="home-priorities-grid">
@@ -3682,7 +3698,7 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
         </div>
 
         <!-- SELF-EVALUATION FOR SELF-IMPROVEMENT -->
-        <div class="dip-eval-section" onclick="event.stopPropagation()">
+        <div id="dip-eval-section" class="dip-eval-section" onclick="event.stopPropagation()">
           <div class="dip-eval-title">Self-Evaluation for Self-Improvement</div>
           <div class="dip-eval-sub">Use these boxes to evaluate your progress against the improvement plan. Your entries are saved automatically and can be exported with the full plan.</div>
           <div class="dip-eval-grid">
@@ -3712,18 +3728,23 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
               Export Improvement Plan with Comments
             </button>
-            <button type="button" class="dip-add-checkpoint-btn" onclick="dipAddCheckpoint()" title="Save current evaluation as a checkpoint to track progress over the year">
+            <button type="button" id="dip-add-checkpoint-btn" class="dip-add-checkpoint-btn" onclick="dipAddCheckpoint()" title="Save current evaluation as a checkpoint to track progress over the year">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               Add to Progress Timeline
             </button>
+            <button type="button" id="dip-update-checkpoint-btn" class="dip-update-checkpoint-btn" onclick="dipUpdateCheckpoint()" title="Save changes to this checkpoint" style="display:none">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+              Update Checkpoint
+            </button>
+            <a class="dip-scroll-to-progress" onclick="document.getElementById('dip-progress-section')?.scrollIntoView({behavior:'smooth'})" title="Jump to Progress Timeline">View Timeline ↓</a>
             <span style="font-size:.7rem;color:#b45309">Exports the full plan plus your self-evaluation comments and reflections as a printable document.</span>
           </div>
         </div>
 
         <!-- PROGRESS TRACKING THROUGHOUT THE YEAR -->
-        <div class="dip-progress-section" onclick="event.stopPropagation()">
-          <div class="dip-progress-title">Progress Tracking</div>
-          <div class="dip-progress-sub">Track your improvement plan progress throughout the year. Add checkpoints at key moments (e.g. end of each term) to build a timeline of progress.</div>
+        <div id="dip-progress-section" class="dip-progress-section" onclick="event.stopPropagation()">
+          <div class="dip-progress-title">Progress Timeline — What We Have Done</div>
+          <div class="dip-progress-sub">Track your improvement plan progress throughout the year. Add checkpoints at key moments (e.g. end of each term). Click a card to expand and read full content; use ↩ to load into the form and edit.</div>
           <div id="dip-progress-timeline" class="dip-progress-timeline"></div>
         </div>
 
@@ -4335,6 +4356,7 @@ function showPanel(id){
   if(id.endsWith('retrieval')) initRetrieval(subj);
   if(id==='academic-calendar'){calCurrentYear=calGetCurrentAcademicYear();calLoadEvents().then(function(){calRender();}).catch(function(){calRender();});}
   if(id==='home') homeDashboardRender();
+  if(id==='dip-main') dipRenderProgressTimeline();
   if(id==='drama-moderation'||id==='ad-moderation'||id==='photo-moderation'){
     const s=id.replace('-moderation','');
     renderModerationCards(s);
@@ -6186,6 +6208,7 @@ function calSaveEvents(e){
 const DIP_STORAGE_KEY='dipSelfEvaluation';
 const DIP_FIELDS=['dip-eval-date','dip-eval-period','dip-eval-overall','dip-eval-achievements','dip-eval-next','dip-reflect-1a','dip-reflect-1b','dip-reflect-1c','dip-reflect-2a','dip-reflect-2b','dip-reflect-2c','dip-reflect-3a','dip-reflect-3b','dip-reflect-3c'];
 var dipCheckpoints=[];
+var dipEditingCheckpointIndex=null;
 
 function dipGetCurrentFormData(){
   var o={};
@@ -6220,6 +6243,7 @@ function dipAddCheckpoint(){
     backupToast('Add an evaluation date or period before saving a checkpoint.');
     return;
   }
+  dipEditingCheckpointIndex=null;
   dipCheckpoints.push(JSON.parse(JSON.stringify(o)));
   dipCheckpoints.sort(function(a,b){
     var da=a['dip-eval-date']||'';var db=b['dip-eval-date']||'';
@@ -6227,20 +6251,55 @@ function dipAddCheckpoint(){
   });
   dipSaveEval();
   dipRenderProgressTimeline();
+  dipUpdateAddVsEditButtons();
   backupToast('Checkpoint added to progress timeline.');
 }
-function dipLoadCheckpoint(idx){
-  var e=dipCheckpoints[idx];
-  if(!e)return;
-  DIP_FIELDS.forEach(function(id){var el=document.getElementById(id);if(el&&e[id]!==undefined)el.value=e[id];});
+function dipLoadCheckpoint(idx,e){
+  if(e)e.stopPropagation();
+  var c=dipCheckpoints[idx];
+  if(!c)return;
+  DIP_FIELDS.forEach(function(id){var el=document.getElementById(id);if(el&&c[id]!==undefined)el.value=c[id];});
+  dipEditingCheckpointIndex=idx;
   dipSaveEval();
   dipRenderProgressTimeline();
+  dipUpdateAddVsEditButtons();
+  document.getElementById('dip-eval-section')?.scrollIntoView({behavior:'smooth',block:'start'});
 }
-function dipDeleteCheckpoint(idx){
+function dipUpdateCheckpoint(){
+  if(dipEditingCheckpointIndex===null)return;
+  var o=dipGetCurrentFormData();
+  dipCheckpoints[dipEditingCheckpointIndex]=JSON.parse(JSON.stringify(o));
+  dipCheckpoints.sort(function(a,b){
+    var da=a['dip-eval-date']||'';var db=b['dip-eval-date']||'';
+    return da.localeCompare(db);
+  });
+  dipSaveEval();
+  dipEditingCheckpointIndex=null;
+  dipRenderProgressTimeline();
+  dipUpdateAddVsEditButtons();
+  backupToast('Checkpoint updated.');
+}
+function dipUpdateAddVsEditButtons(){
+  var addBtn=document.getElementById('dip-add-checkpoint-btn');
+  var updBtn=document.getElementById('dip-update-checkpoint-btn');
+  if(addBtn)addBtn.style.display=dipEditingCheckpointIndex!==null?'none':'inline-flex';
+  if(updBtn)updBtn.style.display=dipEditingCheckpointIndex!==null?'inline-flex':'none';
+}
+function dipToggleCheckpointExpand(idx,e){
+  if(e)e.stopPropagation();
+  var card=document.querySelector('.dip-checkpoint-card[data-idx="'+idx+'"]');
+  if(!card)return;
+  card.classList.toggle('expanded');
+}
+function dipDeleteCheckpoint(idx,e){
+  if(e)e.stopPropagation();
   if(!confirm('Remove this checkpoint from the timeline?'))return;
   dipCheckpoints.splice(idx,1);
+  if(dipEditingCheckpointIndex===idx)dipEditingCheckpointIndex=null;
+  else if(dipEditingCheckpointIndex!==null&&dipEditingCheckpointIndex>idx)dipEditingCheckpointIndex--;
   dipSaveEval();
   dipRenderProgressTimeline();
+  dipUpdateAddVsEditButtons();
   backupToast('Checkpoint removed.');
 }
 function dipRenderProgressTimeline(){
@@ -6248,16 +6307,32 @@ function dipRenderProgressTimeline(){
   if(!el)return;
   if(dipCheckpoints.length===0){
     el.innerHTML='<div class="dip-progress-empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg><div>No checkpoints yet. Complete the evaluation form above and click "Add to Progress Timeline" to track progress throughout the year.</div></div>';
+    dipUpdateAddVsEditButtons();
     return;
   }
   function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-  el.innerHTML=dipCheckpoints.map(function(e,i){
+  var sorted=dipCheckpoints.slice().sort(function(a,b){
+    var da=a['dip-eval-date']||'';var db=b['dip-eval-date']||'';
+    return da.localeCompare(db);
+  });
+  var idxMap=sorted.map(function(s){return dipCheckpoints.indexOf(s);});
+  el.innerHTML=sorted.map(function(e,i){
+    var origIdx=idxMap[i];
     var date=esc(e['dip-eval-date']||'—');
     var period=esc(e['dip-eval-period']||'No period');
     var preview=esc((e['dip-eval-overall']||'').slice(0,120));
     if((e['dip-eval-overall']||'').length>120)preview+='…';
-    return '<div class="dip-checkpoint-card" data-idx="'+i+'"><div class="dip-checkpoint-date">'+date+'</div><div style="flex:1;min-width:0"><div class="dip-checkpoint-period">'+period+'</div><div class="dip-checkpoint-preview">'+(preview||'No summary')+'</div></div><div class="dip-checkpoint-actions"><button type="button" class="dip-checkpoint-btn load-btn" onclick="dipLoadCheckpoint('+i+')" title="Load into form">↩</button><button type="button" class="dip-checkpoint-btn" onclick="dipDeleteCheckpoint('+i+')" title="Remove checkpoint">×</button></div></div>';
+    var overall=esc(e['dip-eval-overall']||'');
+    var achievements=esc(e['dip-eval-achievements']||'');
+    var next=esc(e['dip-eval-next']||'');
+    var fullHtml='';
+    if(overall)fullHtml+='<div class="dip-checkpoint-full-section"><div class="dip-checkpoint-full-label">Overall Progress</div>'+overall+'</div>';
+    if(achievements)fullHtml+='<div class="dip-checkpoint-full-section"><div class="dip-checkpoint-full-label">Key Achievements</div>'+achievements+'</div>';
+    if(next)fullHtml+='<div class="dip-checkpoint-full-section"><div class="dip-checkpoint-full-label">Next Steps</div>'+next+'</div>';
+    var isActive=dipEditingCheckpointIndex===origIdx?' active':'';
+    return '<div class="dip-timeline-item"><div class="dip-timeline-node"></div><div class="dip-timeline-content"><div class="dip-checkpoint-card'+isActive+'" data-idx="'+origIdx+'" onclick="dipToggleCheckpointExpand('+origIdx+',event)"><div class="dip-checkpoint-date">'+date+'</div><div style="flex:1;min-width:0"><div class="dip-checkpoint-period">'+period+'</div><div class="dip-checkpoint-preview">'+(preview||'No summary')+'</div><div class="dip-checkpoint-full">'+(fullHtml||'<em>No detailed content</em>')+'</div></div><div class="dip-checkpoint-actions"><button type="button" class="dip-checkpoint-btn load-btn" onclick="dipLoadCheckpoint('+origIdx+',event)" title="Load into form to edit">↩</button><button type="button" class="dip-checkpoint-btn" onclick="dipDeleteCheckpoint('+origIdx+',event)" title="Remove checkpoint">×</button></div></div></div></div>';
   }).join('');
+  dipUpdateAddVsEditButtons();
 }
 function dipExportImprovementPlan(){
   const date=document.getElementById('dip-eval-date')?.value||'';
