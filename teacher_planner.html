@@ -698,6 +698,8 @@ function renderWeekView() {
       var fallback = (window.DataService && DataService.get) ? DataService.get('academicCalendarEvents') : Promise.resolve(null);
       return fallback.then(function(stored) {
         if (stored && Array.isArray(stored) && stored.length > 0) return stored;
+        // When cloud is available, never use localStorage — only use DataService data
+        if (window.DataService && window.DataService.isUsingCloud && window.DataService.isUsingCloud()) return [];
         try {
           var raw = localStorage.getItem('academicCalendarEvents');
           var parsed = raw ? JSON.parse(raw) : null;

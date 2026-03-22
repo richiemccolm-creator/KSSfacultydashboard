@@ -4,7 +4,7 @@
  */
 (function() {
   var path = window.location.pathname;
-  if (path === '/' || path === '/index.html') path = 'expressive_arts_faculty%20(10).html';
+  if (path === '/' || path === '/index.html') path = 'expressive_arts_faculty (10).html';
   var redirect = encodeURIComponent(path + window.location.search);
   var loginUrl = 'login.html' + (redirect && redirect !== '/' ? '?redirect=' + redirect : '');
 

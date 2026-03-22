@@ -6088,6 +6088,10 @@ const CAL_DEFAULT_EVENTS=[
 var calEventsCache=null;
 function calGetEvents(){
   if(calEventsCache)return calEventsCache;
+  // When cloud is available, never use localStorage — only use cache populated by calLoadEvents()
+  if(window.DataService&&window.DataService.isUsingCloud&&window.DataService.isUsingCloud()){
+    return CAL_DEFAULT_EVENTS;
+  }
   try{var st=JSON.parse(localStorage.getItem(CAL_STORAGE_KEY)||'[]');if(st.length>0)return st;}catch(e){}
   return CAL_DEFAULT_EVENTS;
 }
