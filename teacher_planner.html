@@ -16,6 +16,7 @@
 <script src="data-service.js"></script>
 <script src="curriculum-units.js"></script>
 <script src="planner-service.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
@@ -426,7 +427,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
   <div class="timetable-section">
     <div class="timetable-header">My Lesson Bank</div>
     <div style="padding:1rem 1.25rem">
-      <p style="font-size:.85rem;color:var(--text2);margin-bottom:1rem">Build lessons here and save them as lesson cards. Over time you build a library of lessons you can filter, find, and apply to your classes. To add lessons from a file: <strong>Download template</strong> → fill it in → <strong>Import lesson</strong>.</p>
+      <p style="font-size:.85rem;color:var(--text2);margin-bottom:1rem">Build lessons here and save them as lesson cards. Over time you build a library of lessons you can filter, find, and apply to your classes. <strong>Download template</strong> for a Word document you can fill in offline, then create the lesson here or import a JSON file (exported from an existing lesson).</p>
       <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem">
         <button type="button" class="btn-primary" id="createNewLessonBtn">+ Create new lesson</button>
         <input type="file" id="templateImportFile" accept=".json,application/json" style="display:none">
@@ -1615,29 +1616,64 @@ document.getElementById('dayViewToday').addEventListener('click', function() {
 });
 
 document.getElementById('templateDownloadBtn').addEventListener('click', function() {
-  var template = {
-    name: 'My lesson plan',
-    subject: 'drama',
-    unitKey: 'drama-s1-tp1',
-    title: 'My lesson plan',
-    objectives: 'What should pupils achieve today?',
-    learningIntentions: 'e.g. Understand the importance of cooperation and safety in Drama; Work effectively as part of a group',
-    successCriteria: 'e.g. I can follow Drama rules and use safe working practices; I can listen and respond to others positively',
-    activity: 'e.g. Warm-up (5 min), paired rehearsal (15 min), teacher-led demonstration (10 min), group reflection (5 min)',
-    differentiation: 'e.g. Support: sentence stems, mixed-ability pairs; Challenge: peer-coach another group',
-    effectiveQuestions: 'e.g. What makes this moment effective? How could you improve your staging?',
-    digitalTechnologies: 'e.g. iPad for filming rehearsals, Padlet for peer feedback',
-    notes: '',
-    resources: [{ label: 'Resource 1', url: 'https://example.com' }],
-    todos: [{ id: 't1', text: 'e.g. Print handouts', done: false }]
-  };
-  var blob = new Blob([JSON.stringify({ lessonPlanTemplate: template, exportedAt: new Date().toISOString() }, null, 2)], { type: 'application/json' });
-  var a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'lesson-plan-template.json';
-  a.click();
-  URL.revokeObjectURL(a.href);
-  showToast('Template downloaded — fill it in and import');
+  if (typeof JSZip === 'undefined') {
+    showToast('Download failed — please refresh the page');
+    return;
+  }
+  function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+  function para(text, opts) {
+    opts = opts || {};
+    var bold = opts.bold ? '<w:b/>' : '';
+    var size = opts.size || 22;
+    var spaceAfter = opts.spaceAfter !== undefined ? opts.spaceAfter : 120;
+    var spaceBefore = opts.spaceBefore || 0;
+    return '<w:p><w:pPr><w:spacing w:before="'+spaceBefore+'" w:after="'+spaceAfter+'"/></w:pPr><w:r><w:rPr>'+bold+'<w:sz w:val="'+size+'"/><w:szCs w:val="'+size+'"/><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/></w:rPr><w:t xml:space="preserve">'+esc(text)+'</w:t></w:r></w:p>';
+  }
+  var body = '';
+  body += para('Lesson Plan Template', { bold: true, size: 28, spaceAfter: 80 });
+  body += para('Expressive Arts — Teacher Planner', { size: 18, spaceAfter: 300 });
+  body += para('Subject:', { bold: true, spaceAfter: 40 });
+  body += para('Drama / Art & Design / Photography', { spaceAfter: 200 });
+  body += para('Unit:', { bold: true, spaceAfter: 40 });
+  body += para('', { spaceAfter: 200 });
+  body += para('Lesson title:', { bold: true, spaceAfter: 40 });
+  body += para('', { spaceAfter: 200 });
+  body += para('To-do (prep tasks):', { bold: true, spaceAfter: 40 });
+  body += para('•', { spaceAfter: 60 });
+  body += para('•', { spaceAfter: 60 });
+  body += para('•', { spaceAfter: 200 });
+  body += para('Learning objectives:', { bold: true, spaceAfter: 40 });
+  body += para('What should pupils achieve today?', { spaceAfter: 200 });
+  body += para('Learning intentions:', { bold: true, spaceAfter: 40 });
+  body += para('', { spaceAfter: 200 });
+  body += para('Success criteria:', { bold: true, spaceAfter: 40 });
+  body += para('', { spaceAfter: 200 });
+  body += para('Activity:', { bold: true, spaceAfter: 40 });
+  body += para('e.g. Warm-up (5 min), paired rehearsal (15 min), teacher-led demonstration (10 min), group reflection (5 min)', { spaceAfter: 200 });
+  body += para('Differentiation:', { bold: true, spaceAfter: 40 });
+  body += para('Support: / Challenge:', { spaceAfter: 200 });
+  body += para('Effective questions:', { bold: true, spaceAfter: 40 });
+  body += para('', { spaceAfter: 200 });
+  body += para('Digital technologies:', { bold: true, spaceAfter: 40 });
+  body += para('', { spaceAfter: 200 });
+  body += para('Resources (URLs):', { bold: true, spaceAfter: 40 });
+  body += para('', { spaceAfter: 200 });
+  body += para('Notes:', { bold: true, spaceAfter: 40 });
+  body += para('', { spaceAfter: 120 });
+  var docXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>'+body+'<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/></w:sectPr></w:body></w:document>';
+  var zip = new JSZip();
+  zip.file('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>');
+  zip.file('_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>');
+  zip.file('word/document.xml', docXml);
+  zip.file('word/_rels/document.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>');
+  zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }).then(function(blob) {
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'lesson-plan-template.docx';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    showToast('Word template downloaded');
+  }).catch(function() { showToast('Download failed'); });
 });
 
 document.getElementById('templateImportBtn').addEventListener('click', function() {
