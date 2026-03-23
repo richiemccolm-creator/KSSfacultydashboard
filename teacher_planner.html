@@ -426,10 +426,11 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
   <div class="timetable-section">
     <div class="timetable-header">My Lesson Bank</div>
     <div style="padding:1rem 1.25rem">
-      <p style="font-size:.85rem;color:var(--text2);margin-bottom:1rem">Build lessons here and save them as lesson cards. Over time you build a library of lessons you can filter, find, and apply to your classes.</p>
+      <p style="font-size:.85rem;color:var(--text2);margin-bottom:1rem">Build lessons here and save them as lesson cards. Over time you build a library of lessons you can filter, find, and apply to your classes. To add lessons from a file: <strong>Download template</strong> → fill it in → <strong>Import lesson</strong>.</p>
       <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem">
         <button type="button" class="btn-primary" id="createNewLessonBtn">+ Create new lesson</button>
         <input type="file" id="templateImportFile" accept=".json,application/json" style="display:none">
+        <button type="button" class="btn-secondary" id="templateDownloadBtn">Download template</button>
         <button type="button" class="btn-secondary" id="templateImportBtn">Import lesson</button>
         <div style="flex:1;min-width:200px;display:flex;gap:.5rem;flex-wrap:wrap">
           <select class="form-select" id="lessonBankFilterSubject" style="width:140px">
@@ -1611,6 +1612,32 @@ document.getElementById('dayViewToday').addEventListener('click', function() {
   PS.setCurrentDayViewDate(d);
   document.getElementById('dayViewDate').value = getDateStr(d);
   renderDayView();
+});
+
+document.getElementById('templateDownloadBtn').addEventListener('click', function() {
+  var template = {
+    name: 'My lesson plan',
+    subject: 'drama',
+    unitKey: 'drama-s1-tp1',
+    title: 'My lesson plan',
+    objectives: 'What should pupils achieve today?',
+    learningIntentions: 'e.g. Understand the importance of cooperation and safety in Drama; Work effectively as part of a group',
+    successCriteria: 'e.g. I can follow Drama rules and use safe working practices; I can listen and respond to others positively',
+    activity: 'e.g. Warm-up (5 min), paired rehearsal (15 min), teacher-led demonstration (10 min), group reflection (5 min)',
+    differentiation: 'e.g. Support: sentence stems, mixed-ability pairs; Challenge: peer-coach another group',
+    effectiveQuestions: 'e.g. What makes this moment effective? How could you improve your staging?',
+    digitalTechnologies: 'e.g. iPad for filming rehearsals, Padlet for peer feedback',
+    notes: '',
+    resources: [{ label: 'Resource 1', url: 'https://example.com' }],
+    todos: [{ id: 't1', text: 'e.g. Print handouts', done: false }]
+  };
+  var blob = new Blob([JSON.stringify({ lessonPlanTemplate: template, exportedAt: new Date().toISOString() }, null, 2)], { type: 'application/json' });
+  var a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'lesson-plan-template.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  showToast('Template downloaded — fill it in and import');
 });
 
 document.getElementById('templateImportBtn').addEventListener('click', function() {
