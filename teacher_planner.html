@@ -427,10 +427,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
   <div class="timetable-section">
     <div class="timetable-header">My Lesson Bank</div>
     <div style="padding:1rem 1.25rem">
-      <p style="font-size:.85rem;color:var(--text2);margin-bottom:1rem">Build lessons here and save them as lesson cards. Over time you build a library of lessons you can filter, find, and apply to your classes. <strong>Download template</strong> for a Word document you can fill in offline, then create the lesson here or import a JSON file (exported from an existing lesson).</p>
+      <p style="font-size:.85rem;color:var(--text2);margin-bottom:1rem">Build lessons here and save them as lesson cards. Over time you build a library of lessons you can filter, find, and apply to your classes. <strong>Download template</strong> → fill in (or draft in ChatGPT using the same format) → <strong>Import lesson</strong> (Word or JSON).</p>
       <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin-bottom:1rem">
         <button type="button" class="btn-primary" id="createNewLessonBtn">+ Create new lesson</button>
-        <input type="file" id="templateImportFile" accept=".json,application/json" style="display:none">
+        <input type="file" id="templateImportFile" accept=".json,application/json,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style="display:none">
         <button type="button" class="btn-secondary" id="templateDownloadBtn">Download template</button>
         <button type="button" class="btn-secondary" id="templateImportBtn">Import lesson</button>
         <div style="flex:1;min-width:200px;display:flex;gap:.5rem;flex-wrap:wrap">
@@ -1631,7 +1631,8 @@ document.getElementById('templateDownloadBtn').addEventListener('click', functio
   }
   var body = '';
   body += para('Lesson Plan Template', { bold: true, size: 28, spaceAfter: 80 });
-  body += para('Expressive Arts — Teacher Planner', { size: 18, spaceAfter: 300 });
+  body += para('Expressive Arts — Teacher Planner', { size: 18, spaceAfter: 60 });
+  body += para('Use these exact section headers so your document can be imported into the planner. You can draft in ChatGPT using this format.', { size: 16, spaceAfter: 300 });
   body += para('Subject:', { bold: true, spaceAfter: 40 });
   body += para('Drama / Art & Design / Photography', { spaceAfter: 200 });
   body += para('Unit:', { bold: true, spaceAfter: 40 });
@@ -1683,31 +1684,158 @@ document.getElementById('templateImportBtn').addEventListener('click', function(
 document.getElementById('templateImportFile').addEventListener('change', function(ev) {
   var file = ev.target && ev.target.files && ev.target.files[0];
   if (!file) return;
-  var reader = new FileReader();
-  reader.onload = function() {
-    try {
-      var data = JSON.parse(reader.result);
-      var t = data.lessonPlanTemplate || data;
-      if (!t || (typeof t !== 'object')) {
-        showToast('Invalid lesson file');
+  var isDocx = /\.docx$/i.test(file.name) || (file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+  if (isDocx) {
+    var reader = new FileReader();
+    reader.onload = function() {
+      var ab = reader.result;
+      if (typeof JSZip === 'undefined') {
+        showToast('Word import requires JSZip — refresh the page');
         ev.target.value = '';
         return;
       }
-      if (t.id) delete t.id;
-      if (t.createdAt) delete t.createdAt;
-      t.name = t.name || t.title || 'Imported lesson';
-      PS.saveTemplate(t).then(function() {
-        showToast('Lesson imported');
-        renderTemplatesList();
-        populateApplyTemplateDropdown();
-      });
-    } catch (e) {
-      showToast('Invalid JSON file');
-    }
-    ev.target.value = '';
-  };
-  reader.readAsText(file);
+      JSZip.loadAsync(ab).then(function(zip) {
+        var docFile = zip.file('word/document.xml') || zip.file('docx/document.xml');
+        if (!docFile) { showToast('Invalid Word file'); ev.target.value = ''; return; }
+        return docFile.async('string');
+      }).then(function(xml) {
+        var t = parseDocxToLessonPlan(xml);
+        if (!t) { showToast('Could not read lesson plan from document'); ev.target.value = ''; return; }
+        t.name = t.name || t.title || 'Imported lesson';
+        return PS.saveTemplate(t).then(function() {
+          showToast('Lesson imported from Word');
+          renderTemplatesList();
+          populateApplyTemplateDropdown();
+        });
+      }).catch(function() { showToast('Failed to read Word file'); }).then(function() { ev.target.value = ''; });
+    };
+    reader.readAsArrayBuffer(file);
+  } else {
+    var reader = new FileReader();
+    reader.onload = function() {
+      try {
+        var data = JSON.parse(reader.result);
+        var t = data.lessonPlanTemplate || data;
+        if (!t || (typeof t !== 'object')) {
+          showToast('Invalid lesson file');
+          ev.target.value = '';
+          return;
+        }
+        if (t.id) delete t.id;
+        if (t.createdAt) delete t.createdAt;
+        t.name = t.name || t.title || 'Imported lesson';
+        PS.saveTemplate(t).then(function() {
+          showToast('Lesson imported');
+          renderTemplatesList();
+          populateApplyTemplateDropdown();
+        });
+      } catch (e) {
+        showToast('Invalid JSON file');
+      }
+      ev.target.value = '';
+    };
+    reader.readAsText(file);
+  }
 });
+
+function parseDocxToLessonPlan(xml) {
+  var paras = [];
+  var pRegex = /<w:p[^>]*>([\s\S]*?)<\/w:p>/gi;
+  var pMatch;
+  while ((pMatch = pRegex.exec(xml)) !== null) {
+    var pInner = pMatch[1];
+    var tRegex = /<w:t[^>]*>([\s\S]*?)<\/w:t>/gi;
+    var text = '';
+    var tMatch;
+    while ((tMatch = tRegex.exec(pInner)) !== null) { text += tMatch[1]; }
+    paras.push(text);
+  }
+  var fullText = paras.join('\n').replace(/\r\n/g, '\n');
+  var sections = [];
+  var headers = [
+    { key: 'subject', pattern: /^subject\s*:?\s*/i },
+    { key: 'unit', pattern: /^unit\s*:?\s*/i },
+    { key: 'title', pattern: /^lesson\s*title\s*:?\s*/i },
+    { key: 'todos', pattern: /^(to[- ]?do|prep\s*tasks?)\s*(\(prep\s*tasks?\))?\s*:?\s*/i },
+    { key: 'objectives', pattern: /^learning\s*objectives?\s*:?\s*/i },
+    { key: 'learningIntentions', pattern: /^learning\s*intentions?\s*:?\s*/i },
+    { key: 'successCriteria', pattern: /^success\s*criteria\s*:?\s*/i },
+    { key: 'activity', pattern: /^activity\s*:?\s*/i },
+    { key: 'differentiation', pattern: /^differentiation\s*:?\s*/i },
+    { key: 'effectiveQuestions', pattern: /^(effective\s*|key\s*)?questions?\s*:?\s*/i },
+    { key: 'digitalTechnologies', pattern: /^digital\s*technologies?\s*:?\s*/i },
+    { key: 'resources', pattern: /^resources?\s*(\(urls?\))?\s*:?\s*/i },
+    { key: 'notes', pattern: /^notes\s*:?\s*/i }
+  ];
+  var lines = fullText.split(/\n/);
+  var currentKey = null;
+  var currentContent = [];
+  for (var i = 0; i < lines.length; i++) {
+    var line = lines[i];
+    var found = null;
+    for (var h = 0; h < headers.length; h++) {
+      if (headers[h].pattern.test(line.trim())) {
+        found = headers[h];
+        break;
+      }
+    }
+    if (found) {
+      if (currentKey) {
+        sections[currentKey] = currentContent.join('\n').trim();
+      }
+      currentKey = found.key;
+      var after = line.replace(found.pattern, '').trim();
+      currentContent = after ? [after] : [];
+    } else if (currentKey && line.trim()) {
+      currentContent.push(line);
+    }
+  }
+  if (currentKey) sections[currentKey] = currentContent.join('\n').trim();
+  var subjectMap = { 'drama': 'drama', 'art': 'art', 'art & design': 'art', 'art and design': 'art', 'photography': 'photography' };
+  var subjRaw = (sections.subject || '').toLowerCase().replace(/\s*\|\s*/, ' ').trim();
+  var subject = '';
+  if (/drama/.test(subjRaw)) subject = 'drama';
+  else if (/art/.test(subjRaw) && !/photo/.test(subjRaw)) subject = 'art';
+  else if (/photo/.test(subjRaw)) subject = 'photography';
+  var unitKey = '';
+  if (window.CURRICULUM_UNITS && subject) {
+    var units = window.CURRICULUM_UNITS[subject];
+    var ygs = subject === 'photography' ? ['npas3', 'npas4', 'higher'] : ['s1', 's2', 's3'];
+    var unitText = (sections.unit || '').toLowerCase();
+    outer: for (var y = 0; y < ygs.length; y++) {
+      var yg = ygs[y];
+      if (!units[yg]) continue;
+      for (var u = 0; u < units[yg].length; u++) {
+        var un = units[yg][u];
+        if (unitText.indexOf(un.unit.toLowerCase()) !== -1 || unitText.indexOf((un.label || '').toLowerCase()) !== -1) {
+          unitKey = window.getUnitKey ? window.getUnitKey(subject, yg, un.id) : (subject + '-' + yg + '-' + un.id);
+          break outer;
+        }
+      }
+    }
+  }
+  var todoLines = (sections.todos || '').split(/\n|•|·|\*|\-/).map(function(s) { return s.trim(); }).filter(Boolean);
+  var todos = todoLines.map(function(t) { return { id: PS.id(), text: t, done: false }; });
+  var resourceText = sections.resources || '';
+  var urlMatch = resourceText.match(/https?:\/\/[^\s]+/g);
+  var resources = (urlMatch || []).map(function(url) { return { label: url.replace(/^https?:\/\//, '').slice(0, 40), url: url }; });
+  return {
+    name: sections.title || 'Imported lesson',
+    title: sections.title || 'Imported lesson',
+    subject: subject || undefined,
+    unitKey: unitKey || undefined,
+    objectives: sections.objectives || '',
+    learningIntentions: sections.learningIntentions || '',
+    successCriteria: sections.successCriteria || '',
+    activity: sections.activity || '',
+    differentiation: sections.differentiation || '',
+    effectiveQuestions: sections.effectiveQuestions || '',
+    digitalTechnologies: sections.digitalTechnologies || '',
+    notes: sections.notes || '',
+    resources: resources,
+    todos: todos
+  };
+}
 
 document.getElementById('createNewLessonBtn').addEventListener('click', function() {
   openLessonModalForLibrary(null);
