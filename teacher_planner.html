@@ -171,6 +171,33 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .day-view-todo-more{font-size:.65rem;color:var(--text3);margin-top:.1rem}
 .day-view-no-lessons{text-align:center;padding:3rem 2rem;color:var(--text3);font-size:.9rem}
 
+/* Month view */
+.month-grid-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.month-calendar-grid{
+  display:grid;grid-template-columns:repeat(7, 1fr);gap:1px;background:var(--border);
+  border:1px solid var(--border);border-radius:8px;overflow:hidden;min-width:400px
+}
+.month-day-header{
+  background:var(--navy-dark);color:var(--white);font-size:.65rem;font-weight:700;
+  letter-spacing:.06em;padding:.5rem;text-align:center
+}
+.month-day-cell{
+  min-height:90px;background:var(--card-elevated);padding:.5rem;
+  cursor:pointer;transition:all .15s;display:flex;flex-direction:column;gap:.25rem
+}
+.month-day-cell:hover{background:var(--bg)}
+.month-day-cell.weekend{background:var(--bg);color:var(--text3)}
+.month-day-cell.today{background:rgba(74,127,212,.08);border:2px solid var(--accent)}
+.month-day-cell.other-month{opacity:.5;color:var(--text3)}
+.month-day-num{font-size:.8rem;font-weight:700;color:var(--text2)}
+.month-lesson-count{
+  display:inline-block;font-size:.65rem;font-weight:700;background:var(--accent);
+  color:var(--white);padding:.15rem .4rem;border-radius:4px;margin-top:.2rem
+}
+.month-lesson-preview{font-size:.68rem;color:var(--text2);line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.month-empty{min-height:120px;display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:.9rem}
+.week-empty-msg{text-align:center;padding:3rem 2rem;color:var(--text3);background:var(--card-elevated);border:1px dashed var(--border);border-radius:8px}
+
 @media (max-width: 900px) {
   .planner-app{padding:1rem}
   .timetable-table{font-size:.75rem}
@@ -352,6 +379,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 <div class="planner-tabs">
   <button class="planner-tab active" data-tab="timetable">My Timetable</button>
   <button class="planner-tab" data-tab="week">Week View</button>
+  <button class="planner-tab" data-tab="month">Month View</button>
   <button class="planner-tab" data-tab="day">Day View</button>
   <button class="planner-tab" data-tab="templates">Lesson Bank</button>
 </div>
@@ -420,6 +448,19 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
     <button class="week-btn" id="dayViewToday">Today</button>
   </div>
   <div id="dayViewList" class="day-view-list"></div>
+</div>
+
+<!-- Month view panel -->
+<div id="panel-month" class="planner-panel">
+  <div class="week-controls">
+    <div class="week-nav">
+      <button class="week-btn" id="monthPrev">◀</button>
+      <div class="week-display" id="monthDisplay"></div>
+      <button class="week-btn" id="monthNext">▶</button>
+    </div>
+    <button class="week-btn" id="monthToday">Today</button>
+  </div>
+  <div id="monthGridWrap" class="month-grid-wrap"></div>
 </div>
 
 <!-- Lesson Bank panel -->
@@ -1157,6 +1198,124 @@ function renderDayView() {
   });
 }
 
+function switchToDayViewForDate(d) {
+  PS.setCurrentDayViewDate(d);
+  document.getElementById('dayViewDate').value = getDateStr(d);
+  document.querySelectorAll('.planner-tab').forEach(function(t) { t.classList.remove('active'); });
+  document.querySelectorAll('.planner-panel').forEach(function(p) { p.classList.remove('active'); });
+  document.querySelector('.planner-tab[data-tab="day"]').classList.add('active');
+  document.getElementById('panel-day').classList.add('active');
+  renderDayView();
+}
+
+function renderMonthView() {
+  var state = PS.getState();
+  if (!state.currentMonthStart) PS.setCurrentMonthStart(PS.getMonthStart(new Date()));
+  var monthStart = PS.getCurrentMonthStart();
+  var year = monthStart.getFullYear();
+  var month = monthStart.getMonth();
+  var daysInMonth = new Date(year, month + 1, 0).getDate();
+  var loadCal = (window.DataService && window.DataService.getCalendarMerged) ? DataService.getCalendarMerged() : Promise.resolve([]);
+  loadCal.catch(function() { return []; }).then(function(allEvents) {
+    if (!allEvents || !Array.isArray(allEvents) || allEvents.length === 0) {
+      var fallback = (window.DataService && DataService.get) ? DataService.get('academicCalendarEvents') : Promise.resolve(null);
+      return fallback.then(function(stored) {
+        if (stored && Array.isArray(stored) && stored.length > 0) return stored;
+        if (window.DataService && window.DataService.isUsingCloud && window.DataService.isUsingCloud()) return [];
+        try {
+          var raw = localStorage.getItem('academicCalendarEvents');
+          var parsed = raw ? JSON.parse(raw) : null;
+          return (parsed && Array.isArray(parsed)) ? parsed : [];
+        } catch (e) { return []; }
+      });
+    }
+    return allEvents;
+  }).then(function(allEvents) {
+    if (!Array.isArray(allEvents)) allEvents = (allEvents && allEvents.events) ? allEvents.events : [];
+    if (!allEvents || allEvents.length === 0) allEvents = CAL_DEFAULT_EVENTS.slice();
+    else {
+      var titlesMap = {};
+      allEvents.forEach(function(e) { titlesMap[(e.title || '') + (e.date || '')] = true; });
+      CAL_DEFAULT_EVENTS.forEach(function(ev) {
+        if (!titlesMap[(ev.title || '') + (ev.date || '')]) allEvents.push({ title: ev.title, date: ev.date, category: ev.category || 'general' });
+      });
+    }
+    var slots = state.timetable.slots || [];
+    var monthStartStr = year + '-' + String(month + 1).padStart(2, '0') + '-01';
+    var monthEndStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(daysInMonth).padStart(2, '0');
+    var monthEvents = (allEvents || []).filter(function(e) {
+      var d = e.date;
+      return d && d >= monthStartStr && d <= monthEndStr;
+    });
+    document.getElementById('monthDisplay').textContent = PS.formatMonthLabel(monthStart);
+    if (slots.length === 0) {
+      document.getElementById('monthGridWrap').innerHTML = '<div class="week-empty-msg"><strong>No teaching slots yet</strong><br>Set up your timetable in My Timetable first.</div>';
+      return;
+    }
+    var dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    var firstDayOfMonth = new Date(year, month, 1);
+    var startOffset = ((firstDayOfMonth.getDay() - 1) + 7) % 7;
+    var totalCells = startOffset + daysInMonth;
+    var trailingCells = totalCells % 7 ? 7 - (totalCells % 7) : 0;
+    var prevMonthDays = startOffset;
+    var prevMonth = month === 0 ? 11 : month - 1;
+    var prevYear = month === 0 ? year - 1 : year;
+    var prevMonthDaysInMonth = new Date(prevYear, prevMonth + 1, 0).getDate();
+    var todayStr = getDateStr(new Date());
+    var html = '<div class="month-calendar-grid">';
+    dayNames.forEach(function(name) {
+      html += '<div class="month-day-header">' + name + '</div>';
+    });
+    var cellIdx = 0;
+    for (var i = 0; i < prevMonthDays; i++) {
+      var d = prevMonthDaysInMonth - prevMonthDays + i + 1;
+      var dateStr = prevYear + '-' + String(prevMonth + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+      html += '<div class="month-day-cell other-month" data-date="' + dateStr + '"><span class="month-day-num">' + d + '</span></div>';
+      cellIdx++;
+    }
+    for (var d = 1; d <= daysInMonth; d++) {
+      var dateStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+      var cellDate = new Date(year, month, d);
+      var dayOfWeek = cellDate.getDay();
+      var isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      var isToday = dateStr === todayStr;
+      var isHoliday = (monthEvents || []).some(function(e) { return e.date === dateStr && e.category === 'holiday'; });
+      var lessons = PS.getLessonsForDate(dateStr);
+      var cellClass = 'month-day-cell' + (isWeekend ? ' weekend' : '') + (isToday ? ' today' : '') + (isHoliday ? ' week-card-holiday' : '');
+      html += '<div class="' + cellClass + '" data-date="' + dateStr + '">';
+      html += '<span class="month-day-num">' + d + '</span>';
+      if (lessons.length > 0) {
+        html += '<span class="month-lesson-count">' + lessons.length + '</span>';
+        lessons.slice(0, 3).forEach(function(l) {
+          var title = (l.title || 'Untitled').replace(/</g, '&lt;').slice(0, 20);
+          if ((l.title || '').length > 20) title += '…';
+          html += '<div class="month-lesson-preview" title="' + (l.title || '').replace(/"/g, '&quot;') + '">' + title + '</div>';
+        });
+      }
+      html += '</div>';
+      cellIdx++;
+    }
+    var nextMonthStart = 1;
+    for (var i = 0; i < trailingCells; i++) {
+      var dateStr = month === 11
+        ? (year + 1) + '-01-' + String(nextMonthStart).padStart(2, '0')
+        : year + '-' + String(month + 2).padStart(2, '0') + '-' + String(nextMonthStart).padStart(2, '0');
+      html += '<div class="month-day-cell other-month" data-date="' + dateStr + '"><span class="month-day-num">' + nextMonthStart + '</span></div>';
+      nextMonthStart++;
+    }
+    html += '</div>';
+    document.getElementById('monthGridWrap').innerHTML = html;
+    document.querySelectorAll('.month-day-cell[data-date]').forEach(function(cell) {
+      cell.addEventListener('click', function() {
+        var dateStr = cell.dataset.date;
+        var parts = dateStr.split('-');
+        var d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        switchToDayViewForDate(d);
+      });
+    });
+  });
+}
+
 function isLibraryMode() {
   return !!PS.getEditingTemplateId && PS.getEditingTemplateId();
 }
@@ -1465,6 +1624,7 @@ document.getElementById('lessonSave').addEventListener('click', function() {
     document.getElementById('lessonModal').classList.remove('visible');
     renderWeekView();
     if (document.getElementById('panel-day').classList.contains('active')) renderDayView();
+    if (document.getElementById('panel-month').classList.contains('active')) renderMonthView();
   });
 });
 
@@ -1492,6 +1652,7 @@ document.getElementById('lessonDelete').addEventListener('click', function() {
     document.getElementById('lessonModal').classList.remove('visible');
     renderWeekView();
     if (document.getElementById('panel-day').classList.contains('active')) renderDayView();
+    if (document.getElementById('panel-month').classList.contains('active')) renderMonthView();
     showToast('Lesson deleted');
   });
 });
@@ -1520,6 +1681,7 @@ document.getElementById('doCopy').addEventListener('click', function() {
     showToast('Lesson copied');
     renderWeekView();
     if (document.getElementById('panel-day').classList.contains('active')) renderDayView();
+    if (document.getElementById('panel-month').classList.contains('active')) renderMonthView();
   });
 });
 
@@ -1545,6 +1707,7 @@ document.getElementById('saveTimetable').addEventListener('click', function() {
   PS.saveTimetable().then(function() {
     renderTimetableDisplay();
     renderWeekView();
+    renderMonthView();
     showToast('Timetable saved');
   });
 });
@@ -1563,6 +1726,7 @@ function handleNewAcademicYear() {
     renderTimetable();
     renderTimetableDisplay();
     renderWeekView();
+    renderMonthView();
     showToast('Timetable cleared. Enter your new schedule.');
   });
 }
@@ -1586,6 +1750,23 @@ document.getElementById('weekToday').addEventListener('click', function() {
   renderWeekView();
 });
 
+document.getElementById('monthPrev').addEventListener('click', function() {
+  var m = PS.getCurrentMonthStart();
+  PS.setCurrentMonthStart(new Date(m.getFullYear(), m.getMonth() - 1, 1));
+  renderMonthView();
+});
+
+document.getElementById('monthNext').addEventListener('click', function() {
+  var m = PS.getCurrentMonthStart();
+  PS.setCurrentMonthStart(new Date(m.getFullYear(), m.getMonth() + 1, 1));
+  renderMonthView();
+});
+
+document.getElementById('monthToday').addEventListener('click', function() {
+  PS.setCurrentMonthStart(PS.getMonthStart(new Date()));
+  renderMonthView();
+});
+
 document.querySelectorAll('.planner-tab').forEach(function(tab) {
   tab.addEventListener('click', function() {
     document.querySelectorAll('.planner-tab').forEach(function(t){t.classList.remove('active')});
@@ -1593,6 +1774,7 @@ document.querySelectorAll('.planner-tab').forEach(function(tab) {
     tab.classList.add('active');
     document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
     if (tab.dataset.tab === 'week') renderWeekView();
+    if (tab.dataset.tab === 'month') renderMonthView();
     if (tab.dataset.tab === 'day') renderDayView();
     if (tab.dataset.tab === 'templates') renderTemplatesList();
   });
@@ -1891,6 +2073,7 @@ document.getElementById('applyToTimetableConfirm').addEventListener('click', fun
     showToast('Lesson added to timetable');
     if (document.getElementById('panel-week').classList.contains('active')) renderWeekView();
     if (document.getElementById('panel-day').classList.contains('active')) renderDayView();
+    if (document.getElementById('panel-month').classList.contains('active')) renderMonthView();
   });
 });
 
@@ -1906,6 +2089,7 @@ PS.load().then(function() {
   renderTimetable();
   renderTimetableDisplay();
   renderWeekView();
+  renderMonthView();
 });
 
 })();

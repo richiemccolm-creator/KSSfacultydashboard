@@ -11,6 +11,7 @@
     weekNotes: {},
     lessonPlanTemplates: { templates: [] },
     currentWeekStart: null,
+    currentMonthStart: null,
     currentDayViewDate: null,
     editingLessonId: null,
     editingTemplateId: null
@@ -101,6 +102,16 @@
         end.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
     },
 
+    getMonthStart: function(d) {
+      var d2 = new Date(d.getFullYear(), d.getMonth(), 1);
+      d2.setHours(0, 0, 0, 0);
+      return d2;
+    },
+
+    formatMonthLabel: function(monthStart) {
+      return monthStart.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+    },
+
     id: id,
 
     collectTimetable: function(slots, periodTimes) {
@@ -186,6 +197,8 @@
     getEditingLessonId: function() { return state.editingLessonId; },
     setCurrentWeekStart: function(d) { state.currentWeekStart = d; },
     getCurrentWeekStart: function() { return state.currentWeekStart; },
+    setCurrentMonthStart: function(d) { state.currentMonthStart = d; },
+    getCurrentMonthStart: function() { return state.currentMonthStart; },
     setCurrentDayViewDate: function(d) { state.currentDayViewDate = d; },
     getCurrentDayViewDate: function() { return state.currentDayViewDate; },
     setEditingTemplateId: function(id) { state.editingTemplateId = id; },
