@@ -1196,7 +1196,24 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
 .cal-purpose-label em{display:block;font-style:normal;font-size:.65rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.4);margin-top:.3rem}
 .cal-purpose-text{font-size:.82rem;color:rgba(255,255,255,.7);line-height:1.8;max-width:640px}
 .cal-container{max-width:1400px}
-.cal-year-controls{display:flex;gap:10px;margin-bottom:1.5rem;align-items:center}
+.cal-year-controls{display:flex;gap:10px;margin-bottom:1rem;align-items:center}
+.cal-search-filter{display:flex;flex-wrap:wrap;gap:.75rem;align-items:center;margin-bottom:1.5rem}
+.cal-search-wrap{flex:1;min-width:200px;max-width:320px}
+.cal-search-wrap input{
+  width:100%;padding:.5rem .75rem .5rem 2.25rem;
+  border:1px solid var(--border2);border-radius:6px;font-size:.85rem;
+  background:var(--white) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E") no-repeat .65rem center;
+}
+.cal-search-wrap input::placeholder{color:var(--text3)}
+.cal-cat-filters{display:flex;flex-wrap:wrap;gap:.35rem;align-items:center}
+.cal-cat-chip{
+  padding:.3rem .6rem;border-radius:999px;font-size:.72rem;font-weight:600;
+  border:1px solid var(--border2);background:var(--card);color:var(--text2);
+  cursor:pointer;transition:all .15s;
+}
+.cal-cat-chip:hover{border-color:var(--accent-drama);color:var(--accent-drama)}
+.cal-cat-chip.active{background:var(--navy-active);border-color:var(--navy-active);color:white}
+.cal-filter-label{font-size:.72rem;font-weight:600;color:var(--text3);margin-right:.25rem}
 .cal-year-btn{
   padding:.5rem 1rem;border:none;border-radius:6px;
   background:var(--navy-active);color:white;cursor:pointer;font-weight:600;
@@ -1839,6 +1856,25 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
             <button class="cal-year-btn" onclick="calChangeYear(-1)">◀</button>
             <div id="calYearDisplay" class="cal-year-display"></div>
             <button class="cal-year-btn" onclick="calChangeYear(1)">▶</button>
+          </div>
+          <div class="cal-search-filter">
+            <div class="cal-search-wrap">
+              <input id="calSearch" type="text" placeholder="Search events, dates (e.g. March, 2026-03)..." oninput="calOnSearchInput()">
+            </div>
+            <div class="cal-cat-filters">
+              <span class="cal-filter-label">Category:</span>
+              <span class="cal-cat-chip active" data-cat="" onclick="calSetCategory('')">All</span>
+              <span class="cal-cat-chip" data-cat="holiday" onclick="calSetCategory('holiday')">Holiday</span>
+              <span class="cal-cat-chip" data-cat="meeting" onclick="calSetCategory('meeting')">Meeting</span>
+              <span class="cal-cat-chip" data-cat="assessment" onclick="calSetCategory('assessment')">Assessment</span>
+              <span class="cal-cat-chip" data-cat="reporting" onclick="calSetCategory('reporting')">Reporting</span>
+              <span class="cal-cat-chip" data-cat="deadline" onclick="calSetCategory('deadline')">Deadline</span>
+              <span class="cal-cat-chip" data-cat="exam" onclick="calSetCategory('exam')">Exam</span>
+              <span class="cal-cat-chip" data-cat="training" onclick="calSetCategory('training')">Training</span>
+              <span class="cal-cat-chip" data-cat="cpd" onclick="calSetCategory('cpd')">CPD</span>
+              <span class="cal-cat-chip" data-cat="inset" onclick="calSetCategory('inset')">In-Service</span>
+              <span class="cal-cat-chip" data-cat="general" onclick="calSetCategory('general')">General</span>
+            </div>
           </div>
           <div class="section-card">
             <div class="section-card-header">
@@ -6188,6 +6224,9 @@ const CAL_DEFAULT_EVENTS=[
   {title:'Schools Close for Summer',date:'2026-06-25',category:'holiday'}
 ];
 var calEventsCache=null;
+var calSearchText='';
+var calFilterCategory='';
+var calSearchDebounce=null;
 function calGetEvents(){
   if(calEventsCache)return calEventsCache;
   // When cloud is available, never use localStorage — only use cache populated by calLoadEvents()
@@ -6196,6 +6235,48 @@ function calGetEvents(){
   }
   try{var st=JSON.parse(localStorage.getItem(CAL_STORAGE_KEY)||'[]');if(st.length>0)return st;}catch(e){}
   return CAL_DEFAULT_EVENTS;
+}
+function calGetFilteredEvents(){
+  var all=calGetEvents();
+  var cat=calFilterCategory;
+  var q=(calSearchText||'').trim().toLowerCase();
+  if(!cat&&!q)return all;
+  var filtered=all;
+  if(cat){
+    filtered=filtered.filter(function(e){return (e.category||'general')===cat;});
+  }
+  if(!q)return filtered;
+  var monthNames=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+  return filtered.filter(function(e){
+    var title=(e.title||'').toLowerCase();
+    var date=e.date||'';
+    var catLabel=(CAL_CAT_LABELS[e.category]||e.category||'').toLowerCase();
+    if(title.indexOf(q)!==-1||catLabel.indexOf(q)!==-1)return true;
+    if(date.indexOf(q)!==-1)return true;
+    var parts=date.split('-');
+    if(parts.length>=2&&q.length>=2){
+      var yr=parts[0],mo=parts[1],dy=parts[2]||'';
+      if(yr.indexOf(q)!==-1||mo.indexOf(q)!==-1||dy.indexOf(q)!==-1)return true;
+      var monthIdx=monthNames.indexOf(q);
+      if(monthIdx>=0&&parts[1]===String(monthIdx+1).padStart(2,'0'))return true;
+    }
+    return false;
+  });
+}
+function calOnSearchInput(){
+  if(calSearchDebounce)clearTimeout(calSearchDebounce);
+  calSearchDebounce=setTimeout(function(){
+    calSearchText=(document.getElementById('calSearch')&&document.getElementById('calSearch').value)||'';
+    calRender();
+  },150);
+}
+function calSetCategory(cat){
+  calFilterCategory=cat||'';
+  var chips=document.querySelectorAll('.cal-cat-filters .cal-cat-chip');
+  chips.forEach(function(chip){
+    chip.classList.toggle('active',(chip.dataset.cat||'')===cat);
+  });
+  calRender();
 }
 function calLoadEvents(){
   if(window.DataService&&typeof DataService.getCalendarMerged==='function'){
@@ -6891,8 +6972,16 @@ function calUpcoming(){
   if(!list)return;
   list.innerHTML='';
   const now=new Date();
-  const evList=calGetEvents().filter(e=>new Date(e.date)>=now).sort((a,b)=>new Date(a.date)-new Date(b.date)).slice(0,10);
+  const evList=calGetFilteredEvents().filter(e=>new Date(e.date)>=now).sort((a,b)=>new Date(a.date)-new Date(b.date)).slice(0,10);
   window.__calUpcomingEvents=evList;
+  if(evList.length===0){
+    const empty=document.createElement('div');
+    empty.className='cal-upcoming-empty';
+    empty.style.cssText='padding:1rem;color:var(--text3);font-size:.85rem;font-style:italic';
+    empty.textContent=(calSearchText||calFilterCategory)?'No events match your search or filter. Try different keywords or categories.':'No upcoming events.';
+    list.appendChild(empty);
+    return;
+  }
   evList.forEach(function(e,i){
     const canEdit=e.source==='personal'||e.source===undefined||(e.source==='shared'&&!!window.__authGuardIsAdmin);
     const div=document.createElement('div');div.className='cal-event';
@@ -6960,7 +7049,7 @@ function calBuildCalendar(){
     for(let d=1;d<=total;d++){
       const day=document.createElement('div');day.className='cal-day';day.textContent=d;
       const date=`${year}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-      const ev=calGetEvents().filter(e=>e.date===date);
+      const ev=calGetFilteredEvents().filter(e=>e.date===date);
       if(ev.length){
         day.classList.add('cal-day-has-events');
         const mark=document.createElement('div');mark.className='cal-marker '+ev[0].category;day.appendChild(mark);
