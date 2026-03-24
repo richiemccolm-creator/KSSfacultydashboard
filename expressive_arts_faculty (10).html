@@ -14,6 +14,8 @@
 <script src="allowlist-check.js"></script>
 <script src="auth-guard.js"></script>
 <script src="data-service.js"></script>
+<script src="teacher-tasks-service.js"></script>
+<script src="teacher-tasks-home.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@700;800&display=swap" rel="stylesheet">
@@ -802,6 +804,35 @@ a.subject-card-link{text-decoration:none;cursor:pointer}
 .home-event-badge.inset{background:#fce7f3;color:#9d174d}
 .home-dash-empty{font-size:.8rem;color:var(--text3);padding:1rem;text-align:center}
 
+.home-task-item{
+  padding:.55rem .75rem;border-radius:6px;border:1px solid var(--border);
+  display:flex;align-items:center;gap:.5rem;font-size:.78rem;background:var(--bg);
+  cursor:pointer;transition:all .15s;
+}
+.home-task-item:hover{border-color:var(--accent-drama);background:rgba(74,127,212,.04)}
+.home-task-done{
+  flex-shrink:0;width:28px;height:28px;border-radius:6px;border:1px solid var(--border2);
+  background:var(--white);color:var(--ok);font-weight:700;cursor:pointer;font-size:.75rem;line-height:1;
+}
+.home-task-done:hover{border-color:var(--ok);background:#f0fdf4}
+.home-task-title{font-weight:500;color:var(--text);flex:1;min-width:0;line-height:1.3}
+.home-task-date{font-size:.68rem;font-weight:600;color:var(--text2);flex-shrink:0}
+.home-task-badge{font-size:.6rem;font-weight:600;padding:.2rem .45rem;border-radius:999px;flex-shrink:0}
+.home-task-badge.overdue{background:#fdecea;color:#b91c1c}
+.home-task-badge.today{background:#ffedd5;color:#c2410c}
+.home-teacher-tasks-card .home-dash-body{display:flex;flex-direction:column;gap:10px}
+.home-task-quick{display:flex;gap:.5rem;margin-top:.25rem;padding-top:.65rem;border-top:1px solid var(--border)}
+.home-task-quick-input{
+  flex:1;min-width:0;padding:.45rem .65rem;border:1px solid var(--border2);border-radius:6px;
+  font-size:.78rem;font-family:inherit
+}
+.home-task-quick-input:focus{outline:none;border-color:var(--accent-drama)}
+.home-task-quick-btn{
+  flex-shrink:0;padding:.45rem .85rem;border-radius:6px;border:none;background:var(--accent-drama);
+  color:var(--white);font-size:.72rem;font-weight:600;cursor:pointer
+}
+.home-task-quick-btn:hover{opacity:.92}
+
 /* Announcements — distinct from calendar, block layout for long content */
 .home-announcements-card{grid-column:1/-1;border-left:4px solid #d97706}
 .home-announcements-card .home-dash-header{background:linear-gradient(to right,rgba(217,119,6,.06),transparent)}
@@ -1541,6 +1572,9 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
   <a href="teacher_planner.html" class="sidebar-item home-pin" style="text-decoration:none">
     Teacher Planner
   </a>
+  <a href="teacher_tasks.html" class="sidebar-item home-pin" style="text-decoration:none">
+    My tasks
+  </a>
   <a href="class-visit-feedback.html" class="sidebar-item home-pin" style="text-decoration:none">
     Class Visit Feedback
   </a>
@@ -1720,6 +1754,15 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
             </div>
             <div class="home-dash-body">
               <div id="homeUpcomingEvents" class="home-events-list"></div>
+            </div>
+          </div>
+          <div class="home-dash-card home-teacher-tasks-card">
+            <div class="home-dash-header">
+              <span class="home-dash-title">My tasks</span>
+              <a href="teacher_tasks.html" class="home-dash-link" style="text-decoration:none">Open full planner →</a>
+            </div>
+            <div class="home-dash-body">
+              <div id="homeTeacherTasks" class="home-events-list"></div>
             </div>
           </div>
           <div class="home-dash-card">
@@ -6481,7 +6524,7 @@ function dipExportImprovementPlan(){
 
 // ── DATA BACKUP & RESTORE ───────────────────────────────────────
 function backupExport(){
-  (window.DataService?DataService.exportAll():Promise.resolve((function(){var o={};var keys=['drama-v3','art-v2','academicCalendarEvents','bge_drama_reports_v1','bge_art_reports_v1','bge_drama_tracker_export_v1','bge_art_tracker_export_v1','dipSelfEvaluation','moderation-data','plannerTimetable','plannerLessons','plannerWeekNotes'];keys.forEach(function(k){try{var v=localStorage.getItem(k);if(v)o[k]=JSON.parse(v);}catch(e){}});return o;})())).then(function(data){
+  (window.DataService?DataService.exportAll():Promise.resolve((function(){var o={};var keys=['drama-v3','art-v2','academicCalendarEvents','bge_drama_reports_v1','bge_art_reports_v1','bge_drama_tracker_export_v1','bge_art_tracker_export_v1','dipSelfEvaluation','moderation-data','plannerTimetable','plannerLessons','plannerWeekNotes','lessonPlanTemplates','clplProgress','teacherTasksV1'];keys.forEach(function(k){try{var v=localStorage.getItem(k);if(v)o[k]=JSON.parse(v);}catch(e){}});return o;})())).then(function(data){
     if(!data.version)data={version:1,exportDate:new Date().toISOString(),source:'Expressive Arts Faculty'};
     var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
     var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ExpressiveArts_Backup_'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(a.href);
@@ -7111,6 +7154,9 @@ function homeDashboardRender(){
     }).catch(function(){annList.innerHTML='<div class="home-dash-empty">No announcements.</div>';});
   }else if(annList){
     annList.innerHTML='<div class="home-dash-empty">No announcements.</div>';
+  }
+  if(window.TeacherTasksHome&&typeof window.TeacherTasksHome.render==='function'){
+    window.TeacherTasksHome.render();
   }
 }
 

@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="My tasks">
+<link rel="apple-touch-icon" href="faculty-hub-logo.png" sizes="180x180">
+<link rel="icon" type="image/png" href="faculty-hub-logo.png">
+<title>My tasks — Expressive Arts</title>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-init.js"></script>
+<script src="allowlist-check.js"></script>
+<script src="auth-guard.js"></script>
+<script src="data-service.js"></script>
+<script src="teacher-tasks-service.js"></script>
+<script src="teacher-tasks-ui.js" defer></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --navy:#2d3a5a;
+  --navy-dark:#232f47;
+  --accent:#0ea5e9;
+  --white:#ffffff;
+  --bg:#f8fafc;
+  --card:#ffffff;
+  --text:#1a202c;
+  --text2:#4a5568;
+  --text3:#718096;
+  --border:#e2e8f0;
+  --border2:#cbd5e0;
+  --shadow:0 2px 8px rgba(0,0,0,.06);
+  --danger:#b91c1c;
+  --ok:#15803d;
+}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;font-size:14px}
+
+.tasks-app{max-width:100%;margin:0 auto;padding:1.5rem 2rem 3rem;min-height:100vh}
+.tasks-header{
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;
+  margin-bottom:1.5rem;padding-bottom:1.25rem;border-bottom:1px solid var(--border)
+}
+.tasks-title{font-family:'Sora',sans-serif;font-size:1.5rem;font-weight:800;color:var(--text)}
+.tasks-title span{color:var(--accent)}
+.tasks-nav{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+.tasks-nav a{font-size:.82rem;color:var(--text2);text-decoration:none;padding:.4rem .75rem;border-radius:4px;transition:all .15s}
+.tasks-nav a:hover{background:var(--border);color:var(--text)}
+.tasks-logo-link{display:flex;align-items:center;text-decoration:none;margin-right:1rem}
+.tasks-logo-img{display:block;max-width:140px;height:auto}
+.tasks-header-wrap{display:flex;align-items:center;flex-wrap:wrap;gap:1rem;flex:1}
+.btn-header{
+  font-size:.78rem;font-weight:600;padding:.5rem 1rem;border-radius:6px;border:1px solid var(--border2);
+  background:var(--white);color:var(--text2);cursor:pointer;transition:all .15s
+}
+.btn-header:hover{border-color:var(--accent);color:var(--text)}
+.btn-header-primary{background:var(--navy);border-color:var(--navy);color:var(--white)}
+.btn-header-primary:hover{opacity:.92;color:var(--white)}
+
+.board-wrap{overflow-x:auto;padding-bottom:1rem;-webkit-overflow-scrolling:touch}
+.board{
+  display:flex;gap:1rem;align-items:flex-start;min-height:calc(100vh - 200px)
+}
+.bucket{
+  flex:0 0 300px;min-width:280px;max-width:320px;
+  background:var(--card);border:1px solid var(--border);border-radius:10px;
+  box-shadow:var(--shadow);display:flex;flex-direction:column;max-height:calc(100vh - 180px)
+}
+.bucket-header{
+  padding:.85rem 1rem;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between;gap:.5rem;
+  background:linear-gradient(to bottom,var(--bg),var(--card));border-radius:10px 10px 0 0
+}
+.bucket-title{
+  font-family:'Sora',sans-serif;font-size:.8rem;font-weight:700;letter-spacing:.04em;
+  color:var(--text);cursor:default;flex:1;min-width:0
+}
+.bucket-title[title]{cursor:pointer}
+.bucket-actions{display:flex;gap:.25rem;align-items:center}
+.bucket-btn{
+  width:28px;height:28px;border:none;background:transparent;border-radius:4px;
+  cursor:pointer;color:var(--text3);font-size:1rem;line-height:1;display:flex;align-items:center;justify-content:center
+}
+.bucket-btn:hover{background:var(--bg);color:var(--text)}
+.bucket-btn.danger:hover{color:var(--danger);background:#fef2f2}
+
+.bucket-body{
+  padding:.65rem;overflow-y:auto;flex:1;display:flex;flex-direction:column;gap:.5rem
+}
+.task-card{
+  background:var(--white);border:1px solid var(--border);border-radius:8px;padding:.65rem .75rem;
+  cursor:pointer;transition:all .15s;border-left:3px solid var(--accent)
+}
+.task-card:hover{border-color:var(--border2);box-shadow:0 2px 10px rgba(0,0,0,.06)}
+.task-card.completed{opacity:.65;border-left-color:var(--text3)}
+.task-card.priority-high{border-left-color:var(--danger)}
+.task-card.priority-low{border-left-color:var(--text3)}
+.task-card-title{font-weight:600;font-size:.82rem;color:var(--text);line-height:1.35;margin-bottom:.25rem}
+.task-card-meta{display:flex;flex-wrap:wrap;gap:.35rem;align-items:center;font-size:.68rem;color:var(--text3)}
+.task-card-due{font-weight:600}
+.task-card-due.overdue{color:var(--danger)}
+.task-card-due.today{color:#c2410c}
+.task-card-check{font-size:.65rem;color:var(--text2)}
+
+.btn-add-task{
+  width:100%;padding:.5rem;border:1px dashed var(--border2);border-radius:6px;
+  background:transparent;color:var(--text3);font-size:.75rem;font-weight:600;cursor:pointer;margin-top:.15rem
+}
+.btn-add-task:hover{border-color:var(--accent);color:var(--accent);background:rgba(14,165,233,.04)}
+
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:1000;
+  display:none;align-items:center;justify-content:center;padding:1.5rem
+}
+.modal-overlay.visible{display:flex}
+.modal{
+  background:var(--card);border-radius:12px;max-width:520px;width:100%;max-height:90vh;
+  overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25)
+}
+.modal-header{
+  padding:1.1rem 1.25rem;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;justify-content:space-between
+}
+.modal-title{font-family:'Sora',sans-serif;font-size:1.05rem;font-weight:700}
+.modal-close{width:32px;height:32px;border:none;background:none;cursor:pointer;font-size:1.25rem;color:var(--text3);border-radius:4px}
+.modal-close:hover{background:var(--bg)}
+.modal-body{padding:1.25rem}
+.modal-footer{
+  padding:1rem 1.25rem;border-top:1px solid var(--border);
+  display:flex;gap:.65rem;justify-content:flex-end;flex-wrap:wrap
+}
+.form-group{margin-bottom:1rem}
+.form-label{display:block;font-size:.68rem;font-weight:600;letter-spacing:.06em;color:var(--text2);margin-bottom:.35rem}
+.form-input,.form-select,.form-textarea{
+  width:100%;padding:.55rem .7rem;border:1px solid var(--border2);border-radius:6px;font-size:.88rem;font-family:inherit
+}
+.form-textarea{min-height:72px;resize:vertical}
+.form-input:focus,.form-select:focus,.form-textarea:focus{outline:none;border-color:var(--accent)}
+.form-row-check{display:flex;align-items:center;gap:.5rem;font-size:.85rem}
+.checklist-rows{margin-top:.35rem}
+.checklist-row{display:flex;align-items:center;gap:.4rem;margin-bottom:.35rem}
+.checklist-row input[type="text"]{flex:1}
+.btn-small{padding:.3rem .55rem;font-size:.72rem;border-radius:4px;border:1px solid var(--border2);background:var(--white);cursor:pointer}
+.btn-small:hover{background:var(--bg)}
+.btn-primary{padding:.55rem 1.1rem;background:var(--accent);color:var(--white);border:none;border-radius:6px;font-weight:600;cursor:pointer}
+.btn-primary:hover{opacity:.92}
+.btn-secondary{padding:.55rem 1.1rem;background:var(--bg);color:var(--text2);border:1px solid var(--border);border-radius:6px;font-weight:500;cursor:pointer}
+.btn-danger{padding:.55rem 1rem;background:transparent;color:var(--danger);border:1px solid rgba(185,28,28,.35);border-radius:6px;font-weight:600;cursor:pointer;margin-right:auto}
+.btn-danger:hover{background:#fef2f2}
+
+.empty-bucket{font-size:.72rem;color:var(--text3);text-align:center;padding:1rem;font-style:italic}
+.tasks-toast{
+  position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);z-index:1100;
+  background:var(--navy-dark);color:var(--white);padding:.65rem 1.25rem;border-radius:8px;
+  font-size:.8rem;opacity:0;pointer-events:none;transition:opacity .2s
+}
+.tasks-toast.show{opacity:1}
+
+@media(max-width:600px){
+  .tasks-app{padding:1rem}
+  .bucket{flex:0 0 85vw;min-width:260px}
+}
+</style>
+</head>
+<body>
+
+<div class="tasks-app">
+  <div class="tasks-header">
+    <a href="expressive_arts_faculty (10).html" class="tasks-logo-link" title="Faculty Hub">
+      <img src="faculty-hub-logo.png" alt="Faculty Hub" class="tasks-logo-img">
+    </a>
+    <div class="tasks-header-wrap">
+      <h1 class="tasks-title">My <span>tasks</span></h1>
+      <nav class="tasks-nav">
+        <a href="expressive_arts_faculty (10).html">← Faculty Hub</a>
+        <a href="teacher_planner.html">Teacher Planner</a>
+      </nav>
+    </div>
+    <button type="button" class="btn-header btn-header-primary" id="btnAddBucket">Add list</button>
+  </div>
+
+  <div class="board-wrap">
+    <div class="board" id="taskBoard" aria-label="Task lists"></div>
+  </div>
+</div>
+
+<div id="taskModalOverlay" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="taskModalTitle">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title" id="taskModalTitle">Task</h2>
+      <button type="button" class="modal-close" id="taskModalClose" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="modalTaskId" value="">
+      <div class="form-group">
+        <label class="form-label" for="modalTitle">Title</label>
+        <input type="text" class="form-input" id="modalTitle" placeholder="What needs done?">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="modalNotes">Notes</label>
+        <textarea class="form-textarea" id="modalNotes" placeholder="Optional details"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="modalDue">Due date</label>
+        <input type="date" class="form-input" id="modalDue">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="modalPriority">Priority</label>
+        <select class="form-select" id="modalPriority">
+          <option value="low">Low</option>
+          <option value="normal" selected>Normal</option>
+          <option value="high">High</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="modalBucket">List</label>
+        <select class="form-select" id="modalBucket"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-row-check">
+          <input type="checkbox" id="modalCompleted"> Mark complete
+        </label>
+      </div>
+      <div class="form-group">
+        <span class="form-label">Checklist</span>
+        <div id="modalChecklist" class="checklist-rows"></div>
+        <button type="button" class="btn-small" id="modalAddCheckItem" style="margin-top:.35rem">+ Add item</button>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn-danger" id="modalDelete" style="display:none">Delete task</button>
+      <button type="button" class="btn-secondary" id="modalCancel">Cancel</button>
+      <button type="button" class="btn-primary" id="modalSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="tasksToast" class="tasks-toast" role="status"></div>
+
+</body>
+</html>
