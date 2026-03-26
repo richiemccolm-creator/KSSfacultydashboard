@@ -208,12 +208,39 @@
       });
     },
 
-    deleteDraft: function(requestId) {
+    /** Delete own request when status is draft, submitted, or rejected (via RPC; cascades lines). */
+    deleteMyRequest: function(requestId) {
       return requireSession().then(function() {
-        return window.supabase.from('purchase_requests')
-          .delete()
-          .eq('id', requestId)
-          .eq('status', 'draft');
+        return window.supabase.rpc('delete_my_purchase_request', { p_request_id: requestId });
+      }).then(function(r) {
+        if (r.error) throw r.error;
+        if (r.data !== true) throw new Error('Could not delete (not yours, or already approved/processed)');
+      });
+    },
+
+    deleteDraft: function(requestId) {
+      return window.PurchaseOrderService.deleteMyRequest(requestId);
+    },
+
+    getMyProfile: function() {
+      return requireSession().then(function(session) {
+        return window.supabase.from('profiles')
+          .select('id, email, display_name')
+          .eq('id', session.user.id)
+          .maybeSingle();
+      }).then(function(r) {
+        if (r.error) throw r.error;
+        return r.data;
+      });
+    },
+
+    updateMyDisplayName: function(displayName) {
+      return requireSession().then(function(session) {
+        var v = (displayName && String(displayName).trim()) ? String(displayName).trim() : null;
+        return window.supabase.from('profiles')
+          .update({ display_name: v })
+          .eq('id', session.user.id)
+          .select('id, display_name');
       }).then(function(r) {
         if (r.error) throw r.error;
       });

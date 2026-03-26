@@ -101,34 +101,36 @@ body.is-admin span.admin-only.inline{display:inline}
   body{background:#f8fafc;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .print-area{display:block!important;position:static!important;padding:0;visibility:visible!important;max-width:none;width:100%}
   .po-doc{box-shadow:none;border-radius:8px}
-  @page{size:A4 landscape;margin:8mm}
-  .print-area{font-size:9.5pt;line-height:1.4}
-  .po-hero{padding:10px 16px 11px;gap:12px}
-  .po-kicker{font-size:8pt;margin-bottom:2px}
-  .po-title{font-size:15pt}
-  .po-subtitle{font-size:9pt}
-  .po-hero-badge{padding:8px 11px;border-radius:8px}
-  .po-badge-val{font-size:12pt}
-  .po-body{padding:10px 14px 11px}
-  .po-meta-row{gap:10px;margin-bottom:9px}
-  .po-panel{padding:9px 11px;border-radius:8px}
-  .po-meta-left{gap:9px}
-  .po-label{font-size:7pt}
-  .po-value{font-size:9.5pt}
-  .po-budget-hint{font-size:8.3pt;margin-bottom:5px;margin-top:0}
-  .po-budget-hint.po-budget-divider{margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)}
-  .po-budget-grid{gap:3px 10px;font-size:8.5pt}
-  .po-cb{width:12px;height:12px;margin-right:6px}
-  .po-expend-other{margin-top:3px;padding-top:5px}
-  .po-table{font-size:8.6pt;border-radius:8px}
-  .po-table th,.po-table td{padding:5px 7px}
-  .po-table thead th{padding:6px 5px;font-size:7pt}
-  .po-table tbody td.po-col-ref{font-size:8.3pt}
-  .po-total-row th{padding:7px 6px;font-size:8.2pt}
-  .po-total-row td{font-size:10.5pt;padding:7px 6px}
-  .po-foot{margin-top:8px;padding-top:8px;font-size:8.8pt}
-  .po-foot-grid{gap:8px 16px}
-  .po-signoff{margin-left:2px;padding-left:10px}
+  @page{size:A4 landscape;margin:7mm}
+  .print-area{font-size:9pt;line-height:1.35}
+  .po-hero{padding:8px 14px 9px;gap:10px}
+  .po-kicker{font-size:7.5pt;margin-bottom:1px}
+  .po-title{font-size:14pt;margin-bottom:2px}
+  .po-subtitle{font-size:8.5pt}
+  .po-hero-badge{padding:6px 10px;border-radius:8px}
+  .po-badge-po{font-size:7pt}
+  .po-badge-val{font-size:11pt}
+  .po-body{padding:7px 11px 9px}
+  .po-meta-row{gap:8px;margin-bottom:7px}
+  .po-panel{padding:7px 9px;border-radius:7px}
+  .po-meta-left{gap:7px}
+  .po-label{font-size:6.5pt;margin-bottom:2px}
+  .po-value{font-size:9pt;line-height:1.35}
+  .po-budget-hint{font-size:7.9pt;margin-bottom:4px;margin-top:0}
+  .po-budget-hint.po-budget-divider{margin-top:6px;padding-top:6px}
+  .po-budget-grid{gap:2px 8px;font-size:8pt}
+  .po-cb{width:11px;height:11px;margin-right:5px}
+  .po-expend-other{margin-top:2px;padding-top:4px}
+  .po-other-line-text{min-height:11px;font-size:8.5pt}
+  .po-table{font-size:8pt;border-radius:7px}
+  .po-table th,.po-table td{padding:3px 5px}
+  .po-table thead th{padding:5px 4px;font-size:6.5pt}
+  .po-table tbody td.po-col-ref{font-size:7.8pt}
+  .po-total-row th{padding:5px 5px;font-size:7.6pt}
+  .po-total-row td{font-size:10pt;padding:5px 5px}
+  .po-foot{margin-top:6px;padding-top:6px;font-size:8.2pt}
+  .po-foot-grid{gap:6px 12px}
+  .po-signoff{margin-left:2px;padding-left:8px;padding-top:0;margin-top:6px}
 }
 @media screen{
   .print-area{position:absolute;left:-9999px;visibility:hidden}
@@ -343,6 +345,24 @@ body.is-admin span.admin-only.inline{display:inline}
     <div class="hero-sub">Subject budgets, purchase requests, and printable purchase orders for the office. Spent amounts update when a request is marked processed.</div>
   </div>
 
+  <div class="sc no-print">
+    <div class="sc-header">
+      <div>
+        <div class="sc-title">Your name on requisitions</div>
+        <div class="sc-sub">Shown as &ldquo;Requested by&rdquo; on printed orders (instead of your email). Saved to your account profile.</div>
+      </div>
+    </div>
+    <div class="sc-body">
+      <div class="form-row" style="margin:0;align-items:flex-end;gap:.75rem">
+        <div style="flex:1;min-width:200px">
+          <label class="form-label" for="requisitionDisplayName">Display name</label>
+          <input type="text" id="requisitionDisplayName" class="form-input" style="max-width:360px" placeholder="e.g. Richard McColm" autocomplete="name">
+        </div>
+        <button type="button" class="btn btn-primary" id="saveDisplayNameBtn">Save</button>
+      </div>
+    </div>
+  </div>
+
   <div class="sc">
     <div class="sc-header">
       <div>
@@ -506,6 +526,45 @@ body.is-admin span.admin-only.inline{display:inline}
     return '£' + x.toFixed(2);
   }
 
+  function looksLikeEmail(s) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(s || '').trim());
+  }
+
+  /** Best label for printed / reviewed requests: profile name, avoiding raw email when possible. */
+  function requesterNameForPrint(prof) {
+    if (!prof) return 'Staff';
+    var dn = String(prof.display_name || '').trim();
+    if (dn && !looksLikeEmail(dn)) return dn;
+    var em = String(prof.email || '').trim();
+    if (!em) return 'Staff';
+    var fromLocal = deriveNameFromEmailLocalPart(em);
+    return fromLocal || em;
+  }
+
+  function deriveNameFromEmailLocalPart(email) {
+    var local = email.split('@')[0];
+    if (!local) return '';
+    local = local.replace(/^[a-z]{0,3}\d+/i, '').replace(/^[\d_]+/, '').replace(/[._-]+/g, ' ').trim();
+    if (!local) return '';
+    return local.split(/\s+/).map(function(part) {
+      if (!part.length) return '';
+      if (part.length <= 2) return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+      return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+    }).filter(Boolean).join(' ');
+  }
+
+  function loadRequisitionDisplayName() {
+    PurchaseOrderService.getMyProfile().then(function(row) {
+      var inp = $('requisitionDisplayName');
+      if (!inp || !row) return;
+      inp.value = (row.display_name && String(row.display_name).trim()) ? String(row.display_name).trim() : '';
+    }).catch(function() { /* ignore */ });
+  }
+
+  function requestStatusDeletable(st) {
+    return st === 'draft' || st === 'submitted' || st === 'rejected';
+  }
+
   var BUDGET_CHECKLIST = [
     { code: 'drama', label: 'Drama' },
     { code: 'art_design', label: 'Art & Design' },
@@ -582,12 +641,9 @@ body.is-admin span.admin-only.inline{display:inline}
     $('editorBudgetVoteOther').disabled = vote !== 'other';
   }
 
-  /** Fewer blank rows for a typical order so one landscape page fits; large orders grow onto page 2+. */
+  /** No filler rows by default so the form stays on one landscape page; long POs flow to page 2. */
   function padLineRows(rowsHtml, dataRowCount) {
-    var pad;
-    if (dataRowCount <= 5) pad = Math.max(0, 7 - dataRowCount);
-    else if (dataRowCount <= 12) pad = 1;
-    else pad = 0;
+    var pad = dataRowCount > 0 && dataRowCount < 4 ? 1 : 0;
     var empty = '';
     for (var i = 0; i < pad; i++) {
       empty += '<tr><td class="po-col-qty">&nbsp;</td><td class="po-col-pack">&nbsp;</td><td class="po-col-ref">&nbsp;</td><td class="po-col-desc">&nbsp;</td><td class="po-num po-col-unit">&nbsp;</td><td class="po-num po-col-total">&nbsp;</td></tr>';
@@ -702,14 +758,36 @@ body.is-admin span.admin-only.inline{display:inline}
       } else {
         rows.forEach(function(r) {
           var sub = SUBJECTS[r.subject_code] ? SUBJECTS[r.subject_code].label : r.subject_code;
-          html += '<tr><td>' + esc(sub) + '</td><td>' + esc(r.status) + '</td><td class="mono">' + esc(r.po_number || '—') + '</td><td>' + esc((r.submitted_at || r.created_at || '').slice(0, 10)) + '</td><td>' +
-            '<button type="button" class="btn btn-ghost btn-open-req" data-id="' + esc(r.id) + '">Open</button></td></tr>';
+          var del = requestStatusDeletable(r.status)
+            ? '<button type="button" class="btn btn-danger btn-del-req" data-id="' + esc(r.id) + '" data-status="' + esc(r.status) + '" style="padding:.35rem .6rem;font-size:.72rem">Delete</button>'
+            : '';
+          html += '<tr><td>' + esc(sub) + '</td><td>' + esc(r.status) + '</td><td class="mono">' + esc(r.po_number || '—') + '</td><td>' + esc((r.submitted_at || r.created_at || '').slice(0, 10)) + '</td><td style="white-space:nowrap;display:flex;gap:.35rem;flex-wrap:wrap;align-items:center">' +
+            '<button type="button" class="btn btn-ghost btn-open-req" data-id="' + esc(r.id) + '">Open</button>' + del + '</td></tr>';
         });
       }
       html += '</tbody></table>';
       $('myRequestsTable').innerHTML = html;
       $('myRequestsTable').querySelectorAll('.btn-open-req').forEach(function(btn) {
         btn.onclick = function() { openRequest(btn.getAttribute('data-id')); };
+      });
+      $('myRequestsTable').querySelectorAll('.btn-del-req').forEach(function(btn) {
+        btn.onclick = function() {
+          var rid = btn.getAttribute('data-id');
+          var st = btn.getAttribute('data-status');
+          var msg =
+            st === 'submitted'
+              ? 'Withdraw and delete this submitted request? It will be removed from the approval queue.'
+              : st === 'rejected'
+              ? 'Delete this rejected request permanently?'
+              : 'Delete this draft permanently?';
+          if (!confirm(msg)) return;
+          PurchaseOrderService.deleteMyRequest(rid).then(function() {
+            toast('Request deleted.');
+            loadMyRequests();
+            loadAdmin();
+            loadDashboard();
+          }).catch(function(e) { toast(e.message || 'Delete failed'); });
+        };
       });
     });
   }
@@ -938,7 +1016,7 @@ body.is-admin span.admin-only.inline{display:inline}
   function openReview(id, mode) {
     PurchaseOrderService.getRequest(id).then(function(req) {
       PurchaseOrderService.getProfile(req.requester_id).then(function(prof) {
-        var name = prof && (prof.display_name || prof.email) || 'Staff';
+        var name = requesterNameForPrint(prof);
         var lines = req.purchase_request_lines || [];
         lines.sort(function(a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
         var total = 0;
@@ -991,7 +1069,7 @@ body.is-admin span.admin-only.inline{display:inline}
   function printPO(id) {
     PurchaseOrderService.getRequest(id).then(function(req) {
       PurchaseOrderService.getProfile(req.requester_id).then(function(prof) {
-        var name = prof && (prof.display_name || prof.email) || 'Staff';
+        var name = requesterNameForPrint(prof);
         var lines = req.purchase_request_lines || [];
         lines.sort(function(a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
         var total = 0;
@@ -1076,6 +1154,13 @@ body.is-admin span.admin-only.inline{display:inline}
   $('submitReqBtn').onclick = submitFromEditor;
   $('deleteDraftBtn').onclick = deleteDraftFromEditor;
 
+  $('saveDisplayNameBtn').onclick = function() {
+    var v = $('requisitionDisplayName').value;
+    PurchaseOrderService.updateMyDisplayName(v).then(function() {
+      toast('Display name saved.');
+    }).catch(function(e) { toast(e.message || 'Could not save'); });
+  };
+
   $('editorModal').addEventListener('change', function(e) {
     if (e.target && e.target.name === 'editorBudgetVote') syncBudgetVoteOtherInput();
   });
@@ -1084,6 +1169,7 @@ body.is-admin span.admin-only.inline{display:inline}
     renderBudgetVoteRadios();
     fillYearSelects();
     setAdminClass();
+    loadRequisitionDisplayName();
     loadDashboard();
     loadMyRequests();
     loadAdmin();
