@@ -18,11 +18,13 @@
 ### Run the database migrations
 
 1. In Supabase Dashboard, go to **SQL Editor**
-2. Run each migration in order:
+2. Run each migration in order (by timestamp):
    - `supabase/migrations/20250318000000_initial_schema.sql`
    - `supabase/migrations/20250318100000_allowed_emails.sql`
    - `supabase/migrations/20250318100001_admin_and_shared_calendar.sql`
-   - `supabase/migrations/20250322000000_audit_log.sql`
+   - `supabase/migrations/20250322000000_triangulation_evidence.sql`
+   - `supabase/migrations/20250322100000_announcements.sql`
+   - `supabase/migrations/20250326120000_purchase_ordering.sql` (procurement / purchase orders)
 
 ### Disable public sign-up (recommended)
 
@@ -148,7 +150,7 @@ If you prefer not to store credentials in `config.js`, you can use a build step 
 
 ## Post-deployment checklist
 
-- [ ] Run all Supabase migrations (initial, allowed_emails, admin + shared calendar, audit_log)
+- [ ] Run all Supabase migrations (including `purchase_ordering` if using Procurement)
 - [ ] Deploy the `delete-user` Edge Function (required for GDPR account deletion)
 - [ ] Add your email to `allowed_emails` with `is_admin = true`
 - [ ] Disable email signups in Supabase Auth (if using allowlist-only access)
