@@ -12,7 +12,7 @@
 <script src="auth-guard.js"></script>
 <script src="purchase-order-service.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@700;800&family=Source+Serif+4:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--navy:#1e2d4a;--navy-dark:#16243c;--accent-drama:#4a7fd4;--accent-ad:#c0622a;--accent-photo:#8b5cf6;--white:#fff;--bg:#f0f2f5;--card:#fff;--border:#e2e8f0;--text:#1a202c;--text2:#4a5568;--text3:#718096}
@@ -91,16 +91,48 @@ body.is-admin span.admin-only.inline{display:inline}
 @media print{
   .no-print{display:none!important}
   body{background:#fff}
-  .print-area{display:block!important;position:static!important;padding:0 1rem;visibility:visible!important}
+  .print-area{display:block!important;position:static!important;padding:12mm 14mm;visibility:visible!important;max-width:none}
+  @page{margin:12mm}
 }
 @media screen{
   .print-area{position:absolute;left:-9999px;visibility:hidden}
 }
-.print-area{font-size:11pt;line-height:1.4}
-.print-area h1{font-size:16pt;margin-bottom:.5rem}
-.print-area table{width:100%;border-collapse:collapse;margin:1rem 0}
-.print-area th,.print-area td{border:1px solid #333;padding:6px 8px;text-align:left}
-.print-area .print-total{font-weight:700;margin-top:.5rem}
+.print-area{font-size:10.5pt;line-height:1.45;color:#111;font-family:'Source Serif 4','Georgia','Times New Roman',serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+
+.po-doc{max-width:210mm;margin:0 auto;border:1.5px solid #1a1a1a;background:#fff;padding:14mm 16mm 12mm;box-sizing:border-box}
+.po-title{text-align:center;font-size:13pt;font-weight:700;letter-spacing:.04em;text-transform:uppercase;margin:0;padding-bottom:3mm;border-bottom:2px solid #1a1a1a}
+.po-subtitle{text-align:center;font-size:9.5pt;margin:3mm 0 9mm;color:#3d3d3d;line-height:1.4}
+.po-meta-row{display:grid;grid-template-columns:1fr 1fr;gap:0;border:1px solid #1a1a1a;margin-bottom:10mm;min-height:32mm;break-inside:avoid}
+.po-meta-left{padding:10px 12px;border-right:1px solid #1a1a1a;display:flex;flex-direction:column;justify-content:flex-start;gap:8px}
+.po-meta-right{padding:10px 12px;background:#fafafa}
+.po-label{font-size:8pt;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#333;margin-bottom:2px}
+.po-value{font-size:10.5pt;line-height:1.35}
+.po-budget-hint{font-size:8.8pt;margin:0 0 6px;color:#444}
+.po-budget-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;font-size:9pt}
+.po-cb{display:inline-block;width:11px;height:11px;border:1px solid #222;margin-right:6px;vertical-align:-1px;text-align:center;line-height:9px;font-size:8pt;font-family:'Inter',sans-serif}
+.po-cb.checked{background:#1a1a1a;color:#fff}
+.po-other-row{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:9pt}
+.po-other-line{flex:1;border-bottom:1px solid #1a1a1a;min-height:14px}
+
+.po-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:9.5pt}
+.po-table th,.po-table td{border:1px solid #1a1a1a;padding:7px 8px;vertical-align:top}
+.po-table thead th{background:#e6e6e6;font-weight:700;text-align:center;font-size:8.2pt;letter-spacing:.02em;text-transform:none;padding:8px 6px}
+.po-table .po-col-qty{width:7%;text-align:center}
+.po-table .po-col-pack{width:10%;text-align:center}
+.po-table .po-col-ref{width:14%}
+.po-table .po-col-desc{width:39%}
+.po-table .po-col-unit{width:14%;text-align:right;font-variant-numeric:tabular-nums}
+.po-table .po-col-total{width:16%;text-align:right;font-variant-numeric:tabular-nums}
+.po-table tbody td.po-col-qty,.po-table tbody td.po-col-pack{text-align:center}
+.po-table tbody td.po-col-ref{font-family:ui-monospace,SFMono-Regular,monospace;font-size:9pt}
+.po-table tbody td.po-num{text-align:right;font-variant-numeric:tabular-nums}
+.po-total-row th{background:#e6e6e6;font-weight:700;text-align:center;font-size:9.5pt;padding:10px 8px;break-inside:avoid}
+.po-total-row td{background:#e6e6e6;font-weight:700;text-align:right;font-size:10.5pt;padding:10px 8px}
+.po-table thead{break-inside:avoid}
+
+.po-foot{margin-top:9mm;font-size:9.5pt;color:#333}
+.po-foot-grid{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-top:6px;padding-top:6px;border-top:1px solid #ccc}
+.po-mono{font-family:ui-monospace,SFMono-Regular,monospace;font-size:9.5pt}
 </style>
 </head>
 <body class="no-print-body" style="display:flex">
@@ -276,6 +308,30 @@ body.is-admin span.admin-only.inline{display:inline}
     var x = Number(n);
     if (isNaN(x)) x = 0;
     return '£' + x.toFixed(2);
+  }
+
+  var BUDGET_CHECKLIST = [
+    { code: 'drama', label: 'Drama' },
+    { code: 'art_design', label: 'Art & Design' },
+    { code: 'photography', label: 'Photography' }
+  ];
+
+  function budgetChecklistHtml(selectedCode) {
+    var cells = BUDGET_CHECKLIST.map(function(item) {
+      var on = item.code === selectedCode;
+      return '<div><span class="po-cb' + (on ? ' checked' : '') + '" aria-hidden="true">' + (on ? '\u2713' : '') + '</span>' + esc(item.label) + '</div>';
+    }).join('');
+    return '<p class="po-budget-hint">Please select appropriate subject budget:</p><div class="po-budget-grid">' + cells + '</div><div class="po-other-row"><span>Other:</span><span class="po-other-line"></span></div>';
+  }
+
+  function padLineRows(rowsHtml, dataRowCount, minSlots) {
+    var n = minSlots || 10;
+    var pad = Math.max(0, n - dataRowCount);
+    var empty = '';
+    for (var i = 0; i < pad; i++) {
+      empty += '<tr><td class="po-col-qty">&nbsp;</td><td class="po-col-pack">&nbsp;</td><td class="po-col-ref">&nbsp;</td><td class="po-col-desc">&nbsp;</td><td class="po-num po-col-unit">&nbsp;</td><td class="po-num po-col-total">&nbsp;</td></tr>';
+    }
+    return rowsHtml + empty;
   }
 
   function fillYearSelects() {
@@ -659,19 +715,46 @@ body.is-admin span.admin-only.inline{display:inline}
         var rows = lines.map(function(l) {
           var lt = Number(l.line_total);
           total += lt;
-          return '<tr><td>' + esc(l.product_code) + '</td><td>' + esc(l.description) + '</td><td>' + formatMoney(l.unit_price) + '</td><td>' + esc(String(l.quantity)) + '</td><td>' + formatMoney(l.line_total) + '</td></tr>';
+          var qty = l.quantity != null ? String(l.quantity) : '';
+          var code = (l.product_code || '').trim();
+          var desc = (l.description || '').trim();
+          return '<tr><td class="po-col-qty">' + esc(qty) + '</td><td class="po-col-pack">\u2014</td><td class="po-col-ref">' + esc(code) + '</td><td class="po-col-desc">' + esc(desc) + '</td><td class="po-num po-col-unit">' + formatMoney(l.unit_price) + '</td><td class="po-num po-col-total">' + formatMoney(l.line_total) + '</td></tr>';
         }).join('');
+        var subjLabel = SUBJECTS[req.subject_code] ? SUBJECTS[req.subject_code].label : req.subject_code;
+        var notesBlock = (req.notes && String(req.notes).trim()) ? esc(req.notes.trim()) : '\u2014';
+        var bodyRows = padLineRows(rows, lines.length, 10);
         $('printArea').innerHTML =
-          '<h1>Purchase order</h1>' +
-          '<p><strong>Knightswood Secondary School</strong> · Faculty of Art &amp; Drama</p>' +
-          '<p><strong>PO number:</strong> ' + esc(req.po_number) + '</p>' +
-          '<p><strong>Date:</strong> ' + esc(new Date().toLocaleDateString('en-GB')) + '</p>' +
-          '<p><strong>Subject budget:</strong> ' + esc(SUBJECTS[req.subject_code] ? SUBJECTS[req.subject_code].label : req.subject_code) + ' · <strong>Academic year:</strong> ' + esc(req.academic_year) + '</p>' +
-          '<p><strong>Requested by:</strong> ' + esc(name) + '</p>' +
-          '<p><strong>Notes:</strong> ' + esc(req.notes || '—') + '</p>' +
-          '<table><thead><tr><th>Product code</th><th>Description</th><th>Unit price</th><th>Qty</th><th>Line total</th></tr></thead><tbody>' + rows + '</tbody></table>' +
-          '<p class="print-total"><strong>Total (GBP):</strong> ' + formatMoney(total) + '</p>' +
-          '<p style="margin-top:2rem">Office use: _________________________ &nbsp; Date: __________</p>';
+          '<div class="po-doc">' +
+          '<h1 class="po-title">Internal purchase requisition</h1>' +
+          '<p class="po-subtitle">Knightswood Secondary School · Faculty of Art &amp; Drama · Procurement office</p>' +
+          '<div class="po-meta-row">' +
+          '<div class="po-meta-left">' +
+          '<div><div class="po-label">Department / cost centre</div><div class="po-value">' + esc(subjLabel) + '</div></div>' +
+          '<div><div class="po-label">Supplier, delivery &amp; notes</div><div class="po-value">' + notesBlock + '</div></div>' +
+          '</div>' +
+          '<div class="po-meta-right">' + budgetChecklistHtml(req.subject_code) + '</div>' +
+          '</div>' +
+          '<table class="po-table">' +
+          '<thead><tr>' +
+          '<th class="po-col-qty">Qty</th>' +
+          '<th class="po-col-pack">Item / pack size</th>' +
+          '<th class="po-col-ref">Ref no. / supplier code</th>' +
+          '<th class="po-col-desc">Brief description of item</th>' +
+          '<th class="po-col-unit">Unit cost</th>' +
+          '<th class="po-col-total">Total cost</th>' +
+          '</tr></thead><tbody>' + bodyRows +
+          '<tr class="po-total-row"><th colspan="5">Total order cost (GBP)</th><td>' + formatMoney(total) + '</td></tr>' +
+          '</tbody></table>' +
+          '<div class="po-foot">' +
+          '<div class="po-foot-grid">' +
+          '<span><span class="po-label">PO number</span> <span class="po-mono">' + esc(req.po_number || '') + '</span></span>' +
+          '<span><span class="po-label">Date printed</span> ' + esc(new Date().toLocaleDateString('en-GB')) + '</span>' +
+          '<span><span class="po-label">Academic year</span> ' + esc(req.academic_year) + '</span>' +
+          '</div>' +
+          '<div class="po-foot-grid" style="margin-top:8px;border-top:none;padding-top:0">' +
+          '<span><span class="po-label">Requested by</span> ' + esc(name) + '</span>' +
+          '<span style="flex:1;min-width:200px"><span class="po-label">Office — authorised by</span> _________________________ &nbsp; <span class="po-label">Date</span> __________</span>' +
+          '</div></div></div>';
         $('printArea').setAttribute('aria-hidden', 'false');
         window.print();
       });
