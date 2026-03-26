@@ -9,6 +9,12 @@
       .replace(/"/g, '&quot;');
   }
 
+  function priorityPillHtml(priority) {
+    var p = priority === 'high' || priority === 'low' ? priority : 'normal';
+    var label = p === 'high' ? 'High' : p === 'low' ? 'Low' : 'Normal';
+    return '<span class="home-task-priority ' + p + '">' + esc(label) + '</span>';
+  }
+
   window.TeacherTasksHome = {
     render: function() {
       var el = document.getElementById('homeTeacherTasks');
@@ -48,6 +54,7 @@
             row.innerHTML =
               '<button type="button" class="home-task-done" aria-label="Mark done" data-task-id="' + esc(t.id) + '">✓</button>' +
               '<span class="home-task-title">' + esc(t.title) + '</span>' +
+              priorityPillHtml(t.priority) +
               badgeHtml;
             var doneBtn = row.querySelector('.home-task-done');
             doneBtn.addEventListener('click', function(e) {
