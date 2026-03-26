@@ -75,7 +75,15 @@ tr:hover td{background:#f8fafc}
 
 .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:none;align-items:center;justify-content:center;padding:1rem}
 .modal-overlay.visible{display:flex}
-.modal{background:var(--card);border-radius:10px;max-width:720px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 20px 50px rgba(0,0,0,.2)}
+.modal{background:var(--card);border-radius:10px;max-width:820px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 20px 50px rgba(0,0,0,.2)}
+.budget-vote-fieldset{border:1px solid var(--border);border-radius:10px;padding:1rem 1.15rem 1.1rem;margin:0 0 1rem;background:var(--bg)}
+.budget-vote-fieldset:disabled{opacity:.72}
+.budget-vote-legend{font-family:'Sora',sans-serif;font-size:.88rem;font-weight:700;padding:0 .35rem}
+.budget-vote-grid{display:grid;grid-template-columns:1fr 1fr;gap:.4rem 1rem;font-size:.8rem}
+.budget-vote-item{display:flex;align-items:flex-start;gap:.45rem;line-height:1.35;cursor:pointer;color:var(--text2)}
+.budget-vote-item input{flex-shrink:0;margin-top:.2rem;accent-color:var(--navy)}
+.budget-vote-item span{color:var(--text)}
+.budget-vote-other-wrap{margin-top:.65rem;padding-top:.65rem;border-top:1px solid var(--border)}
 .modal-head{padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
 .modal-body{padding:1.25rem}
 
@@ -93,7 +101,34 @@ body.is-admin span.admin-only.inline{display:inline}
   body{background:#f8fafc;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .print-area{display:block!important;position:static!important;padding:0;visibility:visible!important;max-width:none;width:100%}
   .po-doc{box-shadow:none;border-radius:8px}
-  @page{size:A4 landscape;margin:10mm}
+  @page{size:A4 landscape;margin:8mm}
+  .print-area{font-size:9.5pt;line-height:1.4}
+  .po-hero{padding:10px 16px 11px;gap:12px}
+  .po-kicker{font-size:8pt;margin-bottom:2px}
+  .po-title{font-size:15pt}
+  .po-subtitle{font-size:9pt}
+  .po-hero-badge{padding:8px 11px;border-radius:8px}
+  .po-badge-val{font-size:12pt}
+  .po-body{padding:10px 14px 11px}
+  .po-meta-row{gap:10px;margin-bottom:9px}
+  .po-panel{padding:9px 11px;border-radius:8px}
+  .po-meta-left{gap:9px}
+  .po-label{font-size:7pt}
+  .po-value{font-size:9.5pt}
+  .po-budget-hint{font-size:8.3pt;margin-bottom:5px;margin-top:0}
+  .po-budget-hint.po-budget-divider{margin-top:8px;padding-top:8px;border-top:1px dashed var(--border)}
+  .po-budget-grid{gap:3px 10px;font-size:8.5pt}
+  .po-cb{width:12px;height:12px;margin-right:6px}
+  .po-expend-other{margin-top:3px;padding-top:5px}
+  .po-table{font-size:8.6pt;border-radius:8px}
+  .po-table th,.po-table td{padding:5px 7px}
+  .po-table thead th{padding:6px 5px;font-size:7pt}
+  .po-table tbody td.po-col-ref{font-size:8.3pt}
+  .po-total-row th{padding:7px 6px;font-size:8.2pt}
+  .po-total-row td{font-size:10.5pt;padding:7px 6px}
+  .po-foot{margin-top:8px;padding-top:8px;font-size:8.8pt}
+  .po-foot-grid{gap:8px 16px}
+  .po-signoff{margin-left:2px;padding-left:10px}
 }
 @media screen{
   .print-area{position:absolute;left:-9999px;visibility:hidden}
@@ -202,6 +237,24 @@ body.is-admin span.admin-only.inline{display:inline}
 .po-cb.checked{border-color:var(--po-accent);background:var(--po-accent);box-shadow:0 1px 3px rgba(30,45,74,.15)}
 .po-other-row{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:9.5pt;color:var(--text2)}
 .po-other-line{flex:1;border-bottom:1.5px solid var(--border);min-height:16px}
+.po-expend-other{
+  grid-column:1/-1;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-top:4px;
+  padding-top:6px;
+  border-top:1px dashed var(--border);
+  -webkit-print-color-adjust:exact;
+  print-color-adjust:exact
+}
+.po-other-line-text{
+  flex:1;
+  border-bottom:1.5px solid var(--border);
+  min-height:13px;
+  font-size:9.5pt;
+  color:var(--text)
+}
 
 .po-table{width:100%;border-collapse:separate;border-spacing:0;table-layout:fixed;font-size:9.5pt;border-radius:10px;overflow:hidden;border:1px solid var(--border)}
 .po-table th,.po-table td{border-bottom:1px solid var(--border);border-right:1px solid var(--border);padding:8px 10px;vertical-align:top}
@@ -389,6 +442,15 @@ body.is-admin span.admin-only.inline{display:inline}
           <textarea id="editorNotes" class="form-input" style="max-width:none;min-height:72px;resize:vertical" placeholder="Supplier, delivery, etc."></textarea>
         </div>
       </div>
+      <fieldset class="budget-vote-fieldset" id="editorBudgetVoteFieldset">
+        <legend class="budget-vote-legend">What are you ordering? (budget line)</legend>
+        <p class="sc-sub" style="margin:-0.2rem 0 .75rem">Pick the spend type for the office — it appears on the printed requisition with your line items.</p>
+        <div class="budget-vote-grid" id="editorBudgetVoteGrid"></div>
+        <div class="budget-vote-other-wrap" id="editorBudgetVoteOtherWrap">
+          <label class="form-label" for="editorBudgetVoteOther">If you chose &ldquo;Other&rdquo;, specify</label>
+          <input type="text" id="editorBudgetVoteOther" class="form-input" style="max-width:none" placeholder="e.g. workshop materials, trip costs&hellip;" autocomplete="off">
+        </div>
+      </fieldset>
       <div class="sc-title" style="margin-bottom:.75rem">Line items</div>
       <div class="lines-editor" id="linesEditor"></div>
       <button type="button" class="btn btn-ghost" id="addLineBtn" style="margin-bottom:1rem">+ Add line</button>
@@ -450,17 +512,82 @@ body.is-admin span.admin-only.inline{display:inline}
     { code: 'photography', label: 'Photography' }
   ];
 
-  function budgetChecklistHtml(selectedCode) {
+  /** Keys must match DB constraint in migration `purchase_budget_vote`. */
+  var EXPENDITURE_VOTES = [
+    { id: 'materials_apparatus', label: 'Materials, apparatus & equipment' },
+    { id: 'active_kids', label: 'Active Kids supplies' },
+    { id: 'active_schools', label: 'Active Schools supplies' },
+    { id: 'staff_development', label: 'Staff development' },
+    { id: 'npaf', label: 'NPAF' },
+    { id: 'office_equipment', label: 'Office equipment & materials' },
+    { id: 'health_safety', label: 'Health & safety — supplies' },
+    { id: 'furniture_fittings', label: 'Furniture & fittings' },
+    { id: 'school_activities', label: 'School activities' },
+    { id: 'other', label: 'Other' }
+  ];
+
+  function renderBudgetVoteRadios() {
+    var g = $('editorBudgetVoteGrid');
+    if (!g) return;
+    var html = '';
+    EXPENDITURE_VOTES.forEach(function(v) {
+      html +=
+        '<label class="budget-vote-item"><input type="radio" name="editorBudgetVote" value="' + esc(v.id) + '"> <span>' + esc(v.label) + '</span></label>';
+    });
+    g.innerHTML = html;
+  }
+
+  function budgetSubjectHtml(selectedCode) {
     var cells = BUDGET_CHECKLIST.map(function(item) {
       var on = item.code === selectedCode;
       return '<div><span class="po-cb' + (on ? ' checked' : '') + '" aria-hidden="true">' + (on ? '\u2713' : '') + '</span>' + esc(item.label) + '</div>';
     }).join('');
-    return '<p class="po-budget-hint">Please select appropriate subject budget:</p><div class="po-budget-grid">' + cells + '</div><div class="po-other-row"><span>Other:</span><span class="po-other-line"></span></div>';
+    return '<p class="po-budget-hint">Subject budget:</p><div class="po-budget-grid">' + cells + '</div>';
   }
 
-  function padLineRows(rowsHtml, dataRowCount, minSlots) {
-    var n = minSlots || 10;
-    var pad = Math.max(0, n - dataRowCount);
+  function expenditureVotePrintHtml(selectedVote, otherText) {
+    var rows = EXPENDITURE_VOTES.filter(function(v) { return v.id !== 'other'; });
+    var cells = rows.map(function(v) {
+      var on = v.id === selectedVote;
+      return '<div><span class="po-cb' + (on ? ' checked' : '') + '" aria-hidden="true">' + (on ? '\u2713' : '') + '</span>' + esc(v.label) + '</div>';
+    }).join('');
+    var otherOn = selectedVote === 'other';
+    var ot = (otherText && String(otherText).trim()) ? esc(String(otherText).trim()) : '';
+    var otherRow =
+      '<div class="po-expend-other"><span class="po-cb' + (otherOn ? ' checked' : '') + '" aria-hidden="true">' + (otherOn ? '\u2713' : '') + '</span>Other: <span class="po-other-line-text">' + (ot || '\u00a0') + '</span></div>';
+    return '<p class="po-budget-hint po-budget-divider">Expenditure / budget line:</p><div class="po-budget-grid">' + cells + otherRow + '</div>';
+  }
+
+  function formatBudgetVoteLine(vote, other) {
+    if (!vote) return '\u2014';
+    if (vote === 'other') return (other && String(other).trim()) ? esc(String(other).trim()) : 'Other';
+    for (var i = 0; i < EXPENDITURE_VOTES.length; i++) {
+      if (EXPENDITURE_VOTES[i].id === vote) return esc(EXPENDITURE_VOTES[i].label);
+    }
+    return esc(vote);
+  }
+
+  function readBudgetVoteFromEditor() {
+    var picked = document.querySelector('#editorModal input[name="editorBudgetVote"]:checked');
+    var vote = picked ? picked.value : '';
+    var otherEl = $('editorBudgetVoteOther');
+    var other = otherEl ? otherEl.value : '';
+    return { vote: vote, other: other };
+  }
+
+  function syncBudgetVoteOtherInput() {
+    var fs = $('editorBudgetVoteFieldset');
+    if (!fs || fs.disabled) return;
+    var vote = readBudgetVoteFromEditor().vote;
+    $('editorBudgetVoteOther').disabled = vote !== 'other';
+  }
+
+  /** Fewer blank rows for a typical order so one landscape page fits; large orders grow onto page 2+. */
+  function padLineRows(rowsHtml, dataRowCount) {
+    var pad;
+    if (dataRowCount <= 5) pad = Math.max(0, 7 - dataRowCount);
+    else if (dataRowCount <= 12) pad = 1;
+    else pad = 0;
     var empty = '';
     for (var i = 0; i < pad; i++) {
       empty += '<tr><td class="po-col-qty">&nbsp;</td><td class="po-col-pack">&nbsp;</td><td class="po-col-ref">&nbsp;</td><td class="po-col-desc">&nbsp;</td><td class="po-num po-col-unit">&nbsp;</td><td class="po-num po-col-total">&nbsp;</td></tr>';
@@ -642,6 +769,9 @@ body.is-admin span.admin-only.inline{display:inline}
       $('editorYear').disabled = true;
       $('editorSubject').disabled = true;
       $('editorNotes').value = '';
+      $('editorBudgetVoteFieldset').disabled = false;
+      document.querySelectorAll('#editorModal input[name="editorBudgetVote"]').forEach(function(inp) { inp.checked = false; });
+      $('editorBudgetVoteOther').value = '';
       $('linesEditor').innerHTML = '';
       addLineRow();
       recalcEditorTotal();
@@ -652,6 +782,7 @@ body.is-admin span.admin-only.inline{display:inline}
       $('linesEditor').querySelectorAll('input').forEach(function(inp) { inp.disabled = false; });
       $('editorNotes').disabled = false;
       $('editorModal').classList.add('visible');
+      syncBudgetVoteOtherInput();
     }).catch(function(e) { toast(e.message || 'Could not create draft'); });
   }
 
@@ -665,13 +796,19 @@ body.is-admin span.admin-only.inline{display:inline}
       $('editorYear').disabled = true;
       $('editorSubject').disabled = true;
       $('editorNotes').value = req.notes || '';
+      var draft = req.status === 'draft';
+      $('editorBudgetVoteFieldset').disabled = !draft;
+      document.querySelectorAll('#editorModal input[name="editorBudgetVote"]').forEach(function(inp) {
+        inp.checked = (inp.value === (req.budget_vote || ''));
+      });
+      $('editorBudgetVoteOther').value = req.budget_vote_other || '';
+      $('editorBudgetVoteOther').disabled = !draft || (req.budget_vote !== 'other');
       var lines = req.purchase_request_lines || [];
       lines.sort(function(a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
       $('linesEditor').innerHTML = '';
       if (lines.length === 0) addLineRow();
       else lines.forEach(function(l) { addLineRow(l); });
       recalcEditorTotal();
-      var draft = req.status === 'draft';
       $('submitReqBtn').style.display = draft ? 'inline-flex' : 'none';
       $('saveDraftBtn').style.display = draft ? 'inline-flex' : 'none';
       $('deleteDraftBtn').style.display = draft ? 'inline-flex' : 'none';
@@ -680,6 +817,7 @@ body.is-admin span.admin-only.inline{display:inline}
       $('addLineBtn').style.display = draft ? 'inline-flex' : 'none';
       $('linesEditor').querySelectorAll('.line-remove').forEach(function(b) { b.style.display = draft ? 'inline-flex' : 'none'; });
       $('editorModal').classList.add('visible');
+      syncBudgetVoteOtherInput();
     }).catch(function(e) { toast(e.message || 'Load failed'); });
   }
 
@@ -694,8 +832,9 @@ body.is-admin span.admin-only.inline{display:inline}
     var id = $('editorRequestId').value;
     if (!id) return;
     var lines = readLinesFromEditor();
+    var bv = readBudgetVoteFromEditor();
     PurchaseOrderService.replaceLines(id, lines).then(function() {
-      return PurchaseOrderService.updateDraftMeta(id, $('editorNotes').value);
+      return PurchaseOrderService.updateDraftMeta(id, $('editorNotes').value, bv.vote, bv.other);
     }).then(function() {
       toast('Draft saved.');
     }).catch(function(e) { toast(e.message || 'Save failed'); });
@@ -704,13 +843,22 @@ body.is-admin span.admin-only.inline{display:inline}
   function submitFromEditor() {
     var id = $('editorRequestId').value;
     if (!id) return;
+    var bv = readBudgetVoteFromEditor();
+    if (!bv.vote) {
+      toast('Select what you are ordering (budget line).');
+      return;
+    }
+    if (bv.vote === 'other' && !String(bv.other || '').trim()) {
+      toast('Please specify the budget line for Other.');
+      return;
+    }
     var lines = readLinesFromEditor();
     if (lines.length === 0 || lines.every(function(l) { return !l.description.trim() && !l.product_code.trim(); })) {
       toast('Add at least one line item with a description or code.');
       return;
     }
     PurchaseOrderService.replaceLines(id, lines).then(function() {
-      return PurchaseOrderService.updateDraftMeta(id, $('editorNotes').value);
+      return PurchaseOrderService.updateDraftMeta(id, $('editorNotes').value, bv.vote, bv.other);
     }).then(function() {
       return PurchaseOrderService.submitRequest(id);
     }).then(function() {
@@ -802,6 +950,7 @@ body.is-admin span.admin-only.inline{display:inline}
         var sl = SUBJECTS[req.subject_code] ? SUBJECTS[req.subject_code].label : req.subject_code;
         var body = '<p><strong>Requester:</strong> ' + esc(name) + '</p>' +
           '<p><strong>Subject:</strong> ' + esc(sl) + ' · <strong>Year:</strong> ' + esc(req.academic_year) + '</p>' +
+          '<p><strong>Budget line:</strong> ' + formatBudgetVoteLine(req.budget_vote, req.budget_vote_other) + '</p>' +
           '<p><strong>Notes:</strong> ' + esc(req.notes || '—') + '</p>' +
           '<div class="table-wrap"><table><thead><tr><th>Code</th><th>Description</th><th>Price</th><th>Qty</th><th>Line</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
           '<p style="margin-top:.75rem"><strong>Total:</strong> ' + formatMoney(total) + '</p>';
@@ -857,7 +1006,10 @@ body.is-admin span.admin-only.inline{display:inline}
         var subjLabel = SUBJECTS[req.subject_code] ? SUBJECTS[req.subject_code].label : req.subject_code;
         var subjCls = (SUBJECTS[req.subject_code] && SUBJECTS[req.subject_code].cls) ? SUBJECTS[req.subject_code].cls : 'drama';
         var notesBlock = (req.notes && String(req.notes).trim()) ? esc(req.notes.trim()) : '\u2014';
-        var bodyRows = padLineRows(rows, lines.length, 10);
+        var bodyRows = padLineRows(rows, lines.length);
+        var budgetRight =
+          budgetSubjectHtml(req.subject_code) +
+          expenditureVotePrintHtml(req.budget_vote || '', req.budget_vote_other || '');
         $('printArea').innerHTML =
           '<div class="po-doc po-doc--' + esc(subjCls) + '">' +
           '<header class="po-hero">' +
@@ -877,7 +1029,7 @@ body.is-admin span.admin-only.inline{display:inline}
           '<div><div class="po-label">Department / cost centre</div><div class="po-value">' + esc(subjLabel) + '</div></div>' +
           '<div><div class="po-label">Supplier, delivery &amp; notes</div><div class="po-value">' + notesBlock + '</div></div>' +
           '</div>' +
-          '<div class="po-panel po-panel--budget">' + budgetChecklistHtml(req.subject_code) + '</div>' +
+          '<div class="po-panel po-panel--budget">' + budgetRight + '</div>' +
           '</div>' +
           '<table class="po-table">' +
           '<thead><tr>' +
@@ -924,7 +1076,12 @@ body.is-admin span.admin-only.inline{display:inline}
   $('submitReqBtn').onclick = submitFromEditor;
   $('deleteDraftBtn').onclick = deleteDraftFromEditor;
 
+  $('editorModal').addEventListener('change', function(e) {
+    if (e.target && e.target.name === 'editorBudgetVote') syncBudgetVoteOtherInput();
+  });
+
   window.checkAllowlist().then(function() {
+    renderBudgetVoteRadios();
     fillYearSelects();
     setAdminClass();
     loadDashboard();

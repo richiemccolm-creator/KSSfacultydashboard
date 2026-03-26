@@ -79,7 +79,7 @@
       return requireSession().then(function() {
         return window.supabase.from('purchase_requests')
           .select(
-            'id, academic_year, subject_code, requester_id, status, notes, created_at, updated_at, submitted_at, approved_at, approved_by, rejected_reason, po_number, processed_at, processed_by, purchase_request_lines(*)'
+            'id, academic_year, subject_code, requester_id, status, notes, budget_vote, budget_vote_other, created_at, updated_at, submitted_at, approved_at, approved_by, rejected_reason, po_number, processed_at, processed_by, purchase_request_lines(*)'
           )
           .eq('id', id)
           .maybeSingle();
@@ -145,10 +145,23 @@
       });
     },
 
-    updateDraftMeta: function(id, notes) {
+    /**
+     * @param {string} budgetVote - one of EXPENDITURE_VOTE_* keys or empty
+     * @param {string} [budgetVoteOther] - required text when vote is `other`
+     */
+    updateDraftMeta: function(id, notes, budgetVote, budgetVoteOther) {
       return requireSession().then(function() {
+        var vote = (budgetVote && String(budgetVote).trim()) ? String(budgetVote).trim() : null;
+        var other = null;
+        if (vote === 'other') {
+          other = (budgetVoteOther && String(budgetVoteOther).trim()) ? String(budgetVoteOther).trim() : null;
+        }
         return window.supabase.from('purchase_requests')
-          .update({ notes: notes || null })
+          .update({
+            notes: (notes && String(notes).trim()) ? String(notes).trim() : null,
+            budget_vote: vote,
+            budget_vote_other: other
+          })
           .eq('id', id)
           .eq('status', 'draft')
           .select();
