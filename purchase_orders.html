@@ -111,9 +111,10 @@ body.is-admin span.admin-only.inline{display:inline}
   .po-badge-po{font-size:7pt}
   .po-badge-val{font-size:11pt}
   .po-body{padding:7px 11px 9px}
-  .po-meta-row{gap:8px;margin-bottom:7px}
+  .po-details-panel,.po-budget-strip{margin-bottom:7px}
+  .po-details-grid{gap:8px}
   .po-panel{padding:7px 9px;border-radius:7px}
-  .po-meta-left{gap:7px}
+  .po-budget-grid--expend{gap:2px 6px}
   .po-label{font-size:6.5pt;margin-bottom:2px}
   .po-value{font-size:9pt;line-height:1.35}
   .po-budget-hint{font-size:7.9pt;margin-bottom:4px;margin-top:0}
@@ -201,12 +202,14 @@ body.is-admin span.admin-only.inline{display:inline}
 .po-badge-val{font-family:'Sora',sans-serif;font-size:14pt;font-weight:800;letter-spacing:.02em}
 
 .po-body{padding:14px 18px 16px}
-.po-meta-row{
+.po-details-panel,.po-budget-strip{
+  break-inside:avoid;
+  margin-bottom:12px
+}
+.po-details-grid{
   display:grid;
-  grid-template-columns:1.15fr 1fr;
-  gap:12px;
-  margin-bottom:12px;
-  break-inside:avoid
+  grid-template-columns:1fr 1fr;
+  gap:14px
 }
 .po-panel{
   border:1px solid var(--border);
@@ -222,7 +225,6 @@ body.is-admin span.admin-only.inline{display:inline}
 }
 .po-doc--art .po-panel--budget{background:linear-gradient(145deg,rgba(192,98,42,.07),#fff 40%);border-color:rgba(192,98,42,.22)}
 .po-doc--photo .po-panel--budget{background:linear-gradient(145deg,rgba(139,92,246,.07),#fff 40%);border-color:rgba(139,92,246,.22)}
-.po-meta-left{display:flex;flex-direction:column;gap:12px}
 .po-label{
   font-size:7.5pt;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
   color:var(--text3);margin-bottom:4px
@@ -230,6 +232,14 @@ body.is-admin span.admin-only.inline{display:inline}
 .po-value{font-size:10pt;line-height:1.45;color:var(--text)}
 .po-budget-hint{font-size:9pt;margin:0 0 8px;color:var(--text2);font-weight:500}
 .po-budget-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;font-size:9.5pt;color:var(--text2)}
+.po-budget-grid--subject{
+  grid-template-columns:repeat(3,1fr);
+  gap:6px 16px
+}
+.po-budget-grid--expend{
+  grid-template-columns:repeat(4,1fr);
+  gap:5px 12px
+}
 .po-cb{
   display:inline-flex;align-items:center;justify-content:center;
   width:14px;height:14px;border-radius:4px;border:1.5px solid var(--border);
@@ -601,7 +611,7 @@ body.is-admin span.admin-only.inline{display:inline}
       var on = item.code === selectedCode;
       return '<div><span class="po-cb' + (on ? ' checked' : '') + '" aria-hidden="true">' + (on ? '\u2713' : '') + '</span>' + esc(item.label) + '</div>';
     }).join('');
-    return '<p class="po-budget-hint">Subject budget:</p><div class="po-budget-grid">' + cells + '</div>';
+    return '<p class="po-budget-hint">Subject budget:</p><div class="po-budget-grid po-budget-grid--subject">' + cells + '</div>';
   }
 
   function expenditureVotePrintHtml(selectedVote, otherText) {
@@ -614,7 +624,7 @@ body.is-admin span.admin-only.inline{display:inline}
     var ot = (otherText && String(otherText).trim()) ? esc(String(otherText).trim()) : '';
     var otherRow =
       '<div class="po-expend-other"><span class="po-cb' + (otherOn ? ' checked' : '') + '" aria-hidden="true">' + (otherOn ? '\u2713' : '') + '</span>Other: <span class="po-other-line-text">' + (ot || '\u00a0') + '</span></div>';
-    return '<p class="po-budget-hint po-budget-divider">Expenditure / budget line:</p><div class="po-budget-grid">' + cells + otherRow + '</div>';
+    return '<p class="po-budget-hint po-budget-divider">Expenditure / budget line:</p><div class="po-budget-grid po-budget-grid--expend">' + cells + otherRow + '</div>';
   }
 
   function formatBudgetVoteLine(vote, other) {
@@ -1085,7 +1095,7 @@ body.is-admin span.admin-only.inline{display:inline}
         var subjCls = (SUBJECTS[req.subject_code] && SUBJECTS[req.subject_code].cls) ? SUBJECTS[req.subject_code].cls : 'drama';
         var notesBlock = (req.notes && String(req.notes).trim()) ? esc(req.notes.trim()) : '\u2014';
         var bodyRows = padLineRows(rows, lines.length);
-        var budgetRight =
+        var budgetBlock =
           budgetSubjectHtml(req.subject_code) +
           expenditureVotePrintHtml(req.budget_vote || '', req.budget_vote_other || '');
         $('printArea').innerHTML =
@@ -1102,13 +1112,12 @@ body.is-admin span.admin-only.inline{display:inline}
           '</div>' +
           '</header>' +
           '<div class="po-body">' +
-          '<div class="po-meta-row">' +
-          '<div class="po-panel po-meta-left">' +
+          '<div class="po-panel po-details-panel">' +
+          '<div class="po-details-grid">' +
           '<div><div class="po-label">Department / cost centre</div><div class="po-value">' + esc(subjLabel) + '</div></div>' +
           '<div><div class="po-label">Supplier, delivery &amp; notes</div><div class="po-value">' + notesBlock + '</div></div>' +
-          '</div>' +
-          '<div class="po-panel po-panel--budget">' + budgetRight + '</div>' +
-          '</div>' +
+          '</div></div>' +
+          '<div class="po-panel po-panel--budget po-budget-strip">' + budgetBlock + '</div>' +
           '<table class="po-table">' +
           '<thead><tr>' +
           '<th class="po-col-qty">Qty</th>' +
