@@ -73,6 +73,22 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--tex
 .header-hub-link { display: flex; align-items: center; flex-shrink: 0; text-decoration: none; opacity: 0.95; }
 .header-hub-link:hover { opacity: 1; }
 .header-logo { height: 34px; width: auto; display: block; }
+.header-back-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.92);
+  text-decoration: none;
+  padding: 0.4rem 0.65rem;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.1);
+  white-space: nowrap;
+}
+.header-back-btn:hover { background: rgba(255, 255, 255, 0.18); color: #fff; }
 .header-titles { min-width: 0; }
 .header-titles h1 {
   font-family: 'Sora', sans-serif;
@@ -641,6 +657,7 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--tex
 <header class="site-header">
   <div class="header-left">
     <a href="expressive_arts_faculty%20(10).html" class="header-hub-link" title="Faculty Hub"><img src="faculty-hub-logo.png" alt="Faculty Hub" class="header-logo"></a>
+    <a href="expressive_arts_faculty%20(10).html" class="header-back-btn" title="Back to Faculty Hub">← Back to hub</a>
     <div class="header-titles">
       <h1>Quality Calendar</h1>
       <div class="header-sub">Knightswood Secondary · Art &amp; Drama · HGIOS standards planner</div>
@@ -670,7 +687,7 @@ body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--tex
   <button class="view-tab" id="tab-gantt" onclick="switchView('gantt')">
     <span class="view-tab-icon">▦</span> Gantt Chart
   </button>
-  <span class="year-display" id="year-display">2024–25</span>
+  <span class="year-display" id="year-display"></span>
 </div>
 
 <!-- ═══ CONTROLS ═══ -->
@@ -1008,8 +1025,32 @@ let currentMonth = 'all';
 let currentCat = 'all';
 let currentActivity = 'all';
 let currentSearch = '';
-let currentYear = '2024-25';
+let currentYear = '';
 let ganttRagFilter = 'all';
+
+/** Scottish session: August → July (same rule as Faculty Hub academic calendar). */
+function getDefaultAcademicYearKey() {
+  const d = new Date();
+  const y0 = d.getMonth() >= 7 ? d.getFullYear() : d.getFullYear() - 1;
+  const y1 = y0 + 1;
+  return y0 + '-' + String(y1).slice(-2);
+}
+function syncYearToSession(key) {
+  currentYear = key;
+  const sel = document.getElementById('year-selector');
+  if (sel) {
+    const has = Array.from(sel.options).some(function (o) { return o.value === key; });
+    if (!has) {
+      var opt = document.createElement('option');
+      opt.value = key;
+      opt.textContent = key.replace('-', '–');
+      sel.insertBefore(opt, sel.firstChild);
+    }
+    sel.value = key;
+  }
+  var yd = document.getElementById('year-display');
+  if (yd) yd.textContent = key.replace('-', '–');
+}
 
 function storageKey(actKey, month, year) {
   return `qcp_${year}_${month}_${actKey}`;
@@ -1630,6 +1671,7 @@ function triggerPrint() {
 // ═══════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════
+syncYearToSession(getDefaultAcademicYearKey());
 buildCards();
 </script>
 </body>
