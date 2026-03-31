@@ -116,7 +116,48 @@ tr:hover td{background:#f8fafc}
 .dash-signout .dash-nav-btn{color:rgba(255,255,255,.9);font-weight:600}
 .dash-signout .dash-nav-btn:hover{color:var(--white)}
 .dash-main{margin-left:220px;min-height:100vh;display:flex;flex-direction:column}
-.content{padding:1.5rem 2rem;max-width:1000px;flex:1}
+.content{padding:1.5rem 2rem;max-width:1100px;flex:1}
+
+/* Overview infographics */
+.viz-section{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem;margin-top:1.25rem}
+.viz-card{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:1.1rem 1.15rem}
+.viz-card-title{font-family:'Sora',sans-serif;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text3);margin-bottom:.85rem}
+.viz-donut{width:120px;height:120px;border-radius:50%;margin:0 auto .65rem;position:relative;box-shadow:inset 0 0 0 12px var(--card)}
+.viz-donut-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding-top:0;font-size:.7rem;color:var(--text3);pointer-events:none}
+.viz-donut-center strong{font-family:'Sora',sans-serif;font-size:1.35rem;font-weight:800;color:var(--navy);line-height:1.1}
+.viz-legend{font-size:.75rem;color:var(--text2);display:flex;flex-direction:column;gap:.35rem;margin-top:.35rem}
+.viz-legend-item{display:flex;align-items:center;gap:.45rem}
+.viz-swatch{width:10px;height:10px;border-radius:2px;flex-shrink:0}
+.viz-bar-row{display:flex;align-items:center;gap:.55rem;margin-bottom:.5rem;font-size:.78rem}
+.viz-bar-row:last-child{margin-bottom:0}
+.viz-bar-label{min-width:56px;color:var(--text2);font-weight:600;font-size:.74rem}
+.viz-bar-track{flex:1;height:11px;background:#e2e8f0;border-radius:6px;overflow:hidden;min-width:0}
+.viz-bar-fill{height:100%;border-radius:6px;min-width:2px}
+.viz-bar-pct{font-size:.68rem;color:var(--text3);min-width:2.75rem;text-align:right;font-weight:600}
+
+/* Classes filter toolbar */
+.filter-toolbar{display:flex;flex-wrap:wrap;gap:.65rem;align-items:flex-end}
+
+/* At-risk redesigned */
+.risk-toolbar{display:flex;flex-wrap:wrap;gap:.65rem;align-items:flex-end;margin-bottom:1.15rem;padding-bottom:1rem;border-bottom:1px solid var(--border)}
+.risk-pills{display:flex;flex-wrap:wrap;gap:.45rem;margin-bottom:1rem}
+.risk-pill{font-size:.68rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:.35rem .65rem;border-radius:999px;background:var(--bg);border:1px solid var(--border);color:var(--text2)}
+.risk-pill strong{font-family:'Sora',sans-serif;font-size:.85rem;font-weight:800;color:var(--navy);margin-left:.2rem}
+.risk-pill.warn strong{color:#b45309}
+.risk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:1rem}
+.risk-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:1rem 1.1rem;cursor:pointer;transition:box-shadow .15s,border-color .15s;position:relative;overflow:hidden}
+.risk-card::before{content:'';position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(180deg,#f59e0b,#dc2626);opacity:.85}
+.risk-card:hover{box-shadow:0 6px 24px rgba(30,45,74,.1);border-color:#cbd5e1}
+.risk-card-sev-high::before{background:linear-gradient(180deg,#ea580c,#b91c1c)}
+.risk-card-sev-med::before{background:linear-gradient(180deg,#f59e0b,#d97706)}
+.risk-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:.75rem;margin-bottom:.65rem;padding-left:.35rem}
+.risk-card-name{font-family:'Sora',sans-serif;font-size:1rem;font-weight:700;color:var(--text);line-height:1.25}
+.risk-card-badge{font-size:.58rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:.2rem .45rem;border-radius:4px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;white-space:nowrap}
+.risk-card-meta{font-size:.72rem;color:var(--text3);line-height:1.5;padding-left:.35rem;margin-bottom:.65rem}
+.risk-card-dims{display:flex;flex-wrap:wrap;gap:.35rem;padding-left:.35rem}
+.risk-dim-tag{font-size:.65rem;font-weight:600;padding:.22rem .5rem;border-radius:5px;background:#fff7ed;color:#9a3412;border:1px solid #fed7aa}
+.risk-dim-tag b{font-family:monospace;font-weight:700;margin-left:.25rem}
+.risk-empty-hint{font-size:.72rem;color:var(--text3);margin-top:.5rem}
 </style>
 </head>
 <body style="display:flex">
@@ -185,6 +226,7 @@ tr:hover td{background:#f8fafc}
       <div class="sc-header"><div class="sc-title">Faculty Overview</div></div>
       <div class="sc-body">
         <div id="overview-stats" class="stats-grid"></div>
+        <div id="overview-viz" class="viz-section" style="display:none"></div>
         <div id="overview-detail" style="margin-top:1.5rem"></div>
       </div>
     </div>
@@ -195,10 +237,18 @@ tr:hover td{background:#f8fafc}
       <div class="sc-header">
         <div>
           <div class="sc-title">Pupils at Risk</div>
-          <div class="sc-sub">Pupils with 2+ dimensions (Progress/Creating/Presenting/Evaluating, Effort, Behaviour, Home Learning) averaging ≤ 2.5</div>
+          <div class="sc-sub">2+ dimensions (Progress / Creating / Presenting / Evaluating, Effort, Behaviour, Home Learning) averaging ≤ 2.5. Use filters to focus on a teacher or class.</div>
         </div>
       </div>
-      <div class="sc-body" id="at-risk-list"></div>
+      <div class="sc-body">
+        <div class="risk-toolbar">
+          <div><label class="form-label">Subject</label><select id="risk-filter-subject" class="form-input" onchange="renderAtRisk()"><option value="">All subjects</option><option value="drama">Drama</option><option value="art">Art & Design</option></select></div>
+          <div><label class="form-label">Teacher</label><select id="risk-filter-teacher" class="form-input" onchange="renderAtRisk()"><option value="">All teachers</option></select></div>
+          <div><label class="form-label">Class</label><select id="risk-filter-class" class="form-input" onchange="renderAtRisk()"><option value="">All classes</option></select></div>
+          <div><label class="form-label">Sort</label><select id="risk-sort" class="form-input" onchange="renderAtRisk()"><option value="severity">Most support needed first</option><option value="name">Name (A–Z)</option><option value="class">Class, then name</option></select></div>
+        </div>
+        <div id="at-risk-list"></div>
+      </div>
     </div>
   </div>
 
@@ -207,12 +257,13 @@ tr:hover td{background:#f8fafc}
       <div class="sc-header">
         <div>
           <div class="sc-title">Class Performance</div>
-          <div class="sc-sub">Select subject and class to see average scores</div>
+          <div class="sc-sub">Choose subject, year, teacher (staff member), then class — or leave teacher/class on “All” to compare cohorts.</div>
         </div>
-        <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+        <div class="filter-toolbar">
           <div><label class="form-label">Subject</label><select id="cls-subject" class="form-input" onchange="renderClasses()"><option value="drama">Drama</option><option value="art">Art & Design</option></select></div>
           <div><label class="form-label">Year</label><select id="cls-yg" class="form-input" onchange="renderClasses()"><option value="s1">S1</option><option value="s2">S2</option><option value="s3">S3</option></select></div>
-          <div><label class="form-label">Class</label><select id="cls-name" class="form-input" onchange="renderClasses()"></select></div>
+          <div><label class="form-label">Teacher</label><select id="cls-teacher" class="form-input" onchange="renderClasses()"><option value="">All teachers</option></select></div>
+          <div><label class="form-label">Class</label><select id="cls-name" class="form-input" onchange="renderClasses()"><option value="">All classes</option></select></div>
         </div>
       </div>
       <div class="sc-body" id="classes-body"></div>
@@ -406,6 +457,15 @@ function updateImportStatus() {
   if (reportBtn) reportBtn.disabled = !hasData;
 }
 
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s == null ? '' : String(s);
+  return d.innerHTML;
+}
+function attrEsc(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
 function countPupils(p) {
   if (!p) return 0;
   let n = 0;
@@ -474,6 +534,57 @@ function renderAll() {
   updateProfileSelect();
 }
 
+function renderOverviewViz() {
+  const el = document.getElementById('overview-viz');
+  const all = getAllPupils();
+  if (!el) return;
+  if (!all.length) {
+    el.style.display = 'none';
+    el.innerHTML = '';
+    return;
+  }
+  el.style.display = 'grid';
+  const risk = getAtRiskPupils();
+  const dCount = all.filter(p => p.subject === 'drama').length;
+  const aCount = all.filter(p => p.subject === 'art').length;
+  const total = all.length;
+  const dPct = total ? (dCount / total) * 100 : 0;
+  const dDeg = (dPct / 100) * 360;
+  const riskPct = total ? (risk.length / total) * 100 : 0;
+  const okPct = Math.max(0, 100 - riskPct);
+  const byYg = { s1: 0, s2: 0, s3: 0 };
+  all.forEach(p => { if (byYg[p.yg] != null) byYg[p.yg]++; });
+  const yMax = Math.max(byYg.s1, byYg.s2, byYg.s3, 1);
+  const yBar = (yg, lbl, col) => {
+    const n = byYg[yg];
+    const pct = (n / yMax) * 100;
+    return `<div class="viz-bar-row"><span class="viz-bar-label">${lbl}</span><div class="viz-bar-track"><div class="viz-bar-fill" style="width:${pct}%;background:${col}"></div></div><span class="viz-bar-pct">${n}</span></div>`;
+  };
+  el.innerHTML = `
+    <div class="viz-card">
+      <div class="viz-card-title">Entries by subject</div>
+      <div class="viz-donut" style="background:conic-gradient(var(--accent-drama) 0deg ${dDeg}deg,var(--accent-ad) ${dDeg}deg 360deg)">
+        <div class="viz-donut-center"><strong>${total}</strong><span>records</span></div>
+      </div>
+      <div class="viz-legend">
+        <div class="viz-legend-item"><span class="viz-swatch" style="background:var(--accent-drama)"></span>Drama · ${dCount} (${dPct.toFixed(0)}%)</div>
+        <div class="viz-legend-item"><span class="viz-swatch" style="background:var(--accent-ad)"></span>Art & Design · ${aCount} (${(100 - dPct).toFixed(0)}%)</div>
+      </div>
+    </div>
+    <div class="viz-card">
+      <div class="viz-card-title">Records by year group</div>
+      ${yBar('s1', 'S1', '#4a7fd4')}
+      ${yBar('s2', 'S2', '#c0622a')}
+      ${yBar('s3', 'S3', '#0f766e')}
+    </div>
+    <div class="viz-card">
+      <div class="viz-card-title">Tracking snapshot</div>
+      <p style="font-size:.72rem;color:var(--text3);margin-bottom:.65rem;line-height:1.45">Share of imported tracker entries currently flagged as at risk (2+ low dimensions).</p>
+      <div class="viz-bar-row"><span class="viz-bar-label">Flagged</span><div class="viz-bar-track"><div class="viz-bar-fill" style="width:${riskPct}%;background:linear-gradient(90deg,#ea580c,#dc2626)"></div></div><span class="viz-bar-pct">${riskPct.toFixed(0)}%</span></div>
+      <div class="viz-bar-row"><span class="viz-bar-label">Not flagged</span><div class="viz-bar-track"><div class="viz-bar-fill" style="width:${okPct}%;background:#10b981"></div></div><span class="viz-bar-pct">${okPct.toFixed(0)}%</span></div>
+    </div>`;
+}
+
 function renderOverview() {
   const stats = document.getElementById('overview-stats');
   const detail = document.getElementById('overview-detail');
@@ -489,93 +600,163 @@ function renderOverview() {
     <div class="stat-card drama"><div class="stat-num">${dPupils.length}</div><div class="stat-lbl">Drama entries</div></div>
     <div class="stat-card ad"><div class="stat-num">${aPupils.length}</div><div class="stat-lbl">Art entries</div></div>
   `;
+  renderOverviewViz();
   let detailHtml = '<div class="sc" style="margin-top:0"><div class="sc-header"><div class="sc-title">By subject</div></div><div class="sc-body">';
   ['drama','art'].forEach(subj => {
     const pts = all.filter(p => p.subject === subj);
-    const r = getAtRiskPupils().filter(p => p.subject === subj);
+    const r = risk.filter(p => p.subject === subj);
     const lbl = subj === 'drama' ? 'Drama' : 'Art & Design';
     const col = subj === 'drama' ? 'var(--accent-drama)' : 'var(--accent-ad)';
-    detailHtml += `<div style="margin-bottom:1rem"><strong style="color:${col}">${lbl}</strong>: ${pts.length} pupil entries, ${r.length} at risk</div>`;
+    const barW = pts.length ? Math.round((r.length / pts.length) * 100) : 0;
+    detailHtml += `<div style="margin-bottom:1rem">
+      <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.35rem"><strong style="color:${col}">${lbl}</strong><span style="font-size:.72rem;color:var(--text3)">${pts.length} entries · ${r.length} at risk</span></div>
+      <div style="height:8px;background:var(--bg);border-radius:4px;overflow:hidden;max-width:320px;border:1px solid var(--border)"><div style="height:100%;width:${barW}%;background:${col};opacity:.65;border-radius:4px"></div></div>
+    </div>`;
   });
   detailHtml += '</div></div>';
   detail.innerHTML = detailHtml;
 }
 
+function syncRiskClassFilter() {
+  const subjEl = document.getElementById('risk-filter-subject');
+  const teachEl = document.getElementById('risk-filter-teacher');
+  const classEl = document.getElementById('risk-filter-class');
+  if (!subjEl || !teachEl || !classEl) return;
+  let pool = getAllPupils();
+  const subj = subjEl.value;
+  const teach = teachEl.value;
+  if (subj) pool = pool.filter(p => p.subject === subj);
+  if (teach) pool = pool.filter(p => (p.teacher || '') === teach);
+  const classes = [...new Set(pool.map(p => p.cls).filter(Boolean))].sort((a, b) => a.localeCompare(b));
+  const prev = classEl.value;
+  classEl.innerHTML = '<option value="">All classes</option>' + classes.map(c => `<option value="${attrEsc(c)}">${escHtml(c)}</option>`).join('');
+  if (prev && classes.indexOf(prev) >= 0) classEl.value = prev;
+}
+
+function syncRiskTeacherOptions() {
+  const teachEl = document.getElementById('risk-filter-teacher');
+  const subjEl = document.getElementById('risk-filter-subject');
+  if (!teachEl) return;
+  let pool = getAllPupils();
+  if (subjEl && subjEl.value) pool = pool.filter(p => p.subject === subjEl.value);
+  const teachers = [...new Set(pool.map(p => p.teacher || '').filter(t => t))].sort((a, b) => a.localeCompare(b));
+  const prev = teachEl.value;
+  teachEl.innerHTML = '<option value="">All teachers</option>' + teachers.map(t => `<option value="${attrEsc(t)}">${escHtml(t)}</option>`).join('');
+  if (prev && teachers.indexOf(prev) >= 0) teachEl.value = prev;
+}
+
 function renderAtRisk() {
   const el = document.getElementById('at-risk-list');
-  const risk = getAtRiskPupils();
-  if (!risk.length) {
+  if (!el) return;
+  syncRiskTeacherOptions();
+  syncRiskClassFilter();
+  let risk = getAtRiskPupils();
+  const subjF = (document.getElementById('risk-filter-subject') || {}).value || '';
+  const teachF = (document.getElementById('risk-filter-teacher') || {}).value || '';
+  const classF = (document.getElementById('risk-filter-class') || {}).value || '';
+  const sortM = (document.getElementById('risk-sort') || {}).value || 'severity';
+  if (subjF) risk = risk.filter(p => p.subject === subjF);
+  if (teachF) risk = risk.filter(p => (p.teacher || '') === teachF);
+  if (classF) risk = risk.filter(p => (p.cls || '') === classF);
+  const full = getAtRiskPupils();
+  if (!full.length) {
     el.innerHTML = '<div class="empty-s"><div class="empty-icon">✓</div>No pupils currently at risk, or no data imported.</div>';
     return;
   }
   const subjLbl = s => s === 'drama' ? 'Drama' : 'Art & Design';
-  const esc = s => (s||'').replace(/'/g,"\\'").replace(/\\/g,'\\\\');
-  el.innerHTML = risk.map(p => {
-    const dims = p.subject === 'drama' ? ['creating','presenting','evaluating','effort','behaviour','homelearning'] : ['progress','effort','behaviour','homelearning'];
-    const dimLbl = d => d === 'creating' ? 'Creating' : d === 'presenting' ? 'Presenting' : d === 'evaluating' ? 'Evaluating' : d === 'progress' ? 'Progress' : d === 'effort' ? 'Effort' : d === 'behaviour' ? 'Behaviour' : 'Home Learning';
-    const lowDims = dims.filter(d => p.avgs[d] != null && p.avgs[d] <= 2.5).map(d => `${dimLbl(d)} ${p.avgs[d].toFixed(1)}`);
-    return `<div class="pupil-row" onclick="selectForProfile('${esc(p.id)}','${p.subject}','${p.yg}','${esc(p.cls)}','${esc(p.teacher)}')">
-      <div><div class="pupil-name">${p.name}</div><div class="pupil-meta">${p.cls} · ${p.yg.toUpperCase()} ${subjLbl(p.subject)} · ${p.teacher}</div></div>
-      <div class="pupil-badges"><span class="badge badge-${p.yg}">${p.yg.toUpperCase()}</span><span class="badge badge-${p.subject}">${subjLbl(p.subject)}</span><span class="badge badge-risk">${p.lowCount} low</span></div>
-      <div style="font-size:.72rem;color:var(--text3)">${lowDims.join(', ')}</div>
+  const esc = s => (s || '').replace(/'/g, "\\'").replace(/\\/g, '\\\\');
+  const dimLbl = d => d === 'creating' ? 'Creating' : d === 'presenting' ? 'Presenting' : d === 'evaluating' ? 'Evaluating' : d === 'progress' ? 'Progress' : d === 'effort' ? 'Effort' : d === 'behaviour' ? 'Behaviour' : 'Home learning';
+  if (sortM === 'name') risk.sort((a, b) => a.name.localeCompare(b.name));
+  else if (sortM === 'class') risk.sort((a, b) => (a.cls || '').localeCompare(b.cls || '') || a.name.localeCompare(b.name));
+  else risk.sort((a, b) => b.lowCount - a.lowCount || (a.name || '').localeCompare(b.name || ''));
+  const bySubj = { drama: full.filter(p => p.subject === 'drama').length, art: full.filter(p => p.subject === 'art').length };
+  const pills = `<div class="risk-pills">
+    <span class="risk-pill warn">Total flagged<strong>${full.length}</strong></span>
+    <span class="risk-pill">Drama<strong>${bySubj.drama}</strong></span>
+    <span class="risk-pill">Art & Design<strong>${bySubj.art}</strong></span>
+    <span class="risk-pill">Showing<strong>${risk.length}</strong></span>
+  </div>`;
+  if (!risk.length) {
+    el.innerHTML = pills + '<div class="empty-s" style="padding-top:.5rem"><div class="empty-icon">🔎</div>No pupils match these filters.<p class="risk-empty-hint">Try clearing teacher or class, or switch subject to “All subjects”.</p></div>';
+    return;
+  }
+  const cards = risk.map(p => {
+    const dims = p.subject === 'drama' ? ['creating', 'presenting', 'evaluating', 'effort', 'behaviour', 'homelearning'] : ['progress', 'effort', 'behaviour', 'homelearning'];
+    const lowList = dims.filter(d => p.avgs[d] != null && p.avgs[d] <= 2.5);
+    const allVals = dims.map(d => p.avgs[d]).filter(v => v != null && v > 0);
+    const holAvg = allVals.length ? allVals.reduce((a, b) => a + b, 0) / allVals.length : null;
+    const sev = p.lowCount >= 4 ? 'risk-card-sev-high' : p.lowCount >= 3 ? 'risk-card-sev-med' : '';
+    const dimTags = lowList.map(d => `<span class="risk-dim-tag">${dimLbl(d)}<b>${p.avgs[d].toFixed(1)}</b></span>`).join('');
+    return `<div class="risk-card ${sev}" onclick="selectForProfile('${esc(p.id)}','${p.subject}','${p.yg}','${esc(p.cls)}','${esc(p.teacher)}')">
+      <div class="risk-card-head">
+        <div class="risk-card-name">${escHtml(p.name)}</div>
+        <span class="risk-card-badge">${p.lowCount} focus areas</span>
+      </div>
+      <div class="risk-card-meta">${escHtml(p.cls || '—')} · ${p.yg.toUpperCase()} · ${subjLbl(p.subject)} · ${escHtml(p.teacher || '')}${holAvg != null ? ` · Overall avg <strong style="color:var(--text)">${holAvg.toFixed(1)}</strong> / 4` : ''}</div>
+      <div class="risk-card-dims">${dimTags}</div>
     </div>`;
   }).join('');
+  el.innerHTML = pills + `<div class="risk-grid">${cards}</div>`;
 }
 
 function renderClasses() {
   const subj = document.getElementById('cls-subject').value;
   const yg = document.getElementById('cls-yg').value;
+  const teachSel = document.getElementById('cls-teacher');
   const clsSel = document.getElementById('cls-name');
   const body = document.getElementById('classes-body');
   const sources = D[subj] || [];
-  const classKeys = [];
-  sources.forEach(s => {
-    const pupils = s.pupils?.[yg] || {};
-    Object.keys(pupils).forEach(c => {
-      const key = sources.length > 1 ? c + '|' + (s.teacherName || '') : c;
-      classKeys.push({ cls: c, teacher: s.teacherName, key });
-    });
-  });
-  const uniq = [];
-  const seen = new Set();
-  classKeys.forEach(({ cls, teacher, key }) => {
-    if (seen.has(key)) return;
-    seen.add(key);
-    uniq.push({ cls, teacher, key });
-  });
-  uniq.sort((a, b) => (a.cls + a.teacher).localeCompare(b.cls + b.teacher));
-  clsSel.innerHTML = '<option value="">— All classes —</option>' + uniq.map(({ cls, teacher, key }) => `<option value="${key}">${cls}${teacher ? ' · ' + teacher : ''}</option>`).join('');
-  const selVal = clsSel.value;
-  const [cls, selTeacher] = selVal ? selVal.split('|') : ['', ''];
-  let pupils = [];
-  sources.forEach(s => {
-    if (selVal && s.teacherName !== selTeacher && selTeacher) return;
+  const teachers = [...new Set(sources.map(s => s.teacherName || 'Unknown'))].sort((a, b) => String(a).localeCompare(String(b)));
+  const prevTeacher = teachSel.value;
+  teachSel.innerHTML = '<option value="">All teachers</option>' + teachers.map(t => `<option value="${attrEsc(t)}">${escHtml(t)}</option>`).join('');
+  if (prevTeacher && teachers.indexOf(prevTeacher) >= 0) teachSel.value = prevTeacher;
+  const selTeacher = teachSel.value;
+  const filteredSources = selTeacher ? sources.filter(s => (s.teacherName || 'Unknown') === selTeacher) : sources;
+  const classSet = new Set();
+  filteredSources.forEach(s => {
     const p = s.pupils?.[yg] || {};
-    const target = cls ? (p[cls] || []) : Object.entries(p).flatMap(([c, arr]) => (arr || []).map(x => ({ ...x, cls: c })));
-    (Array.isArray(target) ? target : []).forEach(x => {
-      const pp = typeof x === 'object' && x.cls ? x : { ...x, cls };
-      pupils.push({ ...pp, teacher: s.teacherName, scores: s.scores?.[yg]?.[pp.id] });
-    });
+    Object.keys(p).forEach(c => classSet.add(c));
+  });
+  const classes = [...classSet].sort((a, b) => a.localeCompare(b));
+  const prevCls = clsSel.value;
+  clsSel.innerHTML = '<option value="">All classes</option>' + classes.map(c => `<option value="${attrEsc(c)}">${escHtml(c)}</option>`).join('');
+  if (prevCls && classes.indexOf(prevCls) >= 0) clsSel.value = prevCls;
+  const selCls = clsSel.value;
+  let pupils = [];
+  filteredSources.forEach(s => {
+    const p = s.pupils?.[yg] || {};
+    if (selCls) {
+      (p[selCls] || []).forEach(x => pupils.push({ ...x, cls: selCls, teacher: s.teacherName, scores: s.scores?.[yg]?.[x.id] }));
+    } else {
+      Object.entries(p).forEach(([c, arr]) => {
+        (arr || []).forEach(x => pupils.push({ ...x, cls: c, teacher: s.teacherName, scores: s.scores?.[yg]?.[x.id] }));
+      });
+    }
   });
   if (!pupils.length) {
-    body.innerHTML = '<div class="empty-s">No pupils in selected class.</div>';
+    body.innerHTML = '<div class="empty-s">No pupils for this subject, year, teacher, and class combination.</div>';
     return;
   }
   const dims = subj === 'drama' ? ['creating','presenting','evaluating','effort','behaviour','homelearning'] : ['progress','effort','behaviour','homelearning'];
-  const dimLbl = d => d.charAt(0).toUpperCase() + d.slice(1);
+  const dimLbl = d => d === 'homelearning' ? 'Home learning' : d.charAt(0).toUpperCase() + d.slice(1);
+  pupils.sort((a, b) => (a.cls || '').localeCompare(b.cls || '') || a.name.localeCompare(b.name));
   const rows = pupils.map(p => {
     const avgs = {};
     dims.forEach(d => {
       const vals = Object.values(p.scores || {}).flatMap(tp => (tp[d] > 0 ? [tp[d]] : []));
       avgs[d] = avg(vals);
     });
-    const avgStr = dims.map(d => avgs[d] != null ? avgs[d].toFixed(1) : '—').join(' · ');
+    const avgCells = dims.map(d => {
+      const v = avgs[d];
+      const cl = v == null ? '' : v <= 2.5 ? 'avg-low' : v >= 3.25 ? 'avg-ok' : '';
+      return `<td class="avg-cell ${cl}">${v != null ? v.toFixed(1) : '—'}</td>`;
+    }).join('');
     const lowCount = dims.filter(d => avgs[d] != null && avgs[d] <= 2.5).length;
     const esc = s => (s||'').replace(/'/g,"\\'").replace(/\\/g,'\\\\');
-    return `<tr onclick="selectForProfile('${esc(p.id)}','${subj}','${yg}','${esc(p.cls)}','${esc(p.teacher)}')"><td>${p.name}</td><td>${p.cls || ''}</td><td>${avgStr}</td><td>${lowCount >= 2 ? '<span class="badge badge-risk">At risk</span>' : '—'}</td></tr>`;
+    return `<tr onclick="selectForProfile('${esc(p.id)}','${subj}','${yg}','${esc(p.cls)}','${esc(p.teacher)}')"><td>${escHtml(p.name)}</td><td>${escHtml(p.cls || '')}<div style="font-size:.65rem;color:var(--text3)">${escHtml(p.teacher || '')}</div></td>${avgCells}<td>${lowCount >= 2 ? '<span class="badge badge-risk">At risk</span>' : '—'}</td></tr>`;
   });
   const hdrs = dims.map(d => dimLbl(d)).join('</th><th>');
-  body.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Pupil</th><th>Class</th><th>${hdrs}</th><th>Flag</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
+  body.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Pupil</th><th>Class / Teacher</th><th>${hdrs}</th><th>Flag</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
 }
 
 function searchPupils() {
