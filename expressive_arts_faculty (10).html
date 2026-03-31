@@ -1346,6 +1346,36 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
 .cal-form-grid input,.cal-form-grid select{
   padding:.5rem .75rem;border:1px solid var(--border2);border-radius:6px;font-size:.85rem
 }
+.cal-desc-label{display:block;font-size:.8rem;font-weight:600;color:var(--text2);margin-bottom:.35rem}
+.cal-desc-label .cal-optional{font-weight:400;color:var(--text3)}
+.cal-desc-input{
+  width:100%;min-height:4.5rem;margin-bottom:1rem;padding:.6rem .75rem;border:1px solid var(--border2);
+  border-radius:6px;font-size:.85rem;font-family:inherit;resize:vertical;box-sizing:border-box
+}
+.cal-event-popup-desc{font-size:.72rem;color:rgba(255,255,255,.75);margin-top:.5rem;max-height:3.2em;overflow:hidden}
+.cal-event-modal{
+  position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;padding:1rem;box-sizing:border-box
+}
+.cal-event-modal.visible{display:flex}
+.cal-event-modal-backdrop{position:absolute;inset:0;background:rgba(15,23,42,.5);cursor:pointer}
+.cal-event-modal-panel{
+  position:relative;max-width:32rem;width:100%;max-height:85vh;overflow:auto;
+  background:var(--card-bg,var(--white));border-radius:10px;border:1px solid var(--border);
+  box-shadow:0 20px 50px rgba(0,0,0,.2);padding:1.25rem 1.5rem
+}
+.cal-event-modal-close{
+  position:absolute;top:.75rem;right:.75rem;padding:.35rem .65rem;font-size:.8rem;
+  border:1px solid var(--border2);border-radius:6px;background:var(--bg);cursor:pointer;color:var(--text2)
+}
+.cal-event-modal-close:hover{border-color:var(--accent-drama);color:var(--text)}
+.cal-event-modal-intro{font-size:.85rem;color:var(--text2);margin:0 0 1rem;font-weight:600}
+.cal-event-modal-block{padding-bottom:1rem;margin-bottom:1rem;border-bottom:1px solid var(--border)}
+.cal-event-modal-block:last-child{border-bottom:none;margin-bottom:0;padding-bottom:0}
+.cal-event-modal-h3{margin:0 0 .35rem;font-size:1.05rem;color:var(--text);line-height:1.3}
+.cal-event-modal-meta{font-size:.8rem;color:var(--text3);margin-bottom:.75rem}
+.cal-event-modal-desc{font-size:.9rem;color:var(--text);line-height:1.5;white-space:pre-wrap;word-break:break-word}
+.cal-event-modal-nodesc{font-size:.85rem;color:var(--text3);font-style:italic;margin:0}
+.visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .cal-add-btn{
   padding:.6rem 1.25rem;background:var(--navy-active);color:white;border:none;
   border-radius:6px;font-weight:600;cursor:pointer;font-size:.85rem;
@@ -1990,6 +2020,8 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
                   <option value="general">General</option>
                 </select>
               </div>
+              <label class="cal-desc-label" for="calDescription">Description <span class="cal-optional">(optional — staff can click the event for full details)</span></label>
+              <textarea id="calDescription" class="cal-desc-input" rows="3" placeholder="Room, agenda, links, or anything staff should know…"></textarea>
               <button class="cal-add-btn" id="calAddBtn" onclick="calAddEvent()">Add Event</button>
               <button class="cal-add-btn" id="calUpdateBtn" onclick="calUpdateEvent()" style="display:none;background:#0369a1">Update Event</button>
               <button class="btn btn-ghost" id="calCancelEditBtn" onclick="calCancelEdit()" style="display:none;padding:.5rem 1rem">Cancel</button>
@@ -1998,6 +2030,14 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
           <div class="cal-calendar" id="calCalendar"></div>
         </div>
         <div id="calTooltip" class="cal-tooltip"></div>
+        <div id="calEventModal" class="cal-event-modal" aria-hidden="true">
+          <div class="cal-event-modal-backdrop" onclick="calCloseEventDetailModal()" aria-label="Close"></div>
+          <div class="cal-event-modal-panel" role="dialog" aria-modal="true" aria-labelledby="calEventModalTitle">
+            <button type="button" class="cal-event-modal-close" onclick="calCloseEventDetailModal()">Close</button>
+            <h2 id="calEventModalTitle" class="visually-hidden">Event details</h2>
+            <div id="calEventModalBody"></div>
+          </div>
+        </div>
       </div>
 
       <!-- DATA BACKUP & RESTORE PANEL -->
@@ -6339,9 +6379,10 @@ function calGetFilteredEvents(){
   var monthNames=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
   return filtered.filter(function(e){
     var title=(e.title||'').toLowerCase();
+    var desc=(e.description||'').toLowerCase();
     var date=e.date||'';
     var catLabel=(CAL_CAT_LABELS[e.category]||e.category||'').toLowerCase();
-    if(title.indexOf(q)!==-1||catLabel.indexOf(q)!==-1)return true;
+    if(title.indexOf(q)!==-1||desc.indexOf(q)!==-1||catLabel.indexOf(q)!==-1)return true;
     if(date.indexOf(q)!==-1)return true;
     var parts=date.split('-');
     if(parts.length>=2&&q.length>=2){
@@ -6392,7 +6433,12 @@ function calSaveEvents(e){
   calEventsCache=e;
   if(!window.DataService){try{localStorage.setItem(CAL_STORAGE_KEY,JSON.stringify(e));}catch(x){}return;}
   var shared=(e||[]).filter(function(ev){return ev.source==='shared';});
-  var personal=(e||[]).filter(function(ev){return ev.source==='personal'||!ev.source;}).map(function(ev){var o={title:ev.title,date:ev.date,category:ev.category||'general'};return o;});
+  var personal=(e||[]).filter(function(ev){return ev.source==='personal'||!ev.source;}).map(function(ev){
+    var o={title:ev.title,date:ev.date,category:ev.category||'general'};
+    var d=(ev.description!=null&&String(ev.description).trim()!=='')?String(ev.description).trim():'';
+    if(d)o.description=d;
+    return o;
+  });
   var isAdmin=!!(window.__authGuardIsAdmin);
   var promises=[];
   if(isAdmin){promises.push(DataService.setSharedCalendarEvents(shared).catch(function(){backupToast('Shared calendar save failed');}));}
@@ -6981,15 +7027,69 @@ function exportModerationSingle(unitId,format){
 
 var calEditingEvent=null;
 const CAL_CAT_LABELS={exam:'Exam',meeting:'Meeting',deadline:'Deadline',assessment:'Assessment',reporting:'Reporting',training:'Training',cpd:'CPD',inset:'In-Service',holiday:'Holiday',general:'General'};
+function calEscapeHtml(s){
+  return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function calCloseEventDetailModal(){
+  var m=document.getElementById('calEventModal');
+  if(!m)return;
+  m.classList.remove('visible');
+  m.setAttribute('aria-hidden','true');
+  if(window._calModalKeyHandler){
+    document.removeEventListener('keydown',window._calModalKeyHandler);
+    window._calModalKeyHandler=null;
+  }
+}
+function calOpenEventDetailModal(events){
+  if(!events||!events.length)return;
+  var m=document.getElementById('calEventModal');
+  var body=document.getElementById('calEventModalBody');
+  if(!m||!body)return;
+  var isMulti=events.length>1;
+  var parts=[];
+  if(isMulti){
+    parts.push('<p class="cal-event-modal-intro">'+calEscapeHtml(calFormatDate(events[0].date))+' · '+events.length+' events</p>');
+  }
+  events.forEach(function(e){
+    var cat=CAL_CAT_LABELS[e.category]||e.category;
+    var desc=(e.description||'').trim();
+    parts.push('<div class="cal-event-modal-block">');
+    parts.push('<h3 class="cal-event-modal-h3">'+calEscapeHtml(e.title||'Event')+'</h3>');
+    if(!isMulti){
+      parts.push('<div class="cal-event-modal-meta">'+calEscapeHtml(calFormatDate(e.date))+' · '+calEscapeHtml(cat)+'</div>');
+    }else{
+      parts.push('<div class="cal-event-modal-meta">'+calEscapeHtml(cat)+'</div>');
+    }
+    if(desc){
+      parts.push('<div class="cal-event-modal-desc">'+calEscapeHtml(desc).replace(/\n/g,'<br>')+'</div>');
+    }else{
+      parts.push('<p class="cal-event-modal-nodesc">No additional details.</p>');
+    }
+    parts.push('</div>');
+  });
+  body.innerHTML=parts.join('');
+  m.classList.add('visible');
+  m.setAttribute('aria-hidden','false');
+  if(!window._calModalKeyHandler){
+    window._calModalKeyHandler=function(ev){if(ev.key==='Escape')calCloseEventDetailModal();};
+  }
+  document.removeEventListener('keydown',window._calModalKeyHandler);
+  document.addEventListener('keydown',window._calModalKeyHandler);
+}
 function calChangeYear(dir){calCurrentYear+=dir;calRender();}
 function calAddEvent(){
   const title=(document.getElementById('calTitle').value||'').trim();
   const date=document.getElementById('calDate').value;
   const category=document.getElementById('calCategory').value;
+  const descriptionRaw=(document.getElementById('calDescription').value||'').trim();
   if(!title||!date){backupToast('Enter an event title and date.');return;}
   var source=(window.__authGuardIsAdmin)?'shared':'personal';
-  const events=calGetEvents();events.push({title,date,category:category||'general',source:source});calSaveEvents(events);calRender();
-  document.getElementById('calTitle').value='';document.getElementById('calDate').value='';
+  const events=calGetEvents();
+  var ev={title:title,date:date,category:category||'general',source:source};
+  if(descriptionRaw)ev.description=descriptionRaw;
+  events.push(ev);
+  calSaveEvents(events);calRender();
+  document.getElementById('calTitle').value='';document.getElementById('calDate').value='';document.getElementById('calDescription').value='';
   backupToast('Event added to '+(source==='shared'?'shared calendar (visible to all).':'your calendar.'));
 }
 function calDeleteEvent(ev){
@@ -7013,6 +7113,8 @@ function calEditEvent(ev){
   document.getElementById('calTitle').value=ev.title||'';
   document.getElementById('calDate').value=ev.date||'';
   document.getElementById('calCategory').value=ev.category||'general';
+  var calDesc=document.getElementById('calDescription');
+  if(calDesc)calDesc.value=ev.description||'';
   document.getElementById('calAddBtn').style.display='none';
   document.getElementById('calUpdateBtn').style.display='inline-flex';
   document.getElementById('calCancelEditBtn').style.display='inline-flex';
@@ -7021,6 +7123,8 @@ function calCancelEdit(){
   calEditingEvent=null;
   document.getElementById('calTitle').value='';
   document.getElementById('calDate').value='';
+  var calDesc=document.getElementById('calDescription');
+  if(calDesc)calDesc.value='';
   document.getElementById('calAddBtn').style.display='inline-flex';
   document.getElementById('calUpdateBtn').style.display='none';
   document.getElementById('calCancelEditBtn').style.display='none';
@@ -7030,6 +7134,7 @@ function calUpdateEvent(){
   var title=(document.getElementById('calTitle').value||'').trim();
   var date=document.getElementById('calDate').value;
   var category=document.getElementById('calCategory').value||'general';
+  var descriptionRaw=(document.getElementById('calDescription').value||'').trim();
   if(!title||!date){backupToast('Enter an event title and date.');return;}
   var events=calGetEvents();
   var idx=events.findIndex(function(e){
@@ -7037,7 +7142,9 @@ function calUpdateEvent(){
     return e===calEditingEvent||(e.title===calEditingEvent.title&&e.date===calEditingEvent.date&&(e.category||'general')===(calEditingEvent.category||'general'));
   });
   if(idx>=0){
-    events[idx]={title:title,date:date,category:category,source:calEditingEvent.source||'personal',id:calEditingEvent.id};
+    var next={title:title,date:date,category:category,source:calEditingEvent.source||'personal',id:calEditingEvent.id};
+    if(descriptionRaw)next.description=descriptionRaw;
+    events[idx]=next;
     calSaveEvents(events);
     backupToast('Event updated.');
   }
@@ -7079,18 +7186,25 @@ function calUpcoming(){
     const formatted=calFormatDate(e.date);
     const meta=calDaysUntil(e.date);
     const catLabel=CAL_CAT_LABELS[e.category]||e.category;
+    const rawDesc=(e.description||'').trim();
+    const dpreview=rawDesc.length>120?calEscapeHtml(rawDesc.slice(0,120))+'…':(rawDesc?calEscapeHtml(rawDesc):'');
     div.innerHTML='<div class="cal-event-bar '+e.category+'"></div>'+
       '<div class="cal-event-content">'+
         '<span class="cal-event-date-pill">'+shortDate+'</span>'+
-        '<span class="cal-event-title">'+e.title+'</span>'+
-        '<span class="cal-event-badge"><span class="cal-badge '+e.category+'">'+catLabel+'</span></span>'+
-        (canEdit?'<div class="cal-event-actions"><button type="button" class="cal-btn-edit" onclick="calEditEventByIdx('+i+')">Edit</button><button type="button" class="cal-btn-del" onclick="calDeleteEventByIdx('+i+')">Delete</button></div>':'')+
+        '<span class="cal-event-title">'+calEscapeHtml(e.title||'')+'</span>'+
+        '<span class="cal-event-badge"><span class="cal-badge '+e.category+'">'+calEscapeHtml(catLabel)+'</span></span>'+
+        (canEdit?'<div class="cal-event-actions"><button type="button" class="cal-btn-edit" onclick="event.stopPropagation();calEditEventByIdx('+i+')">Edit</button><button type="button" class="cal-btn-del" onclick="event.stopPropagation();calDeleteEventByIdx('+i+')">Delete</button></div>':'')+
       '</div>'+
       '<div class="cal-event-popup">'+
-        '<div class="cal-event-popup-title">'+e.title+'</div>'+
-        '<div class="cal-event-popup-date">'+formatted+'</div>'+
-        '<div class="cal-event-popup-meta">'+meta+' · '+catLabel+'</div>'+
+        '<div class="cal-event-popup-title">'+calEscapeHtml(e.title||'')+'</div>'+
+        '<div class="cal-event-popup-date">'+calEscapeHtml(formatted)+'</div>'+
+        '<div class="cal-event-popup-meta">'+calEscapeHtml(meta)+' · '+calEscapeHtml(catLabel)+'</div>'+
+        (dpreview?'<div class="cal-event-popup-desc">'+dpreview+'</div>':'')+
       '</div>';
+    div.addEventListener('click',function(ev){
+      if(ev.target.closest&&ev.target.closest('.cal-event-actions'))return;
+      calOpenEventDetailModal([e]);
+    });
     list.appendChild(div);
   });
 }
@@ -7102,7 +7216,13 @@ let calTooltipHideTimeout=null;
 function calShowTooltip(tooltip,ev,day){
   if(!tooltip)return;
   const rect=day.getBoundingClientRect();
-  tooltip.innerHTML=ev.map(x=>`<div class="cal-tooltip-item">${x.title}</div><div class="cal-tooltip-meta">${calFormatDate(x.date)} · ${CAL_CAT_LABELS[x.category]||x.category}</div>`).join('');
+  tooltip.innerHTML=ev.map(function(x){
+    var cat=CAL_CAT_LABELS[x.category]||x.category;
+    var sn=(x.description||'').trim();
+    var snSmall=sn.length>80?calEscapeHtml(sn.slice(0,80))+'…':(sn?calEscapeHtml(sn):'');
+    return '<div class="cal-tooltip-item">'+calEscapeHtml(x.title||'')+'</div><div class="cal-tooltip-meta">'+calEscapeHtml(calFormatDate(x.date))+' · '+calEscapeHtml(cat)+'</div>'+
+      (snSmall?'<div class="cal-tooltip-meta">'+snSmall+'</div>':'');
+  }).join('');
   tooltip.style.left=Math.max(8,Math.min(rect.left,window.innerWidth-290))+'px';
   tooltip.style.top=(rect.bottom+6)+'px';
   tooltip.classList.add('visible');
@@ -7142,6 +7262,9 @@ function calBuildCalendar(){
       const ev=calGetFilteredEvents().filter(e=>e.date===date);
       if(ev.length){
         day.classList.add('cal-day-has-events');
+        day.tabIndex=0;
+        day.setAttribute('role','button');
+        day.setAttribute('aria-label','View '+ev.length+' calendar event'+(ev.length===1?'':'s')+' on this day');
         const mark=document.createElement('div');mark.className='cal-marker '+ev[0].category;day.appendChild(mark);
         day.setAttribute('title',ev.map(x=>`${x.title} (${CAL_CAT_LABELS[x.category]||x.category})`).join('\n'));
         let tooltip=document.getElementById('calTooltip');
@@ -7149,6 +7272,12 @@ function calBuildCalendar(){
         else if(tooltip.parentElement!==document.body){document.body.appendChild(tooltip);}
         day.addEventListener('mouseenter',()=>calShowTooltip(tooltip,ev,day));
         day.addEventListener('mouseleave',()=>calHideTooltip(tooltip,250));
+        day.addEventListener('click',function(){
+          calOpenEventDetailModal(ev.slice());
+        });
+        day.addEventListener('keydown',function(ke){
+          if(ke.key==='Enter'||ke.key===' '){ke.preventDefault();calOpenEventDetailModal(ev.slice());}
+        });
         if(!tooltip.dataset.listenersAdded){tooltip.dataset.listenersAdded='1';tooltip.addEventListener('mouseenter',()=>{if(calTooltipHideTimeout){clearTimeout(calTooltipHideTimeout);calTooltipHideTimeout=null;}});tooltip.addEventListener('mouseleave',()=>calHideTooltip(tooltip,0));}
       }
       days.appendChild(day);

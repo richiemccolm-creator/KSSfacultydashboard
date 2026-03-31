@@ -50,7 +50,8 @@ h1{font-family:Sora,sans-serif;font-size:28px;margin-bottom:6px}
 .snapshot-item{background:#eef2f7;padding:8px 12px;border-radius:8px;font-size:12px}
 
 .upcoming-list{display:flex;flex-direction:column;gap:10px}
-.event{padding:12px;border-radius:8px;border:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;font-size:14px}
+.event{padding:12px;border-radius:8px;border:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;font-size:14px;cursor:pointer;position:relative}
+.event:hover{border-color:#2a3f62;box-shadow:0 2px 8px rgba(42,63,98,.12)}
 
 .badge{padding:4px 8px;border-radius:999px;font-size:11px;font-weight:600}
 .exam{background:#fdecea;color:#c0392b}
@@ -71,7 +72,22 @@ h1{font-family:Sora,sans-serif;font-size:28px;margin-bottom:6px}
 .event-actions .btn-edit:hover{background:#e0f2fe;color:#0369a1}
 
 .form-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px}
+.form-desc-label{display:block;font-size:12px;font-weight:600;color:#64748b;margin:.25rem 0 .35rem}
+.form-desc{width:100%;min-height:4rem;padding:8px;border:1px solid #cbd5e0;border-radius:6px;font-size:14px;font-family:inherit;resize:vertical;margin-bottom:10px}
 input,select{padding:8px;border:1px solid #cbd5e0;border-radius:6px;font-size:14px}
+.event-modal{position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;padding:1rem}
+.event-modal.visible{display:flex}
+.event-modal-back{position:absolute;inset:0;background:rgba(15,23,42,.5);cursor:pointer}
+.event-modal-panel{position:relative;max-width:32rem;width:100%;max-height:85vh;overflow:auto;background:#fff;border-radius:10px;border:1px solid #e2e8f0;box-shadow:0 20px 50px rgba(0,0,0,.2);padding:1.25rem 1.5rem}
+.event-modal-close{position:absolute;top:.75rem;right:.75rem;padding:.35rem .65rem;font-size:.8rem;border:1px solid #cbd5e0;border-radius:6px;background:#f8fafc;cursor:pointer}
+.event-modal-intro{font-size:.85rem;color:#64748b;margin:0 0 1rem;font-weight:600}
+.event-modal-block{padding-bottom:1rem;margin-bottom:1rem;border-bottom:1px solid #e2e8f0}
+.event-modal-block:last-child{border:none;margin:0;padding:0}
+.event-modal-h3{margin:0 0 .35rem;font-size:1.05rem;line-height:1.3}
+.event-modal-meta{font-size:.8rem;color:#64748b;margin-bottom:.75rem}
+.event-modal-desc{font-size:.9rem;line-height:1.5;white-space:pre-wrap;word-break:break-word}
+.event-modal-nodesc{font-size:.85rem;color:#94a3b8;font-style:italic;margin:0}
+.visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 button{padding:10px 14px;background:#2a3f62;color:white;border:none;border-radius:6px;font-weight:600;cursor:pointer}
 button:hover{opacity:0.9}
 
@@ -169,6 +185,8 @@ button:hover{opacity:0.9}
 <option value="general">General</option>
 </select>
 </div>
+<label class="form-desc-label" for="eventDescription">Description <span style="font-weight:400">(optional)</span></label>
+<textarea id="eventDescription" class="form-desc" rows="3" placeholder="Details staff see when they tap the event…"></textarea>
 <button id="addEventBtn" onclick="addEvent()">Add Event</button>
 <button id="updateEventBtn" onclick="updateEvent()" style="display:none;background:#0369a1">Update Event</button>
 <button id="cancelEditBtn" onclick="cancelEdit()" style="display:none;background:#64748b">Cancel</button>
@@ -179,6 +197,14 @@ button:hover{opacity:0.9}
 </div>
 
 <div id="tooltip" class="tooltip"></div>
+<div id="calEventModal" class="event-modal" aria-hidden="true">
+  <div class="event-modal-back" onclick="closeEventDetailModal()" aria-label="Close"></div>
+  <div class="event-modal-panel" role="dialog" aria-modal="true">
+    <button type="button" class="event-modal-close" onclick="closeEventDetailModal()">Close</button>
+    <h2 class="visually-hidden">Event details</h2>
+    <div id="calEventModalBody"></div>
+  </div>
+</div>
 <div id="cal-toast" class="cal-toast"></div>
 
 <script>
@@ -262,6 +288,14 @@ const defaultEvents=[
 
 ];
 
+function formatDate(iso){
+const d=new Date(iso);
+const days=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const months=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+return days[d.getDay()]+" "+d.getDate()+" "+months[d.getMonth()]+" "+d.getFullYear();
+}
+const catLabels={exam:"Exam",meeting:"Meeting",deadline:"Deadline",assessment:"Assessment",reporting:"Reporting",training:"Training",cpd:"CPD",inset:"In-Service",holiday:"Holiday",general:"General"};
+
 var eventsCache=null;
 function getFilteredEvents(){
   var all=getEvents();
@@ -274,9 +308,10 @@ function getFilteredEvents(){
   var monthNames=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
   return filtered.filter(function(e){
     var title=(e.title||'').toLowerCase();
+    var desc=(e.description||'').toLowerCase();
     var date=e.date||'';
     var catLabel=(catLabels[e.category]||e.category||'').toLowerCase();
-    if(title.indexOf(q)!==-1||catLabel.indexOf(q)!==-1)return true;
+    if(title.indexOf(q)!==-1||desc.indexOf(q)!==-1||catLabel.indexOf(q)!==-1)return true;
     if(date.indexOf(q)!==-1)return true;
     var parts=date.split('-');
     if(parts.length>=2&&q.length>=2){
@@ -327,7 +362,12 @@ function saveEvents(e){
 eventsCache=e;
 if(!window.DataService){try{localStorage.setItem(storageKey,JSON.stringify(e));}catch(x){}return;}
 var shared=(e||[]).filter(function(ev){return ev.source==="shared";});
-var personal=(e||[]).filter(function(ev){return ev.source==="personal"||!ev.source;}).map(function(ev){return {title:ev.title,date:ev.date,category:ev.category||"general"};});
+var personal=(e||[]).filter(function(ev){return ev.source==="personal"||!ev.source;}).map(function(ev){
+  var o={title:ev.title,date:ev.date,category:ev.category||"general"};
+  var d=(ev.description!=null&&String(ev.description).trim()!=="")?String(ev.description).trim():"";
+  if(d)o.description=d;
+  return o;
+});
 var isAdmin=!!(window.__authGuardIsAdmin);
 var promises=[];
 if(isAdmin){promises.push(DataService.setSharedCalendarEvents(shared).catch(function(){}));}
@@ -360,18 +400,59 @@ render();
 }
 
 var editingEvent=null;
+function escapeHtml(s){
+return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+var modalKeyHandler=null;
+function closeEventDetailModal(){
+var m=document.getElementById("calEventModal");
+if(!m)return;
+m.classList.remove("visible");
+m.setAttribute("aria-hidden","true");
+if(modalKeyHandler){document.removeEventListener("keydown",modalKeyHandler);modalKeyHandler=null;}
+}
+function openEventDetailModal(events){
+if(!events||!events.length)return;
+var m=document.getElementById("calEventModal");
+var body=document.getElementById("calEventModalBody");
+if(!m||!body)return;
+var isMulti=events.length>1;
+var parts=[];
+if(isMulti){parts.push("<p class=\"event-modal-intro\">"+escapeHtml(formatDate(events[0].date))+" · "+events.length+" events</p>");}
+events.forEach(function(e){
+var cat=catLabels[e.category]||e.category;
+var desc=(e.description||"").trim();
+parts.push("<div class=\"event-modal-block\">");
+parts.push("<h3 class=\"event-modal-h3\">"+escapeHtml(e.title||"Event")+"</h3>");
+if(!isMulti){parts.push("<div class=\"event-modal-meta\">"+escapeHtml(formatDate(e.date))+" · "+escapeHtml(cat)+"</div>");}
+else{parts.push("<div class=\"event-modal-meta\">"+escapeHtml(cat)+"</div>");}
+if(desc){parts.push("<div class=\"event-modal-desc\">"+escapeHtml(desc).replace(/\n/g,"<br>")+"</div>");}
+else{parts.push("<p class=\"event-modal-nodesc\">No additional details.</p>");}
+parts.push("</div>");
+});
+body.innerHTML=parts.join("");
+m.classList.add("visible");
+m.setAttribute("aria-hidden","false");
+modalKeyHandler=function(ev){if(ev.key==="Escape")closeEventDetailModal();};
+document.removeEventListener("keydown",modalKeyHandler);
+document.addEventListener("keydown",modalKeyHandler);
+}
 function addEvent(){
 var title=(document.getElementById("title").value||"").trim();
 var date=document.getElementById("date").value;
 var category=document.getElementById("category").value;
+var descriptionRaw=(document.getElementById("eventDescription").value||"").trim();
 if(!title||!date){showToast("Enter an event title and date.");return;}
 var source=(window.__authGuardIsAdmin)?"shared":"personal";
 var events=getEvents();
-events.push({title:title,date:date,category:category||"general",source:source});
+var ev={title:title,date:date,category:category||"general",source:source};
+if(descriptionRaw)ev.description=descriptionRaw;
+events.push(ev);
 saveEvents(events);
 render();
 document.getElementById("title").value="";
 document.getElementById("date").value="";
+var ed=document.getElementById("eventDescription");if(ed)ed.value="";
 showToast("Event added to "+(source==="shared"?"shared calendar (visible to all).":"your calendar."));
 }
 function deleteEvent(ev){
@@ -395,6 +476,7 @@ editingEvent=ev;
 document.getElementById("title").value=ev.title||"";
 document.getElementById("date").value=ev.date||"";
 document.getElementById("category").value=ev.category||"general";
+var ed=document.getElementById("eventDescription");if(ed)ed.value=ev.description||"";
 document.getElementById("addEventBtn").style.display="none";
 document.getElementById("updateEventBtn").style.display="inline-block";
 document.getElementById("cancelEditBtn").style.display="inline-block";
@@ -403,6 +485,7 @@ function cancelEdit(){
 editingEvent=null;
 document.getElementById("title").value="";
 document.getElementById("date").value="";
+var ed0=document.getElementById("eventDescription");if(ed0)ed0.value="";
 document.getElementById("addEventBtn").style.display="inline-block";
 document.getElementById("updateEventBtn").style.display="none";
 document.getElementById("cancelEditBtn").style.display="none";
@@ -412,6 +495,7 @@ if(!editingEvent){cancelEdit();return;}
 var title=(document.getElementById("title").value||"").trim();
 var date=document.getElementById("date").value;
 var category=document.getElementById("category").value;
+var descriptionRaw=(document.getElementById("eventDescription").value||"").trim();
 if(!title||!date){showToast("Enter an event title and date.");return;}
 var events=getEvents();
 var idx=events.findIndex(function(e){
@@ -419,7 +503,9 @@ if(e.source==="shared"&&e.id)return e.id===editingEvent.id;
 return e===editingEvent||(e.title===editingEvent.title&&e.date===editingEvent.date&&(e.category||"general")===(editingEvent.category||"general"));
 });
 if(idx>=0){
-events[idx]={title:title,date:date,category:category||"general",source:editingEvent.source||"personal",id:editingEvent.id};
+var next={title:title,date:date,category:category||"general",source:editingEvent.source||"personal",id:editingEvent.id};
+if(descriptionRaw)next.description=descriptionRaw;
+events[idx]=next;
 saveEvents(events);
 showToast("Event updated.");
 }
@@ -465,7 +551,11 @@ const canEdit=e.source==="personal"||e.source===undefined||(e.source==="shared"&
 const div=document.createElement("div");
 div.className="event";
 div.dataset.eventIdx=i;
-div.innerHTML='<span>'+e.title+' — '+e.date+'</span><span class="badge '+e.category+'">'+(catLabels[e.category]||e.category)+'</span>'+(canEdit?'<div class="event-actions"><button class="btn-edit" type="button" onclick="editEventByIdx('+i+')">Edit</button><button class="btn-del" type="button" onclick="deleteEventByIdx('+i+')">Delete</button></div>':'');
+div.innerHTML='<span>'+escapeHtml(e.title)+' — '+escapeHtml(e.date)+'</span><span class="badge '+e.category+'">'+escapeHtml(catLabels[e.category]||e.category)+'</span>'+(canEdit?'<div class="event-actions"><button class="btn-edit" type="button" onclick="event.stopPropagation();editEventByIdx('+i+')">Edit</button><button class="btn-del" type="button" onclick="event.stopPropagation();deleteEventByIdx('+i+')">Delete</button></div>':'');
+div.addEventListener("click",function(ev){
+if(ev.target.closest&&ev.target.closest(".event-actions"))return;
+openEventDetailModal([e]);
+});
 list.appendChild(div);
 });
 window.__upcomingEvents=evList;
@@ -479,15 +569,6 @@ var ev=window.__upcomingEvents&&window.__upcomingEvents[i];
 if(ev)deleteEvent(ev);
 }
 
-function formatDate(iso){
-const d=new Date(iso);
-const days=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
-const months=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-return days[d.getDay()]+" "+d.getDate()+" "+months[d.getMonth()]+" "+d.getFullYear();
-}
-
-const catLabels={exam:"Exam",meeting:"Meeting",deadline:"Deadline",assessment:"Assessment",reporting:"Reporting",training:"Training",cpd:"CPD",inset:"In-Service",holiday:"Holiday",general:"General"};
-
 /* ACADEMIC YEAR ORDER (Aug → Jul) */
 
 const academicMonths=[7,8,9,10,11,0,1,2,3,4,5,6];
@@ -497,7 +578,12 @@ let tooltipHideTimeout=null;
 function showTooltip(tooltip,ev,day){
 if(!tooltip)return;
 const rect=day.getBoundingClientRect();
-tooltip.innerHTML=ev.map(x=>`<div class="tooltip-item">${x.title}</div><div class="tooltip-meta">${formatDate(x.date)} · ${catLabels[x.category]||x.category}</div>`).join("");
+tooltip.innerHTML=ev.map(function(x){
+var cat=catLabels[x.category]||x.category;
+var sn=(x.description||"").trim();
+var snSmall=sn.length>80?escapeHtml(sn.slice(0,80))+"…":(sn?escapeHtml(sn):"");
+return "<div class=\"tooltip-item\">"+escapeHtml(x.title||"")+"</div><div class=\"tooltip-meta\">"+escapeHtml(formatDate(x.date))+" · "+escapeHtml(cat)+"</div>"+(snSmall?"<div class=\"tooltip-meta\">"+snSmall+"</div>":"");
+}).join("");
 tooltip.style.left=Math.max(8,Math.min(rect.left,window.innerWidth-290))+"px";
 tooltip.style.top=(rect.bottom+6)+"px";
 tooltip.classList.add("visible");
@@ -564,6 +650,9 @@ const ev=getFilteredEvents().filter(e=>e.date===date);
 if(ev.length){
 
 day.classList.add("day-has-events");
+day.tabIndex=0;
+day.setAttribute("role","button");
+day.setAttribute("aria-label","View "+ev.length+" calendar event"+(ev.length===1?"":"s")+" on this day");
 const mark=document.createElement("div");
 mark.className="marker "+ev[0].category;
 day.appendChild(mark);
@@ -576,6 +665,8 @@ else if(tooltip.parentElement!==document.body){document.body.appendChild(tooltip
 
 day.addEventListener("mouseenter",()=>showTooltip(tooltip,ev,day));
 day.addEventListener("mouseleave",()=>hideTooltip(tooltip,250));
+day.addEventListener("click",function(){openEventDetailModal(ev.slice());});
+day.addEventListener("keydown",function(ke){if(ke.key==="Enter"||ke.key===" "){ke.preventDefault();openEventDetailModal(ev.slice());}});
 if(!tooltip.dataset.listenersAdded){tooltip.dataset.listenersAdded="1";tooltip.addEventListener("mouseenter",()=>{if(tooltipHideTimeout){clearTimeout(tooltipHideTimeout);tooltipHideTimeout=null;}});tooltip.addEventListener("mouseleave",()=>hideTooltip(tooltip,0));}
 
 }

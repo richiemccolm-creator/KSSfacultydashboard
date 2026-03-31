@@ -308,6 +308,10 @@ tr:hover td{background:#f8fafc}
               <button class="btn btn-primary" id="admin-update-btn" onclick="adminUpdateSharedEvent()" style="display:none;background:#0369a1">Update event</button>
               <button class="btn btn-ghost" id="admin-cancel-btn" onclick="adminCancelEdit()" style="display:none">Cancel</button>
             </div>
+            <div style="margin-bottom:1rem">
+              <label class="form-label" for="admin-cal-description">Description <span style="font-weight:400;color:var(--text3)">(optional — staff see this when they click the event)</span></label>
+              <textarea id="admin-cal-description" class="form-input" rows="3" style="width:100%;max-width:560px;resize:vertical" placeholder="Room, agenda, or other details…"></textarea>
+            </div>
             <div id="admin-shared-events-list" style="font-size:.85rem"></div>
           </div>
         </div>
@@ -960,10 +964,11 @@ function renderAdminConsole() {
       list.innerHTML = '<div class="empty-s" style="padding:1rem">No shared events yet. Add one above — it will appear on everyone\'s calendar.</div>';
       return;
     }
-    list.innerHTML = '<table class="table-wrap" style="width:100%"><thead><tr><th>Date</th><th>Title</th><th>Category</th><th></th></tr></thead><tbody>' +
+    list.innerHTML = '<table class="table-wrap" style="width:100%"><thead><tr><th>Date</th><th>Title</th><th>Category</th><th>Details</th><th></th></tr></thead><tbody>' +
       adminSharedEvents.map(function(e) {
         var esc = function(s) { return (s||'').replace(/'/g,"\\'").replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
-        return '<tr><td>' + esc(e.date) + '</td><td>' + esc(e.title) + '</td><td>' + (catLbl[e.category] || e.category) + '</td><td><button class="btn btn-ghost" style="font-size:.7rem;padding:.25rem .5rem" onclick="adminEditSharedEvent(\'' + (e.id||'').replace(/'/g,"\\'") + '\')">Edit</button> <button class="btn btn-danger" style="font-size:.7rem;padding:.25rem .5rem" onclick="adminDeleteSharedEvent(\'' + (e.id||'').replace(/'/g,"\\'") + '\')">Delete</button></td></tr>';
+        var hasDesc = (e.description && String(e.description).trim() !== '');
+        return '<tr><td>' + esc(e.date) + '</td><td>' + esc(e.title) + '</td><td>' + (catLbl[e.category] || e.category) + '</td><td>' + (hasDesc ? '✓' : '—') + '</td><td><button class="btn btn-ghost" style="font-size:.7rem;padding:.25rem .5rem" onclick="adminEditSharedEvent(\'' + (e.id||'').replace(/'/g,"\\'") + '\')">Edit</button> <button class="btn btn-danger" style="font-size:.7rem;padding:.25rem .5rem" onclick="adminDeleteSharedEvent(\'' + (e.id||'').replace(/'/g,"\\'") + '\')">Delete</button></td></tr>';
       }).join('') + '</tbody></table>';
   });
 }
@@ -974,6 +979,8 @@ function adminEditSharedEvent(id) {
   document.getElementById('admin-cal-title').value = e.title || '';
   document.getElementById('admin-cal-date').value = e.date || '';
   document.getElementById('admin-cal-category').value = e.category || 'general';
+  var ad = document.getElementById('admin-cal-description');
+  if (ad) ad.value = e.description || '';
   document.getElementById('admin-add-btn').style.display = 'none';
   document.getElementById('admin-update-btn').style.display = 'inline-flex';
   document.getElementById('admin-cancel-btn').style.display = 'inline-flex';
@@ -983,6 +990,8 @@ function adminCancelEdit() {
   document.getElementById('admin-cal-title').value = '';
   document.getElementById('admin-cal-date').value = '';
   document.getElementById('admin-cal-category').value = 'general';
+  var ad = document.getElementById('admin-cal-description');
+  if (ad) ad.value = '';
   document.getElementById('admin-add-btn').style.display = 'inline-flex';
   document.getElementById('admin-update-btn').style.display = 'none';
   document.getElementById('admin-cancel-btn').style.display = 'none';
@@ -992,9 +1001,12 @@ function adminUpdateSharedEvent() {
   var title = document.getElementById('admin-cal-title').value.trim();
   var date = document.getElementById('admin-cal-date').value;
   var category = document.getElementById('admin-cal-category').value || 'general';
+  var description = (document.getElementById('admin-cal-description') && document.getElementById('admin-cal-description').value || '').trim();
   if (!title || !date) { toast('Enter title and date'); return; }
   var updated = adminSharedEvents.map(function(e) {
-    if (e.id === adminEditingEventId) return { id: e.id, title: title, date: date, category: category, source: 'shared' };
+    if (e.id === adminEditingEventId) {
+      return { id: e.id, title: title, date: date, category: category, source: 'shared', description: description };
+    }
     return e;
   });
   DataService.setSharedCalendarEvents(updated).then(function() {
@@ -1010,11 +1022,14 @@ function adminAddSharedEvent() {
   var date = document.getElementById('admin-cal-date').value;
   var category = document.getElementById('admin-cal-category').value || 'general';
   if (!title || !date) { toast('Enter title and date'); return; }
-  var newEv = { title: title, date: date, category: category, source: 'shared' };
+  var description = (document.getElementById('admin-cal-description') && document.getElementById('admin-cal-description').value || '').trim();
+  var newEv = { title: title, date: date, category: category, source: 'shared', description: description };
   var updated = adminSharedEvents.concat([newEv]);
   DataService.setSharedCalendarEvents(updated).then(function() {
     document.getElementById('admin-cal-title').value = '';
     document.getElementById('admin-cal-date').value = '';
+    var ad = document.getElementById('admin-cal-description');
+    if (ad) ad.value = '';
     renderAdminConsole();
     toast('Event added — synced to all users');
   }).catch(function() { toast('Failed to add event'); });

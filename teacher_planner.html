@@ -856,6 +856,14 @@ function bindWeekSidebarEvents(weekStartStr) {
   ta.addEventListener('blur', saveNotes);
 }
 
+function plannerCalendarTooltipAttr(e) {
+  var base = e.title || 'Event';
+  var desc = (e.description && String(e.description).trim()) ? String(e.description).trim() : '';
+  var combined = desc ? base + ' — ' + desc : base;
+  if (combined.length > 200) combined = combined.slice(0, 197) + '...';
+  return combined.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 function renderWeekView() {
   var state = PS.getState();
   if (!state.currentWeekStart) PS.setCurrentWeekStart(PS.getWeekStart(new Date()));
@@ -919,7 +927,7 @@ function renderWeekView() {
       calStrip = '<div class="week-calendar-strip"><div class="week-calendar-strip-title">This week</div><div class="week-calendar-events">';
       weekEvents.forEach(function(e) {
         var cat = e.category || 'general';
-        calStrip += '<span class="week-calendar-event ' + cat + '" title="' + (e.title || '') + '">' + (e.date ? e.date.slice(8) + ' ' : '') + (e.title || 'Event') + '</span>';
+        calStrip += '<span class="week-calendar-event ' + cat + '" title="' + plannerCalendarTooltipAttr(e) + '">' + (e.date ? e.date.slice(8) + ' ' : '') + (e.title || 'Event') + '</span>';
       });
       calStrip += '</div></div>';
     }

@@ -289,11 +289,20 @@
       return new Promise(function(resolve, reject) {
         if (!useSupabase()) { resolve([]); return; }
         window.supabase.from('shared_calendar_events')
-          .select('id, title, date, category')
+          .select('id, title, date, category, description')
           .order('date')
           .then(function(r) {
             if (r.error) { resolve([]); return; }
-            resolve((r.data || []).map(function(e) { return { id: e.id, title: e.title, date: e.date, category: e.category, source: 'shared' }; }));
+            resolve((r.data || []).map(function(e) {
+              return {
+                id: e.id,
+                title: e.title,
+                date: e.date,
+                category: e.category,
+                description: e.description || '',
+                source: 'shared'
+              };
+            }));
           });
       });
     },
@@ -301,7 +310,15 @@
     setSharedCalendarEvents: function(events) {
       if (!useSupabase()) return Promise.reject(new Error('Supabase required'));
       var rows = (events || []).map(function(e) {
-        return { title: e.title || '', date: e.date || '', category: e.category || 'general' };
+        var desc = e.description;
+        if (desc == null || String(desc).trim() === '') desc = null;
+        else desc = String(desc).trim();
+        return {
+          title: e.title || '',
+          date: e.date || '',
+          category: e.category || 'general',
+          description: desc
+        };
       });
       return window.supabase.from('shared_calendar_events').delete().neq('id', '00000000-0000-0000-0000-000000000000')
         .then(function() {
