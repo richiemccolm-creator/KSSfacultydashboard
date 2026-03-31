@@ -1,0 +1,1636 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Faculty Hub">
+<link rel="apple-touch-icon" href="faculty-hub-logo.png" sizes="180x180">
+<link rel="icon" type="image/png" href="faculty-hub-logo.png">
+<title>Quality Calendar — Faculty Hub</title>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-init.js"></script>
+<script src="allowlist-check.js"></script>
+<script src="auth-guard.js"></script>
+<script src="data-service.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@700;800&display=swap" rel="stylesheet">
+<style>
+
+:root {
+  --navy: #1e2d4a;
+  --navy-dark: #16243c;
+  --navy-active: #2a3f62;
+  --navy-hover: #253352;
+  --accent-drama: #4a7fd4;
+  --accent-ad: #c0622a;
+  --white: #ffffff;
+  --bg: #f0f2f5;
+  --card-bg: #ffffff;
+  --text: #1a202c;
+  --text2: #4a5568;
+  --text3: #718096;
+  --border: #e2e8f0;
+  --border2: #cbd5e0;
+  --text-muted: var(--text3);
+  --slate: var(--text2);
+  --slate-light: #f1f5f9;
+  --gold-pale: #fff7ed;
+  --amber: #b45309;
+
+  /* RAG */
+  --rag-r: #dc2626; --rag-r-bg: #fef2f2; --rag-r-border: #fca5a5;
+  --rag-a: #d97706; --rag-a-bg: #fffbeb; --rag-a-border: #fcd34d;
+  --rag-g: #16a34a; --rag-g-bg: #f0fdf4; --rag-g-border: #86efac;
+
+  /* Gantt / category strip */
+  --gantt-leadership: var(--navy-dark);
+  --gantt-provision: #0d9488;
+  --gantt-success: #b45309;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+
+/* ═══════════════════════════════
+   HEADER
+═══════════════════════════════ */
+.site-header {
+  background: linear-gradient(135deg, var(--navy-dark), var(--navy));
+  color: white;
+  padding: 0 1.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 60px;
+  position: sticky; top: 0; z-index: 200;
+  box-shadow: 0 2px 12px rgba(22, 36, 60, 0.35);
+  gap: 16px;
+}
+.header-left { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.header-hub-link { display: flex; align-items: center; flex-shrink: 0; text-decoration: none; opacity: 0.95; }
+.header-hub-link:hover { opacity: 1; }
+.header-logo { height: 34px; width: auto; display: block; }
+.header-titles { min-width: 0; }
+.header-titles h1 {
+  font-family: 'Sora', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--white);
+  line-height: 1.2;
+}
+.header-sub { font-size: 0.65rem; font-weight: 500; color: rgba(255,255,255,0.62); margin-top: 2px; line-height: 1.3; }
+.header-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+.header-signout {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: rgba(255,255,255,0.85);
+  text-decoration: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+.header-signout:hover { color: #fff; background: rgba(255,255,255,0.1); }
+
+.year-selector {
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.25);
+  color: white;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 5px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  outline: none;
+}
+.year-selector option { background: var(--navy); }
+
+.print-btn {
+  background: var(--navy-active);
+  color: var(--white);
+  border: none;
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  letter-spacing: 0.02em;
+  display: flex; align-items: center; gap: 6px;
+  transition: background 0.15s;
+}
+.print-btn:hover { background: var(--navy-hover); }
+
+/* ═══════════════════════════════
+   VIEW TABS (Planner / Gantt)
+═══════════════════════════════ */
+.view-tabs {
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border);
+  padding: 0 28px;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  position: sticky; top: 60px; z-index: 190;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+}
+.view-tab {
+  padding: 13px 20px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: all 0.15s;
+  font-family: 'Inter', sans-serif;
+  letter-spacing: 0.02em;
+  display: flex; align-items: center; gap: 7px;
+}
+.view-tab:hover { color: var(--navy); }
+.view-tab.active { color: var(--navy); border-bottom-color: var(--accent-drama); }
+.view-tab-icon { font-size: 14px; }
+
+.year-display {
+  margin-left: auto;
+  font-family: ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+  padding: 13px 0;
+}
+
+/* ═══════════════════════════════
+   CONTROLS BAR
+═══════════════════════════════ */
+.controls-bar {
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border);
+  padding: 10px 28px;
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  position: sticky; top: 108px; z-index: 180;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+}
+.controls-bar.gantt-mode { top: 108px; }
+
+.control-label {
+  font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.09em;
+  color: var(--text-muted);
+}
+.control-group { display: flex; align-items: center; gap: 7px; }
+
+.month-tabs { display: flex; gap: 3px; flex-wrap: wrap; }
+.month-tab {
+  padding: 4px 11px; border-radius: 5px;
+  border: 1.5px solid var(--border);
+  background: white; font-size: 11px; font-weight: 500;
+  color: var(--slate); cursor: pointer;
+  transition: all 0.12s; font-family: 'Inter', sans-serif;
+}
+.month-tab:hover { border-color: var(--navy-active); color: var(--navy); }
+.month-tab.active { background: var(--navy); border-color: var(--navy); color: white; }
+.month-tab.all-tab.active { background: var(--navy-active); border-color: var(--navy-active); color: white; }
+
+.filter-select {
+  padding: 4px 26px 4px 9px;
+  border-radius: 5px; border: 1.5px solid var(--border);
+  background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='9' height='5'%3E%3Cpath d='M0 0l4.5 5L9 0z' fill='%236b7590'/%3E%3C/svg%3E") no-repeat right 8px center;
+  font-size: 11px; font-weight: 500; color: var(--text);
+  font-family: 'Inter', sans-serif; appearance: none; cursor: pointer; outline: none;
+}
+.filter-select:focus { border-color: var(--navy-active); }
+
+.search-input {
+  padding: 4px 10px; border-radius: 5px;
+  border: 1.5px solid var(--border);
+  font-size: 11px; font-family: 'Inter', sans-serif;
+  color: var(--text); outline: none; width: 180px;
+  transition: border-color 0.15s;
+}
+.search-input:focus { border-color: var(--navy-active); }
+.search-input::placeholder { color: var(--text-muted); }
+.results-count { font-size: 11px; color: var(--text-muted); margin-left: auto; font-weight: 500; }
+
+/* ═══════════════════════════════
+   PLANNER VIEW
+═══════════════════════════════ */
+#planner-view { display: block; }
+#planner-view.hidden { display: none; }
+.main-content { padding: 24px 28px; display: flex; flex-direction: column; gap: 24px; }
+
+.month-section { display: none; }
+.month-section.visible { display: block; }
+
+.month-header { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+.month-title { font-size: 20px; font-weight: 600; color: var(--navy); letter-spacing: -0.02em; }
+.month-pill {
+  background: var(--navy); color: white;
+  font-size: 10px; padding: 3px 10px; border-radius: 20px;
+  font-weight: 700; letter-spacing: 0.05em;
+  font-family: ui-monospace, monospace;
+}
+
+/* activity count badges on month header */
+.month-rag-summary { display: flex; gap: 5px; margin-left: auto; }
+.rag-mini { font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 600; font-family: ui-monospace, monospace; }
+.rag-mini.r { background: var(--rag-r-bg); color: var(--rag-r); border: 1px solid var(--rag-r-border); }
+.rag-mini.a { background: var(--rag-a-bg); color: var(--rag-a); border: 1px solid var(--rag-a-border); }
+.rag-mini.g { background: var(--rag-g-bg); color: var(--rag-g); border: 1px solid var(--rag-g-border); }
+
+.category-block { background: var(--card-bg); border-radius: 10px; border: 1px solid var(--border); overflow: hidden; margin-bottom: 10px; }
+.category-header {
+  padding: 9px 16px; font-size: 10px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+}
+.cat-leadership .category-header { background: var(--navy); color: white; }
+.cat-provision .category-header { background: var(--gantt-provision); color: white; }
+.cat-success .category-header { background: var(--gantt-success); color: white; }
+
+/* ── ACTIVITY CARD ── */
+.activity-card { border-bottom: 1px solid var(--border); }
+.activity-card:last-child { border-bottom: none; }
+.activity-card.hidden { display: none; }
+
+.activity-summary {
+  display: grid;
+  grid-template-columns: 36px 200px 1fr 130px 36px;
+  align-items: stretch;
+  cursor: pointer;
+  min-height: 50px;
+}
+.activity-summary:hover .act-label { background: #f0f4fb; }
+
+/* RAG dot column */
+.rag-col {
+  display: flex; align-items: center; justify-content: center;
+  border-right: 1px solid var(--border);
+  background: var(--slate-light);
+  position: relative;
+}
+.rag-dot {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid var(--border);
+  background: #e2e8f0;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+  flex-shrink: 0;
+}
+.rag-dot:hover { transform: scale(1.2); box-shadow: 0 0 0 3px rgba(0,0,0,0.08); }
+.rag-dot.rag-r { background: var(--rag-r); border-color: #b91c1c; }
+.rag-dot.rag-a { background: var(--rag-a); border-color: #b45309; }
+.rag-dot.rag-g { background: var(--rag-g); border-color: #15803d; }
+
+.act-label {
+  padding: 10px 14px;
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; justify-content: center; gap: 3px;
+  background: var(--slate-light); transition: background 0.1s;
+}
+.act-name { font-size: 11px; font-weight: 600; color: var(--navy); line-height: 1.3; }
+.act-gc-tags { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 2px; }
+.act-gc {
+  font-size: 9px; padding: 1px 5px; border-radius: 6px;
+  font-weight: 600; background: rgba(74, 127, 212, 0.15); color: var(--navy);
+  font-family: ui-monospace, monospace;
+}
+.act-mission {
+  font-size: 9px; padding: 1px 5px; border-radius: 6px;
+  font-weight: 500; background: var(--gold-pale); color: var(--amber);
+  font-family: ui-monospace, monospace;
+}
+
+.act-qi {
+  padding: 10px 14px; font-size: 11px; color: var(--slate);
+  line-height: 1.5; display: flex; align-items: center; font-style: italic;
+}
+
+.act-focus {
+  padding: 10px 14px; display: flex; align-items: center; gap: 5px;
+  flex-wrap: wrap; border-left: 1px solid var(--border);
+}
+.focus-badge {
+  font-size: 9px; padding: 2px 7px; border-radius: 8px;
+  font-weight: 600; background: #dbeafe; color: #1e40af;
+  font-family: ui-monospace, monospace; white-space: nowrap;
+}
+.focus-star { font-size: 13px; color: var(--accent-drama); }
+
+.expand-btn {
+  display: flex; align-items: center; justify-content: center;
+  border-left: 1px solid var(--border);
+  color: var(--text-muted); font-size: 12px; transition: color 0.15s;
+}
+.expand-btn svg { transition: transform 0.2s; }
+.activity-card.expanded .expand-btn svg { transform: rotate(180deg); }
+.activity-card.expanded .expand-btn { color: var(--navy); }
+
+/* ── DETAIL PANEL ── */
+.activity-detail { display: none; border-top: 1px solid var(--border); background: #f9fafc; }
+.activity-detail.open { display: block; }
+
+.detail-tabs {
+  display: flex; border-bottom: 1px solid var(--border);
+  background: var(--card-bg); padding: 0 16px;
+}
+.detail-tab {
+  padding: 9px 14px; font-size: 11px; font-weight: 600;
+  color: var(--text-muted); border: none; background: none;
+  cursor: pointer; border-bottom: 2px solid transparent;
+  transition: all 0.12s; font-family: 'Inter', sans-serif;
+}
+.detail-tab.active { color: var(--navy); border-bottom-color: var(--accent-drama); }
+
+.detail-pane { display: none; }
+.detail-pane.active { display: block; }
+
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; }
+.detail-col { padding: 16px 18px; border-right: 1px solid var(--border); }
+.detail-col:last-child { border-right: none; }
+
+.detail-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.09em; color: var(--text-muted);
+  margin-bottom: 8px; display: flex; align-items: center; gap: 5px;
+}
+.dlabel-icon {
+  width: 15px; height: 15px; border-radius: 3px;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 9px;
+}
+.icon-act { background: #dbeafe; color: #1e40af; }
+.icon-ev  { background: #dcfce7; color: #166534; }
+.icon-eval{ background: #fef9c3; color: #854d0e; }
+.icon-next{ background: #fce7f3; color: #9d174d; }
+
+.detail-content { font-size: 11px; line-height: 1.7; color: var(--text); }
+.detail-section { margin-bottom: 10px; }
+.dstitle {
+  font-size: 9px; font-weight: 700; color: var(--navy);
+  margin-bottom: 3px; padding: 2px 7px; background: #e8edf8;
+  border-radius: 3px; display: inline-block; text-transform: uppercase; letter-spacing: 0.06em;
+}
+.dsbody { padding-left: 0; font-size: 11px; line-height: 1.7; color: var(--slate); }
+.dsbody li { list-style: none; padding: 1px 0 1px 13px; position: relative; }
+.dsbody li::before { content: '–'; position: absolute; left: 0; color: var(--text-muted); }
+.empty-field { color: var(--text-muted); font-style: italic; font-size: 11px; }
+
+/* ── RAG / NOTES PANE ── */
+.rag-notes-pane { padding: 16px 18px; }
+.rag-notes-grid { display: grid; grid-template-columns: auto 1fr; gap: 20px; align-items: start; }
+
+.rag-picker-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.09em; color: var(--text-muted); margin-bottom: 8px; }
+.rag-buttons { display: flex; flex-direction: column; gap: 6px; }
+.rag-btn {
+  display: flex; align-items: center; gap: 8px;
+  padding: 7px 14px; border-radius: 6px; border: 1.5px solid var(--border);
+  background: var(--card-bg); cursor: pointer; font-family: 'Inter', sans-serif;
+  font-size: 11px; font-weight: 500; transition: all 0.12s;
+}
+.rag-btn:hover { border-color: currentColor; }
+.rag-btn.active-r { background: var(--rag-r-bg); border-color: var(--rag-r); color: var(--rag-r); }
+.rag-btn.active-a { background: var(--rag-a-bg); border-color: var(--rag-a); color: var(--rag-a); }
+.rag-btn.active-g { background: var(--rag-g-bg); border-color: var(--rag-g); color: var(--rag-g); }
+.rag-btn-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
+.rb-red .rag-btn-dot   { background: var(--rag-r); }
+.rb-amber .rag-btn-dot { background: var(--rag-a); }
+.rb-green .rag-btn-dot { background: var(--rag-g); }
+
+.notes-area {
+  width: 100%; min-height: 100px;
+  border: 1.5px solid var(--border); border-radius: 6px;
+  padding: 10px 12px; font-family: 'Inter', sans-serif;
+  font-size: 11px; color: var(--text); resize: vertical;
+  outline: none; transition: border-color 0.15s; line-height: 1.6;
+  background: white;
+}
+.notes-area:focus { border-color: var(--navy-active); }
+.notes-save-row { display: flex; justify-content: flex-end; margin-top: 6px; gap: 8px; align-items: center; }
+.save-status { font-size: 10px; color: var(--rag-g); font-weight: 600; opacity: 0; transition: opacity 0.3s; }
+.save-status.show { opacity: 1; }
+.notes-save-btn {
+  background: var(--navy-active); color: white; border: none;
+  font-family: 'Inter', sans-serif; font-size: 11px; font-weight: 600;
+  padding: 5px 14px; border-radius: 5px; cursor: pointer;
+  transition: background 0.12s;
+}
+.notes-save-btn:hover { background: var(--navy); }
+
+/* ═══════════════════════════════
+   GANTT VIEW
+═══════════════════════════════ */
+#gantt-view { display: none; }
+#gantt-view.active { display: block; }
+
+.gantt-wrapper { padding: 24px 28px; overflow-x: auto; }
+
+.gantt-legend {
+  display: flex; gap: 20px; margin-bottom: 18px; flex-wrap: wrap; align-items: center;
+}
+.gantt-legend-title { font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-right: 4px; }
+.gantt-legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--slate); }
+.gl-swatch { width: 14px; height: 14px; border-radius: 3px; flex-shrink: 0; }
+.gl-leadership { background: var(--gantt-leadership); }
+.gl-provision   { background: var(--gantt-provision); }
+.gl-success     { background: var(--gantt-success); }
+.gl-sep { width: 1px; height: 16px; background: var(--border); margin: 0 4px; }
+.gl-rag { width: 10px; height: 10px; border-radius: 50%; }
+
+.gantt-rag-filter { display: flex; gap: 5px; align-items: center; }
+.gantt-rag-btn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 3px 9px; border-radius: 10px; border: 1.5px solid var(--border);
+  background: white; cursor: pointer; font-size: 10px; font-weight: 600;
+  font-family: 'Inter', sans-serif; transition: all 0.12s;
+}
+.gantt-rag-btn.active-r { background: var(--rag-r-bg); border-color: var(--rag-r); color: var(--rag-r); }
+.gantt-rag-btn.active-a { background: var(--rag-a-bg); border-color: var(--rag-a); color: var(--rag-a); }
+.gantt-rag-btn.active-g { background: var(--rag-g-bg); border-color: var(--rag-g); color: var(--rag-g); }
+
+.gantt-table { width: 100%; border-collapse: collapse; min-width: 900px; background: var(--card-bg); border-radius: 10px; overflow: hidden; border: 1px solid var(--border); }
+
+.gantt-table thead tr { background: var(--navy); }
+.gantt-table thead th {
+  padding: 10px 8px; color: white; font-size: 10px; font-weight: 600;
+  letter-spacing: 0.06em; text-align: center; white-space: nowrap;
+  border-right: 1px solid rgba(255,255,255,0.12);
+}
+.gantt-table thead th.row-label { text-align: left; padding-left: 14px; min-width: 220px; }
+.gantt-table thead th.rag-th { width: 36px; min-width: 36px; }
+
+.gantt-cat-row td {
+  padding: 7px 14px; font-size: 9px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  background: #e8edf8; color: var(--navy);
+  border-bottom: 1px solid var(--border);
+}
+
+.gantt-row { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+.gantt-row:hover { background: #f8f9fc; }
+.gantt-row.gantt-hidden { display: none; }
+
+.gantt-row td { border-right: 1px solid var(--border); vertical-align: middle; }
+.gantt-row td:last-child { border-right: none; }
+
+.gantt-label-cell { padding: 10px 14px; }
+.gantt-act-name { font-size: 11px; font-weight: 600; color: var(--navy); }
+.gantt-act-tags { display: flex; gap: 3px; flex-wrap: wrap; margin-top: 3px; }
+
+.gantt-month-cell { padding: 5px 4px; text-align: center; height: 46px; }
+.gantt-block {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 100%; min-height: 28px; border-radius: 5px;
+  font-size: 9px; font-weight: 600; color: white;
+  cursor: pointer; position: relative;
+  transition: filter 0.12s, transform 0.12s;
+  padding: 3px 4px; line-height: 1.2; text-align: center;
+  gap: 2px;
+}
+.gantt-block:hover { filter: brightness(1.12); transform: scaleY(1.05); }
+.gantt-block.cat-leadership { background: var(--gantt-leadership); }
+.gantt-block.cat-provision   { background: var(--gantt-provision); }
+.gantt-block.cat-success     { background: var(--gantt-success); }
+
+.gantt-block .gb-focus { font-size: 9px; opacity: 0.95; line-height: 1.3; }
+.gantt-rag-indicator {
+  width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0;
+  border: 1px solid rgba(255,255,255,0.4);
+}
+.gb-rag-r { background: #f87171; }
+.gb-rag-a { background: #fbbf24; }
+.gb-rag-g { background: #4ade80; }
+
+.gantt-rag-cell { text-align: center; padding: 5px 4px; }
+.gantt-rag-dot-small {
+  width: 12px; height: 12px; border-radius: 50%; margin: 0 auto;
+  border: 1.5px solid var(--border); background: #e2e8f0;
+}
+.gantt-rag-dot-small.rag-r { background: var(--rag-r); border-color: #b91c1c; }
+.gantt-rag-dot-small.rag-a { background: var(--rag-a); border-color: #b45309; }
+.gantt-rag-dot-small.rag-g { background: var(--rag-g); border-color: #15803d; }
+
+/* ═══════════════════════════════
+   POPUP MODAL
+═══════════════════════════════ */
+.popup-overlay {
+  position: fixed; inset: 0; background: rgba(10,20,50,0.5);
+  z-index: 1000; display: flex; align-items: center; justify-content: center;
+  opacity: 0; pointer-events: none; transition: opacity 0.2s;
+}
+.popup-overlay.open { opacity: 1; pointer-events: all; }
+
+.popup-card {
+  background: white; border-radius: 12px; width: 560px; max-width: 95vw;
+  max-height: 85vh; overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+  transform: translateY(12px) scale(0.98);
+  transition: transform 0.2s;
+}
+.popup-overlay.open .popup-card { transform: translateY(0) scale(1); }
+
+.popup-header {
+  padding: 16px 20px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+}
+.popup-month-badge {
+  font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;
+  padding: 2px 8px; border-radius: 4px; color: white; flex-shrink: 0;
+  font-family: ui-monospace, monospace;
+}
+.popup-month-badge.cat-leadership { background: var(--gantt-leadership); }
+.popup-month-badge.cat-provision   { background: var(--gantt-provision); }
+.popup-month-badge.cat-success     { background: var(--gantt-success); }
+.popup-title { font-size: 14px; font-weight: 600; color: var(--navy); flex: 1; }
+.popup-close {
+  width: 28px; height: 28px; border-radius: 50%;
+  border: none; background: var(--bg); color: var(--slate);
+  cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: background 0.12s;
+}
+.popup-close:hover { background: var(--border); }
+
+.popup-qi {
+  padding: 12px 20px; background: #f9fafc;
+  border-bottom: 1px solid var(--border);
+  font-size: 11px; color: var(--slate); font-style: italic; line-height: 1.5;
+}
+
+.popup-body { padding: 16px 20px; }
+.popup-section { margin-bottom: 14px; }
+.popup-section-title {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--text-muted); margin-bottom: 6px;
+}
+.popup-section-content { font-size: 11px; line-height: 1.7; color: var(--slate); }
+.popup-section-content li { list-style: none; padding: 1px 0 1px 13px; position: relative; }
+.popup-section-content li::before { content: '–'; position: absolute; left: 0; color: var(--text-muted); }
+
+.popup-focus-row { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 14px; }
+.popup-detail-btn {
+  display: block; width: 100%;
+  background: var(--navy-active); color: white; border: none;
+  font-family: 'Inter', sans-serif; font-size: 12px; font-weight: 600;
+  padding: 10px; border-radius: 7px; cursor: pointer;
+  margin-top: 16px; text-align: center;
+  transition: background 0.12s;
+}
+.popup-detail-btn:hover { background: var(--navy); }
+
+/* ═══════════════════════════════
+   MISC
+═══════════════════════════════ */
+.no-results {
+  padding: 48px; text-align: center; color: var(--text-muted);
+  font-size: 14px; display: none;
+}
+.no-results.visible { display: block; }
+
+.scroll-top {
+  position: fixed; bottom: 24px; right: 24px;
+  width: 38px; height: 38px; background: var(--navy); color: white;
+  border: none; border-radius: 50%; cursor: pointer; font-size: 16px;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.2s; z-index: 300;
+}
+.scroll-top.visible { opacity: 1; }
+
+/* ═══════════════════════════════
+   PRINT STYLES
+═══════════════════════════════ */
+@media print {
+  .site-header, .view-tabs, .controls-bar, .scroll-top,
+  .popup-overlay, .expand-btn, .detail-tabs, .notes-save-btn,
+  .print-btn, .year-selector, #gantt-view { display: none !important; }
+
+  body { background: white !important; }
+  #planner-view { display: block !important; }
+  .main-content { padding: 8px !important; gap: 16px !important; }
+
+  .month-section { display: block !important; page-break-before: always; break-before: page; }
+  .month-section:first-of-type { page-break-before: avoid; break-before: avoid; }
+  .month-title { font-size: 16px !important; }
+
+  .activity-detail { display: block !important; }
+  .detail-pane, .detail-pane.active, .detail-pane:not(.active) { display: block !important; }
+
+  .rag-col { width: 20px !important; min-width: 20px !important; }
+  .activity-summary { grid-template-columns: 20px 180px 1fr 100px !important; }
+  .activity-card.hidden { display: block !important; }
+
+  .category-block { page-break-inside: avoid; break-inside: avoid; border: 1px solid #ccc !important; margin-bottom: 8px !important; }
+  .activity-card { page-break-inside: avoid; break-inside: avoid; }
+
+  .notes-area { border: 1px solid #bbb !important; min-height: 50px !important; background: #fafafa !important; }
+
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  .cat-leadership .category-header { background: #16243c !important; color: white !important; }
+  .cat-provision .category-header  { background: #0d9488 !important; color: white !important; }
+  .cat-success .category-header    { background: #b45309 !important; color: white !important; }
+  .no-results { display: none !important; }
+
+  @page { margin: 12mm; size: A4 landscape; }
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ HEADER ═══ -->
+<header class="site-header">
+  <div class="header-left">
+    <a href="expressive_arts_faculty%20(10).html" class="header-hub-link" title="Faculty Hub"><img src="faculty-hub-logo.png" alt="Faculty Hub" class="header-logo"></a>
+    <div class="header-titles">
+      <h1>Quality Calendar</h1>
+      <div class="header-sub">Knightswood Secondary · Art &amp; Drama · HGIOS standards planner</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <a href="login.html" class="header-signout" onclick="event.preventDefault();(window.doSignOut||function(){window.location.href='login.html';})();">Sign out</a>
+    <select class="year-selector" id="year-selector" title="Select session year">
+      <option value="2024-25">2024–25</option>
+      <option value="2025-26">2025–26</option>
+      <option value="2026-27">2026–27</option>
+      <option value="2027-28">2027–28</option>
+      <option value="2028-29">2028–29</option>
+    </select>
+    <button class="print-btn" onclick="triggerPrint()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      Print / Export
+    </button>
+  </div>
+</header>
+
+<!-- ═══ VIEW TABS ═══ -->
+<div class="view-tabs">
+  <button class="view-tab active" id="tab-planner" onclick="switchView('planner')">
+    <span class="view-tab-icon">☰</span> Planner View
+  </button>
+  <button class="view-tab" id="tab-gantt" onclick="switchView('gantt')">
+    <span class="view-tab-icon">▦</span> Gantt Chart
+  </button>
+  <span class="year-display" id="year-display">2024–25</span>
+</div>
+
+<!-- ═══ CONTROLS ═══ -->
+<div class="controls-bar" id="controls-bar">
+  <div class="control-group">
+    <span class="control-label">Month</span>
+    <div class="month-tabs">
+      <button class="month-tab all-tab active" data-month="all">All</button>
+      <button class="month-tab" data-month="Sept">Sept</button>
+      <button class="month-tab" data-month="Oct">Oct</button>
+      <button class="month-tab" data-month="Nov">Nov</button>
+      <button class="month-tab" data-month="Dec">Dec</button>
+      <button class="month-tab" data-month="Jan">Jan</button>
+      <button class="month-tab" data-month="Feb">Feb</button>
+      <button class="month-tab" data-month="Mar">Mar</button>
+      <button class="month-tab" data-month="Apr">Apr</button>
+      <button class="month-tab" data-month="May">May</button>
+      <button class="month-tab" data-month="June">June</button>
+    </div>
+  </div>
+  <div class="control-group" id="planner-filters">
+    <span class="control-label">Category</span>
+    <select class="filter-select" id="cat-filter">
+      <option value="all">All categories</option>
+      <option value="leadership">Leadership &amp; Management</option>
+      <option value="provision">Learning Provision</option>
+      <option value="success">Successes &amp; Achievements</option>
+    </select>
+    <span class="control-label" style="margin-left:4px">Activity</span>
+    <select class="filter-select" id="activity-filter">
+      <option value="all">All activities</option>
+      <option value="tracking">Attainment / Tracking</option>
+      <option value="stakeholders">Stakeholder Views</option>
+      <option value="prd">PRD</option>
+      <option value="sip">SIP / DIP Review</option>
+      <option value="reports">Reports to Parents</option>
+      <option value="leavers">Leaver Destinations</option>
+      <option value="observations">Class Observations</option>
+      <option value="attendance">Attendance &amp; Exclusion</option>
+      <option value="attainment">Attainment Meetings</option>
+      <option value="environment">Learning Environment</option>
+    </select>
+    <input type="text" class="search-input" id="search-input" placeholder="Search…">
+  </div>
+  <span class="results-count" id="results-count"></span>
+</div>
+
+<!-- ═══ PLANNER VIEW ═══ -->
+<div id="planner-view">
+  <div class="main-content" id="cards-container"></div>
+  <div class="no-results" id="no-results">No activities match your current filters.</div>
+</div>
+
+<!-- ═══ GANTT VIEW ═══ -->
+<div id="gantt-view">
+  <div class="gantt-wrapper">
+    <div class="gantt-legend">
+      <span class="gantt-legend-title">Category</span>
+      <span class="gantt-legend-item"><span class="gl-swatch gl-leadership"></span>Leadership &amp; Management</span>
+      <span class="gantt-legend-item"><span class="gl-swatch gl-provision"></span>Learning Provision</span>
+      <span class="gantt-legend-item"><span class="gl-swatch gl-success"></span>Successes &amp; Achievements</span>
+      <span class="gl-sep"></span>
+      <span class="gantt-legend-title">RAG</span>
+      <div class="gantt-rag-filter">
+        <button class="gantt-rag-btn" id="grag-all" onclick="filterGanttRag('all')" style="font-size:10px;font-weight:600;">All</button>
+        <button class="gantt-rag-btn" id="grag-r" onclick="filterGanttRag('r')"><span class="gl-rag" style="background:var(--rag-r);border-radius:50%"></span>Concern</button>
+        <button class="gantt-rag-btn" id="grag-a" onclick="filterGanttRag('a')"><span class="gl-rag" style="background:var(--rag-a);border-radius:50%"></span>Developing</button>
+        <button class="gantt-rag-btn" id="grag-g" onclick="filterGanttRag('g')"><span class="gl-rag" style="background:var(--rag-g);border-radius:50%"></span>Secure</button>
+      </div>
+    </div>
+    <table class="gantt-table" id="gantt-table">
+      <thead>
+        <tr>
+          <th class="row-label">Activity</th>
+          <th>Sept</th><th>Oct</th><th>Nov</th><th>Dec</th><th>Jan</th>
+          <th>Feb</th><th>Mar</th><th>Apr</th><th>May</th><th>June</th>
+          <th class="rag-th">RAG</th>
+        </tr>
+      </thead>
+      <tbody id="gantt-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══ POPUP ═══ -->
+<div class="popup-overlay" id="popup-overlay" onclick="closePopup(event)">
+  <div class="popup-card" id="popup-card">
+    <div class="popup-header">
+      <div>
+        <span class="popup-month-badge" id="popup-badge"></span>
+        <div class="popup-title" id="popup-title" style="margin-top:6px"></div>
+      </div>
+      <button class="popup-close" onclick="closePopupDirect()">✕</button>
+    </div>
+    <div class="popup-qi" id="popup-qi"></div>
+    <div class="popup-body" id="popup-body"></div>
+  </div>
+</div>
+
+<button class="scroll-top" id="scroll-top" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════
+
+const IMAGE_CONTENT = {
+  tracking: {
+    activities: {
+      SLT: ["Share all pupil data", "Overview of progress", "Highlight pupil concerns"],
+      "Department / Faculty": ["PT / FH class by class analysis", "Attainment meetings with each class teacher about progress of classes including agreeing targets for young people not on track / making progress", "PT Discussions with pupils not on track"],
+      "PT PC": ["Review data for case load highlighting pupils not making progress", "Discuss with link DHT and agree actions for individual young people — PT PC discussion with YP or parental meeting / phonecall etc", "Discussions with individual young people", "Focus groups / feedback from young people about Learner Conversations"],
+      "Class Teacher": ["Learner conversation with each young person at the point of tracking prior to reports being issued", "Analyse tracking data including reviewing progress of previous targets and how progress in subject compares to that in the whole school data", "Discuss with PT / FH progress of class including setting targets for those not on track", "Agree targets with PT / FH for those not on track and how these are going to be monitored"]
+    },
+    evidence: ["Leaver conversation proformas", "PT/FH analysis of progress", "Class teacher analysis of progress", "Minutes of attainment meetings", "Record of agreed interventions and how these are to be monitored", "Feedback from YP on Learner conversations"]
+  },
+  stakeholders: {
+    activities: {
+      SLT: ["Gather parent / carer views at reporting periods and Parent / carer evenings as appropriate including Parent / Carer focus groups", "Gather stakeholders views on an annual basis", "Focus groups of young people to gather views on Learning & Teaching and the implementation of other policies such as Promoting Positive Behaviour, Homework etc"],
+      "PT / FH": ["Focus groups of young people to gather views on Learning & Teaching and the implementation of other policies such as Promoting Positive Behaviour, Homework etc"],
+      "Class teacher": ["Pupil feedback on the quality of the learning experience at appropriate points eg end of unit / topic, following an assessment, at a reporting period etc"]
+    },
+    evidence: ["Survey results", "You said, we did"]
+  },
+  prd: {
+    activities: {
+      SLT: ["Provide paperwork / format of meetings", "Support Link PT / FH to prepare for the meeting", "Feedback to all staff highlights of meetings sharing good practice", "Gather feedback from PTs / FHs on process"],
+      "PT FH": ["Prepare for meeting using agreed paperwork / format and seek support from link SLT if required", "Involve all department in preparing for meetings as appropriate"],
+      "Class teacher": ["Provide PT / FH with appropriate data to prepare for meetings"]
+    },
+    evidence: ["Paperwork for meetings", "Minutes of meetings", "Feedback provided to all staff highlighting good practice"]
+  },
+  sip: {
+    activities: {
+      SLT: ["SIP agreed and shared", "Opportunities to be part of working groups shared"],
+      "PT / FH": ["DIP agreed and shared prior to PRD", "Agreed time and place for PRD", "Agree how impact of CPD is going to be measured eg improvements in T&L, impact of development tasks etc"],
+      "Class teacher": ["Review SIP & DIP prior to PRD and what commitments they would wish to be part of", "Look at opportunities to be involved in whole school groups", "Review relevant GTCs standards and which ones are relevant for this session"]
+    },
+    evidence: ["CPD record", "PRD record", "Tracker of DIP tasks eg on Teams", "Staff allocated tasks based on PRDs and staff identified priorities to lead on", "Regular discussion of CPD bulletin at Ped Pods and DMs", "Opportunities for staff to share info from courses at DMs or whole school as appropriate"]
+  },
+  sipReview: {
+    activities: {
+      SLT: ["Share SIP tracker on the staff drive so all staff can see progress"],
+      "PT / FH": ["Add to DM agenda to review each month", "More regular review of DIP tasks with individual staff", "Sign post staff to development opportunities during the year", "Termly PRD check in with staff"],
+      "Class teacher": ["Termly review of DIP progress with DIP targets"]
+    },
+    evidence: ["Whole school SIP tracker", "DIP tracker", "DM / SLT minutes"]
+  },
+  reports: {
+    activities: {
+      SLT: ["SLT sampling of reports / tracking prior to issue — feedback any issues / areas of good practice to PT / FH as appropriate"],
+      "PT / FH": ["Agree with department colleagues what should be reported on to ensure consistency across the department / faculty", "PT / FH QA of reports prior to issuing including cross checking with previous reports issued, referrals, homework records, review of agreed interventions etc", "Feedback to class teachers any issues or identified areas of good practice"],
+      "Class teacher": ["Review reports for accuracy eg spelling, correct names, correct pronouns", "Follow department guidance when completing reports to ensure consistency across departments / faculties", "Cross check with previous reports, tracking data and previous agreed targets to ensure accuracy in the reports"]
+    },
+    evidence: ["Minutes of DMs / report guidance", "Feedback to staff"]
+  },
+  leavers: {
+    activities: {
+      SLT: ["Set up appropriate spreadsheets to track information and agreed dates of update eg weekly, monthly, termly etc", "Monitor these spreadsheets to ensure that they are being regularly and consistently updated", "Share relevant information with partner agencies", "Update SLT / PT PC on current status"],
+      "PT PC": ["Track caseload and discuss at weekly caseload meetings potential leavers — particular focus on those in danger of not having a positive destination and agree next steps and how these are going to be monitored", "Update spreadsheets as requested by DHT", "Work with partner agencies to support young people into a positive destination", "Carry out focus groups of young people to get feedback on support being provided eg UCAS, college candidates etc"]
+    },
+    evidence: ["Spreadsheets", "Weekly case load minutes", "KIIM minutes", "OFA meetings", "YP feedback"]
+  },
+  observations: {
+    activities: {
+      SLT: ["Share focus of observations", "Provide individual feedback of observations", "Provided whole school feedback of observations including highlighting good practice", "Carry out pupil focus groups as part of feedback"],
+      "PT / FH": ["Share focus of observations", "Provide individual feedback of observations", "Provided departmental feedback of observations including highlighting and sharing good practice"],
+      "Class teacher": ["Reflect on the lesson prior to feedback including reflecting on previous feedback highlighting areas of improvement", "Read and reflect on whole school and department feedback on observations and identify areas of improvement in own practice"]
+    },
+    evidence: ["Whole school feedback", "Department feedback", "Individual teacher feedback", "Pupil group feedback"]
+  },
+  attendance: {
+    activities: {
+      SLT: ["Provide whole school overview of attendance and exclusions on a termly basis", "Identify young people viewed as being at risk and discuss at biannual SLT / PT PC meetings with HT", "Discuss with link PT / FH how young people are being supported back to classes after exclusion or if regular attendance is a barrier to learning"],
+      "PT PC": ["Monitor case load attendance as per agreed attendance policy", "Highlight young people of concern at weekly case load meeting with DHT and refer to appropriate agencies / forums as required eg KIIM, SIM, AIG, HSSW, OFA etc", "Complete appropriate questionnaires such as School Avoidance etc and discuss outcome with link DHT agreeing a plan to support", "Provide overview of highlighted young people at biannual meetings with HT including agreed interventions and outcomes of these", "Seek views of YP and Parents / carers on how best to support young people"],
+      "PT / FH Subject": ["Identify and monitor how those returning from exclusion or who have barriers to their learning due to attendance are being supported in class"],
+      "Class Teacher": ["Identify those young people for whom attendance issues and exclusions are a barrier to their learning and plan appropriately to support these young people"]
+    },
+    evidence: ["Whole school overview of attendance and exclusions", "Minutes of biannual HT House meetings", "Weekly case load meetings", "KIIM minutes", "JST minutes", "OFA minutes", "AIG referrals", "Departmental tracking and planned interventions", "Class teacher planning"]
+  },
+  attainmentMeetings: {
+    activities: {
+      SLT: ["Hold HT / PT-FH attainment meetings to review progress across the faculty", "Agree targets and interventions based on data analysis"],
+      "PT / FH": ["Prepare analysis of attainment data prior to meeting", "Discuss progress of all classes and agree targets for next reporting period", "Record agreed interventions and share with class teachers"],
+      "Class teacher": ["Provide PT / FH with appropriate data to prepare for meetings", "Implement agreed interventions and strategies"]
+    },
+    evidence: ["Attainment meeting records", "Agreed intervention plans", "Progress tracking data", "SQA results analysis"]
+  },
+  environment: {
+    activities: {
+      SLT: ["Dept walk round"],
+      "PT PC / FH": ["Complete checklist for each area in the department / faculty"],
+      "Class teacher": ["Complete checklist for own classroom or teaching area which they have responsibility for"]
+    },
+    evidence: ["Feedback from SLT regarding learning environment", "Feedback from YP on learning environment"]
+  }
+};
+
+const QI = {
+  tracking: "Review of tracking data — How well do we take action to remove barriers to success? (1.1)",
+  stakeholders: "How well do we involve all stakeholders in self-evaluation and planning for improvement? (LCs / FG / PQ / PCF)",
+  prd: "Sept — Are we using an appropriate range of approaches which enable us to learn with and from each other? (2.1) / June — How reliable is our evidence of impact on pupil learning? (2.1) / Professional learning activities for all staff are clearly linked to the results of self-evaluation and identified areas of improvement. (1.1)",
+  sip: "How well have we identified our whole-school, departmental and individual strengths and areas for improvement through self-evaluation? (1.1) / How well do we provide opportunities for staff to be involved in and lead aspects of school improvement? (1.1)",
+  sipReview: "How well have we identified our whole-school, departmental and individual strengths and areas for improvement through self-evaluation? (1.1) / How well do we provide opportunities for staff to be involved in and lead aspects of school improvement? (1.1)",
+  reports: "How effectively do we support parents and carers to participate in, contribute to and understand their child's learning? How effectively do we communicate about progress, attainment and achievement? (2.7)",
+  leavers: "How effectively are we ensuring learners achieve sustained positive destinations when they leave school? (2.6)",
+  observations: "How confident are we that all learners experience activities which are varied, differentiated, active, and provide effective support and challenge? (2.3) / Have we successfully established an inclusive learning environment? How do we know? (3.1)",
+  attendance: "How well are we removing barriers to learning and ensuring equity for all? (3.2)",
+  attainmentMeetings: "How well are our approaches to raising attainment improving outcomes for young people? (3.2) / How well is our focus on literacy and numeracy leading to raising attainment across the curriculum? (3.2) / How well do we use the evidence from tracking meetings, professional dialogue and assessments to measure progress over time? (3.2)",
+  environment: "How well does the learning environment support high quality learning experiences?"
+};
+
+const FILTER_MAP = {
+  tracking: "tracking", stakeholders: "stakeholders",
+  prd: "prd", sip: "sip", sipReview: "sip",
+  reports: "reports", leavers: "leavers",
+  observations: "observations", attendance: "attendance",
+  attainmentMeetings: "attainment", environment: "environment"
+};
+
+const MONTHS_DATA = [
+  { month: "Sept", categories: [
+    { name: "Leadership and Management", cat: "leadership", activities: [
+      { key:"tracking", name:"School Attainment Data", gc:["GC 3"], missions:["M1","M2"], focus:["S3","S4–6"] },
+      { key:"stakeholders", name:"Sampling Stakeholders' Views", gc:["GC 3"], missions:["M1","M2"], focus:["S3 (LCs)","S4–6 (LCs)"] }
+    ]},
+    { name: "Successes & Achievements", cat: "success", activities: [
+      { key:"attainmentMeetings", name:"HT / PT-FH Attainment Meetings", gc:["GC 3"], missions:["M1","M2"], focus:["*","S4–5","SQA"] }
+    ]}
+  ]},
+  { month: "Oct", categories: [
+    { name: "Leadership and Management", cat: "leadership", activities: [
+      { key:"tracking", name:"School Attainment Data", gc:["GC 3"], missions:["M1","M2"], focus:["S4"] },
+      { key:"prd", name:"PRD", gc:["GC 1","GC 2"], missions:["M1","M2"], focus:["*"] },
+      { key:"sipReview", name:"SIP / DIP Review", gc:[], missions:[], focus:["*"] },
+      { key:"stakeholders", name:"Sampling Stakeholders' Views", gc:["GC 3"], missions:["M1","M2"], focus:["S4 (LCs)","(FG)"] }
+    ]},
+    { name: "Learning Provision", cat: "provision", activities: [
+      { key:"reports", name:"Reports to Parents", gc:[], missions:[], focus:["S4"] },
+      { key:"leavers", name:"Leaver Destinations", gc:[], missions:[], focus:["*"] },
+      { key:"observations", name:"Class Observations & Pupil Voice", gc:["GC 2","GC 1"], missions:["M1","M2"], focus:["*","S4"] },
+      { key:"attendance", name:"Attendance & Exclusion", gc:["GC 1"], missions:["M1","M2"], focus:["*"] }
+    ]}
+  ]},
+  { month: "Nov", categories: [
+    { name: "Leadership and Management", cat: "leadership", activities: [
+      { key:"tracking", name:"School Attainment Data", gc:["GC 3"], missions:["M1","M2"], focus:["S2","S5–6"] },
+      { key:"stakeholders", name:"Sampling Stakeholders' Views", gc:["GC 3"], missions:["M1","M2"], focus:["S3 (PCF)","S5–6 (LCs)","(FG)"] }
+    ]},
+    { name: "Learning Provision", cat: "provision", activities: [
+      { key:"reports", name:"Reports to Parents", gc:[], missions:[], focus:["S5–6"] },
+      { key:"observations", name:"Class Observations & Pupil Voice", gc:["GC 2"], missions:["M1"], focus:["*","S5–6"] }
+    ]}
+  ]},
+  { month: "Dec", categories: [
+    { name: "Leadership and Management", cat: "leadership", activities: [
+      { key:"sipReview", name:"SIP / DIP Review", gc:[], missions:[], focus:["*"] },
+      { key:"stakeholders", name:"Sampling Stakeholders' Views", gc:["GC 3"], missions:["M1","M2"], focus:["S1 (PCF)","(FG)"] },
+      { key:"attendance", name:"Attendance & Exclusion", gc:["GC 1"], missions:["M1","M2"], focus:["*"] },
+      { key:"environment", name:"Learning Environment", gc:[], missions:[], focus:["*"] }
+    ]},
+    { name: "Successes & Achievements", cat: "success", activities: [
+      { key:"attainmentMeetings", name:"HT / PT-FH Attainment Meetings", gc:["GC 3"], missions:["M1","M2"], focus:["*","S1–3"] }
+    ]}
+  ]},
+  { month: "Jan", categories: [
+    { name: "Leadership and Management", cat: "leadership", activities: [
+      { key:"tracking", name:"School Attainment Data", gc:["GC 3"], missions:["M1","M2"], focus:["S4–6"] },
+      { key:"stakeholders", name:"Sampling Stakeholders' Views", gc:["GC 3"], missions:["M1","M2"], focus:["S4–6 (LCs)","(PCF)","S1–3","PQ"] }
+    ]},
+    { name: "Learning Provision", cat: "provision", activities: [
+      { key:"observations", name:"Class Observations & Pupil Voice", gc:["GC 2","GC 1"], missions:["M1","M2"], focus:["*","S1–2"] }
+    ]},
+    { name: "Successes & Achievements", cat: "success", activities: [
+      { key:"attainmentMeetings", name:"HT / PT-FH Attainment Meetings", gc:["GC 3"], missions:["M1","M2"], focus:["*","S4–6"] }
+    ]}
+  ]},
+  { month: "Feb", categories: [
+    { name: "Leadership and Management", cat: "leadership", activities: [
+      { key:"tracking", name:"School Attainment Data", gc:["GC 3"], missions:["M1","M2"], focus:["S2"] },
+      { key:"stakeholders", name:"Sampling Stakeholders' Views", gc:["GC 3"], missions:["M1","M2"], focus:["S4 (PCF)","S2 (LCs)","(FG)"] }
+    ]},
+    { name: "Learning Provision", cat: "provision", activities: [
+      { key:"reports", name:"Reports to Parents", gc:[], missions:[], focus:["S2"] },
+      { key:"leavers", name:"Leaver Destinations", gc:[], missions:[], focus:["*"] }
+    ]}
+  ]},
+  { month: "Mar", categories: [
+    { name: "Leadership and Management", cat: "leadership", activities: [
+      { key:"tracking", name:"School Attainment Data", gc:["GC 3"], missions:["M1","M2"], focus:["S1"] },
+      { key:"sipReview", name:"SIP / DIP Review", gc:[], missions:[], focus:["*"] },
+      { key:"stakeholders", name:"Sampling Stakeholders' Views", gc:["GC 3"], missions:["M1","M2"], focus:["S1 (LCs)","S2 (PCF)"] },
+      { key:"attendance", name:"Attendance & Exclusion", gc:["GC 1"], missions:["M1","M2"], focus:["*"] }
+    ]}
+  ]},
+  { month: "Apr", categories: [
+    { name: "Leadership and Management", cat: "leadership", activities: [
+      { key:"stakeholders", name:"Sampling Stakeholders' Views", gc:["GC 3"], missions:["M1","M2"], focus:["S3 (LCs)","(FG)","Partners"] }
+    ]},
+    { name: "Learning Provision", cat: "provision", activities: [
+      { key:"reports", name:"Reports to Parents", gc:[], missions:[], focus:["S3"] },
+      { key:"observations", name:"Class Observations & Pupil Voice", gc:["GC 2","GC 1"], missions:["M1","M2"], focus:["*","S3"] }
+    ]}
+  ]},
+  { month: "May", categories: [
+    { name: "Leadership and Management", cat: "leadership", activities: [
+      { key:"tracking", name:"School Attainment Data", gc:["GC 3"], missions:["M1","M2"], focus:["S3","S1"] },
+      { key:"stakeholders", name:"Sampling Stakeholders' Views", gc:["GC 3"], missions:["M1","M2"], focus:["S1 (LCs)","(FG)"] }
+    ]},
+    { name: "Learning Provision", cat: "provision", activities: [
+      { key:"reports", name:"Reports to Parents", gc:[], missions:[], focus:["S1"] },
+      { key:"environment", name:"Learning Environment", gc:[], missions:[], focus:["*"] }
+    ]}
+  ]},
+  { month: "June", categories: [
+    { name: "Leadership and Management", cat: "leadership", activities: [
+      { key:"prd", name:"PRD", gc:["GC 1","GC 2"], missions:["M1","M2"], focus:["*"] },
+      { key:"sipReview", name:"SIP / DIP Review", gc:[], missions:[], focus:["*"] },
+      { key:"stakeholders", name:"Sampling Stakeholders' Views", gc:["GC 3"], missions:["M1","M2"], focus:["S4–6 (PQ)"] },
+      { key:"attendance", name:"Attendance & Exclusion", gc:["GC 1"], missions:["M1","M2"], focus:["*"] }
+    ]},
+    { name: "Successes & Achievements", cat: "success", activities: [
+      { key:"attainmentMeetings", name:"HT / PT-FH Attainment Meetings", gc:["GC 3"], missions:["M1","M2"], focus:["*","S1–3"] }
+    ]}
+  ]}
+];
+
+const ALL_MONTHS = ["Sept","Oct","Nov","Dec","Jan","Feb","Mar","Apr","May","June"];
+
+// ═══════════════════════════════════════════════════════
+// STATE & STORAGE
+// ═══════════════════════════════════════════════════════
+let currentView = 'planner';
+let currentMonth = 'all';
+let currentCat = 'all';
+let currentActivity = 'all';
+let currentSearch = '';
+let currentYear = '2024-25';
+let ganttRagFilter = 'all';
+
+function storageKey(actKey, month, year) {
+  return `qcp_${year}_${month}_${actKey}`;
+}
+function getRag(actKey, month) {
+  return localStorage.getItem(storageKey(actKey, month, currentYear) + '_rag') || '';
+}
+function setRag(actKey, month, val) {
+  localStorage.setItem(storageKey(actKey, month, currentYear) + '_rag', val);
+}
+function getNotes(actKey, month) {
+  return localStorage.getItem(storageKey(actKey, month, currentYear) + '_notes') || '';
+}
+function setNotes(actKey, month, val) {
+  localStorage.setItem(storageKey(actKey, month, currentYear) + '_notes', val);
+}
+
+// ═══════════════════════════════════════════════════════
+// VIEW SWITCHING
+// ═══════════════════════════════════════════════════════
+function switchView(view) {
+  currentView = view;
+  document.getElementById('planner-view').style.display = view === 'planner' ? 'block' : 'none';
+  document.getElementById('gantt-view').style.display = view === 'gantt' ? 'block' : 'none';
+  document.getElementById('tab-planner').classList.toggle('active', view === 'planner');
+  document.getElementById('tab-gantt').classList.toggle('active', view === 'gantt');
+  document.getElementById('planner-filters').style.display = view === 'planner' ? 'flex' : 'none';
+  if (view === 'gantt') buildGantt();
+}
+
+// ═══════════════════════════════════════════════════════
+// YEAR SELECTOR
+// ═══════════════════════════════════════════════════════
+document.getElementById('year-selector').addEventListener('change', function() {
+  currentYear = this.value;
+  document.getElementById('year-display').textContent = this.value.replace('-', '–');
+  // refresh RAG dots
+  refreshAllRag();
+  if (currentView === 'gantt') buildGantt();
+});
+
+function refreshAllRag() {
+  document.querySelectorAll('.rag-dot[data-actkey]').forEach(dot => {
+    const rag = getRag(dot.dataset.actkey, dot.dataset.month);
+    dot.className = 'rag-dot' + (rag ? ' rag-' + rag : '');
+  });
+  document.querySelectorAll('.notes-area[data-actkey]').forEach(ta => {
+    ta.value = getNotes(ta.dataset.actkey, ta.dataset.month);
+  });
+  updateMonthRagSummaries();
+}
+
+// ═══════════════════════════════════════════════════════
+// PLANNER BUILD
+// ═══════════════════════════════════════════════════════
+function renderDetailContent(imageKey) {
+  const content = IMAGE_CONTENT[imageKey];
+  if (!content) return '<p class="empty-field">No guidance extracted for this activity.</p>';
+
+  const actHtml = Object.entries(content.activities).map(([role, items]) => `
+    <div class="detail-section">
+      <span class="dstitle">${role}</span>
+      <ul class="dsbody">${items.map(i => `<li>${i}</li>`).join('')}</ul>
+    </div>`).join('');
+
+  const evHtml = `<ul class="dsbody">${content.evidence.map(e => `<li>${e}</li>`).join('')}</ul>`;
+  return { actHtml, evHtml };
+}
+
+function buildCards() {
+  const container = document.getElementById('cards-container');
+  let html = '';
+  let cardId = 0;
+
+  MONTHS_DATA.forEach(monthData => {
+    html += `<div class="month-section" data-month="${monthData.month}" id="month-${monthData.month}">`;
+    html += `<div class="month-header">
+      <span class="month-title">${monthData.month}</span>
+      <span class="month-pill">Annual Planner</span>
+      <div class="month-rag-summary" id="rag-summary-${monthData.month}"></div>
+    </div>`;
+
+    monthData.categories.forEach(cat => {
+      html += `<div class="category-block cat-${cat.cat}" data-cat="${cat.cat}">`;
+      html += `<div class="category-header">${cat.name}</div>`;
+
+      cat.activities.forEach(act => {
+        const id = `card-${cardId++}`;
+        const filterKey = FILTER_MAP[act.key] || act.key;
+        const { actHtml, evHtml } = renderDetailContent(act.key) || { actHtml:'', evHtml:'' };
+
+        const gcTags = act.gc.map(g => `<span class="act-gc">${g}</span>`).join('');
+        const mTags = act.missions.map(m => `<span class="act-mission">${m}</span>`).join('');
+        const focusBadges = act.focus.map(f => f === '*'
+          ? `<span class="focus-star">★</span>`
+          : `<span class="focus-badge">${f}</span>`).join('');
+
+        const notesSaved = '';
+
+        html += `
+<div class="activity-card" id="${id}" data-actkey="${act.key}" data-month="${monthData.month}" data-activity="${filterKey}" data-search="${act.name.toLowerCase()} ${act.gc.join(' ').toLowerCase()} ${act.missions.join(' ').toLowerCase()}">
+  <div class="activity-summary" onclick="toggleCard('${id}')">
+    <div class="rag-col" onclick="event.stopPropagation(); cycleRag('${id}','${act.key}','${monthData.month}')">
+      <div class="rag-dot" id="rag-dot-${id}" data-actkey="${act.key}" data-month="${monthData.month}" title="Click to set RAG status"></div>
+    </div>
+    <div class="act-label">
+      <span class="act-name">${act.name}</span>
+      <div class="act-gc-tags">${gcTags}${mTags}</div>
+    </div>
+    <div class="act-qi">${QI[act.key] || ''}</div>
+    <div class="act-focus">${focusBadges}</div>
+    <div class="expand-btn">
+      <svg width="13" height="13" viewBox="0 0 14 14" fill="none">
+        <path d="M2 4.5l5 5 5-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+  </div>
+  <div class="activity-detail" id="${id}-detail">
+    <div class="detail-tabs">
+      <button class="detail-tab active" onclick="switchDetailTab('${id}','guidance')">Guidance &amp; Evidence</button>
+      <button class="detail-tab" onclick="switchDetailTab('${id}','eval')">Self-Evaluation &amp; Notes</button>
+    </div>
+    <div class="detail-pane active" id="${id}-pane-guidance">
+      <div class="detail-grid">
+        <div class="detail-col">
+          <div class="detail-label"><span class="dlabel-icon icon-act">▸</span>What activities should we be doing?</div>
+          <div class="detail-content">${actHtml}</div>
+        </div>
+        <div class="detail-col">
+          <div class="detail-label"><span class="dlabel-icon icon-ev">◈</span>What evidence would this create?</div>
+          <div class="detail-content">${evHtml}</div>
+        </div>
+      </div>
+    </div>
+    <div class="detail-pane" id="${id}-pane-eval">
+      <div class="rag-notes-pane">
+        <div class="rag-notes-grid">
+          <div>
+            <div class="rag-picker-label">RAG Status</div>
+            <div class="rag-buttons" id="rag-btns-${id}">
+              <button class="rag-btn rb-red" onclick="setRagFromBtn('${id}','${act.key}','${monthData.month}','r')"><span class="rag-btn-dot"></span>Concern</button>
+              <button class="rag-btn rb-amber" onclick="setRagFromBtn('${id}','${act.key}','${monthData.month}','a')"><span class="rag-btn-dot"></span>Developing</button>
+              <button class="rag-btn rb-green" onclick="setRagFromBtn('${id}','${act.key}','${monthData.month}','g')"><span class="rag-btn-dot"></span>Secure</button>
+            </div>
+          </div>
+          <div>
+            <div class="rag-picker-label">Evaluative Notes</div>
+            <textarea class="notes-area" id="notes-${id}" data-actkey="${act.key}" data-month="${monthData.month}" placeholder="How well are you doing? Include evaluative statements describing the impact of your improvement plans. What evidence do you have? What are your next steps?">${notesSaved}</textarea>
+            <div class="notes-save-row">
+              <span class="save-status" id="save-status-${id}">Saved</span>
+              <button class="notes-save-btn" onclick="saveNotes('${id}','${act.key}','${monthData.month}')">Save Notes</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>`;
+      });
+
+      html += `</div>`; // category-block
+    });
+    html += `</div>`; // month-section
+  });
+
+  container.innerHTML = html;
+  refreshAllRag();
+  updateVisible();
+}
+
+function switchDetailTab(cardId, pane) {
+  const detail = document.getElementById(cardId + '-detail');
+  detail.querySelectorAll('.detail-tab').forEach((t, i) => {
+    t.classList.toggle('active', (i === 0 && pane === 'guidance') || (i === 1 && pane === 'eval'));
+  });
+  detail.querySelectorAll('.detail-pane').forEach((p, i) => {
+    p.classList.toggle('active', (i === 0 && pane === 'guidance') || (i === 1 && pane === 'eval'));
+  });
+}
+
+function toggleCard(id) {
+  const card = document.getElementById(id);
+  const detail = document.getElementById(id + '-detail');
+  const isOpen = card.classList.contains('expanded');
+  card.classList.toggle('expanded', !isOpen);
+  detail.classList.toggle('open', !isOpen);
+}
+
+// ═══════════════════════════════════════════════════════
+// RAG
+// ═══════════════════════════════════════════════════════
+const RAG_CYCLE = { '': 'g', 'g': 'a', 'a': 'r', 'r': '' };
+
+function cycleRag(cardId, actKey, month) {
+  const current = getRag(actKey, month);
+  const next = RAG_CYCLE[current];
+  setRag(actKey, month, next);
+  updateRagDot(cardId, actKey, month);
+  updateMonthRagSummaries();
+  if (currentView === 'gantt') buildGantt();
+}
+
+function setRagFromBtn(cardId, actKey, month, val) {
+  const current = getRag(actKey, month);
+  const next = current === val ? '' : val;
+  setRag(actKey, month, next);
+  updateRagDot(cardId, actKey, month);
+  updateRagBtns(cardId, next);
+  updateMonthRagSummaries();
+  if (currentView === 'gantt') buildGantt();
+}
+
+function updateRagDot(cardId, actKey, month) {
+  const rag = getRag(actKey, month);
+  const dot = document.getElementById('rag-dot-' + cardId);
+  if (dot) dot.className = 'rag-dot' + (rag ? ' rag-' + rag : '');
+  updateRagBtns(cardId, rag);
+}
+
+function updateRagBtns(cardId, rag) {
+  const btns = document.getElementById('rag-btns-' + cardId);
+  if (!btns) return;
+  btns.querySelectorAll('.rag-btn').forEach(btn => {
+    btn.classList.remove('active-r','active-a','active-g');
+    if (rag === 'r' && btn.classList.contains('rb-red')) btn.classList.add('active-r');
+    if (rag === 'a' && btn.classList.contains('rb-amber')) btn.classList.add('active-a');
+    if (rag === 'g' && btn.classList.contains('rb-green')) btn.classList.add('active-g');
+  });
+}
+
+function updateMonthRagSummaries() {
+  MONTHS_DATA.forEach(md => {
+    const container = document.getElementById('rag-summary-' + md.month);
+    if (!container) return;
+    let counts = { r:0, a:0, g:0 };
+    md.categories.forEach(cat => cat.activities.forEach(act => {
+      const rag = getRag(act.key, md.month);
+      if (rag) counts[rag]++;
+    }));
+    let html = '';
+    if (counts.r) html += `<span class="rag-mini r">● ${counts.r}</span>`;
+    if (counts.a) html += `<span class="rag-mini a">● ${counts.a}</span>`;
+    if (counts.g) html += `<span class="rag-mini g">● ${counts.g}</span>`;
+    container.innerHTML = html;
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// NOTES
+// ═══════════════════════════════════════════════════════
+function saveNotes(cardId, actKey, month) {
+  const ta = document.getElementById('notes-' + cardId);
+  if (!ta) return;
+  setNotes(actKey, month, ta.value);
+  const status = document.getElementById('save-status-' + cardId);
+  if (status) {
+    status.classList.add('show');
+    setTimeout(() => status.classList.remove('show'), 2000);
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// GANTT
+// ═══════════════════════════════════════════════════════
+
+// Unique activity types across the whole year (for row grouping)
+function getGanttRows() {
+  const rows = [];
+  const seen = new Set();
+
+  // Group by category then activity key
+  const catOrder = ['leadership','provision','success'];
+  const catNames = { leadership:'Leadership & Management', provision:'Learning Provision', success:'Successes & Achievements' };
+
+  const bycat = { leadership:[], provision:[], success:[] };
+  MONTHS_DATA.forEach(md => {
+    md.categories.forEach(cat => {
+      cat.activities.forEach(act => {
+        const uid = `${cat.cat}::${act.key}`;
+        if (!seen.has(uid)) {
+          seen.add(uid);
+          bycat[cat.cat].push({ key: act.key, name: act.name, cat: cat.cat, gc: act.gc, missions: act.missions });
+        }
+      });
+    });
+  });
+
+  catOrder.forEach(c => {
+    if (bycat[c].length) {
+      rows.push({ type: 'cat', name: catNames[c], cat: c });
+      bycat[c].forEach(r => rows.push({ type: 'act', ...r }));
+    }
+  });
+  return rows;
+}
+
+function getMonthFocus(actKey, month) {
+  const md = MONTHS_DATA.find(m => m.month === month);
+  if (!md) return null;
+  for (const cat of md.categories) {
+    const act = cat.activities.find(a => a.key === actKey);
+    if (act) return act.focus;
+  }
+  return null;
+}
+
+function buildGantt() {
+  const tbody = document.getElementById('gantt-body');
+  const rows = getGanttRows();
+  let html = '';
+
+  rows.forEach(row => {
+    if (row.type === 'cat') {
+      html += `<tr class="gantt-cat-row">
+        <td colspan="12">${row.name}</td>
+      </tr>`;
+      return;
+    }
+
+    // Determine overall RAG across all months for this activity
+    let overallRag = '';
+    const ragCounts = { r:0, a:0, g:0 };
+    ALL_MONTHS.forEach(m => {
+      const rag = getRag(row.key, m);
+      if (rag) ragCounts[rag]++;
+    });
+    if (ragCounts.r > 0) overallRag = 'r';
+    else if (ragCounts.a > 0) overallRag = 'a';
+    else if (ragCounts.g > 0) overallRag = 'g';
+
+    // RAG filter
+    const passRagFilter = ganttRagFilter === 'all'
+      || (ganttRagFilter === 'r' && overallRag === 'r')
+      || (ganttRagFilter === 'a' && overallRag === 'a')
+      || (ganttRagFilter === 'g' && overallRag === 'g')
+      || (ganttRagFilter !== 'all' && overallRag === '');
+
+    // Month filter
+    const passMonthFilter = currentMonth === 'all'
+      || getMonthFocus(row.key, currentMonth) !== null;
+
+    const hidden = (!passRagFilter || !passMonthFilter) ? 'gantt-hidden' : '';
+
+    const gcTags = row.gc.map(g => `<span class="act-gc">${g}</span>`).join('');
+    const mTags = row.missions.map(m => `<span class="act-mission">${m}</span>`).join('');
+
+    html += `<tr class="gantt-row ${hidden}" data-actkey="${row.key}">
+      <td class="gantt-label-cell">
+        <div class="gantt-act-name">${row.name}</div>
+        <div class="gantt-act-tags">${gcTags}${mTags}</div>
+      </td>`;
+
+    ALL_MONTHS.forEach(month => {
+      const focus = getMonthFocus(row.key, month);
+      const rag = getRag(row.key, month);
+      const ragInd = rag ? `<span class="gantt-rag-indicator gb-rag-${rag}"></span>` : '';
+
+      if (focus) {
+        const nonStar = focus.filter(f => f !== '*');
+        const hasStar = focus.includes('*');
+        // Build label: show year groups if present, otherwise "All groups"
+        let focusLabel;
+        if (nonStar.length > 0) {
+          // Show up to 3 groups; if star also present prepend "All +"
+          focusLabel = (hasStar ? 'All · ' : '') + nonStar.slice(0, 3).join(', ');
+        } else {
+          focusLabel = 'All groups';
+        }
+        html += `<td class="gantt-month-cell">
+          <div class="gantt-block cat-${row.cat}"
+               onclick="showGanttPopup('${row.key}','${row.name}','${month}','${row.cat}')"
+               title="${row.name} — ${month}">
+            ${ragInd}
+            <span class="gb-focus">${focusLabel}</span>
+          </div>
+        </td>`;
+      } else {
+        html += `<td class="gantt-month-cell"></td>`;
+      }
+    });
+
+    const ragDotClass = overallRag ? `rag-${overallRag}` : '';
+    html += `<td class="gantt-rag-cell"><div class="gantt-rag-dot-small ${ragDotClass}"></div></td>`;
+    html += `</tr>`;
+  });
+
+  tbody.innerHTML = html;
+}
+
+function filterGanttRag(val) {
+  ganttRagFilter = val;
+  ['all','r','a','g'].forEach(v => {
+    const btn = document.getElementById('grag-' + v);
+    if (btn) btn.className = 'gantt-rag-btn' + (v === val ? ` active-${v}` : '');
+  });
+  buildGantt();
+}
+
+// ═══════════════════════════════════════════════════════
+// POPUP
+// ═══════════════════════════════════════════════════════
+let popupTarget = null;
+
+function showGanttPopup(actKey, actName, month, cat) {
+  popupTarget = { actKey, month };
+
+  document.getElementById('popup-badge').textContent = month;
+  document.getElementById('popup-badge').className = `popup-month-badge cat-${cat}`;
+  document.getElementById('popup-title').textContent = actName;
+  document.getElementById('popup-qi').textContent = QI[actKey] || '';
+
+  const content = IMAGE_CONTENT[actKey];
+  const md = MONTHS_DATA.find(m => m.month === month);
+  let focusText = '';
+  if (md) {
+    md.categories.forEach(c => {
+      const act = c.activities.find(a => a.key === actKey);
+      if (act) focusText = act.focus.join(' · ');
+    });
+  }
+
+  let body = '';
+  if (focusText) {
+    body += `<div class="popup-section">
+      <div class="popup-section-title">Year Group Focus</div>
+      <div class="popup-focus-row">${focusText.split(' · ').map(f =>
+        f === '*' ? `<span class="focus-star" style="font-size:15px">★ All groups</span>`
+                  : `<span class="focus-badge">${f}</span>`
+      ).join('')}</div>
+    </div>`;
+  }
+
+  if (content) {
+    const firstRole = Object.entries(content.activities)[0];
+    if (firstRole) {
+      body += `<div class="popup-section">
+        <div class="popup-section-title">Key Activities (${firstRole[0]})</div>
+        <ul class="popup-section-content">${firstRole[1].slice(0,4).map(i => `<li>${i}</li>`).join('')}</ul>
+      </div>`;
+    }
+    body += `<div class="popup-section">
+      <div class="popup-section-title">Evidence Created</div>
+      <ul class="popup-section-content">${content.evidence.slice(0,4).map(e => `<li>${e}</li>`).join('')}</ul>
+    </div>`;
+  }
+
+  const rag = getRag(actKey, month);
+  const ragLabel = { r:'Concern', a:'Developing', g:'Secure', '':'Not set' }[rag];
+  const ragColor = { r:'var(--rag-r)', a:'var(--rag-a)', g:'var(--rag-g)', '':'var(--text-muted)' }[rag];
+  body += `<div class="popup-section" style="margin-bottom:0">
+    <div class="popup-section-title">RAG Status</div>
+    <div style="font-size:12px;font-weight:600;color:${ragColor}">● ${ragLabel}</div>
+  </div>`;
+
+  body += `<button class="popup-detail-btn" onclick="goToDetail('${actKey}','${month}')">View Full Detail &amp; Notes →</button>`;
+
+  document.getElementById('popup-body').innerHTML = body;
+  document.getElementById('popup-overlay').classList.add('open');
+}
+
+function goToDetail(actKey, month) {
+  closePopupDirect();
+  switchView('planner');
+
+  // Switch to that month tab
+  document.querySelectorAll('.month-tab').forEach(t => t.classList.remove('active'));
+  const tab = document.querySelector(`.month-tab[data-month="${month}"]`);
+  if (tab) tab.classList.add('active');
+  currentMonth = month;
+  updateVisible();
+
+  // Find and open the card
+  setTimeout(() => {
+    const card = document.querySelector(`[data-actkey="${actKey}"][data-month="${month}"]`);
+    if (card) {
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (!card.classList.contains('expanded')) {
+        const id = card.id;
+        card.classList.add('expanded');
+        const detail = document.getElementById(id + '-detail');
+        if (detail) detail.classList.add('open');
+      }
+      switchDetailTab(card.id, 'eval');
+    }
+  }, 200);
+}
+
+function closePopup(e) {
+  if (e.target === document.getElementById('popup-overlay')) closePopupDirect();
+}
+function closePopupDirect() {
+  document.getElementById('popup-overlay').classList.remove('open');
+  popupTarget = null;
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePopupDirect(); });
+
+// ═══════════════════════════════════════════════════════
+// FILTERING
+// ═══════════════════════════════════════════════════════
+function updateVisible() {
+  const sections = document.querySelectorAll('.month-section');
+  let total = 0;
+
+  sections.forEach(section => {
+    const month = section.dataset.month;
+    const showMonth = currentMonth === 'all' || currentMonth === month;
+    if (!showMonth) { section.classList.remove('visible'); return; }
+    section.classList.add('visible');
+
+    section.querySelectorAll('.category-block').forEach(block => {
+      const cat = block.dataset.cat;
+      const showCat = currentCat === 'all' || currentCat === cat;
+      let blockVisible = 0;
+
+      block.querySelectorAll('.activity-card').forEach(card => {
+        const actKey = card.dataset.activity;
+        const searchText = card.dataset.search || '';
+        const qi = card.querySelector('.act-qi')?.textContent.toLowerCase() || '';
+        const showAct = currentActivity === 'all' || currentActivity === actKey;
+        const showSearch = !currentSearch || searchText.includes(currentSearch) || qi.includes(currentSearch);
+        const visible = showCat && showAct && showSearch;
+        card.classList.toggle('hidden', !visible);
+        if (visible) { blockVisible++; total++; }
+      });
+
+      block.style.display = (showCat && blockVisible > 0) ? '' : 'none';
+    });
+  });
+
+  document.getElementById('results-count').textContent = `${total} item${total !== 1 ? 's' : ''}`;
+  document.getElementById('no-results').classList.toggle('visible', total === 0);
+}
+
+// Month tabs
+document.querySelectorAll('.month-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.month-tab').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentMonth = btn.dataset.month;
+    if (currentView === 'planner') {
+      updateVisible();
+      if (currentMonth !== 'all') {
+        const el = document.getElementById('month-' + currentMonth);
+        if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+      }
+    } else {
+      buildGantt();
+    }
+  });
+});
+
+document.getElementById('cat-filter').addEventListener('change', e => { currentCat = e.target.value; updateVisible(); });
+document.getElementById('activity-filter').addEventListener('change', e => { currentActivity = e.target.value; updateVisible(); });
+document.getElementById('search-input').addEventListener('input', e => { currentSearch = e.target.value.toLowerCase().trim(); updateVisible(); });
+
+window.addEventListener('scroll', () => {
+  document.getElementById('scroll-top').classList.toggle('visible', window.scrollY > 400);
+});
+
+// ═══════════════════════════════════════════════════════
+// PRINT
+// ═══════════════════════════════════════════════════════
+function triggerPrint() {
+  // 1. Switch to planner view if on Gantt
+  const wasGantt = currentView === 'gantt';
+  if (wasGantt) {
+    document.getElementById('planner-view').style.display = 'block';
+    document.getElementById('gantt-view').style.display = 'none';
+  }
+
+  // 2. Save current filter state then show everything
+  const savedMonth = currentMonth;
+  const savedCat = currentCat;
+  const savedActivity = currentActivity;
+  const savedSearch = currentSearch;
+
+  // Force all months visible by removing the hidden class approach —
+  // we directly set display on each month section and card
+  const monthSections = document.querySelectorAll('.month-section');
+  const hiddenCards = document.querySelectorAll('.activity-card.hidden');
+  const allDetails = document.querySelectorAll('.activity-detail');
+  const allPanes = document.querySelectorAll('.detail-pane');
+  const noResults = document.getElementById('no-results');
+
+  // Snapshot original inline styles
+  const sectionDisplays = [];
+  monthSections.forEach(s => { sectionDisplays.push(s.style.display); s.style.display = 'block'; });
+  hiddenCards.forEach(c => c.classList.remove('hidden'));
+  allDetails.forEach(d => { d.style.display = 'block'; });
+  allPanes.forEach(p => { p.style.display = 'block'; });
+  if (noResults) noResults.style.display = 'none';
+
+  // 3. Print
+  window.print();
+
+  // 4. Restore everything after a short delay (print dialog is synchronous in most browsers)
+  setTimeout(() => {
+    monthSections.forEach((s, i) => { s.style.display = sectionDisplays[i]; });
+    hiddenCards.forEach(c => c.classList.add('hidden'));
+    allDetails.forEach(d => { d.style.display = ''; });
+    allPanes.forEach(p => { p.style.display = ''; });
+    if (noResults) noResults.style.display = '';
+
+    if (wasGantt) {
+      document.getElementById('planner-view').style.display = 'none';
+      document.getElementById('gantt-view').style.display = 'block';
+    }
+
+    // Restore filters
+    currentMonth = savedMonth;
+    currentCat = savedCat;
+    currentActivity = savedActivity;
+    currentSearch = savedSearch;
+    updateVisible();
+  }, 500);
+}
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+buildCards();
+</script>
+</body>
+</html>
