@@ -296,6 +296,15 @@ return days[d.getDay()]+" "+d.getDate()+" "+months[d.getMonth()]+" "+d.getFullYe
 }
 const catLabels={exam:"Exam",meeting:"Meeting",deadline:"Deadline",assessment:"Assessment",reporting:"Reporting",training:"Training",cpd:"CPD",inset:"In-Service",holiday:"Holiday",general:"General"};
 
+function localTodayISODate(){
+var n=new Date();
+return n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0")+"-"+String(n.getDate()).padStart(2,"0");
+}
+function eventOnOrAfterLocalToday(iso){
+var d=(iso||"").slice(0,10);
+return d.length===10&&d>=localTodayISODate();
+}
+
 var eventsCache=null;
 function getFilteredEvents(){
   var all=getEvents();
@@ -516,10 +525,9 @@ render();
 function snapshot(){
 const strip=document.getElementById("snapshot");
 strip.innerHTML="";
-const now=new Date();
 getFilteredEvents()
-.filter(e=>new Date(e.date)>=now)
-.sort((a,b)=>new Date(a.date)-new Date(b.date))
+.filter(e=>eventOnOrAfterLocalToday(e.date))
+.sort((a,b)=>(a.date||"").localeCompare(b.date||""))
 .slice(0,8)
 .forEach(e=>{
 const div=document.createElement("div");
@@ -532,11 +540,10 @@ strip.appendChild(div);
 function upcoming(){
 const list=document.getElementById("upcoming");
 list.innerHTML="";
-const now=new Date();
 const isAdmin=!!window.__authGuardIsAdmin;
 const evList=getFilteredEvents()
-.filter(e=>new Date(e.date)>=now)
-.sort((a,b)=>new Date(a.date)-new Date(b.date))
+.filter(e=>eventOnOrAfterLocalToday(e.date))
+.sort((a,b)=>(a.date||"").localeCompare(b.date||""))
 .slice(0,10);
 if(evList.length===0){
 const empty=document.createElement("div");

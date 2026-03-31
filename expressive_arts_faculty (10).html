@@ -7156,20 +7156,43 @@ function calFormatDate(iso){
   const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   return days[d.getDay()]+' '+d.getDate()+' '+months[d.getMonth()]+' '+d.getFullYear();
 }
+/** Today's calendar date in local timezone (YYYY-MM-DD). Use for comparisons — not UTC midnight from ISO date strings. */
+function calLocalTodayISODate(){
+  const n=new Date();
+  return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');
+}
+function calEventOnOrAfterLocalToday(iso){
+  const d=(iso||'').slice(0,10);
+  return d.length===10&&d>=calLocalTodayISODate();
+}
+function calParseLocalDateParts(ymd){
+  const p=(ymd||'').slice(0,10).split('-');
+  if(p.length<3)return null;
+  const y=parseInt(p[0],10),mo=parseInt(p[1],10)-1,day=parseInt(p[2],10);
+  if(isNaN(y)||isNaN(mo)||isNaN(day))return null;
+  return new Date(y,mo,day,12,0,0,0);
+}
 function calDaysUntil(iso){
-  const d=new Date(iso);d.setHours(0,0,0,0);
-  const now=new Date();now.setHours(0,0,0,0);
-  const diff=Math.ceil((d-now)/(864e5));
-  if(diff===0)return 'Today';if(diff===1)return 'Tomorrow';if(diff<0)return 'Past';
-  if(diff<=7)return 'In '+diff+' days';if(diff<=14)return 'Next week';
+  const today=calLocalTodayISODate();
+  const ev=(iso||'').slice(0,10);
+  if(ev.length!==10)return '—';
+  if(ev<today)return 'Past';
+  if(ev===today)return 'Today';
+  const dc=calParseLocalDateParts(iso);
+  const dn=calParseLocalDateParts(today);
+  if(!dc||!dn)return '—';
+  const diff=Math.round((dc-dn)/864e5);
+  if(diff===1)return 'Tomorrow';
+  if(diff<0)return 'Past';
+  if(diff<=7)return 'In '+diff+' days';
+  if(diff<=14)return 'Next week';
   return 'In '+diff+' days';
 }
 function calUpcoming(){
   const list=document.getElementById('calUpcoming');
   if(!list)return;
   list.innerHTML='';
-  const now=new Date();
-  const evList=calGetFilteredEvents().filter(e=>new Date(e.date)>=now).sort((a,b)=>new Date(a.date)-new Date(b.date)).slice(0,10);
+  const evList=calGetFilteredEvents().filter(e=>calEventOnOrAfterLocalToday(e.date)).sort((a,b)=>(a.date||'').localeCompare(b.date||'')).slice(0,10);
   window.__calUpcomingEvents=evList;
   if(evList.length===0){
     const empty=document.createElement('div');
@@ -7291,9 +7314,8 @@ function homeDashboardRender(){
   const list=document.getElementById('homeUpcomingEvents');
   if(!list)return;
   list.innerHTML='';
-  const now=new Date();
   const events=typeof calGetEvents==='function'?calGetEvents():[];
-  const upcoming=events.filter(e=>new Date(e.date)>=now).sort((a,b)=>new Date(a.date)-new Date(b.date)).slice(0,5);
+  const upcoming=events.filter(e=>calEventOnOrAfterLocalToday(e.date)).sort((a,b)=>(a.date||'').localeCompare(b.date||'')).slice(0,5);
   const catLabels={exam:'Exam',meeting:'Meeting',assessment:'Assessment',reporting:'Reporting',holiday:'Holiday',general:'General'};
   if(upcoming.length===0){
     const empty=document.createElement('div');empty.className='home-dash-empty';
