@@ -16,6 +16,7 @@
 <script src="data-service.js"></script>
 <script src="teacher-tasks-service.js"></script>
 <script src="teacher-tasks-home.js"></script>
+<script src="quality-calendar-months.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@700;800&display=swap" rel="stylesheet">
@@ -799,6 +800,35 @@ a.subject-card-link{text-decoration:none;cursor:pointer}
 .home-event-badge.cpd{background:#e0e7ff;color:#3730a3}
 .home-event-badge.inset{background:#fce7f3;color:#9d174d}
 .home-dash-empty{font-size:.8rem;color:var(--text3);padding:1rem;text-align:center}
+
+.home-quality-calendar-card{grid-column:1/-1}
+.home-quality-calendar-card .home-dash-header{align-items:flex-start;flex-wrap:wrap;gap:.5rem}
+.home-quality-head-left{flex:1;min-width:0}
+.home-quality-meta{font-size:.72rem;color:var(--text3);font-weight:500;margin-top:.35rem;line-height:1.4}
+.home-quality-nav{display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.75rem}
+.home-quality-month-btn{
+  font-size:.68rem;font-weight:600;padding:.28rem .55rem;border-radius:999px;
+  border:1px solid var(--border2);background:var(--white);color:var(--text2);
+  cursor:pointer;font-family:inherit;transition:background .12s,border-color .12s,color .12s;
+}
+.home-quality-month-btn:hover{border-color:var(--navy-active);color:var(--navy)}
+.home-quality-month-btn.active{background:var(--navy-active);color:var(--white);border-color:var(--navy-active)}
+.home-quality-cat{
+  font-size:.65rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--text3);margin:1rem 0 .5rem;padding-bottom:.25rem;border-bottom:1px solid var(--border);
+}
+.home-quality-cat:first-child{margin-top:0}
+.home-quality-cat.cat-leadership{color:var(--navy)}
+.home-quality-cat.cat-provision{color:#0d9488}
+.home-quality-cat.cat-success{color:#b45309}
+.home-quality-act{
+  background:var(--bg);border:1px solid var(--border);border-radius:8px;
+  padding:.6rem .75rem;margin-bottom:.45rem;font-size:.82rem;
+}
+.home-quality-act-title{font-weight:600;color:var(--text);line-height:1.35}
+.home-quality-focus{font-size:.72rem;color:var(--text3);margin-top:.3rem;line-height:1.4}
+.home-quality-badges{margin-top:.35rem;display:flex;flex-wrap:wrap;gap:.3rem}
+.home-quality-tag{font-size:.6rem;font-weight:600;padding:.15rem .4rem;border-radius:4px;background:rgba(74,127,212,.12);color:var(--navy-active)}
 
 .home-task-item{
   padding:.55rem .75rem;border-radius:6px;border:1px solid var(--border);
@@ -1883,6 +1913,20 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
             </div>
             <div class="home-dash-body">
               <p style="font-size:.85rem;color:var(--text2);line-height:1.5;margin:0">Develop your pedagogy through staged courses: restorative practice, behaviour management, effective feedback, learning intentions, retrieval practice, differentiation and adaptive teaching. Track progress and download CPD records.</p>
+            </div>
+          </div>
+          <div class="home-dash-card home-quality-calendar-card" id="homeQualityCalendar">
+            <div class="home-dash-header">
+              <div class="home-quality-head-left">
+                <span class="home-dash-title">Quality &amp; standards planner</span>
+                <div class="home-quality-meta" id="homeQualityCalendarMeta"></div>
+              </div>
+              <a href="Quality_Calendar_Planner_v2.html" target="_blank" rel="noopener" class="home-dash-link" style="text-decoration:none">Full planner →</a>
+            </div>
+            <div class="home-dash-body">
+              <p style="font-size:.78rem;color:var(--text2);line-height:1.45;margin:0 0 .85rem">HGIOS-style annual priorities by month (shared with all staff). Defaults to the current planner month; use the tabs to browse other months.</p>
+              <div class="home-quality-nav" id="homeQualityCalendarNav" aria-label="Planner month"></div>
+              <div id="homeQualityCalendarContent"></div>
             </div>
           </div>
         </div>
@@ -7314,6 +7358,72 @@ function calBuildCalendar(){
 }
 function calRender(){calUpcoming();calBuildCalendar();}
 
+function homeQualityCalendarPlannerMonth(){
+  var m=new Date().getMonth();
+  var map=['Jan','Feb','Mar','Apr','May','June','June','Sept','Sept','Oct','Nov','Dec'];
+  return map[m];
+}
+function homeQualityCalendarSessionKey(){
+  var d=new Date();
+  var y0=d.getMonth()>=7?d.getFullYear():d.getFullYear()-1;
+  var y1=y0+1;
+  return String(y0)+'\u2013'+String(y1).slice(-2);
+}
+function homeQualityCalendarRenderMonth(monthLabel, esc){
+  var content=document.getElementById('homeQualityCalendarContent');
+  if(!content||!window.QualityCalendarMonthsData)return;
+  var block=window.QualityCalendarMonthsData.find(function(x){ return x.month===monthLabel; });
+  if(!block||!block.categories||!block.categories.length){
+    content.innerHTML='<p class="home-dash-empty">No planner entries for this month.</p>';
+    return;
+  }
+  var html='';
+  block.categories.forEach(function(cat){
+    html+='<div class="home-quality-cat cat-'+esc(cat.cat)+'">'+esc(cat.name)+'</div>';
+    cat.activities.forEach(function(act){
+      var focus=(act.focus||[]).map(function(f){ return f==='*'?'All stages':f; }).join(' · ');
+      var badges='';
+      if((act.gc||[]).length)badges+='<span class="home-quality-tag">'+esc(act.gc.join(' '))+'</span>';
+      if((act.missions||[]).length)badges+='<span class="home-quality-tag">'+esc(act.missions.join(' '))+'</span>';
+      html+='<div class="home-quality-act">';
+      html+='<div class="home-quality-act-title">'+esc(act.name)+'</div>';
+      if(focus)html+='<div class="home-quality-focus">Focus: '+esc(focus)+'</div>';
+      if(badges)html+='<div class="home-quality-badges">'+badges+'</div>';
+      html+='</div>';
+    });
+  });
+  content.innerHTML=html;
+}
+function homeQualityCalendarRender(){
+  var root=document.getElementById('homeQualityCalendar');
+  if(!root||!window.QualityCalendarMonthsData)return;
+  var esc=function(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); };
+  var monthLabel=homeQualityCalendarPlannerMonth();
+  var order=window.QualityCalendarMonthsOrder||[];
+  var pick=monthLabel;
+  if(order.indexOf(pick)<0)pick=order[0]||'Sept';
+  var meta=document.getElementById('homeQualityCalendarMeta');
+  if(meta)meta.textContent='Showing '+pick+' · '+homeQualityCalendarSessionKey()+' session';
+  var nav=document.getElementById('homeQualityCalendarNav');
+  if(nav){
+    nav.innerHTML='';
+    order.forEach(function(lbl){
+      var btn=document.createElement('button');
+      btn.type='button';
+      btn.className='home-quality-month-btn'+(lbl===pick?' active':'');
+      btn.textContent=lbl;
+      btn.addEventListener('click',function(){
+        nav.querySelectorAll('.home-quality-month-btn').forEach(function(b){ b.classList.remove('active'); });
+        btn.classList.add('active');
+        var m2=document.getElementById('homeQualityCalendarMeta');
+        if(m2)m2.textContent='Showing '+lbl+' · '+homeQualityCalendarSessionKey()+' session';
+        homeQualityCalendarRenderMonth(lbl, esc);
+      });
+      nav.appendChild(btn);
+    });
+  }
+  homeQualityCalendarRenderMonth(pick, esc);
+}
 function homeDashboardRender(){
   const list=document.getElementById('homeUpcomingEvents');
   if(!list)return;
@@ -7360,6 +7470,7 @@ function homeDashboardRender(){
   if(window.TeacherTasksHome&&typeof window.TeacherTasksHome.render==='function'){
     window.TeacherTasksHome.render();
   }
+  homeQualityCalendarRender();
 }
 
 function injectLiteracyNumeracyIntoCurriculumCards(){
