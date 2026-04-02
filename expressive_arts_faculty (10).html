@@ -880,6 +880,10 @@ a.subject-card-link{text-decoration:none;cursor:pointer}
 .home-announcement-body{font-size:.82rem;color:var(--text2);line-height:1.55;margin:0;white-space:pre-wrap;word-break:break-word}
 .home-announcement-meta{font-size:.68rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-top:.5rem;display:block}
 
+.home-dept-meetings-card{grid-column:1/-1;border-left:4px solid #0369a1}
+.home-dept-meetings-card .home-dash-header{background:linear-gradient(to right,rgba(3,105,161,.06),transparent)}
+.home-dept-meetings-teaser{font-size:.85rem;color:var(--text2);line-height:1.55}
+
 .home-priorities-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.65rem}
 @media(max-width:600px){.home-priorities-grid{grid-template-columns:1fr}}
 .home-priority-card{
@@ -1661,6 +1665,10 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
       <span class="sidebar-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/></svg></span>
       <span class="sidebar-nav-text">Class Visit Feedback</span>
     </a>
+    <a href="department_meetings.html" class="sidebar-item" style="text-decoration:none">
+      <span class="sidebar-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></span>
+      <span class="sidebar-nav-text">Department meetings</span>
+    </a>
     <a href="faculty_dashboard.html" class="sidebar-item" target="_blank" style="text-decoration:none">
       <span class="sidebar-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg></span>
       <span class="sidebar-nav-text">Faculty Head Dashboard</span>
@@ -1851,6 +1859,15 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
             </div>
             <div class="home-dash-body">
               <div id="homeAnnouncements" class="home-announcements-list"></div>
+            </div>
+          </div>
+          <div class="home-dash-card home-dept-meetings-card">
+            <div class="home-dash-header">
+              <span class="home-dash-title">Department meetings</span>
+              <a href="department_meetings.html" class="home-dash-link" style="text-decoration:none">Agendas &amp; minutes →</a>
+            </div>
+            <div class="home-dash-body">
+              <div id="homeDeptMeetingsTeaser" class="home-dept-meetings-teaser"></div>
             </div>
           </div>
           <div class="home-dash-card">
@@ -7466,6 +7483,23 @@ function homeDashboardRender(){
     }).catch(function(){annList.innerHTML='<div class="home-dash-empty">No announcements.</div>';});
   }else if(annList){
     annList.innerHTML='<div class="home-dash-empty">No announcements.</div>';
+  }
+  var dmEl=document.getElementById('homeDeptMeetingsTeaser');
+  if(dmEl&&window.DataService&&typeof window.DataService.listDepartmentMeetings==='function'){
+    DataService.listDepartmentMeetings().then(function(rows){
+      var pub=(rows||[]).filter(function(m){return m.status==='published';});
+      pub.sort(function(a,b){return (b.meeting_date||'').localeCompare(a.meeting_date||'');});
+      if(!pub.length){
+        dmEl.innerHTML='<div class="home-dash-empty">No published agendas yet.</div>';
+        return;
+      }
+      var m=pub[0];
+      var tit=(m.title&&m.title.trim())?m.title.trim():'Department meeting';
+      var esc=function(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
+      dmEl.innerHTML='<strong>'+esc(tit)+'</strong> · '+esc(m.meeting_date||'')+' — <a href="department_meetings.html" style="color:var(--accent-drama);font-weight:600;text-decoration:none">View agenda and minutes</a>';
+    }).catch(function(){
+      dmEl.innerHTML='<div class="home-dash-empty">Could not load meetings.</div>';
+    });
   }
   if(window.TeacherTasksHome&&typeof window.TeacherTasksHome.render==='function'){
     window.TeacherTasksHome.render();

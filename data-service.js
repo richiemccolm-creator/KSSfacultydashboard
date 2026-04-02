@@ -392,6 +392,78 @@
       return window.supabase.from('announcements').delete().eq('id', id).then(function(r) {
         if (r.error) throw r.error;
       });
+    },
+
+    listDepartmentMeetings: function() {
+      return new Promise(function(resolve) {
+        if (!useSupabase()) {
+          resolve([]);
+          return;
+        }
+        window.supabase.from('department_meetings')
+          .select('id, meeting_date, title, status, agenda_rows, created_at, updated_at')
+          .order('meeting_date', { ascending: false })
+          .then(function(r) {
+            if (r.error) {
+              resolve([]);
+              return;
+            }
+            resolve(r.data || []);
+          });
+      });
+    },
+
+    getDepartmentMeeting: function(id) {
+      return new Promise(function(resolve, reject) {
+        if (!useSupabase()) {
+          resolve(null);
+          return;
+        }
+        window.supabase.from('department_meetings')
+          .select('id, meeting_date, title, status, agenda_rows, created_at, updated_at')
+          .eq('id', id)
+          .maybeSingle()
+          .then(function(r) {
+            if (r.error) {
+              reject(r.error);
+              return;
+            }
+            resolve(r.data || null);
+          });
+      });
+    },
+
+    createDepartmentMeeting: function(obj) {
+      if (!useSupabase()) return Promise.reject(new Error('Supabase required'));
+      var row = {
+        meeting_date: obj.meeting_date,
+        title: (obj.title != null ? String(obj.title) : '').trim(),
+        status: obj.status === 'published' ? 'published' : 'draft',
+        agenda_rows: Array.isArray(obj.agenda_rows) ? obj.agenda_rows : []
+      };
+      return window.supabase.from('department_meetings').insert(row).select('id').single().then(function(r) {
+        if (r.error) throw r.error;
+        return r.data;
+      });
+    },
+
+    updateDepartmentMeeting: function(id, obj) {
+      if (!useSupabase()) return Promise.reject(new Error('Supabase required'));
+      var row = {};
+      if (obj.meeting_date != null) row.meeting_date = obj.meeting_date;
+      if (obj.title != null) row.title = String(obj.title).trim();
+      if (obj.status != null) row.status = obj.status === 'published' ? 'published' : 'draft';
+      if (obj.agenda_rows != null) row.agenda_rows = Array.isArray(obj.agenda_rows) ? obj.agenda_rows : [];
+      return window.supabase.from('department_meetings').update(row).eq('id', id).then(function(r) {
+        if (r.error) throw r.error;
+      });
+    },
+
+    deleteDepartmentMeeting: function(id) {
+      if (!useSupabase()) return Promise.reject(new Error('Supabase required'));
+      return window.supabase.from('department_meetings').delete().eq('id', id).then(function(r) {
+        if (r.error) throw r.error;
+      });
     }
   };
 })();

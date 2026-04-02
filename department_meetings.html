@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Faculty Hub">
+<link rel="apple-touch-icon" href="faculty-hub-logo.png" sizes="180x180">
+<link rel="icon" type="image/png" href="faculty-hub-logo.png">
+<title>Department meetings — Expressive Arts Faculty</title>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-init.js"></script>
+<script src="allowlist-check.js"></script>
+<script src="data-service.js"></script>
+<script src="department-meetings-shared.js"></script>
+<script src="auth-guard.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--navy:#1e2d4a;--navy-dark:#16243c;--white:#fff;--bg:#f0f2f5;--card:#fff;--border:#e2e8f0;--text:#1a202c;--text2:#4a5568;--text3:#718096}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;font-size:14px}
+
+.wrap{max-width:960px;margin:0 auto;padding:1.5rem 1.25rem 3rem}
+
+.top{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:gap;gap:1rem;margin-bottom:1.5rem}
+.top h1{font-family:'Sora',sans-serif;font-size:1.35rem;font-weight:800;color:var(--navy)}
+.top p{font-size:.8rem;color:var(--text2);margin-top:.35rem;max-width:42rem;line-height:1.5}
+.btn{font-size:.78rem;font-weight:600;padding:.45rem .9rem;border-radius:6px;border:none;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:.35rem}
+.btn-ghost{background:var(--card);color:var(--text2);border:1px solid var(--border)}
+.btn-ghost:hover{border-color:var(--navy);color:var(--navy)}
+
+.sc{background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:1.25rem;overflow:hidden}
+.sc-h{padding:.9rem 1.15rem;border-bottom:1px solid var(--border);font-family:'Sora',sans-serif;font-weight:700;font-size:.92rem;color:var(--navy)}
+.sc-b{padding:1rem 1.15rem}
+
+.list{display:flex;flex-direction:column;gap:.35rem}
+.list a{display:block;padding:.75rem 1rem;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--navy);text-decoration:none;font-weight:600;font-size:.85rem;transition:background .12s,border-color .12s}
+.list a:hover{background:#f8fafc;border-color:var(--navy)}
+.list a span{display:block;font-weight:400;font-size:.75rem;color:var(--text3);margin-top:.2rem}
+.empty{color:var(--text3);font-size:.85rem;padding:1rem;text-align:center}
+
+.detail-head{margin-bottom:1rem}
+.detail-head h2{font-family:'Sora',sans-serif;font-size:1.05rem;color:var(--navy);margin-bottom:.25rem}
+.detail-meta{font-size:.78rem;color:var(--text3)}
+
+.table-wrap{width:100%;overflow-x:auto;margin-top:.75rem}
+table.dm-table{width:100%;border-collapse:collapse;font-size:.8rem}
+.dm-table th{text-align:left;padding:.55rem .65rem;font-weight:600;font-size:.65rem;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);border:1px solid var(--border);background:#f8fafc}
+.dm-table td{padding:.55rem .65rem;border:1px solid var(--border);vertical-align:top;line-height:1.45;color:var(--text2)}
+.dm-table tr:hover td{background:#fafbfc}
+
+.back{margin-bottom:1rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div>
+      <h1>Department meetings</h1>
+      <p>Published agendas and minutes for departmental meetings. Admins prepare and update content from the Faculty Head dashboard.</p>
+    </div>
+    <a class="btn btn-ghost" href="expressive_arts_faculty%20(10).html">← Faculty Hub</a>
+  </div>
+
+  <div id="view-list" class="sc">
+    <div class="sc-h">Published meetings</div>
+    <div class="sc-b">
+      <div id="dm-list" class="list"></div>
+    </div>
+  </div>
+
+  <div id="view-detail" class="sc" style="display:none">
+    <div class="sc-b">
+      <div class="back"><button type="button" class="btn btn-ghost" id="dm-back">← Back to list</button></div>
+      <div class="detail-head">
+        <h2 id="dm-detail-title"></h2>
+        <div class="detail-meta" id="dm-detail-meta"></div>
+      </div>
+      <div class="table-wrap">
+        <table class="dm-table" aria-label="Agenda">
+          <thead>
+            <tr>
+              <th>Agenda Item</th>
+              <th>Details/Description</th>
+              <th>Time Allocated</th>
+              <th>Minutes</th>
+              <th>Action Items</th>
+            </tr>
+          </thead>
+          <tbody id="dm-detail-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function parseRows(agendaRows) {
+    if (!agendaRows) return [];
+    if (Array.isArray(agendaRows)) return agendaRows;
+    try {
+      var j = typeof agendaRows === 'string' ? JSON.parse(agendaRows) : agendaRows;
+      return Array.isArray(j) ? j : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function showList(meetings) {
+    document.getElementById('view-list').style.display = '';
+    document.getElementById('view-detail').style.display = 'none';
+    var el = document.getElementById('dm-list');
+    var pub = (meetings || []).filter(function(m) { return m.status === 'published'; });
+    if (!pub.length) {
+      el.innerHTML = '<div class="empty">No published meetings yet.</div>';
+      return;
+    }
+    el.innerHTML = pub.map(function(m) {
+      var title = (m.title && m.title.trim()) ? m.title.trim() : 'Department meeting';
+      var sub = m.meeting_date || '';
+      return '<a href="#" data-id="' + esc(m.id) + '">' + esc(title) + '<span>' + esc(sub) + '</span></a>';
+    }).join('');
+    el.querySelectorAll('a[data-id]').forEach(function(a) {
+      a.addEventListener('click', function(e) {
+        e.preventDefault();
+        var id = a.getAttribute('data-id');
+        openDetail(id, meetings);
+      });
+    });
+  }
+
+  function openDetail(id, cache) {
+    var m = (cache || []).find(function(x) { return x.id === id; });
+    if (!m) return;
+    document.getElementById('view-list').style.display = 'none';
+    document.getElementById('view-detail').style.display = '';
+    var title = (m.title && m.title.trim()) ? m.title.trim() : 'Department meeting';
+    document.getElementById('dm-detail-title').textContent = title;
+    document.getElementById('dm-detail-meta').textContent = 'Meeting date: ' + (m.meeting_date || '—');
+    var rows = parseRows(m.agenda_rows);
+    var tb = document.getElementById('dm-detail-body');
+    if (!rows.length) {
+      tb.innerHTML = '<tr><td colspan="5" class="empty">No agenda rows.</td></tr>';
+      return;
+    }
+    tb.innerHTML = rows.map(function(r) {
+      return '<tr><td>' + esc(r.agenda_item) + '</td><td>' + esc(r.details) + '</td><td>' + esc(r.time_allocated) + '</td><td>' + esc(r.minutes) + '</td><td>' + esc(r.action_items) + '</td></tr>';
+    }).join('');
+  }
+
+  document.getElementById('dm-back').addEventListener('click', function() {
+    load();
+  });
+
+  var listCache = [];
+
+  function load() {
+    if (!window.DataService || typeof DataService.listDepartmentMeetings !== 'function') {
+      document.getElementById('dm-list').innerHTML = '<div class="empty">Cloud data not available.</div>';
+      return;
+    }
+    DataService.listDepartmentMeetings().then(function(rows) {
+      listCache = rows || [];
+      showList(listCache);
+    }).catch(function() {
+      document.getElementById('dm-list').innerHTML = '<div class="empty">Could not load meetings.</div>';
+    });
+  }
+
+  load();
+})();
+</script>
+</body>
+</html>
