@@ -401,7 +401,7 @@
           return;
         }
         window.supabase.from('department_meetings')
-          .select('id, meeting_date, title, status, agenda_rows, created_at, updated_at')
+          .select('id, meeting_date, title, status, agenda_rows, minutes_recording_status, created_at, updated_at')
           .order('meeting_date', { ascending: false })
           .then(function(r) {
             if (r.error) {
@@ -420,7 +420,7 @@
           return;
         }
         window.supabase.from('department_meetings')
-          .select('id, meeting_date, title, status, agenda_rows, created_at, updated_at')
+          .select('id, meeting_date, title, status, agenda_rows, minutes_recording_status, created_at, updated_at')
           .eq('id', id)
           .maybeSingle()
           .then(function(r) {
@@ -462,6 +462,29 @@
     deleteDepartmentMeeting: function(id) {
       if (!useSupabase()) return Promise.reject(new Error('Supabase required'));
       return window.supabase.from('department_meetings').delete().eq('id', id).then(function(r) {
+        if (r.error) throw r.error;
+      });
+    },
+
+    /**
+     * Faculty Head only (is_admin): merge minutes/action_items into a published meeting. Agenda columns unchanged in DB.
+     * @param {string} meetingId
+     * @param {Array<{minutes?: string, action_items?: string}>} minuteRows - same length as agenda rows
+     * @param {boolean} markComplete - set minutes_recording_status to 'complete'
+     */
+    patchDepartmentMeetingMinutes: function(meetingId, minuteRows, markComplete) {
+      if (!useSupabase()) return Promise.reject(new Error('Supabase required'));
+      var payload = (minuteRows || []).map(function(r) {
+        return {
+          minutes: r.minutes != null ? String(r.minutes) : '',
+          action_items: r.action_items != null ? String(r.action_items) : ''
+        };
+      });
+      return window.supabase.rpc('patch_department_meeting_minutes', {
+        p_meeting_id: meetingId,
+        p_minutes: payload,
+        p_complete: !!markComplete
+      }).then(function(r) {
         if (r.error) throw r.error;
       });
     }
