@@ -14,106 +14,240 @@
 <script src="allowlist-check.js"></script>
 <script src="data-service.js"></script>
 <script src="department-meetings-shared.js"></script>
+<script src="department-meeting-export.js"></script>
 <script src="auth-guard.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@600;700;800&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-:root{--navy:#1e2d4a;--navy-dark:#16243c;--white:#fff;--bg:#f0f2f5;--card:#fff;--border:#e2e8f0;--text:#1a202c;--text2:#4a5568;--text3:#718096}
+:root{
+  --navy:#1e2d4a;
+  --navy-dark:#16243c;
+  --accent:#0f766e;
+  --accent-light:#ccfbf1;
+  --accent2:#c2410c;
+  --white:#fff;
+  --bg:#eef2f7;
+  --card:#fff;
+  --border:#dfe4ec;
+  --text:#1a202c;
+  --text2:#4a5568;
+  --text3:#64748b;
+  --shadow:0 4px 24px rgba(30,45,74,.08);
+  --shadow-hover:0 8px 32px rgba(30,45,74,.12);
+}
 html{scroll-behavior:smooth}
-body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;font-size:14px}
+body{
+  font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;
+  -webkit-font-smoothing:antialiased;font-size:15px;
+  background-image:radial-gradient(ellipse 80% 50% at 50% -20%, rgba(15,118,110,.12), transparent 55%),
+    radial-gradient(ellipse 6040% at 100% 100%, rgba(30,45,74,.06), transparent 45%);
+}
 
-.wrap{max-width:960px;margin:0 auto;padding:1.5rem 1.25rem 3rem}
+.dm-page{max-width:920px;margin:0 auto;padding:1.25rem 1.15rem 3.5rem}
 
-.top{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:gap;gap:1rem;margin-bottom:1.5rem}
-.top h1{font-family:'Sora',sans-serif;font-size:1.35rem;font-weight:800;color:var(--navy)}
-.top p{font-size:.8rem;color:var(--text2);margin-top:.35rem;max-width:42rem;line-height:1.5}
-.btn{font-size:.78rem;font-weight:600;padding:.45rem .9rem;border-radius:6px;border:none;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:.35rem}
+.dm-hero{
+  background:linear-gradient(135deg,var(--navy-dark) 0%,#1a3a52 45%,var(--navy) 100%);
+  border-radius:16px;padding:1.75rem 1.75rem 2rem;margin-bottom:1.75rem;color:var(--white);
+  box-shadow:var(--shadow);position:relative;overflow:hidden;
+}
+.dm-hero::after{
+  content:'';position:absolute;right:-20%;top:-40%;width:55%;height:140%;
+  background:radial-gradient(circle,rgba(15,118,110,.25) 0%,transparent 70%);pointer-events:none;
+}
+.dm-hero-inner{position:relative;z-index:1}
+.dm-kicker{
+  font-size:.65rem;font-weight:700;letter-spacing:.2em;text-transform:uppercase;
+  color:rgba(255,255,255,.72);margin-bottom:.5rem;
+}
+.dm-hero h1{
+  font-family:'Sora',sans-serif;font-size:1.65rem;font-weight:800;line-height:1.2;margin-bottom:.6rem;
+  letter-spacing:-.02em;
+}
+.dm-hero p{
+  font-size:.88rem;line-height:1.6;opacity:.9;max-width:34rem;
+}
+.dm-hero-actions{margin-top:1.1rem;display:flex;flex-wrap:wrap;gap:.6rem;align-items:center}
+.dm-hero .btn-hub{
+  background:var(--white);color:var(--navy);border:none;font-size:.78rem;font-weight:600;
+  padding:.55rem 1rem;border-radius:8px;cursor:pointer;text-decoration:none;display:inline-flex;
+  align-items:center;gap:.35rem;transition:transform .15s,box-shadow .15s;
+  box-shadow:0 2px 12px rgba(0,0,0,.12);
+}
+.dm-hero .btn-hub:hover{transform:translateY(-1px);box-shadow:0 4px 16px rgba(0,0,0,.18)}
+
+.admin-strip{
+  margin-bottom:1.1rem;padding:.85rem 1rem;border-radius:12px;border:1px solid #bae6fd;
+  background:linear-gradient(to right,#e0f2fe,#f0f9ff);font-size:.82rem;color:var(--text2);
+  line-height:1.55;box-shadow:0 1px 0 rgba(255,255,255,.8) inset;
+}
+.admin-strip a{color:#0369a1;font-weight:600}
+
+.dm-section{
+  background:var(--card);border-radius:14px;border:1px solid var(--border);
+  margin-bottom:1.25rem;overflow:hidden;box-shadow:var(--shadow);
+}
+.dm-section-h{
+  padding:1rem 1.25rem;border-bottom:1px solid var(--border);
+  font-family:'Sora',sans-serif;font-weight:700;font-size:.95rem;color:var(--navy);
+  display:flex;align-items:center;gap:.5rem;
+}
+.dm-section-h::before{
+  content:'';width:4px;height:1.15rem;background:linear-gradient(180deg,var(--accent),#14b8a6);border-radius:2px;
+}
+.dm-section-b{padding:1.15rem 1.25rem 1.35rem}
+
+.dm-list{display:flex;flex-direction:column;gap:.75rem}
+.dm-card{
+  display:block;padding:1rem 1.15rem;border-radius:12px;border:1px solid var(--border);
+  background:linear-gradient(to bottom right,#fff,#f8fafc);text-decoration:none;color:var(--navy);
+  transition:border-color .2s,box-shadow .2s,transform .2s;position:relative;
+}
+.dm-card:hover{
+  border-color:rgba(15,118,110,.45);box-shadow:var(--shadow-hover);transform:translateY(-2px);
+}
+.dm-card-title{font-family:'Sora',sans-serif;font-weight:700;font-size:.95rem;margin-bottom:.35rem}
+.dm-card-meta{display:flex;flex-wrap:wrap;align-items:center;gap:.65rem}
+.dm-card-date{
+  font-size:.72rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--accent);background: var(--accent-light);padding:.25rem .5rem;border-radius:6px;
+}
+.dm-card-hint{font-size:.75rem;color:var(--text3)}
+.empty{color:var(--text3);font-size:.88rem;padding:1.5rem;text-align:center;font-style:italic}
+
+.dm-back{margin-bottom:1rem}
+.btn{
+  font-size:.78rem;font-weight:600;padding:.5rem 1rem;border-radius:8px;border:none;cursor:pointer;
+  text-decoration:none;display:inline-flex;align-items:center;gap:.4rem;transition:opacity .15s,transform .12s;
+}
+.btn:hover:not(:disabled){opacity:.92}
 .btn-ghost{background:var(--card);color:var(--text2);border:1px solid var(--border)}
 .btn-ghost:hover{border-color:var(--navy);color:var(--navy)}
 .btn-primary{background:var(--navy);color:var(--white)}
-.btn-complete{background:var(--text2);color:var(--white)}
+.btn-complete{background:#475569;color:var(--white)}
+.btn-accent{background:var(--accent);color:var(--white)}
+.btn-soft{background:var(--accent-light);color:#0f766e;border:1px solid #99f6e4}
 .btn:disabled{opacity:.55;cursor:not-allowed}
 
-.sc{background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:1.25rem;overflow:hidden}
-.sc-h{padding:.9rem 1.15rem;border-bottom:1px solid var(--border);font-family:'Sora',sans-serif;font-weight:700;font-size:.92rem;color:var(--navy)}
-.sc-b{padding:1rem 1.15rem}
+.detail-doc{
+  background:linear-gradient(to bottom,#fff,#fafbfc);border-radius:14px;border:1px solid var(--border);
+  padding:1.25rem 1.35rem 1.5rem;margin-bottom:1rem;box-shadow:var(--shadow);
+}
+.detail-head{margin-bottom:.85rem}
+.detail-head h2{font-family:'Sora',sans-serif;font-size:1.2rem;color:var(--navy);margin-bottom:.35rem}
+.detail-meta{font-size:.8rem;color:var(--text3);line-height:1.5}
 
-.list{display:flex;flex-direction:column;gap:.35rem}
-.list a{display:block;padding:.75rem 1rem;border:1px solid var(--border);border-radius:6px;background:var(--card);color:var(--navy);text-decoration:none;font-weight:600;font-size:.85rem;transition:background .12s,border-color .12s}
-.list a:hover{background:#f8fafc;border-color:var(--navy)}
-.list a span{display:block;font-weight:400;font-size:.75rem;color:var(--text3);margin-top:.2rem}
-.empty{color:var(--text3);font-size:.85rem;padding:1rem;text-align:center}
+.dm-export-bar{
+  display:none;flex-wrap:wrap;align-items:center;gap:.5rem;margin:1rem 0 0;padding-top:1rem;
+  border-top:1px dashed var(--border);
+}
+.dm-export-bar.visible{display:flex}
+.dm-export-bar span.dm-export-hint{font-size:.72rem;color:var(--text3);flex:1;min-width:160px}
 
-.detail-head{margin-bottom:1rem}
-.detail-head h2{font-family:'Sora',sans-serif;font-size:1.05rem;color:var(--navy);margin-bottom:.25rem}
-.detail-meta{font-size:.78rem;color:var(--text3)}
-.detail-toolbar{margin-top:.85rem;padding:.75rem 0;display:none;flex-wrap:wrap;align-items:center;gap:.5rem;border-top:1px solid var(--border)}
+.detail-toolbar{
+  margin-top:.85rem;padding-top:.85rem;display:none;flex-wrap:wrap;align-items:center;gap:.5rem;
+  border-top:1px solid var(--border);
+}
 .detail-toolbar.visible{display:flex}
-.detail-toolbar .dm-hint{font-size:.72rem;color:var(--text3);flex:1;min-width:180px}
+.detail-toolbar .dm-hint{font-size:.74rem;color:var(--text3);flex:1;min-width:180px}
 .save-pill{font-size:.68rem;font-weight:600;color:#059669}
 
-.table-wrap{width:100%;overflow-x:auto;margin-top:.75rem}
+.table-wrap{width:100%;overflow-x:auto;margin-top:.35rem;border-radius:10px;border:1px solid var(--border);background:var(--card)}
 table.dm-table{width:100%;border-collapse:collapse;font-size:.8rem}
-.dm-table th{text-align:left;padding:.55rem .65rem;font-weight:600;font-size:.65rem;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);border:1px solid var(--border);background:#f8fafc}
-.dm-table td{padding:.55rem .65rem;border:1px solid var(--border);vertical-align:top;line-height:1.45;color:var(--text2)}
-.dm-table tr:hover td{background:#fafbfc}
-.dm-table textarea.dm-ta{width:100%;min-width:120px;min-height:64px;font-size:.78rem;font-family:inherit;padding:.4rem;border:1px solid var(--border);border-radius:4px;resize:vertical}
-.dm-table textarea.dm-ta:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 2px rgba(30,45,74,.12)}
+.dm-table th{
+  text-align:left;padding:.65rem .75rem;font-weight:600;font-size:.62rem;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--text3);border-bottom:2px solid var(--border);background:linear-gradient(to bottom,#f8fafc,#f1f5f9);
+}
+.dm-table td{
+  padding:.65rem .75rem;border-bottom:1px solid #e8ecf2;vertical-align:top;line-height:1.45;color:var(--text2);
+}
+.dm-table tbody tr:nth-child(even) td{background:rgba(241,245,249,.45)}
+.dm-table tbody tr:hover td{background:rgba(204,251,241,.35)}
+.dm-table textarea.dm-ta{
+  width:100%;min-width:120px;min-height:70px;font-size:.78rem;font-family:inherit;padding:.5rem;
+  border:1px solid var(--border);border-radius:6px;resize:vertical;background:var(--card);
+}
+.dm-table textarea.dm-ta:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px rgba(15,118,110,.15)}
 
-.admin-strip{margin-bottom:1rem;padding:.75rem 1rem;border-radius:8px;border:1px solid var(--border);background:#e0f2fe;font-size:.8rem;color:var(--text2);line-height:1.5}
-.admin-strip a{color:#0369a1;font-weight:600}
-.status-chip{display:inline-block;font-size:.65rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:.2rem .45rem;border-radius:4px;margin-left:.5rem;vertical-align:middle}
+.status-chip{
+  display:inline-block;font-size:.62rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  padding:.22rem .5rem;border-radius:6px;margin-left:.45rem;vertical-align:middle;
+}
 .status-chip.open{background:#fef3c7;color:#92400e}
 .status-chip.complete{background:#d1fae5;color:#065f46}
 
-.back{margin-bottom:1rem}
+@media print{
+  body{background:#fff !important;background-image:none !important}
+  .no-print{display:none !important}
+  .dm-page{max-width:100%;padding:0.5rem}
+  .dm-section{box-shadow:none;border:none}
+  .dm-section-b{padding:0}
+  .detail-doc{box-shadow:none;border:none;padding:0}
+  .table-wrap{border:1px solid #999}
+  .dm-table th{background:#eee !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .dm-table textarea{border:none !important;box-shadow:none !important;resize:none;overflow:visible}
+}
+
+@media (max-width:600px){
+  .dm-hero h1{font-size:1.35rem}
+}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div id="dm-admin-strip" class="admin-strip" style="display:none">Faculty Head: build and publish agendas in <a href="faculty_dashboard.html?view=admin-console" target="_blank" rel="noopener">Admin Console</a>. Open a meeting below to record <strong>minutes and actions</strong> here — they save to the cloud for all staff.</div>
-  <div class="top">
-    <div>
+<div class="dm-page">
+  <div id="dm-admin-strip" class="admin-strip no-print" style="display:none">Faculty Head: build and publish agendas in <a href="faculty_dashboard.html?view=admin-console" target="_blank" rel="noopener">Admin Console</a>. Open a meeting below to record <strong>minutes and actions</strong> here — they save to the cloud for all staff.</div>
+
+  <header class="dm-hero no-print">
+    <div class="dm-hero-inner">
+      <div class="dm-kicker">Faculty Hub</div>
       <h1>Department meetings</h1>
-      <p>Published agendas and minutes. Agendas are set in Admin Console; Faculty Heads can fill in <strong>Minutes</strong> and <strong>Action items</strong> on this page during or after the meeting.</p>
-    </div>
-    <a class="btn btn-ghost" href="expressive_arts_faculty%20(10).html">← Faculty Hub</a>
-  </div>
-
-  <div id="view-list" class="sc">
-    <div class="sc-h">Published meetings</div>
-    <div class="sc-b">
-      <div id="dm-list" class="list"></div>
-    </div>
-  </div>
-
-  <div id="view-detail" class="sc" style="display:none">
-    <div class="sc-b">
-      <div class="back"><button type="button" class="btn btn-ghost" id="dm-back">← Back to list</button></div>
-      <div class="detail-head">
-        <h2 id="dm-detail-title"></h2>
-        <div class="detail-meta" id="dm-detail-meta"></div>
-        <div id="dm-minutes-toolbar" class="detail-toolbar">
-          <span class="dm-hint">Edits auto-save shortly after typing. Use <strong>Mark complete</strong> when the record is finished.</span>
-          <button type="button" class="btn btn-primary" id="dm-save-now">Save now</button>
-          <button type="button" class="btn btn-complete" id="dm-mark-complete">Mark complete</button>
-          <span id="dm-save-status" class="save-pill" style="opacity:0" aria-live="polite"></span>
-        </div>
+      <p>Agendas, minutes, and actions in one place — aligned with HGIOS-style quality dialogue. Faculty Heads record minutes live on this page; everyone sees updates as they are saved.</p>
+      <div class="dm-hero-actions">
+        <a class="btn-hub" href="expressive_arts_faculty%20(10).html">← Back to Faculty Hub</a>
       </div>
-      <div class="table-wrap">
-        <table class="dm-table" aria-label="Agenda">
-          <thead>
-            <tr>
-              <th>Agenda Item</th>
-              <th>Details/Description</th>
-              <th>Time Allocated</th>
-              <th>Minutes</th>
-              <th>Action Items</th>
-            </tr>
-          </thead>
-          <tbody id="dm-detail-body"></tbody>
-        </table>
+    </div>
+  </header>
+
+  <div id="view-list" class="dm-section">
+    <div class="dm-section-h">Published meetings</div>
+    <div class="dm-section-b">
+      <div id="dm-list" class="dm-list"></div>
+    </div>
+  </div>
+
+  <div id="view-detail" style="display:none">
+    <div class="dm-section-b" style="padding-top:1rem">
+      <div class="dm-back no-print"><button type="button" class="btn btn-ghost" id="dm-back">← Back to list</button></div>
+      <div class="detail-doc">
+        <div class="detail-head">
+          <h2 id="dm-detail-title"></h2>
+          <div class="detail-meta" id="dm-detail-meta"></div>
+          <div id="dm-export-bar" class="dm-export-bar no-print">
+            <span class="dm-export-hint">Print (choose “Save as PDF” in the dialog) or download a Word-ready file.</span>
+            <button type="button" class="btn btn-soft" id="dm-print" title="Opens print — save as PDF from the dialog">Print / PDF</button>
+            <button type="button" class="btn btn-accent" id="dm-word">Download Word</button>
+          </div>
+          <div id="dm-minutes-toolbar" class="detail-toolbar no-print">
+            <span class="dm-hint">Edits auto-save shortly after typing. Use <strong>Mark complete</strong> when the record is finished.</span>
+            <button type="button" class="btn btn-primary" id="dm-save-now">Save now</button>
+            <button type="button" class="btn btn-complete" id="dm-mark-complete">Mark complete</button>
+            <span id="dm-save-status" class="save-pill" style="opacity:0" aria-live="polite"></span>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="dm-table" aria-label="Agenda and minutes">
+            <thead>
+              <tr>
+                <th>Agenda Item</th>
+                <th>Details/Description</th>
+                <th>Time Allocated</th>
+                <th>Minutes</th>
+                <th>Action Items</th>
+              </tr>
+            </thead>
+            <tbody id="dm-detail-body"></tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>
@@ -124,6 +258,7 @@ table.dm-table{width:100%;border-collapse:collapse;font-size:.8rem}
   var listCache = [];
   var dmIsAdmin = false;
   var currentDetailId = null;
+  var lastDetailMeeting = null;
   var autosaveTimer = null;
   var autosaveBusy = false;
 
@@ -157,16 +292,21 @@ table.dm-table{width:100%;border-collapse:collapse;font-size:.8rem}
     document.getElementById('view-list').style.display = '';
     document.getElementById('view-detail').style.display = 'none';
     currentDetailId = null;
+    lastDetailMeeting = null;
     var el = document.getElementById('dm-list');
     var pub = (meetings || []).filter(function(m) { return m.status === 'published'; });
     if (!pub.length) {
-      el.innerHTML = '<div class="empty">No published meetings yet.</div>';
+      el.innerHTML = '<div class="empty">No published meetings yet. Your Faculty Head can publish one from the Admin Console.</div>';
       return;
     }
     el.innerHTML = pub.map(function(m) {
       var title = (m.title && m.title.trim()) ? m.title.trim() : 'Department meeting';
       var sub = m.meeting_date || '';
-      return '<a href="#" data-id="' + esc(m.id) + '">' + esc(title) + '<span>' + esc(sub) + '</span></a>';
+      return '<a href="#" class="dm-card" data-id="' + esc(m.id) + '">' +
+        '<div class="dm-card-title">' + esc(title) + '</div>' +
+        '<div class="dm-card-meta">' +
+        '<span class="dm-card-date">' + esc(sub) + '</span>' +
+        '<span class="dm-card-hint">Open agenda &amp; minutes →</span></div></a>';
     }).join('');
     el.querySelectorAll('a[data-id]').forEach(function(a) {
       a.addEventListener('click', function(e) {
@@ -211,6 +351,31 @@ table.dm-table{width:100%;border-collapse:collapse;font-size:.8rem}
     }
   }
 
+  function getRowsForExport() {
+    var tb = document.getElementById('dm-detail-body');
+    if (!tb) return [];
+    var out = [];
+    tb.querySelectorAll('tr').forEach(function(tr) {
+      var cells = tr.querySelectorAll('td');
+      if (cells.length < 5) return;
+      var taM = cells[3].querySelector('textarea');
+      var taA = cells[4].querySelector('textarea');
+      out.push({
+        agenda_item: cells[0].textContent.trim(),
+        details: cells[1].textContent.trim(),
+        time_allocated: cells[2].textContent.trim(),
+        minutes: taM ? taM.value.trim() : cells[3].textContent.trim(),
+        action_items: taA ? taA.value.trim() : cells[4].textContent.trim()
+      });
+    });
+    return out;
+  }
+
+  function syncLastMeetingFromDom() {
+    if (!lastDetailMeeting) return;
+    lastDetailMeeting = Object.assign({}, lastDetailMeeting, { agenda_rows: getRowsForExport() });
+  }
+
   function gatherMinutePayload() {
     var tb = document.getElementById('dm-detail-body');
     if (!tb || !dmIsAdmin) return [];
@@ -219,9 +384,7 @@ table.dm-table{width:100%;border-collapse:collapse;font-size:.8rem}
     rows.forEach(function(tr) {
       var mi = tr.querySelector('.dm-min');
       var ac = tr.querySelector('.dm-act');
-      if (mi && ac) {
-        out.push({ minutes: mi.value, action_items: ac.value });
-      }
+      if (mi && ac) out.push({ minutes: mi.value, action_items: ac.value });
     });
     return out;
   }
@@ -231,11 +394,7 @@ table.dm-table{width:100%;border-collapse:collapse;font-size:.8rem}
     if (!el) return;
     el.textContent = text || '';
     el.style.opacity = text ? '1' : '0';
-    if (fade && text) {
-      setTimeout(function() {
-        el.style.opacity = '0';
-      }, 2500);
-    }
+    if (fade && text) setTimeout(function() { el.style.opacity = '0'; }, 2500);
   }
 
   function saveMinutes(markComplete, silent) {
@@ -248,39 +407,29 @@ table.dm-table{width:100%;border-collapse:collapse;font-size:.8rem}
     }
     autosaveBusy = true;
     DataService.patchDepartmentMeetingMinutes(currentDetailId, payload, !!markComplete)
-      .then(function() {
-        return DataService.getDepartmentMeeting(currentDetailId);
-      })
+      .then(function() { return DataService.getDepartmentMeeting(currentDetailId); })
       .then(function(fresh) {
         if (fresh) {
           mergeMeetingIntoCache(fresh);
+          lastDetailMeeting = fresh;
           document.getElementById('dm-detail-meta').innerHTML = statusMeta(fresh);
         }
-        if (!silent) {
-          setSaveStatus(markComplete ? 'Marked complete' : 'Saved', true);
-          if (markComplete && !silent) {
-            /* toast via pill only */
-          }
-        } else {
-          setSaveStatus('Saved', true);
-        }
+        syncLastMeetingFromDom();
+        if (!silent) setSaveStatus(markComplete ? 'Marked complete' : 'Saved', true);
+        else setSaveStatus('Saved', true);
       })
       .catch(function(err) {
         var msg = (err && err.message) ? err.message : 'Save failed';
         if (!silent) alert(msg);
         setSaveStatus('Save failed', true);
       })
-      .finally(function() {
-        autosaveBusy = false;
-      });
+      .finally(function() { autosaveBusy = false; });
   }
 
   function scheduleAutosave() {
     if (!dmIsAdmin || !currentDetailId) return;
     clearTimeout(autosaveTimer);
-    autosaveTimer = setTimeout(function() {
-      saveMinutes(false, true);
-    }, 1600);
+    autosaveTimer = setTimeout(function() { saveMinutes(false, true); }, 1600);
   }
 
   function openDetail(id) {
@@ -290,8 +439,11 @@ table.dm-table{width:100%;border-collapse:collapse;font-size:.8rem}
 
     function apply(m) {
       if (!m) return;
+      lastDetailMeeting = m;
       var toolbar = document.getElementById('dm-minutes-toolbar');
       if (toolbar) toolbar.classList.toggle('visible', dmIsAdmin);
+      var ex = document.getElementById('dm-export-bar');
+      if (ex) ex.classList.add('visible');
       var title = (m.title && m.title.trim()) ? m.title.trim() : 'Department meeting';
       document.getElementById('dm-detail-title').textContent = title;
       document.getElementById('dm-detail-meta').innerHTML = statusMeta(m);
@@ -314,13 +466,13 @@ table.dm-table{width:100%;border-collapse:collapse;font-size:.8rem}
         dmIsAdmin = !!r.isAdmin;
         fetchMeeting();
       });
-    } else {
-      fetchMeeting();
-    }
+    } else fetchMeeting();
   }
 
   document.getElementById('dm-back').addEventListener('click', function() {
     clearTimeout(autosaveTimer);
+    var ex = document.getElementById('dm-export-bar');
+    if (ex) ex.classList.remove('visible');
     load();
   });
 
@@ -333,6 +485,26 @@ table.dm-table{width:100%;border-collapse:collapse;font-size:.8rem}
     clearTimeout(autosaveTimer);
     if (!confirm('Mark this meeting minutes as complete? You can still edit later if needed.')) return;
     saveMinutes(true, false);
+  });
+
+  document.getElementById('dm-print').addEventListener('click', function() {
+    syncLastMeetingFromDom();
+    window.print();
+  });
+
+  document.getElementById('dm-word').addEventListener('click', function() {
+    if (!lastDetailMeeting || !window.DepartmentMeetingExport) {
+      alert('Open a meeting first.');
+      return;
+    }
+    syncLastMeetingFromDom();
+    var rows = getRowsForExport();
+    if (!rows.length) {
+      alert('No rows to export.');
+      return;
+    }
+    var meta = Object.assign({}, lastDetailMeeting, { agenda_rows: rows });
+    DepartmentMeetingExport.downloadMeetingWord(meta, rows);
   });
 
   function load() {
