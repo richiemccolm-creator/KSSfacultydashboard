@@ -520,6 +520,10 @@ function downloadParentRiskLetter(ev) {
     toast('Letter export not available');
     return;
   }
+  if (typeof window.ParentLetterDocx.isEffortBehaviourLetterEligible === 'function' && !window.ParentLetterDocx.isEffortBehaviourLetterEligible(p)) {
+    toast('Letter is only available when effort or behaviour is below expectations');
+    return;
+  }
   window.ParentLetterDocx.download(p, toast);
 }
 
@@ -711,6 +715,13 @@ function renderAtRisk() {
     return;
   }
   const showLetter = !!window.__authGuardIsAdmin;
+  const letterEligible = typeof window.ParentLetterDocx !== 'undefined' && typeof window.ParentLetterDocx.isEffortBehaviourLetterEligible === 'function'
+    ? p => window.ParentLetterDocx.isEffortBehaviourLetterEligible(p)
+    : p => {
+      const e = p.avgs && p.avgs.effort;
+      const b = p.avgs && p.avgs.behaviour;
+      return (e != null && e <= 2.5) || (b != null && b <= 2.5);
+    };
   const cards = risk.map(p => {
     const dims = p.subject === 'drama' ? ['creating', 'presenting', 'evaluating', 'effort', 'behaviour', 'homelearning'] : ['progress', 'effort', 'behaviour', 'homelearning'];
     const lowList = dims.filter(d => p.avgs[d] != null && p.avgs[d] <= 2.5);
@@ -718,7 +729,7 @@ function renderAtRisk() {
     const holAvg = allVals.length ? allVals.reduce((a, b) => a + b, 0) / allVals.length : null;
     const sev = p.lowCount >= 4 ? 'risk-card-sev-high' : p.lowCount >= 3 ? 'risk-card-sev-med' : '';
     const dimTags = lowList.map(d => `<span class="risk-dim-tag">${dimLbl(d)}<b>${p.avgs[d].toFixed(1)}</b></span>`).join('');
-    const letterBtn = showLetter
+    const letterBtn = showLetter && letterEligible(p)
       ? `<button type="button" class="btn btn-ghost risk-letter-btn" data-risk-id="${attrEsc(p.id)}" data-risk-subject="${attrEsc(p.subject)}" data-risk-yg="${attrEsc(p.yg)}" data-risk-cls="${attrEsc(p.cls || '')}" data-risk-teacher="${attrEsc(p.teacher || '')}" onclick="downloadParentRiskLetter(event)">Parent letter</button>`
       : '';
     return `<div class="risk-card ${sev}" onclick="selectForProfile('${esc(p.id)}','${p.subject}','${p.yg}','${esc(p.cls)}','${esc(p.teacher)}')">

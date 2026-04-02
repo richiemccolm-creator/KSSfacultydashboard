@@ -1,5 +1,5 @@
 /**
- * Build a minimal .docx (Word) parent letter from Faculty Dashboard at-risk pupil data.
+ * Build a minimal .docx (Word) parent letter focused on effort and/or behaviour only.
  * Requires JSZip (cdnjs) loaded before this script.
  */
 (function (global) {
@@ -64,20 +64,22 @@
     });
   }
 
+  function isEffortBehaviourLetterEligible(p) {
+    if (!p || !p.avgs) return false;
+    var e = p.avgs.effort;
+    var b = p.avgs.behaviour;
+    return (e != null && e <= 2.5) || (b != null && b <= 2.5);
+  }
+
+  function pupilFirstName(fullName) {
+    var parts = String(fullName || '')
+      .trim()
+      .split(/\s+/);
+    return parts[0] || 'your child';
+  }
+
   function dimLabel(d) {
-    return d === 'creating'
-      ? 'Creating'
-      : d === 'presenting'
-        ? 'Presenting'
-        : d === 'evaluating'
-          ? 'Evaluating'
-          : d === 'progress'
-            ? 'Progress'
-            : d === 'effort'
-              ? 'Effort'
-              : d === 'behaviour'
-                ? 'Behaviour'
-                : 'Home learning';
+    return d === 'effort' ? 'Effort' : 'Behaviour';
   }
 
   function buildParentConcernLetterBody(p) {
@@ -85,25 +87,16 @@
     var ygLbl = (p.yg || '').toUpperCase();
     var cls = (p.cls || '—').trim() || '—';
     var teacher = (p.teacher || '').trim() || '—';
-    var dims =
-      p.subject === 'drama'
-        ? ['creating', 'presenting', 'evaluating', 'effort', 'behaviour', 'homelearning']
-        : ['progress', 'effort', 'behaviour', 'homelearning'];
-    var lowList = dims.filter(function (d) {
+    var first = pupilFirstName(p.name);
+    var focusDims = ['effort', 'behaviour'].filter(function (d) {
       return p.avgs[d] != null && p.avgs[d] <= 2.5;
     });
-    var allVals = dims
-      .map(function (d) {
-        return p.avgs[d];
-      })
-      .filter(function (v) {
-        return v != null && v > 0;
-      });
-    var holAvg = allVals.length
-      ? allVals.reduce(function (a, b) {
-          return a + b;
-        }, 0) / allVals.length
-      : null;
+    var topicPhrase =
+      focusDims.length === 2
+        ? 'effort and behaviour'
+        : focusDims[0] === 'effort'
+          ? 'effort'
+          : 'behaviour';
 
     var now = new Date();
     var dateLong = now.toLocaleDateString('en-GB', {
@@ -129,41 +122,39 @@
     body += letterDocxPara('Dear Parent/Carer,', { spaceAfter: 200 });
 
     body += letterDocxPara(
-      'We are writing to let you know how ' +
-        (p.name || 'your child') +
-        ' is progressing in ' +
+      'We are writing regarding ' +
+        first +
+        '’s ' +
+        topicPhrase +
+        ' in ' +
         subjLbl +
-        ' at present. Teachers track learning across several areas using a 1–4 scale (where higher scores indicate stronger engagement and attainment against faculty expectations).',
+        '. Staff record ' +
+        (focusDims.length === 2 ? 'these' : 'this') +
+        ' using a 1–4 scale, where higher scores reflect the engagement and conduct we expect during lessons.',
       { spaceAfter: 200 }
     );
 
-    if (lowList.length) {
-      body += letterDocxPara(
-        'At the latest review, the following areas were below the level we would want to see for sustained progress:',
-        { spaceAfter: 120 }
-      );
-      lowList.forEach(function (d) {
+    if (focusDims.length) {
+      body += letterDocxPara('Based on our latest tracking:', { spaceAfter: 120 });
+      focusDims.forEach(function (d) {
         body += letterDocxPara(
           '• ' + dimLabel(d) + ': average ' + Number(p.avgs[d]).toFixed(1) + ' / 4',
           { spaceAfter: 72 }
         );
       });
-      body += letterDocxPara('', { spaceAfter: 120 });
-    }
-
-    if (holAvg != null) {
-      body += letterDocxPara(
-        'Overall average across tracked areas for this reporting period: ' +
-          holAvg.toFixed(1) +
-          ' / 4.',
-        { spaceAfter: 200 }
-      );
+      body += letterDocxPara('', { spaceAfter: 160 });
     }
 
     body += letterDocxPara(
-      'Your child’s class teacher for this subject is ' +
+      'We would welcome your support in reinforcing our expectations at home so that ' +
+        first +
+        ' can get the most from ' +
+        subjLbl +
+        '. ' +
+        first +
+        '’s class teacher for this subject is ' +
         teacher +
-        '. We would welcome your support in reinforcing expectations for effort, behaviour, and completion of home learning where these apply. If you would like to discuss any of this further, please contact the school and ask to speak to the Expressive Arts department or your child’s pastoral head of house.',
+        '. If you would like to discuss this further, please contact the school and ask for the Expressive Arts department or your child’s pastoral head of house.',
       { spaceAfter: 220 }
     );
 
@@ -190,6 +181,10 @@
   function download(p, toastFn) {
     if (typeof JSZip === 'undefined') {
       if (toastFn) toastFn('Document library not loaded');
+      return;
+    }
+    if (!isEffortBehaviourLetterEligible(p)) {
+      if (toastFn) toastFn('Letter is only available when effort or behaviour is below expectations');
       return;
     }
     var bodyXml;
@@ -222,5 +217,8 @@
       });
   }
 
-  global.ParentLetterDocx = { download: download };
+  global.ParentLetterDocx = {
+    download: download,
+    isEffortBehaviourLetterEligible: isEffortBehaviourLetterEligible,
+  };
 })(typeof window !== 'undefined' ? window : this);
