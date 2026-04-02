@@ -14,6 +14,8 @@
 <script src="allowlist-check.js"></script>
 <script src="auth-guard.js"></script>
 <script src="data-service.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="parent-letter-docx.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@700;800&display=swap" rel="stylesheet">
 <style>
@@ -151,6 +153,8 @@ tr:hover td{background:#f8fafc}
 .risk-card-sev-high::before{background:linear-gradient(180deg,#ea580c,#b91c1c)}
 .risk-card-sev-med::before{background:linear-gradient(180deg,#f59e0b,#d97706)}
 .risk-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:.75rem;margin-bottom:.65rem;padding-left:.35rem}
+.risk-card-head-right{display:flex;align-items:center;gap:.5rem;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end}
+.risk-letter-btn{font-size:.68rem;padding:.35rem .65rem;cursor:pointer}
 .risk-card-name{font-family:'Sora',sans-serif;font-size:1rem;font-weight:700;color:var(--text);line-height:1.25}
 .risk-card-badge{font-size:.58rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:.2rem .45rem;border-radius:4px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;white-space:nowrap}
 .risk-card-meta{font-size:.72rem;color:var(--text3);line-height:1.5;padding-left:.35rem;margin-bottom:.65rem}
@@ -494,6 +498,31 @@ function getAllPupils() {
   return out;
 }
 
+function downloadParentRiskLetter(ev) {
+  ev.preventDefault();
+  ev.stopPropagation();
+  if (!window.__authGuardIsAdmin) {
+    toast('Admin only');
+    return;
+  }
+  const btn = ev.currentTarget;
+  const id = btn.getAttribute('data-risk-id');
+  const subject = btn.getAttribute('data-risk-subject');
+  const yg = btn.getAttribute('data-risk-yg');
+  const cls = btn.getAttribute('data-risk-cls') || '';
+  const teacher = btn.getAttribute('data-risk-teacher') || '';
+  const p = getAtRiskPupils().find(x => x.id === id && x.subject === subject && x.yg === yg && (x.cls || '') === cls && (x.teacher || '') === teacher);
+  if (!p) {
+    toast('Pupil not found — try refreshing the list');
+    return;
+  }
+  if (typeof window.ParentLetterDocx === 'undefined' || typeof window.ParentLetterDocx.download !== 'function') {
+    toast('Letter export not available');
+    return;
+  }
+  window.ParentLetterDocx.download(p, toast);
+}
+
 function getAtRiskPupils() {
   const all = getAllPupils();
   const risk = [];
@@ -681,6 +710,7 @@ function renderAtRisk() {
     el.innerHTML = pills + '<div class="empty-s" style="padding-top:.5rem"><div class="empty-icon">🔎</div>No pupils match these filters.<p class="risk-empty-hint">Try clearing teacher or class, or switch subject to “All subjects”.</p></div>';
     return;
   }
+  const showLetter = !!window.__authGuardIsAdmin;
   const cards = risk.map(p => {
     const dims = p.subject === 'drama' ? ['creating', 'presenting', 'evaluating', 'effort', 'behaviour', 'homelearning'] : ['progress', 'effort', 'behaviour', 'homelearning'];
     const lowList = dims.filter(d => p.avgs[d] != null && p.avgs[d] <= 2.5);
@@ -688,10 +718,16 @@ function renderAtRisk() {
     const holAvg = allVals.length ? allVals.reduce((a, b) => a + b, 0) / allVals.length : null;
     const sev = p.lowCount >= 4 ? 'risk-card-sev-high' : p.lowCount >= 3 ? 'risk-card-sev-med' : '';
     const dimTags = lowList.map(d => `<span class="risk-dim-tag">${dimLbl(d)}<b>${p.avgs[d].toFixed(1)}</b></span>`).join('');
+    const letterBtn = showLetter
+      ? `<button type="button" class="btn btn-ghost risk-letter-btn" data-risk-id="${attrEsc(p.id)}" data-risk-subject="${attrEsc(p.subject)}" data-risk-yg="${attrEsc(p.yg)}" data-risk-cls="${attrEsc(p.cls || '')}" data-risk-teacher="${attrEsc(p.teacher || '')}" onclick="downloadParentRiskLetter(event)">Parent letter</button>`
+      : '';
     return `<div class="risk-card ${sev}" onclick="selectForProfile('${esc(p.id)}','${p.subject}','${p.yg}','${esc(p.cls)}','${esc(p.teacher)}')">
       <div class="risk-card-head">
         <div class="risk-card-name">${escHtml(p.name)}</div>
-        <span class="risk-card-badge">${p.lowCount} focus areas</span>
+        <div class="risk-card-head-right">
+          ${letterBtn}
+          <span class="risk-card-badge">${p.lowCount} focus areas</span>
+        </div>
       </div>
       <div class="risk-card-meta">${escHtml(p.cls || '—')} · ${p.yg.toUpperCase()} · ${subjLbl(p.subject)} · ${escHtml(p.teacher || '')}${holAvg != null ? ` · Overall avg <strong style="color:var(--text)">${holAvg.toFixed(1)}</strong> / 4` : ''}</div>
       <div class="risk-card-dims">${dimTags}</div>
@@ -1022,7 +1058,13 @@ function updateLoadCloudButton() {
   if (adminBtn) adminBtn.style.display = window.__authGuardIsAdmin ? 'block' : 'none';
 }
 updateLoadCloudButton();
-setTimeout(function(){updateLoadCloudButton();var v=new URLSearchParams(window.location.search).get('view');if(v==='admin-console'&&window.__authGuardIsAdmin)setView('admin-console');},800);
+setTimeout(function(){
+  updateLoadCloudButton();
+  var v = new URLSearchParams(window.location.search).get('view');
+  if (v === 'admin-console' && window.__authGuardIsAdmin) setView('admin-console');
+  var riskPanel = document.getElementById('view-at-risk');
+  if (riskPanel && riskPanel.style.display === 'block') renderAtRisk();
+},800);
 
 var staffListCache = [];
 function renderStaffView() {
