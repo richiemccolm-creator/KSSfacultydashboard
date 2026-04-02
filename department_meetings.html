@@ -106,8 +106,14 @@ body{
 .dm-card:hover{
   border-color:rgba(15,118,110,.45);box-shadow:var(--shadow-hover);transform:translateY(-2px);
 }
+.dm-card-row{display:flex;align-items:center;justify-content:space-between;gap:1rem}
+.dm-card-main{flex:1;min-width:0}
 .dm-card-title{font-family:'Sora',sans-serif;font-weight:700;font-size:.95rem;margin-bottom:.35rem}
 .dm-card-meta{display:flex;flex-wrap:wrap;align-items:center;gap:.65rem}
+.dm-card-complete-pill{
+  flex-shrink:0;font-size:.62rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  padding:.3rem .55rem;border-radius:6px;background:#d1fae5;color:#065f46;white-space:nowrap;
+}
 .dm-card-date{
   font-size:.72rem;font-weight:600;letter-spacing:.04em;text-transform:uppercase;
   color:var(--accent);background: var(--accent-light);padding:.25rem .5rem;border-radius:6px;
@@ -302,11 +308,18 @@ table.dm-table{width:100%;border-collapse:collapse;font-size:.8rem}
     el.innerHTML = pub.map(function(m) {
       var title = (m.title && m.title.trim()) ? m.title.trim() : 'Department meeting';
       var sub = m.meeting_date || '';
+      var completePill = (m.minutes_recording_status === 'complete')
+        ? '<span class="dm-card-complete-pill">Complete</span>'
+        : '';
       return '<a href="#" class="dm-card" data-id="' + esc(m.id) + '">' +
+        '<div class="dm-card-row">' +
+        '<div class="dm-card-main">' +
         '<div class="dm-card-title">' + esc(title) + '</div>' +
         '<div class="dm-card-meta">' +
         '<span class="dm-card-date">' + esc(sub) + '</span>' +
-        '<span class="dm-card-hint">Open agenda &amp; minutes →</span></div></a>';
+        '<span class="dm-card-hint">Open agenda &amp; minutes →</span></div>' +
+        '</div>' + completePill +
+        '</div></a>';
     }).join('');
     el.querySelectorAll('a[data-id]').forEach(function(a) {
       a.addEventListener('click', function(e) {
