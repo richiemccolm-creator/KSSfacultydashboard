@@ -399,6 +399,19 @@ tr:hover td{background:#f8fafc}
                 <label class="form-label" for="admin-dm-source-notes">Source notes (optional)</label>
                 <textarea id="admin-dm-source-notes" class="form-input" rows="2" style="width:100%;max-width:560px;resize:vertical" placeholder="Paste previous minutes / discussion points for your own reference — not shown to staff"></textarea>
               </div>
+              <div style="margin-bottom:1rem;padding:.85rem;border:1px solid var(--border);border-radius:8px;background:var(--card)">
+                <label class="form-label" for="admin-dm-paste-agenda">Paste agenda table</label>
+                <div style="font-size:.72rem;color:var(--text3);margin-bottom:.4rem;line-height:1.45">Copy a markdown or pipe table from Word, Teams, or an AI — five columns: <strong>Agenda Item</strong> | <strong>Details</strong> | <strong>Time</strong> | Minutes | Actions. Header row is skipped. Then click import.</div>
+                <textarea id="admin-dm-paste-agenda" class="form-input" rows="6" style="width:100%;max-width:720px;font-size:.72rem;font-family:ui-monospace,Consolas,monospace;resize:vertical" placeholder="| 2.3 Learning, Teaching and Assessment | Your details… | 10 minutes | | |"></textarea>
+                <div style="margin-top:.5rem;display:flex;flex-wrap:wrap;gap:.75rem;align-items:flex-end">
+                  <button type="button" class="btn btn-ghost" onclick="adminDmImportPastedAgenda()">Import table into rows</button>
+                  <div>
+                    <label class="form-label" for="admin-dm-agenda-file">Or upload .txt / .md</label>
+                    <input type="file" id="admin-dm-agenda-file" class="form-input" accept=".txt,.md,text/plain,.text" style="font-size:.72rem;max-width:260px;padding:.35rem" onchange="adminDmAgendaFile(this)">
+                  </div>
+                </div>
+                <p style="font-size:.7rem;color:var(--text3);margin-top:.5rem">Import replaces the row table below. Then <strong>Save draft</strong> or <strong>Add to Department meetings</strong>.</p>
+              </div>
               <div class="form-label" style="margin-bottom:.35rem">Agenda rows</div>
               <div style="overflow-x:auto;margin-bottom:.5rem">
                 <table style="width:100%;border-collapse:collapse;font-size:.75rem;min-width:720px">
@@ -1252,10 +1265,58 @@ function adminDmEscAttr(s) {
 }
 function adminDmHgiosOptionsHtml(selected) {
   var opts = window.DEPARTMENT_MEETINGS_HGIOS || [];
-  return opts.map(function(o) {
+  var seen = {};
+  var list = [];
+  if (selected && String(selected).trim()) {
+    list.push(selected);
+    seen[selected] = true;
+  }
+  opts.forEach(function(o) {
+    if (o && !seen[o]) {
+      seen[o] = true;
+      list.push(o);
+    }
+  });
+  return list.map(function(o) {
     var sel = (o === selected) ? ' selected' : '';
     return '<option value="' + adminDmEscAttr(o) + '"' + sel + '>' + adminDmEscAttr(o) + '</option>';
   }).join('');
+}
+
+function adminDmImportPastedAgenda() {
+  var ta = document.getElementById('admin-dm-paste-agenda');
+  if (!ta) return;
+  var text = ta.value;
+  if (!String(text || '').trim()) {
+    toast('Paste a table first');
+    return;
+  }
+  if (typeof window.parseDepartmentMeetingAgendaPaste !== 'function') {
+    toast('Agenda parser not loaded — refresh the page');
+    return;
+  }
+  var parsed = window.parseDepartmentMeetingAgendaPaste(text);
+  if (!parsed.length) {
+    toast('No rows found — use | or tab between columns (Agenda | Details | Time | …)');
+    return;
+  }
+  adminDmRenderRows(parsed);
+  adminDmApplyPreonlyVisibility();
+  toast('Imported ' + parsed.length + ' rows — review and save when ready.');
+}
+
+function adminDmAgendaFile(inp) {
+  var f = inp && inp.files && inp.files[0];
+  if (!f) return;
+  var reader = new FileReader();
+  reader.onload = function() {
+    var ta = document.getElementById('admin-dm-paste-agenda');
+    if (ta) ta.value = reader.result || '';
+    toast('File loaded — click Import table into rows');
+  };
+  reader.onerror = function() { toast('Could not read file'); };
+  reader.readAsText(f);
+  inp.value = '';
 }
 function adminDmReadRowsFromDom() {
   var tb = document.getElementById('admin-dm-rows');
