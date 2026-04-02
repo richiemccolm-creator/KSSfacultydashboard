@@ -376,22 +376,23 @@ tr:hover td{background:#f8fafc}
           <div class="sc-header">
             <div>
               <div class="sc-title">Department meetings</div>
-              <div class="sc-sub">Agendas and minutes appear on <a href="department_meetings.html" target="_blank" rel="noopener" style="color:var(--accent-drama)">Department meetings</a> once published. Drafts are visible only to admins.</div>
+              <div class="sc-sub">Build the agenda here, then use <strong>Add to Department meetings</strong> to put it on the <a href="department_meetings.html" target="_blank" rel="noopener" style="color:var(--accent-drama)">staff meetings page</a>. After the meeting, open the same record and save minutes and actions.</div>
             </div>
           </div>
           <div class="sc-body">
+            <p style="font-size:.78rem;color:var(--text2);line-height:1.5;margin-bottom:1rem;padding:.65rem .85rem;background:var(--card);border-radius:6px;border:1px solid var(--border)"><strong>Workflow:</strong> (1) Build agenda rows &amp; save a draft if you like → (2) <strong>Add to Department meetings</strong> when staff should see it → (3) Edit the same meeting and use <strong>Save minutes &amp; updates</strong> during or after the meeting.</p>
             <div id="admin-dm-list-wrap" style="margin-bottom:1rem;font-size:.85rem"></div>
             <div id="admin-dm-form-wrap" style="display:none;border:1px solid var(--border);border-radius:8px;padding:1rem;background:var(--bg)">
               <input type="hidden" id="admin-dm-id" value="">
+              <input type="hidden" id="admin-dm-status" value="draft">
               <div style="display:flex;flex-wrap:wrap;gap:.75rem;align-items:flex-end;margin-bottom:1rem">
                 <div><label class="form-label" for="admin-dm-date">Meeting date</label><input type="date" id="admin-dm-date" class="form-input" required></div>
                 <div><label class="form-label" for="admin-dm-title">Title (optional)</label><input type="text" id="admin-dm-title" class="form-input" placeholder="e.g. April DM" style="min-width:200px"></div>
-                <div><label class="form-label" for="admin-dm-status">Status</label><select id="admin-dm-status" class="form-input"><option value="draft">Draft</option><option value="published">Published</option></select></div>
               </div>
               <div style="margin-bottom:.75rem">
                 <label style="display:flex;align-items:center;gap:.5rem;font-size:.82rem;cursor:pointer">
-                  <input type="checkbox" id="admin-dm-preonly" checked>
-                  <span>Pre-meeting agenda (require blank Minutes and Action items)</span>
+                  <input type="checkbox" id="admin-dm-preonly" checked onchange="adminDmOnPreonlyChange()">
+                  <span>Agenda-only mode (hide Minutes &amp; Actions while building; blanks enforced for draft saves)</span>
                 </label>
               </div>
               <div style="margin-bottom:1rem">
@@ -406,8 +407,8 @@ tr:hover td{background:#f8fafc}
                       <th style="text-align:left;padding:.35rem;border:1px solid var(--border)">Agenda item (HGIOS)</th>
                       <th style="text-align:left;padding:.35rem;border:1px solid var(--border)">Details</th>
                       <th style="text-align:left;padding:.35rem;border:1px solid var(--border);width:70px">Mins</th>
-                      <th style="text-align:left;padding:.35rem;border:1px solid var(--border)">Minutes</th>
-                      <th style="text-align:left;padding:.35rem;border:1px solid var(--border)">Actions</th>
+                      <th class="admin-dm-col-live" style="text-align:left;padding:.35rem;border:1px solid var(--border)">Minutes</th>
+                      <th class="admin-dm-col-live" style="text-align:left;padding:.35rem;border:1px solid var(--border)">Actions</th>
                       <th style="width:36px;border:1px solid var(--border)"></th>
                     </tr>
                   </thead>
@@ -418,13 +419,18 @@ tr:hover td{background:#f8fafc}
                 <button type="button" class="btn btn-ghost" id="admin-dm-add-row" onclick="adminDmAddRowClick()">Add row</button>
                 <button type="button" class="btn btn-ghost" onclick="adminDmDuplicateFromLatest()">Duplicate from latest published</button>
               </div>
-              <div style="display:flex;flex-wrap:wrap;gap:.5rem">
-                <button type="button" class="btn btn-primary" id="admin-dm-save-btn" onclick="adminDmSave()">Save meeting</button>
+              <div id="admin-dm-actions-draft" style="display:none;flex-wrap:wrap;gap:.5rem;align-items:center">
+                <button type="button" class="btn btn-ghost" onclick="adminDmSave('draft')">Save draft</button>
+                <button type="button" class="btn btn-primary" onclick="adminDmSave('publish')">Add to Department meetings</button>
+                <button type="button" class="btn btn-ghost" onclick="adminDmCancelForm()">Cancel</button>
+              </div>
+              <div id="admin-dm-actions-published" style="display:none;flex-wrap:wrap;gap:.5rem;align-items:center">
+                <button type="button" class="btn btn-primary" onclick="adminDmSave('updates')">Save minutes &amp; updates</button>
                 <button type="button" class="btn btn-ghost" onclick="adminDmCancelForm()">Cancel</button>
               </div>
             </div>
             <div style="margin-top:.75rem">
-              <button type="button" class="btn btn-primary" id="admin-dm-new-btn" onclick="adminDmNewMeeting()">New meeting</button>
+              <button type="button" class="btn btn-primary" id="admin-dm-new-btn" onclick="adminDmNewMeeting()">New meeting — build agenda</button>
             </div>
           </div>
         </div>
@@ -1280,11 +1286,44 @@ function adminDmRenderRows(rows) {
       '<td style="padding:.25rem;border:1px solid var(--border);vertical-align:top"><select class="form-input admin-dm-sel" style="max-width:220px;font-size:.72rem">' + adminDmHgiosOptionsHtml(r.agenda_item) + '</select></td>' +
       '<td style="padding:.25rem;border:1px solid var(--border);vertical-align:top"><textarea class="form-input admin-dm-details" rows="2" style="width:100%;min-width:120px;font-size:.72rem;resize:vertical">' + adminDmEscAttr(r.details) + '</textarea></td>' +
       '<td style="padding:.25rem;border:1px solid var(--border);vertical-align:top"><input type="text" class="form-input admin-dm-time" value="' + adminDmEscAttr(r.time_allocated) + '" style="width:64px;font-size:.72rem"></td>' +
-      '<td style="padding:.25rem;border:1px solid var(--border);vertical-align:top"><textarea class="form-input admin-dm-minutes" rows="2" style="width:100%;min-width:100px;font-size:.72rem;resize:vertical">' + adminDmEscAttr(r.minutes) + '</textarea></td>' +
-      '<td style="padding:.25rem;border:1px solid var(--border);vertical-align:top"><textarea class="form-input admin-dm-actions" rows="2" style="width:100%;min-width:100px;font-size:.72rem;resize:vertical">' + adminDmEscAttr(r.action_items) + '</textarea></td>' +
+      '<td class="admin-dm-col-live" style="padding:.25rem;border:1px solid var(--border);vertical-align:top"><textarea class="form-input admin-dm-minutes" rows="2" style="width:100%;min-width:100px;font-size:.72rem;resize:vertical">' + adminDmEscAttr(r.minutes) + '</textarea></td>' +
+      '<td class="admin-dm-col-live" style="padding:.25rem;border:1px solid var(--border);vertical-align:top"><textarea class="form-input admin-dm-actions" rows="2" style="width:100%;min-width:100px;font-size:.72rem;resize:vertical">' + adminDmEscAttr(r.action_items) + '</textarea></td>' +
       '<td style="padding:.25rem;border:1px solid var(--border);vertical-align:top;text-align:center"><button type="button" class="btn btn-ghost" style="font-size:.65rem;padding:.2rem .35rem" onclick="adminDmRemoveRow(' + i + ')">×</button></td>' +
       '</tr>';
   }).join('');
+  adminDmApplyPreonlyVisibility();
+}
+function adminDmApplyPreonlyVisibility() {
+  var pre = document.getElementById('admin-dm-preonly');
+  var hideLive = pre && pre.checked;
+  document.querySelectorAll('#admin-dm-form-wrap .admin-dm-col-live').forEach(function(el) {
+    el.style.display = hideLive ? 'none' : '';
+  });
+}
+function adminDmOnPreonlyChange() {
+  adminDmApplyPreonlyVisibility();
+}
+function adminDmFormUpdateActionVisibility() {
+  var id = document.getElementById('admin-dm-id').value.trim();
+  var pub = false;
+  if (id) {
+    var m = adminDmMeetings.find(function(x) { return x.id === id; });
+    pub = m && m.status === 'published';
+  }
+  var d = document.getElementById('admin-dm-actions-draft');
+  var p = document.getElementById('admin-dm-actions-published');
+  if (!d || !p) return;
+  if (pub) {
+    d.style.display = 'none';
+    p.style.display = 'flex';
+    var pre = document.getElementById('admin-dm-preonly');
+    if (pre) pre.checked = false;
+    adminDmApplyPreonlyVisibility();
+  } else {
+    d.style.display = 'flex';
+    p.style.display = 'none';
+    adminDmApplyPreonlyVisibility();
+  }
 }
 function adminDmRemoveRow(i) {
   var rows = adminDmReadRowsFromDom();
@@ -1308,9 +1347,9 @@ function adminDmRenderMeetingList() {
   }
   var esc = function(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
   var eid = function(x) { return String(x || '').replace(/'/g, "\\'"); };
-  w.innerHTML = '<table class="table-wrap" style="width:100%"><thead><tr><th>Date</th><th>Title</th><th>Status</th><th></th></tr></thead><tbody>' +
+  w.innerHTML = '<table class="table-wrap" style="width:100%"><thead><tr><th>Date</th><th>Title</th><th>Visibility</th><th></th></tr></thead><tbody>' +
     adminDmMeetings.map(function(m) {
-      var st = m.status === 'published' ? '<span style="color:#059669;font-weight:600">Published</span>' : '<span style="color:#b45309;font-weight:600">Draft</span>';
+      var st = m.status === 'published' ? '<span style="color:#059669;font-weight:600">On meetings tab</span>' : '<span style="color:#b45309;font-weight:600">Draft only</span>';
       var tit = (m.title && m.title.trim()) ? esc(m.title.trim()) : '—';
       return '<tr><td>' + esc(m.meeting_date || '') + '</td><td>' + tit + '</td><td>' + st + '</td><td><button type="button" class="btn btn-ghost" style="font-size:.7rem;padding:.25rem .5rem" onclick="adminDmEditMeeting(\'' + eid(m.id) + '\')">Edit</button> <button type="button" class="btn btn-danger" style="font-size:.7rem;padding:.25rem .5rem" onclick="adminDmDelete(\'' + eid(m.id) + '\')">Delete</button></td></tr>';
     }).join('') + '</tbody></table>';
@@ -1335,6 +1374,8 @@ function adminDmNewMeeting() {
   document.getElementById('admin-dm-source-notes').value = '';
   var dr = typeof window.defaultDepartmentMeetingRows === 'function' ? window.defaultDepartmentMeetingRows() : [{ agenda_item: window.DEPARTMENT_MEETINGS_FIRST_ROW_QI || '2.3 Learning, Teaching and Assessment', details: 'Sharing best practice — ', time_allocated: '10', minutes: '', action_items: '' }];
   adminDmRenderRows(dr);
+  adminDmFormUpdateActionVisibility();
+  document.getElementById('admin-dm-form-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 function adminDmEditMeeting(id) {
   var m = adminDmMeetings.find(function(x) { return x.id === id; });
@@ -1344,11 +1385,12 @@ function adminDmEditMeeting(id) {
   document.getElementById('admin-dm-date').value = m.meeting_date || '';
   document.getElementById('admin-dm-title').value = m.title || '';
   document.getElementById('admin-dm-status').value = m.status === 'published' ? 'published' : 'draft';
-  document.getElementById('admin-dm-preonly').checked = false;
+  document.getElementById('admin-dm-preonly').checked = m.status !== 'published';
   document.getElementById('admin-dm-source-notes').value = '';
   var rows = adminDmParseAgendaRows(m.agenda_rows);
   if (!rows.length) rows = typeof window.defaultDepartmentMeetingRows === 'function' ? window.defaultDepartmentMeetingRows() : [];
   adminDmRenderRows(rows);
+  adminDmFormUpdateActionVisibility();
   document.getElementById('admin-dm-form-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 function adminDmCancelForm() {
@@ -1378,38 +1420,68 @@ function adminDmDuplicateFromLatest() {
   document.getElementById('admin-dm-preonly').checked = true;
   document.getElementById('admin-dm-source-notes').value = '';
   adminDmRenderRows(rows);
+  adminDmFormUpdateActionVisibility();
   toast('Copied agenda from latest published; minutes and actions cleared. Set a new date and save.');
   document.getElementById('admin-dm-form-wrap').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
-function adminDmSave() {
+function adminDmSave(mode) {
   if (!window.__authGuardIsAdmin || !window.DataService) { toast('Admin only'); return; }
+  mode = mode || 'draft';
   var id = document.getElementById('admin-dm-id').value.trim();
   var date = document.getElementById('admin-dm-date').value;
   var title = document.getElementById('admin-dm-title').value.trim();
-  var status = document.getElementById('admin-dm-status').value;
   var preonly = document.getElementById('admin-dm-preonly').checked;
+
+  if (mode === 'updates') {
+    var ex = id ? adminDmMeetings.find(function(x) { return x.id === id; }) : null;
+    if (!ex || ex.status !== 'published') {
+      toast('Open a meeting that is already on the Department meetings page, or use Add to Department meetings first.');
+      return;
+    }
+  }
+
   if (!date) { toast('Enter meeting date'); return; }
   var rows = adminDmReadRowsFromDom();
+
+  var enforceBlank = false;
+  if (mode === 'publish') enforceBlank = true;
+  else if (mode === 'draft') enforceBlank = preonly;
+  else if (mode === 'updates') enforceBlank = false;
+
   var v = typeof window.validateDepartmentMeetingAgenda === 'function'
-    ? window.validateDepartmentMeetingAgenda(rows, { enforceBlankMinutesActions: preonly })
+    ? window.validateDepartmentMeetingAgenda(rows, { enforceBlankMinutesActions: enforceBlank })
     : { ok: true, errs: [], warns: [] };
   if (!v.ok) {
     toast(v.errs.length ? v.errs[0] : 'Check agenda');
     return;
   }
   if (v.warns && v.warns.length) toast(v.warns[0]);
+
+  var status = mode === 'draft' ? 'draft' : 'published';
+  document.getElementById('admin-dm-status').value = status;
   var payload = { meeting_date: date, title: title, status: status, agenda_rows: rows };
+
+  function doneToast() {
+    if (mode === 'draft') toast('Draft saved — not on the meetings page yet. Use Add to Department meetings when ready.');
+    else if (mode === 'publish') toast('Added to Department meetings — staff can open it from the Faculty Hub.');
+    else toast('Minutes & agenda updates saved.');
+  }
+
   if (id) {
     DataService.updateDepartmentMeeting(id, payload).then(function() {
       adminDmCancelForm();
       renderAdminConsole();
-      toast('Meeting updated');
+      doneToast();
     }).catch(function() { toast('Failed to save meeting'); });
   } else {
+    if (mode === 'updates') {
+      toast('Save a new meeting as draft or publish first');
+      return;
+    }
     DataService.createDepartmentMeeting(payload).then(function() {
       adminDmCancelForm();
       renderAdminConsole();
-      toast('Meeting created');
+      doneToast();
     }).catch(function() { toast('Failed to save meeting'); });
   }
 }
