@@ -401,7 +401,7 @@
           return;
         }
         window.supabase.from('department_meetings')
-          .select('id, meeting_date, title, status, agenda_rows, minutes_recording_status, created_at, updated_at')
+          .select('id, meeting_date, title, status, agenda_rows, minutes_recording_status, minutes_last_updated_by, minutes_updated_at, created_at, updated_at')
           .order('meeting_date', { ascending: false })
           .then(function(r) {
             if (r.error) {
@@ -420,7 +420,7 @@
           return;
         }
         window.supabase.from('department_meetings')
-          .select('id, meeting_date, title, status, agenda_rows, minutes_recording_status, created_at, updated_at')
+          .select('id, meeting_date, title, status, agenda_rows, minutes_recording_status, minutes_last_updated_by, minutes_updated_at, created_at, updated_at')
           .eq('id', id)
           .maybeSingle()
           .then(function(r) {
@@ -454,8 +454,15 @@
       if (obj.title != null) row.title = String(obj.title).trim();
       if (obj.status != null) row.status = obj.status === 'published' ? 'published' : 'draft';
       if (obj.agenda_rows != null) row.agenda_rows = Array.isArray(obj.agenda_rows) ? obj.agenda_rows : [];
-      return window.supabase.from('department_meetings').update(row).eq('id', id).then(function(r) {
+      var expectTs = obj.expected_updated_at != null ? String(obj.expected_updated_at).trim() : '';
+      var q = window.supabase.from('department_meetings').update(row).eq('id', id);
+      if (expectTs) q = q.eq('updated_at', expectTs);
+      return q.select('id, updated_at').maybeSingle().then(function(r) {
         if (r.error) throw r.error;
+        if (expectTs && !r.data) {
+          throw new Error('This meeting was changed elsewhere. Refresh the meeting list and try again.');
+        }
+        return r.data;
       });
     },
 
@@ -471,8 +478,9 @@
      * @param {string} meetingId
      * @param {Array<{minutes?: string, action_items?: string}>} minuteRows - same length as agenda rows
      * @param {boolean} markComplete - set minutes_recording_status to 'complete'
+     * @param {string|null} [expectedUpdatedAt] - row updated_at from last fetch; detects conflicts
      */
-    patchDepartmentMeetingMinutes: function(meetingId, minuteRows, markComplete) {
+    patchDepartmentMeetingMinutes: function(meetingId, minuteRows, markComplete, expectedUpdatedAt) {
       if (!useSupabase()) return Promise.reject(new Error('Supabase required'));
       var payload = (minuteRows || []).map(function(r) {
         return {
@@ -480,11 +488,15 @@
           action_items: r.action_items != null ? String(r.action_items) : ''
         };
       });
-      return window.supabase.rpc('patch_department_meeting_minutes', {
+      var body = {
         p_meeting_id: meetingId,
         p_minutes: payload,
         p_complete: !!markComplete
-      }).then(function(r) {
+      };
+      if (expectedUpdatedAt != null && String(expectedUpdatedAt).trim() !== '') {
+        body.p_expected_updated_at = expectedUpdatedAt;
+      }
+      return window.supabase.rpc('patch_department_meeting_minutes', body).then(function(r) {
         if (r.error) throw r.error;
       });
     }

@@ -384,6 +384,7 @@ tr:hover td{background:#f8fafc}
             <div id="admin-dm-list-wrap" style="margin-bottom:1rem;font-size:.85rem"></div>
             <div id="admin-dm-form-wrap" style="display:none;border:1px solid var(--border);border-radius:8px;padding:1rem;background:var(--bg)">
               <input type="hidden" id="admin-dm-id" value="">
+              <input type="hidden" id="admin-dm-expected-updated-at" value="">
               <input type="hidden" id="admin-dm-status" value="draft">
               <div style="display:flex;flex-wrap:wrap;gap:.75rem;align-items:flex-end;margin-bottom:1rem">
                 <div><label class="form-label" for="admin-dm-date">Meeting date</label><input type="date" id="admin-dm-date" class="form-input" required></div>
@@ -1428,6 +1429,7 @@ function adminDmDelete(id) {
 function adminDmNewMeeting() {
   document.getElementById('admin-dm-form-wrap').style.display = 'block';
   document.getElementById('admin-dm-id').value = '';
+  document.getElementById('admin-dm-expected-updated-at').value = '';
   document.getElementById('admin-dm-date').value = '';
   document.getElementById('admin-dm-title').value = '';
   document.getElementById('admin-dm-status').value = 'draft';
@@ -1443,6 +1445,7 @@ function adminDmEditMeeting(id) {
   if (!m) return;
   document.getElementById('admin-dm-form-wrap').style.display = 'block';
   document.getElementById('admin-dm-id').value = m.id;
+  document.getElementById('admin-dm-expected-updated-at').value = m.updated_at || '';
   document.getElementById('admin-dm-date').value = m.meeting_date || '';
   document.getElementById('admin-dm-title').value = m.title || '';
   document.getElementById('admin-dm-status').value = m.status === 'published' ? 'published' : 'draft';
@@ -1457,6 +1460,7 @@ function adminDmEditMeeting(id) {
 function adminDmCancelForm() {
   document.getElementById('admin-dm-form-wrap').style.display = 'none';
   document.getElementById('admin-dm-id').value = '';
+  document.getElementById('admin-dm-expected-updated-at').value = '';
 }
 function adminDmDuplicateFromLatest() {
   var pub = adminDmMeetings.filter(function(m) { return m.status === 'published'; });
@@ -1475,6 +1479,7 @@ function adminDmDuplicateFromLatest() {
   if (!rows.length) rows = typeof window.defaultDepartmentMeetingRows === 'function' ? window.defaultDepartmentMeetingRows() : [];
   document.getElementById('admin-dm-form-wrap').style.display = 'block';
   document.getElementById('admin-dm-id').value = '';
+  document.getElementById('admin-dm-expected-updated-at').value = '';
   document.getElementById('admin-dm-date').value = '';
   document.getElementById('admin-dm-title').value = '';
   document.getElementById('admin-dm-status').value = 'draft';
@@ -1521,6 +1526,8 @@ function adminDmSave(mode) {
   var status = mode === 'draft' ? 'draft' : 'published';
   document.getElementById('admin-dm-status').value = status;
   var payload = { meeting_date: date, title: title, status: status, agenda_rows: rows };
+  var exp = document.getElementById('admin-dm-expected-updated-at').value.trim();
+  if (id && exp) payload.expected_updated_at = exp;
 
   function doneToast() {
     if (mode === 'draft') toast('Draft saved — not on the meetings page yet. Use Add to Department meetings when ready.');
@@ -1533,7 +1540,10 @@ function adminDmSave(mode) {
       adminDmCancelForm();
       renderAdminConsole();
       doneToast();
-    }).catch(function() { toast('Failed to save meeting'); });
+    }).catch(function(e) {
+      var msg = e && e.message ? e.message : 'Failed to save meeting';
+      toast(msg);
+    });
   } else {
     if (mode === 'updates') {
       toast('Save a new meeting as draft or publish first');

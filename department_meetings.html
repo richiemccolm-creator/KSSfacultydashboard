@@ -321,7 +321,13 @@ table.dm-table{width:100%;border-collapse:collapse;font-size:.8rem}
     var chip = st === 'complete'
       ? '<span class="status-chip complete">Minutes complete</span>'
       : '<span class="status-chip open">Minutes in progress</span>';
-    return 'Meeting date: ' + esc(m.meeting_date || '—') + chip;
+    var audit = '';
+    if (m.minutes_updated_at) {
+      var when = String(m.minutes_updated_at).slice(0, 16).replace('T', ' ');
+      audit = ' · Minutes last saved ' + esc(when);
+      if (m.minutes_last_updated_by) audit += ' (' + esc(m.minutes_last_updated_by) + ')';
+    }
+    return 'Meeting date: ' + esc(m.meeting_date || '—') + chip + audit;
   }
 
   function renderDetailBody(m) {
@@ -406,7 +412,12 @@ table.dm-table{width:100%;border-collapse:collapse;font-size:.8rem}
       return;
     }
     autosaveBusy = true;
-    DataService.patchDepartmentMeetingMinutes(currentDetailId, payload, !!markComplete)
+    DataService.patchDepartmentMeetingMinutes(
+        currentDetailId,
+        payload,
+        !!markComplete,
+        lastDetailMeeting && lastDetailMeeting.updated_at ? lastDetailMeeting.updated_at : null
+      )
       .then(function() { return DataService.getDepartmentMeeting(currentDetailId); })
       .then(function(fresh) {
         if (fresh) {
@@ -419,7 +430,11 @@ table.dm-table{width:100%;border-collapse:collapse;font-size:.8rem}
         else setSaveStatus('Saved', true);
       })
       .catch(function(err) {
-        var msg = (err && err.message) ? err.message : 'Save failed';
+        var raw = (err && err.message) ? String(err.message) : 'Save failed';
+        var msg = raw;
+        if (/updated elsewhere|concurrently|changed elsewhere/i.test(raw)) {
+          msg = 'Someone else saved changes first. Go back to the list and reopen this meeting, then try again.';
+        }
         if (!silent) alert(msg);
         setSaveStatus('Save failed', true);
       })
