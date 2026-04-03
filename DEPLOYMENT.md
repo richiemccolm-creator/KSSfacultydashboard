@@ -18,13 +18,34 @@
 ### Run the database migrations
 
 1. In Supabase Dashboard, go to **SQL Editor**
-2. Run each migration in order (by timestamp):
-   - `supabase/migrations/20250318000000_initial_schema.sql`
-   - `supabase/migrations/20250318100000_allowed_emails.sql`
-   - `supabase/migrations/20250318100001_admin_and_shared_calendar.sql`
-   - `supabase/migrations/20250322000000_triangulation_evidence.sql`
-   - `supabase/migrations/20250322100000_announcements.sql`
-   - `supabase/migrations/20250326120000_purchase_ordering.sql` (procurement / purchase orders)
+2. Run each migration **once**, in timestamp order (copy/paste each file’s contents):
+
+   | # | File |
+   |---|------|
+   | 1 | `supabase/migrations/20250318000000_initial_schema.sql` (profiles, pupil_data, RLS) |
+   | 2 | `supabase/migrations/20250318100000_allowed_emails.sql` |
+   | 3 | `supabase/migrations/20250318100001_admin_and_shared_calendar.sql` |
+   | 4 | `supabase/migrations/20250322000000_triangulation_evidence.sql` |
+   | 5 | `supabase/migrations/20250322100000_announcements.sql` |
+   | 6 | `supabase/migrations/20250326120000_purchase_ordering.sql` (procurement) |
+   | 7 | `supabase/migrations/20250326200000_purchase_budget_vote.sql` |
+   | 8 | `supabase/migrations/20250326210000_purchase_request_delete_rpc.sql` |
+   | 9 | `supabase/migrations/20250331120000_shared_calendar_description.sql` |
+   | 10 | `supabase/migrations/20250402120000_department_meetings.sql` |
+   | 11 | `supabase/migrations/20250402140000_department_meetings_minutes_rpc.sql` |
+   | 12 | `supabase/migrations/20250402150000_department_meetings_minutes_hardening.sql` |
+
+#### Apply migrations with Supabase CLI (optional)
+
+If you use the [Supabase CLI](https://supabase.com/docs/guides/cli) linked to this project:
+
+```bash
+supabase login
+supabase link --project-ref YOUR_PROJECT_REF
+supabase db push
+```
+
+`db push` applies migration files from `supabase/migrations/` that are not yet recorded on the remote database. For a **new** project you can instead run each SQL file in the Dashboard as above.
 
 ### Disable public sign-up (recommended)
 
@@ -142,6 +163,19 @@ After deployment, add your Vercel URL to Supabase:
 
 ---
 
+## Local quality checks (optional)
+
+From the project root, after `npm install`:
+
+```bash
+npm run lint          # ESLint on root *.js
+npm run test:e2e      # Playwright smoke test (serves the site locally)
+```
+
+`test:e2e` starts a static server, loads `login.html`, and checks the page title. It does not require Supabase credentials.
+
+---
+
 ## Environment variables (optional)
 
 If you prefer not to store credentials in `config.js`, you can use a build step to inject them. This requires adding a simple build script (e.g. with Node.js) that reads `SUPABASE_URL` and `SUPABASE_ANON_KEY` from Vercel env vars and writes them into `config.js` at build time. For a static site without a build step, editing `config.js` directly is the simplest approach.
@@ -150,7 +184,7 @@ If you prefer not to store credentials in `config.js`, you can use a build step 
 
 ## Post-deployment checklist
 
-- [ ] Run all Supabase migrations (including `purchase_ordering` if using Procurement)
+- [ ] Run all Supabase migrations (full list in **Run the database migrations** above)
 - [ ] Deploy the `delete-user` Edge Function (required for GDPR account deletion)
 - [ ] Add your email to `allowed_emails` with `is_admin = true`
 - [ ] Disable email signups in Supabase Auth (if using allowlist-only access)

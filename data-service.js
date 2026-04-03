@@ -16,13 +16,6 @@
     return window.supabase && window.supabase.auth && window.supabase.auth.getSession;
   }
 
-  function getUserId() {
-    if (!window.supabase) return null;
-    var session = window.supabase.auth.getSession();
-    if (session && session.then) return null;
-    return (window.supabase.auth.session && window.supabase.auth.session()) ? window.supabase.auth.user().id : null;
-  }
-
   window.DataService = {
     isUsingCloud: function() {
       return useSupabase();
