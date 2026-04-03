@@ -30,10 +30,18 @@
           empty.className = 'home-dash-empty';
           empty.appendChild(document.createTextNode('No open tasks. '));
           var link = document.createElement('a');
-          link.href = 'teacher_tasks.html';
+          link.href = '#';
           link.className = 'home-dash-link';
           link.style.textDecoration = 'none';
           link.textContent = 'Open task board →';
+          link.addEventListener('click', function(e) {
+            e.preventDefault();
+            if (typeof window.openEmbeddedTeacherTasks === 'function') {
+              window.openEmbeddedTeacherTasks('');
+            } else {
+              window.location.href = 'teacher_tasks.html';
+            }
+          });
           empty.appendChild(link);
           el.appendChild(empty);
         } else {
@@ -65,7 +73,12 @@
             });
             row.addEventListener('click', function(e) {
               if (e.target.closest('.home-task-done')) return;
-              window.location.href = 'teacher_tasks.html#task-' + encodeURIComponent(t.id);
+              var th = '#task-' + encodeURIComponent(t.id);
+              if (typeof window.openEmbeddedTeacherTasks === 'function') {
+                window.openEmbeddedTeacherTasks(th);
+              } else {
+                window.location.href = 'teacher_tasks.html' + th;
+              }
             });
             el.appendChild(row);
           });
