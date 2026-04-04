@@ -82,6 +82,69 @@
       return (state.lessons.lessons || []).filter(function(l) { return l.date === dateStr; });
     },
 
+    /** Match teacher_planner.html parseSlotKeyParts — day lowercased, period integer. */
+    parseSlotKeyParts: function(slotKey) {
+      var m = /^([a-z]+)-(\d+)$/i.exec(slotKey || '');
+      return m ? { day: m[1].toLowerCase(), period: parseInt(m[2], 10) } : null;
+    },
+
+    /**
+     * Planned lessons on/after today within maxDays horizon, sorted by date then period.
+     * Caller should run load() first so state is fresh.
+     */
+    getUpcomingLessonsPreview: function(options) {
+      var self = this;
+      options = options || {};
+      var limit = options.limit != null ? options.limit : 6;
+      var maxDays = options.maxDays != null ? options.maxDays : 21;
+      var todayStr = options.todayStr || this.getDateStr(new Date());
+      var endStr = null;
+      if (maxDays > 0) {
+        var parts = todayStr.split('-');
+        var endD = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+        endD.setDate(endD.getDate() + maxDays);
+        endStr = this.getDateStr(endD);
+      }
+      var rows = (state.lessons.lessons || []).filter(function(l) {
+        var d = (l.date || '').slice(0, 10);
+        if (d.length !== 10 || d < todayStr) return false;
+        if (endStr && d > endStr) return false;
+        return true;
+      });
+      function dayIndex(day) {
+        var i = DAYS.indexOf(day);
+        return i >= 0 ? i : 99;
+      }
+      rows.sort(function(a, b) {
+        var cmp = (a.date || '').slice(0, 10).localeCompare((b.date || '').slice(0, 10));
+        if (cmp !== 0) return cmp;
+        var pa = self.parseSlotKeyParts(a.slotKey);
+        var pb = self.parseSlotKeyParts(b.slotKey);
+        var perA = pa ? pa.period : 99;
+        var perB = pb ? pb.period : 99;
+        if (perA !== perB) return perA - perB;
+        return dayIndex(pa ? pa.day : '') - dayIndex(pb ? pb.day : '');
+      });
+      rows = rows.slice(0, limit);
+      return rows.map(function(l) {
+        var sk = self.parseSlotKeyParts(l.slotKey);
+        var slot = sk ? self.getSlot(sk.day, sk.period) : null;
+        var slotSub = slot && slot.subject ? String(slot.subject).trim() : '';
+        var lesSub = l.subject && String(l.subject).trim();
+        var titleRaw = l.title && String(l.title).trim();
+        var title = titleRaw || lesSub || slotSub || 'Untitled';
+        return {
+          date: (l.date || '').slice(0, 10),
+          slotKey: l.slotKey || '',
+          period: sk ? sk.period : null,
+          className: slot && slot.className ? String(slot.className) : '',
+          subject: lesSub || slotSub,
+          title: title,
+          lessonId: l.id || null
+        };
+      });
+    },
+
     getWeekStart: function(d) {
       var d2 = new Date(d);
       var day = d2.getDay();

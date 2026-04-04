@@ -14,6 +14,7 @@
 <script src="allowlist-check.js"></script>
 <script src="auth-guard.js"></script>
 <script src="data-service.js"></script>
+<script src="planner-service.js"></script>
 <script src="staff-display-name.js"></script>
 <script src="teacher-tasks-service.js"></script>
 <script src="teacher-tasks-home.js"></script>
@@ -1884,6 +1885,15 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
             </div>
             <div class="home-dash-body">
               <div id="homeUpcomingEvents" class="home-events-list"></div>
+            </div>
+          </div>
+          <div class="home-dash-card home-planner-lessons-card">
+            <div class="home-dash-header">
+              <span class="home-dash-title">Upcoming lessons</span>
+              <span class="home-dash-link" onclick="showPanel('embed-teacher-planner')" style="cursor:pointer">Open planner →</span>
+            </div>
+            <div class="home-dash-body">
+              <div id="homePlannerLessons" class="home-events-list"></div>
             </div>
           </div>
           <div class="home-dash-card home-teacher-tasks-card">
@@ -7527,14 +7537,15 @@ function homeDashboardRender(){
     const link=document.createElement('span');link.className='home-dash-link';link.style.display='inline';link.textContent='Add events in the Academic Calendar →';
     link.onclick=()=>showPanel('academic-calendar');
     empty.appendChild(document.createTextNode('No upcoming events. '));empty.appendChild(link);
-    list.appendChild(empty);return;
-  }
+    list.appendChild(empty);
+  }else{
   upcoming.forEach(e=>{
     const shortDate=e.date.slice(8)+'/'+e.date.slice(5,7);
     const div=document.createElement('div');div.className='home-event-item';div.onclick=()=>showPanel('academic-calendar');
     div.innerHTML=`<span class="home-event-date">${shortDate}</span><span class="home-event-title">${e.title}</span><span class="home-event-badge ${e.category}">${catLabels[e.category]||e.category}</span>`;
     list.appendChild(div);
   });
+  }
   var annList=document.getElementById('homeAnnouncements');
   if(annList&&window.DataService&&typeof window.DataService.getAnnouncements==='function'){
     DataService.getAnnouncements().then(function(anns){
@@ -7574,6 +7585,42 @@ function homeDashboardRender(){
     }).catch(function(){
       dmEl.innerHTML='<div class="home-dash-empty">Could not load meetings.</div>';
     });
+  }
+  var plannerEl=document.getElementById('homePlannerLessons');
+  if(plannerEl&&window.PlannerService&&typeof window.PlannerService.load==='function'){
+    plannerEl.innerHTML='<div class="home-dash-empty">Loading…</div>';
+    var todayPlanner=typeof calLocalTodayISODate==='function'?calLocalTodayISODate():window.PlannerService.getDateStr(new Date());
+    PlannerService.load().then(function(){
+      var items=PlannerService.getUpcomingLessonsPreview({limit:6,maxDays:21,todayStr:todayPlanner});
+      plannerEl.innerHTML='';
+      var escP=function(s){return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');};
+      if(!items.length){
+        var emptyP=document.createElement('div');emptyP.className='home-dash-empty';
+        emptyP.appendChild(document.createTextNode('No upcoming planned lessons in the next few weeks. '));
+        var linkP=document.createElement('span');linkP.className='home-dash-link';linkP.style.display='inline';linkP.style.cursor='pointer';
+        linkP.textContent='Open Teacher Planner →';
+        linkP.onclick=function(){showPanel('embed-teacher-planner');};
+        emptyP.appendChild(linkP);
+        plannerEl.appendChild(emptyP);
+        return;
+      }
+      items.forEach(function(it){
+        var d=it.date;
+        var shortDate=d.length>=10?d.slice(8)+'/'+d.slice(5,7):d;
+        var subParts=[];
+        if(it.period!=null)subParts.push('P'+it.period);
+        if(it.className)subParts.push(it.className);
+        var meta=subParts.length?subParts.join(' · ')+' — ':'';
+        var divP=document.createElement('div');divP.className='home-event-item';divP.style.cursor='pointer';
+        divP.onclick=function(){showPanel('embed-teacher-planner');};
+        divP.innerHTML='<span class="home-event-date">'+escP(shortDate)+'</span><span class="home-event-title">'+escP(meta+it.title)+'</span>';
+        plannerEl.appendChild(divP);
+      });
+    }).catch(function(){
+      plannerEl.innerHTML='<div class="home-dash-empty">Could not load planner data.</div>';
+    });
+  }else if(plannerEl){
+    plannerEl.innerHTML='<div class="home-dash-empty">Planner unavailable.</div>';
   }
   if(window.TeacherTasksHome&&typeof window.TeacherTasksHome.render==='function'){
     window.TeacherTasksHome.render();
