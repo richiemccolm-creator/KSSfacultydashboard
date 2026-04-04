@@ -10,6 +10,7 @@
     lessons: { lessons: [] },
     weekNotes: {},
     lessonPlanTemplates: { templates: [] },
+    schemesOfWork: { units: [] },
     currentWeekStart: null,
     currentMonthStart: null,
     currentDayViewDate: null,
@@ -29,12 +30,14 @@
         (window.DataService && DataService.get ? DataService.get('plannerTimetable') : Promise.resolve(null)),
         (window.DataService && DataService.get ? DataService.get('plannerLessons') : Promise.resolve(null)),
         (window.DataService && DataService.get ? DataService.get('plannerWeekNotes') : Promise.resolve(null)),
-        (window.DataService && DataService.get ? DataService.get('lessonPlanTemplates') : Promise.resolve(null))
+        (window.DataService && DataService.get ? DataService.get('lessonPlanTemplates') : Promise.resolve(null)),
+        (window.DataService && DataService.get ? DataService.get('plannerSchemesOfWork') : Promise.resolve(null))
       ]).then(function(res) {
         state.timetable = res[0] && res[0].slots ? res[0] : { slots: [] };
         state.lessons = res[1] && res[1].lessons ? res[1] : { lessons: [] };
         state.weekNotes = res[2] && typeof res[2] === 'object' ? res[2] : {};
         state.lessonPlanTemplates = res[3] && res[3].templates ? res[3] : { templates: [] };
+        state.schemesOfWork = res[4] && res[4].units ? res[4] : { units: [] };
         return self.getState();
       });
     },
@@ -268,6 +271,95 @@
     getEditingTemplateId: function() { return state.editingTemplateId; },
     getTemplateById: function(id) {
       return (state.lessonPlanTemplates.templates || []).find(function(t) { return t.id === id; });
+    },
+
+    saveSchemesOfWork: function() {
+      return window.DataService ? DataService.set('plannerSchemesOfWork', state.schemesOfWork) : Promise.resolve();
+    },
+
+    getSchemeUnits: function() {
+      return (state.schemesOfWork.units || []).slice();
+    },
+
+    getSchemeUnitById: function(unitId) {
+      return (state.schemesOfWork.units || []).find(function(u) { return u.id === unitId; }) || null;
+    },
+
+    addSchemeUnit: function(payload) {
+      if (!state.schemesOfWork) state.schemesOfWork = { units: [] };
+      var now = new Date().toISOString();
+      var u = Object.assign({
+        id: id(),
+        title: '',
+        subject: '',
+        yearGroup: '',
+        curriculumUnitKey: '',
+        lessons: [],
+        createdAt: now,
+        updatedAt: now
+      }, payload);
+      state.schemesOfWork.units = state.schemesOfWork.units || [];
+      state.schemesOfWork.units.push(u);
+      return u;
+    },
+
+    updateSchemeUnit: function(unitId, patch) {
+      var units = state.schemesOfWork.units || [];
+      var idx = units.findIndex(function(x) { return x.id === unitId; });
+      if (idx < 0) return null;
+      units[idx] = Object.assign({}, units[idx], patch, { updatedAt: new Date().toISOString() });
+      return units[idx];
+    },
+
+    deleteSchemeUnit: function(unitId) {
+      state.schemesOfWork.units = (state.schemesOfWork.units || []).filter(function(x) { return x.id !== unitId; });
+    },
+
+    addSchemeLesson: function(unitId, lessonPartial) {
+      var unit = (state.schemesOfWork.units || []).find(function(x) { return x.id === unitId; });
+      if (!unit) return null;
+      var lessons = unit.lessons || [];
+      var maxOrder = lessons.reduce(function(m, l) { return Math.max(m, typeof l.order === 'number' ? l.order : -1); }, -1);
+      var row = Object.assign({ id: id(), title: '', notes: '', order: maxOrder + 1 }, lessonPartial || {});
+      lessons.push(row);
+      unit.lessons = lessons;
+      unit.updatedAt = new Date().toISOString();
+      return row;
+    },
+
+    updateSchemeLesson: function(unitId, lessonId, patch) {
+      var unit = (state.schemesOfWork.units || []).find(function(x) { return x.id === unitId; });
+      if (!unit || !unit.lessons) return null;
+      var L = unit.lessons.find(function(l) { return l.id === lessonId; });
+      if (!L) return null;
+      Object.assign(L, patch);
+      unit.updatedAt = new Date().toISOString();
+      return L;
+    },
+
+    deleteSchemeLesson: function(unitId, lessonId) {
+      var unit = (state.schemesOfWork.units || []).find(function(x) { return x.id === unitId; });
+      if (!unit || !unit.lessons) return;
+      unit.lessons = unit.lessons.filter(function(l) { return l.id !== lessonId; });
+      unit.lessons.forEach(function(l, i) { l.order = i; });
+      unit.updatedAt = new Date().toISOString();
+    },
+
+    /** delta -1 = move earlier, +1 = move later */
+    reorderSchemeLesson: function(unitId, lessonId, delta) {
+      var unit = (state.schemesOfWork.units || []).find(function(x) { return x.id === unitId; });
+      if (!unit || !unit.lessons) return;
+      var lessons = unit.lessons.slice().sort(function(a, b) { return (a.order || 0) - (b.order || 0); });
+      var i = lessons.findIndex(function(l) { return l.id === lessonId; });
+      if (i < 0) return;
+      var j = i + delta;
+      if (j < 0 || j >= lessons.length) return;
+      var tmp = lessons[i];
+      lessons[i] = lessons[j];
+      lessons[j] = tmp;
+      lessons.forEach(function(l, idx) { l.order = idx; });
+      unit.lessons = lessons;
+      unit.updatedAt = new Date().toISOString();
     }
   };
 })();
