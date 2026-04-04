@@ -156,7 +156,7 @@ tr:hover td{background:#f8fafc}
 .risk-card-sev-med::before{background:linear-gradient(180deg,#f59e0b,#d97706)}
 .risk-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:.75rem;margin-bottom:.65rem;padding-left:.35rem}
 .risk-card-head-right{display:flex;align-items:center;gap:.5rem;flex-shrink:0;flex-wrap:wrap;justify-content:flex-end}
-.risk-letter-btn{font-size:.68rem;padding:.35rem .65rem;cursor:pointer}
+.risk-letter-btn{font-size:.68rem;padding:.35rem .65rem;cursor:pointer;text-decoration:none;box-sizing:border-box}
 .risk-card-name{font-family:'Sora',sans-serif;font-size:1rem;font-weight:700;color:var(--text);line-height:1.25}
 .risk-card-badge{font-size:.58rem;font-weight:800;letter-spacing:.08em;text-transform:uppercase;padding:.2rem .45rem;border-radius:4px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;white-space:nowrap}
 .risk-card-meta{font-size:.72rem;color:var(--text3);line-height:1.5;padding-left:.35rem;margin-bottom:.65rem}
@@ -244,7 +244,7 @@ tr:hover td{background:#f8fafc}
       <div class="sc-header">
         <div>
           <div class="sc-title">Pupils at Risk</div>
-          <div class="sc-sub">2+ dimensions (Progress / Creating / Presenting / Evaluating, Effort, Behaviour, Home Learning) averaging ≤ 2.5. Use filters to focus on a teacher or class.</div>
+          <div class="sc-sub">2+ dimensions (Progress / Creating / Presenting / Evaluating, Effort, Behaviour, Home Learning) averaging ≤ 2.5. Use filters to focus on a teacher or class. <strong>Letter builder</strong> opens the full parent letter generator with this pupil pre-filled (any pupil here). Admins also see a quick <strong>Parent letter</strong> download when effort or behaviour is low.</div>
         </div>
       </div>
       <div class="sc-body">
@@ -605,6 +605,33 @@ function downloadParentRiskLetter(ev) {
   window.ParentLetterDocx.download(p, toast);
 }
 
+/** Suggested template for parent letter generator (behaviour / effort / praise). */
+function suggestLetterTypeForGenerator(p) {
+  const e = p.avgs && p.avgs.effort;
+  const b = p.avgs && p.avgs.behaviour;
+  const eLow = e != null && e <= 2.5;
+  const bLow = b != null && b <= 2.5;
+  if (bLow && !eLow) return 'behaviour';
+  if (eLow && !bLow) return 'effort';
+  if (eLow && bLow) return 'behaviour';
+  return '';
+}
+
+/** Query string for letter_generator.html — open in a new tab for a full editor. */
+function letterGeneratorUrlForPupil(p) {
+  const yg = (p.yg || '').toUpperCase();
+  const cls = [p.cls, yg].filter(Boolean).join(' · ');
+  const subj = p.subject === 'drama' ? 'drama' : 'art';
+  const type = suggestLetterTypeForGenerator(p);
+  const q = new URLSearchParams();
+  q.set('name', p.name || '');
+  q.set('class', cls);
+  q.set('subject', subj);
+  if (type) q.set('type', type);
+  q.set('source', 'dashboard');
+  return 'letter_generator.html?' + q.toString();
+}
+
 function getAtRiskPupils() {
   const all = getAllPupils();
   const risk = [];
@@ -810,10 +837,13 @@ function renderAtRisk() {
     const letterBtn = showLetter && letterEligible(p)
       ? `<button type="button" class="btn btn-ghost risk-letter-btn" data-risk-id="${attrEsc(p.id)}" data-risk-subject="${attrEsc(p.subject)}" data-risk-yg="${attrEsc(p.yg)}" data-risk-cls="${attrEsc(p.cls || '')}" data-risk-teacher="${attrEsc(p.teacher || '')}" onclick="downloadParentRiskLetter(event)">Parent letter</button>`
       : '';
+    const letterBuilderHref = attrEsc(letterGeneratorUrlForPupil(p));
+    const letterBuilderLink = `<a href="${letterBuilderHref}" target="_blank" rel="noopener noreferrer" class="btn btn-ghost risk-letter-btn" title="Full letter generator (behaviour, effort, or praise) with details pre-filled" onclick="event.stopPropagation()">Letter builder</a>`;
     return `<div class="risk-card ${sev}" onclick="selectForProfile('${esc(p.id)}','${p.subject}','${p.yg}','${esc(p.cls)}','${esc(p.teacher)}')">
       <div class="risk-card-head">
         <div class="risk-card-name">${escHtml(p.name)}</div>
         <div class="risk-card-head-right">
+          ${letterBuilderLink}
           ${letterBtn}
           <span class="risk-card-badge">${p.lowCount} focus areas</span>
         </div>
