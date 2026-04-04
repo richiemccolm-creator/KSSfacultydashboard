@@ -521,5 +521,196 @@ window.CLPL_COURSES = [
         }
       }
     ]
+  },
+  {
+    id: 'questioning',
+    title: 'Questioning for Understanding',
+    order: 10,
+    estimatedMins: 32,
+    description: 'How you ask questions shapes thinking in Drama, Art and Photography. Build wait time, purposeful follow-ups and hinge questions that keep practical work moving.',
+    evidence: { strand: 'Oral Language Interventions', impact: 'Moderate impact', url: 'https://educationendowmentfoundation.org.uk/education-evidence/teaching-learning-toolkit/oral-language-interventions', summary: 'Structured approaches to developing spoken language support learning across the curriculum—including discussion of practical work and critique.' },
+    stages: [
+      {
+        id: 'q-1',
+        title: 'Foundations of Effective Questioning',
+        applicationTask: 'In your next lesson, count to five silently after you ask a whole-class question before you take an answer. Note what changes.',
+        reflectionPrompt: 'Did more hands go up? Did answers become more thoughtful?',
+        tips: ['Name the thinking you want: "What evidence from the image supports your view?" beats "What do you think?"', 'Cold call paired with think time keeps everyone engaged—not only volunteers.', 'Avoid question ping-pong; invite pupils to build on or challenge a peer\'s idea.'],
+        content: '<h3>Why Questioning Matters in Expressive Arts</h3><p>Practical subjects are not "non-verbal only." Pupils explain artistic choices, justify compositions, interpret stimuli and evaluate performances. The quality of your questions determines whether they rehearse shallow opinions or disciplined reasoning tied to evidence.</p><h3>Open, Closed and Probing</h3><p><strong>Closed</strong> questions check recall fast ("What is aperture?"). <strong>Open</strong> questions invite reasoning ("How might changing the aperture change the story this photograph tells?"). <strong>Probing</strong> follow-ups push thinking deeper: "What makes you say that?" "Can you give an example from your own piece?" Plan a mix: closed for vocabulary and safety checks, open and probing for critique and devising.</p><h3>Wait Time</h3><p>After a question, pause. Research suggests three to seven seconds changes who participates and the quality of responses. In a busy studio it feels unnatural—practise counting silently. Combine with <strong>think–pair–share</strong> so pupils rehearse language before speaking to the class.</p><h3>Cognitive Demand</h3><p>Move from description ("What do you see?") to analysis ("What effect does that create?") to evaluation ("How successfully does it meet the brief?"). Match demand to where pupils are in the project—early on, unlock ideas; near submission, tighten evaluative precision.</p><h3>Culture</h3><p>Model curiosity: "That is an interesting choice—walk us through it." Normalise partial answers: "You are on the right lines—what would strengthen that argument?" Pupils take intellectual risks when wrong answers are treated as steps, not failures.</p>',
+        quiz: {
+          questions: [
+            { q: 'What does increasing wait time after a question often improve?', options: ['Nothing', 'Participation and depth of answers', 'Noise levels only', 'How fast you finish the lesson'], correct: 'Participation and depth of answers' },
+            { q: 'Which question is most open for critique?', options: ['Is this good?', 'How does the use of colour support the mood you wanted?', 'Did you finish?', 'What mark do you want?'], correct: 'How does the use of colour support the mood you wanted?' },
+            { q: 'What is a probing follow-up?', options: ['Moving on quickly', 'A question that asks for evidence or clarification', 'Repeating the same question loudly', 'Answering it yourself'], correct: 'A question that asks for evidence or clarification' },
+            { type: 'scenario', scenario: 'You ask "Why did you use a low angle?" and the pupil shrugs. The class is waiting.', q: 'What helps most?', options: ['Tell them the right answer', 'Give think time, then: "What might a low angle suggest about power or importance?"', 'Move to another pupil immediately', 'Say the question was too hard'], correct: 'Give think time, then: "What might a low angle suggest about power or importance?"', rationale: 'A reframe or smaller prompt scaffolds reasoning without removing the thinking work.' },
+            { q: 'Why use think–pair–share before whole-class discussion?', options: ['To waste time', 'So pupils rehearse ideas and language before speaking publicly', 'So only pairs talk', 'To avoid questions'], correct: 'So pupils rehearse ideas and language before speaking publicly' }
+          ],
+          passThreshold: 0.6
+        }
+      },
+      {
+        id: 'q-2',
+        title: 'Questioning in Drama, Art and Photography',
+        applicationTask: 'Write three "must-ask" questions for your next practical lesson (one for starting ideas, one mid-task, one in plenary).',
+        reflectionPrompt: 'Which question elicited the best thinking—and why?',
+        tips: ['Drama: balance in-role and out-of-role reflection ("As director, what do you need?" vs "What did we learn about status?").', 'Art: use the elements as a lens—"Where is your focal point and how did you decide?"', 'Photo: connect technical choice to intent—"What did you sacrifice in exposure to get that look?"'],
+        content: '<h3>Drama</h3><p>Use questions that support both process and product. During devising: "What is the conflict in this moment?" "Whose perspective are we missing?" During rehearsal: "Where should the audience feel the tension?" "What does your body show about status?" After performance: anchor to criteria—"Which moment best showed the relationship—and how?" Hot-seating and conscience alley are structured questioning techniques—brief them clearly so pupils know the purpose.</p><h3>Art &amp; Design</h3><p>Questions can guide observation before making: "What draws your eye first?" "Where is the contrast strongest?" During making: "What is the next small decision you need to make?" "How does this mark support your intention?" In critique: require evidence on the work, not the person—"What do you see on the canvas that suggests…?" Use vocabulary banks so pupils have words to answer with.</p><h3>Photography</h3><p>Link technical and aesthetic questions: "What did you prioritise—motion freeze or blur?" "How does depth of field guide where we look?" When editing: "What changed in the story when you cropped?" Avoid generic praise questions; ask pupils to name the lever they pulled and its effect.</p><h3>Pacing</h3><p>In practical flow, micro-questions while you circulate beat long front-of-class interrogations. Save two or three big discussion questions for natural breakpoints—after a shoot, before a gallery walk, at the end of a run-through.</p>',
+        quiz: {
+          questions: [
+            { q: 'In Drama critique, what should questions prioritise?', options: ['Only personal taste', 'Links to success criteria and evidence in the performance', 'Random topics', 'Only the teacher\'s opinion'], correct: 'Links to success criteria and evidence in the performance' },
+            { q: 'A strong Art critique question should…', options: ['Attack the pupil', 'Point to observable features of the work', 'Only mention colour', 'Avoid technique'], correct: 'Point to observable features of the work' },
+            { q: 'In Photography, what makes a question "disciplinary"?', options: ['It ignores settings', 'It connects technical choices to intent and effect', 'It is very short', 'It is only about cameras'], correct: 'It connects technical choices to intent and effect' },
+            { type: 'scenario', scenario: 'During group devising, one pupil dominates ideas. Others go quiet.', q: 'Which question best supports the group?', options: ['Why are you not speaking?', 'Whose perspective have we not heard yet—and what might they add?', 'Who is the leader?', 'Should I pick your groups?'], correct: 'Whose perspective have we not heard yet—and what might they add?', rationale: 'The question invites inclusion without public blame and keeps focus on the creative work.' },
+            { q: 'When is a "micro-question" most useful?', options: ['Never', 'While circulating during practical work', 'Only in exams', 'Only at the start of the year'], correct: 'While circulating during practical work' }
+          ],
+          passThreshold: 0.6
+        }
+      },
+      {
+        id: 'q-3',
+        title: 'Checking Understanding and Next Steps',
+        applicationTask: 'Plan one hinge question for a lesson this week: a question that tells you whether to move on or re-teach.',
+        reflectionPrompt: 'What did pupils\' answers show you about their readiness?',
+        tips: ['Hinge questions work best when wrong answers reveal specific misconceptions.', 'Show-me boards and quick sketches give you whole-class evidence in practical subjects.', 'If half the class is wrong, stop—mini-model or pair repair before continuing.'],
+        content: '<h3>Hinge Questions</h3><p>A hinge question checks whether pupils are ready for the next step. It is planned, not improvised. Examples: "Which of these compositions best shows balance—and why?" "What happens to depth of field when we widen the aperture?" If a large minority are wrong, the lesson hinges—you re-teach or clarify before layering more complexity.</p><h3>Formats That Work in Studios</h3><p>Mini-whiteboards, thumbs/signals, short multiple-choice on a slide, "everyone sketch the stage layout in 20 seconds," line up along an agree–disagree continuum. Choose a format you can scan quickly. The goal is <em>evidence</em>, not performance from a few confident voices.</p><h3>Responding to the Data</h3><p>If most are secure: stretch with extension prompts or peer coaching. If split: heterogeneous pairs to explain, then quick whole-class clarification. If many struggle: strip back to a concrete demonstration or manipulated example before returning to open practice.</p><h3>Metacognitive Wrap</h3><p>End occasionally with: "What question should you ask yourself before you say this piece is finished?" That hands the questioning habit to the learner.</p>',
+        quiz: {
+          questions: [
+            { q: 'What is a hinge question for?', options: ['Decoration', 'Deciding whether pupils are ready for the next step', 'Punishment', 'Homework only'], correct: 'Deciding whether pupils are ready for the next step' },
+            { q: 'Why use show-me boards for hinge checks?', options: ['They replace teaching', 'You see whole-class understanding quickly', 'They are only primary', 'Pupils dislike them'], correct: 'You see whole-class understanding quickly' },
+            { q: 'If many pupils answer a hinge question incorrectly, you should…', options: ['Ignore and move on', 'Re-teach or clarify before adding complexity', 'Only tell them after the test', 'Reduce all challenge'], correct: 'Re-teach or clarify before adding complexity' },
+            { type: 'scenario', scenario: 'After a hinge question on exposure triangle, roughly 40% of the class chooses the wrong relationship.', q: 'What is the best next move?', options: ['Move to the photoshoot anyway', 'Brief re-teach with a visual model, then a shorter second check', 'Tell them to read the handout', 'Only help the wrong answers privately later'], correct: 'Brief re-teach with a visual model, then a shorter second check', rationale: 'A visible misconception for a large group needs whole-class repair before independent practice.' },
+            { q: 'A metacognitive question at the end might be…', options: ['What is your favourite colour?', 'What should you check before calling this finished?', 'Who is your partner?', 'What time is it?'], correct: 'What should you check before calling this finished?' }
+          ],
+          passThreshold: 0.6
+        }
+      }
+    ]
+  },
+  {
+    id: 'literacy-oracy',
+    title: 'Literacy & Oracy in Expressive Arts',
+    order: 11,
+    estimatedMins: 35,
+    description: 'Reading, writing, vocabulary and spoken language are part of excellent EXA teaching. Plan for academic talk, annotations and confident presentation—not bolt-on literacy.',
+    stages: [
+      {
+        id: 'lo-1',
+        title: 'Vocabulary and Academic Talk',
+        applicationTask: 'List five discipline keywords for your next unit. Plan when you will explicitly teach, model and retrieve each one.',
+        reflectionPrompt: 'Which word was hardest for pupils—and how will you spiral it?',
+        tips: ['Say it, define it, show it in context, retrieve it—same word, multiple lessons.', 'Word walls work when pupils use them in sentences, not just read them.', 'Pair subject vocabulary with sentence frames for critique.'],
+        content: '<h3>Disciplinary Literacy</h3><p>Every subject has its own way of reading, writing, speaking and listening. In Expressive Arts, pupils must name techniques, justify choices and evaluate work using precise language. Literacy is not something that only happens in English—it is how they think and communicate as artists, performers and photographers.</p><h3>Selecting Vocabulary</h3><p>Choose a small set of high-leverage terms per unit (e.g. proxemics, focal point, depth of field). Introduce with a clear definition, a visual or demonstration, and an immediate application. Revisit with low-stakes retrieval so words stick before high-stakes writing or assessment.</p><h3>Modelling Academic Talk</h3><p>Speak aloud the sentences you want to hear: "The shallow depth of field isolates the subject and blurs distractions in the background." Pupils imitate what they hear repeatedly. Co-construct a short list of "useful phrases for critique" and display it.</p><h3>Talk as Preparation for Writing</h3><p>Before written evaluation, use structured talk—think-pair-share, sentence stems, role cards—so pupils have ideas and language before they write. Writing improves when oracy has already sorted thinking.</p>',
+        quiz: {
+          questions: [
+            { q: 'What is disciplinary literacy?', options: ['Only English department work', 'How reading, writing and talk work inside a specific subject', 'Spelling tests', 'Worksheets'], correct: 'How reading, writing and talk work inside a specific subject' },
+            { q: 'Why model full sentences aloud?', options: ['To talk more', 'So pupils hear the register and structure you expect', 'To fill silence', 'Pupils do not listen'], correct: 'So pupils hear the register and structure you expect' },
+            { q: 'How many high-leverage keywords per unit is realistic to teach deeply?', options: ['Thirty', 'A focused handful pupils meet repeatedly', 'None', 'Only in exams'], correct: 'A focused handful pupils meet repeatedly' },
+            { type: 'scenario', scenario: 'Pupils use vague words in critique: "nice", "cool", "good".', q: 'What helps?', options: ['Ban those words without replacement', 'Introduce stems and vocabulary and require one precise term per comment', 'Only written critique', 'Stop peer feedback'], correct: 'Introduce stems and vocabulary and require one precise term per comment', rationale: 'Pupils need tools to replace vagueness—stems and required vocabulary scaffold better talk.' },
+            { q: 'Why use talk before written evaluation?', options: ['To avoid writing', 'To clarify ideas and language before writing', 'Talk replaces writing', 'Only for S1'], correct: 'To clarify ideas and language before writing' }
+          ],
+          passThreshold: 0.6
+        }
+      },
+      {
+        id: 'lo-2',
+        title: 'Reading and Writing in Practical Contexts',
+        applicationTask: 'Design one short reading task (script extract, artist statement, technical guide) for your next unit with 2–3 guiding questions.',
+        reflectionPrompt: 'Did the reading change how pupils approached the practical task?',
+        tips: ['Break longer texts into chunks with a clear purpose for each.', 'Use guiding questions that point to decisions pupils will make in their work.', 'Scaffold evaluations with paragraph frames—not to limit voice, to teach structure.'],
+        content: '<h3>Reading That Feeds Making</h3><p>Choose texts that connect to the practical outcome: a short script extract, a curator blurb, a safety sheet, an artist interview. Set a purpose: "Read to find three clues about character relationships" or "Highlight phrases that describe process." Reading in EXA should feel like gathering material for creation, not a separate comprehension exercise.</p><h3>Writing Genres</h3><p>Pupils write rationales, evaluations, shot lists, risk assessments, design specifications and research notes. Teach the structure of each genre explicitly: introduction–evidence–conclusion in evaluation; bullet clarity in shot lists. Show weak and strong examples side by side.</p><h3>Annotations</h3><p>Sketchbook and contact-sheet annotations are writing. Teach what a useful annotation does: links process to intention, uses vocabulary, references sources. "I tried X because…" beats "I like it."</p><h3>Supporting Struggling Writers</h3><p>Sentence starters, banks of verbs (depicts, emphasises, suggests), and chunked tasks reduce anxiety while keeping thinking demanding. Pair writing with talk so content exists before spelling and grammar slow pupils down.</p>',
+        quiz: {
+          questions: [
+            { q: 'Reading in EXA is most powerful when…', options: ['It is unrelated to the project', 'It has a clear purpose tied to the practical outcome', 'It is always long', 'Pupils read alone only'], correct: 'It has a clear purpose tied to the practical outcome' },
+            { q: 'What should sketchbook annotations do?', options: ['Only decorate', 'Link process and choices to intention using subject vocabulary', 'Replace practical work', 'Be very long'], correct: 'Link process and choices to intention using subject vocabulary' },
+            { q: 'Why show weak vs strong examples?', options: ['To embarrass pupils', 'To make success criteria concrete', 'To save time', 'Weak examples are enough'], correct: 'To make success criteria concrete' },
+            { type: 'scenario', scenario: 'A pupil freezes when asked for a written evaluation after a performance.', q: 'What is a good first step?', options: ['Lower expectations to one word', 'Use talk and stems first, then capture key phrases in writing', 'Skip writing', 'Write it for them'], correct: 'Use talk and stems first, then capture key phrases in writing', rationale: 'Oracy and scaffolds unlock content; writing can start from captured spoken ideas.' },
+            { q: 'Chunking longer texts helps because…', options: ['It removes challenge', 'Each chunk has a focused purpose pupils can complete', 'Pupils read faster always', 'Texts should always be short'], correct: 'Each chunk has a focused purpose pupils can complete' }
+          ],
+          passThreshold: 0.6
+        }
+      },
+      {
+        id: 'lo-3',
+        title: 'Oracy: Present, Discuss, Perform',
+        applicationTask: 'Use one discussion protocol (e.g. building, challenging, clarifying) in your next critique or rehearsal debrief.',
+        reflectionPrompt: 'Did pupils\' spoken contributions become more structured?',
+        tips: ['Assign roles in discussion: builder, challenger, summariser.', 'Rehearse presentations as a skill—volume, pace, eye line—not only as content delivery.', 'Film short talks for self-review against agreed success criteria.'],
+        content: '<h3>Presenting Creative Work</h3><p>Pupils present ideas, portfolios and performances. Teach presentation as craft: stance, voice projection, pacing, indicating evidence on the work. Give a tight structure: context → key choices → evidence → next step. Time limits build discipline without crushing creativity.</p><h3>Discussion Protocols</h3><p>In critique, use simple rules: one speaker at a time; build on the previous point before a new one; challenge ideas respectfully. Sentence frames—"I agree with… because…" "I would add…" "Could you clarify…"—keep discussion rigorous and kind.</p><h3>Performance and Voice</h3><p>Drama already develops oracy, but explicit attention to clarity, tone and audience helps shy pupils. Choral work, small-group shares before whole class, and microphone technique in presentations all count as oracy teaching.</p><h3>Listening</h3><p>Oracy includes listening. Model active listening; require one pupil to summarise what another said before responding. That slows superficial "I disagree" habits and deepens ensemble thinking.</p>',
+        quiz: {
+          questions: [
+            { q: 'Why teach presentation structure explicitly?', options: ['To make all talks identical', 'So pupils know how to organise ideas for an audience', 'Presentations are not important', 'Only teachers present'], correct: 'So pupils know how to organise ideas for an audience' },
+            { q: 'What is a "builder" role in discussion?', options: ['Someone who talks longest', 'Someone who extends or supports a previous point', 'Someone who ignores others', 'The teacher only'], correct: 'Someone who extends or supports a previous point' },
+            { q: 'How does summarising before responding help?', options: ['It wastes time', 'It ensures listening and reduces talking past each other', 'It stops debate', 'Only in primary'], correct: 'It ensures listening and reduces talking past each other' },
+            { type: 'scenario', scenario: 'Critique becomes a series of opinions with no reasons.', q: 'What should you do next time?', options: ['Cancel critique', 'Use stems and require "because" with reference to the work', 'Only teacher feedback', 'Let opinions flow'], correct: 'Use stems and require "because" with reference to the work', rationale: 'Structure and evidence requirements lift oracy from opinion to argument.' },
+            { q: 'Oracy includes…', options: ['Only speaking', 'Speaking and listening in purposeful contexts', 'Only Drama', 'Only English'], correct: 'Speaking and listening in purposeful contexts' }
+          ],
+          passThreshold: 0.6
+        }
+      }
+    ]
+  },
+  {
+    id: 'inclusive-practice',
+    title: 'Inclusive Practice in Practical Spaces',
+    order: 12,
+    estimatedMins: 34,
+    description: 'Drama studios, art rooms and darkrooms can overwhelm or exclude. Plan for sensory load, anxiety, ASN and EAL while keeping creative challenge high.',
+    evidence: { strand: 'Specialist SEND Support in Mainstream', impact: 'Varies by approach', url: 'https://educationendowmentfoundation.org.uk/education-evidence/teaching-learning-toolkit/specialist-send-support-in-mainstream-schools', summary: 'Collaboration with specialists and high-quality mainstream teaching both matter; inclusive pedagogy benefits all learners—not only those with identified needs.' },
+    stages: [
+      {
+        id: 'ip-1',
+        title: 'Barriers and Strengths-Based Planning',
+        applicationTask: 'For one class, note two potential barriers in your space (noise, transitions, reading load, motor demand) and one strength-based access strategy for each.',
+        reflectionPrompt: 'Did anticipating barriers change how you opened the lesson?',
+        tips: ['Ask: what does "ready to learn" look like for different pupils in this room?', 'Preview routines visually as well as verbally.', 'Build optional quiet recovery moments into long practical blocks.'],
+        content: '<h3>Inclusion Starts with Design</h3><p>Inclusion is not only what you do when a pupil struggles—it is how you design tasks, space and pace so more pupils can succeed first time. Expressive Arts spaces are stimulating: noise, movement, chemicals, performance pressure. Some pupils thrive; others need predictability, reduced extraneous load, or alternative ways to show the same learning.</p><h3>Common Barriers</h3><p><strong>Sensory:</strong> Harsh lighting, crowded storage, sudden sound shifts. <strong>Social:</strong> Performance anxiety, group dynamics, fear of judgment. <strong>Cognitive:</strong> Multi-step demos without a written checklist. <strong>Motor:</strong> Fine control for tools or cameras. <strong>Language:</strong> Dense verbal instructions without visuals. Naming barriers for <em>your</em> context beats generic tips.</p><h3>Strengths-Based View</h3><p>Identify what pupils can already do—visual memory, storytelling, careful observation—and build routes that use those strengths while developing weaker areas. Avoid defining pupils only by deficit labels.</p><h3>Universal Supports</h3><p>Clear agendas on the board, consistent signals for attention, written steps alongside verbal, and optional headphones or break cards often help many pupils without singling anyone out.</p>',
+        quiz: {
+          questions: [
+            { q: 'Inclusive planning should focus on…', options: ['Only pupils with plans', 'Designing tasks and environments so more pupils succeed first time', 'Removing challenge', 'Separate worksheets only'], correct: 'Designing tasks and environments so more pupils succeed first time' },
+            { q: 'Which is an example of extraneous cognitive load?', options: ['The creative challenge itself', 'Confusing instructions unrelated to the learning goal', 'Practising a technique', 'Peer feedback'], correct: 'Confusing instructions unrelated to the learning goal' },
+            { q: 'A strength-based approach means…', options: ['Ignoring difficulties', 'Building from what pupils can do while developing weaker areas', 'Only easy tasks', 'No feedback'], correct: 'Building from what pupils can do while developing weaker areas' },
+            { type: 'scenario', scenario: 'A pupil becomes overwhelmed when the studio gets loud during group work.', q: 'What is a reasonable adjustment?', options: ['Exclude them from group work', 'Offer a structured role with quieter moments or a brief regulated break with a clear return', 'Tell them to cope', 'Lower the creative standard'], correct: 'Offer a structured role with quieter moments or a brief regulated break with a clear return', rationale: 'Regulation and role design preserve participation without removing learning intent.' },
+            { q: 'Universal supports are…', options: ['Only for one pupil', 'Helpful for many, often invisible as "just good teaching"', 'Always expensive', 'Never needed in practical subjects'], correct: 'Helpful for many, often invisible as "just good teaching"' }
+          ],
+          passThreshold: 0.6
+        }
+      },
+      {
+        id: 'ip-2',
+        title: 'ASN, EAL and Sensory Needs',
+        applicationTask: 'Choose one resource (visual timetable, translated key words, enlarged example) to prepare for your next unit.',
+        reflectionPrompt: 'Who used it—and what did you notice?',
+        tips: ['Collaborate with support staff—share success criteria and vocabulary in advance.', 'For EAL, pair conceptual visuals with keywords; reduce reading load in timed practical phases.', 'For dyslexia, prefer clear fonts, line spacing, and speech-to-text where appropriate.'],
+        content: '<h3>Collaboration</h3><p>When pupils have CSPs, Child\'s Plans or EAL profiles, specialist colleagues are partners. Share the <em>creative goal</em> and the <em>observable success criteria</em> early so support is aligned with the art, drama or photography outcomes—not generic supervision.</p><h3>EAL in Practical Subjects</h3><p>Demonstrate before long explanations. Use labelled diagrams, bilingual keyword lists where helpful, and sentence frames for talk and writing. Group roles can reduce language load while keeping contribution authentic—e.g. operating camera vs directing if language is still developing.</p><h3>ASN: Executive Function and Processing</h3><p>Break demonstrations into numbered steps on the wall. Use checklists pupils physically tick. Preview transitions two minutes ahead: "In two minutes we will…" Offer a sample "finished" product for reference. These supports help ADHD and processing differences without changing the curricular goal.</p><h3>Sensory and Anxiety</h3><p>Offer alternatives to being centre-stage: film a performance for a small audience, present from a seated position, contribute design or sound. Normalize opt-in levels of visibility while maintaining accountability to the criteria.</p><h3>Safety</h3><p>Never compromise chemical, tool or darkroom safety—adapt <em>how</em> pupils access the same standards (extra modelling, buddy, adapted grip), not <em>whether</em> safety rules apply.</p>',
+        quiz: {
+          questions: [
+            { q: 'Why share success criteria with support staff early?', options: ['Paperwork only', 'So support aligns with subject learning goals', 'They do not need it', 'To reduce teacher planning'], correct: 'So support aligns with subject learning goals' },
+            { q: 'A useful EAL strategy in a practical demo is…', options: ['Only speak faster', 'Show first, then explain with visuals and keywords', 'Avoid demos', 'Remove practical work'], correct: 'Show first, then explain with visuals and keywords' },
+            { q: 'Executive function supports include…', options: ['Only punishment', 'Checklists, previews of transitions, chunked steps', 'Doing tasks for pupils', 'No routines'], correct: 'Checklists, previews of transitions, chunked steps' },
+            { type: 'scenario', scenario: 'A pupil with high performance anxiety must meet the same performance outcome as peers.', q: 'Which approach fits inclusive practice?', options: ['Exempt them completely', 'Offer a smaller audience or filmed submission while keeping the same criteria', 'Lower criteria secretly', 'Force them on stage immediately'], correct: 'Offer a smaller audience or filmed submission while keeping the same criteria', rationale: 'Access arrangements can change conditions while preserving the learning and assessment standard.' },
+            { q: 'Safety adaptations should…', options: ['Remove rules', 'Keep the same safety standards with different supports to meet them', 'Only apply to some pupils', 'Be informal'], correct: 'Keep the same safety standards with different supports to meet them' }
+          ],
+          passThreshold: 0.6
+        }
+      },
+      {
+        id: 'ip-3',
+        title: 'Belonging, Participation and UDL in the Studio',
+        applicationTask: 'Offer one genuine choice in your next task (materials, role, output format) while holding success criteria constant.',
+        reflectionPrompt: 'Did choice increase engagement without fragmenting the learning goal?',
+        tips: ['UDL: multiple means of engagement, representation, action & expression—pick one lever per lesson at first.', 'Public praise effort and specific strategy, not only "talent."', 'Audit who speaks, who holds equipment, who is photographed in documentation—representation matters.'],
+        content: '<h3>Belonging</h3><p>Pupils learn when they feel they belong in the room. Display diverse artists and performers. Use examples that reflect your cohort. Challenge banter that undermines identity. Make space for pupils to see themselves as capable creators, not only helpers or observers.</p><h3>Participation Without Identical Output</h3><p>The same success criteria can be met through different media or roles: a pupil might meet the Drama outcome through design and documented contribution if performance is not yet possible—agreed with support and aligned to policy. The key is equivalence of <em>demonstrable learning</em>, not identical tasks for everyone.</p><h3>Universal Design for Learning (UDL) — Practical Version</h3><p><strong>Engagement:</strong> choice of stimulus, optional collaboration levels, clear relevance ("why this matters"). <strong>Representation:</strong> video, diagram, live demo, written steps. <strong>Action &amp; expression:</strong> sketch, model, digital, spoken reflection. You do not need every option every day—rotate intelligently.</p><h3>Grouping and Power</h3><p>Notice patterns: who always operates the camera? Who never speaks in critique? Adjust roles deliberately. Use randomisation fairly alongside intentional support.</p><h3>Reflective Cycle</h3><p>After projects, ask: Who was fully in? Who was peripheral? What will I change next time? Inclusion improves when we treat it as a habit of lesson design, not a one-off training day.</p>',
+        quiz: {
+          questions: [
+            { q: 'UDL encourages…', options: ['One worksheet for all', 'Multiple ways to engage, represent content and express learning', 'Removing criteria', 'Only technology'], correct: 'Multiple ways to engage, represent content and express learning' },
+            { q: 'Different output formats can be fair when…', options: ['Criteria are abandoned', 'Success criteria stay equivalent and demonstrable', 'Only strong pupils choose', 'No one checks'], correct: 'Success criteria stay equivalent and demonstrable' },
+            { q: 'Why audit who holds equipment or speaks?', options: ['It does not matter', 'Participation patterns can hide exclusion', 'SLT requires it', 'Only for photos'], correct: 'Participation patterns can hide exclusion' },
+            { type: 'scenario', scenario: 'You want to offer choice but fear the lesson becomes five different assignments.', q: 'What keeps coherence?', options: ['Ban choice', 'Hold success criteria constant while varying path or format', 'Only teacher chooses', 'No success criteria'], correct: 'Hold success criteria constant while varying path or format', rationale: 'UDL varies the how while keeping the what stable.' },
+            { q: 'Belonging is supported when…', options: ['Only one canonical style is praised', 'Diverse examples and identities are visible in the curriculum', 'Pupils never work together', 'Only finished work is valued'], correct: 'Diverse examples and identities are visible in the curriculum' }
+          ],
+          passThreshold: 0.6
+        }
+      }
+    ]
   }
 ];
