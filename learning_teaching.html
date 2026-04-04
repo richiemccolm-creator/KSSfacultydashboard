@@ -51,6 +51,7 @@ if (!window.CLPL_COURSES || window.CLPL_COURSES.length === 0) {
 <script src="allowlist-check.js" defer></script>
 <script src="auth-guard.js" defer></script>
 <script src="data-service.js" defer></script>
+<script src="staff-display-name.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -101,6 +102,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 a.sidebar-item{color:rgba(255,255,255,.65)}
 a.sidebar-item:hover{color:var(--white)}
 .sidebar-item.active{background:rgba(13,148,136,.2);color:var(--white);border-left-color:var(--accent-clpl)}
+.sidebar-staff-dn-wrap{padding:.65rem 1rem 0;border-top:1px solid rgba(255,255,255,.08)}
 .sidebar-signout{margin-top:auto;padding:1rem 0 1.5rem;border-top:1px solid rgba(255,255,255,.08)}
 .sidebar-signout .sidebar-item{color:rgba(255,255,255,.85);font-weight:600}
 
@@ -343,6 +345,7 @@ a.sidebar-item:hover{color:var(--white)}
       <button type="button" id="ltSidebarResources" class="sidebar-item" onclick="typeof window.ltShowView==='function'&&window.ltShowView('resources')">Resources</button>
     </div>
     <a href="faculty-hub.html" class="sidebar-item">← Back to Faculty Hub</a>
+    <div class="sidebar-staff-dn-wrap" data-staff-display-name="dark"></div>
     <div class="sidebar-signout">
       <button type="button" class="sidebar-item" onclick="try{(window.doSignOut||function(){window.clearSupabaseAuth&&window.clearSupabaseAuth();location.href='login.html?signout=1';})();}catch(e){location.href='login.html?signout=1';}">Sign out</button>
     </div>
@@ -675,6 +678,16 @@ function initCLPL() {
     quiz: { index: 0, correct: 0, total: 0, answered: false, questions: [], passThreshold: 0.6 },
     staffName: ''
   };
+
+  function refreshStaffNameFromSession() {
+    if (!window.supabase || !window.supabase.auth) return;
+    window.supabase.auth.getSession().then(function(r) {
+      if (!r || !r.data || !r.data.session || !r.data.session.user) return;
+      var u = r.data.session.user;
+      state.staffName = (u.user_metadata && u.user_metadata.full_name) || u.email || '';
+    });
+  }
+  window.addEventListener('staffdisplaynameupdated', refreshStaffNameFromSession);
 
   function $id(id) { return document.getElementById(id); }
 
