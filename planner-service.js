@@ -20,6 +20,71 @@
 
   function id() { return 'x' + Math.random().toString(36).substr(2, 9); }
 
+  function resourcesArrayToString(arr) {
+    if (!Array.isArray(arr) || !arr.length) return '';
+    return arr.map(function(r) {
+      if (!r) return '';
+      var u = r.url ? String(r.url) : '';
+      var l = r.label ? String(r.label) : '';
+      if (l && u) return l + ' — ' + u;
+      return u || l;
+    }).filter(Boolean).join('\n');
+  }
+
+  function normalizeLesson(les) {
+    if (!les || typeof les !== 'object') return;
+    if (les.learningIntention === undefined) les.learningIntention = '';
+    if (les.successCriteria === undefined) les.successCriteria = '';
+    if (les.activities === undefined) les.activities = '';
+    if (les.resources === undefined) les.resources = '';
+    if (les.notes != null && String(les.notes).trim() && (!les.activities || !String(les.activities).trim())) {
+      les.activities = String(les.notes);
+    }
+    var st = les.status;
+    var valid = st === 'planned' || st === 'draft' || st === 'complete';
+    if (!valid) {
+      if (les.bankPlan) les.status = 'complete';
+      else if (!(les.title && String(les.title).trim())) les.status = 'draft';
+      else les.status = 'planned';
+    }
+    if (les.bankPlan && typeof les.bankPlan === 'object') {
+      var bp = les.bankPlan;
+      if (!String(les.learningIntention || '').trim()) {
+        les.learningIntention = String(bp.learningIntentions || bp.objectives || '').trim();
+      }
+      if (!String(les.successCriteria || '').trim()) {
+        les.successCriteria = String(bp.successCriteria || '').trim();
+      }
+      if (!String(les.activities || '').trim()) {
+        var actParts = [bp.activity, bp.differentiation, bp.effectiveQuestions, bp.digitalTechnologies, bp.notes]
+          .filter(function(x) { return x && String(x).trim(); })
+          .map(function(x) { return String(x).trim(); });
+        if (actParts.length) les.activities = actParts.join('\n\n');
+      }
+      if (!String(les.resources || '').trim() && bp.resources) {
+        les.resources = resourcesArrayToString(bp.resources);
+      }
+    }
+    if (les.notes == null || !String(les.notes).trim()) {
+      les.notes = les.activities || '';
+    }
+  }
+
+  function normalizeUnit(u) {
+    if (!u || typeof u !== 'object') return;
+    if (u.startDate === undefined) u.startDate = '';
+    if (u.endDate === undefined) u.endDate = '';
+    if (u.overview === undefined) u.overview = '';
+    if (!Array.isArray(u.lessons)) u.lessons = [];
+    u.lessons.forEach(normalizeLesson);
+  }
+
+  function normalizeSchemesOfWorkBlob(blob) {
+    if (!blob || typeof blob !== 'object') return;
+    if (!Array.isArray(blob.units)) blob.units = [];
+    blob.units.forEach(normalizeUnit);
+  }
+
   window.PlannerService = {
     DAYS: DAYS,
     PERIODS: PERIODS,
@@ -38,6 +103,7 @@
         state.weekNotes = res[2] && typeof res[2] === 'object' ? res[2] : {};
         state.lessonPlanTemplates = res[3] && res[3].templates ? res[3] : { templates: [] };
         state.schemesOfWork = res[4] && res[4].units ? res[4] : { units: [] };
+        normalizeSchemesOfWorkBlob(state.schemesOfWork);
         return self.getState();
       });
     },
@@ -294,6 +360,9 @@
         subject: '',
         yearGroup: '',
         curriculumUnitKey: '',
+        startDate: '',
+        endDate: '',
+        overview: '',
         lessons: [],
         createdAt: now,
         updatedAt: now
@@ -326,9 +395,21 @@
       var todos = Array.isArray(template.todos) ? template.todos.map(function(t) {
         return { text: (t && t.text) ? String(t.text) : '', done: false };
       }) : [];
+      var resStr = resourcesArrayToString(resources);
+      var li = String(template.learningIntentions || template.objectives || '').trim();
+      var sc = String(template.successCriteria || '').trim();
+      var actParts = [template.activity, template.differentiation, template.effectiveQuestions, template.digitalTechnologies, template.notes]
+        .filter(function(x) { return x && String(x).trim(); })
+        .map(function(x) { return String(x).trim(); });
+      var activitiesStr = actParts.join('\n\n');
       return {
         title: String((template.title || template.name || '').trim() || 'Untitled'),
-        notes: '',
+        status: 'complete',
+        learningIntention: li,
+        successCriteria: sc,
+        activities: activitiesStr,
+        resources: resStr,
+        notes: activitiesStr,
         copiedFromTemplateId: template.id || null,
         copiedAt: new Date().toISOString(),
         bankPlan: {
@@ -355,8 +436,29 @@
       if (!unit) return null;
       var lessons = unit.lessons || [];
       var maxOrder = lessons.reduce(function(m, l) { return Math.max(m, typeof l.order === 'number' ? l.order : -1); }, -1);
-      var row = Object.assign({ id: id(), title: '', notes: '', order: maxOrder + 1 }, lessonPartial || {});
+      var partial = lessonPartial || {};
+      var desiredOrder = partial.order;
+      var copy = Object.assign({}, partial);
+      delete copy.order;
+      var row = Object.assign({
+        id: id(),
+        title: '',
+        notes: '',
+        order: maxOrder + 1,
+        status: 'planned',
+        learningIntention: '',
+        successCriteria: '',
+        activities: '',
+        resources: ''
+      }, copy);
+      if (desiredOrder !== undefined && desiredOrder !== null && desiredOrder !== '') {
+        var o = parseInt(desiredOrder, 10);
+        if (!isNaN(o)) row.order = o;
+      }
+      if (row.activities && !row.notes) row.notes = row.activities;
       lessons.push(row);
+      lessons.sort(function(a, b) { return (a.order || 0) - (b.order || 0); });
+      lessons.forEach(function(l, i) { l.order = i; });
       unit.lessons = lessons;
       unit.updatedAt = new Date().toISOString();
       return row;
@@ -367,7 +469,16 @@
       if (!unit || !unit.lessons) return null;
       var L = unit.lessons.find(function(l) { return l.id === lessonId; });
       if (!L) return null;
-      Object.assign(L, patch);
+      var p = Object.assign({}, patch);
+      if (p.activities !== undefined && p.notes === undefined) p.notes = p.activities;
+      if (p.notes !== undefined && p.activities === undefined) p.activities = p.notes;
+      Object.assign(L, p);
+      if (p.order !== undefined && p.order !== null && p.order !== '') {
+        var o = parseInt(p.order, 10);
+        if (!isNaN(o)) L.order = o;
+        unit.lessons.sort(function(a, b) { return (a.order || 0) - (b.order || 0); });
+        unit.lessons.forEach(function(l, i) { l.order = i; });
+      }
       unit.updatedAt = new Date().toISOString();
       return L;
     },

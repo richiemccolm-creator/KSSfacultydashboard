@@ -359,9 +359,11 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .lesson-card-actions button{font-size:.72rem;padding:.4rem .7rem}
 .lesson-card-actions .btn-apply{background:var(--accent);color:var(--white);border:none;border-radius:4px;font-weight:600;cursor:pointer}
 .lesson-card-actions .btn-apply:hover{opacity:.9}
-.scheme-form-wrap{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:1rem 1.25rem;margin-bottom:1.25rem}
+.scheme-schemes-header-row{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}
+.scheme-schemes-header-title{flex:1;min-width:0}
 .scheme-form-hint{font-size:.78rem;color:var(--text2);margin-top:.35rem}
-.scheme-filter-wrap{display:none;flex-direction:column;gap:.65rem;margin-bottom:1.15rem}
+.scheme-filter-wrap{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center;margin-bottom:1.15rem}
+.scheme-filter-wrap-single{gap:.35rem}
 .scheme-filter-row{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center}
 .scheme-filter-label{font-size:.72rem;font-weight:600;color:var(--text2);margin-right:.25rem;min-width:3.5rem}
 .scheme-filter-chip{font-size:.72rem;padding:.35rem .75rem;border-radius:999px;border:1px solid var(--border);background:var(--white);cursor:pointer;color:var(--text2);font-family:inherit}
@@ -415,11 +417,28 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .scheme-unit-badge{font-size:.78rem;color:var(--navy);background:rgba(26,54,93,.08);padding:.25rem .5rem;border-radius:4px;display:inline-block;align-self:flex-start}
 .scheme-lesson-row{border-top:1px solid var(--border);padding-top:.65rem;margin-top:.5rem}
 .scheme-lesson-row:first-of-type{border-top:none;margin-top:0;padding-top:0}
-.scheme-lesson-row-inner{display:grid;grid-template-columns:auto 1fr auto auto;gap:.5rem .65rem;align-items:start}
+.scheme-lesson-row-inner{display:grid;grid-template-columns:auto 1fr auto auto auto;gap:.5rem .65rem;align-items:start}
+.scheme-lesson-title-text{font-weight:600;font-size:.88rem;color:var(--text);line-height:1.35}
+.scheme-lesson-edit-link{font-size:.72rem;font-weight:600;color:var(--accent);background:none;border:none;cursor:pointer;padding:0;margin-top:.2rem;text-decoration:underline;font-family:inherit}
+.scheme-lesson-edit-link:hover{opacity:.85}
+.btn-scheme-export-lesson{border:none;background:var(--bg);cursor:pointer;font-size:1rem;line-height:1;padding:.2rem .45rem;border-radius:4px;color:var(--text2)}
+.btn-scheme-export-lesson:hover{color:var(--accent);background:var(--border)}
+.scheme-export-pre-wrap{max-height:260px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:.75rem 1rem;background:var(--bg);margin:0}
+.scheme-export-pre{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.76rem;white-space:pre-wrap;word-break:break-word;color:var(--text)}
+.scheme-unit-placeholder-card{
+  border:2px dashed var(--border2);border-radius:12px;padding:1.75rem 1.25rem;text-align:center;cursor:pointer;
+  background:var(--card-elevated);transition:border-color .15s ease,background .15s ease,box-shadow .15s ease;min-height:120px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.35rem;box-shadow:var(--shadow-card)
+}
+.scheme-unit-placeholder-card:hover{border-color:var(--accent);background:rgba(14,165,233,.05);box-shadow:var(--shadow-card-hover)}
+.scheme-unit-placeholder-card strong{font-family:'Sora',sans-serif;font-size:1rem;color:var(--text)}
+.scheme-unit-placeholder-card span{font-size:.8rem;color:var(--text3)}
+.scheme-lesson-modal-context{font-size:.82rem;color:var(--text2);margin:-.25rem 0 1rem;padding-bottom:.75rem;border-bottom:1px solid var(--border)}
 @media (max-width:520px){
-  .scheme-lesson-row-inner{grid-template-columns:auto 1fr;grid-template-rows:auto auto auto}
-  .scheme-lesson-status{grid-column:2}
-  .scheme-lesson-actions{grid-column:1/-1;justify-content:flex-start}
+  .scheme-lesson-row-inner{grid-template-columns:auto 1fr;grid-template-rows:auto auto auto auto}
+  .scheme-lesson-status{grid-column:2;grid-row:2}
+  .btn-scheme-export-lesson{grid-column:2;grid-row:3;justify-self:start}
+  .scheme-lesson-actions{grid-column:1/-1;grid-row:4;justify-content:flex-start}
   .scheme-unit-stats{grid-template-columns:repeat(2,1fr)}
 }
 .scheme-lesson-index{display:flex;align-items:center;justify-content:center;width:1.75rem;height:1.75rem;border-radius:50%;background:var(--bg);border:1px solid var(--border2);font-size:.78rem;font-weight:700;color:var(--text2);flex-shrink:0;margin-top:.15rem}
@@ -581,65 +600,28 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 <!-- Schemes of work panel -->
 <div id="panel-schemes" class="planner-panel">
   <div class="timetable-section">
-    <div class="timetable-header">Schemes of work</div>
+    <div class="timetable-header scheme-schemes-header-row">
+      <span class="scheme-schemes-header-title">Schemes of work</span>
+      <button type="button" class="btn-primary" id="schemeAddUnitHeaderBtn" style="font-size:.78rem;padding:.5rem 1rem;white-space:nowrap">+ Add unit</button>
+    </div>
     <div style="padding:1rem 1.25rem">
-      <p style="font-size:.85rem;color:var(--text2);margin-bottom:1rem">Build units and ordered lesson outlines for your classes. Choose subject and year group, optionally link to a curriculum tracking period, or use a custom unit for projects. Add blank rows or <strong>copy from your lesson bank</strong> to keep full plans in one place (copies are snapshots — edit the bank lesson and copy again if you need an update).</p>
-      <div class="scheme-form-wrap" id="schemeFormWrap">
-        <input type="hidden" id="schemeEditingUnitId" value="">
-        <div class="form-group">
-          <label class="form-label">Subject</label>
-          <select class="form-select" id="schemeFormSubject">
-            <option value="drama">Drama</option>
-            <option value="art">Art &amp; Design</option>
-            <option value="photography">Photography</option>
-            <option value="other">Other</option>
-          </select>
-        </div>
-        <div class="form-group" id="schemeYearGroupWrapSelect">
-          <label class="form-label">Year group</label>
-          <select class="form-select" id="schemeYearGroupSelect"></select>
-        </div>
-        <div class="form-group" id="schemeYearGroupWrapText" style="display:none">
-          <label class="form-label">Year group or class label</label>
-          <input type="text" class="form-input" id="schemeYearGroupText" placeholder="e.g. S4 elective, club group">
-        </div>
-        <div class="form-group" id="schemeCurriculumWrap">
-          <label class="form-label">Curriculum unit</label>
-          <select class="form-select" id="schemeFormCurriculumUnit"></select>
-          <p class="scheme-form-hint">Pick a tracking period to link this scheme, or leave as custom / project.</p>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Unit title</label>
-          <input type="text" class="form-input" id="schemeFormTitle" placeholder="e.g. S3 improvisation block">
-        </div>
-        <div style="display:flex;gap:.5rem;flex-wrap:wrap">
-          <button type="button" class="btn-primary" id="schemeFormSubmit">Add unit</button>
-          <button type="button" class="btn-secondary" id="schemeFormCancel" style="display:none">Cancel edit</button>
-        </div>
-      </div>
-      <div class="scheme-filter-wrap" id="schemeFilterWrap" role="toolbar" aria-label="Filter scheme units">
-        <div class="scheme-filter-row">
-          <span class="scheme-filter-label">Subject</span>
-          <button type="button" class="scheme-filter-chip scheme-filter-subj is-active" data-scheme-subject-filter="">All</button>
-          <button type="button" class="scheme-filter-chip scheme-filter-subj" data-scheme-subject-filter="drama">Drama</button>
-          <button type="button" class="scheme-filter-chip scheme-filter-subj" data-scheme-subject-filter="art">Art &amp; Design</button>
-          <button type="button" class="scheme-filter-chip scheme-filter-subj" data-scheme-subject-filter="photography">Photography</button>
-          <button type="button" class="scheme-filter-chip scheme-filter-subj" data-scheme-subject-filter="other">Other</button>
-        </div>
-        <div class="scheme-filter-row">
-          <span class="scheme-filter-label">Year</span>
-          <button type="button" class="scheme-filter-chip scheme-filter-yg is-active" data-scheme-yg-filter="">All</button>
-          <button type="button" class="scheme-filter-chip scheme-filter-yg" data-scheme-yg-filter="s1">S1</button>
-          <button type="button" class="scheme-filter-chip scheme-filter-yg" data-scheme-yg-filter="s2">S2</button>
-          <button type="button" class="scheme-filter-chip scheme-filter-yg" data-scheme-yg-filter="s3">S3</button>
-          <button type="button" class="scheme-filter-chip scheme-filter-yg" data-scheme-yg-filter="npas3">NPA S3</button>
-          <button type="button" class="scheme-filter-chip scheme-filter-yg" data-scheme-yg-filter="npas4">NPA S4</button>
-          <button type="button" class="scheme-filter-chip scheme-filter-yg" data-scheme-yg-filter="higher">Higher</button>
-          <button type="button" class="scheme-filter-chip scheme-filter-yg" data-scheme-yg-filter="custom">Other</button>
-        </div>
+      <p style="font-size:.85rem;color:var(--text2);margin-bottom:1rem">Build units and ordered lesson outlines for your classes. Choose subject and year group, optionally link to a curriculum tracking period, or use a custom unit for projects. Add lessons from each card or <strong>copy from your lesson bank</strong> (snapshots — edit the bank lesson and copy again if you need an update).</p>
+      <div class="scheme-filter-wrap scheme-filter-wrap-single" id="schemeFilterWrap" role="toolbar" aria-label="Filter scheme units">
+        <button type="button" class="scheme-filter-chip scheme-filter-single is-active" data-scheme-filter="all">All</button>
+        <button type="button" class="scheme-filter-chip scheme-filter-single" data-scheme-filter="subject:drama">Drama</button>
+        <button type="button" class="scheme-filter-chip scheme-filter-single" data-scheme-filter="subject:art">Art &amp; Design</button>
+        <button type="button" class="scheme-filter-chip scheme-filter-single" data-scheme-filter="subject:photography">Photography</button>
+        <button type="button" class="scheme-filter-chip scheme-filter-single" data-scheme-filter="subject:other">Other</button>
+        <button type="button" class="scheme-filter-chip scheme-filter-single" data-scheme-filter="yg:s1">S1</button>
+        <button type="button" class="scheme-filter-chip scheme-filter-single" data-scheme-filter="yg:s2">S2</button>
+        <button type="button" class="scheme-filter-chip scheme-filter-single" data-scheme-filter="yg:s3">S3</button>
+        <button type="button" class="scheme-filter-chip scheme-filter-single" data-scheme-filter="yg:npas3">NPA S3</button>
+        <button type="button" class="scheme-filter-chip scheme-filter-single" data-scheme-filter="yg:npas4">NPA S4</button>
+        <button type="button" class="scheme-filter-chip scheme-filter-single" data-scheme-filter="yg:higher">Higher</button>
+        <button type="button" class="scheme-filter-chip scheme-filter-single" data-scheme-filter="yg:custom">Other year</button>
       </div>
       <div id="schemeCardsGrid" class="scheme-cards-grid"></div>
-      <div id="schemeEmptyState" class="scheme-empty" style="display:none"><strong>No units yet</strong><br>Add a unit above, then use &quot;Copy from lesson bank&quot; or &quot;Add lesson&quot; on each card to build your sequence.</div>
+      <div id="schemeEmptyState" class="scheme-empty" style="display:none"><strong>No units match this filter</strong><br>Choose <strong>All</strong> or add a new unit.</div>
     </div>
   </div>
 </div>
@@ -663,6 +645,137 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
     <div class="modal-footer">
       <button type="button" class="btn-secondary" id="schemeImportFromBankCancel">Cancel</button>
       <button type="button" class="btn-primary" id="schemeImportFromBankConfirm">Copy into unit</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add / edit scheme unit -->
+<div class="modal-overlay" id="schemeUnitModal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <h2 class="modal-title" id="schemeUnitModalTitle">Add unit</h2>
+      <button type="button" class="modal-close" id="schemeUnitModalClose">&times;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="schemeModalEditingUnitId" value="">
+      <div class="form-group">
+        <label class="form-label">Subject</label>
+        <select class="form-select" id="schemeModalSubject">
+          <option value="drama">Drama</option>
+          <option value="art">Art &amp; Design</option>
+          <option value="photography">Photography</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+      <div class="form-group" id="schemeModalYearGroupWrapSelect">
+        <label class="form-label">Year group</label>
+        <select class="form-select" id="schemeModalYearGroupSelect"></select>
+      </div>
+      <div class="form-group" id="schemeModalYearGroupWrapText" style="display:none">
+        <label class="form-label">Year group or class label</label>
+        <input type="text" class="form-input" id="schemeModalYearGroupText" placeholder="e.g. S4 elective, club group">
+      </div>
+      <div class="form-group" id="schemeModalCurriculumWrap">
+        <label class="form-label">Curriculum unit</label>
+        <select class="form-select" id="schemeModalCurriculumUnit"></select>
+        <p class="scheme-form-hint">Pick a tracking period to link this scheme, or leave as custom / project.</p>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Unit title</label>
+        <input type="text" class="form-input" id="schemeModalTitle" placeholder="e.g. S3 improvisation block">
+      </div>
+      <div class="form-group" style="display:flex;gap:.75rem;flex-wrap:wrap">
+        <div style="flex:1;min-width:140px">
+          <label class="form-label">Start date</label>
+          <input type="date" class="form-input" id="schemeModalStartDate">
+        </div>
+        <div style="flex:1;min-width:140px">
+          <label class="form-label">End date</label>
+          <input type="date" class="form-input" id="schemeModalEndDate">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Overview</label>
+        <textarea class="form-textarea" id="schemeModalOverview" placeholder="Unit overview (optional)" rows="3"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer" style="flex-wrap:wrap;justify-content:space-between">
+      <button type="button" class="btn-remove-resource" id="schemeModalDeleteUnitBtn" style="display:none">Delete unit</button>
+      <div style="display:flex;gap:.75rem;margin-left:auto">
+        <button type="button" class="btn-secondary" id="schemeUnitModalCancel">Cancel</button>
+        <button type="button" class="btn-primary" id="schemeUnitModalSave">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add / edit scheme lesson -->
+<div class="modal-overlay" id="schemeLessonModal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <h2 class="modal-title" id="schemeLessonModalHeading">Add lesson</h2>
+      <button type="button" class="modal-close" id="schemeLessonModalClose">&times;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="schemeLessonModalUnitId" value="">
+      <input type="hidden" id="schemeLessonModalLessonId" value="">
+      <p class="scheme-lesson-modal-context" id="schemeLessonModalContext"></p>
+      <div class="form-group">
+        <label class="form-label">Lesson title</label>
+        <input type="text" class="form-input" id="schemeLessonModalTitleInput" placeholder="Lesson title">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Order (1 = first in sequence; leave blank to add at end)</label>
+        <input type="number" class="form-input" id="schemeLessonModalOrder" min="1" step="1" placeholder="Auto">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Status</label>
+        <select class="form-select" id="schemeLessonModalStatus">
+          <option value="planned">Planned</option>
+          <option value="draft">Draft</option>
+          <option value="complete">Complete</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Learning intention</label>
+        <textarea class="form-textarea" id="schemeLessonModalLearningIntention" rows="2"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Success criteria</label>
+        <textarea class="form-textarea" id="schemeLessonModalSuccessCriteria" rows="2"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Key activities</label>
+        <textarea class="form-textarea" id="schemeLessonModalActivities" rows="3"></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Resources</label>
+        <textarea class="form-textarea" id="schemeLessonModalResources" rows="2" placeholder="Links or notes, one per line"></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn-secondary" id="schemeLessonModalCancel">Cancel</button>
+      <button type="button" class="btn-primary" id="schemeLessonModalSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<!-- Export lesson / unit (plain text) -->
+<div class="modal-overlay" id="schemeExportModal">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header">
+      <h2 class="modal-title" id="schemeExportModalTitle">Export</h2>
+      <button type="button" class="modal-close" id="schemeExportModalClose">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:.85rem;color:var(--text2);margin-bottom:.75rem" id="schemeExportModalSubtitle"></p>
+      <div class="scheme-export-pre-wrap">
+        <pre id="schemeExportPre" class="scheme-export-pre"></pre>
+      </div>
+    </div>
+    <div class="modal-footer" style="flex-wrap:wrap;gap:.5rem">
+      <button type="button" class="btn-secondary" id="schemeExportCopyBtn">Copy to clipboard</button>
+      <button type="button" class="btn-primary" id="schemeExportSendBtn">Send to Class Planner</button>
     </div>
   </div>
 </div>
@@ -891,9 +1004,9 @@ function fillCurriculumUnitOptionsForYear(selectEl, subject, yearGroup, selected
   });
 }
 
-function populateSchemeYearGroupSelect(subject) {
-  var sel = document.getElementById('schemeYearGroupSelect');
-  sel.innerHTML = '';
+function populateSchemeYearGroupSelect(selectEl, subject) {
+  if (!selectEl) return;
+  selectEl.innerHTML = '';
   if (!schemeSubjectHasCurriculum(subject)) return;
   Object.keys(window.CURRICULUM_UNITS[subject]).forEach(function(yg) {
     var arr = window.CURRICULUM_UNITS[subject][yg];
@@ -901,40 +1014,17 @@ function populateSchemeYearGroupSelect(subject) {
     var opt = document.createElement('option');
     opt.value = yg;
     opt.textContent = yearGroupDisplayLabel(yg);
-    sel.appendChild(opt);
+    selectEl.appendChild(opt);
   });
 }
 
-function syncSchemeCurriculumDropdown(selectedKey) {
-  var subj = document.getElementById('schemeFormSubject').value;
+function syncSchemeModalCurriculumDropdown(selectedKey) {
+  var subj = document.getElementById('schemeModalSubject').value;
   var yg = '';
   if (schemeSubjectHasCurriculum(subj)) {
-    yg = document.getElementById('schemeYearGroupSelect').value;
+    yg = document.getElementById('schemeModalYearGroupSelect').value;
   }
-  fillCurriculumUnitOptionsForYear(document.getElementById('schemeFormCurriculumUnit'), subj, yg, selectedKey || '');
-}
-
-function updateSchemeYearGroupUI() {
-  var subj = document.getElementById('schemeFormSubject').value;
-  var selWrap = document.getElementById('schemeYearGroupWrapSelect');
-  var textWrap = document.getElementById('schemeYearGroupWrapText');
-  var curWrap = document.getElementById('schemeCurriculumWrap');
-  if (schemeSubjectHasCurriculum(subj)) {
-    selWrap.style.display = '';
-    textWrap.style.display = 'none';
-    populateSchemeYearGroupSelect(subj);
-    curWrap.style.display = '';
-    syncSchemeCurriculumDropdown('');
-  } else {
-    selWrap.style.display = 'none';
-    textWrap.style.display = '';
-    curWrap.style.display = 'none';
-    document.getElementById('schemeFormCurriculumUnit').innerHTML = '';
-    var o = document.createElement('option');
-    o.value = '';
-    o.textContent = '— Custom / project —';
-    document.getElementById('schemeFormCurriculumUnit').appendChild(o);
-  }
+  fillCurriculumUnitOptionsForYear(document.getElementById('schemeModalCurriculumUnit'), subj, yg, selectedKey || '');
 }
 
 function todayDateStrLocal() {
@@ -1424,22 +1514,49 @@ function renderWeekView() {
 var applyToTimetableTemplateId = null;
 var schemeBankImportUnitId = null;
 var schemeExpandedUnitIds = new Set();
-var schemeYgFilterActive = '';
-var schemeSubjectFilterActive = '';
+/** Single active filter: 'all' | 'subject:drama' | 'yg:s1' | … */
+var schemeFilterMode = 'all';
+var schemeExportBufferText = '';
 
 function applySchemeCardFilters() {
   var grid = document.getElementById('schemeCardsGrid');
   if (!grid) return;
-  var subjF = schemeSubjectFilterActive || '';
-  var ygF = schemeYgFilterActive || '';
+  var mode = schemeFilterMode || 'all';
   grid.querySelectorAll('.scheme-unit-card').forEach(function(card) {
     var ygKey = card.getAttribute('data-scheme-yg') || 'custom';
     var subjKey = card.getAttribute('data-scheme-subject') || 'other';
-    var ygOk = !ygF || ygF === ygKey;
-    var subjOk = !subjF || subjF === subjKey;
-    if (ygOk && subjOk) card.classList.remove('is-filtered-out');
+    var show = true;
+    if (mode !== 'all') {
+      if (mode.indexOf('subject:') === 0) {
+        show = mode.slice('subject:'.length) === subjKey;
+      } else if (mode.indexOf('yg:') === 0) {
+        show = mode.slice('yg:'.length) === ygKey;
+      }
+    }
+    if (show) card.classList.remove('is-filtered-out');
     else card.classList.add('is-filtered-out');
   });
+  syncSchemeFilterChipActiveState();
+}
+
+function syncSchemeFilterChipActiveState() {
+  document.querySelectorAll('#schemeFilterWrap .scheme-filter-single').forEach(function(b) {
+    var v = b.getAttribute('data-scheme-filter') || 'all';
+    b.classList.toggle('is-active', v === (schemeFilterMode || 'all'));
+  });
+  var units = PS.getSchemeUnits ? PS.getSchemeUnits() : [];
+  var anyVisible = false;
+  var grid = document.getElementById('schemeCardsGrid');
+  if (grid) {
+    grid.querySelectorAll('.scheme-unit-card').forEach(function(c) {
+      if (!c.classList.contains('is-filtered-out')) anyVisible = true;
+    });
+  }
+  var emptyEl = document.getElementById('schemeEmptyState');
+  if (emptyEl) {
+    if (units.length === 0) emptyEl.style.display = 'none';
+    else emptyEl.style.display = anyVisible ? 'none' : 'block';
+  }
 }
 
 function syncSchemeExpandedStateAfterRender() {
@@ -1459,12 +1576,32 @@ function syncSchemeExpandedStateAfterRender() {
   applySchemeCardFilters();
 }
 
-/** draft = no title; complete = copied from bank; else planned */
+/** Legacy fallback when lesson.status is missing or invalid */
 function schemeLessonDerivedStatus(les) {
   if (les && les.bankPlan) return 'complete';
   var t = (les && les.title) ? String(les.title).trim() : '';
   if (!t) return 'draft';
   return 'planned';
+}
+
+function schemeLessonEffectiveStatus(les) {
+  var s = les && les.status;
+  if (s === 'complete' || s === 'draft' || s === 'planned') return s;
+  return schemeLessonDerivedStatus(les);
+}
+
+function schemeStatusBadgeLabel(st) {
+  if (st === 'complete') return 'Complete';
+  if (st === 'draft') return 'Draft';
+  return 'Planned';
+}
+
+function formatSchemeDateRangeLabel(startDate, endDate) {
+  if (!startDate || !endDate) return '';
+  var a = formatSchemeShortDate(startDate + 'T12:00:00');
+  var b = formatSchemeShortDate(endDate + 'T12:00:00');
+  if (!a || !b) return '';
+  return a + ' – ' + b;
 }
 
 function formatSchemeShortDate(iso) {
@@ -1559,40 +1696,70 @@ function renderTemplatesList() {
   });
 }
 
-function resetSchemeForm() {
-  document.getElementById('schemeEditingUnitId').value = '';
-  document.getElementById('schemeFormSubject').value = 'drama';
-  document.getElementById('schemeYearGroupText').value = '';
-  document.getElementById('schemeFormTitle').value = '';
-  document.getElementById('schemeFormSubmit').textContent = 'Add unit';
-  document.getElementById('schemeFormCancel').style.display = 'none';
-  updateSchemeYearGroupUI();
-  syncSchemeCurriculumDropdown('');
+function closeSchemeUnitModal() {
+  document.getElementById('schemeUnitModal').classList.remove('visible');
 }
 
-function loadSchemeUnitIntoForm(unit) {
-  if (!unit) return;
-  document.getElementById('schemeEditingUnitId').value = unit.id;
-  document.getElementById('schemeFormSubject').value = unit.subject || 'drama';
-  updateSchemeYearGroupUI();
-  if (schemeSubjectHasCurriculum(unit.subject)) {
-    var ygs = document.getElementById('schemeYearGroupSelect');
-    if (unit.yearGroup) {
-      var has = false;
-      for (var oi = 0; oi < ygs.options.length; oi++) {
-        if (ygs.options[oi].value === unit.yearGroup) { has = true; break; }
-      }
-      if (has) ygs.value = unit.yearGroup;
-    }
-    syncSchemeCurriculumDropdown(unit.curriculumUnitKey || '');
-    document.getElementById('schemeFormCurriculumUnit').value = unit.curriculumUnitKey || '';
+function updateSchemeModalYearGroupUI() {
+  var subj = document.getElementById('schemeModalSubject').value;
+  var selWrap = document.getElementById('schemeModalYearGroupWrapSelect');
+  var textWrap = document.getElementById('schemeModalYearGroupWrapText');
+  var curWrap = document.getElementById('schemeModalCurriculumWrap');
+  var ygSel = document.getElementById('schemeModalYearGroupSelect');
+  if (schemeSubjectHasCurriculum(subj)) {
+    selWrap.style.display = '';
+    textWrap.style.display = 'none';
+    populateSchemeYearGroupSelect(ygSel, subj);
+    curWrap.style.display = '';
+    syncSchemeModalCurriculumDropdown('');
   } else {
-    document.getElementById('schemeYearGroupText').value = unit.yearGroup || '';
+    selWrap.style.display = 'none';
+    textWrap.style.display = '';
+    curWrap.style.display = 'none';
+    document.getElementById('schemeModalCurriculumUnit').innerHTML = '';
+    var o = document.createElement('option');
+    o.value = '';
+    o.textContent = '— Custom / project —';
+    document.getElementById('schemeModalCurriculumUnit').appendChild(o);
   }
-  document.getElementById('schemeFormTitle').value = unit.title || '';
-  document.getElementById('schemeFormSubmit').textContent = 'Save changes';
-  document.getElementById('schemeFormCancel').style.display = '';
-  document.getElementById('schemeFormWrap').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function openSchemeUnitModal(unit) {
+  unit = unit || null;
+  var isEdit = !!unit;
+  document.getElementById('schemeUnitModalTitle').textContent = isEdit ? 'Edit unit' : 'Add unit';
+  document.getElementById('schemeModalDeleteUnitBtn').style.display = isEdit ? '' : 'none';
+  document.getElementById('schemeModalEditingUnitId').value = isEdit ? unit.id : '';
+  document.getElementById('schemeModalSubject').value = isEdit ? (unit.subject || 'drama') : 'drama';
+  updateSchemeModalYearGroupUI();
+  if (isEdit) {
+    if (schemeSubjectHasCurriculum(unit.subject)) {
+      var ygs = document.getElementById('schemeModalYearGroupSelect');
+      if (unit.yearGroup) {
+        var has = false;
+        for (var oi = 0; oi < ygs.options.length; oi++) {
+          if (ygs.options[oi].value === unit.yearGroup) { has = true; break; }
+        }
+        if (has) ygs.value = unit.yearGroup;
+      }
+      syncSchemeModalCurriculumDropdown(unit.curriculumUnitKey || '');
+      document.getElementById('schemeModalCurriculumUnit').value = unit.curriculumUnitKey || '';
+    } else {
+      document.getElementById('schemeModalYearGroupText').value = unit.yearGroup || '';
+    }
+    document.getElementById('schemeModalTitle').value = unit.title || '';
+    document.getElementById('schemeModalStartDate').value = unit.startDate || '';
+    document.getElementById('schemeModalEndDate').value = unit.endDate || '';
+    document.getElementById('schemeModalOverview').value = unit.overview || '';
+  } else {
+    document.getElementById('schemeModalYearGroupText').value = '';
+    document.getElementById('schemeModalTitle').value = '';
+    document.getElementById('schemeModalStartDate').value = '';
+    document.getElementById('schemeModalEndDate').value = '';
+    document.getElementById('schemeModalOverview').value = '';
+    syncSchemeModalCurriculumDropdown('');
+  }
+  document.getElementById('schemeUnitModal').classList.add('visible');
 }
 
 function schemeBankPlanSectionsHtml(bp) {
@@ -1673,23 +1840,143 @@ function closeSchemeImportFromBankModal() {
   schemeBankImportUnitId = null;
 }
 
+function buildLessonExportText(lesson, unit) {
+  var u = unit || {};
+  var l = lesson || {};
+  var lines = [];
+  lines.push('UNIT:    ' + String(u.title || '').trim());
+  lines.push('LESSON:  ' + String(l.title || '').trim());
+  lines.push('');
+  lines.push('SUBJECT: ' + (u.subject ? subjectLabel(u.subject) : ''));
+  lines.push('YEAR:    ' + (u.yearGroup ? (yearGroupDisplayLabel(u.yearGroup) || u.yearGroup) : ''));
+  var dr = formatSchemeDateRangeLabel(u.startDate, u.endDate);
+  if (dr) lines.push('DATES:   ' + dr);
+  lines.push('STATUS:  ' + String(schemeLessonEffectiveStatus(l)));
+  lines.push('');
+  if (String(u.overview || '').trim()) {
+    lines.push('UNIT OVERVIEW');
+    lines.push(String(u.overview).trim());
+    lines.push('');
+  }
+  lines.push('LEARNING INTENTION');
+  lines.push(String(l.learningIntention || '').trim() || '—');
+  lines.push('');
+  lines.push('SUCCESS CRITERIA');
+  lines.push(String(l.successCriteria || '').trim() || '—');
+  lines.push('');
+  lines.push('KEY ACTIVITIES');
+  lines.push(String(l.activities || l.notes || '').trim() || '—');
+  lines.push('');
+  lines.push('RESOURCES');
+  lines.push(String(l.resources || '').trim() || '—');
+  return lines.join('\n');
+}
+
+function buildUnitLessonsExportList(unit) {
+  var lessons = (unit.lessons || []).slice().sort(function(a, b) { return (a.order || 0) - (b.order || 0); });
+  var lines = [];
+  lines.push('UNIT: ' + String(unit.title || 'Untitled'));
+  lines.push('');
+  lessons.forEach(function(l, i) {
+    var st = schemeLessonEffectiveStatus(l);
+    lines.push((i + 1) + '. ' + String(l.title || 'Untitled') + '  [' + st + ']');
+  });
+  return lines.join('\n');
+}
+
+function copyTextToClipboardWithFeedback(buttonEl, text) {
+  var orig = buttonEl.dataset.copyLabel || buttonEl.textContent;
+  if (!buttonEl.dataset.copyLabel) buttonEl.dataset.copyLabel = orig;
+  function flash() {
+    buttonEl.textContent = 'Copied!';
+    setTimeout(function() { buttonEl.textContent = buttonEl.dataset.copyLabel; }, 2000);
+  }
+  function fallback() {
+    var ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      document.execCommand('copy');
+      flash();
+    } catch (err) {
+      showToast('Copy failed');
+    }
+    document.body.removeChild(ta);
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(flash).catch(function() { fallback(); });
+  } else {
+    fallback();
+  }
+}
+
+function openSchemeExportModal(opts) {
+  opts = opts || {};
+  schemeExportBufferText = opts.text || '';
+  document.getElementById('schemeExportModalTitle').textContent = opts.title || 'Export';
+  document.getElementById('schemeExportModalSubtitle').textContent = opts.subtitle || '';
+  document.getElementById('schemeExportPre').textContent = schemeExportBufferText;
+  document.getElementById('schemeExportModal').classList.add('visible');
+}
+
+function closeSchemeExportModal() {
+  document.getElementById('schemeExportModal').classList.remove('visible');
+}
+
+function closeSchemeLessonModal() {
+  document.getElementById('schemeLessonModal').classList.remove('visible');
+}
+
+function openSchemeLessonModal(unitId, lessonId) {
+  var unit = unitId && PS.getSchemeUnitById(unitId);
+  if (!unit) return;
+  document.getElementById('schemeLessonModalUnitId').value = unitId;
+  document.getElementById('schemeLessonModalLessonId').value = lessonId || '';
+  document.getElementById('schemeLessonModalContext').textContent = lessonId
+    ? ('Editing lesson in: ' + (unit.title || 'Untitled'))
+    : ('Adding to: ' + (unit.title || 'Untitled'));
+  document.getElementById('schemeLessonModalHeading').textContent = lessonId ? 'Edit lesson' : 'Add lesson';
+  var lessons = (unit.lessons || []).slice().sort(function(a, b) { return (a.order || 0) - (b.order || 0); });
+  if (lessonId) {
+    var les = lessons.find(function(l) { return l.id === lessonId; });
+    if (!les) {
+      closeSchemeLessonModal();
+      return;
+    }
+    var idx = lessons.indexOf(les);
+    document.getElementById('schemeLessonModalTitleInput').value = les.title || '';
+    document.getElementById('schemeLessonModalOrder').value = String(idx + 1);
+    var rawSt = les.status;
+    document.getElementById('schemeLessonModalStatus').value =
+      (rawSt === 'planned' || rawSt === 'draft' || rawSt === 'complete') ? rawSt : schemeLessonEffectiveStatus(les);
+    document.getElementById('schemeLessonModalLearningIntention').value = les.learningIntention || '';
+    document.getElementById('schemeLessonModalSuccessCriteria').value = les.successCriteria || '';
+    document.getElementById('schemeLessonModalActivities').value = les.activities || les.notes || '';
+    document.getElementById('schemeLessonModalResources').value = les.resources || '';
+  } else {
+    document.getElementById('schemeLessonModalTitleInput').value = '';
+    document.getElementById('schemeLessonModalOrder').value = '';
+    document.getElementById('schemeLessonModalStatus').value = 'planned';
+    document.getElementById('schemeLessonModalLearningIntention').value = '';
+    document.getElementById('schemeLessonModalSuccessCriteria').value = '';
+    document.getElementById('schemeLessonModalActivities').value = '';
+    document.getElementById('schemeLessonModalResources').value = '';
+  }
+  document.getElementById('schemeLessonModal').classList.add('visible');
+}
+
 function renderSchemesPanel() {
   var units = PS.getSchemeUnits ? PS.getSchemeUnits() : [];
   var grid = document.getElementById('schemeCardsGrid');
   var empty = document.getElementById('schemeEmptyState');
-  var filterWrap = document.getElementById('schemeFilterWrap');
   if (!grid || !empty) return;
   units = units.slice().sort(function(a, b) {
     return (b.updatedAt || '').localeCompare(a.updatedAt || '');
   });
-  if (units.length === 0) {
-    grid.innerHTML = '';
-    empty.style.display = 'block';
-    if (filterWrap) filterWrap.style.display = 'none';
-    return;
-  }
-  empty.style.display = 'none';
-  if (filterWrap) filterWrap.style.display = 'flex';
+  var placeholderHtml = '<div class="scheme-unit-placeholder-card scheme-add-unit-placeholder" role="button" tabindex="0"><strong>Add new unit</strong><span>Create another unit of work</span></div>';
   var html = '';
   units.forEach(function(unit) {
     var subj = unit.subject || 'other';
@@ -1706,13 +1993,16 @@ function renderSchemesPanel() {
     var plannedC = 0;
     var completeC = 0;
     lessons.forEach(function(les) {
-      var st = schemeLessonDerivedStatus(les);
+      var st = schemeLessonEffectiveStatus(les);
       if (st === 'draft') draftC++;
       else if (st === 'planned') plannedC++;
       else completeC++;
     });
     var updatedStr = formatSchemeShortDate(unit.updatedAt || unit.createdAt);
-    var metaLine = n + ' lesson' + (n !== 1 ? 's' : '') + (updatedStr ? ' · Updated ' + updatedStr : '');
+    var dr = formatSchemeDateRangeLabel(unit.startDate, unit.endDate);
+    var metaLine = n + ' lesson' + (n !== 1 ? 's' : '');
+    if (dr) metaLine += ' · ' + dr;
+    else if (updatedStr) metaLine += ' · Updated ' + updatedStr;
     html += '<div class="scheme-unit-card scheme-yg-' + ygKey + '" data-unit-id="' + escAttr(unit.id) + '" data-scheme-yg="' + escAttr(ygKey) + '" data-scheme-subject="' + escAttr(subj) + '">';
     html += '<button type="button" class="scheme-unit-summary" aria-expanded="false">';
     html += '<span class="scheme-unit-summary-main">';
@@ -1744,21 +2034,21 @@ function renderSchemesPanel() {
       html += '<div class="scheme-unit-badge" style="margin-bottom:.35rem;background:var(--border);color:var(--text2)">Custom / project unit</div>';
     }
     html += '<div class="scheme-unit-stats">';
-    html += '<div class="scheme-stat"><span class="scheme-stat-num">' + n + '</span><span class="scheme-stat-label">Lessons</span></div>';
-    html += '<div class="scheme-stat"><span class="scheme-stat-num">' + completeC + '</span><span class="scheme-stat-label">From bank</span></div>';
-    html += '<div class="scheme-stat"><span class="scheme-stat-num">' + plannedC + '</span><span class="scheme-stat-label">Planned</span></div>';
+    html += '<div class="scheme-stat"><span class="scheme-stat-num">' + n + '</span><span class="scheme-stat-label">Total</span></div>';
+    html += '<div class="scheme-stat"><span class="scheme-stat-num">' + completeC + '</span><span class="scheme-stat-label">Complete</span></div>';
     html += '<div class="scheme-stat"><span class="scheme-stat-num">' + draftC + '</span><span class="scheme-stat-label">Draft</span></div>';
+    html += '<div class="scheme-stat"><span class="scheme-stat-num">' + plannedC + '</span><span class="scheme-stat-label">Planned</span></div>';
     html += '</div>';
-    html += '<div class="scheme-sequence-head"><span class="scheme-sequence-label">Lesson sequence</span><span class="scheme-sequence-hint">Use arrows to reorder</span></div>';
+    html += '<div class="scheme-sequence-head"><span class="scheme-sequence-label">Lesson sequence</span><span class="scheme-sequence-hint">Edit in modal · arrows reorder</span></div>';
     lessons.forEach(function(les, idx) {
-      var st = schemeLessonDerivedStatus(les);
-      var stLabel = st === 'complete' ? 'From bank' : st === 'draft' ? 'Draft' : 'Planned';
+      var st = schemeLessonEffectiveStatus(les);
+      var stLabel = schemeStatusBadgeLabel(st);
       html += '<div class="scheme-lesson-row" data-lesson-id="' + escAttr(les.id) + '">';
       html += '<div class="scheme-lesson-row-inner">';
       html += '<span class="scheme-lesson-index">' + (idx + 1) + '</span>';
       html += '<div class="scheme-lesson-main">';
-      html += '<input type="text" class="form-input scheme-lesson-title-input" placeholder="Lesson title" value="' + escAttr(les.title || '') + '">';
-      html += '<textarea class="form-textarea scheme-lesson-notes-input" placeholder="Notes (optional)" rows="2">' + escHtml(les.notes || '') + '</textarea>';
+      html += '<div class="scheme-lesson-title-text">' + escHtml(les.title || 'Untitled lesson') + '</div>';
+      html += '<button type="button" class="scheme-lesson-edit-link scheme-edit-lesson-btn">Edit lesson</button>';
       if (les.bankPlan) {
         var bankInner = schemeBankPlanSectionsHtml(les.bankPlan);
         if (!bankInner.trim()) {
@@ -1769,6 +2059,7 @@ function renderSchemesPanel() {
       }
       html += '</div>';
       html += '<span class="scheme-lesson-status scheme-lesson-status--' + escAttr(st) + '">' + escHtml(stLabel) + '</span>';
+      html += '<button type="button" class="btn-scheme-export-lesson scheme-lesson-export-btn" title="Export lesson text">↗</button>';
       html += '<div class="scheme-lesson-actions">';
       html += '<button type="button" class="btn-secondary btn-scheme-move" data-dir="-1" title="Move up">↑</button>';
       html += '<button type="button" class="btn-secondary btn-scheme-move" data-dir="1" title="Move down">↓</button>';
@@ -1777,15 +2068,15 @@ function renderSchemesPanel() {
     });
     html += '<div class="scheme-lesson-add-row">';
     html += '<button type="button" class="btn-secondary scheme-copy-from-bank-btn">Copy from lesson bank</button>';
-    html += '<button type="button" class="btn-secondary scheme-add-lesson-btn">+ Add lesson</button>';
     html += '</div>';
     html += '<div class="scheme-unit-footer">';
-    html += '<button type="button" class="btn-secondary scheme-export-unit-btn">Export unit</button>';
+    html += '<button type="button" class="btn-secondary scheme-add-lesson-btn">Add lesson</button>';
+    html += '<button type="button" class="btn-secondary scheme-export-all-btn">Export all</button>';
     html += '<button type="button" class="btn-secondary scheme-edit-unit-btn">Edit unit</button>';
-    html += '<button type="button" class="btn-remove-resource scheme-delete-unit-btn">Delete unit</button>';
     html += '</div></div></div></div>';
   });
-  grid.innerHTML = html;
+  grid.innerHTML = html + placeholderHtml;
+  empty.style.display = 'none';
   syncSchemeExpandedStateAfterRender();
 }
 
@@ -1794,26 +2085,22 @@ function bindSchemesPanelEvents() {
   if (!panel || panel._schemesBound) return;
   panel._schemesBound = true;
   panel.addEventListener('click', function(e) {
-    var subjChip = e.target.closest && e.target.closest('.scheme-filter-subj');
-    if (subjChip && subjChip.closest('#schemeFilterWrap')) {
-      var sv = subjChip.getAttribute('data-scheme-subject-filter');
-      if (sv === null) return;
-      schemeSubjectFilterActive = sv;
-      document.querySelectorAll('#schemeFilterWrap .scheme-filter-subj').forEach(function(b) {
-        b.classList.toggle('is-active', (b.getAttribute('data-scheme-subject-filter') || '') === sv);
-      });
+    var filterChip = e.target.closest && e.target.closest('.scheme-filter-single');
+    if (filterChip && filterChip.closest('#schemeFilterWrap')) {
+      var fv = filterChip.getAttribute('data-scheme-filter');
+      if (fv === null) return;
+      schemeFilterMode = fv || 'all';
       applySchemeCardFilters();
       return;
     }
-    var ygChip = e.target.closest && e.target.closest('.scheme-filter-yg');
-    if (ygChip && ygChip.closest('#schemeFilterWrap')) {
-      var yv = ygChip.getAttribute('data-scheme-yg-filter');
-      if (yv === null) return;
-      schemeYgFilterActive = yv;
-      document.querySelectorAll('#schemeFilterWrap .scheme-filter-yg').forEach(function(b) {
-        b.classList.toggle('is-active', (b.getAttribute('data-scheme-yg-filter') || '') === yv);
-      });
-      applySchemeCardFilters();
+    var ph = e.target.closest && e.target.closest('.scheme-add-unit-placeholder');
+    if (ph) {
+      openSchemeUnitModal(null);
+      return;
+    }
+    var addHdr = e.target.closest && e.target.closest('#schemeAddUnitHeaderBtn');
+    if (addHdr) {
+      openSchemeUnitModal(null);
       return;
     }
     var sumBtn = e.target.closest && e.target.closest('.scheme-unit-summary');
@@ -1838,11 +2125,48 @@ function bindSchemesPanelEvents() {
     }
     var addBtn = e.target.closest && e.target.closest('.scheme-add-lesson-btn');
     if (addBtn) {
-      var card = addBtn.closest('.scheme-unit-card');
-      var uid = card && card.dataset.unitId;
-      if (uid) {
-        PS.addSchemeLesson(uid, {});
-        PS.saveSchemesOfWork().then(function() { renderSchemesPanel(); });
+      var cardA = addBtn.closest('.scheme-unit-card');
+      var uidA = cardA && cardA.dataset.unitId;
+      if (uidA) openSchemeLessonModal(uidA, null);
+      return;
+    }
+    var edLes = e.target.closest && e.target.closest('.scheme-edit-lesson-btn');
+    if (edLes) {
+      var rowE = edLes.closest('.scheme-lesson-row');
+      var cardE = edLes.closest('.scheme-unit-card');
+      var uidE = cardE && cardE.dataset.unitId;
+      var lidE = rowE && rowE.dataset.lessonId;
+      if (uidE && lidE) openSchemeLessonModal(uidE, lidE);
+      return;
+    }
+    var exLes = e.target.closest && e.target.closest('.scheme-lesson-export-btn');
+    if (exLes) {
+      var rowX = exLes.closest('.scheme-lesson-row');
+      var cardX = exLes.closest('.scheme-unit-card');
+      var uidX = cardX && cardX.dataset.unitId;
+      var lidX = rowX && rowX.dataset.lessonId;
+      var unitX = uidX && PS.getSchemeUnitById(uidX);
+      var lesX = unitX && (unitX.lessons || []).find(function(l) { return l.id === lidX; });
+      if (unitX && lesX) {
+        openSchemeExportModal({
+          title: 'Export lesson',
+          subtitle: 'Plain text for ' + (lesX.title || 'this lesson'),
+          text: buildLessonExportText(lesX, unitX)
+        });
+      }
+      return;
+    }
+    var exportAll = e.target.closest && e.target.closest('.scheme-export-all-btn');
+    if (exportAll) {
+      var cardAll = exportAll.closest('.scheme-unit-card');
+      var uidAll = cardAll && cardAll.dataset.unitId;
+      var unitAll = uidAll && PS.getSchemeUnitById(uidAll);
+      if (unitAll) {
+        openSchemeExportModal({
+          title: 'Export all lessons',
+          subtitle: 'Title and status for each lesson in order',
+          text: buildUnitLessonsExportList(unitAll)
+        });
       }
       return;
     }
@@ -1871,61 +2195,15 @@ function bindSchemesPanelEvents() {
       }
       return;
     }
-    var delUnit = e.target.closest && e.target.closest('.scheme-delete-unit-btn');
-    if (delUnit) {
-      var card3 = delUnit.closest('.scheme-unit-card');
-      var uid3 = card3 && card3.dataset.unitId;
-      if (uid3 && confirm('Delete this unit and all its lesson outlines?')) {
-        schemeExpandedUnitIds.delete(uid3);
-        PS.deleteSchemeUnit(uid3);
-        PS.saveSchemesOfWork().then(function() {
-          renderSchemesPanel();
-          showToast('Unit deleted');
-        });
-      }
-      return;
-    }
     var editUnit = e.target.closest && e.target.closest('.scheme-edit-unit-btn');
     if (editUnit) {
       var card4 = editUnit.closest('.scheme-unit-card');
       var uid4 = card4 && card4.dataset.unitId;
       var u = uid4 && PS.getSchemeUnitById(uid4);
-      if (u) loadSchemeUnitIntoForm(u);
+      if (u) openSchemeUnitModal(u);
       return;
     }
-    var exportUnit = e.target.closest && e.target.closest('.scheme-export-unit-btn');
-    if (exportUnit) {
-      var card5 = exportUnit.closest('.scheme-unit-card');
-      var uid5 = card5 && card5.dataset.unitId;
-      var unitOut = uid5 && PS.getSchemeUnitById(uid5);
-      if (unitOut) {
-        var blob = new Blob([JSON.stringify({ schemeUnitExport: unitOut, exportedAt: new Date().toISOString() }, null, 2)], { type: 'application/json' });
-        var a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        var fn = (unitOut.title || 'scheme-unit').replace(/[^a-zA-Z0-9\-_\s]/g, '').replace(/\s+/g, '_').slice(0, 48) || 'scheme-unit';
-        a.download = fn + '.json';
-        a.click();
-        URL.revokeObjectURL(a.href);
-        showToast('Unit exported');
-      }
-    }
   });
-  panel.addEventListener('blur', function(e) {
-    var el = e.target;
-    if (!el.classList.contains('scheme-lesson-title-input') && !el.classList.contains('scheme-lesson-notes-input')) return;
-    var row = el.closest('.scheme-lesson-row');
-    var card = el.closest('.scheme-unit-card');
-    var unitId = card && card.dataset.unitId;
-    var lessonId = row && row.dataset.lessonId;
-    if (!unitId || !lessonId) return;
-    var titleInp = row.querySelector('.scheme-lesson-title-input');
-    var notesInp = row.querySelector('.scheme-lesson-notes-input');
-    PS.updateSchemeLesson(unitId, lessonId, {
-      title: titleInp ? titleInp.value : '',
-      notes: notesInp ? notesInp.value : ''
-    });
-    PS.saveSchemesOfWork().catch(function() {});
-  }, true);
 }
 
 function getSlotsForDayView() {
@@ -2610,71 +2888,143 @@ document.querySelectorAll('.planner-tab').forEach(function(tab) {
   });
 });
 
-document.getElementById('schemeFormSubject').addEventListener('change', function() {
-  updateSchemeYearGroupUI();
+document.getElementById('schemeModalSubject').addEventListener('change', function() {
+  updateSchemeModalYearGroupUI();
 });
 
-document.getElementById('schemeYearGroupSelect').addEventListener('change', function() {
-  syncSchemeCurriculumDropdown('');
+document.getElementById('schemeModalYearGroupSelect').addEventListener('change', function() {
+  syncSchemeModalCurriculumDropdown('');
 });
 
-document.getElementById('schemeFormCurriculumUnit').addEventListener('change', function() {
+document.getElementById('schemeModalCurriculumUnit').addEventListener('change', function() {
   if (!this.value) return;
-  if (document.getElementById('schemeEditingUnitId').value) return;
+  if (document.getElementById('schemeModalEditingUnitId').value) return;
   var opt = this.options[this.selectedIndex];
   if (opt && opt.textContent) {
-    document.getElementById('schemeFormTitle').value = opt.textContent.trim();
+    document.getElementById('schemeModalTitle').value = opt.textContent.trim();
   }
 });
 
-document.getElementById('schemeFormSubmit').addEventListener('click', function() {
-  var subj = document.getElementById('schemeFormSubject').value;
+document.getElementById('schemeUnitModalClose').addEventListener('click', closeSchemeUnitModal);
+document.getElementById('schemeUnitModalCancel').addEventListener('click', closeSchemeUnitModal);
+document.getElementById('schemeUnitModal').addEventListener('click', function(e) {
+  if (e.target === this) closeSchemeUnitModal();
+});
+
+document.getElementById('schemeUnitModalSave').addEventListener('click', function() {
+  var subj = document.getElementById('schemeModalSubject').value;
   if (!subj) { showToast('Choose a subject'); return; }
   var yg = '';
   if (schemeSubjectHasCurriculum(subj)) {
-    yg = document.getElementById('schemeYearGroupSelect').value;
+    yg = document.getElementById('schemeModalYearGroupSelect').value;
     if (!yg) { showToast('Choose a year group'); return; }
   } else {
-    yg = (document.getElementById('schemeYearGroupText').value || '').trim();
+    yg = (document.getElementById('schemeModalYearGroupText').value || '').trim();
     if (!yg) { showToast('Enter a year group or class label'); return; }
   }
-  var title = (document.getElementById('schemeFormTitle').value || '').trim();
+  var title = (document.getElementById('schemeModalTitle').value || '').trim();
   if (!title) { showToast('Enter a unit title'); return; }
   var cKey = '';
   if (schemeSubjectHasCurriculum(subj)) {
-    cKey = document.getElementById('schemeFormCurriculumUnit').value || '';
+    cKey = document.getElementById('schemeModalCurriculumUnit').value || '';
   }
-  var editId = document.getElementById('schemeEditingUnitId').value;
+  var startDate = document.getElementById('schemeModalStartDate').value || '';
+  var endDate = document.getElementById('schemeModalEndDate').value || '';
+  var overview = document.getElementById('schemeModalOverview').value || '';
+  var editId = document.getElementById('schemeModalEditingUnitId').value;
+  var patch = {
+    subject: subj,
+    yearGroup: yg,
+    title: title,
+    curriculumUnitKey: cKey,
+    startDate: startDate,
+    endDate: endDate,
+    overview: overview
+  };
   if (editId) {
-    PS.updateSchemeUnit(editId, {
-      subject: subj,
-      yearGroup: yg,
-      title: title,
-      curriculumUnitKey: cKey
-    });
+    PS.updateSchemeUnit(editId, patch);
     PS.saveSchemesOfWork().then(function() {
       showToast('Unit updated');
-      resetSchemeForm();
+      closeSchemeUnitModal();
       renderSchemesPanel();
     });
   } else {
-    PS.addSchemeUnit({
-      subject: subj,
-      yearGroup: yg,
-      title: title,
-      curriculumUnitKey: cKey,
-      lessons: []
-    });
+    PS.addSchemeUnit(Object.assign({ lessons: [] }, patch));
     PS.saveSchemesOfWork().then(function() {
       showToast('Unit added');
-      resetSchemeForm();
+      closeSchemeUnitModal();
       renderSchemesPanel();
     });
   }
 });
 
-document.getElementById('schemeFormCancel').addEventListener('click', function() {
-  resetSchemeForm();
+document.getElementById('schemeModalDeleteUnitBtn').addEventListener('click', function() {
+  var editId = document.getElementById('schemeModalEditingUnitId').value;
+  if (!editId) return;
+  if (!confirm('Delete this unit and all its lesson outlines?')) return;
+  schemeExpandedUnitIds.delete(editId);
+  PS.deleteSchemeUnit(editId);
+  PS.saveSchemesOfWork().then(function() {
+    closeSchemeUnitModal();
+    renderSchemesPanel();
+    showToast('Unit deleted');
+  });
+});
+
+document.getElementById('schemeLessonModalClose').addEventListener('click', closeSchemeLessonModal);
+document.getElementById('schemeLessonModalCancel').addEventListener('click', closeSchemeLessonModal);
+document.getElementById('schemeLessonModal').addEventListener('click', function(e) {
+  if (e.target === this) closeSchemeLessonModal();
+});
+
+document.getElementById('schemeLessonModalSave').addEventListener('click', function() {
+  var uid = document.getElementById('schemeLessonModalUnitId').value;
+  var lid = document.getElementById('schemeLessonModalLessonId').value;
+  var unit = uid && PS.getSchemeUnitById(uid);
+  if (!unit) { showToast('Unit not found'); return; }
+  var lessons = (unit.lessons || []).slice().sort(function(a, b) { return (a.order || 0) - (b.order || 0); });
+  var title = (document.getElementById('schemeLessonModalTitleInput').value || '').trim();
+  if (!title) { showToast('Enter a lesson title'); return; }
+  var orderVal = (document.getElementById('schemeLessonModalOrder').value || '').trim();
+  var patch = {
+    title: title,
+    status: document.getElementById('schemeLessonModalStatus').value || 'planned',
+    learningIntention: document.getElementById('schemeLessonModalLearningIntention').value || '',
+    successCriteria: document.getElementById('schemeLessonModalSuccessCriteria').value || '',
+    activities: document.getElementById('schemeLessonModalActivities').value || '',
+    resources: document.getElementById('schemeLessonModalResources').value || ''
+  };
+  if (orderVal !== '') {
+    var pos = parseInt(orderVal, 10);
+    if (!isNaN(pos)) {
+      var maxPos = lid ? lessons.length : lessons.length + 1;
+      pos = Math.max(1, Math.min(pos, maxPos));
+      patch.order = pos - 1;
+    }
+  }
+  if (lid) {
+    PS.updateSchemeLesson(uid, lid, patch);
+  } else {
+    var partial = Object.assign({}, patch);
+    if (orderVal === '') delete partial.order;
+    PS.addSchemeLesson(uid, partial);
+  }
+  PS.saveSchemesOfWork().then(function() {
+    closeSchemeLessonModal();
+    renderSchemesPanel();
+    showToast(lid ? 'Lesson saved' : 'Lesson added');
+  });
+});
+
+document.getElementById('schemeExportModalClose').addEventListener('click', closeSchemeExportModal);
+document.getElementById('schemeExportModal').addEventListener('click', function(e) {
+  if (e.target === this) closeSchemeExportModal();
+});
+document.getElementById('schemeExportCopyBtn').addEventListener('click', function() {
+  copyTextToClipboardWithFeedback(this, schemeExportBufferText);
+});
+document.getElementById('schemeExportSendBtn').addEventListener('click', function() {
+  closeSchemeExportModal();
 });
 
 document.getElementById('schemeImportFromBankClose').addEventListener('click', closeSchemeImportFromBankModal);
@@ -3015,7 +3365,6 @@ document.getElementById('applyToTimetableModal').addEventListener('click', funct
 // Init
 PS.load().then(function() {
   bindSchemesPanelEvents();
-  resetSchemeForm();
   renderTimetable();
   renderTimetableDisplay();
   renderWeekView();
