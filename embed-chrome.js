@@ -1,5 +1,7 @@
 /**
  * When loaded with ?embed=1, hides duplicate navigation so the page fits inside Faculty Hub iframes.
+ * Exception: tools whose own .dash-sidebar is the main UI (Faculty Head Dashboard, Procurement,
+ * Triangulation) keep that sidebar visible when embedded.
  * "Back to Faculty Hub" links use target="_top" to exit the iframe.
  */
 (function () {
@@ -9,14 +11,27 @@
   } catch (e) {
     return;
   }
+  /** Pages that use .dash-sidebar as primary in-app nav (not duplicate Faculty Hub chrome). */
+  var path = '';
+  try {
+    path = window.location.pathname || '';
+  } catch (e2) {}
+  var p = (path + '').toLowerCase();
+  var keepDashChrome =
+    p.indexOf('faculty_dashboard.html') !== -1 ||
+    p.indexOf('purchase_orders.html') !== -1 ||
+    p.indexOf('triangulation_evidence.html') !== -1;
+
   document.documentElement.setAttribute('data-fh-embed', '1');
   var css =
     'html[data-fh-embed="1"] .sidebar{display:none!important}' +
     'html[data-fh-embed="1"] .main{margin-left:0!important}' +
     'html[data-fh-embed="1"] .app{display:block!important;min-height:100vh}' +
-    'html[data-fh-embed="1"] .dash-sidebar{display:none!important}' +
-    'html[data-fh-embed="1"] .dash-main{margin-left:0!important;max-width:none}' +
-    'html[data-fh-embed="1"] body[style*="display:flex"]{display:block!important}' +
+    (keepDashChrome
+      ? ''
+      : 'html[data-fh-embed="1"] .dash-sidebar{display:none!important}' +
+        'html[data-fh-embed="1"] .dash-main{margin-left:0!important;max-width:none}' +
+        'html[data-fh-embed="1"] body[style*="display:flex"]{display:block!important}') +
     'html[data-fh-embed="1"] .site-header{display:none!important}' +
     'html[data-fh-embed="1"] .view-tabs{top:0!important}' +
     'html[data-fh-embed="1"] .controls-bar.gantt-mode,' +
