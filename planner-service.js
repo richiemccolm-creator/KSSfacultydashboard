@@ -315,6 +315,41 @@
       state.schemesOfWork.units = (state.schemesOfWork.units || []).filter(function(x) { return x.id !== unitId; });
     },
 
+    /**
+     * Snapshot fields from a lesson-bank template for embedding in a scheme lesson row.
+     */
+    copyTemplateFieldsToSchemeLesson: function(template) {
+      if (!template) return null;
+      var resources = Array.isArray(template.resources) ? template.resources.map(function(r) {
+        return { label: (r && r.label) ? String(r.label) : '', url: (r && r.url) ? String(r.url) : '' };
+      }) : [];
+      var todos = Array.isArray(template.todos) ? template.todos.map(function(t) {
+        return { text: (t && t.text) ? String(t.text) : '', done: false };
+      }) : [];
+      return {
+        title: String((template.title || template.name || '').trim() || 'Untitled'),
+        notes: '',
+        copiedFromTemplateId: template.id || null,
+        copiedAt: new Date().toISOString(),
+        bankPlan: {
+          name: template.name || '',
+          title: template.title || '',
+          subject: template.subject || '',
+          unitKey: template.unitKey || '',
+          objectives: template.objectives || '',
+          learningIntentions: template.learningIntentions || '',
+          successCriteria: template.successCriteria || '',
+          activity: template.activity || '',
+          differentiation: template.differentiation || '',
+          effectiveQuestions: template.effectiveQuestions || '',
+          digitalTechnologies: template.digitalTechnologies || '',
+          notes: template.notes || '',
+          resources: resources,
+          todos: todos
+        }
+      };
+    },
+
     addSchemeLesson: function(unitId, lessonPartial) {
       var unit = (state.schemesOfWork.units || []).find(function(x) { return x.id === unitId; });
       if (!unit) return null;

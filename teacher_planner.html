@@ -371,6 +371,15 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .scheme-lesson-actions{display:flex;gap:.35rem;flex-wrap:wrap;align-items:center}
 .scheme-lesson-actions .btn-scheme-move{min-width:2rem;padding:.2rem .4rem;font-size:.75rem}
 .scheme-unit-actions{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.35rem;padding-top:.5rem;border-top:1px solid var(--border)}
+.scheme-lesson-add-row{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.25rem}
+.scheme-lesson-bank-copy-tag{font-size:.72rem;color:var(--text3);margin-top:.25rem}
+.scheme-lesson-bank-details{margin-top:.35rem;font-size:.82rem;border:1px solid var(--border);border-radius:6px;padding:.35rem .5rem;background:var(--bg)}
+.scheme-lesson-bank-details summary{cursor:pointer;font-weight:600;color:var(--navy)}
+.scheme-lesson-bank-inner{padding:.5rem 0 0}
+.scheme-bank-section{margin-bottom:.5rem}
+.scheme-bank-label{font-size:.72rem;font-weight:600;color:var(--text2);margin-bottom:.15rem}
+.scheme-bank-body{white-space:pre-wrap;font-size:.78rem;color:var(--text)}
+.scheme-bank-todos{margin:0;padding-left:1.2rem;font-size:.78rem}
 .scheme-empty{font-size:.9rem;color:var(--text2);padding:1rem 0}
 </style>
 </head>
@@ -512,7 +521,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
   <div class="timetable-section">
     <div class="timetable-header">Schemes of work</div>
     <div style="padding:1rem 1.25rem">
-      <p style="font-size:.85rem;color:var(--text2);margin-bottom:1rem">Build units and ordered lesson outlines for your classes. Choose subject and year group, optionally link to a curriculum tracking period, or use a custom unit for projects. Lessons here are planning notes only (not linked to your timetable).</p>
+      <p style="font-size:.85rem;color:var(--text2);margin-bottom:1rem">Build units and ordered lesson outlines for your classes. Choose subject and year group, optionally link to a curriculum tracking period, or use a custom unit for projects. Add blank rows or <strong>copy from your lesson bank</strong> to keep full plans in one place (copies are snapshots — edit the bank lesson and copy again if you need an update).</p>
       <div class="scheme-form-wrap" id="schemeFormWrap">
         <input type="hidden" id="schemeEditingUnitId" value="">
         <div class="form-group">
@@ -547,7 +556,30 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
         </div>
       </div>
       <div id="schemeCardsGrid" class="scheme-cards-grid"></div>
-      <div id="schemeEmptyState" class="scheme-empty" style="display:none"><strong>No units yet</strong><br>Add a unit above, then use &quot;Add lesson&quot; on each card to build your sequence.</div>
+      <div id="schemeEmptyState" class="scheme-empty" style="display:none"><strong>No units yet</strong><br>Add a unit above, then use &quot;Copy from lesson bank&quot; or &quot;Add lesson&quot; on each card to build your sequence.</div>
+    </div>
+  </div>
+</div>
+
+<!-- Copy lesson bank into scheme unit -->
+<div class="modal-overlay" id="schemeImportFromBankModal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-header">
+      <h2 class="modal-title">Copy from lesson bank</h2>
+      <button type="button" class="modal-close" id="schemeImportFromBankClose">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:.85rem;color:var(--text2);margin-bottom:1rem">Adds a new row to this unit with a copy of the lesson plan from your bank (objectives, activity, resources, etc.). Your original bank lesson is unchanged.</p>
+      <div class="form-group">
+        <label class="form-label">Lesson</label>
+        <select class="form-select" id="schemeImportTemplateSelect">
+          <option value="">— Select lesson —</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn-secondary" id="schemeImportFromBankCancel">Cancel</button>
+      <button type="button" class="btn-primary" id="schemeImportFromBankConfirm">Copy into unit</button>
     </div>
   </div>
 </div>
@@ -1300,6 +1332,7 @@ function renderWeekView() {
 }
 
 var applyToTimetableTemplateId = null;
+var schemeBankImportUnitId = null;
 
 function openApplyToTimetableModal(templateId) {
   applyToTimetableTemplateId = templateId;
@@ -1422,6 +1455,84 @@ function loadSchemeUnitIntoForm(unit) {
   document.getElementById('schemeFormWrap').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
+function schemeBankPlanSectionsHtml(bp) {
+  if (!bp || typeof bp !== 'object') return '';
+  var sections = [
+    ['Learning objectives', bp.objectives],
+    ['Learning intentions', bp.learningIntentions],
+    ['Success criteria', bp.successCriteria],
+    ['Activity', bp.activity],
+    ['Differentiation', bp.differentiation],
+    ['Effective questions', bp.effectiveQuestions],
+    ['Digital technologies', bp.digitalTechnologies],
+    ['Notes', bp.notes]
+  ];
+  var h = '';
+  sections.forEach(function(pair) {
+    var v = pair[1];
+    if (v != null && String(v).trim() !== '') {
+      h += '<div class="scheme-bank-section"><div class="scheme-bank-label">' + escHtml(pair[0]) + '</div><div class="scheme-bank-body">' + escHtml(String(v)) + '</div></div>';
+    }
+  });
+  if (bp.resources && bp.resources.length) {
+    h += '<div class="scheme-bank-section"><div class="scheme-bank-label">Resources</div><div class="scheme-bank-body">';
+    bp.resources.forEach(function(r) {
+      var url = (r && r.url) ? String(r.url) : '';
+      var lbl = (r && r.label) ? String(r.label) : 'Link';
+      if (url) {
+        h += '<div>' + escHtml(lbl) + ' — <a href="' + escAttr(url) + '" target="_blank" rel="noopener noreferrer">' + escHtml(url) + '</a></div>';
+      } else {
+        h += '<div>' + escHtml(lbl) + '</div>';
+      }
+    });
+    h += '</div></div>';
+  }
+  if (bp.todos && bp.todos.length) {
+    h += '<div class="scheme-bank-section"><div class="scheme-bank-label">Prep tasks</div><ul class="scheme-bank-todos">';
+    bp.todos.forEach(function(t) {
+      h += '<li>' + escHtml((t && t.text) ? String(t.text) : '') + '</li>';
+    });
+    h += '</ul></div>';
+  }
+  if (bp.subject) {
+    h += '<div class="scheme-bank-section"><div class="scheme-bank-label">Subject (when copied)</div><div class="scheme-bank-body">' + escHtml(subjectLabel(bp.subject)) + '</div></div>';
+  }
+  if (bp.unitKey && window.getUnitFromKey) {
+    var uu = window.getUnitFromKey(bp.unitKey);
+    if (uu) {
+      h += '<div class="scheme-bank-section"><div class="scheme-bank-label">Curriculum unit (when copied)</div><div class="scheme-bank-body">' + escHtml((uu.label ? uu.label + ': ' : '') + (uu.unit || '')) + '</div></div>';
+    }
+  }
+  return h;
+}
+
+function openSchemeImportFromBankModal(unitId) {
+  schemeBankImportUnitId = unitId;
+  var sel = document.getElementById('schemeImportTemplateSelect');
+  sel.innerHTML = '<option value="">— Select lesson —</option>';
+  var templates = PS.getTemplates ? PS.getTemplates() : [];
+  if (templates.length === 0) {
+    showToast('No lessons in your bank yet — add some in Lesson Bank first');
+    schemeBankImportUnitId = null;
+    return;
+  }
+  templates.slice().sort(function(a, b) {
+    return (a.name || a.title || '').localeCompare(b.name || b.title || '', undefined, { sensitivity: 'base' });
+  }).forEach(function(t) {
+    var lab = (t.name || t.title || 'Untitled') + (t.subject ? ' (' + subjectLabel(t.subject) + ')' : '');
+    var opt = document.createElement('option');
+    opt.value = t.id || '';
+    opt.textContent = lab;
+    sel.appendChild(opt);
+  });
+  document.getElementById('schemeImportFromBankModal').classList.add('visible');
+}
+
+function closeSchemeImportFromBankModal() {
+  document.getElementById('schemeImportFromBankModal').classList.remove('visible');
+  schemeBankImportUnitId = null;
+}
+
 function renderSchemesPanel() {
   var units = PS.getSchemeUnits ? PS.getSchemeUnits() : [];
   var grid = document.getElementById('schemeCardsGrid');
@@ -1463,13 +1574,24 @@ function renderSchemesPanel() {
       html += '<span class="scheme-lesson-num">Lesson ' + (idx + 1) + '</span>';
       html += '<input type="text" class="form-input scheme-lesson-title-input" placeholder="Lesson title" value="' + escAttr(les.title || '') + '">';
       html += '<textarea class="form-textarea scheme-lesson-notes-input" placeholder="Notes (optional)" rows="2">' + escHtml(les.notes || '') + '</textarea>';
+      if (les.bankPlan) {
+        var bankInner = schemeBankPlanSectionsHtml(les.bankPlan);
+        if (!bankInner.trim()) {
+          bankInner = '<p style="font-size:.78rem;color:var(--text2);margin:0">No extra detail fields in the bank lesson — title only.</p>';
+        }
+        html += '<div class="scheme-lesson-bank-copy-tag">Copied from lesson bank</div>';
+        html += '<details class="scheme-lesson-bank-details"><summary>Show full lesson plan</summary><div class="scheme-lesson-bank-inner">' + bankInner + '</div></details>';
+      }
       html += '<div class="scheme-lesson-actions">';
       html += '<button type="button" class="btn-secondary btn-scheme-move" data-dir="-1" title="Move up">↑</button>';
       html += '<button type="button" class="btn-secondary btn-scheme-move" data-dir="1" title="Move down">↓</button>';
       html += '<button type="button" class="btn-remove-resource btn-scheme-del-lesson">Remove</button>';
       html += '</div></div>';
     });
+    html += '<div class="scheme-lesson-add-row">';
+    html += '<button type="button" class="btn-secondary scheme-copy-from-bank-btn">Copy from lesson bank</button>';
     html += '<button type="button" class="btn-secondary scheme-add-lesson-btn">+ Add lesson</button>';
+    html += '</div>';
     html += '<div class="scheme-unit-actions">';
     html += '<button type="button" class="btn-secondary scheme-edit-unit-btn">Edit unit</button>';
     html += '<button type="button" class="btn-remove-resource scheme-delete-unit-btn">Delete unit</button>';
@@ -1483,6 +1605,13 @@ function bindSchemesPanelEvents() {
   if (!panel || panel._schemesBound) return;
   panel._schemesBound = true;
   panel.addEventListener('click', function(e) {
+    var copyBank = e.target.closest && e.target.closest('.scheme-copy-from-bank-btn');
+    if (copyBank) {
+      var card0 = copyBank.closest('.scheme-unit-card');
+      var uid0 = card0 && card0.dataset.unitId;
+      if (uid0) openSchemeImportFromBankModal(uid0);
+      return;
+    }
     var addBtn = e.target.closest && e.target.closest('.scheme-add-lesson-btn');
     if (addBtn) {
       var card = addBtn.closest('.scheme-unit-card');
@@ -2304,6 +2433,28 @@ document.getElementById('schemeFormSubmit').addEventListener('click', function()
 
 document.getElementById('schemeFormCancel').addEventListener('click', function() {
   resetSchemeForm();
+});
+
+document.getElementById('schemeImportFromBankClose').addEventListener('click', closeSchemeImportFromBankModal);
+document.getElementById('schemeImportFromBankCancel').addEventListener('click', closeSchemeImportFromBankModal);
+document.getElementById('schemeImportFromBankConfirm').addEventListener('click', function() {
+  var uid = schemeBankImportUnitId;
+  var tid = document.getElementById('schemeImportTemplateSelect').value;
+  if (!uid) { showToast('No unit selected'); return; }
+  if (!tid) { showToast('Select a lesson from the bank'); return; }
+  var t = PS.getTemplateById && PS.getTemplateById(tid);
+  if (!t) { showToast('Lesson not found'); return; }
+  var partial = PS.copyTemplateFieldsToSchemeLesson ? PS.copyTemplateFieldsToSchemeLesson(t) : null;
+  if (!partial) { showToast('Could not copy lesson'); return; }
+  PS.addSchemeLesson(uid, partial);
+  PS.saveSchemesOfWork().then(function() {
+    closeSchemeImportFromBankModal();
+    renderSchemesPanel();
+    showToast('Lesson copied into unit');
+  });
+});
+document.getElementById('schemeImportFromBankModal').addEventListener('click', function(e) {
+  if (e.target === this) closeSchemeImportFromBankModal();
 });
 
 document.getElementById('dayViewDate').addEventListener('change', function() {
