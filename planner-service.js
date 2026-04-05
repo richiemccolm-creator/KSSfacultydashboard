@@ -70,11 +70,19 @@
     }
   }
 
+  var SCHEME_UNIT_ACCENT_OK = {
+    subject: 1, violet: 1, sky: 1, emerald: 1, amber: 1, rose: 1, orange: 1, cyan: 1,
+    indigo: 1, slate: 1, red: 1, pink: 1, lime: 1, teal: 1
+  };
+
   function normalizeUnit(u) {
     if (!u || typeof u !== 'object') return;
     if (u.startDate === undefined) u.startDate = '';
     if (u.endDate === undefined) u.endDate = '';
     if (u.overview === undefined) u.overview = '';
+    if (u.accentKey === undefined || u.accentKey === '' || !SCHEME_UNIT_ACCENT_OK[u.accentKey]) {
+      u.accentKey = 'subject';
+    }
     if (!Array.isArray(u.lessons)) u.lessons = [];
     u.lessons.forEach(normalizeLesson);
   }
@@ -363,6 +371,7 @@
         startDate: '',
         endDate: '',
         overview: '',
+        accentKey: 'subject',
         lessons: [],
         createdAt: now,
         updatedAt: now

@@ -378,6 +378,18 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .scheme-unit-card.scheme-yg-npas4{background:linear-gradient(112deg, rgba(14,165,233,.1) 0%, rgba(255,255,255,.99) 50%)}
 .scheme-unit-card.scheme-yg-higher{background:linear-gradient(112deg, rgba(192,98,42,.11) 0%, rgba(255,255,255,.99) 50%)}
 .scheme-unit-card.scheme-yg-custom{background:linear-gradient(112deg, rgba(100,116,139,.1) 0%, rgba(255,255,255,.99) 50%)}
+.scheme-unit-card--accent-custom{border-left-color:var(--scheme-unit-bar) !important;background:var(--white) !important}
+.scheme-accent-swatches{display:flex;flex-wrap:wrap;gap:.45rem;align-items:center}
+.scheme-accent-swatch{
+  width:2rem;height:2rem;border-radius:8px;border:2px solid var(--border2);cursor:pointer;padding:0;flex-shrink:0;
+  transition:transform .12s ease, box-shadow .12s ease;background:var(--swatch-bg, var(--border2))
+}
+.scheme-accent-swatch:hover{transform:scale(1.06)}
+.scheme-accent-swatch.is-selected{box-shadow:0 0 0 2px var(--white),0 0 0 4px var(--accent);border-color:transparent}
+.scheme-accent-swatch--subject{
+  width:auto;min-width:3.1rem;height:2rem;padding:0 .45rem;font-size:.65rem;font-weight:600;
+  background:var(--bg);color:var(--text2);line-height:1.1
+}
 .scheme-unit-summary{
   width:100%;text-align:left;border:none;background:transparent;cursor:pointer;padding:.85rem 1rem;
   display:flex;align-items:flex-start;gap:.65rem;font:inherit;color:inherit;border-radius:0
@@ -708,6 +720,27 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
         <label class="form-label">Overview</label>
         <textarea class="form-textarea" id="schemeModalOverview" placeholder="Unit overview (optional)" rows="3"></textarea>
       </div>
+      <div class="form-group">
+        <label class="form-label">Card colour</label>
+        <p class="scheme-form-hint" style="margin-bottom:.5rem">Colour-code units (e.g. by year group). Default matches the subject stripe.</p>
+        <input type="hidden" id="schemeModalAccentKey" value="subject">
+        <div class="scheme-accent-swatches" role="group" aria-label="Unit card colour">
+          <button type="button" class="scheme-accent-swatch scheme-accent-swatch--subject" data-accent="subject" title="Match subject">Auto</button>
+          <button type="button" class="scheme-accent-swatch" data-accent="violet" style="--swatch-bg:#7c3aed" title="Violet" aria-label="Violet"></button>
+          <button type="button" class="scheme-accent-swatch" data-accent="sky" style="--swatch-bg:#0284c7" title="Sky" aria-label="Sky"></button>
+          <button type="button" class="scheme-accent-swatch" data-accent="emerald" style="--swatch-bg:#059669" title="Emerald" aria-label="Emerald"></button>
+          <button type="button" class="scheme-accent-swatch" data-accent="amber" style="--swatch-bg:#d97706" title="Amber" aria-label="Amber"></button>
+          <button type="button" class="scheme-accent-swatch" data-accent="rose" style="--swatch-bg:#e11d48" title="Rose" aria-label="Rose"></button>
+          <button type="button" class="scheme-accent-swatch" data-accent="orange" style="--swatch-bg:#ea580c" title="Orange" aria-label="Orange"></button>
+          <button type="button" class="scheme-accent-swatch" data-accent="cyan" style="--swatch-bg:#0891b2" title="Cyan" aria-label="Cyan"></button>
+          <button type="button" class="scheme-accent-swatch" data-accent="indigo" style="--swatch-bg:#4f46e5" title="Indigo" aria-label="Indigo"></button>
+          <button type="button" class="scheme-accent-swatch" data-accent="slate" style="--swatch-bg:#475569" title="Slate" aria-label="Slate"></button>
+          <button type="button" class="scheme-accent-swatch" data-accent="red" style="--swatch-bg:#b91c1c" title="Red" aria-label="Red"></button>
+          <button type="button" class="scheme-accent-swatch" data-accent="pink" style="--swatch-bg:#db2777" title="Pink" aria-label="Pink"></button>
+          <button type="button" class="scheme-accent-swatch" data-accent="lime" style="--swatch-bg:#65a30d" title="Lime" aria-label="Lime"></button>
+          <button type="button" class="scheme-accent-swatch" data-accent="teal" style="--swatch-bg:#0d9488" title="Teal" aria-label="Teal"></button>
+        </div>
+      </div>
     </div>
     <div class="modal-footer" style="flex-wrap:wrap;justify-content:space-between">
       <button type="button" class="btn-remove-resource" id="schemeModalDeleteUnitBtn" style="display:none">Delete unit</button>
@@ -1012,6 +1045,38 @@ function schemeYearGroupThemeKey(yg) {
   var k = String(yg || '').trim().toLowerCase().replace(/\s+/g, '');
   if (['s1', 's2', 's3', 'npas3', 'npas4', 'higher'].indexOf(k) !== -1) return k;
   return 'custom';
+}
+
+var SCHEME_UNIT_ACCENT_HEX = {
+  subject: '',
+  violet: '#7c3aed',
+  sky: '#0284c7',
+  emerald: '#059669',
+  amber: '#d97706',
+  rose: '#e11d48',
+  orange: '#ea580c',
+  cyan: '#0891b2',
+  indigo: '#4f46e5',
+  slate: '#475569',
+  red: '#b91c1c',
+  pink: '#db2777',
+  lime: '#65a30d',
+  teal: '#0d9488'
+};
+
+function sanitizeSchemeUnitAccentKey(k) {
+  k = String(k || '').trim();
+  if (Object.prototype.hasOwnProperty.call(SCHEME_UNIT_ACCENT_HEX, k)) return k;
+  return 'subject';
+}
+
+function setSchemeModalAccentUI(key) {
+  key = sanitizeSchemeUnitAccentKey(key);
+  var hid = document.getElementById('schemeModalAccentKey');
+  if (hid) hid.value = key;
+  document.querySelectorAll('#schemeUnitModal .scheme-accent-swatch').forEach(function(b) {
+    b.classList.toggle('is-selected', (b.getAttribute('data-accent') || '') === key);
+  });
 }
 
 function schemeSubjectHasCurriculum(subject) {
@@ -1779,7 +1844,9 @@ function openSchemeUnitModal(unit) {
     document.getElementById('schemeModalEndDate').value = '';
     document.getElementById('schemeModalOverview').value = '';
     syncSchemeModalCurriculumDropdown('');
+    setSchemeModalAccentUI('subject');
   }
+  if (isEdit) setSchemeModalAccentUI(unit.accentKey);
   document.getElementById('schemeUnitModal').classList.add('visible');
 }
 
@@ -2024,7 +2091,11 @@ function renderSchemesPanel() {
     var metaLine = n + ' lesson' + (n !== 1 ? 's' : '');
     if (dr) metaLine += ' · ' + dr;
     else if (updatedStr) metaLine += ' · Updated ' + updatedStr;
-    html += '<div class="scheme-unit-card scheme-yg-' + ygKey + '" data-unit-id="' + escAttr(unit.id) + '" data-scheme-yg="' + escAttr(ygKey) + '" data-scheme-subject="' + escAttr(subj) + '">';
+    var accKey = sanitizeSchemeUnitAccentKey(unit.accentKey);
+    var accHex = SCHEME_UNIT_ACCENT_HEX[accKey];
+    var cardClass = 'scheme-unit-card scheme-yg-' + ygKey + (accHex ? ' scheme-unit-card--accent-custom' : '');
+    var cardStyle = accHex ? ' style="--scheme-unit-bar:' + escAttr(accHex) + '"' : '';
+    html += '<div class="' + escAttr(cardClass) + '"' + cardStyle + ' data-unit-id="' + escAttr(unit.id) + '" data-scheme-yg="' + escAttr(ygKey) + '" data-scheme-subject="' + escAttr(subj) + '" data-unit-accent="' + escAttr(accKey) + '">';
     html += '<button type="button" class="scheme-unit-summary" aria-expanded="false">';
     html += '<span class="scheme-unit-summary-main">';
     html += '<span class="scheme-unit-chips">';
@@ -2941,6 +3012,10 @@ document.getElementById('schemeUnitModalCancel').addEventListener('click', close
 document.getElementById('schemeUnitModal').addEventListener('click', function(e) {
   if (e.target === this) closeSchemeUnitModal();
 });
+document.getElementById('schemeUnitModal').addEventListener('click', function(e) {
+  var sw = e.target.closest('.scheme-accent-swatch');
+  if (sw && this.contains(sw)) setSchemeModalAccentUI(sw.getAttribute('data-accent'));
+});
 
 document.getElementById('schemeUnitModalSave').addEventListener('click', function() {
   var subj = document.getElementById('schemeModalSubject').value;
@@ -2970,7 +3045,8 @@ document.getElementById('schemeUnitModalSave').addEventListener('click', functio
     curriculumUnitKey: cKey,
     startDate: startDate,
     endDate: endDate,
-    overview: overview
+    overview: overview,
+    accentKey: sanitizeSchemeUnitAccentKey(document.getElementById('schemeModalAccentKey').value)
   };
   if (editId) {
     PS.updateSchemeUnit(editId, patch);
