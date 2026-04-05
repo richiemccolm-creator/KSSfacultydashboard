@@ -399,7 +399,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .scheme-unit-chevron{flex-shrink:0;font-size:.75rem;color:var(--text3);align-self:center;transition:transform .22s ease;line-height:1}
 .scheme-unit-card.is-expanded .scheme-unit-chevron{transform:rotate(90deg)}
 .scheme-unit-body{max-height:0;overflow:hidden;opacity:0;transition:max-height .32s ease, opacity .22s ease;border-top:1px solid transparent}
-.scheme-unit-card.is-expanded .scheme-unit-body{max-height:3200px;opacity:1;border-top-color:var(--border)}
+.scheme-unit-card.is-expanded .scheme-unit-body{
+  max-height:min(75vh,36rem);opacity:1;border-top-color:var(--border);
+  overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch
+}
 .scheme-unit-body-inner{padding:.75rem 1rem 1rem}
 .scheme-unit-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:.35rem .5rem;margin:.35rem 0 .75rem;padding:.45rem 0;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
 .scheme-stat{text-align:center}
@@ -454,9 +457,9 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .scheme-lesson-status--planned{background:#f1f5f9;color:#475569;border:1px solid var(--border2)}
 .scheme-lesson-status--complete{background:#ecfdf5;color:#047857;border:1px solid #a7f3d0}
 .scheme-unit-footer{display:grid;grid-template-columns:repeat(3,1fr);gap:.4rem;margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border)}
+.scheme-unit-footer-bank-row{grid-column:1/-1}
 @media (max-width:520px){.scheme-unit-footer{grid-template-columns:1fr}}
 .scheme-unit-footer .btn-secondary,.scheme-unit-footer .btn-remove-resource{font-size:.72rem;padding:.45rem .6rem;width:100%}
-.scheme-lesson-add-row{display:flex;gap:.5rem;flex-wrap:wrap;margin-top:.25rem}
 .scheme-lesson-bank-inline{display:flex;flex-wrap:wrap;align-items:center;gap:.35rem .5rem;margin-top:.25rem;font-size:.7rem;color:var(--text3)}
 .scheme-lesson-bank-tag{font-size:.62rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:.12rem .35rem;border-radius:4px;background:var(--bg);border:1px solid var(--border2);color:var(--text3)}
 .scheme-lesson-bank-details{margin:0;font-size:inherit;border:none;border-radius:0;padding:0;background:transparent;display:inline}
@@ -2087,10 +2090,8 @@ function renderSchemesPanel() {
       html += '<button type="button" class="btn-scheme-icon btn-scheme-icon--danger btn-scheme-del-lesson" title="Remove lesson">×</button>';
       html += '</div></div></div></div>';
     });
-    html += '<div class="scheme-lesson-add-row">';
-    html += '<button type="button" class="btn-secondary scheme-copy-from-bank-btn">Copy from lesson bank</button>';
-    html += '</div>';
     html += '<div class="scheme-unit-footer">';
+    html += '<button type="button" class="btn-secondary scheme-copy-from-bank-btn scheme-unit-footer-bank-row">Copy from lesson bank</button>';
     html += '<button type="button" class="btn-secondary scheme-add-lesson-btn">Add lesson</button>';
     html += '<button type="button" class="btn-secondary scheme-export-all-btn">Export all</button>';
     html += '<button type="button" class="btn-secondary scheme-edit-unit-btn">Edit unit</button>';
@@ -2124,6 +2125,15 @@ function bindSchemesPanelEvents() {
       openSchemeUnitModal(null);
       return;
     }
+    var copyBank = e.target.closest && e.target.closest('.scheme-copy-from-bank-btn');
+    if (copyBank) {
+      e.preventDefault();
+      e.stopPropagation();
+      var card0 = copyBank.closest('.scheme-unit-card');
+      var uid0 = card0 && card0.dataset.unitId;
+      if (uid0) openSchemeImportFromBankModal(uid0);
+      return;
+    }
     var sumBtn = e.target.closest && e.target.closest('.scheme-unit-summary');
     if (sumBtn) {
       var cardT = sumBtn.closest('.scheme-unit-card');
@@ -2135,13 +2145,6 @@ function bindSchemesPanelEvents() {
         if (nowExp) schemeExpandedUnitIds.add(uidT);
         else schemeExpandedUnitIds.delete(uidT);
       }
-      return;
-    }
-    var copyBank = e.target.closest && e.target.closest('.scheme-copy-from-bank-btn');
-    if (copyBank) {
-      var card0 = copyBank.closest('.scheme-unit-card');
-      var uid0 = card0 && card0.dataset.unitId;
-      if (uid0) openSchemeImportFromBankModal(uid0);
       return;
     }
     var addBtn = e.target.closest && e.target.closest('.scheme-add-lesson-btn');
