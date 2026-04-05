@@ -161,7 +161,9 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .day-view-card[data-subject="art"]{border-left-color:var(--accent-art)}
 .day-view-card[data-subject="photography"]{border-left-color:var(--accent-photography)}
 .day-view-card-period{font-size:.65rem;font-weight:700;letter-spacing:.1em;color:var(--text3);margin-bottom:.35rem;overflow-wrap:anywhere}
-.day-view-card-title{font-weight:600;color:var(--text);margin-bottom:.25rem;line-height:1.35;overflow-wrap:anywhere;word-break:break-word;hyphens:auto}
+.day-view-card-title{display:flex;flex-wrap:wrap;align-items:baseline;gap:.3rem .45rem;font-weight:600;color:var(--text);margin-bottom:.25rem;line-height:1.35;overflow-wrap:anywhere;word-break:break-word;hyphens:auto}
+.day-view-card-lesson-no{flex-shrink:0;font-size:.62rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--navy);background:rgba(45,58,90,.1);padding:.1rem .32rem;border-radius:4px;line-height:1.2}
+.day-view-card-title-text{flex:1;min-width:0;font-weight:600}
 .day-view-card-unit{font-size:.78rem;color:var(--text2);overflow-wrap:anywhere;word-break:break-word}
 .day-view-card-empty{cursor:pointer;border-style:dashed;border-left-width:4px;color:var(--text3)}
 .day-view-card-empty:hover{color:var(--accent);border-color:var(--accent)}
@@ -313,7 +315,9 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .week-card[data-subject="photography"]{border-left-color:var(--accent-photography)}
 .week-card-empty{border-style:dashed;border-left-width:4px}
 .week-card-period{font-size:.65rem;font-weight:700;letter-spacing:.1em;color:var(--text3);margin-bottom:.25rem;overflow-wrap:anywhere}
-.week-card-title{font-weight:600;color:var(--text);font-size:.8rem;margin-bottom:.2rem;line-height:1.35;overflow-wrap:anywhere;word-break:break-word;hyphens:auto}
+.week-card-title{display:flex;flex-wrap:wrap;align-items:baseline;gap:.3rem .45rem;font-weight:600;color:var(--text);font-size:.8rem;margin-bottom:.2rem;line-height:1.35;overflow-wrap:anywhere;word-break:break-word;hyphens:auto}
+.week-card-lesson-no{flex-shrink:0;font-size:.62rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--navy);background:rgba(45,58,90,.1);padding:.1rem .32rem;border-radius:4px;line-height:1.2}
+.week-card-title-text{flex:1;min-width:0;font-weight:600}
 .week-card-unit{font-size:.7rem;color:var(--text2);overflow-wrap:anywhere;word-break:break-word}
 .week-card-class{font-size:.68rem;color:var(--text3);margin-top:.2rem}
 .week-empty-msg{text-align:center;padding:3rem 2rem;background:var(--card-elevated);border:1px dashed var(--border);border-radius:10px;color:var(--text3);font-size:.9rem}
@@ -855,6 +859,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
         <label class="form-label">Lesson title</label>
         <input type="text" class="form-input" id="lessonTitle" placeholder="e.g. Warm-up and character exploration">
         <button type="button" class="btn-add-resource" id="useExampleBtn" style="margin-top:.4rem;font-size:.72rem">Start from example</button>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Lesson number</label>
+        <input type="text" class="form-input" id="lessonNumber" placeholder="e.g. 3, L5, Week 2 — shown on week &amp; day cards" maxlength="24">
       </div>
       <div class="form-group">
         <label class="form-label">To-do (prep tasks)</label>
@@ -1494,10 +1502,13 @@ function renderWeekView() {
         html += '<div class="' + cardClass + '" style="' + weekCardStyle + '" data-date="' + dateStr + '" data-slot="' + k + '" data-lesson-id="' + (lesson ? lesson.id || '' : '') + '" data-subject="' + (slot.subject || '') + '"' + (hoverTip ? ' title="' + hoverTip + '"' : '') + '>';
         html += '<div class="week-card-period">P' + period + timeLabel + (slot.className ? ' · ' + slot.className : '') + '</div>';
         if (lesson) {
-          html += '<div class="week-card-title">' + (lesson.title || 'Untitled') + '</div>';
+          var wkNum = lesson.lessonNumber && String(lesson.lessonNumber).trim();
+          html += '<div class="week-card-title">';
+          if (wkNum) html += '<span class="week-card-lesson-no">' + escHtml(wkNum) + '</span>';
+          html += '<span class="week-card-title-text">' + escHtml(lesson.title || 'Untitled') + '</span></div>';
           if (lesson.unitKey && window.getUnitFromKey) {
             var u = window.getUnitFromKey(lesson.unitKey);
-            if (u) html += '<div class="week-card-unit">' + u.unit + '</div>';
+            if (u) html += '<div class="week-card-unit">' + escHtml(u.unit) + '</div>';
           }
         } else {
           html += '<div class="week-card-title" style="font-style:italic;color:var(--text3)">Click to add lesson</div>';
@@ -2280,8 +2291,11 @@ function renderDayView() {
       if (dayHoverTip) dayHoverTip = dayHoverTip.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
       html += '<div class="day-view-card" ' + (dayCardStyle ? 'style="' + dayCardStyle + '"' : '') + ' data-date="' + dateStr + '" data-slot="' + k + '" data-lesson-id="' + (lesson.id || '') + '" data-subject="' + (lesson.subject || s.subject || '') + '"' + (dayHoverTip ? ' title="' + dayHoverTip + '"' : '') + '">';
       html += '<div class="day-view-card-period">Period ' + s.period + timeLabel + (s.className ? ' · ' + s.className : '') + '</div>';
-      html += '<div class="day-view-card-title">' + (lesson.title || 'Untitled') + '</div>';
-      html += '<div class="day-view-card-unit">' + (u ? u.unit : '') + '</div>';
+      var dyNum = lesson.lessonNumber && String(lesson.lessonNumber).trim();
+      html += '<div class="day-view-card-title">';
+      if (dyNum) html += '<span class="day-view-card-lesson-no">' + escHtml(dyNum) + '</span>';
+      html += '<span class="day-view-card-title-text">' + escHtml(lesson.title || 'Untitled') + '</span></div>';
+      html += '<div class="day-view-card-unit">' + (u ? escHtml(u.unit) : '') + '</div>';
       html += '</div>';
     } else {
       var emptyCardStyle = s.color ? 'border-left-color:' + s.color : '';
@@ -2389,9 +2403,12 @@ function renderMonthView() {
       if (lessons.length > 0) {
         html += '<span class="month-lesson-count">' + lessons.length + '</span>';
         lessons.slice(0, 3).forEach(function(l) {
-          var title = (l.title || 'Untitled').replace(/</g, '&lt;').slice(0, 20);
-          if ((l.title || '').length > 20) title += '…';
-          html += '<div class="month-lesson-preview" title="' + (l.title || '').replace(/"/g, '&quot;') + '">' + title + '</div>';
+          var numM = l.lessonNumber && String(l.lessonNumber).trim();
+          var line = (numM ? numM + ' · ' : '') + (l.title || 'Untitled');
+          line = line.replace(/</g, '&lt;');
+          var short = line.length > 24 ? line.slice(0, 24) + '…' : line;
+          var tip = line.replace(/"/g, '&quot;');
+          html += '<div class="month-lesson-preview" title="' + tip + '">' + short + '</div>';
         });
       }
       html += '</div>';
@@ -2432,6 +2449,7 @@ function openLessonModal(dateStr, slotKey) {
   document.getElementById('lessonSubject').value = lesson ? (lesson.subject || '') : '';
   document.getElementById('lessonUnit').value = lesson ? (lesson.unitKey || '') : '';
   document.getElementById('lessonTitle').value = lesson ? (lesson.title || '') : '';
+  document.getElementById('lessonNumber').value = lesson ? (lesson.lessonNumber || '') : '';
   document.getElementById('lessonObjectives').value = lesson ? (lesson.objectives || '') : '';
   document.getElementById('lessonLearningIntentions').value = lesson ? (lesson.learningIntentions || '') : '';
   document.getElementById('lessonSuccessCriteria').value = lesson ? (lesson.successCriteria || '') : '';
@@ -2466,6 +2484,7 @@ function openLessonModalForLibrary(templateId) {
   document.getElementById('lessonSubject').value = template ? (template.subject || '') : '';
   document.getElementById('lessonUnit').value = template ? (template.unitKey || '') : '';
   document.getElementById('lessonTitle').value = template ? (template.title || template.name || '') : '';
+  document.getElementById('lessonNumber').value = template ? (template.lessonNumber || '') : '';
   document.getElementById('lessonObjectives').value = template ? (template.objectives || '') : '';
   document.getElementById('lessonLearningIntentions').value = template ? (template.learningIntentions || '') : '';
   document.getElementById('lessonSuccessCriteria').value = template ? (template.successCriteria || '') : '';
@@ -2504,6 +2523,7 @@ function applyTemplateToModal(template) {
   populateUnitDropdown(template.subject || '');
   document.getElementById('lessonUnit').value = template.unitKey || '';
   document.getElementById('lessonTitle').value = template.title || template.name || '';
+  document.getElementById('lessonNumber').value = template.lessonNumber || '';
   document.getElementById('lessonObjectives').value = template.objectives || '';
   document.getElementById('lessonLearningIntentions').value = template.learningIntentions || '';
   document.getElementById('lessonSuccessCriteria').value = template.successCriteria || '';
@@ -2637,6 +2657,7 @@ function collectLessonPayloadFromModal(overrides) {
     subject: document.getElementById('lessonSubject').value,
     unitKey: document.getElementById('lessonUnit').value,
     title: document.getElementById('lessonTitle').value,
+    lessonNumber: (document.getElementById('lessonNumber').value || '').trim(),
     objectives: document.getElementById('lessonObjectives').value,
     learningIntentions: document.getElementById('lessonLearningIntentions').value,
     successCriteria: document.getElementById('lessonSuccessCriteria').value,
@@ -2697,6 +2718,7 @@ document.getElementById('lessonSaveAsTemplate').addEventListener('click', functi
     subject: payload.subject,
     unitKey: payload.unitKey,
     title: payload.title,
+    lessonNumber: payload.lessonNumber || '',
     objectives: payload.objectives,
     learningIntentions: payload.learningIntentions,
     successCriteria: payload.successCriteria,
@@ -3338,6 +3360,7 @@ document.getElementById('applyToTimetableConfirm').addEventListener('click', fun
     subject: t.subject,
     unitKey: t.unitKey,
     title: t.title || t.name,
+    lessonNumber: (t.lessonNumber && String(t.lessonNumber).trim()) || '',
     objectives: t.objectives,
     learningIntentions: t.learningIntentions,
     successCriteria: t.successCriteria,
