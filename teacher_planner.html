@@ -165,11 +165,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .day-view-card-unit{font-size:.78rem;color:var(--text2)}
 .day-view-card-empty{cursor:pointer;border-style:dashed;border-left-width:4px;color:var(--text3)}
 .day-view-card-empty:hover{color:var(--accent);border-color:var(--accent)}
-.day-view-card-todos{font-size:.72rem;color:var(--text3);margin-bottom:.4rem}
-.day-view-todo-item{display:flex;align-items:center;gap:.3rem;margin-bottom:.15rem;cursor:pointer}
-.day-view-todo-item.done{text-decoration:line-through;opacity:.8}
-.day-view-todo-check{font-size:.6rem}
-.day-view-todo-more{font-size:.65rem;color:var(--text3);margin-top:.1rem}
 .day-view-no-lessons{text-align:center;padding:3rem 2rem;color:var(--text3);font-size:.9rem}
 
 /* Month view */
@@ -211,7 +206,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
   .week-card{min-height:90px;padding:.65rem .85rem}
   .week-btn{min-width:44px;min-height:44px}
   .day-view-card{padding:1rem 1.25rem;min-height:44px}
-  .day-view-todo-item{min-height:36px;padding:.2rem 0}
   .timetable-display-card{padding:.85rem 1rem;min-height:70px}
   .modal{max-height:85vh;margin:1rem}
   .modal-body{padding:1rem}
@@ -317,9 +311,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .week-card[data-subject="art"]{border-left-color:var(--accent-art)}
 .week-card[data-subject="photography"]{border-left-color:var(--accent-photography)}
 .week-card-empty{border-style:dashed;border-left-width:4px}
-.week-card-todos{font-size:.68rem;color:var(--text3);margin-bottom:.4rem;min-height:1.2em}
-.week-card-todo-item{display:flex;align-items:center;gap:.3rem;margin-bottom:.15rem}
-.week-card-todo-item.done{text-decoration:line-through;opacity:.8}
 .week-card-period{font-size:.65rem;font-weight:700;letter-spacing:.1em;color:var(--text3);margin-bottom:.25rem}
 .week-card-title{font-weight:600;color:var(--text);font-size:.8rem;margin-bottom:.2rem}
 .week-card-unit{font-size:.7rem;color:var(--text2)}
@@ -331,8 +322,6 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .week-grid-header.week-today{background:var(--accent);box-shadow:0 0 0 2px var(--accent)}
 .week-grid-period-label{font-size:.7rem;font-weight:700;color:var(--text3);padding:.5rem;display:flex;align-items:center}
 .week-card-holiday{opacity:.75}
-.week-card-todo-check{font-size:.6rem;margin-right:.2rem}
-.week-card-todo-more{font-size:.62rem;color:var(--text3);margin-top:.1rem}
 
 /* Empty state */
 .empty-state{
@@ -1502,14 +1491,6 @@ function renderWeekView() {
         var hoverTip = lesson && (lesson.learningIntentions || lesson.successCriteria) ? ((lesson.learningIntentions || '').toString().slice(0, 80) || (lesson.successCriteria || '').toString().slice(0, 80)) : '';
         if (hoverTip) hoverTip = hoverTip.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         html += '<div class="' + cardClass + '" style="' + weekCardStyle + '" data-date="' + dateStr + '" data-slot="' + k + '" data-lesson-id="' + (lesson ? lesson.id || '' : '') + '" data-subject="' + (slot.subject || '') + '"' + (hoverTip ? ' title="' + hoverTip + '"' : '') + '>';
-        if (lesson && lesson.todos && lesson.todos.length > 0) {
-          html += '<div class="week-card-todos">';
-          lesson.todos.slice(0, 3).forEach(function(t) {
-            html += '<div class="week-card-todo-item' + (t.done ? ' done' : '') + '" data-lesson-id="' + (lesson.id || '') + '" data-todo-id="' + (t.id || '') + '"><span class="week-card-todo-check">' + (t.done ? '✓' : '○') + '</span>' + (t.text || '') + '</div>';
-          });
-          if (lesson.todos.length > 3) html += '<div class="week-card-todo-more">+' + (lesson.todos.length - 3) + ' more</div>';
-          html += '</div>';
-        }
         html += '<div class="week-card-period">P' + period + timeLabel + (slot.className ? ' · ' + slot.className : '') + '</div>';
         if (lesson) {
           html += '<div class="week-card-title">' + (lesson.title || 'Untitled') + '</div>';
@@ -1529,14 +1510,7 @@ function renderWeekView() {
     document.getElementById('weekDisplay').textContent = PS.formatWeekLabel(start);
     bindWeekSidebarEvents(weekStartStr);
     document.querySelectorAll('.week-card[data-date][data-slot]').forEach(function(card) {
-      card.addEventListener('click', function(e) {
-        var todoItem = e.target.closest('.week-card-todo-item');
-        if (todoItem && todoItem.dataset.lessonId && todoItem.dataset.todoId) {
-          e.stopPropagation();
-          PS.toggleTodo(todoItem.dataset.lessonId, todoItem.dataset.todoId);
-          PS.saveLessons().then(function() { renderWeekView(); });
-          return;
-        }
+      card.addEventListener('click', function() {
         openLessonModal(card.dataset.date, card.dataset.slot);
       });
     });
@@ -2304,14 +2278,6 @@ function renderDayView() {
       var dayHoverTip = (lesson.learningIntentions || lesson.successCriteria) ? ((lesson.learningIntentions || '').toString().slice(0, 80) || (lesson.successCriteria || '').toString().slice(0, 80)) : '';
       if (dayHoverTip) dayHoverTip = dayHoverTip.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
       html += '<div class="day-view-card" ' + (dayCardStyle ? 'style="' + dayCardStyle + '"' : '') + ' data-date="' + dateStr + '" data-slot="' + k + '" data-lesson-id="' + (lesson.id || '') + '" data-subject="' + (lesson.subject || s.subject || '') + '"' + (dayHoverTip ? ' title="' + dayHoverTip + '"' : '') + '">';
-      if (lesson.todos && lesson.todos.length > 0) {
-        html += '<div class="day-view-card-todos">';
-        lesson.todos.slice(0, 4).forEach(function(t) {
-          html += '<div class="day-view-todo-item' + (t.done ? ' done' : '') + '" data-lesson-id="' + (lesson.id || '') + '" data-todo-id="' + (t.id || '') + '"><span class="day-view-todo-check">' + (t.done ? '✓' : '○') + '</span>' + (t.text || '').replace(/</g, '&lt;') + '</div>';
-        });
-        if (lesson.todos.length > 4) html += '<div class="day-view-todo-more">+' + (lesson.todos.length - 4) + ' more</div>';
-        html += '</div>';
-      }
       html += '<div class="day-view-card-period">Period ' + s.period + timeLabel + (s.className ? ' · ' + s.className : '') + '</div>';
       html += '<div class="day-view-card-title">' + (lesson.title || 'Untitled') + '</div>';
       html += '<div class="day-view-card-unit">' + (u ? u.unit : '') + '</div>';
@@ -2327,14 +2293,7 @@ function renderDayView() {
   if (html === '') html = '<div class="day-view-no-lessons">No teaching slots for this day. Add lessons in Week View or set up your timetable.</div>';
   document.getElementById('dayViewList').innerHTML = html;
   document.querySelectorAll('.day-view-card').forEach(function(card) {
-    card.addEventListener('click', function(e) {
-      var todoItem = e.target.closest('.day-view-todo-item');
-      if (todoItem && todoItem.dataset.lessonId && todoItem.dataset.todoId) {
-        e.stopPropagation();
-        PS.toggleTodo(todoItem.dataset.lessonId, todoItem.dataset.todoId);
-        PS.saveLessons().then(function() { renderDayView(); });
-        return;
-      }
+    card.addEventListener('click', function() {
       openLessonModal(card.dataset.date, card.dataset.slot);
     });
   });
