@@ -190,6 +190,8 @@ tr:hover td{background:#f8fafc}
 </aside>
 <div class="dash-main">
 <div class="content">
+  <div id="dashboard-data-setup-hidden" style="display:none" aria-hidden="true">
+  <div id="dashboard-data-setup">
   <div class="hero">
     <div class="hero-title">Faculty Head Dashboard</div>
     <div class="hero-sub">Import staff tracker data to see attainment, pupils at risk, class performance, and individual pupil profiles across Drama and Art & Design.</div>
@@ -239,6 +241,8 @@ tr:hover td{background:#f8fafc}
     <div class="sc-body">
       <div id="snapshot-status" class="empty-s" style="padding:1rem;text-align:left;font-size:.82rem">No snapshot created yet. Import data first, then create a snapshot to send to staff.</div>
     </div>
+  </div>
+  </div>
   </div>
 
   <div id="view-overview" class="view-panel">
@@ -664,6 +668,29 @@ function getAtRiskPupils() {
   return risk.sort((a, b) => a.lowCount - b.lowCount).reverse();
 }
 
+function getActiveViewId() {
+  const a = document.querySelector('.dash-nav-btn.active[data-view]');
+  return a ? a.getAttribute('data-view') : 'overview';
+}
+
+/** Admins: setup lives in Admin Console. Non-admins: Overview only (no Admin nav). Else hidden. */
+function attachDataSetup(viewId) {
+  const block = document.getElementById('dashboard-data-setup');
+  const hidden = document.getElementById('dashboard-data-setup-hidden');
+  const overview = document.getElementById('view-overview');
+  const adminPanel = document.getElementById('view-admin-console');
+  const adminBody = adminPanel && adminPanel.querySelector(':scope > .sc > .sc-body');
+  if (!block || !hidden) return;
+  const admin = !!window.__authGuardIsAdmin;
+  if (admin && viewId === 'admin-console' && adminBody) {
+    adminBody.insertBefore(block, adminBody.firstChild);
+  } else if (!admin && viewId === 'overview' && overview) {
+    overview.insertBefore(block, overview.firstChild);
+  } else {
+    hidden.appendChild(block);
+  }
+}
+
 function setView(id) {
   document.querySelectorAll('.dash-nav-btn').forEach(t => t.classList.remove('active'));
   const btn = document.querySelector(`.dash-nav-btn[data-view="${id}"]`);
@@ -678,6 +705,7 @@ function setView(id) {
   else if (id === 'profile') renderProfile();
   else if (id === 'staff') renderStaffView();
   else if (id === 'admin-console') renderAdminConsole();
+  attachDataSetup(id);
 }
 
 function renderAll() {
@@ -1189,9 +1217,15 @@ function updateLoadCloudButton() {
   const adminBtn = document.getElementById('admin-console-btn');
   if (adminBtn) adminBtn.style.display = window.__authGuardIsAdmin ? 'block' : 'none';
 }
-updateLoadCloudButton();
-setTimeout(function(){
+function refreshAdminUiPlacement() {
   updateLoadCloudButton();
+  attachDataSetup(getActiveViewId());
+}
+refreshAdminUiPlacement();
+setTimeout(refreshAdminUiPlacement, 100);
+setTimeout(refreshAdminUiPlacement, 400);
+setTimeout(function(){
+  refreshAdminUiPlacement();
   var v = new URLSearchParams(window.location.search).get('view');
   if (v === 'admin-console' && window.__authGuardIsAdmin) setView('admin-console');
   var riskPanel = document.getElementById('view-at-risk');
