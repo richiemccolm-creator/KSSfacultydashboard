@@ -77,16 +77,17 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .pupil-name{font-weight:600;font-size:.88rem}
 .pupil-meta{font-size:.72rem;color:var(--text3)}
 .pupil-badges{display:flex;gap:.35rem;flex-wrap:wrap}
-.badge{font-size:.6rem;font-weight:700;padding:.2rem .5rem;border-radius:4px}
+.badge{font-size:.6rem;font-weight:700;padding:.2rem .5rem;border-radius:4px;display:inline-block;white-space:nowrap;vertical-align:middle}
 .badge-drama{background:rgba(74,127,212,.15);color:var(--accent-drama)}
 .badge-ad{background:rgba(192,98,42,.15);color:var(--accent-ad)}
 .badge-risk{background:#fef3c7;color:#92400e}
 .badge-s1{background:#fee2e2;color:#991b1b}.badge-s2{background:#fef3c7;color:#92400e}.badge-s3{background:#d1fae5;color:#065f46}
 
-.table-wrap{overflow-x:auto}
-table{width:100%;border-collapse:collapse;font-size:.8rem}
+.table-wrap{overflow-x:auto;width:100%;max-width:100%}
+table{width:100%;border-collapse:collapse;font-size:.8rem;table-layout:auto}
 th{text-align:left;padding:.5rem .75rem;font-weight:600;font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);border-bottom:1px solid var(--border);background:var(--bg)}
 td{padding:.55rem .75rem;border-bottom:1px solid var(--border)}
+table.dash-pupil-table th:last-child,table.dash-pupil-table td:last-child{white-space:nowrap;width:1%;min-width:5.5rem}
 tr:hover td{background:#f8fafc}
 .avg-cell{font-weight:600;font-family:monospace}
 .avg-low{color:#b45309}
@@ -122,8 +123,7 @@ tr:hover td{background:#f8fafc}
 .dash-signout .dash-nav-btn:hover{color:var(--white)}
 .dash-main{margin-left:220px;min-height:100vh;display:flex;flex-direction:column;flex:1;min-width:0;width:calc(100% - 220px);max-width:calc(100% - 220px);box-sizing:border-box}
 html,body{min-height:100%;margin:0;width:100%;box-sizing:border-box}
-.content{padding:1.5rem 2rem;max-width:1100px;flex:1;width:100%;box-sizing:border-box}
-.content.content--wide{max-width:none}
+.content{padding:1.5rem 2rem;max-width:none;flex:1;width:100%;box-sizing:border-box}
 
 .overview-grid{display:grid;grid-template-columns:1fr minmax(280px,360px);gap:1.5rem;align-items:start}
 @media (min-width:1200px){.overview-grid{grid-template-columns:1fr minmax(300px,0.95fr)}}
@@ -721,8 +721,6 @@ function setView(id) {
   document.querySelectorAll('.view-panel').forEach(p => p.style.display = 'none');
   const panel = document.getElementById('view-' + id);
   if (panel) panel.style.display = 'block';
-  const contentEl = document.querySelector('.dash-main .content');
-  if (contentEl) contentEl.classList.toggle('content--wide', id === 'overview');
   if (id === 'overview') renderOverview();
   else if (id === 'at-risk') renderAtRisk();
   else if (id === 'classes') renderClasses();
@@ -1107,7 +1105,7 @@ function renderClasses() {
     return `<tr onclick="selectForProfile('${esc(p.id)}','${subj}','${yg}','${esc(p.cls)}','${esc(p.teacher)}')"><td>${escHtml(p.name)}</td><td>${escHtml(p.cls || '')}<div style="font-size:.65rem;color:var(--text3)">${escHtml(p.teacher || '')}</div></td>${avgCells}<td>${lowCount >= 2 ? '<span class="badge badge-risk">At risk</span>' : '—'}</td></tr>`;
   });
   const hdrs = dims.map(d => dimLbl(d)).join('</th><th>');
-  body.innerHTML = `<div class="table-wrap"><table><thead><tr><th>Pupil</th><th>Class / Teacher</th><th>${hdrs}</th><th>Flag</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
+  body.innerHTML = `<div class="table-wrap"><table class="dash-pupil-table"><thead><tr><th>Pupil</th><th>Class / Teacher</th><th>${hdrs}</th><th>Flag</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
 }
 
 function searchPupils() {
@@ -1374,8 +1372,6 @@ function updateLoadCloudButton() {
 function refreshAdminUiPlacement() {
   updateLoadCloudButton();
   attachDataSetup(getActiveViewId());
-  const c = document.querySelector('.dash-main .content');
-  if (c) c.classList.toggle('content--wide', getActiveViewId() === 'overview');
 }
 refreshAdminUiPlacement();
 setTimeout(refreshAdminUiPlacement, 100);
