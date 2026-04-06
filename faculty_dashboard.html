@@ -121,7 +121,24 @@ tr:hover td{background:#f8fafc}
 .dash-signout .dash-nav-btn{color:rgba(255,255,255,.9);font-weight:600}
 .dash-signout .dash-nav-btn:hover{color:var(--white)}
 .dash-main{margin-left:220px;min-height:100vh;display:flex;flex-direction:column}
-.content{padding:1.5rem 2rem;max-width:1100px;flex:1}
+.content{padding:1.5rem 2rem;max-width:1100px;flex:1;width:100%;box-sizing:border-box}
+.content.content--wide{max-width:min(1680px,100%)}
+
+.overview-grid{display:grid;grid-template-columns:1fr minmax(280px,360px);gap:1.5rem;align-items:start}
+@media (max-width:960px){.overview-grid{grid-template-columns:1fr}}
+.overview-col-main{min-width:0}
+.overview-side{display:flex;flex-direction:column;gap:1rem}
+.overview-side-section{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:1rem 1.1rem}
+.overview-side-title{font-family:'Sora',sans-serif;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text3);margin-bottom:.65rem}
+.overview-side-sub{font-size:.72rem;color:var(--text3);line-height:1.45;margin-bottom:.75rem}
+.overview-spotlight-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.35rem;padding:.5rem .65rem;border-radius:8px;border:1px solid var(--border);background:var(--card);cursor:pointer;font-size:.78rem;margin-bottom:.4rem;transition:background .12s,border-color .12s}
+.overview-spotlight-row:last-child{margin-bottom:0}
+.overview-spotlight-row:hover{background:#f8fafc;border-color:#cbd5e1}
+.overview-spotlight-name{font-weight:600;color:var(--text)}
+.overview-spotlight-meta{font-size:.68rem;color:var(--text3)}
+.overview-mini-table{width:100%;font-size:.74rem;border-collapse:collapse}
+.overview-mini-table th,.overview-mini-table td{padding:.35rem .4rem;text-align:left;border-bottom:1px solid var(--border)}
+.overview-mini-table th{font-size:.62rem;text-transform:uppercase;letter-spacing:.08em;color:var(--text3)}
 
 /* Overview infographics */
 .viz-section{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem;margin-top:1.25rem}
@@ -248,10 +265,13 @@ tr:hover td{background:#f8fafc}
   <div id="view-overview" class="view-panel">
     <div class="sc">
       <div class="sc-header"><div class="sc-title">Faculty Overview</div></div>
-      <div class="sc-body">
-        <div id="overview-stats" class="stats-grid"></div>
-        <div id="overview-viz" class="viz-section" style="display:none"></div>
-        <div id="overview-detail" style="margin-top:1.5rem"></div>
+      <div class="sc-body overview-grid">
+        <div class="overview-col-main">
+          <div id="overview-stats" class="stats-grid"></div>
+          <div id="overview-viz" class="viz-section" style="display:none"></div>
+          <div id="overview-detail" style="margin-top:1.5rem"></div>
+        </div>
+        <div id="overview-side" class="overview-side" aria-label="Tracking and profile insights"></div>
       </div>
     </div>
   </div>
@@ -698,6 +718,8 @@ function setView(id) {
   document.querySelectorAll('.view-panel').forEach(p => p.style.display = 'none');
   const panel = document.getElementById('view-' + id);
   if (panel) panel.style.display = 'block';
+  const contentEl = document.querySelector('.dash-main .content');
+  if (contentEl) contentEl.classList.toggle('content--wide', id === 'overview');
   if (id === 'overview') renderOverview();
   else if (id === 'at-risk') renderAtRisk();
   else if (id === 'classes') renderClasses();
@@ -765,6 +787,133 @@ function renderOverviewViz() {
     </div>`;
 }
 
+function overviewDimsForSubject(subj) {
+  return subj === 'drama'
+    ? ['creating', 'presenting', 'evaluating', 'effort', 'behaviour', 'homelearning']
+    : ['progress', 'effort', 'behaviour', 'homelearning'];
+}
+
+function overviewPupilAvgs(p) {
+  const dims = overviewDimsForSubject(p.subject);
+  const avgs = {};
+  dims.forEach(d => {
+    const vals = [];
+    Object.values(p.scores || {}).forEach(tp => { if (tp[d] > 0) vals.push(tp[d]); });
+    avgs[d] = avg(vals);
+  });
+  return { dims, avgs };
+}
+
+function overviewDimLbl(d) {
+  return d === 'creating' ? 'Creating' : d === 'presenting' ? 'Presenting' : d === 'evaluating' ? 'Evaluating'
+    : d === 'progress' ? 'Progress' : d === 'effort' ? 'Effort' : d === 'behaviour' ? 'Behaviour' : 'Home learning';
+}
+
+function buildOverviewSideHtml(all, risk) {
+  const side = document.getElementById('overview-side');
+  if (!side) return '';
+  if (!all.length) {
+    return '<div class="overview-side-section"><p class="overview-side-sub" style="margin:0">Import staff data to see tracking and profile insights here.</p></div>';
+  }
+  const esc = s => (s || '').replace(/'/g, "\\'").replace(/\\/g, '\\\\');
+  const pct = (n, d) => d ? Math.round((n / d) * 100) : 0;
+  let notes = 0;
+  let refl = 0;
+  let tp0 = 0;
+  let tp1 = 0;
+  let tp2 = 0;
+  all.forEach(p => {
+    const pr = p.profiles || {};
+    if (String(pr.teacherNotes || '').trim()) notes++;
+    if (String(pr.pupilReflection || '').trim()) refl++;
+    const nk = Object.keys(p.scores || {}).length;
+    if (nk === 0) tp0++;
+    else if (nk === 1) tp1++;
+    else tp2++;
+  });
+  const n = all.length;
+  const spotlight = [...risk].sort((a, b) => b.lowCount - a.lowCount || (a.name || '').localeCompare(b.name || '')).slice(0, 10);
+  let spotlightHtml = '';
+  if (spotlight.length) {
+    spotlightHtml = spotlight.map(p => {
+      const dims = overviewDimsForSubject(p.subject);
+      const lowList = dims.filter(d => p.avgs[d] != null && p.avgs[d] <= 2.5).slice(0, 2).map(overviewDimLbl).join(', ');
+      return `<div class="overview-spotlight-row" role="button" tabindex="0" onclick="selectForProfile('${esc(p.id)}','${p.subject}','${p.yg}','${esc(p.cls)}','${esc(p.teacher)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();selectForProfile('${esc(p.id)}','${p.subject}','${p.yg}','${esc(p.cls)}','${esc(p.teacher)}');}">
+        <div><div class="overview-spotlight-name">${escHtml(p.name)}</div><div class="overview-spotlight-meta">${escHtml(p.cls || '')} · ${p.yg.toUpperCase()} · ${p.subject === 'drama' ? 'Drama' : 'Art'}</div></div>
+        <div style="text-align:right"><span class="badge badge-risk">${p.lowCount} low</span>${lowList ? `<div class="overview-spotlight-meta" style="margin-top:.2rem">${escHtml(lowList)}</div>` : ''}</div>
+      </div>`;
+    }).join('');
+  } else {
+    spotlightHtml = '<p class="overview-side-sub" style="margin:0">No pupils match the at-risk rule (2+ dimensions ≤ 2.5).</p>';
+  }
+  const dimPressureBlock = (subj, label, col) => {
+    const pts = all.filter(p => p.subject === subj);
+    if (!pts.length) return '';
+    const dims = overviewDimsForSubject(subj);
+    const counts = {};
+    dims.forEach(d => { counts[d] = 0; });
+    pts.forEach(p => {
+      const { avgs, dims: ds } = overviewPupilAvgs(p);
+      ds.forEach(d => { if (avgs[d] != null && avgs[d] <= 2.5) counts[d]++; });
+    });
+    const maxC = Math.max(...Object.values(counts), 1);
+    const rows = dims.map(d => {
+      const c = counts[d];
+      const w = Math.round((c / maxC) * 100);
+      return `<div class="viz-bar-row"><span class="viz-bar-label" style="min-width:72px">${overviewDimLbl(d)}</span><div class="viz-bar-track"><div class="viz-bar-fill" style="width:${w}%;background:${col};opacity:.85"></div></div><span class="viz-bar-pct">${c}</span></div>`;
+    }).join('');
+    return `<div style="margin-bottom:1rem"><div style="font-size:.72rem;font-weight:600;color:${col};margin-bottom:.4rem">${label}</div>${rows}</div>`;
+  };
+  const countByCls = {};
+  all.forEach(p => {
+    const c = p.cls || '—';
+    countByCls[c] = (countByCls[c] || 0) + 1;
+  });
+  const riskByCls = {};
+  risk.forEach(p => {
+    const c = p.cls || '—';
+    riskByCls[c] = (riskByCls[c] || 0) + 1;
+  });
+  const sortedCls = Object.entries(countByCls).sort((a, b) => b[1] - a[1]);
+  const cap = 15;
+  const clsRows = sortedCls.slice(0, cap).map(([cls, cnt]) =>
+    `<tr><td>${escHtml(cls)}</td><td>${cnt}</td><td>${riskByCls[cls] || 0}</td></tr>`
+  ).join('');
+  const moreCls = sortedCls.length > cap ? sortedCls.length - cap : 0;
+
+  return `
+<div class="overview-side-section">
+  <div class="overview-side-title">At-risk spotlight</div>
+  <p class="overview-side-sub">Open a pupil profile in one click. Same rule as <strong>Pupils at Risk</strong>.</p>
+  ${spotlightHtml}
+</div>
+<div class="overview-side-section">
+  <div class="overview-side-title">Profile &amp; notes</div>
+  <p class="overview-side-sub">Coverage across imported pupil entries (teacher notes &amp; pupil reflection).</p>
+  <div class="viz-bar-row"><span class="viz-bar-label">Notes</span><div class="viz-bar-track"><div class="viz-bar-fill" style="width:${pct(notes, n)}%;background:var(--navy)"></div></div><span class="viz-bar-pct">${notes} (${pct(notes, n)}%)</span></div>
+  <div class="viz-bar-row"><span class="viz-bar-label">Reflection</span><div class="viz-bar-track"><div class="viz-bar-fill" style="width:${pct(refl, n)}%;background:#0369a1"></div></div><span class="viz-bar-pct">${refl} (${pct(refl, n)}%)</span></div>
+</div>
+<div class="overview-side-section">
+  <div class="overview-side-title">Tracking periods</div>
+  <p class="overview-side-sub">How many tracking-period columns have data per entry (from imported scores).</p>
+  <div class="viz-bar-row"><span class="viz-bar-label">0 TP</span><div class="viz-bar-track"><div class="viz-bar-fill" style="width:${pct(tp0, n)}%;background:#94a3b8"></div></div><span class="viz-bar-pct">${tp0}</span></div>
+  <div class="viz-bar-row"><span class="viz-bar-label">1 TP</span><div class="viz-bar-track"><div class="viz-bar-fill" style="width:${pct(tp1, n)}%;background:#64748b"></div></div><span class="viz-bar-pct">${tp1}</span></div>
+  <div class="viz-bar-row"><span class="viz-bar-label">2+ TP</span><div class="viz-bar-track"><div class="viz-bar-fill" style="width:${pct(tp2, n)}%;background:var(--accent-drama)"></div></div><span class="viz-bar-pct">${tp2}</span></div>
+</div>
+<div class="overview-side-section">
+  <div class="overview-side-title">Dimensions under pressure</div>
+  <p class="overview-side-sub">Count of entries where that dimension averages ≤ 2.5 (across TPs).</p>
+  ${dimPressureBlock('drama', 'Drama', 'var(--accent-drama)')}
+  ${dimPressureBlock('art', 'Art & Design', 'var(--accent-ad)')}
+</div>
+<div class="overview-side-section">
+  <div class="overview-side-title">Class snapshot</div>
+  <p class="overview-side-sub">Headcount and at-risk count by class label (merged across subjects).</p>
+  <div class="table-wrap"><table class="overview-mini-table"><thead><tr><th>Class</th><th>Pupils</th><th>At risk</th></tr></thead><tbody>${clsRows}</tbody></table></div>
+  ${moreCls ? `<p class="overview-side-sub" style="margin:.5rem 0 0">+ ${moreCls} more class${moreCls === 1 ? '' : 'es'} not shown</p>` : ''}
+</div>`;
+}
+
 function renderOverview() {
   const stats = document.getElementById('overview-stats');
   const detail = document.getElementById('overview-detail');
@@ -795,6 +944,8 @@ function renderOverview() {
   });
   detailHtml += '</div></div>';
   detail.innerHTML = detailHtml;
+  const sideEl = document.getElementById('overview-side');
+  if (sideEl) sideEl.innerHTML = buildOverviewSideHtml(all, risk);
 }
 
 function syncRiskClassFilter() {
@@ -1220,6 +1371,8 @@ function updateLoadCloudButton() {
 function refreshAdminUiPlacement() {
   updateLoadCloudButton();
   attachDataSetup(getActiveViewId());
+  const c = document.querySelector('.dash-main .content');
+  if (c) c.classList.toggle('content--wide', getActiveViewId() === 'overview');
 }
 refreshAdminUiPlacement();
 setTimeout(refreshAdminUiPlacement, 100);
