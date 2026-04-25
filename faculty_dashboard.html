@@ -385,6 +385,11 @@ html,body{min-height:100%;margin:0;width:100%;box-sizing:border-box}
               <div><label class="form-label">Title</label><input type="text" id="admin-ann-title" class="form-input" placeholder="e.g. Department Meeting Reminder" style="min-width:220px"></div>
               <div><label class="form-label">Body</label><textarea id="admin-ann-body" class="form-input" placeholder="Optional details..." rows="2" style="min-width:280px;resize:vertical"></textarea></div>
               <div><label class="form-label">Expires (optional)</label><input type="date" id="admin-ann-expires" class="form-input"></div>
+              <div><label class="form-label">Priority</label><select id="admin-ann-priority" class="form-input"><option value="none">None</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
+              <div style="display:flex;align-items:center;gap:.45rem;padding:.45rem .6rem;border:1px solid var(--border);border-radius:6px;background:var(--bg)">
+                <input type="checkbox" id="admin-ann-highlight" style="width:14px;height:14px;cursor:pointer">
+                <label for="admin-ann-highlight" style="font-size:.78rem;color:var(--text2);cursor:pointer">Shade full announcement with priority colour</label>
+              </div>
               <button class="btn btn-primary" id="admin-ann-add-btn" onclick="adminAddAnnouncement()">Add announcement</button>
               <button class="btn btn-primary" id="admin-ann-update-btn" onclick="adminUpdateAnnouncement()" style="display:none;background:#0369a1">Update</button>
               <button class="btn btn-ghost" id="admin-ann-cancel-btn" onclick="adminCancelAnnouncementEdit()" style="display:none">Cancel</button>
@@ -1870,10 +1875,13 @@ function renderAdminConsole() {
         annList.innerHTML = '<div class="empty-s" style="padding:1rem">No announcements yet. Add one above — it will appear on the Faculty Hub home page.</div>';
       } else {
         var esc = function(s) { return (s||'').replace(/'/g,"\\'").replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
-        annList.innerHTML = '<table class="table-wrap" style="width:100%"><thead><tr><th>Title</th><th>Created</th><th></th></tr></thead><tbody>' +
+        annList.innerHTML = '<table class="table-wrap" style="width:100%"><thead><tr><th>Title</th><th>Priority</th><th>Created</th><th></th></tr></thead><tbody>' +
           adminAnnouncements.map(function(a) {
             var d = a.created_at ? a.created_at.slice(0, 10) : '';
-            return '<tr><td>' + esc(a.title) + '</td><td>' + esc(d) + '</td><td><button class="btn btn-ghost" style="font-size:.7rem;padding:.25rem .5rem" onclick="adminEditAnnouncement(\'' + (a.id||'').replace(/'/g,"\\'") + '\')">Edit</button> <button class="btn btn-danger" style="font-size:.7rem;padding:.25rem .5rem" onclick="adminDeleteAnnouncement(\'' + (a.id||'').replace(/'/g,"\\'") + '\')">Delete</button></td></tr>';
+            var p = (a.priority || 'none');
+            var pLabel = p.charAt(0).toUpperCase() + p.slice(1);
+            if (a.highlight_priority && p !== 'none') pLabel += ' (shaded)';
+            return '<tr><td>' + esc(a.title) + '</td><td>' + esc(pLabel) + '</td><td>' + esc(d) + '</td><td><button class="btn btn-ghost" style="font-size:.7rem;padding:.25rem .5rem" onclick="adminEditAnnouncement(\'' + (a.id||'').replace(/'/g,"\\'") + '\')">Edit</button> <button class="btn btn-danger" style="font-size:.7rem;padding:.25rem .5rem" onclick="adminDeleteAnnouncement(\'' + (a.id||'').replace(/'/g,"\\'") + '\')">Delete</button></td></tr>';
           }).join('') + '</tbody></table>';
       }
     }
@@ -1978,6 +1986,8 @@ function adminEditAnnouncement(id) {
   document.getElementById('admin-ann-title').value = a.title || '';
   document.getElementById('admin-ann-body').value = a.body || '';
   document.getElementById('admin-ann-expires').value = a.expires_at || '';
+  document.getElementById('admin-ann-priority').value = a.priority || 'none';
+  document.getElementById('admin-ann-highlight').checked = !!a.highlight_priority;
   document.getElementById('admin-ann-add-btn').style.display = 'none';
   document.getElementById('admin-ann-update-btn').style.display = 'inline-flex';
   document.getElementById('admin-ann-cancel-btn').style.display = 'inline-flex';
@@ -1987,6 +1997,8 @@ function adminCancelAnnouncementEdit() {
   document.getElementById('admin-ann-title').value = '';
   document.getElementById('admin-ann-body').value = '';
   document.getElementById('admin-ann-expires').value = '';
+  document.getElementById('admin-ann-priority').value = 'none';
+  document.getElementById('admin-ann-highlight').checked = false;
   document.getElementById('admin-ann-add-btn').style.display = 'inline-flex';
   document.getElementById('admin-ann-update-btn').style.display = 'none';
   document.getElementById('admin-ann-cancel-btn').style.display = 'none';
@@ -1996,8 +2008,10 @@ function adminUpdateAnnouncement() {
   var title = document.getElementById('admin-ann-title').value.trim();
   var body = document.getElementById('admin-ann-body').value.trim();
   var expires = document.getElementById('admin-ann-expires').value || null;
+  var priority = document.getElementById('admin-ann-priority').value || 'none';
+  var highlightPriority = !!document.getElementById('admin-ann-highlight').checked;
   if (!title) { toast('Enter a title'); return; }
-  DataService.updateAnnouncement(adminEditingAnnouncementId, { title: title, body: body || null, expires_at: expires }).then(function() {
+  DataService.updateAnnouncement(adminEditingAnnouncementId, { title: title, body: body || null, expires_at: expires, priority: priority, highlight_priority: highlightPriority }).then(function() {
     adminCancelAnnouncementEdit();
     renderAdminConsole();
     toast('Announcement updated');
@@ -2008,11 +2022,15 @@ function adminAddAnnouncement() {
   var title = document.getElementById('admin-ann-title').value.trim();
   var body = document.getElementById('admin-ann-body').value.trim();
   var expires = document.getElementById('admin-ann-expires').value || null;
+  var priority = document.getElementById('admin-ann-priority').value || 'none';
+  var highlightPriority = !!document.getElementById('admin-ann-highlight').checked;
   if (!title) { toast('Enter a title'); return; }
-  DataService.createAnnouncement({ title: title, body: body || null, expires_at: expires }).then(function() {
+  DataService.createAnnouncement({ title: title, body: body || null, expires_at: expires, priority: priority, highlight_priority: highlightPriority }).then(function() {
     document.getElementById('admin-ann-title').value = '';
     document.getElementById('admin-ann-body').value = '';
     document.getElementById('admin-ann-expires').value = '';
+    document.getElementById('admin-ann-priority').value = 'none';
+    document.getElementById('admin-ann-highlight').checked = false;
     renderAdminConsole();
     toast('Announcement added — visible on Faculty Hub');
   }).catch(function() { toast('Failed to add announcement'); });

@@ -344,13 +344,23 @@
       return new Promise(function(resolve, reject) {
         if (!useSupabase()) { resolve([]); return; }
         window.supabase.from('announcements')
-          .select('id, title, body, expires_at, created_at')
+          .select('id, title, body, expires_at, created_at, priority, highlight_priority')
           .order('created_at', { ascending: false })
           .then(function(r) {
             if (r.error) { resolve([]); return; }
             var today = new Date().toISOString().slice(0, 10);
             var list = (r.data || []).filter(function(a) {
               return !a.expires_at || a.expires_at >= today;
+            }).map(function(a) {
+              return {
+                id: a.id,
+                title: a.title,
+                body: a.body,
+                expires_at: a.expires_at,
+                created_at: a.created_at,
+                priority: a.priority || 'none',
+                highlight_priority: !!a.highlight_priority
+              };
             });
             resolve(list);
           });
@@ -359,10 +369,14 @@
 
     createAnnouncement: function(obj) {
       if (!useSupabase()) return Promise.reject(new Error('Supabase required'));
+      var priority = String(obj.priority || 'none').toLowerCase();
+      if (['none', 'low', 'medium', 'high'].indexOf(priority) === -1) priority = 'none';
       var row = {
         title: (obj.title || '').trim(),
         body: (obj.body || '').trim() || null,
-        expires_at: obj.expires_at || null
+        expires_at: obj.expires_at || null,
+        priority: priority,
+        highlight_priority: !!obj.highlight_priority
       };
       return window.supabase.from('announcements').insert(row).then(function(r) {
         if (r.error) throw r.error;
@@ -371,10 +385,14 @@
 
     updateAnnouncement: function(id, obj) {
       if (!useSupabase()) return Promise.reject(new Error('Supabase required'));
+      var priority = String(obj.priority || 'none').toLowerCase();
+      if (['none', 'low', 'medium', 'high'].indexOf(priority) === -1) priority = 'none';
       var row = {
         title: (obj.title || '').trim(),
         body: (obj.body || '').trim() || null,
-        expires_at: obj.expires_at || null
+        expires_at: obj.expires_at || null,
+        priority: priority,
+        highlight_priority: !!obj.highlight_priority
       };
       return window.supabase.from('announcements').update(row).eq('id', id).then(function(r) {
         if (r.error) throw r.error;
