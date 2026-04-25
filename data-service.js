@@ -15,6 +15,12 @@
   function useSupabase() {
     return window.supabase && window.supabase.auth && window.supabase.auth.getSession;
   }
+  var announcementsPrioritySchemaKnown = null;
+  function isAnnouncementsPrioritySchemaError(err) {
+    if (!err) return false;
+    var msg = String(err.message || err.details || '');
+    return err.code === '42703' || /priority|highlight_priority/i.test(msg);
+  }
 
   window.DataService = {
     isUsingCloud: function() {
@@ -343,11 +349,39 @@
     getAnnouncements: function() {
       return new Promise(function(resolve, reject) {
         if (!useSupabase()) { resolve([]); return; }
+        var fields = announcementsPrioritySchemaKnown === false
+          ? 'id, title, body, expires_at, created_at'
+          : 'id, title, body, expires_at, created_at, priority, highlight_priority';
         window.supabase.from('announcements')
-          .select('id, title, body, expires_at, created_at, priority, highlight_priority')
+          .select(fields)
           .order('created_at', { ascending: false })
           .then(function(r) {
+            if (r.error && announcementsPrioritySchemaKnown !== false && isAnnouncementsPrioritySchemaError(r.error)) {
+              announcementsPrioritySchemaKnown = false;
+              return window.supabase.from('announcements')
+                .select('id, title, body, expires_at, created_at')
+                .order('created_at', { ascending: false })
+                .then(function(legacy) {
+                  if (legacy.error) { resolve([]); return; }
+                  var todayLegacy = new Date().toISOString().slice(0, 10);
+                  var legacyList = (legacy.data || []).filter(function(a) {
+                    return !a.expires_at || a.expires_at >= todayLegacy;
+                  }).map(function(a) {
+                    return {
+                      id: a.id,
+                      title: a.title,
+                      body: a.body,
+                      expires_at: a.expires_at,
+                      created_at: a.created_at,
+                      priority: 'none',
+                      highlight_priority: false
+                    };
+                  });
+                  resolve(legacyList);
+                });
+            }
             if (r.error) { resolve([]); return; }
+            announcementsPrioritySchemaKnown = true;
             var today = new Date().toISOString().slice(0, 10);
             var list = (r.data || []).filter(function(a) {
               return !a.expires_at || a.expires_at >= today;
@@ -379,7 +413,19 @@
         highlight_priority: !!obj.highlight_priority
       };
       return window.supabase.from('announcements').insert(row).then(function(r) {
-        if (r.error) throw r.error;
+        if (!r.error) { announcementsPrioritySchemaKnown = true; return; }
+        if (announcementsPrioritySchemaKnown !== false && isAnnouncementsPrioritySchemaError(r.error)) {
+          announcementsPrioritySchemaKnown = false;
+          var legacyRow = {
+            title: (obj.title || '').trim(),
+            body: (obj.body || '').trim() || null,
+            expires_at: obj.expires_at || null
+          };
+          return window.supabase.from('announcements').insert(legacyRow).then(function(r2) {
+            if (r2.error) throw r2.error;
+          });
+        }
+        throw r.error;
       });
     },
 
@@ -395,7 +441,19 @@
         highlight_priority: !!obj.highlight_priority
       };
       return window.supabase.from('announcements').update(row).eq('id', id).then(function(r) {
-        if (r.error) throw r.error;
+        if (!r.error) { announcementsPrioritySchemaKnown = true; return; }
+        if (announcementsPrioritySchemaKnown !== false && isAnnouncementsPrioritySchemaError(r.error)) {
+          announcementsPrioritySchemaKnown = false;
+          var legacyRow = {
+            title: (obj.title || '').trim(),
+            body: (obj.body || '').trim() || null,
+            expires_at: obj.expires_at || null
+          };
+          return window.supabase.from('announcements').update(legacyRow).eq('id', id).then(function(r2) {
+            if (r2.error) throw r2.error;
+          });
+        }
+        throw r.error;
       });
     },
 
