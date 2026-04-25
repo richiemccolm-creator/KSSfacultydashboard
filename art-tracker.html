@@ -49,6 +49,14 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .body-sidebar-collapsed .sb-item{justify-content:center;padding:.5rem}
 .body-sidebar-collapsed .sb-item svg{margin-right:0}
 .body-sidebar-collapsed .sb-divider{margin:.3rem .5rem}
+.body-sidebar-collapsed .sb-item[data-tooltip]{position:relative}
+.body-sidebar-collapsed .sb-item[data-tooltip]:hover::after,
+.body-sidebar-collapsed .sb-item[data-tooltip]:focus-visible::after{
+  content:attr(data-tooltip);position:absolute;left:calc(100% + .55rem);top:50%;transform:translateY(-50%);
+  background:rgba(8,14,27,.96);color:#fff;border:1px solid rgba(255,255,255,.14);border-radius:8px;
+  padding:.28rem .5rem;box-shadow:0 8px 20px rgba(0,0,0,.35);font-size:.68rem;font-weight:600;
+  letter-spacing:.02em;white-space:nowrap;z-index:120;pointer-events:none
+}
 .sb-logo{position:relative;padding:1.2rem 1.25rem .9rem;border-bottom:1px solid rgba(255,255,255,.08)}
 .sb-logo-link{display:block;text-decoration:none}
 .sb-logo-img{display:block;max-width:150px;height:auto;margin-bottom:.5rem;transition:opacity .15s}
@@ -795,6 +803,15 @@ function toggleSidebar(){
   const icon=document.getElementById('sb-toggle-icon');if(icon)icon.setAttribute('d',collapsed?'M9 18l6-6-6-6':'M15 18l-6-6 6-6');
 }
 function initSidebarState(){try{if(localStorage.getItem('art-tracker-sidebar-collapsed')==='1'){document.body.classList.add('body-sidebar-collapsed');const icon=document.getElementById('sb-toggle-icon');if(icon)icon.setAttribute('d','M9 18l6-6-6-6');}}catch(e){}}
+function annotateSidebarItems(){
+  document.querySelectorAll('.sb-item').forEach(function(btn){
+    const label=(btn.textContent||'').replace(/\s+/g,' ').trim();
+    if(!label)return;
+    btn.setAttribute('data-tooltip',label);
+    btn.setAttribute('title',label);
+    btn.setAttribute('aria-label',label);
+  });
+}
 
 // ── NAVIGATION ──
 const HEADS={
@@ -1969,6 +1986,7 @@ function updateStorageIndicator(){
   if(window.DataService&&window.DataService.isUsingCloud&&window.DataService.isUsingCloud()){el.innerHTML='<span style="color:var(--accent);font-weight:600">● Cloud</span>';el.title='Data saves to the cloud — available on other devices';}
   else{el.innerHTML='<span style="color:#b45309">● Local only</span>';el.title='Data saved in this browser only — sign in to sync to cloud';}
 }
+annotateSidebarItems();
 initSidebarState();
 load().then(function(){updateStorageIndicator();renderHome();});
 </script>
