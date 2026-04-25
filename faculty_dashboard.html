@@ -17,6 +17,8 @@
 <script src="data-service.js"></script>
 <script src="staff-display-name.js"></script>
 <script src="department-meetings-shared.js"></script>
+<script src="https://unpkg.com/mammoth@1.9.0/mammoth.browser.min.js"></script>
+<script src="department-meeting-docx-import.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="parent-letter-docx.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -451,7 +453,12 @@ html,body{min-height:100%;margin:0;width:100%;box-sizing:border-box}
                     <label class="form-label" for="admin-dm-agenda-file">Or upload .txt / .md</label>
                     <input type="file" id="admin-dm-agenda-file" class="form-input" accept=".txt,.md,text/plain,.text" style="font-size:.72rem;max-width:260px;padding:.35rem" onchange="adminDmAgendaFile(this)">
                   </div>
+                  <div>
+                    <label class="form-label" for="admin-dm-docx-file">Upload DM Word template (.docx)</label>
+                    <input type="file" id="admin-dm-docx-file" class="form-input" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style="font-size:.72rem;max-width:300px;padding:.35rem" onchange="adminDmDocxFile(this)">
+                  </div>
                 </div>
+                <p id="admin-dm-docx-status" style="display:none;font-size:.72rem;color:var(--text3);margin-top:.5rem"></p>
                 <p style="font-size:.7rem;color:var(--text3);margin-top:.5rem">Import replaces the row table below. Then <strong>Save draft</strong> or <strong>Add to Department meetings</strong>.</p>
               </div>
               <div class="form-label" style="margin-bottom:.35rem">Agenda rows</div>
@@ -1536,6 +1543,21 @@ function adminDmImportPastedAgenda() {
   toast('Imported ' + parsed.length + ' rows — review and save when ready.');
 }
 
+function adminDmSetDocxStatus(text, isError) {
+  var el = document.getElementById('admin-dm-docx-status');
+  if (!el) return;
+  var msg = String(text || '').trim();
+  if (!msg) {
+    el.style.display = 'none';
+    el.textContent = '';
+    el.style.color = 'var(--text3)';
+    return;
+  }
+  el.style.display = 'block';
+  el.textContent = msg;
+  el.style.color = isError ? '#b91c1c' : 'var(--text3)';
+}
+
 function adminDmAgendaFile(inp) {
   var f = inp && inp.files && inp.files[0];
   if (!f) return;
@@ -1549,6 +1571,53 @@ function adminDmAgendaFile(inp) {
   reader.readAsText(f);
   inp.value = '';
 }
+
+function adminDmDocxFile(inp) {
+  var f = inp && inp.files && inp.files[0];
+  if (!f) return;
+  if (!window.DepartmentMeetingDocxImport || typeof window.DepartmentMeetingDocxImport.parseFile !== 'function') {
+    adminDmSetDocxStatus('Word importer is not loaded. Refresh and try again.', true);
+    toast('Word importer unavailable');
+    inp.value = '';
+    return;
+  }
+  adminDmSetDocxStatus('Reading Word document...', false);
+  window.DepartmentMeetingDocxImport.parseFile(f).then(function(parsed) {
+    var rows = parsed && Array.isArray(parsed.rows) ? parsed.rows : [];
+    if (!rows.length) {
+      throw new Error('No agenda rows found in this template.');
+    }
+    adminDmRenderRows(rows);
+    adminDmApplyPreonlyVisibility();
+
+    if (parsed.title) {
+      var ttl = document.getElementById('admin-dm-title');
+      if (ttl) ttl.value = parsed.title;
+    }
+    if (parsed.meeting_date) {
+      var dt = document.getElementById('admin-dm-date');
+      if (dt) dt.value = parsed.meeting_date;
+    }
+
+    var filled = [];
+    if (parsed.title) filled.push('title');
+    if (parsed.meeting_date) filled.push('date');
+    var suffix = filled.length ? ' Auto-filled: ' + filled.join(' + ') + '.' : '';
+    adminDmSetDocxStatus('Imported ' + rows.length + ' agenda rows from Word.' + suffix, false);
+    toast('Word import complete — review and save when ready.');
+  }).catch(function(err) {
+    var raw = err && err.message ? String(err.message) : 'Could not import this file.';
+    var msg = raw;
+    if (/template mismatch/i.test(raw)) {
+      msg = 'Template mismatch: use the official DM agenda Word template.';
+    }
+    adminDmSetDocxStatus(msg, true);
+    toast(msg);
+  }).finally(function() {
+    inp.value = '';
+  });
+}
+
 function adminDmReadRowsFromDom() {
   var tb = document.getElementById('admin-dm-rows');
   if (!tb) return [];
@@ -1662,6 +1731,7 @@ function adminDmNewMeeting() {
   document.getElementById('admin-dm-expected-updated-at').value = '';
   document.getElementById('admin-dm-date').value = '';
   document.getElementById('admin-dm-title').value = '';
+  adminDmSetDocxStatus('', false);
   document.getElementById('admin-dm-status').value = 'draft';
   document.getElementById('admin-dm-preonly').checked = true;
   document.getElementById('admin-dm-source-notes').value = '';
@@ -1678,6 +1748,7 @@ function adminDmEditMeeting(id) {
   document.getElementById('admin-dm-expected-updated-at').value = m.updated_at || '';
   document.getElementById('admin-dm-date').value = m.meeting_date || '';
   document.getElementById('admin-dm-title').value = m.title || '';
+  adminDmSetDocxStatus('', false);
   document.getElementById('admin-dm-status').value = m.status === 'published' ? 'published' : 'draft';
   document.getElementById('admin-dm-preonly').checked = m.status !== 'published';
   document.getElementById('admin-dm-source-notes').value = '';
@@ -1691,6 +1762,7 @@ function adminDmCancelForm() {
   document.getElementById('admin-dm-form-wrap').style.display = 'none';
   document.getElementById('admin-dm-id').value = '';
   document.getElementById('admin-dm-expected-updated-at').value = '';
+  adminDmSetDocxStatus('', false);
 }
 function adminDmDuplicateFromLatest() {
   var pub = adminDmMeetings.filter(function(m) { return m.status === 'published'; });
@@ -1712,6 +1784,7 @@ function adminDmDuplicateFromLatest() {
   document.getElementById('admin-dm-expected-updated-at').value = '';
   document.getElementById('admin-dm-date').value = '';
   document.getElementById('admin-dm-title').value = '';
+  adminDmSetDocxStatus('', false);
   document.getElementById('admin-dm-status').value = 'draft';
   document.getElementById('admin-dm-preonly').checked = true;
   document.getElementById('admin-dm-source-notes').value = '';
