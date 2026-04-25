@@ -1156,8 +1156,22 @@ function setCls(yg,cls){S.curCls[yg]=cls;renderTracker(yg);}
 function isDefaultsOn(yg,tpId){return S.defaultsOn?.[yg]?.[tpId]===true;}
 function toggleDefaults(yg,tpId){
   if(!S.defaultsOn[yg])S.defaultsOn[yg]={};
-  S.defaultsOn[yg][tpId]=!S.defaultsOn[yg][tpId];
-  save();renderTracker(yg);
+  const isCurrentlyOn=S.defaultsOn[yg][tpId]===true;
+  if(isCurrentlyOn){
+    S.defaultsOn[yg][tpId]=false;
+    save();renderTracker(yg);
+    return;
+  }
+  showModal(
+    'Enable default settings?',
+    'Enabling this will auto-populate default scores for any empty cells in this unit/tracking period. This can change many records at once.',
+    'Enable defaults',
+    function(){
+      S.defaultsOn[yg][tpId]=true;
+      save();renderTracker(yg);
+    },
+    false
+  );
 }
 function setScore(yg,pid,tpId,dim,val,btn){
   if(!S.scores[yg])S.scores[yg]={};
