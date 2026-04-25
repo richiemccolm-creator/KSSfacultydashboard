@@ -6514,14 +6514,64 @@ var calEventsCache=null;
 var calSearchText='';
 var calFilterCategory='';
 var calSearchDebounce=null;
+const HOME_UPCOMING_EVENTS_LIMIT=10;
+function calNormalizeEvent(raw){
+  if(!raw)return null;
+  var title=String(raw.title||'').trim();
+  var date=String(raw.date||'').slice(0,10);
+  if(!title||date.length!==10)return null;
+  var category=String(raw.category||'general');
+  var out={title:title,date:date,category:category};
+  if(raw.source)out.source=raw.source;
+  if(raw.id!=null)out.id=raw.id;
+  var desc=(raw.description!=null&&String(raw.description).trim()!=='')?String(raw.description).trim():'';
+  if(desc)out.description=desc;
+  return out;
+}
+function calEventDedupeKey(ev){
+  return ev.title.toLowerCase()+'|'+ev.date+'|'+ev.category.toLowerCase();
+}
+function calDedupeEvents(events){
+  if(!Array.isArray(events))return [];
+  var seen=Object.create(null);
+  var out=[];
+  events.forEach(function(raw){
+    var ev=calNormalizeEvent(raw);
+    if(!ev)return;
+    var key=calEventDedupeKey(ev);
+    if(seen[key]===undefined){
+      seen[key]=out.length;
+      out.push(ev);
+      return;
+    }
+    var idx=seen[key];
+    var prev=out[idx];
+    if(prev.source!=='shared'&&ev.source==='shared'){
+      if(!ev.description&&prev.description)ev.description=prev.description;
+      if(ev.id==null&&prev.id!=null)ev.id=prev.id;
+      out[idx]=ev;
+      return;
+    }
+    if(!prev.source&&ev.source)prev.source=ev.source;
+    if(prev.id==null&&ev.id!=null)prev.id=ev.id;
+    if(!prev.description&&ev.description)prev.description=ev.description;
+  });
+  return out;
+}
 function calGetEvents(){
-  if(calEventsCache)return calEventsCache;
+  if(calEventsCache){
+    calEventsCache=calDedupeEvents(calEventsCache);
+    return calEventsCache;
+  }
   // When cloud is available, never use localStorage — only use cache populated by calLoadEvents()
   if(window.DataService&&window.DataService.isUsingCloud&&window.DataService.isUsingCloud()){
-    return CAL_DEFAULT_EVENTS;
+    return calDedupeEvents(CAL_DEFAULT_EVENTS);
   }
-  try{var st=JSON.parse(localStorage.getItem(CAL_STORAGE_KEY)||'[]');if(st.length>0)return st;}catch(e){}
-  return CAL_DEFAULT_EVENTS;
+  try{
+    var st=JSON.parse(localStorage.getItem(CAL_STORAGE_KEY)||'[]');
+    if(st.length>0)return calDedupeEvents(st);
+  }catch(e){}
+  return calDedupeEvents(CAL_DEFAULT_EVENTS);
 }
 function calGetFilteredEvents(){
   var all=calGetEvents();
@@ -6572,21 +6622,23 @@ function calLoadEvents(){
       var base=merged&&Array.isArray(merged)?merged:[];
       var titles=base.map(function(e){return e.title+e.date;});
       CAL_DEFAULT_EVENTS.forEach(function(ev){if(titles.indexOf(ev.title+ev.date)===-1){base.push({title:ev.title,date:ev.date,category:ev.category||'general',source:'shared'});titles.push(ev.title+ev.date);}});
+      base=calDedupeEvents(base);
       base.sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
       calEventsCache=base;
       return calEventsCache;
     });
   }
   return (window.DataService?DataService.get(CAL_STORAGE_KEY):Promise.resolve(JSON.parse(localStorage.getItem(CAL_STORAGE_KEY)||'null'))).then(function(stored){
-    if(!stored||!Array.isArray(stored)||stored.length===0){calEventsCache=CAL_DEFAULT_EVENTS.slice();if(window.DataService)DataService.set(CAL_STORAGE_KEY,calEventsCache);return calEventsCache;}
+    if(!stored||!Array.isArray(stored)||stored.length===0){calEventsCache=calDedupeEvents(CAL_DEFAULT_EVENTS);if(window.DataService)DataService.set(CAL_STORAGE_KEY,calEventsCache);return calEventsCache;}
     var titles=stored.map(function(e){return e.title+e.date;});
     CAL_DEFAULT_EVENTS.forEach(function(ev){if(titles.indexOf(ev.title+ev.date)===-1)stored.push(ev);});
-    calEventsCache=stored;
+    calEventsCache=calDedupeEvents(stored);
     if(window.DataService)DataService.set(CAL_STORAGE_KEY,calEventsCache);
     return calEventsCache;
   });
 }
 function calSaveEvents(e){
+  e=calDedupeEvents(e||[]);
   calEventsCache=e;
   if(!window.DataService){try{localStorage.setItem(CAL_STORAGE_KEY,JSON.stringify(e));}catch(x){}return;}
   var shared=(e||[]).filter(function(ev){return ev.source==='shared';});
@@ -7538,7 +7590,7 @@ function homeDashboardRender(){
   if(!list)return;
   list.innerHTML='';
   const events=typeof calGetEvents==='function'?calGetEvents():[];
-  const upcoming=events.filter(e=>calEventOnOrAfterLocalToday(e.date)).sort((a,b)=>(a.date||'').localeCompare(b.date||'')).slice(0,5);
+  const upcoming=events.filter(e=>calEventOnOrAfterLocalToday(e.date)).sort((a,b)=>(a.date||'').localeCompare(b.date||'')).slice(0,HOME_UPCOMING_EVENTS_LIMIT);
   const catLabels={exam:'Exam',meeting:'Meeting',assessment:'Assessment',reporting:'Reporting',holiday:'Holiday',general:'General'};
   if(upcoming.length===0){
     const empty=document.createElement('div');empty.className='home-dash-empty';
