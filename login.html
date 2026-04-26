@@ -5,9 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Faculty Hub">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <link rel="apple-touch-icon" href="faculty-hub-logo.png" sizes="180x180">
 <link rel="icon" type="image/png" href="faculty-hub-logo.png">
 <title>Sign In — Expressive Arts Faculty</title>
+<script src="app-version.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@700;800&display=swap" rel="stylesheet">
@@ -72,6 +76,9 @@ body{font-family:'Inter',sans-serif;background:linear-gradient(135deg,#16243c,#1
 <script src="allowlist-check.js"></script>
 <script>
 (function() {
+  var withVersion = window.withAppVersion || function(url){ return url; };
+  if (window.ensureAppVersionInUrl && window.ensureAppVersionInUrl()) return;
+
   if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY || window.SUPABASE_URL.includes('your-project')) {
     document.getElementById('errMsg').textContent = 'Supabase not configured. Update config.js with your project URL and anon key.';
     document.getElementById('errMsg').classList.add('show');
@@ -105,7 +112,7 @@ body{font-family:'Inter',sans-serif;background:linear-gradient(135deg,#16243c,#1
   if (redirect.startsWith('/')) redirect = redirect.slice(1);
 
   function goToApp() {
-    window.location.replace(redirect || 'faculty-hub.html');
+    window.location.replace(withVersion(redirect || 'faculty-hub.html'));
   }
 
   function checkAndGo() {
@@ -139,10 +146,10 @@ body{font-family:'Inter',sans-serif;background:linear-gradient(135deg,#16243c,#1
   if (new URLSearchParams(window.location.search).get('signout') === '1') {
     supabase.auth.signOut().then(function() {
       if (window.clearSupabaseAuth) window.clearSupabaseAuth();
-      window.location.replace('login.html');
+      window.location.replace(withVersion('login.html'));
     }).catch(function() {
       if (window.clearSupabaseAuth) window.clearSupabaseAuth();
-      window.location.replace('login.html');
+      window.location.replace(withVersion('login.html'));
     });
   } else {
     checkSession();
