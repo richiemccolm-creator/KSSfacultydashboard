@@ -4737,6 +4737,33 @@ function toggleSidebar(){
     }
   }
 }
+var homeResumeRefreshTimer=null;
+var homeLastResumeRefreshMs=0;
+function isStandaloneDisplayMode(){
+  try{
+    return !!(window.navigator&&window.navigator.standalone)||!!(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches);
+  }catch(e){}
+  return false;
+}
+function refreshAfterStandaloneResume(force){
+  if(!force&&!isStandaloneDisplayMode()) return;
+  var now=Date.now();
+  // Prevent duplicate refreshes when pageshow + visibilitychange fire together.
+  if(now-homeLastResumeRefreshMs<800) return;
+  homeLastResumeRefreshMs=now;
+  if(homeResumeRefreshTimer) clearTimeout(homeResumeRefreshTimer);
+  homeResumeRefreshTimer=setTimeout(function(){
+    var active=document.querySelector('.panel.active');
+    var activeId=active&&active.id?active.id:'home';
+    if(activeId==='home'){
+      showPanel('home');
+      if(typeof calRender==='function') calRender();
+      if(typeof homeDashboardRender==='function') homeDashboardRender();
+      return;
+    }
+    showPanel(activeId);
+  },80);
+}
 
 function updateTopbar(panelId,subj){
   const h=document.getElementById('topbar-heading');
@@ -7827,6 +7854,12 @@ document.addEventListener('DOMContentLoaded',function(){
     if(icon) icon.innerHTML='<line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>';
     if(btn) btn.setAttribute('title','Show navigation menu');
   }
+});
+window.addEventListener('pageshow',function(ev){
+  refreshAfterStandaloneResume(!!(ev&&ev.persisted));
+});
+document.addEventListener('visibilitychange',function(){
+  if(document.visibilityState==='visible') refreshAfterStandaloneResume(false);
 });
 </script>
 
