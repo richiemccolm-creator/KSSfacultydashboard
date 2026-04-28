@@ -766,8 +766,11 @@ const BM = {
   },
 };
 
-const DIMS = ['progress','effort','behaviour','homelearning'];
-const DIM_LABELS = {progress:'Progress',effort:'Effort',behaviour:'Behaviour',homelearning:'Home Learning'};
+const PROC_DIMS   = ['creating','presenting','evaluating'];
+const ATTIT_DIMS  = ['effort','behaviour','homelearning'];
+const PROC_LABELS = {creating:'Creating',presenting:'Presenting',evaluating:'Evaluating'};
+const ATTIT_LABELS= {effort:'Effort',behaviour:'Behaviour',homelearning:'Home Learning'};
+const ALL_DIMS    = [...PROC_DIMS,...ATTIT_DIMS];
 
 // ══════════════════════════════════════════════════════════
 // STATE
@@ -780,7 +783,35 @@ let S={
   curCls:{s1:'all',s2:'all',s3:'all'},
   defaultsOn:{}, // {s1:{tp1:false,tp2:false,...}, s2:{...}, s3:{...}} — per-unit default settings toggle
 };
-function load(){return (window.DataService?DataService.get('art-v2'):Promise.resolve(null)).then(function(d){if(d)Object.assign(S,d);}).catch(function(){});}
+function migrateLegacyArtScores(){
+  let changed=false;
+  ['s1','s2','s3'].forEach(function(yg){
+    const ygScores=S.scores?.[yg]||{};
+    Object.values(ygScores).forEach(function(pupilScores){
+      Object.values(pupilScores||{}).forEach(function(tpScores){
+        if(!tpScores||typeof tpScores!=='object')return;
+        if(Object.prototype.hasOwnProperty.call(tpScores,'progress')
+           && tpScores.creating===undefined
+           && tpScores.presenting===undefined
+           && tpScores.evaluating===undefined){
+          tpScores.creating=tpScores.progress;
+          tpScores.presenting=tpScores.progress;
+          tpScores.evaluating=tpScores.progress;
+          changed=true;
+        }
+      });
+    });
+  });
+  return changed;
+}
+function load(){
+  return (window.DataService?DataService.get('art-v2'):Promise.resolve(null))
+    .then(function(d){
+      if(d)Object.assign(S,d);
+      if(migrateLegacyArtScores())return save();
+    })
+    .catch(function(){});
+}
 function save(){if(window.DataService){return DataService.set('art-v2',S).catch(function(){toast('Save failed — sign in to save to cloud');});}else{try{localStorage.setItem('art-v2',JSON.stringify(S));}catch(e){}return Promise.resolve();}}
 function autoSave(){save().then(function(){toast(window.DataService&&window.DataService.isUsingCloud&&window.DataService.isUsingCloud()?'Saved to cloud':'Saved');}).catch(function(){toast('Save failed — sign in to save to cloud');});}
 
@@ -847,13 +878,13 @@ function renderHome(){
     if(el)el.textContent=`${Object.keys(S.pupils[yg]).length} class${Object.keys(S.pupils[yg]).length!==1?'es':''} · ${t} pupil${t!==1?'s':''}`;
     total+=t;
   });
-  const allScores=Object.values(S.scores).flatMap(yg=>Object.values(yg).flatMap(p=>Object.values(p).flatMap(tp=>DIMS.map(d=>tp[d]).filter(Boolean))));
+  const allScores=Object.values(S.scores).flatMap(yg=>Object.values(yg).flatMap(p=>Object.values(p).flatMap(tp=>PROC_DIMS.map(d=>tp[d]).filter(Boolean))));
   const el=document.getElementById('home-stats');
   if(el)el.innerHTML=`
     <div><div class="hs-num">${total}</div><div class="hs-label">Pupils Registered</div></div>
     <div><div class="hs-num">${allScores.length}</div><div class="hs-label">Process Scores</div></div>
     <div><div class="hs-num">3</div><div class="hs-label">Year Groups</div></div>
-    <div><div class="hs-num">4</div><div class="hs-label">Score Dimensions</div></div>
+    <div><div class="hs-num">3</div><div class="hs-label">Process Dimensions</div></div>
   `;
 }
 
@@ -1013,10 +1044,10 @@ function renderTracker(yg){
   if(curCls==='all')classes.forEach(c=>(S.pupils[yg][c]||[]).forEach(p=>pupils.push({...p,cls:c})));
   else(S.pupils[yg][curCls]||[]).forEach(p=>pupils.push({...p,cls:curCls}));
   const totalAll=classes.reduce((a,c)=>a+(S.pupils[yg][c]||[]).length,0);
-  const scored=pupils.filter(p=>DIMS.some(d=>S.scores[yg]?.[p.id]?.[tpId]?.[d]>0)).length;
+  const scored=pupils.filter(p=>PROC_DIMS.some(d=>S.scores[yg]?.[p.id]?.[tpId]?.[d]>0)).length;
 
   const tabsHTML=tps.map(t=>{
-    const hasData=classes.some(c=>(S.pupils[yg][c]||[]).some(p=>DIMS.some(d=>S.scores[yg]?.[p.id]?.[t.id]?.[d]>0)));
+    const hasData=classes.some(c=>(S.pupils[yg][c]||[]).some(p=>PROC_DIMS.some(d=>S.scores[yg]?.[p.id]?.[t.id]?.[d]>0)));
     return `<button class="tp-tab ${t.id===tpId?'active':''}" onclick="setTP('${yg}','${t.id}')">${t.label}: ${t.unit}${hasData?'<span class="has-dot"></span>':''}</button>`;
   }).join('');
 
@@ -1032,14 +1063,18 @@ function renderTracker(yg){
   const bmHTML=bmList.map(b=>`<div class="bm-item"><span class="bm-proc bm-${b.proc}">${b.proc==='cr'?'Creating':b.proc==='pr'?'Presenting':'Evaluating'}</span><span class="bm-text">${b.text}</span></div>`).join('');
 
   // Summary
-  const dimAvgs={};
-  DIMS.forEach(d=>{dimAvgs[d]=avg(pupils.map(p=>S.scores[yg]?.[p.id]?.[tpId]?.[d]).filter(v=>v>0));});
+  const procAvgs={};
+  PROC_DIMS.forEach(d=>{procAvgs[d]=avg(pupils.map(p=>S.scores[yg]?.[p.id]?.[tpId]?.[d]).filter(v=>v>0));});
+  const attitAvgs={};
+  ATTIT_DIMS.forEach(d=>{attitAvgs[d]=avg(pupils.map(p=>S.scores[yg]?.[p.id]?.[tpId]?.[d]).filter(v=>v>0));});
 
   const dimConfigs=[
-    {d:'progress',lbl:'Progress',col:'#c0622a',avg:dimAvgs.progress},
-    {d:'effort',lbl:'Effort',col:'#92400e',avg:dimAvgs.effort},
-    {d:'behaviour',lbl:'Behaviour',col:'#be185d',avg:dimAvgs.behaviour},
-    {d:'homelearning',lbl:'Home Learning',col:'#b45309',avg:dimAvgs.homelearning},
+    {d:'creating',lbl:'Creating',col:'#7c3aed',avg:procAvgs.creating},
+    {d:'presenting',lbl:'Presenting',col:'#0369a1',avg:procAvgs.presenting},
+    {d:'evaluating',lbl:'Evaluating',col:'#0f766e',avg:procAvgs.evaluating},
+    {d:'effort',lbl:'Effort',col:'#92400e',avg:attitAvgs.effort},
+    {d:'behaviour',lbl:'Behaviour',col:'#be185d',avg:attitAvgs.behaviour},
+    {d:'homelearning',lbl:'Home Learning',col:'#b45309',avg:attitAvgs.homelearning},
   ];
 
   const sumHTML=dimConfigs.map(({lbl,col,avg:a})=>`
@@ -1057,17 +1092,17 @@ function renderTracker(yg){
       if(!S.scores[yg][p.id])S.scores[yg][p.id]={};
       if(!S.scores[yg][p.id][tpId])S.scores[yg][p.id][tpId]={};
       const sc=S.scores[yg][p.id][tpId];
-      if(sc.progress===undefined)sc.progress=PROC_DEFAULT;
-      ['effort','behaviour','homelearning'].forEach(d=>{if(sc[d]===undefined)sc[d]=ATTIT_DEFAULT;});
+      PROC_DIMS.forEach(d=>{if(sc[d]===undefined)sc[d]=PROC_DEFAULT;});
+      ATTIT_DIMS.forEach(d=>{if(sc[d]===undefined)sc[d]=ATTIT_DEFAULT;});
     });
     save();
   }
 
   // Bulk-apply toolbar — one score selector per dimension
-  const bulkColsHTML=DIMS.map((d,i)=>{
-    const lbl=DIM_LABELS[d];
+  const bulkColsHTML=ALL_DIMS.map((d,i)=>{
+    const lbl={creating:'Creating',presenting:'Presenting',evaluating:'Evaluating',effort:'Effort',behaviour:'Behaviour',homelearning:'Home Learning'}[d];
     const btns=[1,2,3,4].map(n=>`<button class="bulk-btn s${n}" id="bb-${yg}-${d}-${n}" onclick="selectBulk('${yg}','${d}',${n})">${n}</button>`).join('');
-    return `${i===1?'<div class="bulk-divider"></div>':''}<div class="bulk-col"><span class="bulk-col-lbl">${lbl}</span>${btns}</div>`;
+    return `${i===3?'<div class="bulk-divider"></div>':''}<div class="bulk-col"><span class="bulk-col-lbl">${lbl}</span>${btns}</div>`;
   }).join('');
 
   const tableHTML=pupils.length===0?`<div class="empty-s" style="padding:2rem"><div class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>No pupils. <span style="color:var(--accent);cursor:pointer" onclick="nav('setup-${yg}')">Set up classes first</span></div>`:`
@@ -1083,8 +1118,14 @@ function renderTracker(yg){
             <th rowspan="2" style="width:32px;padding:.6rem .4rem"></th>
             <th rowspan="2" style="min-width:148px">Pupil</th>
             <th rowspan="2" style="min-width:140px">Notes</th>
-            <th class="sc-col h-cr grp-start">Progress</th>
-            <th class="sc-col h-ef">Effort</th>
+            <th colspan="3" style="text-align:center;border-bottom:1px solid rgba(255,255,255,.07)" class="grp-start">CfE Process Dimensions</th>
+            <th colspan="3" style="text-align:center;border-bottom:1px solid rgba(255,255,255,.07)" class="grp-start">Attitudinal</th>
+          </tr>
+          <tr>
+            <th class="sc-col h-cr grp-start">Creating</th>
+            <th class="sc-col h-pr">Presenting</th>
+            <th class="sc-col h-ev">Evaluating</th>
+            <th class="sc-col h-ef grp-start">Effort</th>
             <th class="sc-col h-bh">Behaviour</th>
             <th class="sc-col h-hl">Home Learning</th>
           </tr>
@@ -1100,7 +1141,8 @@ function renderTracker(yg){
               </td>
               <td><div class="p-name-th">${p.name}</div><div class="p-cls-th">${p.cls}</div></td>
               <td><textarea class="notes-inp" placeholder="Notes…" onblur="setNote('${yg}','${p.id}','${tpId}',this.value)">${sc.notes||''}</textarea></td>
-              ${DIMS.map((d,i)=>`<td class="${i===0?'grp-start':''}">${scoreCell(yg,p.id,tpId,d,sc[d])}</td>`).join('')}
+              ${PROC_DIMS.map((d,i)=>`<td class="${i===0?'grp-start':''}">${scoreCell(yg,p.id,tpId,d,sc[d])}</td>`).join('')}
+              ${ATTIT_DIMS.map((d,i)=>`<td class="${i===0?'grp-start':''}">${scoreCell(yg,p.id,tpId,d,sc[d])}</td>`).join('')}
             </tr>`;
           }).join('')}
         </tbody>
@@ -1127,7 +1169,7 @@ function renderTracker(yg){
       <div class="tp-right">
         <div class="defaults-toggle-wrap">
           <span class="defaults-toggle-lbl">Default settings</span>
-          <button class="defaults-toggle-btn ${defaultsEnabled?'on':''}" onclick="toggleDefaults('${yg}','${tpId}')" title="${defaultsEnabled?'Defaults applied — Progress 3, Attitudinal 4. Click to turn off.':'No defaults until you turn this on. Click to apply Progress 3, Attitudinal 4 for unscored cells.'}">
+          <button class="defaults-toggle-btn ${defaultsEnabled?'on':''}" onclick="toggleDefaults('${yg}','${tpId}')" title="${defaultsEnabled?'Defaults applied — Process 3, Attitudinal 4. Click to turn off.':'No defaults until you turn this on. Click to apply Process 3, Attitudinal 4 for unscored cells.'}">
             <span class="defaults-toggle-slider"></span>
           </button>
           <span class="defaults-toggle-state">${defaultsEnabled?'On':'Off'}</span>
@@ -1215,7 +1257,7 @@ function applyBulk(yg,tpId){
     dims.forEach(d=>{
       S.scores[yg][pid][tpId][d]=_bulkSel[d];
       // Update buttons in this row visually without re-rendering
-      const colIdx=DIMS.indexOf(d);
+      const colIdx=ALL_DIMS.indexOf(d);
       // Find score cells in row — 3 header cols (del, pupil, notes) then score cols
       const cells=row.querySelectorAll('td');
       // Score cells start at index 3
@@ -1265,7 +1307,7 @@ const SCALE_GUIDE = [
   {n:3,cls:'s3',title:'I\'m on track',desc:'I\'m doing what\'s expected for my stage. I\'m showing the skills and knowledge I need.'},
   {n:4,cls:'s4',title:'I\'m doing really well',desc:'I\'m doing more than expected! I can work on my own and show deep understanding.'},
 ];
-const SCALE_NOTE = 'This scale is used for: Progress (your art work) · Effort (how hard you try) · Behaviour (working well with others) · Home Learning (homework & sketchbook).';
+const SCALE_NOTE = 'This scale is used for: Creating · Presenting · Evaluating · Effort · Behaviour · Home Learning.';
 
 const PROFILE_PROMPTS = {
   teacher:[
@@ -1289,35 +1331,42 @@ let _profYG='s1',_profCls='',_profPid='';
 
 function buildArtProfileAnalysis(yg,pid){
   const tps=TPS[yg];const sc=S.scores[yg]?.[pid]||{};
-  const dims={progress:[],effort:[],behaviour:[],homelearning:[]};
+  const dims={creating:[],presenting:[],evaluating:[],effort:[],behaviour:[],homelearning:[]};
   tps.forEach(tp=>{
     const s=sc[tp.id]||{};
-    ['progress','effort','behaviour','homelearning'].forEach(d=>{if(s[d]>0)dims[d].push(s[d]);});
+    ['creating','presenting','evaluating','effort','behaviour','homelearning'].forEach(d=>{if(s[d]>0)dims[d].push(s[d]);});
   });
   const avgs={};Object.keys(dims).forEach(d=>{avgs[d]=avg(dims[d]);});
-  const progAvg=avgs.progress;
+  const procAvgs=avg([avgs.creating,avgs.presenting,avgs.evaluating].filter(v=>v!=null));
   const badges=[];const strengths=[];const areas=[];const nextSteps=[];
-  if(progAvg>=3.5)badges.push({cls:'gold',icon:'★',text:'Above Expectations'});
-  else if(progAvg>=2.5)badges.push({cls:'green',icon:'✓',text:'On Track'});
-  else if(progAvg!=null)badges.push({cls:'amber',icon:'↗',text:'Developing'});
-  if(progAvg!=null&&progAvg<2.5)badges.push({cls:'blue',icon:'💪',text:'Needs Support'});
-  if(avgs.progress>=3)badges.push({cls:'gold',icon:'◆',text:'Strong Progress'});
+  if(procAvgs>=3.5)badges.push({cls:'gold',icon:'★',text:'Above Expectations'});
+  else if(procAvgs>=2.5)badges.push({cls:'green',icon:'✓',text:'On Track'});
+  else if(procAvgs!=null)badges.push({cls:'amber',icon:'↗',text:'Developing'});
+  if(procAvgs!=null&&procAvgs<2.5)badges.push({cls:'blue',icon:'💪',text:'Needs Support'});
+  if(avgs.creating>=3)badges.push({cls:'purple',icon:'◆',text:'Strong Creating'});
+  if(avgs.presenting>=3)badges.push({cls:'blue',icon:'◆',text:'Strong Presenting'});
+  if(avgs.evaluating>=3)badges.push({cls:'green',icon:'◆',text:'Strong Evaluating'});
   if(avgs.effort>=3)badges.push({cls:'green',icon:'↑',text:'Consistent Effort'});
   if(avgs.behaviour>=3)badges.push({cls:'green',icon:'◎',text:'Positive Behaviour'});
   if(avgs.homelearning>=3)badges.push({cls:'green',icon:'📋',text:'Home Learning on Track'});
-  const tpsScored=tps.filter(tp=>(sc[tp.id]||{}).progress>0).length;
-  if(tpsScored>=4)badges.push({cls:'blue',icon:'📊',text:'Good Coverage'});
-  if(avgs.progress>=2.5&&avgs.progress!=null)strengths.push('practical work and design solutions');
+  const tpsScored=tps.filter(tp=>{const s=sc[tp.id]||{};return [s.creating,s.presenting,s.evaluating].some(v=>v>0);}).length;
+  if(tpsScored>=4)badges.push({cls:'purple',icon:'📊',text:'Good Coverage'});
+  if(avgs.creating>=2.5&&avgs.creating!=null)strengths.push('creating ideas and design solutions');
+  if(avgs.presenting>=2.5&&avgs.presenting!=null)strengths.push('presenting and communicating artistic choices');
+  if(avgs.evaluating>=2.5&&avgs.evaluating!=null)strengths.push('evaluating and refining artwork');
   if(avgs.effort>=2.5&&avgs.effort!=null)strengths.push('effort and engagement');
-  if(avgs.progress<2.5&&avgs.progress!=null)areas.push('Progress');if(avgs.effort<2.5&&avgs.effort!=null)areas.push('Effort');if(avgs.behaviour<2.5&&avgs.behaviour!=null)areas.push('Behaviour');if(avgs.homelearning<2.5&&avgs.homelearning!=null)areas.push('Home learning');
-  if(areas.includes('Progress'))nextSteps.push('Develop practical skills and evaluation against brief; use art vocabulary when discussing work.');
+  if(avgs.creating<2.5&&avgs.creating!=null)areas.push('Creating');if(avgs.presenting<2.5&&avgs.presenting!=null)areas.push('Presenting');if(avgs.evaluating<2.5&&avgs.evaluating!=null)areas.push('Evaluating');
+  if(avgs.effort<2.5&&avgs.effort!=null)areas.push('Effort');if(avgs.behaviour<2.5&&avgs.behaviour!=null)areas.push('Behaviour');if(avgs.homelearning<2.5&&avgs.homelearning!=null)areas.push('Home learning');
+  if(areas.includes('Creating'))nextSteps.push('Develop practical making skills and improve responses to design briefs and stimuli.');
+  if(areas.includes('Presenting'))nextSteps.push('Present final work with more confidence and explain creative choices clearly.');
+  if(areas.includes('Evaluating'))nextSteps.push('Use art and design vocabulary when evaluating own and others\' work.');
   if(areas.includes('Effort'))nextSteps.push('Increase engagement in practical tasks and class activities.');
   if(areas.includes('Behaviour'))nextSteps.push('Focus on positive collaboration and classroom conduct.');
   if(areas.includes('Home learning'))nextSteps.push('Complete homework and sketchbook tasks to support learning.');
-  if(nextSteps.length===0&&progAvg!=null)nextSteps.push('Continue to extend learning through more challenging design briefs and media exploration.');
-  const progressComment=progAvg==null?'No scores entered yet — add data in the tracker to generate a progress report.'
-    :`Is ${progAvg>=3?'progressing well':progAvg>=2.5?'making steady progress':'working towards'} in Art & Design with an average Progress score of ${progAvg.toFixed(1)}. ${strengths.length?`Strengths include ${strengths.join(', ')}. `:''}${areas.length?`Areas to develop: ${areas.join(', ')}.`:''}`;
-  return {badges,avgs,progAvg,progressComment,nextSteps,dims:['progress','effort','behaviour','homelearning'],dimLabels:{progress:'Progress',effort:'Effort',behaviour:'Behaviour',homelearning:'Home Learning'}};
+  if(nextSteps.length===0&&procAvgs!=null)nextSteps.push('Continue extending learning through more challenging briefs, media, and critical reflection.');
+  const progressComment=procAvgs==null?'No scores entered yet — add data in the tracker to generate a progress report.'
+    :`Is ${procAvgs>=3?'progressing well':procAvgs>=2.5?'making steady progress':'working towards'} in Art & Design with an average of ${procAvgs.toFixed(1)} across Creating, Presenting and Evaluating. ${strengths.length?`Strengths include ${strengths.join(', ')}. `:''}${areas.length?`Areas to develop: ${areas.join(', ')}.`:''}`;
+  return {badges,avgs,procAvgs,progressComment,nextSteps,dims:['creating','presenting','evaluating','effort','behaviour','homelearning'],dimLabels:{creating:'Creating',presenting:'Presenting',evaluating:'Evaluating',effort:'Effort',behaviour:'Behaviour',homelearning:'Home Learning'}};
 }
 
 function setProfPupil(yg,cls,pid){ _profYG=yg;_profCls=cls;_profPid=pid;renderProfiles(); }
@@ -1370,11 +1419,12 @@ function renderProfiles(){
     const tps=TPS[_profYG];const sc=S.scores[_profYG]?.[pupil.id]||{};
     const scoreSummary=tps.map(tp=>{
       const s=sc[tp.id]||{};
-      const prog=s.progress;
-      return {tp:tp.label,unit:tp.unit,progress:prog};
+      const cr=s.creating,spr=s.presenting,ev=s.evaluating;
+      const procAvg=avg([cr,spr,ev].filter(v=>v>0));
+      return {tp:tp.label,unit:tp.unit,creating:cr,presenting:spr,evaluating:ev,avg:procAvg};
     });
     const analysis=buildArtProfileAnalysis(_profYG,pupil.id);
-    const dimCols={progress:'#c0622a',effort:'#92400e',behaviour:'#be185d',homelearning:'#b45309'};
+    const dimCols={creating:'#7c3aed',presenting:'#0369a1',evaluating:'#0f766e',effort:'#92400e',behaviour:'#be185d',homelearning:'#b45309'};
 
     const printDate=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
     html+=`
@@ -1426,7 +1476,7 @@ function renderProfiles(){
         <div class="profile-section">
           <div class="profile-section-title">Scores by TP</div>
           <div class="profile-scores-grid">
-            ${scoreSummary.map(r=>`<div class="profile-score-cell"><div class="profile-score-lbl">${r.tp}</div><div class="profile-score-val">${r.progress?r.progress.toFixed(1):'—'}</div><div class="profile-score-lbl" style="font-size:.5rem">${r.unit}</div></div>`).join('')}
+            ${scoreSummary.map(r=>`<div class="profile-score-cell"><div class="profile-score-lbl">${r.tp}</div><div class="profile-score-val">${r.avg?r.avg.toFixed(1):'—'}</div><div class="profile-score-lbl" style="font-size:.5rem">${r.unit}</div></div>`).join('')}
           </div>
         </div>
         <div class="profile-section no-print">
@@ -1461,43 +1511,42 @@ function renderBenchmarks(){
   const body=document.getElementById('bm-body');
   let html='';let anyData=false;
 
-  // Global dimension averages
-  const global={progress:[],effort:[],behaviour:[],homelearning:[]};
+  // Global process averages
+  const global={creating:[],presenting:[],evaluating:[]};
   ['s1','s2','s3'].forEach(yg=>{
     Object.keys(S.pupils[yg]).forEach(cls=>{
       (S.pupils[yg][cls]||[]).forEach(p=>{
         TPS[yg].forEach(tp=>{
           const sc=S.scores[yg]?.[p.id]?.[tp.id]||{};
-          DIMS.forEach(d=>{if(sc[d]>0){global[d].push(sc[d]);anyData=true;}});
+          PROC_DIMS.forEach(d=>{if(sc[d]>0){global[d].push(sc[d]);anyData=true;}});
         });
       });
     });
   });
 
-  if(!anyData){body.innerHTML='<div class="empty-s"><div class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg></div>No scores entered yet. Enter scores in the tracker panels first.</div>';return;}
+  if(!anyData){body.innerHTML='<div class="empty-s"><div class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg></div>No process scores entered yet. Enter scores in the tracker panels first.</div>';return;}
 
-  const dimConfigs=[
-    {d:'progress',cls:'pr',col:'#c0622a',title:'Progress',desc:'CfE benchmarks: creating, presenting & evaluating'},
-    {d:'effort',cls:'ef',col:'#92400e',title:'Effort',desc:'Engagement and application'},
-    {d:'behaviour',cls:'bh',col:'#be185d',title:'Behaviour',desc:'Classroom conduct and collaboration'},
-    {d:'homelearning',cls:'hl',col:'#b45309',title:'Home Learning',desc:'Homework and sketchbook completion'},
+  const procConfigs=[
+    {d:'creating',cls:'cr',col:'#7c3aed',title:'Creating',desc:'Generating ideas, media handling, practical making and design process'},
+    {d:'presenting',cls:'pr',col:'#0369a1',title:'Presenting',desc:'Communicating intentions and presenting completed visual outcomes'},
+    {d:'evaluating',cls:'ev',col:'#0f766e',title:'Evaluating',desc:'Reflecting, analysing and improving work using art and design vocabulary'},
   ];
 
   // Global overview
-  html+=`<div class="bm-ov-grid" style="grid-template-columns:repeat(4,1fr)">
-    ${dimConfigs.map(({d,cls,col,title,desc})=>{
+  html+=`<div class="bm-ov-grid">
+    ${procConfigs.map(({d,cls,col,title,desc})=>{
       const a=avg(global[d]);const p=pct(a);
-      return `<div class="bm-ov-card" style="background:rgba(192,98,42,.07);border:1px solid rgba(192,98,42,.22)">
-        <div class="bm-ov-title" style="color:${col}">${title}</div>
+      return `<div class="bm-ov-card ${cls}">
+        <div class="bm-ov-title ${cls}">${title}</div>
         <div class="bm-ov-desc">${desc}</div>
-        <div class="bm-ov-avg" style="color:${col}">${a?a.toFixed(2):'—'}</div>
+        <div class="bm-ov-avg ${cls}">${a?a.toFixed(2):'—'}</div>
         <div class="bm-ov-lbl">Faculty-wide average / 4 &nbsp;(${global[d].length} scores)</div>
-        <div class="bm-bar-wrap"><div class="bm-bar-fill" style="width:${p}%;background:${col}"></div></div>
+        <div class="bm-bar-wrap"><div class="bm-bar-fill f-${cls}" style="width:${p}%"></div></div>
       </div>`;
     }).join('')}
   </div>`;
 
-  // Per year group — CfE benchmarks with Progress per TP
+  // Per year group
   ['s1','s2','s3'].forEach(yg=>{
     const classes=Object.keys(S.pupils[yg]);
     if(!classes.length)return;
@@ -1508,17 +1557,21 @@ function renderBenchmarks(){
     const ygData=[];
     TPS[yg].forEach(tp=>{
       (BM[yg]?.[tp.id]||[]).forEach(bm=>{
-        const scores=allPupils.map(p=>S.scores[yg]?.[p.id]?.[tp.id]?.progress).filter(v=>v>0);
+        const d=bm.proc==='cr'?'creating':bm.proc==='pr'?'presenting':'evaluating';
+        const scores=allPupils.map(p=>S.scores[yg]?.[p.id]?.[tp.id]?.[d]).filter(v=>v>0);
         const a=avg(scores);
         ygData.push({tp:tp.label,unit:tp.unit,proc:bm.proc,text:bm.text,avg:a,n:scores.length,total:allPupils.length});
       });
     });
 
     const hasAny=ygData.some(r=>r.avg);
-    const progSummary=dimConfigs.map(({d,col,title})=>{
-      const vals=[];['s1','s2','s3'].forEach(y=>Object.keys(S.pupils[y]||{}).forEach(c=>(S.pupils[y][c]||[]).forEach(p=>TPS[y].forEach(t=>{const v=S.scores[y]?.[p.id]?.[t.id]?.[d];if(v>0)vals.push(v);}))));
-      const a=avg(vals);
-      return `<div style="text-align:center;padding:.45rem .8rem;border-radius:6px;background:rgba(192,98,42,.08);border:1px solid rgba(192,98,42,.22)">
+
+    const ygProc={cr:[],pr:[],ev:[]};
+    ygData.filter(r=>r.avg).forEach(r=>ygProc[r.proc].push(r.avg));
+    const procSummary=procConfigs.map(({d,cls,col,title})=>{
+      const p=d==='creating'?'cr':d==='presenting'?'pr':'ev';
+      const a=avg(ygProc[p]);
+      return `<div style="text-align:center;padding:.45rem .8rem;border-radius:6px;background:${cls==='cr'?'var(--cr-bg)':cls==='pr'?'var(--pr-bg)':'var(--ev-bg)'};border:1px solid ${cls==='cr'?'var(--cr-bd)':cls==='pr'?'var(--pr-bd)':'var(--ev-bd)'}">
         <div style="font-family:'Sora',sans-serif;font-size:1.05rem;font-weight:800;color:${col}">${a?a.toFixed(1):'—'}</div>
         <div style="font-size:.55rem;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:${col};opacity:.75">${title}</div>
       </div>`;
@@ -1526,14 +1579,14 @@ function renderBenchmarks(){
 
     html+=`<div class="sc" style="margin-bottom:1.2rem">
       <div class="sc-header">
-        <div><div class="sc-title">${yg.toUpperCase()} Art &amp; Design — Benchmark Analysis</div><div class="sc-sub">${allPupils.length} pupils · ${TPS[yg].length} tracking periods · CfE Expressive Arts benchmarks</div></div>
-        <div style="display:flex;gap:.55rem">${progSummary}</div>
+        <div><div class="sc-title">${yg.toUpperCase()} Art &amp; Design — Benchmark Analysis</div><div class="sc-sub">${allPupils.length} pupils · ${TPS[yg].length} tracking periods · ${ygData.filter(r=>r.avg).length} benchmarks with data</div></div>
+        <div style="display:flex;gap:.55rem">${procSummary}</div>
       </div>
       <div class="sc-body" style="padding:0">
         ${hasAny?`<div class="gap-wrap">
           <table class="gap-tbl">
             <thead><tr>
-              <th>TP</th><th>Unit</th><th>Process</th><th>Benchmark</th><th style="width:130px">Progress Avg</th><th style="width:75px">Scored</th>
+              <th>TP</th><th>Unit</th><th>Process</th><th>Benchmark</th><th style="width:130px">Class Avg</th><th style="width:75px">Scored</th>
             </tr></thead>
             <tbody>
               ${ygData.map(r=>{
@@ -1627,7 +1680,9 @@ function renderOverview(){
   let anyData=false;
 
   const dimCfg={
-    progress:    {lbl:'Progress',     flagCls:'ar-flag-cr', group:'process'},
+    creating:    {lbl:'Creating',     flagCls:'ar-flag-cr', group:'process'},
+    presenting:  {lbl:'Presenting',   flagCls:'ar-flag-pr', group:'process'},
+    evaluating:  {lbl:'Evaluating',   flagCls:'ar-flag-ev', group:'process'},
     effort:      {lbl:'Effort',       flagCls:'ar-flag-ef', group:'attitude'},
     behaviour:   {lbl:'Behaviour',    flagCls:'ar-flag-bh', group:'attitude'},
     homelearning:{lbl:'Home Learning',flagCls:'ar-flag-hl', group:'attitude'},
@@ -1640,14 +1695,14 @@ function renderOverview(){
 
         // Gather all scores per dimension across all TPs
         const dimScores={};
-        DIMS.forEach(d=>dimScores[d]=[]);
+        [...PROC_DIMS,...ATTIT_DIMS].forEach(d=>dimScores[d]=[]);
         let tpsScoredCount=0;
 
         TPS[yg].forEach(tp=>{
           const sc=S.scores[yg]?.[p.id]?.[tp.id]||{};
-          const hasAny=DIMS.some(d=>sc[d]>0);
+          const hasAny=[...PROC_DIMS,...ATTIT_DIMS].some(d=>sc[d]>0);
           if(hasAny){ tpsScoredCount++; anyData=true; }
-          DIMS.forEach(d=>{
+          [...PROC_DIMS,...ATTIT_DIMS].forEach(d=>{
             if(sc[d]>0) dimScores[d].push(sc[d]);
           });
         });
@@ -1656,22 +1711,22 @@ function renderOverview(){
 
         // Per-dimension averages (only for dims that have been scored)
         const dimAvgs={};
-        DIMS.forEach(d=>{
+        [...PROC_DIMS,...ATTIT_DIMS].forEach(d=>{
           dimAvgs[d] = dimScores[d].length
             ? dimScores[d].reduce((a,b)=>a+b,0)/dimScores[d].length
             : null;
         });
 
         // Dims that are at or below threshold
-        const weakDims=DIMS.filter(d=>dimAvgs[d]!==null && dimAvgs[d]<=_arThreshold);
+        const weakDims=[...PROC_DIMS,...ATTIT_DIMS].filter(d=>dimAvgs[d]!==null && dimAvgs[d]<=_arThreshold);
 
         // Flag if 2 or more dimensions are at/below threshold
         // OR if any single dimension averages 1.5 or below (serious individual concern)
-        const seriousSingle=DIMS.some(d=>dimAvgs[d]!==null && dimAvgs[d]<=1.5);
+        const seriousSingle=[...PROC_DIMS,...ATTIT_DIMS].some(d=>dimAvgs[d]!==null && dimAvgs[d]<=1.5);
         if(weakDims.length < 2 && !seriousSingle) return;
 
-        const processVals = ['progress'].map(d=>dimAvgs[d]).filter(v=>v!==null);
-        const attitudeVals= ['effort','behaviour','homelearning'].map(d=>dimAvgs[d]).filter(v=>v!==null);
+        const processVals = PROC_DIMS.map(d=>dimAvgs[d]).filter(v=>v!==null);
+        const attitudeVals= ATTIT_DIMS.map(d=>dimAvgs[d]).filter(v=>v!==null);
         const allVals     = [...processVals,...attitudeVals];
         const processAvg  = processVals.length  ? processVals.reduce((a,b)=>a+b,0)/processVals.length  : null;
         const attitudeAvg = attitudeVals.length ? attitudeVals.reduce((a,b)=>a+b,0)/attitudeVals.length: null;
@@ -1679,7 +1734,7 @@ function renderOverview(){
         if(!overallAvg) return;
 
         // concerns = dims below 2.5 for the card detail
-        const concerns=DIMS
+        const concerns=[...PROC_DIMS,...ATTIT_DIMS]
           .filter(d=>dimAvgs[d]!==null && dimAvgs[d]<2.5)
           .map(d=>({dim:d, avg:dimAvgs[d], group:dimCfg[d].group}));
 
@@ -1779,10 +1834,9 @@ function renderOverview(){
       const tps=TPS[yg];
 
       const procCfg=[
-        {d:'progress',  lbl:'Progress',  col:'#c0622a',fill:'f-pr'},
-        {d:'effort',   lbl:'Effort',    col:'#92400e',fill:'f-ef'},
-        {d:'behaviour',lbl:'Behaviour', col:'#be185d',fill:'f-bh'},
-        {d:'homelearning',lbl:'Home Learning',col:'#b45309',fill:'f-hl'},
+        {d:'creating',  lbl:'Creating',  col:'#7c3aed',fill:'f-cr'},
+        {d:'presenting',lbl:'Presenting',col:'#0369a1',fill:'f-pr'},
+        {d:'evaluating',lbl:'Evaluating',col:'#0f766e',fill:'f-ev'},
       ];
 
       const procBars=procCfg.map(({d,lbl,col,fill})=>{
@@ -1790,16 +1844,16 @@ function renderOverview(){
         const a=avg(vals);
         return `<div class="ov-bar-row">
           <div class="ov-bar-lbl" style="color:${col};font-weight:700">${lbl}</div>
-          <div class="ov-bar-wrap"><div class="ov-bar-fill" style="width:${pct(a)}%;background:${col}"></div></div>
+          <div class="ov-bar-wrap"><div class="ov-bar-fill ${fill}" style="width:${pct(a)}%"></div></div>
           <div class="ov-bar-val">${a?a.toFixed(1):'—'}</div>
         </div>`;
       }).join('');
 
       const tpRows=tps.map(tp=>{
-        const vals=pupils.flatMap(p=>DIMS.map(d=>S.scores[yg]?.[p.id]?.[tp.id]?.[d]).filter(v=>v>0));
+        const vals=pupils.flatMap(p=>PROC_DIMS.map(d=>S.scores[yg]?.[p.id]?.[tp.id]?.[d]).filter(v=>v>0));
         const a=avg(vals);
         const bg=a?(a<2?'#ef4444':a<3?'#f59e0b':'#10b981'):'var(--border2)';
-        const atRiskCount=pupils.filter(p=>DIMS.some(d=>{const v=S.scores[yg]?.[p.id]?.[tp.id]?.[d];return v>0&&v<=_arThreshold;})).length;
+        const atRiskCount=pupils.filter(p=>PROC_DIMS.some(d=>{const v=S.scores[yg]?.[p.id]?.[tp.id]?.[d];return v>0&&v<=_arThreshold;})).length;
         return `<div class="ov-bar-row">
           <div class="ov-bar-lbl" style="font-family:'DM Mono',monospace;font-size:.59rem">${tp.label}</div>
           <div class="ov-bar-wrap"><div class="ov-bar-fill" style="width:${pct(a)}%;background:${bg}"></div></div>
@@ -1811,8 +1865,9 @@ function renderOverview(){
       // Per-pupil score rows for deep-dive when a single class is selected
       let pupilRowsHTML='';
       if(_ovCls!=='all'){
-        const dimLabels={progress:'Pro',effort:'Ef',behaviour:'Bh',homelearning:'HL'};
-        const dimCols={progress:'#c0622a',effort:'#92400e',behaviour:'#be185d',homelearning:'#b45309'};
+        const allDims=[...PROC_DIMS,...ATTIT_DIMS];
+        const dimLabels={creating:'Cr',presenting:'Pr',evaluating:'Ev',effort:'Ef',behaviour:'Bh',homelearning:'HL'};
+        const dimCols={creating:'#7c3aed',presenting:'#0369a1',evaluating:'#0f766e',effort:'#92400e',behaviour:'#be185d',homelearning:'#b45309'};
         const scoreBg={1:'var(--s1-bg)',2:'var(--s2-bg)',3:'var(--s3-bg)',4:'var(--s4-bg)'};
         const scoreCol={1:'var(--s1-text)',2:'var(--s2-text)',3:'var(--s3-text)',4:'var(--s4-text)'};
 
@@ -1823,11 +1878,11 @@ function renderOverview(){
               <thead>
                 <tr style="background:var(--navy-dark)">
                   <th style="padding:.45rem .75rem;text-align:left;color:rgba(255,255,255,.55);font-size:.55rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;white-space:nowrap;position:sticky;left:0;background:var(--navy-dark)">Pupil</th>
-                  ${tps.map(tp=>`<th colspan="${DIMS.length}" style="padding:.45rem .5rem;text-align:center;color:rgba(255,255,255,.45);font-size:.53rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;border-left:1px solid rgba(255,255,255,.07)">${tp.label}</th>`).join('')}
+                  ${tps.map(tp=>`<th colspan="${allDims.length}" style="padding:.45rem .5rem;text-align:center;color:rgba(255,255,255,.45);font-size:.53rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;border-left:1px solid rgba(255,255,255,.07)">${tp.label}</th>`).join('')}
                 </tr>
                 <tr style="background:#1a2744">
                   <th style="padding:.3rem .75rem;position:sticky;left:0;background:#1a2744"></th>
-                  ${tps.map(()=>DIMS.map(d=>`<th style="padding:.28rem .3rem;text-align:center;font-size:.56rem;font-weight:700;color:${dimCols[d]};opacity:.8;white-space:nowrap;border-left:1px solid rgba(255,255,255,.04)">${dimLabels[d]}</th>`).join('')).join('')}
+                  ${tps.map(()=>allDims.map(d=>`<th style="padding:.28rem .3rem;text-align:center;font-size:.56rem;font-weight:700;color:${dimCols[d]};opacity:.8;white-space:nowrap;border-left:1px solid rgba(255,255,255,.04)">${dimLabels[d]}</th>`).join('')).join('')}
                 </tr>
               </thead>
               <tbody>
@@ -1838,7 +1893,7 @@ function renderOverview(){
                     <td style="padding:.38rem .75rem;font-weight:${atRisk?'600':'500'};white-space:nowrap;position:sticky;left:0;background:${i%2===0?'#fff':'#f8fafc'};${atRisk?'color:#991b1b':''}">${atRisk?'▲ ':''} ${p.name}${arEntry?` <span style="font-family:'DM Mono',monospace;font-size:.6rem;color:#ef4444">${arEntry.overallAvg.toFixed(1)}</span>`:''}</td>
                     ${tps.map(tp=>{
                       const sc=S.scores[yg]?.[p.id]?.[tp.id]||{};
-                      return DIMS.map(d=>{
+                      return allDims.map(d=>{
                         const v=sc[d];
                         const isLow=v>0&&v<=_arThreshold;
                         return `<td style="padding:.3rem .3rem;text-align:center;border-left:1px solid var(--border)">
@@ -1863,7 +1918,7 @@ function renderOverview(){
           </div>
         </div>
         <div class="ov-body">
-          <div style="font-size:.55rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--text3);margin-bottom:.45rem">Year-to-date — Dimensions</div>
+          <div style="font-size:.55rem;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--text3);margin-bottom:.45rem">Year-to-date — Process Dimensions</div>
           ${procBars}
           <div class="ov-sec">By Tracking Period (process avg)</div>
           ${tpRows}
@@ -1901,12 +1956,12 @@ function renderExportPreview(){
       (S.pupils[yg][cls]||[]).forEach(p=>{
         TPS[yg].forEach(tp=>{
           const sc=S.scores[yg]?.[p.id]?.[tp.id]||{};
-          if(DIMS.some(d=>sc[d]>0))rows++;
+          if(PROC_DIMS.some(d=>sc[d]>0))rows++;
         });
       });
     });
   });
-  el.innerHTML=rows?`<div style="font-size:.73rem;color:var(--text2)">${rows} scored TP rows ready across all year groups. The CSV includes one row per pupil per TP with all four dimensions plus notes.</div>`:'<div class="empty-s"><div class="empty-icon">📋</div>No scored data yet.</div>';
+  el.innerHTML=rows?`<div style="font-size:.73rem;color:var(--text2)">${rows} scored TP rows ready across all year groups. The CSV includes one row per pupil per TP with all six dimensions plus notes.</div>`:'<div class="empty-s"><div class="empty-icon">📋</div>No scored data yet.</div>';
 }
 
 function exportForFacultyHead(){
@@ -1928,7 +1983,8 @@ function exportCSV(target){
     const h=['Year Group','Class','Pupil Name'];
     tps.forEach(tp=>{
       h.push(`${tp.label} Unit`);
-      DIMS.forEach(d=>h.push(`${tp.label} ${DIM_LABELS[d]}`));
+      PROC_DIMS.forEach(d=>h.push(`${tp.label} ${PROC_LABELS[d]}`));
+      ATTIT_DIMS.forEach(d=>h.push(`${tp.label} ${ATTIT_LABELS[d]}`));
       h.push(`${tp.label} Notes`);
     });
     rows.push(h);
@@ -1938,7 +1994,8 @@ function exportCSV(target){
         tps.forEach(tp=>{
           const sc=S.scores[yg]?.[p.id]?.[tp.id]||{};
           r.push(tp.unit);
-          DIMS.forEach(d=>r.push(sc[d]||''));
+          PROC_DIMS.forEach(d=>r.push(sc[d]||''));
+          ATTIT_DIMS.forEach(d=>r.push(sc[d]||''));
           r.push((sc.notes||'').replace(/,/g,';').replace(/\n/g,' '));
         });
         rows.push(r);

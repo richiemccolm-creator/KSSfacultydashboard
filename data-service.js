@@ -16,6 +16,27 @@
     return window.supabase && window.supabase.auth && window.supabase.auth.getSession;
   }
   var announcementsPrioritySchemaKnown = null;
+  function localTodayYMD() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function mapAnnouncementsList(rows) {
+    var today = localTodayYMD();
+    return (rows || []).filter(function(a) {
+      var exp = a && a.expires_at ? String(a.expires_at).slice(0, 10) : '';
+      return !exp || exp >= today;
+    }).map(function(a) {
+      return {
+        id: a.id,
+        title: a.title,
+        body: a.body,
+        expires_at: a.expires_at,
+        created_at: a.created_at,
+        priority: a.priority || 'none',
+        highlight_priority: !!a.highlight_priority
+      };
+    });
+  }
   function isAnnouncementsPrioritySchemaError(err) {
     if (!err) return false;
     var msg = String(err.message || err.details || '');
@@ -356,47 +377,23 @@
           .select(fields)
           .order('created_at', { ascending: false })
           .then(function(r) {
-            if (r.error && announcementsPrioritySchemaKnown !== false && isAnnouncementsPrioritySchemaError(r.error)) {
-              announcementsPrioritySchemaKnown = false;
-              return window.supabase.from('announcements')
-                .select('id, title, body, expires_at, created_at')
-                .order('created_at', { ascending: false })
-                .then(function(legacy) {
-                  if (legacy.error) { resolve([]); return; }
-                  var todayLegacy = new Date().toISOString().slice(0, 10);
-                  var legacyList = (legacy.data || []).filter(function(a) {
-                    return !a.expires_at || a.expires_at >= todayLegacy;
-                  }).map(function(a) {
-                    return {
-                      id: a.id,
-                      title: a.title,
-                      body: a.body,
-                      expires_at: a.expires_at,
-                      created_at: a.created_at,
-                      priority: 'none',
-                      highlight_priority: false
-                    };
-                  });
-                  resolve(legacyList);
-                });
+            if (!r.error) {
+              announcementsPrioritySchemaKnown = true;
+              resolve(mapAnnouncementsList(r.data || []));
+              return;
             }
-            if (r.error) { resolve([]); return; }
-            announcementsPrioritySchemaKnown = true;
-            var today = new Date().toISOString().slice(0, 10);
-            var list = (r.data || []).filter(function(a) {
-              return !a.expires_at || a.expires_at >= today;
-            }).map(function(a) {
-              return {
-                id: a.id,
-                title: a.title,
-                body: a.body,
-                expires_at: a.expires_at,
-                created_at: a.created_at,
-                priority: a.priority || 'none',
-                highlight_priority: !!a.highlight_priority
-              };
-            });
-            resolve(list);
+            // Any select error can hide announcements; retry with legacy fields.
+            announcementsPrioritySchemaKnown = false;
+            window.supabase.from('announcements')
+              .select('id, title, body, expires_at, created_at')
+              .order('created_at', { ascending: false })
+              .then(function(legacy) {
+                if (legacy.error) { resolve([]); return; }
+                var legacyRows = (legacy.data || []).map(function(a) {
+                  return Object.assign({}, a, { priority: 'none', highlight_priority: false });
+                });
+                resolve(mapAnnouncementsList(legacyRows));
+              });
           });
       });
     },
