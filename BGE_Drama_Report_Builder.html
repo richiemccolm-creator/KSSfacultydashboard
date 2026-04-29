@@ -950,6 +950,8 @@ function createPupil(firstName = 'New', lastName = 'Pupil') {
     firstName,
     lastName,
     year: 'S2',
+    cfeLevel: '',
+    s4Destination: '',
     recommend: false,
     additionalComments: '',
     confirmed: false,
@@ -1139,6 +1141,19 @@ function renderEditor() {
         <button class="year-btn ${p.year === y ? 'active' : ''}" onclick="setYear('${y}')">${y}</button>
       `).join('')}
     </div>
+    <div class="year-select-row">
+      <span style="font-size:.85rem;color:var(--text-2);align-self:center;margin-right:4px">Working at / towards:</span>
+      ${['First Level','Second Level','Third Level','Fourth Level'].map(level => `
+        <button class="year-btn ${p.cfeLevel === level ? 'active' : ''}" onclick="setCfeLevel('${level}')">${level}</button>
+      `).join('')}
+    </div>
+    ${p.year === 'S3' ? `
+    <div class="year-select-row">
+      <span style="font-size:.85rem;color:var(--text-2);align-self:center;margin-right:4px">S4 pathway:</span>
+      ${['National 3','National 4','National 5'].map(level => `
+        <button class="year-btn ${p.s4Destination === level ? 'active' : ''}" onclick="setS4Destination('${level}')">${level}</button>
+      `).join('')}
+    </div>` : ''}
 
     ${p.year !== 'S3' ? `
     <div class="recommend-row">
@@ -1253,7 +1268,26 @@ function setYear(year) {
   const p = pupils.find(x => x.id === activePupilId);
   if (!p) return;
   p.year = year;
+  if (year !== 'S3') p.s4Destination = '';
   p.selections = { strengths: [], aod: [], next_steps: [] };
+  saveData();
+  renderEditor();
+  renderPreview();
+}
+
+function setCfeLevel(level) {
+  const p = pupils.find(x => x.id === activePupilId);
+  if (!p) return;
+  p.cfeLevel = level;
+  saveData();
+  renderEditor();
+  renderPreview();
+}
+
+function setS4Destination(level) {
+  const p = pupils.find(x => x.id === activePupilId);
+  if (!p) return;
+  p.s4Destination = level;
   saveData();
   renderEditor();
   renderPreview();
@@ -1334,6 +1368,8 @@ function renderPreview() {
     ${contextSummary && contextSummary.trim() ? `<div class="preview-section" style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border)"><h4 style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-3);margin-bottom:4px">Context</h4><p style="font-size:.8rem;color:var(--text-2);line-height:1.6">${contextSummary.trim().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p></div>` : ''}
     <div class="preview-name">${p.firstName} ${p.lastName}</div>
     <div class="preview-year">Year Group: ${p.year}</div>
+    ${p.cfeLevel ? `<div class="preview-year">Working at / towards: ${p.cfeLevel}</div>` : ''}
+    ${p.year === 'S3' && p.s4Destination ? `<div class="preview-year">S4 pathway: ${p.s4Destination}</div>` : ''}
     ${sectionHtml('strengths', 'ps-s', 'Strengths')}
     ${sectionHtml('aod', 'ps-a', 'Areas of Development')}
     ${sectionHtml('next_steps', 'ps-n', 'Next Steps')}
@@ -1464,6 +1500,12 @@ function buildDocXml() {
 
     body += para(fullName, { bold:true, size:28, color:'0F3460', spaceBefore:280, spaceAfter:40 });
     body += para(`Year Group: ${p.year}`, { size:18, color:'888888', italic:true, spaceAfter:160 });
+    if (p.cfeLevel) {
+      body += para(`Working at / towards: ${p.cfeLevel}`, { size:18, color:'666666', italic:true, spaceAfter:120 });
+    }
+    if (p.year === 'S3' && p.s4Destination) {
+      body += para(`S4 pathway: ${p.s4Destination}`, { size:18, color:'666666', italic:true, spaceAfter:120 });
+    }
 
     addSection('strengths',  'Strengths',             '2E7D32');
     addSection('aod',        'Areas of Development',  'BF360C');
@@ -1641,14 +1683,21 @@ function saveData() {
 
 function loadData() {
   return (window.DataService ? DataService.get(STORAGE_KEY) : Promise.resolve(JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null'))).then(function(parsed) {
+    function hydratePupil(p) {
+      return {
+        ...p,
+        cfeLevel: p && p.cfeLevel ? p.cfeLevel : '',
+        s4Destination: p && p.s4Destination ? p.s4Destination : ''
+      };
+    }
     if (parsed && Array.isArray(parsed.pupils) && parsed.pupils.length > 0) {
-      pupils = parsed.pupils;
+      pupils = parsed.pupils.map(hydratePupil);
       activePupilId = parsed.activePupilId || null;
       contextSummary = parsed.contextSummary || '';
       return true;
     }
     if (parsed && parsed.pupils) {
-      pupils = parsed.pupils || [];
+      pupils = (parsed.pupils || []).map(hydratePupil);
       activePupilId = parsed.activePupilId || null;
       contextSummary = parsed.contextSummary || '';
       return pupils.length > 0;
