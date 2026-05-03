@@ -15,6 +15,27 @@
   function useSupabase() {
     return window.supabase && window.supabase.auth && window.supabase.auth.getSession;
   }
+  function getSessionWithRetry(options) {
+    var opts = options || {};
+    var retries = opts.retries == null ? 1 : opts.retries;
+    var delayMs = opts.delayMs == null ? 180 : opts.delayMs;
+    function attempt(remaining, resolve) {
+      window.supabase.auth.getSession().then(function(_a) {
+        var session = _a && _a.data ? _a.data.session : null;
+        if (session || remaining <= 0) {
+          resolve(session || null);
+          return;
+        }
+        setTimeout(function() { attempt(remaining - 1, resolve); }, delayMs);
+      }).catch(function() {
+        resolve(null);
+      });
+    }
+    return new Promise(function(resolve) {
+      if (!useSupabase()) { resolve(null); return; }
+      attempt(retries, resolve);
+    });
+  }
   var announcementsPrioritySchemaKnown = null;
   function localTodayYMD() {
     var d = new Date();
@@ -58,8 +79,7 @@
           }
           return;
         }
-        window.supabase.auth.getSession().then(function(_a) {
-          var session = _a.data.session;
+        getSessionWithRetry().then(function(session) {
           if (!session) {
             resolve(null);
             return;
@@ -120,8 +140,7 @@
           resolve(out);
           return;
         }
-        window.supabase.auth.getSession().then(function(_a) {
-          var session = _a.data.session;
+        getSessionWithRetry().then(function(session) {
           if (!session) {
             resolve({});
             return;
@@ -368,33 +387,38 @@
     },
 
     getAnnouncements: function() {
-      return new Promise(function(resolve, reject) {
+      return new Promise(function(resolve) {
         if (!useSupabase()) { resolve([]); return; }
-        var fields = announcementsPrioritySchemaKnown === false
-          ? 'id, title, body, expires_at, created_at'
-          : 'id, title, body, expires_at, created_at, priority, highlight_priority';
-        window.supabase.from('announcements')
-          .select(fields)
-          .order('created_at', { ascending: false })
-          .then(function(r) {
-            if (!r.error) {
-              announcementsPrioritySchemaKnown = true;
-              resolve(mapAnnouncementsList(r.data || []));
-              return;
-            }
-            // Any select error can hide announcements; retry with legacy fields.
-            announcementsPrioritySchemaKnown = false;
-            window.supabase.from('announcements')
-              .select('id, title, body, expires_at, created_at')
-              .order('created_at', { ascending: false })
-              .then(function(legacy) {
-                if (legacy.error) { resolve([]); return; }
-                var legacyRows = (legacy.data || []).map(function(a) {
-                  return Object.assign({}, a, { priority: 'none', highlight_priority: false });
+        getSessionWithRetry().then(function(session) {
+          if (!session) { resolve([]); return; }
+          var fields = announcementsPrioritySchemaKnown === false
+            ? 'id, title, body, expires_at, created_at'
+            : 'id, title, body, expires_at, created_at, priority, highlight_priority';
+          window.supabase.from('announcements')
+            .select(fields)
+            .order('created_at', { ascending: false })
+            .then(function(r) {
+              if (!r.error) {
+                announcementsPrioritySchemaKnown = true;
+                resolve(mapAnnouncementsList(r.data || []));
+                return;
+              }
+              // Any select error can hide announcements; retry with legacy fields.
+              announcementsPrioritySchemaKnown = false;
+              window.supabase.from('announcements')
+                .select('id, title, body, expires_at, created_at')
+                .order('created_at', { ascending: false })
+                .then(function(legacy) {
+                  if (legacy.error) { resolve([]); return; }
+                  var legacyRows = (legacy.data || []).map(function(a) {
+                    return Object.assign({}, a, { priority: 'none', highlight_priority: false });
+                  });
+                  resolve(mapAnnouncementsList(legacyRows));
                 });
-                resolve(mapAnnouncementsList(legacyRows));
-              });
-          });
+            });
+        }).catch(function() {
+          resolve([]);
+        });
       });
     },
 

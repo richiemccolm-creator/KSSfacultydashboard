@@ -4738,7 +4738,64 @@ function toggleSidebar(){
   }
 }
 var homeResumeRefreshTimer=null;
+var homeRefreshDataTimer=null;
 var homeLastResumeRefreshMs=0;
+var homeHasCompletedInitialLoad=false;
+var homeUpdateStorageIndicatorFn=null;
+function scheduleHomeDataRefresh(delayMs){
+  if(homeRefreshDataTimer) clearTimeout(homeRefreshDataTimer);
+  homeRefreshDataTimer=setTimeout(function(){
+    var loadCalendar=(typeof calLoadEvents==='function')?calLoadEvents():Promise.resolve([]);
+    loadCalendar.catch(function(){ return []; }).then(function(){
+      if(typeof homeUpdateStorageIndicatorFn==='function') homeUpdateStorageIndicatorFn();
+      if(typeof calRender==='function') calRender();
+      if(typeof homeDashboardRender==='function') homeDashboardRender();
+    });
+  },typeof delayMs==='number'?delayMs:120);
+}
+function waitForAuthGuardReady(timeoutMs){
+  return new Promise(function(resolve){
+    if(window.__authReady===true){ resolve(); return; }
+    var settled=false;
+    var done=function(){
+      if(settled) return;
+      settled=true;
+      try{window.removeEventListener('auth-guard-ready',onReady);}catch(e){}
+      if(timer) clearTimeout(timer);
+      resolve();
+    };
+    var onReady=function(){ done(); };
+    var timer=setTimeout(done,typeof timeoutMs==='number'?timeoutMs:1500);
+    try{window.addEventListener('auth-guard-ready',onReady,{once:true});}catch(e){window.addEventListener('auth-guard-ready',onReady);}
+  });
+}
+function ensureStartupSessionSettled(timeoutMs){
+  if(!(window.supabase&&window.supabase.auth&&typeof window.supabase.auth.getSession==='function')){
+    return Promise.resolve();
+  }
+  var timeout=typeof timeoutMs==='number'?timeoutMs:1200;
+  return new Promise(function(resolve){
+    var settled=false;
+    var finish=function(){
+      if(settled) return;
+      settled=true;
+      if(timer) clearTimeout(timer);
+      try{if(sub&&typeof sub.unsubscribe==='function') sub.unsubscribe();}catch(e){}
+      resolve();
+    };
+    var timer=setTimeout(finish,timeout);
+    var sub=null;
+    try{
+      var bind=window.supabase.auth.onAuthStateChange(function(event){
+        if(event==='INITIAL_SESSION'||event==='SIGNED_IN'||event==='TOKEN_REFRESHED') finish();
+      });
+      sub=bind&&bind.data&&bind.data.subscription?bind.data.subscription:null;
+    }catch(e){}
+    window.supabase.auth.getSession().then(function(r){
+      if(r&&r.data&&r.data.session) finish();
+    }).catch(function(){});
+  });
+}
 function isStandaloneDisplayMode(){
   try{
     return !!(window.navigator&&window.navigator.standalone)||!!(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches);
@@ -4757,8 +4814,7 @@ function refreshAfterStandaloneResume(force){
     var activeId=active&&active.id?active.id:'home';
     if(activeId==='home'){
       showPanel('home');
-      if(typeof calRender==='function') calRender();
-      if(typeof homeDashboardRender==='function') homeDashboardRender();
+      scheduleHomeDataRefresh(80);
       return;
     }
     showPanel(activeId);
@@ -7826,7 +7882,12 @@ document.addEventListener('DOMContentLoaded',function(){
     var qCalLink=document.getElementById('quality-calendar-link');if(qCalLink)qCalLink.style.display=window.__authGuardIsAdmin?'flex':'none';
     var banner=document.getElementById('cloud-sync-banner');if(banner)banner.style.display=(window.DataService&&window.DataService.isUsingCloud&&window.DataService.isUsingCloud())?'none':'block';
   }
-  Promise.all([calLoadEvents(),loadModerationData(),loadDip]).then(function(res){
+  homeUpdateStorageIndicatorFn=updateStorageIndicator;
+  waitForAuthGuardReady(1600).then(function(){
+    return ensureStartupSessionSettled(1400);
+  }).then(function(){
+    return Promise.all([calLoadEvents(),loadModerationData(),loadDip]);
+  }).then(function(res){
     var dipData=res[2]||{};
     updateStorageIndicator();
     showPanel('home');
@@ -7834,7 +7895,20 @@ document.addEventListener('DOMContentLoaded',function(){
     homeDashboardRender();
     dipLoadEval(dipData);
     dipRenderProgressTimeline();
+    homeHasCompletedInitialLoad=true;
+  }).catch(function(){
+    updateStorageIndicator();
+    showPanel('home');
+    scheduleHomeDataRefresh(60);
+    homeHasCompletedInitialLoad=true;
   });
+  if(window.supabase&&window.supabase.auth&&typeof window.supabase.auth.onAuthStateChange==='function'){
+    window.supabase.auth.onAuthStateChange(function(event){
+      if(['INITIAL_SESSION','SIGNED_IN','TOKEN_REFRESHED'].indexOf(event)<0) return;
+      if(!homeHasCompletedInitialLoad) return;
+      scheduleHomeDataRefresh(120);
+    });
+  }
   document.addEventListener('click',function(e){
     const card=e.target.closest('.moderation-unit-card');
     if(card){

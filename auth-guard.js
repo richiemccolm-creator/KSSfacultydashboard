@@ -3,6 +3,14 @@
  * Include allowlist-check.js before this script.
  */
 (function() {
+  window.__authReady = false;
+  window.__authGuardIsAdmin = false;
+  function markAuthReady() {
+    window.__authReady = true;
+    try {
+      window.dispatchEvent(new CustomEvent('auth-guard-ready'));
+    } catch (e) {}
+  }
   var path = window.location.pathname;
   if (path === '/' || path === '/index.html') path = 'faculty-hub.html';
   var redirect = encodeURIComponent(path + window.location.search);
@@ -27,9 +35,14 @@
           window.location.replace(loginUrl + (loginUrl.indexOf('?') >= 0 ? '&' : '?') + 'error=access_denied');
         } else {
           window.__authGuardIsAdmin = r.isAdmin;
+          markAuthReady();
         }
+      }).catch(function() {
+        window.location.replace(loginUrl);
       });
+      return;
     }
+    markAuthReady();
   }).catch(function() {
     window.location.replace(loginUrl);
   });
