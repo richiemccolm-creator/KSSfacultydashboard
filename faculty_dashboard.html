@@ -29,6 +29,7 @@
 <script src="https://unpkg.com/mammoth@1.9.0/mammoth.browser.min.js"></script>
 <script src="department-meeting-docx-import.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="announcement-docx-import.js"></script>
 <script src="parent-letter-docx.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@700;800&display=swap" rel="stylesheet">
@@ -402,6 +403,19 @@ html,body{min-height:100%;margin:0;width:100%;box-sizing:border-box}
               <button class="btn btn-primary" id="admin-ann-add-btn" onclick="adminAddAnnouncement()">Add announcement</button>
               <button class="btn btn-primary" id="admin-ann-update-btn" onclick="adminUpdateAnnouncement()" style="display:none;background:#0369a1">Update</button>
               <button class="btn btn-ghost" id="admin-ann-cancel-btn" onclick="adminCancelAnnouncementEdit()" style="display:none">Cancel</button>
+            </div>
+            <div style="margin-bottom:1rem;padding:.85rem;border:1px solid var(--border);border-radius:8px;background:var(--card)">
+              <label class="form-label" for="admin-ann-docx-file">Bulk import from Word (.docx)</label>
+              <div style="display:flex;flex-wrap:wrap;gap:.6rem;align-items:center">
+                <button type="button" class="btn btn-ghost" onclick="adminDownloadAnnouncementTemplate()">Download template (.docx)</button>
+                <input type="file" id="admin-ann-docx-file" class="form-input" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style="font-size:.72rem;max-width:320px;padding:.35rem" onchange="adminAnnouncementsImportDocx(this)">
+                <label style="display:flex;align-items:center;gap:.4rem;font-size:.78rem;color:var(--text2);cursor:pointer">
+                  <input type="checkbox" id="admin-ann-import-replace" style="width:14px;height:14px;cursor:pointer">
+                  <span>Replace all existing announcements</span>
+                </label>
+              </div>
+              <p id="admin-ann-import-status" style="display:none;font-size:.72rem;color:var(--text3);margin-top:.5rem"></p>
+              <p style="font-size:.7rem;color:var(--text3);margin-top:.5rem">Use the template in ChatGPT/Claude, keep one announcement block per entry, then upload the completed .docx.</p>
             </div>
             <div id="admin-announcements-list" style="font-size:.85rem"></div>
           </div>
@@ -1386,6 +1400,94 @@ function getErrMessage(err, fallback) {
   var msg = String(err.message || err.details || err.hint || '').trim();
   return msg || fallback;
 }
+function adminAnnSetImportStatus(text, isError) {
+  var el = document.getElementById('admin-ann-import-status');
+  if (!el) return;
+  var msg = String(text || '').trim();
+  if (!msg) {
+    el.style.display = 'none';
+    el.textContent = '';
+    el.style.color = 'var(--text3)';
+    return;
+  }
+  el.style.display = 'block';
+  el.textContent = msg;
+  el.style.color = isError ? '#b91c1c' : 'var(--text3)';
+}
+function adminDownloadAnnouncementTemplate() {
+  if (!window.AnnouncementDocxImport || typeof window.AnnouncementDocxImport.downloadTemplate !== 'function') {
+    toast('Template download is unavailable. Refresh and try again.');
+    return;
+  }
+  adminAnnSetImportStatus('Preparing template...', false);
+  window.AnnouncementDocxImport.downloadTemplate().then(function() {
+    adminAnnSetImportStatus('Template downloaded. Fill it in and upload the completed .docx file below.', false);
+  }).catch(function(err) {
+    var msg = getErrMessage(err, 'Could not download template');
+    adminAnnSetImportStatus(msg, true);
+    toast(msg);
+  });
+}
+function adminAnnouncementsImportDocx(inp) {
+  if (!window.__authGuardIsAdmin || !window.DataService) {
+    toast('Admin only');
+    if (inp) inp.value = '';
+    return;
+  }
+  var f = inp && inp.files && inp.files[0];
+  if (!f) return;
+  if (!window.AnnouncementDocxImport || typeof window.AnnouncementDocxImport.parseFile !== 'function') {
+    adminAnnSetImportStatus('Word importer is unavailable. Refresh and try again.', true);
+    toast('Word importer unavailable');
+    inp.value = '';
+    return;
+  }
+  adminAnnSetImportStatus('Reading Word document...', false);
+  window.AnnouncementDocxImport.parseFile(f).then(function(parsed) {
+    var items = parsed && Array.isArray(parsed.announcements) ? parsed.announcements : [];
+    if (!items.length) {
+      adminAnnSetImportStatus('No announcements found in the file. Use the template format and try again.', true);
+      toast('No announcements found');
+      return;
+    }
+    var replace = !!(document.getElementById('admin-ann-import-replace') && document.getElementById('admin-ann-import-replace').checked);
+    if (replace && adminAnnouncements.length) {
+      if (!confirm('Replace all current announcements with ' + items.length + ' imported announcement(s)?')) {
+        adminAnnSetImportStatus('Import cancelled.', false);
+        return;
+      }
+    }
+    adminAnnSetImportStatus('Importing ' + items.length + ' announcement(s)...', false);
+    var chain = Promise.resolve();
+    if (replace) {
+      (adminAnnouncements || []).forEach(function(a) {
+        if (!a || !a.id) return;
+        chain = chain.then(function() { return DataService.deleteAnnouncement(a.id); });
+      });
+    }
+    items.forEach(function(entry) {
+      chain = chain.then(function() { return DataService.createAnnouncement(entry); });
+    });
+    return chain.then(function() {
+      return DataService.getAnnouncements().then(function(list) {
+        adminAnnouncements = list || [];
+      });
+    }).then(function() {
+      renderAdminConsole();
+      var warns = parsed && Array.isArray(parsed.warnings) ? parsed.warnings : [];
+      var msg = 'Imported ' + items.length + ' announcement(s)' + (replace ? ' and replaced existing list.' : '.');
+      if (warns.length) msg += ' ' + warns[0];
+      adminAnnSetImportStatus(msg, false);
+      toast('Announcements imported');
+    });
+  }).catch(function(err) {
+    var msg = getErrMessage(err, 'Could not import announcements from Word file');
+    adminAnnSetImportStatus(msg, true);
+    toast(msg);
+  }).finally(function() {
+    inp.value = '';
+  });
+}
 
 function updateLoadCloudButton() {
   const btn = document.getElementById('load-cloud-btn');
@@ -1399,16 +1501,34 @@ function refreshAdminUiPlacement() {
   updateLoadCloudButton();
   attachDataSetup(getActiveViewId());
 }
+var initialAdminViewApplied = false;
+function syncAdminUiFromAuthState() {
+  refreshAdminUiPlacement();
+  var v = new URLSearchParams(window.location.search).get('view');
+  if (!initialAdminViewApplied && v === 'admin-console' && window.__authGuardIsAdmin) {
+    initialAdminViewApplied = true;
+    setView('admin-console');
+  }
+  var riskPanel = document.getElementById('view-at-risk');
+  if (riskPanel && riskPanel.style.display === 'block') renderAtRisk();
+}
 refreshAdminUiPlacement();
 setTimeout(refreshAdminUiPlacement, 100);
 setTimeout(refreshAdminUiPlacement, 400);
-setTimeout(function(){
-  refreshAdminUiPlacement();
-  var v = new URLSearchParams(window.location.search).get('view');
-  if (v === 'admin-console' && window.__authGuardIsAdmin) setView('admin-console');
-  var riskPanel = document.getElementById('view-at-risk');
-  if (riskPanel && riskPanel.style.display === 'block') renderAtRisk();
-},800);
+setTimeout(syncAdminUiFromAuthState, 800);
+window.addEventListener('auth-guard-ready', syncAdminUiFromAuthState);
+(function waitForAuthReadyUiSync(){
+  var attempts = 0;
+  function tick() {
+    if (window.__authReady || attempts >= 24) {
+      syncAdminUiFromAuthState();
+      return;
+    }
+    attempts += 1;
+    setTimeout(tick, 250);
+  }
+  tick();
+})();
 
 var staffListCache = [];
 function renderStaffView() {
