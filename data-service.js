@@ -36,7 +36,8 @@
       attempt(retries, resolve);
     });
   }
-  var announcementsPrioritySchemaKnown = null;
+  // Default to legacy-safe mode so older databases do not fail on first write.
+  var announcementsPrioritySchemaKnown = false;
   function localTodayYMD() {
     var d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -432,24 +433,23 @@
       if (!useSupabase()) return Promise.reject(new Error('Supabase required'));
       var priority = String(obj.priority || 'none').toLowerCase();
       if (['none', 'low', 'medium', 'high'].indexOf(priority) === -1) priority = 'none';
-      var row = {
+      var baseRow = {
         title: (obj.title || '').trim(),
         body: (obj.body || '').trim() || null,
-        expires_at: obj.expires_at || null,
-        priority: priority,
-        highlight_priority: !!obj.highlight_priority
+        expires_at: obj.expires_at || null
       };
+      var row = announcementsPrioritySchemaKnown === false
+        ? baseRow
+        : Object.assign({}, baseRow, {
+          priority: priority,
+          highlight_priority: !!obj.highlight_priority
+        });
       return ensureSessionForMutations().then(function() {
         return window.supabase.from('announcements').insert(row).then(function(r) {
           if (!r.error) { announcementsPrioritySchemaKnown = true; return; }
           if (announcementsPrioritySchemaKnown !== false && isAnnouncementsPrioritySchemaError(r.error)) {
             announcementsPrioritySchemaKnown = false;
-            var legacyRow = {
-              title: (obj.title || '').trim(),
-              body: (obj.body || '').trim() || null,
-              expires_at: obj.expires_at || null
-            };
-            return window.supabase.from('announcements').insert(legacyRow).then(function(r2) {
+            return window.supabase.from('announcements').insert(baseRow).then(function(r2) {
               if (r2.error) throw r2.error;
             });
           }
@@ -462,24 +462,23 @@
       if (!useSupabase()) return Promise.reject(new Error('Supabase required'));
       var priority = String(obj.priority || 'none').toLowerCase();
       if (['none', 'low', 'medium', 'high'].indexOf(priority) === -1) priority = 'none';
-      var row = {
+      var baseRow = {
         title: (obj.title || '').trim(),
         body: (obj.body || '').trim() || null,
-        expires_at: obj.expires_at || null,
-        priority: priority,
-        highlight_priority: !!obj.highlight_priority
+        expires_at: obj.expires_at || null
       };
+      var row = announcementsPrioritySchemaKnown === false
+        ? baseRow
+        : Object.assign({}, baseRow, {
+          priority: priority,
+          highlight_priority: !!obj.highlight_priority
+        });
       return ensureSessionForMutations().then(function() {
         return window.supabase.from('announcements').update(row).eq('id', id).then(function(r) {
           if (!r.error) { announcementsPrioritySchemaKnown = true; return; }
           if (announcementsPrioritySchemaKnown !== false && isAnnouncementsPrioritySchemaError(r.error)) {
             announcementsPrioritySchemaKnown = false;
-            var legacyRow = {
-              title: (obj.title || '').trim(),
-              body: (obj.body || '').trim() || null,
-              expires_at: obj.expires_at || null
-            };
-            return window.supabase.from('announcements').update(legacyRow).eq('id', id).then(function(r2) {
+            return window.supabase.from('announcements').update(baseRow).eq('id', id).then(function(r2) {
               if (r2.error) throw r2.error;
             });
           }
