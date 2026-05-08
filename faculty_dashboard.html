@@ -1381,6 +1381,11 @@ function toast(msg) {
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 3000);
 }
+function getErrMessage(err, fallback) {
+  if (!err) return fallback;
+  var msg = String(err.message || err.details || err.hint || '').trim();
+  return msg || fallback;
+}
 
 function updateLoadCloudButton() {
   const btn = document.getElementById('load-cloud-btn');
@@ -2024,7 +2029,7 @@ function adminUpdateAnnouncement() {
     adminCancelAnnouncementEdit();
     renderAdminConsole();
     toast('Announcement updated');
-  }).catch(function() { toast('Failed to update announcement'); });
+  }).catch(function(err) { toast(getErrMessage(err, 'Failed to update announcement')); });
 }
 function adminAddAnnouncement() {
   if (!window.__authGuardIsAdmin || !window.DataService) { toast('Admin only'); return; }
@@ -2042,7 +2047,7 @@ function adminAddAnnouncement() {
     document.getElementById('admin-ann-highlight').checked = false;
     renderAdminConsole();
     toast('Announcement added — visible on Faculty Hub');
-  }).catch(function() { toast('Failed to add announcement'); });
+  }).catch(function(err) { toast(getErrMessage(err, 'Failed to add announcement')); });
 }
 function adminDeleteAnnouncement(id) {
   if (!window.__authGuardIsAdmin || !window.DataService) return;
@@ -2051,7 +2056,7 @@ function adminDeleteAnnouncement(id) {
     adminAnnouncements = adminAnnouncements.filter(function(a) { return a.id !== id; });
     renderAdminConsole();
     toast('Announcement removed');
-  }).catch(function() { toast('Failed to remove announcement'); });
+  }).catch(function(err) { toast(getErrMessage(err, 'Failed to remove announcement')); });
 }
 
 updateImportStatus();

@@ -63,6 +63,12 @@
     var msg = String(err.message || err.details || '');
     return err.code === '42703' || /priority|highlight_priority/i.test(msg);
   }
+  function ensureSessionForMutations() {
+    return getSessionWithRetry({ retries: 4, delayMs: 250 }).then(function(session) {
+      if (!session) throw new Error('Not authenticated');
+      return session;
+    });
+  }
 
   window.DataService = {
     isUsingCloud: function() {
@@ -389,7 +395,7 @@
     getAnnouncements: function() {
       return new Promise(function(resolve) {
         if (!useSupabase()) { resolve([]); return; }
-        getSessionWithRetry().then(function(session) {
+        getSessionWithRetry({ retries: 4, delayMs: 250 }).then(function(session) {
           if (!session) { resolve([]); return; }
           var fields = announcementsPrioritySchemaKnown === false
             ? 'id, title, body, expires_at, created_at'
@@ -433,20 +439,22 @@
         priority: priority,
         highlight_priority: !!obj.highlight_priority
       };
-      return window.supabase.from('announcements').insert(row).then(function(r) {
-        if (!r.error) { announcementsPrioritySchemaKnown = true; return; }
-        if (announcementsPrioritySchemaKnown !== false && isAnnouncementsPrioritySchemaError(r.error)) {
-          announcementsPrioritySchemaKnown = false;
-          var legacyRow = {
-            title: (obj.title || '').trim(),
-            body: (obj.body || '').trim() || null,
-            expires_at: obj.expires_at || null
-          };
-          return window.supabase.from('announcements').insert(legacyRow).then(function(r2) {
-            if (r2.error) throw r2.error;
-          });
-        }
-        throw r.error;
+      return ensureSessionForMutations().then(function() {
+        return window.supabase.from('announcements').insert(row).then(function(r) {
+          if (!r.error) { announcementsPrioritySchemaKnown = true; return; }
+          if (announcementsPrioritySchemaKnown !== false && isAnnouncementsPrioritySchemaError(r.error)) {
+            announcementsPrioritySchemaKnown = false;
+            var legacyRow = {
+              title: (obj.title || '').trim(),
+              body: (obj.body || '').trim() || null,
+              expires_at: obj.expires_at || null
+            };
+            return window.supabase.from('announcements').insert(legacyRow).then(function(r2) {
+              if (r2.error) throw r2.error;
+            });
+          }
+          throw r.error;
+        });
       });
     },
 
@@ -461,27 +469,31 @@
         priority: priority,
         highlight_priority: !!obj.highlight_priority
       };
-      return window.supabase.from('announcements').update(row).eq('id', id).then(function(r) {
-        if (!r.error) { announcementsPrioritySchemaKnown = true; return; }
-        if (announcementsPrioritySchemaKnown !== false && isAnnouncementsPrioritySchemaError(r.error)) {
-          announcementsPrioritySchemaKnown = false;
-          var legacyRow = {
-            title: (obj.title || '').trim(),
-            body: (obj.body || '').trim() || null,
-            expires_at: obj.expires_at || null
-          };
-          return window.supabase.from('announcements').update(legacyRow).eq('id', id).then(function(r2) {
-            if (r2.error) throw r2.error;
-          });
-        }
-        throw r.error;
+      return ensureSessionForMutations().then(function() {
+        return window.supabase.from('announcements').update(row).eq('id', id).then(function(r) {
+          if (!r.error) { announcementsPrioritySchemaKnown = true; return; }
+          if (announcementsPrioritySchemaKnown !== false && isAnnouncementsPrioritySchemaError(r.error)) {
+            announcementsPrioritySchemaKnown = false;
+            var legacyRow = {
+              title: (obj.title || '').trim(),
+              body: (obj.body || '').trim() || null,
+              expires_at: obj.expires_at || null
+            };
+            return window.supabase.from('announcements').update(legacyRow).eq('id', id).then(function(r2) {
+              if (r2.error) throw r2.error;
+            });
+          }
+          throw r.error;
+        });
       });
     },
 
     deleteAnnouncement: function(id) {
       if (!useSupabase()) return Promise.reject(new Error('Supabase required'));
-      return window.supabase.from('announcements').delete().eq('id', id).then(function(r) {
-        if (r.error) throw r.error;
+      return ensureSessionForMutations().then(function() {
+        return window.supabase.from('announcements').delete().eq('id', id).then(function(r) {
+          if (r.error) throw r.error;
+        });
       });
     },
 
