@@ -417,6 +417,7 @@ html,body{min-height:100%;margin:0;width:100%;box-sizing:border-box}
               <p id="admin-ann-import-status" style="display:none;font-size:.72rem;color:var(--text3);margin-top:.5rem"></p>
               <p style="font-size:.7rem;color:var(--text3);margin-top:.5rem">Use the template in ChatGPT/Claude, keep one announcement block per entry, then upload the completed .docx.</p>
             </div>
+            <div id="admin-ann-schema-warning" style="display:none;margin-bottom:1rem;padding:.65rem .75rem;border:1px solid #fcd34d;border-radius:8px;background:#fffbeb;color:#92400e;font-size:.75rem"></div>
             <div id="admin-announcements-list" style="font-size:.85rem"></div>
           </div>
         </div>
@@ -1414,6 +1415,18 @@ function adminAnnSetImportStatus(text, isError) {
   el.textContent = msg;
   el.style.color = isError ? '#b91c1c' : 'var(--text3)';
 }
+function adminAnnSetSchemaWarning(text) {
+  var el = document.getElementById('admin-ann-schema-warning');
+  if (!el) return;
+  var msg = String(text || '').trim();
+  if (!msg) {
+    el.style.display = 'none';
+    el.textContent = '';
+    return;
+  }
+  el.style.display = 'block';
+  el.textContent = msg;
+}
 function adminDownloadAnnouncementTemplate() {
   if (!window.AnnouncementDocxImport || typeof window.AnnouncementDocxImport.downloadTemplate !== 'function') {
     toast('Template download is unavailable. Refresh and try again.');
@@ -2001,6 +2014,18 @@ function adminDmSave(mode) {
 var catLbl = { exam: 'Exam', meeting: 'Meeting', deadline: 'Deadline', assessment: 'Assessment', reporting: 'Reporting', training: 'Training', cpd: 'CPD', inset: 'In-Service', holiday: 'Holiday', general: 'General' };
 function renderAdminConsole() {
   if (!window.__authGuardIsAdmin || !window.DataService) return;
+  adminAnnSetSchemaWarning('');
+  if (typeof DataService.getAnnouncementsSchemaSupport === 'function') {
+    DataService.getAnnouncementsSchemaSupport().then(function(info) {
+      if (info && info.priorityColumns) {
+        adminAnnSetSchemaWarning('');
+        return;
+      }
+      adminAnnSetSchemaWarning('Priority and highlight colours are unavailable on this database. Run the announcements priority migration to enable them.');
+    }).catch(function() {
+      adminAnnSetSchemaWarning('Could not verify announcement priority support. If colours do not work, run the announcements priority migration.');
+    });
+  }
   DataService.getAnnouncements().then(function(list) {
     adminAnnouncements = list || [];
     var annList = document.getElementById('admin-announcements-list');

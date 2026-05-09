@@ -36,8 +36,8 @@
       attempt(retries, resolve);
     });
   }
-  // Default to legacy-safe mode so older databases do not fail on first write.
-  var announcementsPrioritySchemaKnown = false;
+  // null = unknown, true = priority columns available, false = legacy schema.
+  var announcementsPrioritySchemaKnown = null;
   function localTodayYMD() {
     var d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -63,6 +63,30 @@
     if (!err) return false;
     var msg = String(err.message || err.details || '');
     return err.code === '42703' || /priority|highlight_priority/i.test(msg);
+  }
+  function canUseAnnouncementsPriorityColumns() {
+    if (announcementsPrioritySchemaKnown != null) {
+      return Promise.resolve(announcementsPrioritySchemaKnown);
+    }
+    if (!useSupabase()) {
+      announcementsPrioritySchemaKnown = false;
+      return Promise.resolve(false);
+    }
+    return window.supabase.from('announcements')
+      .select('priority, highlight_priority')
+      .limit(1)
+      .then(function(r) {
+        if (r && r.error) {
+          announcementsPrioritySchemaKnown = !isAnnouncementsPrioritySchemaError(r.error);
+          return announcementsPrioritySchemaKnown;
+        }
+        announcementsPrioritySchemaKnown = true;
+        return true;
+      })
+      .catch(function() {
+        announcementsPrioritySchemaKnown = false;
+        return false;
+      });
   }
   function ensureSessionForMutations() {
     return getSessionWithRetry({ retries: 4, delayMs: 250 }).then(function(session) {
@@ -398,31 +422,32 @@
         if (!useSupabase()) { resolve([]); return; }
         getSessionWithRetry({ retries: 4, delayMs: 250 }).then(function(session) {
           if (!session) { resolve([]); return; }
-          var fields = announcementsPrioritySchemaKnown === false
-            ? 'id, title, body, expires_at, created_at'
-            : 'id, title, body, expires_at, created_at, priority, highlight_priority';
-          window.supabase.from('announcements')
-            .select(fields)
-            .order('created_at', { ascending: false })
-            .then(function(r) {
-              if (!r.error) {
-                announcementsPrioritySchemaKnown = true;
-                resolve(mapAnnouncementsList(r.data || []));
-                return;
-              }
-              // Any select error can hide announcements; retry with legacy fields.
-              announcementsPrioritySchemaKnown = false;
-              window.supabase.from('announcements')
-                .select('id, title, body, expires_at, created_at')
-                .order('created_at', { ascending: false })
-                .then(function(legacy) {
-                  if (legacy.error) { resolve([]); return; }
-                  var legacyRows = (legacy.data || []).map(function(a) {
-                    return Object.assign({}, a, { priority: 'none', highlight_priority: false });
+          canUseAnnouncementsPriorityColumns().then(function(canUsePriority) {
+            var fields = canUsePriority
+              ? 'id, title, body, expires_at, created_at, priority, highlight_priority'
+              : 'id, title, body, expires_at, created_at';
+            window.supabase.from('announcements')
+              .select(fields)
+              .order('created_at', { ascending: false })
+              .then(function(r) {
+                if (!r.error) {
+                  resolve(mapAnnouncementsList(r.data || []));
+                  return;
+                }
+                // Any select error can hide announcements; retry with legacy fields.
+                announcementsPrioritySchemaKnown = false;
+                window.supabase.from('announcements')
+                  .select('id, title, body, expires_at, created_at')
+                  .order('created_at', { ascending: false })
+                  .then(function(legacy) {
+                    if (legacy.error) { resolve([]); return; }
+                    var legacyRows = (legacy.data || []).map(function(a) {
+                      return Object.assign({}, a, { priority: 'none', highlight_priority: false });
+                    });
+                    resolve(mapAnnouncementsList(legacyRows));
                   });
-                  resolve(mapAnnouncementsList(legacyRows));
-                });
-            });
+              });
+          });
         }).catch(function() {
           resolve([]);
         });
@@ -438,22 +463,24 @@
         body: (obj.body || '').trim() || null,
         expires_at: obj.expires_at || null
       };
-      var row = announcementsPrioritySchemaKnown === false
-        ? baseRow
-        : Object.assign({}, baseRow, {
-          priority: priority,
-          highlight_priority: !!obj.highlight_priority
-        });
       return ensureSessionForMutations().then(function() {
-        return window.supabase.from('announcements').insert(row).then(function(r) {
-          if (!r.error) { announcementsPrioritySchemaKnown = true; return; }
-          if (announcementsPrioritySchemaKnown !== false && isAnnouncementsPrioritySchemaError(r.error)) {
-            announcementsPrioritySchemaKnown = false;
-            return window.supabase.from('announcements').insert(baseRow).then(function(r2) {
-              if (r2.error) throw r2.error;
-            });
-          }
-          throw r.error;
+        return canUseAnnouncementsPriorityColumns().then(function(canUsePriority) {
+          var row = canUsePriority
+            ? Object.assign({}, baseRow, {
+              priority: priority,
+              highlight_priority: !!obj.highlight_priority
+            })
+            : baseRow;
+          return window.supabase.from('announcements').insert(row).then(function(r) {
+            if (!r.error) { return; }
+            if (canUsePriority && isAnnouncementsPrioritySchemaError(r.error)) {
+              announcementsPrioritySchemaKnown = false;
+              return window.supabase.from('announcements').insert(baseRow).then(function(r2) {
+                if (r2.error) throw r2.error;
+              });
+            }
+            throw r.error;
+          });
         });
       });
     },
@@ -467,22 +494,24 @@
         body: (obj.body || '').trim() || null,
         expires_at: obj.expires_at || null
       };
-      var row = announcementsPrioritySchemaKnown === false
-        ? baseRow
-        : Object.assign({}, baseRow, {
-          priority: priority,
-          highlight_priority: !!obj.highlight_priority
-        });
       return ensureSessionForMutations().then(function() {
-        return window.supabase.from('announcements').update(row).eq('id', id).then(function(r) {
-          if (!r.error) { announcementsPrioritySchemaKnown = true; return; }
-          if (announcementsPrioritySchemaKnown !== false && isAnnouncementsPrioritySchemaError(r.error)) {
-            announcementsPrioritySchemaKnown = false;
-            return window.supabase.from('announcements').update(baseRow).eq('id', id).then(function(r2) {
-              if (r2.error) throw r2.error;
-            });
-          }
-          throw r.error;
+        return canUseAnnouncementsPriorityColumns().then(function(canUsePriority) {
+          var row = canUsePriority
+            ? Object.assign({}, baseRow, {
+              priority: priority,
+              highlight_priority: !!obj.highlight_priority
+            })
+            : baseRow;
+          return window.supabase.from('announcements').update(row).eq('id', id).then(function(r) {
+            if (!r.error) { return; }
+            if (canUsePriority && isAnnouncementsPrioritySchemaError(r.error)) {
+              announcementsPrioritySchemaKnown = false;
+              return window.supabase.from('announcements').update(baseRow).eq('id', id).then(function(r2) {
+                if (r2.error) throw r2.error;
+              });
+            }
+            throw r.error;
+          });
         });
       });
     },
@@ -493,6 +522,13 @@
         return window.supabase.from('announcements').delete().eq('id', id).then(function(r) {
           if (r.error) throw r.error;
         });
+      });
+    },
+
+    getAnnouncementsSchemaSupport: function() {
+      if (!useSupabase()) return Promise.resolve({ priorityColumns: false });
+      return canUseAnnouncementsPriorityColumns().then(function(canUsePriority) {
+        return { priorityColumns: !!canUsePriority };
       });
     },
 
