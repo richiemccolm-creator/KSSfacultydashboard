@@ -40,6 +40,9 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .hero{background:linear-gradient(135deg,var(--navy-dark),var(--navy));border-radius:12px;padding:1.2rem 1.25rem;color:var(--white);margin-bottom:1rem}
 .hero h1{font-family:'Sora',sans-serif;font-size:1.25rem}
 .hero p{font-size:.8rem;opacity:.9;line-height:1.55;margin-top:.35rem}
+.inline-nav{display:none;gap:.45rem;flex-wrap:wrap;margin:0 0 .95rem}
+.inline-nav-btn{font-size:.73rem;font-weight:600;padding:.45rem .68rem;border-radius:999px;border:1px solid var(--border);background:#fff;color:var(--text2);cursor:pointer}
+.inline-nav-btn.active{background:var(--navy);color:#fff;border-color:var(--navy)}
 .row{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:.85rem}
 .card{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden}
 .card-head{padding:.9rem 1rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;gap:.6rem;flex-wrap:wrap}
@@ -56,7 +59,7 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .stat-num{font-family:'Sora',sans-serif;font-size:1.35rem}
 .stat-label{font-size:.63rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3)}
 .line-wrap{width:100%;overflow-x:auto}
-.line-chart{min-width:560px}
+.line-chart{min-width:520px}
 .line-chart svg{width:100%;height:220px;background:linear-gradient(#fff,#fafafa);border:1px solid var(--border);border-radius:10px}
 .line-legend{display:flex;gap:.7rem;flex-wrap:wrap;margin-top:.6rem;font-size:.72rem;color:var(--text2)}
 .legend-dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:.28rem}
@@ -72,6 +75,10 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 table{width:100%;border-collapse:collapse;font-size:.8rem}
 th,td{padding:.5rem .55rem;border-bottom:1px solid var(--border);text-align:left}
 th{font-size:.62rem;font-weight:700;letter-spacing:.08em;color:var(--text3);text-transform:uppercase;background:var(--bg)}
+.search-mobile-list{display:none}
+.search-mobile-card{border:1px solid var(--border);border-radius:10px;padding:.72rem;background:#fff;margin-bottom:.55rem}
+.search-mobile-name{font-weight:700;font-size:.86rem}
+.search-mobile-meta{font-size:.72rem;color:var(--text3);line-height:1.45;margin:.25rem 0 .45rem}
 .profile-header{display:flex;justify-content:space-between;align-items:flex-start;gap:.8rem;flex-wrap:wrap}
 .profile-name{font-family:'Sora',sans-serif;font-size:1.1rem}
 .subject-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:.85rem;margin-top:.75rem}
@@ -86,16 +93,23 @@ th{font-size:.62rem;font-weight:700;letter-spacing:.08em;color:var(--text3);text
 .muted{color:var(--text3)}
 .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:1rem;background:var(--navy);color:#fff;padding:.62rem 1rem;border-radius:8px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:100}
 .toast.show{opacity:1}
+body.is-embedded .dash-sidebar{display:none}
+body.is-embedded .main{margin-left:0}
+body.is-embedded .inline-nav{display:flex}
 @media (max-width:980px){
-  .dash-sidebar{position:static;width:100%;height:auto;min-height:unset}
+  .dash-sidebar{display:none}
   .main{margin-left:0}
-  .app{flex-direction:column}
   .content{padding:1rem}
+  .inline-nav{display:flex}
 }
 @media (max-width:680px){
   .hero h1{font-size:1.05rem}
   .input{min-width:0;width:100%}
-  .line-chart{min-width:420px}
+  .line-chart{min-width:360px}
+  .table-wrap{display:none}
+  .search-mobile-list{display:block}
+  .card-head{padding:.75rem .8rem}
+  .card-body{padding:.75rem}
 }
 </style>
 </head>
@@ -122,6 +136,12 @@ th{font-size:.62rem;font-weight:700;letter-spacing:.08em;color:var(--text3);text
         <h1>Tracking & Monitoring Hub</h1>
         <p>Whole-school monitoring for Drama and Art. Compare progress over time, identify at-risk pupils, and open full pupil profiles with both subjects at a glance.</p>
       </div>
+      <div class="inline-nav" aria-label="Tracking views">
+        <button class="inline-nav-btn active" data-view="overview" onclick="setView('overview')">Overview</button>
+        <button class="inline-nav-btn" data-view="at-risk" onclick="setView('at-risk')">At Risk</button>
+        <button class="inline-nav-btn" data-view="search" onclick="setView('search')">Pupil Search</button>
+        <button class="inline-nav-btn" data-view="profile" onclick="setView('profile')">Pupil Profile</button>
+      </div>
 
       <div class="card" id="setup-card">
         <div class="card-head">
@@ -129,7 +149,7 @@ th{font-size:.62rem;font-weight:700;letter-spacing:.08em;color:var(--text3);text
             <div class="card-title">Cloud data source</div>
             <div class="card-sub">Uses tracker data already saved to the cloud (`drama-v3`, `art-v2`).</div>
           </div>
-          <div class="toolbar">
+          <div class="toolbar" style="width:min(520px,100%);justify-content:flex-end">
             <div data-staff-display-name="light"></div>
             <button class="btn btn-primary" id="load-cloud-btn" onclick="loadFromCloud()">Refresh cloud data</button>
           </div>
@@ -196,6 +216,7 @@ th{font-size:.62rem;font-weight:700;letter-spacing:.08em;color:var(--text3);text
                 <tbody id="search-results"></tbody>
               </table>
             </div>
+            <div id="search-mobile-cards" class="search-mobile-list"></div>
           </div>
         </div>
       </section>
@@ -429,6 +450,7 @@ function renderAtRisk() {
 }
 function renderSearch() {
   const tbody = document.getElementById('search-results');
+  const cards = document.getElementById('search-mobile-cards');
   if (!tbody) return;
   const q = (document.getElementById('search-input').value || '').trim().toLowerCase();
   const rows = HUB.pupils.filter(function(p) {
@@ -438,6 +460,7 @@ function renderSearch() {
   }).slice(0, 120);
   if (!rows.length) {
     tbody.innerHTML = '<tr><td colspan="6" class="muted">No pupils found.</td></tr>';
+    if (cards) cards.innerHTML = '<div class="empty">No pupils found.</div>';
     return;
   }
   tbody.innerHTML = rows.map(function(p) {
@@ -445,6 +468,16 @@ function renderSearch() {
     return '<tr><td>' + p.name + '</td><td>' + p.yg.toUpperCase() + '</td><td>' + p.cls + '</td><td>' + p.teacher + '</td><td>' + subjects + '</td>' +
       '<td><button class="btn btn-ghost" onclick="openProfile(\'' + p.key.replace(/'/g, "\\'") + '\')">Open</button></td></tr>';
   }).join('');
+  if (cards) {
+    cards.innerHTML = rows.map(function(p) {
+      const subjects = [p.subjects.drama ? 'Drama' : '', p.subjects.art ? 'Art' : ''].filter(Boolean).join(' + ');
+      return '<div class="search-mobile-card">' +
+        '<div class="search-mobile-name">' + p.name + '</div>' +
+        '<div class="search-mobile-meta">' + p.cls + ' · ' + p.yg.toUpperCase() + '<br>' + p.teacher + '<br>' + subjects + '</div>' +
+        '<button class="btn btn-ghost" onclick="openProfile(\'' + p.key.replace(/'/g, "\\'") + '\')">Open profile</button>' +
+      '</div>';
+    }).join('');
+  }
 }
 function populateProfileSelect() {
   const sel = document.getElementById('profile-select');
@@ -505,6 +538,9 @@ function setView(id) {
   document.querySelectorAll('.dash-nav-btn[data-view]').forEach(function(btn) {
     btn.classList.toggle('active', btn.getAttribute('data-view') === id);
   });
+  document.querySelectorAll('.inline-nav-btn[data-view]').forEach(function(btn) {
+    btn.classList.toggle('active', btn.getAttribute('data-view') === id);
+  });
   if (id === 'search') renderSearch();
   if (id === 'at-risk') renderAtRisk();
   if (id === 'profile') renderProfile();
@@ -534,6 +570,10 @@ function loadFromCloud() {
   });
 }
 function init() {
+  try {
+    var params = new URLSearchParams(window.location.search || '');
+    if (params.get('embed') === '1' || params.get('embed') === 'true') document.body.classList.add('is-embedded');
+  } catch (e) {}
   waitForAuthGuardReady(1800).then(function() {
     loadFromCloud();
   }).catch(function() {
