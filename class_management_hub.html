@@ -159,6 +159,24 @@
     font-size: .84rem;
     color: #31455f;
   }
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    padding: .2rem .5rem;
+    border-radius: 999px;
+    font-size: .74rem;
+    font-weight: 600;
+    border: 1px solid #d2dbe8;
+    background: #f8fafc;
+    color: #334155;
+    margin-top: .45rem;
+  }
+  .chip.ok {
+    background: #ecfdf5;
+    border-color: #a7f3d0;
+    color: #065f46;
+  }
   @media (max-width: 900px) {
     .grid { grid-template-columns: 1fr; }
     .row { grid-template-columns: 1fr; }
@@ -193,10 +211,14 @@
             </div>
           </div>
           <p class="subtle">Paste JSON array rows with: <code>subject</code>, <code>year_level</code>, <code>class_code</code>, <code>class_name</code>, <code>teacher_email</code>, <code>first_name</code>, <code>last_name</code>, optional <code>external_id</code>.</p>
+          <p class="subtle">Or upload CSV with the same headers. CSV upload is converted and used automatically for import/checks.</p>
+          <input type="file" id="bulk-csv-file" accept=".csv,text/csv">
+          <div class="chip" id="bulk-source-chip">Source: JSON textarea</div>
           <textarea id="bulk-json"></textarea>
           <label class="line"><input type="checkbox" id="bulk-override"> Override conflicts (manual confirmation)</label>
           <div class="btns">
             <button class="ghost" id="bulk-sample-btn">Load sample payload</button>
+            <button class="ghost" id="bulk-template-btn">Download CSV template</button>
             <button class="secondary" id="bulk-detect-btn">Detect conflicts</button>
             <button id="bulk-run-btn">Run bulk import</button>
           </div>
@@ -248,6 +270,8 @@
 
 <script>
 (function() {
+  var csvRowsCache = null;
+
   function toPretty(value) {
     try { return JSON.stringify(value, null, 2); } catch (e) { return String(value); }
   }
@@ -261,6 +285,118 @@
     var raw = (document.getElementById(id).value || '').trim();
     if (!raw) return [];
     return JSON.parse(raw);
+  }
+
+  function normalizeHeader(value) {
+    return String(value || '').trim().toLowerCase().replace(/\s+/g, '_');
+  }
+
+  function parseCsv(text) {
+    var input = String(text || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    var rows = [];
+    var row = [];
+    var cell = '';
+    var inQuotes = false;
+    for (var i = 0; i < input.length; i++) {
+      var ch = input[i];
+      var next = input[i + 1];
+      if (ch === '"') {
+        if (inQuotes && next === '"') {
+          cell += '"';
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (ch === ',' && !inQuotes) {
+        row.push(cell);
+        cell = '';
+      } else if (ch === '\n' && !inQuotes) {
+        row.push(cell);
+        rows.push(row);
+        row = [];
+        cell = '';
+      } else {
+        cell += ch;
+      }
+    }
+    if (cell.length > 0 || row.length > 0) {
+      row.push(cell);
+      rows.push(row);
+    }
+    if (!rows.length) return [];
+    var headers = rows[0].map(normalizeHeader);
+    var out = [];
+    for (var r = 1; r < rows.length; r++) {
+      var current = rows[r];
+      if (!current || !current.length) continue;
+      var obj = {};
+      var nonEmpty = false;
+      for (var c = 0; c < headers.length; c++) {
+        var key = headers[c];
+        if (!key) continue;
+        var val = String(current[c] == null ? '' : current[c]).trim();
+        obj[key] = val;
+        if (val) nonEmpty = true;
+      }
+      if (!nonEmpty) continue;
+      out.push(obj);
+    }
+    return out;
+  }
+
+  function setBulkSourceChip(text, ok) {
+    var chip = document.getElementById('bulk-source-chip');
+    if (!chip) return;
+    chip.textContent = text;
+    chip.className = ok ? 'chip ok' : 'chip';
+  }
+
+  function csvTemplate() {
+    return [
+      'subject,year_level,class_code,class_name,teacher_email,first_name,last_name,preferred_name,external_id',
+      'drama,S1,D1,S1 Drama D1,teacher1@school.org,Alex,Brown,,P001',
+      'drama,S1,D1,S1 Drama D1,teacher1@school.org,Casey,Murray,,P002'
+    ].join('\n');
+  }
+
+  function downloadCsvTemplate() {
+    var blob = new Blob([csvTemplate()], { type: 'text/csv;charset=utf-8;' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'class_import_template.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function applyCsvRows(rows) {
+    csvRowsCache = rows;
+    document.getElementById('bulk-json').value = JSON.stringify(rows, null, 2);
+    setBulkSourceChip('Source: CSV file (' + rows.length + ' rows)', true);
+    setOut('bulk-output', { status: 'csv_loaded', row_count: rows.length });
+  }
+
+  function handleCsvFileSelected(event) {
+    var file = event && event.target && event.target.files ? event.target.files[0] : null;
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function() {
+      try {
+        var rows = parseCsv(reader.result);
+        if (!rows.length) throw new Error('CSV file is empty or missing data rows');
+        applyCsvRows(rows);
+      } catch (err) {
+        csvRowsCache = null;
+        setBulkSourceChip('Source: JSON textarea', false);
+        setOut('bulk-output', { error: err && err.message ? err.message : String(err) });
+      }
+    };
+    reader.onerror = function() {
+      setOut('bulk-output', { error: 'Could not read CSV file.' });
+    };
+    reader.readAsText(file);
   }
 
   function requireSchoolManager() {
@@ -324,11 +460,14 @@
       }
     ];
     document.getElementById('bulk-json').value = JSON.stringify(sample, null, 2);
+    csvRowsCache = null;
+    setBulkSourceChip('Source: JSON textarea', false);
   }
 
   function parseRows() {
-    var rows = parseJsonFrom('bulk-json');
+    var rows = csvRowsCache || parseJsonFrom('bulk-json');
     if (!Array.isArray(rows)) throw new Error('Bulk payload must be a JSON array');
+    if (!rows.length) throw new Error('No rows found for import');
     return rows;
   }
 
@@ -418,9 +557,20 @@
   document.addEventListener('DOMContentLoaded', function() {
     bindDefaults();
     loadSample();
+    var csvInput = document.getElementById('bulk-csv-file');
+    if (csvInput) csvInput.addEventListener('change', handleCsvFileSelected);
+    var bulkJson = document.getElementById('bulk-json');
+    if (bulkJson) {
+      bulkJson.addEventListener('input', function() {
+        if (!csvRowsCache) return;
+        csvRowsCache = null;
+        setBulkSourceChip('Source: JSON textarea', false);
+      });
+    }
     bindButton('bulk-sample-btn', function() { loadSample(); setOut('bulk-output', { status: 'sample_loaded' }); }, ['bulk-sample-btn']);
-    bindButton('bulk-detect-btn', handleDetectConflicts, ['bulk-sample-btn', 'bulk-detect-btn', 'bulk-run-btn']);
-    bindButton('bulk-run-btn', handleBulkRun, ['bulk-sample-btn', 'bulk-detect-btn', 'bulk-run-btn']);
+    bindButton('bulk-template-btn', function() { downloadCsvTemplate(); setOut('bulk-output', { status: 'csv_template_downloaded' }); }, ['bulk-template-btn']);
+    bindButton('bulk-detect-btn', handleDetectConflicts, ['bulk-sample-btn', 'bulk-template-btn', 'bulk-detect-btn', 'bulk-run-btn']);
+    bindButton('bulk-run-btn', handleBulkRun, ['bulk-sample-btn', 'bulk-template-btn', 'bulk-detect-btn', 'bulk-run-btn']);
     bindButton('promo-preview-btn', handlePreviewPromotion, ['promo-preview-btn', 'promo-commit-btn']);
     bindButton('promo-commit-btn', handleCommitPromotion, ['promo-preview-btn', 'promo-commit-btn']);
   });
