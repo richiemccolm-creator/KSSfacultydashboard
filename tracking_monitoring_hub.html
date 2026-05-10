@@ -175,7 +175,7 @@ body.is-embedded .inline-nav{display:flex}
           </div>
           <div class="toolbar" style="width:min(520px,100%);justify-content:flex-end">
             <div data-staff-display-name="light"></div>
-            <button class="btn btn-primary" id="load-cloud-btn" onclick="loadFromCloud()">Refresh cloud data</button>
+            <button class="btn btn-primary" id="load-cloud-btn" type="button">Refresh cloud data</button>
           </div>
         </div>
         <div class="card-body">
@@ -1014,6 +1014,15 @@ function init() {
   } catch (e) {}
   var q = document.getElementById('flt-searchText');
   if (q) q.addEventListener('keydown', function(ev) { if (ev.key === 'Enter') applyFilterControls(); });
+  var loadBtn = document.getElementById('load-cloud-btn');
+  if (loadBtn) {
+    loadBtn.addEventListener('click', function(ev) {
+      ev.preventDefault();
+      loadFromCloud();
+    });
+  }
+  // Ensure manual console invocation works even if inline handlers are blocked.
+  window.loadFromCloud = loadFromCloud;
   waitForAuthGuardReady(5000).then(function(){ loadFromCloud(); }).catch(function(){
     // Auth can be slower on first session restore; try cloud load anyway.
     toast('Auth still loading, retrying cloud load');
