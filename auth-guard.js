@@ -5,6 +5,9 @@
 (function() {
   window.__authReady = false;
   window.__authGuardIsAdmin = false;
+  window.__authGuardRole = 'teacher';
+  window.__authGuardIsFacultyHead = false;
+  window.__authGuardCanManageSchool = false;
   function markAuthReady() {
     window.__authReady = true;
     try {
@@ -35,6 +38,9 @@
           window.location.replace(loginUrl + (loginUrl.indexOf('?') >= 0 ? '&' : '?') + 'error=access_denied');
         } else {
           window.__authGuardIsAdmin = r.isAdmin;
+          window.__authGuardRole = r.role || (r.isAdmin ? 'admin' : 'teacher');
+          window.__authGuardIsFacultyHead = !!r.isFacultyHead;
+          window.__authGuardCanManageSchool = !!r.canManageSchool || !!r.isAdmin;
           markAuthReady();
         }
       }).catch(function() {

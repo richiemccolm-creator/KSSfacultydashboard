@@ -637,6 +637,110 @@
       return window.supabase.rpc('patch_department_meeting_minutes', body).then(function(r) {
         if (r.error) throw r.error;
       });
+    },
+
+    detectExistingClassConflicts: function(rows, academicYearLabel) {
+      if (!useSupabase()) return Promise.reject(new Error('Supabase required'));
+      if (!academicYearLabel || !String(academicYearLabel).trim()) {
+        return Promise.reject(new Error('Academic year label is required'));
+      }
+      return ensureSessionForMutations().then(function() {
+        return window.supabase.rpc('detect_existing_class_conflicts', {
+          p_rows: Array.isArray(rows) ? rows : [],
+          p_academic_year_label: String(academicYearLabel).trim()
+        }).then(function(r) {
+          if (r.error) throw r.error;
+          return r.data || [];
+        });
+      });
+    },
+
+    bulkUpsertPupilsAndEnrollments: function(options) {
+      if (!useSupabase()) return Promise.reject(new Error('Supabase required'));
+      var opts = options || {};
+      var rows = Array.isArray(opts.rows) ? opts.rows : [];
+      var academicYearLabel = String(opts.academicYearLabel || '').trim();
+      var mode = String(opts.mode || 'add_only').trim() || 'add_only';
+      var overrideConflicts = !!opts.overrideConflicts;
+      if (!academicYearLabel) return Promise.reject(new Error('Academic year label is required'));
+      return ensureSessionForMutations().then(function() {
+        return window.supabase.rpc('bulk_upsert_pupils_and_enrollments', {
+          p_rows: rows,
+          p_academic_year_label: academicYearLabel,
+          p_mode: mode,
+          p_override_conflicts: overrideConflicts
+        }).then(function(r) {
+          if (r.error) throw r.error;
+          return r.data || {};
+        });
+      });
+    },
+
+    assignClassesToTeachers: function(assignments, academicYearLabel, overrideConflicts) {
+      if (!useSupabase()) return Promise.reject(new Error('Supabase required'));
+      var rows = Array.isArray(assignments) ? assignments : [];
+      var yearLabel = String(academicYearLabel || '').trim();
+      if (!yearLabel) return Promise.reject(new Error('Academic year label is required'));
+      return ensureSessionForMutations().then(function() {
+        return window.supabase.rpc('assign_classes_to_teachers', {
+          p_assignments: rows,
+          p_academic_year_label: yearLabel,
+          p_override_conflicts: !!overrideConflicts
+        }).then(function(r) {
+          if (r.error) throw r.error;
+          return r.data || {};
+        });
+      });
+    },
+
+    previewPromotionRun: function(options) {
+      if (!useSupabase()) return Promise.reject(new Error('Supabase required'));
+      var opts = options || {};
+      var fromYear = String(opts.fromAcademicYearLabel || '').trim();
+      var toYear = String(opts.toAcademicYearLabel || '').trim();
+      var fromLevel = Number(opts.fromYearLevel);
+      var toLevel = Number(opts.toYearLevel);
+      var reassignments = Array.isArray(opts.teacherReassignments) ? opts.teacherReassignments : [];
+      if (!fromYear || !toYear) return Promise.reject(new Error('From/To academic year labels are required'));
+      if (!fromLevel || !toLevel) return Promise.reject(new Error('From/To year levels are required'));
+      return ensureSessionForMutations().then(function() {
+        return window.supabase.rpc('preview_promotion_run', {
+          p_from_academic_year_label: fromYear,
+          p_to_academic_year_label: toYear,
+          p_from_year_level: fromLevel,
+          p_to_year_level: toLevel,
+          p_teacher_reassignments: reassignments
+        }).then(function(r) {
+          if (r.error) throw r.error;
+          return r.data || {};
+        });
+      });
+    },
+
+    commitPromotionRun: function(options) {
+      if (!useSupabase()) return Promise.reject(new Error('Supabase required'));
+      var opts = options || {};
+      var fromYear = String(opts.fromAcademicYearLabel || '').trim();
+      var toYear = String(opts.toAcademicYearLabel || '').trim();
+      var fromLevel = Number(opts.fromYearLevel);
+      var toLevel = Number(opts.toYearLevel);
+      var reassignments = Array.isArray(opts.teacherReassignments) ? opts.teacherReassignments : [];
+      var overrideConflicts = !!opts.overrideConflicts;
+      if (!fromYear || !toYear) return Promise.reject(new Error('From/To academic year labels are required'));
+      if (!fromLevel || !toLevel) return Promise.reject(new Error('From/To year levels are required'));
+      return ensureSessionForMutations().then(function() {
+        return window.supabase.rpc('commit_promotion_run', {
+          p_from_academic_year_label: fromYear,
+          p_to_academic_year_label: toYear,
+          p_from_year_level: fromLevel,
+          p_to_year_level: toLevel,
+          p_teacher_reassignments: reassignments,
+          p_override_conflicts: overrideConflicts
+        }).then(function(r) {
+          if (r.error) throw r.error;
+          return r.data || {};
+        });
+      });
     }
   };
 })();

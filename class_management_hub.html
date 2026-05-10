@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Class Management">
+<title>Class Management Hub</title>
+<script src="app-version.js"></script>
+<script>
+  (function() {
+    if (window.ensureAppVersionInUrl) window.ensureAppVersionInUrl();
+  })();
+</script>
+<script src="embed-chrome.js"></script>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-init.js"></script>
+<script src="allowlist-check.js"></script>
+<script src="data-service.js"></script>
+<script src="auth-guard.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    color: #102136;
+    background: #f3f6fa;
+  }
+  .wrap {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 1rem;
+  }
+  .hero {
+    background: linear-gradient(120deg, #1f3552, #244c68);
+    color: #fff;
+    border-radius: 14px;
+    padding: 1rem 1.1rem;
+    margin-bottom: 1rem;
+  }
+  .hero h1 {
+    margin: 0 0 .4rem;
+    font-size: 1.2rem;
+  }
+  .hero p {
+    margin: 0;
+    color: rgba(255, 255, 255, .88);
+    line-height: 1.5;
+    font-size: .93rem;
+  }
+  .notice {
+    margin-top: .75rem;
+    background: rgba(255, 255, 255, .14);
+    border: 1px solid rgba(255, 255, 255, .2);
+    border-radius: 10px;
+    padding: .65rem .75rem;
+    font-size: .85rem;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+  .card {
+    background: #fff;
+    border: 1px solid #dce4ef;
+    border-radius: 14px;
+    box-shadow: 0 2px 10px rgba(15, 23, 42, .04);
+    overflow: hidden;
+  }
+  .card h2 {
+    margin: 0;
+    padding: .9rem 1rem;
+    font-size: .96rem;
+    border-bottom: 1px solid #e7edf5;
+    background: #f8fafc;
+  }
+  .body {
+    padding: .9rem 1rem 1rem;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .65rem;
+    margin-bottom: .65rem;
+  }
+  label {
+    display: block;
+    font-size: .78rem;
+    margin-bottom: .3rem;
+    color: #41556e;
+    font-weight: 600;
+  }
+  input, select, textarea {
+    width: 100%;
+    border: 1px solid #cfd9e7;
+    border-radius: 10px;
+    padding: .56rem .62rem;
+    font: inherit;
+    font-size: .9rem;
+    background: #fff;
+  }
+  textarea {
+    min-height: 170px;
+    resize: vertical;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: .82rem;
+    line-height: 1.45;
+  }
+  .btns {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .5rem;
+    margin-top: .75rem;
+  }
+  button {
+    border: none;
+    background: #0f766e;
+    color: #fff;
+    border-radius: 10px;
+    padding: .55rem .8rem;
+    font-size: .86rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button.secondary { background: #334155; }
+  button.ghost {
+    background: #eef3f9;
+    color: #1f3552;
+    border: 1px solid #d2dbe8;
+  }
+  button:disabled { opacity: .6; cursor: not-allowed; }
+  .out {
+    margin-top: .75rem;
+    background: #0d1724;
+    color: #d7e6ff;
+    border-radius: 10px;
+    padding: .7rem;
+    min-height: 130px;
+    max-height: 320px;
+    overflow: auto;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: .78rem;
+    line-height: 1.45;
+    white-space: pre-wrap;
+  }
+  .subtle {
+    font-size: .78rem;
+    color: #5b6f86;
+    line-height: 1.45;
+    margin: .2rem 0 .55rem;
+  }
+  .line {
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+    margin-top: .55rem;
+    font-size: .84rem;
+    color: #31455f;
+  }
+  @media (max-width: 900px) {
+    .grid { grid-template-columns: 1fr; }
+    .row { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="hero">
+      <h1>Class Management Hub</h1>
+      <p>Admin and faculty-head tools for non-destructive class setup and year-end promotion. Existing teacher-created S1 classes are protected by default.</p>
+      <div class="notice">
+        Default mode is <strong>add only</strong>. Existing records are preserved unless <strong>Override conflicts</strong> is explicitly selected.
+      </div>
+    </div>
+
+    <div class="grid">
+      <section class="card">
+        <h2>Bulk Class Population</h2>
+        <div class="body">
+          <div class="row">
+            <div>
+              <label for="bulk-year">Academic year label</label>
+              <input id="bulk-year" value="2026-2027">
+            </div>
+            <div>
+              <label for="bulk-mode">Import mode</label>
+              <select id="bulk-mode">
+                <option value="add_only">add_only (safe default)</option>
+                <option value="replace">replace (requires override)</option>
+              </select>
+            </div>
+          </div>
+          <p class="subtle">Paste JSON array rows with: <code>subject</code>, <code>year_level</code>, <code>class_code</code>, <code>class_name</code>, <code>teacher_email</code>, <code>first_name</code>, <code>last_name</code>, optional <code>external_id</code>.</p>
+          <textarea id="bulk-json"></textarea>
+          <label class="line"><input type="checkbox" id="bulk-override"> Override conflicts (manual confirmation)</label>
+          <div class="btns">
+            <button class="ghost" id="bulk-sample-btn">Load sample payload</button>
+            <button class="secondary" id="bulk-detect-btn">Detect conflicts</button>
+            <button id="bulk-run-btn">Run bulk import</button>
+          </div>
+          <div class="out" id="bulk-output">Waiting for action…</div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Year-End Promotion</h2>
+        <div class="body">
+          <div class="row">
+            <div>
+              <label for="promo-from-year">From academic year</label>
+              <input id="promo-from-year" value="2026-2027">
+            </div>
+            <div>
+              <label for="promo-to-year">To academic year</label>
+              <input id="promo-to-year" value="2027-2028">
+            </div>
+          </div>
+          <div class="row">
+            <div>
+              <label for="promo-from-level">From year level</label>
+              <select id="promo-from-level">
+                <option value="1">S1</option><option value="2">S2</option><option value="3">S3</option>
+                <option value="4">S4</option><option value="5">S5</option>
+              </select>
+            </div>
+            <div>
+              <label for="promo-to-level">To year level</label>
+              <select id="promo-to-level">
+                <option value="2">S2</option><option value="3">S3</option><option value="4">S4</option>
+                <option value="5">S5</option><option value="6">S6</option>
+              </select>
+            </div>
+          </div>
+          <p class="subtle">Optional teacher reassignments JSON: <code>[{"subject":"drama","class_code":"D1","teacher_email":"name@school.org"}]</code></p>
+          <textarea id="promo-reassignments">[]</textarea>
+          <label class="line"><input type="checkbox" id="promo-override"> Override teacher conflicts on target classes</label>
+          <div class="btns">
+            <button class="secondary" id="promo-preview-btn">Preview promotion</button>
+            <button id="promo-commit-btn">Commit promotion</button>
+          </div>
+          <div class="out" id="promo-output">Waiting for action…</div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+<script>
+(function() {
+  function toPretty(value) {
+    try { return JSON.stringify(value, null, 2); } catch (e) { return String(value); }
+  }
+
+  function setOut(el, value) {
+    var node = document.getElementById(el);
+    if (node) node.textContent = toPretty(value);
+  }
+
+  function parseJsonFrom(id) {
+    var raw = (document.getElementById(id).value || '').trim();
+    if (!raw) return [];
+    return JSON.parse(raw);
+  }
+
+  function requireSchoolManager() {
+    if (!window.__authGuardCanManageSchool) {
+      throw new Error('Only admin/faculty-head users can use this page.');
+    }
+  }
+
+  function withBusy(ids, running) {
+    (ids || []).forEach(function(id) {
+      var node = document.getElementById(id);
+      if (node) node.disabled = !!running;
+    });
+  }
+
+  function todayAcademicYear() {
+    var now = new Date();
+    var y = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
+    return y + '-' + (y + 1);
+  }
+
+  function nextAcademicYear(label) {
+    var m = /^(\d{4})-(\d{4})$/.exec(String(label || '').trim());
+    if (!m) return '';
+    var start = Number(m[1]) + 1;
+    var end = Number(m[2]) + 1;
+    return start + '-' + end;
+  }
+
+  function bindDefaults() {
+    var year = todayAcademicYear();
+    var bulkYear = document.getElementById('bulk-year');
+    var fromYear = document.getElementById('promo-from-year');
+    var toYear = document.getElementById('promo-to-year');
+    if (bulkYear && !bulkYear.value) bulkYear.value = year;
+    if (fromYear && !fromYear.value) fromYear.value = year;
+    if (toYear && !toYear.value) toYear.value = nextAcademicYear(year);
+  }
+
+  function loadSample() {
+    var sample = [
+      {
+        subject: 'drama',
+        year_level: 'S1',
+        class_code: 'D1',
+        class_name: 'S1 Drama D1',
+        teacher_email: 'teacher1@school.org',
+        first_name: 'Alex',
+        last_name: 'Brown',
+        external_id: 'P001'
+      },
+      {
+        subject: 'drama',
+        year_level: 'S1',
+        class_code: 'D1',
+        class_name: 'S1 Drama D1',
+        teacher_email: 'teacher1@school.org',
+        first_name: 'Casey',
+        last_name: 'Murray',
+        external_id: 'P002'
+      }
+    ];
+    document.getElementById('bulk-json').value = JSON.stringify(sample, null, 2);
+  }
+
+  function parseRows() {
+    var rows = parseJsonFrom('bulk-json');
+    if (!Array.isArray(rows)) throw new Error('Bulk payload must be a JSON array');
+    return rows;
+  }
+
+  function parseReassignments() {
+    var rows = parseJsonFrom('promo-reassignments');
+    if (!Array.isArray(rows)) throw new Error('Reassignments payload must be a JSON array');
+    return rows;
+  }
+
+  function handleDetectConflicts() {
+    requireSchoolManager();
+    var rows = parseRows();
+    var year = String(document.getElementById('bulk-year').value || '').trim();
+    if (!year) throw new Error('Academic year label is required');
+    return window.DataService.detectExistingClassConflicts(rows, year).then(function(result) {
+      setOut('bulk-output', { conflicts: result, conflict_count: (result || []).length });
+    });
+  }
+
+  function handleBulkRun() {
+    requireSchoolManager();
+    var rows = parseRows();
+    var year = String(document.getElementById('bulk-year').value || '').trim();
+    if (!year) throw new Error('Academic year label is required');
+    var mode = String(document.getElementById('bulk-mode').value || 'add_only');
+    var override = !!document.getElementById('bulk-override').checked;
+    return window.DataService.bulkUpsertPupilsAndEnrollments({
+      rows: rows,
+      academicYearLabel: year,
+      mode: mode,
+      overrideConflicts: override
+    }).then(function(result) {
+      setOut('bulk-output', result);
+    });
+  }
+
+  function promotionOptions() {
+    var fromYear = String(document.getElementById('promo-from-year').value || '').trim();
+    var toYear = String(document.getElementById('promo-to-year').value || '').trim();
+    var fromLevel = Number(document.getElementById('promo-from-level').value || 1);
+    var toLevel = Number(document.getElementById('promo-to-level').value || 2);
+    if (!fromYear || !toYear) throw new Error('Both academic year labels are required');
+    return {
+      fromAcademicYearLabel: fromYear,
+      toAcademicYearLabel: toYear,
+      fromYearLevel: fromLevel,
+      toYearLevel: toLevel,
+      teacherReassignments: parseReassignments()
+    };
+  }
+
+  function handlePreviewPromotion() {
+    requireSchoolManager();
+    return window.DataService.previewPromotionRun(promotionOptions()).then(function(result) {
+      setOut('promo-output', result);
+    });
+  }
+
+  function handleCommitPromotion() {
+    requireSchoolManager();
+    var opts = promotionOptions();
+    opts.overrideConflicts = !!document.getElementById('promo-override').checked;
+    return window.DataService.commitPromotionRun(opts).then(function(result) {
+      setOut('promo-output', result);
+    });
+  }
+
+  function bindButton(id, action, busyIds) {
+    var btn = document.getElementById(id);
+    if (!btn) return;
+    btn.addEventListener('click', function() {
+      setOut(id.indexOf('promo-') === 0 ? 'promo-output' : 'bulk-output', { status: 'running' });
+      withBusy(busyIds, true);
+      Promise.resolve()
+        .then(action)
+        .catch(function(err) {
+          setOut(id.indexOf('promo-') === 0 ? 'promo-output' : 'bulk-output', {
+            error: err && err.message ? err.message : String(err)
+          });
+        })
+        .finally(function() {
+          withBusy(busyIds, false);
+        });
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    bindDefaults();
+    loadSample();
+    bindButton('bulk-sample-btn', function() { loadSample(); setOut('bulk-output', { status: 'sample_loaded' }); }, ['bulk-sample-btn']);
+    bindButton('bulk-detect-btn', handleDetectConflicts, ['bulk-sample-btn', 'bulk-detect-btn', 'bulk-run-btn']);
+    bindButton('bulk-run-btn', handleBulkRun, ['bulk-sample-btn', 'bulk-detect-btn', 'bulk-run-btn']);
+    bindButton('promo-preview-btn', handlePreviewPromotion, ['promo-preview-btn', 'promo-commit-btn']);
+    bindButton('promo-commit-btn', handleCommitPromotion, ['promo-preview-btn', 'promo-commit-btn']);
+  });
+})();
+</script>
+</body>
+</html>
