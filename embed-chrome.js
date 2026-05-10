@@ -19,6 +19,7 @@
   var p = (path + '').toLowerCase();
   var keepDashChrome =
     p.indexOf('faculty_dashboard.html') !== -1 ||
+    p.indexOf('tracking_monitoring_hub.html') !== -1 ||
     p.indexOf('purchase_orders.html') !== -1 ||
     p.indexOf('triangulation_evidence.html') !== -1;
 

@@ -1,6 +1,6 @@
 /**
  * Allowlist check: verifies the current user's email is in allowed_emails.
- * Returns { allowed, isAdmin, role, isFacultyHead, canManageSchool }.
+ * Returns { allowed, isAdmin, role, isFacultyHead, canManageSchool, canViewSchoolWideTracking }.
  * Must be called after Supabase auth (session exists).
  */
 (function() {
@@ -16,7 +16,8 @@
       isAdmin: isAdmin,
       role: role,
       isFacultyHead: isFacultyHead,
-      canManageSchool: isAdmin || isFacultyHead
+      canManageSchool: isAdmin || isFacultyHead,
+      canViewSchoolWideTracking: true
     };
   }
 
@@ -46,13 +47,13 @@
   window.checkAllowlist = function() {
     return new Promise(function(resolve) {
       if (!window.supabase || !window.supabase.auth) {
-        resolve({ allowed: false, isAdmin: false, role: 'teacher', isFacultyHead: false, canManageSchool: false });
+        resolve({ allowed: false, isAdmin: false, role: 'teacher', isFacultyHead: false, canManageSchool: false, canViewSchoolWideTracking: false });
         return;
       }
       window.supabase.auth.getSession().then(function(r) {
         var session = r.data.session;
         if (!session || !session.user || !session.user.email) {
-          resolve({ allowed: false, isAdmin: false, role: 'teacher', isFacultyHead: false, canManageSchool: false });
+          resolve({ allowed: false, isAdmin: false, role: 'teacher', isFacultyHead: false, canManageSchool: false, canViewSchoolWideTracking: false });
           return;
         }
         var email = session.user.email;
@@ -69,7 +70,7 @@
             }
             var errMsg = String(res && res.error && (res.error.message || res.error.details) || '');
             if (roleColumnSupported === false || !/role/i.test(errMsg)) {
-              resolve({ allowed: false, isAdmin: false, role: 'teacher', isFacultyHead: false, canManageSchool: false });
+              resolve({ allowed: false, isAdmin: false, role: 'teacher', isFacultyHead: false, canManageSchool: false, canViewSchoolWideTracking: false });
               return;
             }
             roleColumnSupported = false;
@@ -79,7 +80,7 @@
               .maybeSingle()
               .then(function(legacyRes) {
                 if (legacyRes.error || !legacyRes.data) {
-                  resolve({ allowed: false, isAdmin: false, role: 'teacher', isFacultyHead: false, canManageSchool: false });
+                  resolve({ allowed: false, isAdmin: false, role: 'teacher', isFacultyHead: false, canManageSchool: false, canViewSchoolWideTracking: false });
                   return;
                 }
                 resolve(mapAllowlistResult(legacyRes.data));

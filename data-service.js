@@ -253,7 +253,11 @@
       });
     },
 
-    getAllForAdmin: function() {
+    /**
+     * Monitoring hub + admin dashboard: returns tracker/planner payloads with teacher metadata.
+     * Access is enforced by Supabase RLS policies.
+     */
+    getAllForMonitoring: function() {
       return new Promise(function(resolve, reject) {
         if (!useSupabase()) { resolve([]); return; }
         window.supabase.auth.getSession().then(function(_a) {
@@ -284,7 +288,7 @@
                 window.supabase.from('audit_log').insert({
                   actor_id: session.user.id,
                   actor_email: session.user.email,
-                  action: 'admin_viewed_all_pupil_data',
+                  action: 'monitoring_viewed_all_pupil_data',
                   target_type: 'pupil_data'
                 }).then(function() {});
               }
@@ -293,6 +297,11 @@
           });
         });
       });
+    },
+
+    /** Backward compatible alias used by the existing Faculty Dashboard. */
+    getAllForAdmin: function() {
+      return this.getAllForMonitoring();
     },
 
     /** Admin only: returns staff list with planner, moderation, and tracker data grouped by user. Includes all profiles. */

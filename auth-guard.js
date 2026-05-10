@@ -8,6 +8,7 @@
   window.__authGuardRole = 'teacher';
   window.__authGuardIsFacultyHead = false;
   window.__authGuardCanManageSchool = false;
+  window.__authGuardCanViewSchoolWideTracking = false;
   function markAuthReady() {
     window.__authReady = true;
     try {
@@ -41,6 +42,7 @@
           window.__authGuardRole = r.role || (r.isAdmin ? 'admin' : 'teacher');
           window.__authGuardIsFacultyHead = !!r.isFacultyHead;
           window.__authGuardCanManageSchool = !!r.canManageSchool || !!r.isAdmin;
+          window.__authGuardCanViewSchoolWideTracking = !!r.canViewSchoolWideTracking || !!r.isAdmin;
           markAuthReady();
         }
       }).catch(function() {

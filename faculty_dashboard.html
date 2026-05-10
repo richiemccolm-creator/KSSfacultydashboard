@@ -538,11 +538,14 @@ html,body{min-height:100%;margin:0;width:100%;box-sizing:border-box}
 <script>
 // Aggregated data: { drama: { teacherName, pupils, scores, profiles }[], art: [...] }
 let D = { drama: [], art: [] };
+function canViewCloudTracking() {
+  return !!window.__authGuardCanViewSchoolWideTracking || !!window.__authGuardIsAdmin;
+}
 
 function loadFromCloud() {
-  if (!window.__authGuardIsAdmin) { toast('Admin only'); return; }
-  if (!window.DataService || typeof DataService.getAllForAdmin !== 'function') { toast('Cloud not available'); return; }
-  DataService.getAllForAdmin().then(function(rows) {
+  if (!canViewCloudTracking()) { toast('No access to school-wide tracking'); return; }
+  if (!window.DataService || typeof DataService.getAllForMonitoring !== 'function') { toast('Cloud not available'); return; }
+  DataService.getAllForMonitoring().then(function(rows) {
     if (!rows || !rows.length) { toast('No staff data in cloud'); return; }
     rows.forEach(function(r) {
       const subj = r.data_type === 'drama-v3' ? 'drama' : r.data_type === 'art-v2' ? 'art' : null;
@@ -1504,7 +1507,7 @@ function adminAnnouncementsImportDocx(inp) {
 
 function updateLoadCloudButton() {
   const btn = document.getElementById('load-cloud-btn');
-  if (btn) btn.style.display = window.__authGuardIsAdmin ? 'inline-flex' : 'none';
+  if (btn) btn.style.display = canViewCloudTracking() ? 'inline-flex' : 'none';
   const staffBtn = document.getElementById('staff-btn');
   if (staffBtn) staffBtn.style.display = window.__authGuardIsAdmin ? 'block' : 'none';
   const adminBtn = document.getElementById('admin-console-btn');
