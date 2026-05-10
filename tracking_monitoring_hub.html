@@ -958,16 +958,45 @@ function renderAllViews() {
   populateProfileSelect();
 }
 function loadFromCloud() {
-  var canView = !!window.__authGuardCanViewSchoolWideTracking || !!window.__authGuardIsAdmin;
-  if (!canView) { toast('You do not have access to school-wide monitoring.'); return; }
-  if (!window.DataService || typeof window.DataService.getAllForMonitoring !== 'function') { toast('Cloud data service unavailable.'); return; }
-  DataService.getAllForMonitoring().then(function(rows){
+  var statusEl = document.getElementById('source-status');
+  // If auth flags are not ready yet, allow the fetch attempt.
+  var authReady = !!window.__authReady;
+  var canView = !authReady || !!window.__authGuardCanViewSchoolWideTracking || !!window.__authGuardIsAdmin;
+  if (!canView) {
+    if (statusEl) statusEl.textContent = 'You are signed in but do not currently have school-wide tracking permissions.';
+    toast('No access to school-wide monitoring');
+    return;
+  }
+  if (!window.DataService) {
+    if (statusEl) statusEl.textContent = 'Cloud data service is unavailable on this page.';
+    toast('Cloud data service unavailable');
+    return;
+  }
+  var fetchFn = null;
+  if (typeof DataService.getAllForMonitoring === 'function') fetchFn = function() { return DataService.getAllForMonitoring(); };
+  else if (typeof DataService.getAllForAdmin === 'function') fetchFn = function() { return DataService.getAllForAdmin(); };
+  if (!fetchFn) {
+    if (statusEl) statusEl.textContent = 'Cloud tracking API is unavailable (missing getAllForMonitoring/getAllForAdmin).';
+    toast('Cloud tracking API unavailable');
+    return;
+  }
+  if (statusEl) statusEl.textContent = 'Loading cloud data...';
+  fetchFn().then(function(rows){
     normalizeCloudRows(rows || []);
     initPivotControls();
     hydrateFilterControls();
     recalcFilteredState();
+    if (!rows || !rows.length) {
+      if (statusEl) statusEl.textContent = 'Cloud load succeeded, but no tracker sources were returned. Ensure staff have saved Drama/Art tracker data.';
+      toast('No tracker sources found in cloud');
+      return;
+    }
     toast('Cloud data refreshed');
-  }).catch(function(){ toast('Could not load cloud data'); });
+  }).catch(function(err){
+    var msg = (err && (err.message || err.details)) ? String(err.message || err.details) : 'Unknown cloud error';
+    if (statusEl) statusEl.textContent = 'Cloud load failed: ' + msg;
+    toast('Could not load cloud data');
+  });
 }
 function waitForAuthGuardReady(timeoutMs) {
   return new Promise(function(resolve, reject) {
@@ -985,7 +1014,11 @@ function init() {
   } catch (e) {}
   var q = document.getElementById('flt-searchText');
   if (q) q.addEventListener('keydown', function(ev) { if (ev.key === 'Enter') applyFilterControls(); });
-  waitForAuthGuardReady(1800).then(function(){ loadFromCloud(); }).catch(function(){ toast('Auth check timed out'); });
+  waitForAuthGuardReady(5000).then(function(){ loadFromCloud(); }).catch(function(){
+    // Auth can be slower on first session restore; try cloud load anyway.
+    toast('Auth still loading, retrying cloud load');
+    setTimeout(loadFromCloud, 250);
+  });
 }
 document.addEventListener('DOMContentLoaded', init);
 </script>
