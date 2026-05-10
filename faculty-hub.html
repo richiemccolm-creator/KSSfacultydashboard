@@ -508,6 +508,10 @@ a.sidebar-item:hover{color:var(--white)}
   .sidebar{transform:translateX(-100%);transition:transform .25s}
   .sidebar.open{transform:translateX(0)}
   .main{margin-left:0}
+  .topbar{padding:.75rem 1rem;flex-wrap:wrap;gap:.55rem}
+  .topbar-heading{font-size:1rem;flex:1 1 100%}
+  .topbar-actions{width:100%;justify-content:flex-end;flex-wrap:wrap}
+  .topbar-meta{margin-right:auto}
 }
 
 /* ── DIP (improvement plan) nav item: base uses .sidebar-item; gold accent only when .active ── */
@@ -1239,15 +1243,6 @@ a.subject-card-link{text-decoration:none;cursor:pointer}
   transition:all .12s;
 }
 .topbar-print-btn:hover{background:var(--navy-dark);color:var(--white);border-color:var(--navy-dark)}
-.topbar-save-btn{
-  display:inline-flex;align-items:center;gap:.4rem;
-  font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;
-  padding:.35rem .85rem;border-radius:5px;cursor:pointer;
-  border:1px solid #10b981;background:#10b981;color:white;
-  transition:all .12s;
-}
-.topbar-save-btn:hover{background:#059669;border-color:#059669}
-.topbar-save-btn svg{width:13px;height:13px;flex-shrink:0}
 .cloud-sync-banner{
   background:#fef3c7;color:#92400e;padding:.5rem 1rem;font-size:.75rem;text-align:center;border-bottom:1px solid #fcd34d;
 }
@@ -1830,12 +1825,14 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
     <div id="topbar-heading" class="topbar-heading">S1 Drama</div>
     <div class="topbar-actions">
       <div class="topbar-meta">
-        <span class="meta-badge">CfE</span>
         <span class="meta-badge">Knightswood Secondary</span>
       </div>
-      <button class="topbar-save-btn" id="topbar-save-btn" onclick="saveAllToCloud()" title="Save all data to cloud">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-        Save
+      <button class="topbar-print-btn" onclick="forceRefreshApp()" title="Reload latest layout and data">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
+          <path d="M3.51 9a9 9 0 0 1 14.13-3.36L23 10"/><path d="M20.49 15a9 9 0 0 1-14.13 3.36L1 14"/>
+        </svg>
+        Refresh app
       </button>
       <button class="topbar-print-btn" onclick="printCurrentPanel()" title="Print current page">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -4827,6 +4824,23 @@ function refreshAfterStandaloneResume(force){
     }
     showPanel(activeId);
   },80);
+}
+function forceRefreshApp(){
+  try{
+    if(typeof scheduleHomeDataRefresh==='function') scheduleHomeDataRefresh(0);
+  }catch(e){}
+  try{
+    var u=new URL(window.location.href);
+    u.searchParams.set('r',String(Date.now()));
+    var next=u.toString();
+    if(typeof window.withAppVersion==='function') next=window.withAppVersion(next);
+    window.location.replace(next);
+  }catch(e){
+    var fallback=window.location.pathname+(window.location.search||'');
+    fallback+=(fallback.indexOf('?')>=0?'&':'?')+'r='+Date.now();
+    if(typeof window.withAppVersion==='function') fallback=window.withAppVersion(fallback);
+    window.location.replace(fallback);
+  }
 }
 
 function updateTopbar(panelId,subj){
