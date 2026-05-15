@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Faculty Head Hub">
-<title>Faculty Head Hub — Knightswood Secondary School</title>
+<title>Faculty Head Hub — Admin Dashboard</title>
 <link rel="icon" type="image/png" href="faculty-hub-logo.png">
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -15,61 +15,586 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="fh-shell.css">
-<script src="fh-shell.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --navy:#0f1630;
+  --navy2:#1b1f4f;
+  --navy3:#2a1e63;
+  --bg:#f4f6fb;
+  --card:#ffffff;
+  --border:#e5eaf4;
+  --text:#121a32;
+  --text2:#4f5c79;
+  --text3:#7a87a6;
+  --purple:#5b3fd1;
+  --green:#1e9c61;
+  --amber:#c6921a;
+  --gray:#7a859e;
+  --shadow:0 6px 20px rgba(18,26,50,.06);
+}
+body{
+  font-family:'Inter',sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  min-height:100vh;
+}
+.layout{
+  display:grid;
+  grid-template-columns:250px 1fr;
+  min-height:100vh;
+}
+.sidebar{
+  background:linear-gradient(180deg,var(--navy) 0%,var(--navy2) 52%,var(--navy3) 100%);
+  color:#fff;
+  padding:1rem .75rem;
+  position:sticky;
+  top:0;
+  height:100vh;
+  overflow:auto;
+}
+.brand{
+  display:flex;
+  align-items:center;
+  gap:.65rem;
+  padding:.5rem .45rem .9rem;
+  border-bottom:1px solid rgba(255,255,255,.1);
+  margin-bottom:.7rem;
+}
+.brand img{width:42px;height:42px;border-radius:8px;background:#fff;padding:.2rem}
+.brand-title{font-family:'Sora',sans-serif;font-size:.75rem;font-weight:700;line-height:1.3}
+.group-title{
+  padding:.55rem .45rem .35rem;
+  font-size:.58rem;
+  letter-spacing:.16em;
+  text-transform:uppercase;
+  color:rgba(255,255,255,.5);
+  font-weight:700;
+}
+.nav-link{
+  display:flex;
+  align-items:center;
+  gap:.55rem;
+  padding:.5rem .6rem;
+  border-radius:9px;
+  color:rgba(255,255,255,.83);
+  text-decoration:none;
+  font-size:.76rem;
+  font-weight:600;
+  margin:.08rem 0;
+}
+.nav-link svg{width:15px;height:15px;opacity:.92;flex-shrink:0}
+.nav-link:hover{background:rgba(255,255,255,.08)}
+.nav-link.active{
+  background:linear-gradient(90deg,rgba(91,63,209,.36),rgba(91,63,209,.22));
+  border:1px solid rgba(170,149,255,.3);
+}
+.switch-card{
+  margin-top:1rem;
+  padding:.7rem .72rem;
+  border-radius:11px;
+  background:rgba(255,255,255,.09);
+  border:1px solid rgba(255,255,255,.17);
+}
+.switch-btn{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  color:#fff;
+  text-decoration:none;
+  font-size:.75rem;
+  font-weight:700;
+}
+.switch-help{margin-top:.3rem;font-size:.65rem;color:rgba(255,255,255,.72);line-height:1.45}
+
+.main{
+  padding:1rem 1.15rem 1.1rem;
+  overflow:auto;
+}
+.topbar{
+  background:var(--card);
+  border:1px solid var(--border);
+  border-radius:14px;
+  box-shadow:var(--shadow);
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:1rem;
+  padding:.85rem 1rem;
+}
+.head-title{font-family:'Sora',sans-serif;font-size:1.33rem}
+.head-sub{margin-top:.2rem;font-size:.77rem;color:var(--text3)}
+.topbar-right{display:flex;align-items:center;gap:.65rem}
+.icon-btn{
+  width:30px;height:30px;border-radius:999px;border:1px solid var(--border);
+  display:flex;align-items:center;justify-content:center;background:#fff;color:var(--text2)
+}
+.profile{
+  display:flex;align-items:center;gap:.55rem;padding:.2rem .45rem .2rem .2rem;border-radius:999px;border:1px solid var(--border);
+}
+.avatar{
+  width:29px;height:29px;border-radius:50%;background:var(--navy2);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:.67rem;font-weight:700
+}
+.p-name{font-size:.7rem;font-weight:700;line-height:1.15}
+.p-role{font-size:.62rem;color:var(--text3)}
+.add-btn{
+  border:none;border-radius:9px;background:var(--purple);color:#fff;
+  display:flex;align-items:center;gap:.35rem;padding:.55rem .8rem;font-size:.72rem;font-weight:700;cursor:pointer
+}
+
+.grid{margin-top:.85rem;display:grid;gap:.75rem}
+.actions-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+.action-card{
+  background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);
+  padding:.82rem .9rem;min-height:108px
+}
+.action-head{display:flex;align-items:flex-start;gap:.55rem}
+.icon-wrap{
+  width:31px;height:31px;border-radius:8px;background:#f3f0ff;color:var(--purple);display:flex;align-items:center;justify-content:center;flex-shrink:0
+}
+.icon-wrap svg{width:16px;height:16px}
+.a-title{font-size:.79rem;font-weight:700}
+.a-desc{margin-top:.2rem;font-size:.68rem;color:var(--text3);line-height:1.4}
+.a-link{margin-top:.55rem;display:inline-flex;gap:.3rem;align-items:center;color:var(--purple);font-size:.69rem;font-weight:700;text-decoration:none}
+
+.main-cards{grid-template-columns:1.1fr 1fr 1fr}
+.card{
+  background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);
+}
+.card-head{
+  padding:.78rem .85rem .62rem;
+  border-bottom:1px solid var(--border);
+  display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem;
+}
+.card-title{font-size:.86rem;font-family:'Sora',sans-serif}
+.card-sub{margin-top:.2rem;font-size:.67rem;color:var(--text3);line-height:1.45}
+.card-link{font-size:.67rem;color:var(--purple);font-weight:700;text-decoration:none;white-space:nowrap}
+.rows{padding:.3rem .55rem}
+.row{
+  display:grid;
+  grid-template-columns:auto 1fr auto auto;
+  gap:.55rem;
+  align-items:center;
+  padding:.5rem .3rem;
+  border-bottom:1px solid var(--border);
+}
+.row:last-child{border-bottom:none}
+.date-badge{
+  width:40px;min-height:40px;border-radius:9px;background:#f7f8fc;border:1px solid var(--border);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.15
+}
+.date-badge .m{font-size:.55rem;letter-spacing:.08em;color:var(--text3);font-weight:700}
+.date-badge .d{font-size:.92rem;font-weight:700}
+.item-title{font-size:.73rem;font-weight:700;line-height:1.35}
+.item-meta{margin-top:.14rem;font-size:.64rem;color:var(--text3)}
+.dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:.27rem}
+.dot-purple{background:var(--purple)}
+.dot-red{background:#c23643}
+.menu-btn{border:none;background:none;color:#9ca8c1;font-size:1.1rem;cursor:pointer}
+
+.status-pill{
+  display:inline-flex;align-items:center;padding:.15rem .44rem;border-radius:999px;
+  font-size:.57rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase
+}
+.pill-scheduled{background:#efeaff;color:#593dbf}
+.pill-active{background:#e6f7ed;color:#1f8f59}
+.pill-draft{background:#eef2f8;color:#59637b}
+
+.status-badge{
+  display:inline-flex;padding:.16rem .42rem;border-radius:999px;font-size:.57rem;font-weight:700;text-transform:uppercase
+}
+.b-complete{background:#e5f7ee;color:var(--green)}
+.b-progress{background:#fff4df;color:var(--amber)}
+.b-not{background:#eef1f6;color:#69748d}
+.go-btn{
+  width:100%;
+  margin:.4rem .55rem .55rem;
+  max-width:calc(100% - 1.1rem);
+  border:none;border-radius:8px;background:var(--purple);color:#fff;padding:.5rem .6rem;
+  font-size:.71rem;font-weight:700;cursor:pointer
+}
+
+.lower-grid{grid-template-columns:1.25fr 1fr}
+.metrics{
+  padding:.8rem;
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:.55rem;
+}
+.metric{
+  background:#f8f9fd;border:1px solid var(--border);border-radius:9px;padding:.52rem .58rem
+}
+.metric-num{font-family:'Sora',sans-serif;font-size:1.03rem}
+.metric-label{margin-top:.15rem;font-size:.62rem;color:var(--text3);line-height:1.35}
+
+.quick-actions{
+  padding:.82rem;
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:.45rem;
+}
+.qa-btn{
+  border:1px solid var(--border);background:#fff;border-radius:9px;padding:.5rem .55rem;
+  font-size:.67rem;font-weight:700;color:var(--text2);display:flex;align-items:center;gap:.35rem;cursor:pointer;text-align:left
+}
+.qa-btn svg{width:14px;height:14px;flex-shrink:0;color:var(--purple)}
+
+.info-strip{
+  margin-top:.75rem;
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:11px;
+  box-shadow:var(--shadow);
+  padding:.62rem .75rem;
+  display:flex;align-items:center;justify-content:space-between;gap:.6rem;flex-wrap:wrap
+}
+.info-text{font-size:.67rem;color:var(--text2)}
+.info-link{font-size:.67rem;font-weight:700;color:var(--purple);text-decoration:none}
+
+@media (max-width:1260px){
+  .actions-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .main-cards{grid-template-columns:1fr}
+  .lower-grid{grid-template-columns:1fr}
+}
+@media (max-width:980px){
+  .layout{grid-template-columns:1fr}
+  .sidebar{
+    position:fixed;
+    transform:translateX(-100%);
+    width:250px;
+    z-index:200;
+  }
+  .sidebar.open{transform:translateX(0)}
+  .main{padding:.75rem}
+}
+@media (max-width:820px){
+  .topbar{padding:.7rem .75rem;flex-wrap:wrap}
+  .topbar-right{width:100%;justify-content:flex-end}
+  .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .quick-actions{grid-template-columns:1fr}
+}
+</style>
 </head>
-<body data-fh-page="hub">
-<div class="fh-app">
-  <aside id="fhSidebar" class="fh-sidebar">
-    <div class="fh-brand">
-      <a href="faculty-hub.html" title="Back to Faculty Hub">
-        <img src="faculty-hub-logo.png" alt="Faculty Hub">
-      </a>
-      <div class="fh-brand-sub">Faculty Head Hub</div>
+<body>
+<div class="layout">
+  <aside id="fhSidebar" class="sidebar">
+    <div class="brand">
+      <img src="faculty-hub-logo.png" alt="Knightswood Secondary School logo">
+      <div class="brand-title">Knightswood Secondary<br>Faculty Head Hub</div>
     </div>
-    <nav class="fh-nav">
-      <a href="faculty_head_hub.html" data-page="hub">Overview</a>
-      <a href="fh_calendar.html" data-page="calendar">Calendar Manager</a>
-      <a href="fh_announcements.html" data-page="announcements">Announcements</a>
-      <a href="fh_tracking.html" data-page="tracking">Tracking Manager</a>
-      <a href="fh_procurement.html" data-page="procurement">Procurement</a>
-      <a href="fh_department_meetings.html" data-page="meetings">Department Meetings</a>
-      <a href="fh_class_management.html" data-page="classes">Class Uploads</a>
-      <a href="fh_staff.html" data-page="staff">Staff Data</a>
-    </nav>
-    <div class="fh-side-footer">
-      <a href="faculty-hub.html">Back to Faculty Hub</a>
+
+    <div class="group-title">Faculty Head Hub</div>
+    <a class="nav-link active" href="faculty_head_hub.html">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l9-9 9 9"/><path d="M9 21V9h6v12"/></svg>Overview
+    </a>
+    <a class="nav-link" href="fh_calendar.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Calendar Manager</a>
+    <a class="nav-link" href="fh_announcements.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11v2a2 2 0 0 0 2 2h3l5 4V5L8 9H5a2 2 0 0 0-2 2z"/><path d="M16 9a5 5 0 0 1 0 6"/></svg>Announcements</a>
+    <a class="nav-link" href="fh_tracking.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="20" x2="4" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="20" y1="20" x2="20" y2="13"/></svg>Tracking Manager</a>
+    <a class="nav-link" href="fh_class_management.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Class &amp; Staff</a>
+    <a class="nav-link" href="fh_staff.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16"/><path d="M7 20V8h10v12"/><path d="M10 12h4"/></svg>Reports &amp; Data</a>
+    <a class="nav-link" href="fh_class_management.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20"/><path d="M2 12h20"/></svg>Resources Manager</a>
+
+    <div class="group-title">Faculty Leadership</div>
+    <a class="nav-link" href="faculty-hub.html?panel=dip-main"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20l9-5-9-5-9 5 9 5z"/><path d="M12 12l9-5-9-5-9 5 9 5z"/></svg>Improvement Plan</a>
+    <a class="nav-link" href="fh_department_meetings.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg>Meetings &amp; Minutes</a>
+    <a class="nav-link" href="faculty-hub.html?panel=embed-class-visit"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>Class Visits</a>
+    <a class="nav-link" href="faculty-hub.html?panel=embed-quality-calendar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Quality Calendar</a>
+    <a class="nav-link" href="faculty-hub.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h16"/><path d="M12 4v16"/></svg>Department Targets</a>
+
+    <div class="group-title">System</div>
+    <a class="nav-link" href="fh_staff.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>Users &amp; Permissions</a>
+    <a class="nav-link" href="faculty-hub.html?panel=data-backup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/></svg>Backup &amp; Restore</a>
+    <a class="nav-link" href="fh_staff.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l3-3 3 2 4-5"/></svg>Audit Log</a>
+    <a class="nav-link" href="fh_staff.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06"/></svg>Settings</a>
+
+    <div class="switch-card">
+      <a class="switch-btn" href="faculty-hub.html">
+        <span>Switch to Staff View</span>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+      </a>
+      <div class="switch-help">See the hub as your staff see it</div>
     </div>
   </aside>
 
-  <main class="fh-main">
-    <header class="fh-topbar">
+  <main class="main">
+    <header class="topbar">
       <div>
-        <h1 class="fh-top-title">Faculty Head Hub</h1>
-        <p class="fh-top-sub">Dedicated management pages for each section. No mixed admin console screens.</p>
+        <h1 class="head-title">Faculty Head Hub</h1>
+        <div class="head-sub">Manage, update and communicate across the Faculty of Art &amp; Drama.</div>
       </div>
-      <div class="fh-top-actions">
-        <button class="fh-btn fh-mobile-menu" type="button" onclick="fhToggleSidebar()">Menu</button>
-        <a class="fh-btn" href="faculty-hub.html">Main Hub</a>
+      <div class="topbar-right">
+        <button class="icon-btn" type="button" title="Help">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 1 1 5.8 1c0 2-3 2-3 4"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </button>
+        <button class="icon-btn" type="button" title="Navigation" onclick="toggleSidebar()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <div class="profile">
+          <div class="avatar" id="userAvatar">FH</div>
+          <div>
+            <div class="p-name" id="userName">Faculty Head</div>
+            <div class="p-role" id="userRole">Admin Control</div>
+          </div>
+        </div>
+        <button class="add-btn" type="button">
+          <span>Add New</span>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
       </div>
     </header>
-    <section class="fh-content">
-      <div class="fh-hero">
-        <h1>Manage each area in its own dedicated page</h1>
-        <p>Select a section below. Each page is purpose-built for one workflow: calendar, announcements, tracking, procurement, meetings, class management, or staff data.</p>
+
+    <section class="grid actions-grid">
+      <div class="action-card">
+        <div class="action-head">
+          <div class="icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg></div>
+          <div><div class="a-title">Add Calendar Event</div><div class="a-desc">Add events, deadlines or important dates.</div></div>
+        </div>
+        <a class="a-link" href="fh_calendar.html">Go to Calendar <span>→</span></a>
       </div>
-      <div class="fh-launch-grid">
-        <a class="fh-launch-link" href="fh_calendar.html"><strong>Calendar Manager</strong><span>Shared calendar events only.</span></a>
-        <a class="fh-launch-link" href="fh_announcements.html"><strong>Announcements</strong><span>Create, edit and remove announcements.</span></a>
-        <a class="fh-launch-link" href="fh_tracking.html"><strong>Tracking Manager</strong><span>Load cloud tracking and review staff data.</span></a>
-        <a class="fh-launch-link" href="fh_procurement.html"><strong>Procurement</strong><span>Budgets, approvals, and PO processing.</span></a>
-        <a class="fh-launch-link" href="fh_department_meetings.html"><strong>Department Meetings</strong><span>Agenda and minutes workflow only.</span></a>
-        <a class="fh-launch-link" href="fh_class_management.html"><strong>Class Uploads</strong><span>Class population and assignment tools.</span></a>
-        <a class="fh-launch-link" href="fh_staff.html"><strong>Staff Data</strong><span>Staff-level reporting and overview.</span></a>
+      <div class="action-card">
+        <div class="action-head">
+          <div class="icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11v2a2 2 0 0 0 2 2h3l5 4V5L8 9H5a2 2 0 0 0-2 2z"/></svg></div>
+          <div><div class="a-title">New Announcement</div><div class="a-desc">Create and send faculty-wide announcements.</div></div>
+        </div>
+        <a class="a-link" href="fh_announcements.html">Create Announcement <span>→</span></a>
       </div>
+      <div class="action-card">
+        <div class="action-head">
+          <div class="icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="20" x2="4" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="20" y1="20" x2="20" y2="13"/></svg></div>
+          <div><div class="a-title">Enter Tracking Data</div><div class="a-desc">Add or update tracking information for classes.</div></div>
+        </div>
+        <a class="a-link" href="fh_tracking.html">Go to Tracking <span>→</span></a>
+      </div>
+      <div class="action-card">
+        <div class="action-head">
+          <div class="icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14"/><path d="M5 12h14"/></svg></div>
+          <div><div class="a-title">Upload Resource</div><div class="a-desc">Add new resources for staff to access.</div></div>
+        </div>
+        <a class="a-link" href="fh_class_management.html">Upload Resource <span>→</span></a>
+      </div>
+    </section>
+
+    <section class="grid main-cards">
+      <div class="card">
+        <div class="card-head">
+          <div><div class="card-title">Calendar Management</div><div class="card-sub">Add, edit and manage shared faculty events.</div></div>
+          <a class="card-link" href="fh_calendar.html">View Calendar</a>
+        </div>
+        <div class="rows">
+          <div class="row">
+            <div class="date-badge"><span class="m">MAY</span><span class="d">17</span></div>
+            <div>
+              <div class="item-title">TP2 Tracking Deadline</div>
+              <div class="item-meta">All Day</div>
+              <div class="item-meta"><span class="dot dot-red"></span>Visible to all faculty staff</div>
+            </div>
+            <span class="status-pill pill-scheduled">Deadline</span>
+            <button class="menu-btn" type="button">⋮</button>
+          </div>
+          <div class="row">
+            <div class="date-badge"><span class="m">MAY</span><span class="d">20</span></div>
+            <div>
+              <div class="item-title">S3 Drama Assessment Window</div>
+              <div class="item-meta">09:00 - 12:00</div>
+              <div class="item-meta"><span class="dot dot-purple"></span>Visible to Drama staff</div>
+            </div>
+            <span></span>
+            <button class="menu-btn" type="button">⋮</button>
+          </div>
+          <div class="row">
+            <div class="date-badge"><span class="m">MAY</span><span class="d">24</span></div>
+            <div>
+              <div class="item-title">Department Meeting</div>
+              <div class="item-meta">15:30 - 16:30</div>
+              <div class="item-meta"><span class="dot dot-purple"></span>Visible to all faculty staff</div>
+            </div>
+            <span></span>
+            <button class="menu-btn" type="button">⋮</button>
+          </div>
+          <div class="row">
+            <div class="date-badge"><span class="m">MAY</span><span class="d">28</span></div>
+            <div>
+              <div class="item-title">Photography Moderation</div>
+              <div class="item-meta">13:00 - 15:00</div>
+              <div class="item-meta"><span class="dot dot-purple"></span>Visible to Photography staff</div>
+            </div>
+            <span></span>
+            <button class="menu-btn" type="button">⋮</button>
+          </div>
+        </div>
+        <button class="go-btn" type="button" onclick="location.href='fh_calendar.html'">+ Add New Event</button>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div><div class="card-title">Announcements Management</div><div class="card-sub">Create, edit and schedule announcements.</div></div>
+          <a class="card-link" href="fh_announcements.html">View All</a>
+        </div>
+        <div class="rows">
+          <div class="row">
+            <div><span class="status-pill pill-scheduled">Scheduled</span></div>
+            <div>
+              <div class="item-title">Exam Preparation Resources</div>
+              <div class="item-meta">New resources added to help support exam prep.</div>
+              <div class="item-meta">Scheduled for 16 May 2026 at 08:00</div>
+            </div>
+            <span></span>
+            <button class="menu-btn" type="button">⋮</button>
+          </div>
+          <div class="row">
+            <div><span class="status-pill pill-active">Active</span></div>
+            <div>
+              <div class="item-title">Reminder: TP2 Tracking</div>
+              <div class="item-meta">Please ensure all TP2 data is completed by Friday 17 May.</div>
+              <div class="item-meta">Published 10 May 2026</div>
+            </div>
+            <span></span>
+            <button class="menu-btn" type="button">⋮</button>
+          </div>
+          <div class="row">
+            <div><span class="status-pill pill-draft">Draft</span></div>
+            <div>
+              <div class="item-title">Staff Meeting - 24 May</div>
+              <div class="item-meta">Update on department improvements and next steps.</div>
+              <div class="item-meta">Last edited 13 May 2026</div>
+            </div>
+            <span></span>
+            <button class="menu-btn" type="button">⋮</button>
+          </div>
+        </div>
+        <button class="go-btn" type="button" onclick="location.href='fh_announcements.html'">+ New Announcement</button>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div><div class="card-title">Tracking Data Manager</div><div class="card-sub">Enter and manage tracking information.</div></div>
+          <a class="card-link" href="fh_tracking.html">View All</a>
+        </div>
+        <div class="rows">
+          <div class="row">
+            <div class="item-title">S1 Art &amp; Design</div>
+            <div class="item-meta">TP2 Data</div>
+            <span class="status-badge b-complete">Complete</span>
+            <button class="menu-btn" type="button">›</button>
+          </div>
+          <div class="row">
+            <div class="item-title">S2 Photography</div>
+            <div class="item-meta">TP2 Data</div>
+            <span class="status-badge b-progress">In Progress</span>
+            <button class="menu-btn" type="button">›</button>
+          </div>
+          <div class="row">
+            <div class="item-title">S3 Drama</div>
+            <div class="item-meta">TP2 Data</div>
+            <span class="status-badge b-progress">In Progress</span>
+            <button class="menu-btn" type="button">›</button>
+          </div>
+          <div class="row">
+            <div class="item-title">S4 Art &amp; Design</div>
+            <div class="item-meta">TP2 Data</div>
+            <span class="status-badge b-not">Not Started</span>
+            <button class="menu-btn" type="button">›</button>
+          </div>
+          <div class="row">
+            <div class="item-title">S5/6 Photography</div>
+            <div class="item-meta">TP2 Data</div>
+            <span class="status-badge b-complete">Complete</span>
+            <button class="menu-btn" type="button">›</button>
+          </div>
+        </div>
+        <button class="go-btn" type="button" onclick="location.href='fh_tracking.html'">Go to Tracking Manager</button>
+      </div>
+    </section>
+
+    <section class="grid lower-grid">
+      <div class="card">
+        <div class="card-head">
+          <div><div class="card-title">Data &amp; Updates Overview</div><div class="card-sub">A summary of the latest updates across the faculty.</div></div>
+        </div>
+        <div class="metrics">
+          <div class="metric"><div class="metric-num">8</div><div class="metric-label">Upcoming Events<br>next 30 days</div></div>
+          <div class="metric"><div class="metric-num">2</div><div class="metric-label">Active Announcements<br>visible to staff</div></div>
+          <div class="metric"><div class="metric-num">5</div><div class="metric-label">Classes to Track<br>pending TP2 data</div></div>
+          <div class="metric"><div class="metric-num">23</div><div class="metric-label">Staff Members<br>in faculty hub</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <div><div class="card-title">Quick Actions</div><div class="card-sub">Admin shortcuts.</div></div>
+        </div>
+        <div class="quick-actions">
+          <button class="qa-btn" type="button" onclick="location.href='fh_staff.html'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/></svg>Manage Users</button>
+          <button class="qa-btn" type="button" onclick="location.href='fh_tracking.html'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/></svg>Import Tracking Data</button>
+          <button class="qa-btn" type="button" onclick="location.href='fh_staff.html'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/></svg>View Staff Activity</button>
+          <button class="qa-btn" type="button" onclick="location.href='fh_staff.html'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Generate Reports</button>
+          <button class="qa-btn" type="button" onclick="location.href='fh_staff.html'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 8v4l3 3"/><circle cx="12" cy="12" r="10"/></svg>Audit Log</button>
+          <button class="qa-btn" type="button" onclick="location.href='faculty-hub.html?panel=data-backup'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/></svg>Backup Now</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="info-strip">
+      <div class="info-text">All changes you make here will be visible to faculty staff in real time.</div>
+      <a class="info-link" href="fh_staff.html">Learn more about managing the faculty hub</a>
     </section>
   </main>
 </div>
-<script>fhInitShell();</script>
+
+<script>
+function canManage() {
+  return !!window.__authGuardCanManageSchool || !!window.__authGuardIsAdmin || !!window.__authGuardIsFacultyHead;
+}
+function enforceAccess() {
+  if (!canManage()) window.location.replace('faculty-hub.html');
+}
+function toggleSidebar() {
+  var sb = document.getElementById('fhSidebar');
+  if (!sb) return;
+  sb.classList.toggle('open');
+}
+function titleCase(v) {
+  return String(v || '')
+    .replace(/[_\-\.]/g, ' ')
+    .split(' ')
+    .filter(Boolean)
+    .map(function(part) { return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase(); })
+    .join(' ');
+}
+function initProfile() {
+  if (!window.supabase || !window.supabase.auth) return;
+  window.supabase.auth.getSession().then(function(res) {
+    var session = res && res.data ? res.data.session : null;
+    if (!session || !session.user) return;
+    var email = String(session.user.email || '').trim();
+    if (!email) return;
+    var namePart = email.split('@')[0];
+    var pretty = titleCase(namePart);
+    var initials = pretty.split(' ').slice(0, 2).map(function(x) { return x.charAt(0).toUpperCase(); }).join('') || 'FH';
+    var role = window.__authGuardRole || (window.__authGuardIsAdmin ? 'admin' : 'faculty_head');
+    var roleLabel = role === 'admin' ? 'Admin' : role === 'faculty_head' ? 'Faculty Head' : titleCase(role);
+    document.getElementById('userAvatar').textContent = initials;
+    document.getElementById('userName').textContent = pretty;
+    document.getElementById('userRole').textContent = roleLabel;
+  }).catch(function() {});
+}
+window.addEventListener('auth-guard-ready', function() {
+  enforceAccess();
+  initProfile();
+});
+(function waitForAuth() {
+  var attempts = 0;
+  function tick() {
+    if (window.__authReady || attempts >= 24) {
+      enforceAccess();
+      initProfile();
+      return;
+    }
+    attempts += 1;
+    setTimeout(tick, 250);
+  }
+  tick();
+})();
+</script>
 </body>
 </html>
