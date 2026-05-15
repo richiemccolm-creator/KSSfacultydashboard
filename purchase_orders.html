@@ -692,7 +692,14 @@ body.is-admin span.admin-only.inline{display:inline}
   }
 
   function setAdminClass() {
-    if (canManageProcurement()) document.body.classList.add('is-admin');
+    document.body.classList.toggle('is-admin', canManageProcurement());
+  }
+
+  function syncManagementUi() {
+    setAdminClass();
+    if (!canManageProcurement()) return;
+    renderBudgetAdmin();
+    loadAdmin();
   }
 
   function renderDashboard(stats) {
@@ -1182,12 +1189,27 @@ body.is-admin span.admin-only.inline{display:inline}
   window.checkAllowlist().then(function() {
     renderBudgetVoteRadios();
     fillYearSelects();
-    setAdminClass();
     loadRequisitionDisplayName();
     loadDashboard();
     loadMyRequests();
-    loadAdmin();
+    syncManagementUi();
   });
+
+  window.addEventListener('auth-guard-ready', function() {
+    syncManagementUi();
+  });
+  (function waitForAuthProcurementSync() {
+    var attempts = 0;
+    function tick() {
+      if (window.__authReady || attempts >= 24) {
+        syncManagementUi();
+        return;
+      }
+      attempts += 1;
+      setTimeout(tick, 250);
+    }
+    tick();
+  })();
 })();
 </script>
 </body>
