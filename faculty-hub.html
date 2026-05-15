@@ -901,6 +901,35 @@ a.subject-card-link{text-decoration:none;cursor:pointer}
 .staff-home-task-check.done{background:#ecfdf5;color:#047857;border-color:#86efac}
 .staff-home-task-title{font-size:.74rem;font-weight:600;line-height:1.3;flex:1;min-width:0}
 .staff-home-task-due{font-size:.66rem;color:var(--text3);font-weight:600;flex-shrink:0}
+.staff-home-task-quick{
+  margin-top:.2rem;
+  padding-top:.55rem;
+  border-top:1px solid var(--border);
+  display:flex;
+  gap:.45rem;
+}
+.staff-home-task-quick-input{
+  flex:1;
+  min-width:0;
+  border:1px solid var(--border2);
+  border-radius:7px;
+  padding:.48rem .62rem;
+  font-size:.74rem;
+  font-family:inherit;
+  background:#fff;
+}
+.staff-home-task-quick-input:focus{outline:none;border-color:var(--staff-accent)}
+.staff-home-task-quick-btn{
+  border:none;
+  border-radius:7px;
+  padding:.48rem .68rem;
+  font-size:.68rem;
+  font-weight:700;
+  cursor:pointer;
+  color:#fff;
+  background:var(--staff-accent);
+}
+.staff-home-task-quick-btn:disabled{opacity:.45;cursor:not-allowed}
 .staff-home-quick-grid{display:grid;grid-template-columns:1fr 1fr;gap:.45rem}
 .staff-home-quick-link{
   border:1px solid var(--border2);border-radius:8px;background:#fff;padding:.55rem .6rem;
@@ -7780,21 +7809,51 @@ function homeRenderUpcomingEvents(upcoming){
     '</div>';
   }).join('');
 }
-function homeRenderTasks(tasks){
+function homeRenderTasks(tasks, taskState){
   var el=document.getElementById('homeTaskChecklist');
   if(!el) return;
+  el.innerHTML='';
   if(!tasks.length){
     el.innerHTML='<div class="staff-home-empty">No tasks currently assigned.</div>';
-    return;
+  } else {
+    el.innerHTML=tasks.slice(0,7).map(function(t){
+      var due=t.dueDate?homeFormatDateHuman(t.dueDate):'No due date';
+      return '<div class="staff-home-task-item">'+
+        '<span class="staff-home-task-check'+(t.completed?' done':'')+'">'+(t.completed?'✓':'')+'</span>'+
+        '<span class="staff-home-task-title">'+homeEsc(t.title||'Untitled task')+'</span>'+
+        '<span class="staff-home-task-due">'+homeEsc(due)+'</span>'+
+      '</div>';
+    }).join('');
   }
-  el.innerHTML=tasks.slice(0,7).map(function(t){
-    var due=t.dueDate?homeFormatDateHuman(t.dueDate):'No due date';
-    return '<div class="staff-home-task-item">'+
-      '<span class="staff-home-task-check'+(t.completed?' done':'')+'">'+(t.completed?'✓':'')+'</span>'+
-      '<span class="staff-home-task-title">'+homeEsc(t.title||'Untitled task')+'</span>'+
-      '<span class="staff-home-task-due">'+homeEsc(due)+'</span>'+
-    '</div>';
-  }).join('');
+  var buckets=taskState&&Array.isArray(taskState.buckets)?taskState.buckets:[];
+  var firstBucket=buckets[0]&&buckets[0].id?buckets[0].id:null;
+  var quick=document.createElement('div');
+  quick.className='staff-home-task-quick';
+  quick.innerHTML='<input type="text" class="staff-home-task-quick-input" placeholder="Quick add task..." aria-label="Quick add task"><button type="button" class="staff-home-task-quick-btn">Add Task</button>';
+  var input=quick.querySelector('.staff-home-task-quick-input');
+  var btn=quick.querySelector('.staff-home-task-quick-btn');
+  if(!firstBucket || !window.TeacherTasksService || typeof window.TeacherTasksService.addTask!=='function'){
+    btn.disabled=true;
+  }
+  function submitQuickTask(){
+    var title=String(input.value||'').trim();
+    if(!title || !firstBucket || !window.TeacherTasksService || typeof window.TeacherTasksService.addTask!=='function') return;
+    btn.disabled=true;
+    TeacherTasksService.addTask(firstBucket,{title:title}).then(function(){
+      input.value='';
+      homeDashboardRender();
+    }).catch(function(){
+      btn.disabled=false;
+    });
+  }
+  btn.addEventListener('click', submitQuickTask);
+  input.addEventListener('keydown', function(e){
+    if(e.key==='Enter'){
+      e.preventDefault();
+      submitQuickTask();
+    }
+  });
+  el.appendChild(quick);
 }
 function homeLoadGreeting(){
   var nameEl=document.getElementById('homeGreetingName');
@@ -7836,8 +7895,8 @@ function homeDashboardRender(){
   var artPromise=(window.DataService&&typeof window.DataService.get==='function')
     ? DataService.get('art-v2') : Promise.resolve(null);
   var tasksPromise=(window.TeacherTasksService&&typeof window.TeacherTasksService.load==='function')
-    ? TeacherTasksService.load().then(function(){ return (TeacherTasksService.getState()||{}).tasks||[]; }).catch(function(){ return []; })
-    : Promise.resolve([]);
+    ? TeacherTasksService.load().then(function(){ return TeacherTasksService.getState()||{ tasks:[], buckets:[] }; }).catch(function(){ return { tasks:[], buckets:[] }; })
+    : Promise.resolve({ tasks:[], buckets:[] });
 
   Promise.all([eventsPromise, annPromise, dramaPromise, artPromise, tasksPromise]).then(function(res){
     var events=Array.isArray(res[0])?res[0]:[];
@@ -7845,7 +7904,8 @@ function homeDashboardRender(){
     var dramaRows=homeExtractTrackingClasses(res[2],'Drama');
     var artRows=homeExtractTrackingClasses(res[3],'Art & Design');
     var trackingRows=dramaRows.concat(artRows);
-    var tasks=Array.isArray(res[4])?res[4]:[];
+    var taskState=(res[4]&&typeof res[4]==='object')?res[4]:{ tasks:[], buckets:[] };
+    var tasks=Array.isArray(taskState.tasks)?taskState.tasks:[];
 
     var todayEvents=events.filter(function(e){ return String(e&&e.date||'').slice(0,10)===today; });
     var upcomingEvents=events
@@ -7870,7 +7930,7 @@ function homeDashboardRender(){
     homeRenderAnnouncements(announcements, today);
     homeRenderTrackingClasses(trackingRows);
     homeRenderUpcomingEvents(upcomingEvents);
-    homeRenderTasks(tasks.filter(function(t){ return !t.completed; }));
+    homeRenderTasks(tasks.filter(function(t){ return !t.completed; }), taskState);
   }).catch(function(){
     homeSetText('homeTodayEventsCount', 0);
     homeSetText('homeTasksDueCount', 0);
@@ -7880,7 +7940,7 @@ function homeDashboardRender(){
     homeRenderAnnouncements([], today);
     homeRenderTrackingClasses([]);
     homeRenderUpcomingEvents([]);
-    homeRenderTasks([]);
+    homeRenderTasks([], { tasks:[], buckets:[] });
   });
 }
 
