@@ -14,6 +14,29 @@
     var label = p === 'high' ? 'High' : p === 'low' ? 'Low' : 'Normal';
     return '<span class="home-task-priority ' + p + '">' + esc(label) + '</span>';
   }
+  function addDays(iso, days) {
+    var p = String(iso || '').split('-');
+    if (p.length !== 3) return '';
+    var d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+    if (Number.isNaN(d.getTime())) return '';
+    d.setDate(d.getDate() + days);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function formatDue(iso) {
+    var s = String(iso || '');
+    if (s.length < 10) return 'No due date';
+    return s.slice(8, 10) + '/' + s.slice(5, 7) + '/' + s.slice(0, 4);
+  }
+  function statusMeta(task, today) {
+    if (task && task.completed) {
+      return { cls: 'completed', label: 'Completed' };
+    }
+    var due = task && task.dueDate ? String(task.dueDate).slice(0, 10) : '';
+    if (due && due < today) return { cls: 'overdue', label: 'Overdue' };
+    var soonThreshold = addDays(today, 3);
+    if (due && soonThreshold && due <= soonThreshold) return { cls: 'due-soon', label: 'Due Soon' };
+    return { cls: 'normal', label: 'Normal' };
+  }
 
   window.TeacherTasksHome = {
     render: function() {
@@ -21,8 +44,17 @@
       if (!el || !window.TeacherTasksService) return;
       TeacherTasksService.load().then(function() {
         var st = TeacherTasksService.getState();
-        var tasks = TeacherTasksService.getHomePreviewTasks({ limit: 8 });
+        var openTasks = TeacherTasksService.getHomePreviewTasks({ limit: 6 });
         var today = TeacherTasksService.todayISO();
+        var completedTasks = (st.tasks || []).filter(function(t) { return !!t.completed; })
+          .sort(function(a, b) {
+            var ad = String(a.dueDate || '');
+            var bd = String(b.dueDate || '');
+            if (ad !== bd) return bd.localeCompare(ad);
+            return String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
+          })
+          .slice(0, 2);
+        var tasks = openTasks.concat(completedTasks);
         el.innerHTML = '';
 
         if (tasks.length === 0) {
@@ -47,23 +79,16 @@
         } else {
           tasks.forEach(function(t) {
             var row = document.createElement('div');
-            row.className = 'home-task-item';
+            row.className = 'home-task-item' + (t.completed ? ' completed' : '');
             var due = t.dueDate || '';
-            var badgeHtml = '';
-            if (due) {
-              if (due < today) {
-                badgeHtml = '<span class="home-task-badge overdue">Overdue</span>';
-              } else if (due === today) {
-                badgeHtml = '<span class="home-task-badge today">Today</span>';
-              } else {
-                badgeHtml = '<span class="home-task-date">' + esc(due.slice(8) + '/' + due.slice(5, 7)) + '</span>';
-              }
-            }
+            var status = statusMeta(t, today);
+            var dueText = formatDue(due);
             row.innerHTML =
-              '<button type="button" class="home-task-done" aria-label="Mark done" data-task-id="' + esc(t.id) + '">✓</button>' +
+              '<button type="button" class="home-task-done' + (t.completed ? ' is-done' : '') + '" aria-label="' + (t.completed ? 'Mark as open task' : 'Mark done') + '" data-task-id="' + esc(t.id) + '">' + (t.completed ? '↺' : '✓') + '</button>' +
               '<span class="home-task-title">' + esc(t.title) + '</span>' +
-              priorityPillHtml(t.priority) +
-              badgeHtml;
+              '<span class="home-task-status ' + status.cls + '">' + esc(status.label) + '</span>' +
+              '<span class="home-task-due">' + esc(dueText) + '</span>' +
+              priorityPillHtml(t.priority);
             var doneBtn = row.querySelector('.home-task-done');
             doneBtn.addEventListener('click', function(e) {
               e.stopPropagation();
