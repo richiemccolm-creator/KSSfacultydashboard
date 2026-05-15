@@ -59,11 +59,17 @@ supabase db push
 2. Add rows for each user who may log in:
    - **email** — the user's email (must match Supabase Auth)
    - **display_name** — optional display name
-   - **is_admin** — `true` for Faculty Head / admin, `false` for staff
+   - **is_admin** — legacy admin flag (`true` for full admin, `false` for staff/faculty-head when using role-based setup)
+   - **role** — use one of `admin`, `faculty_head`, `teacher`
 3. **Admin users** can:
    - Load all staff tracker data in the Faculty Head Dashboard ("Load from cloud")
    - Add and edit shared calendar events (visible to everyone)
-4. **Non-admin users** see only their own data and cannot edit shared calendar events
+4. **Faculty Head users (`role = faculty_head`)** can access the same management tools as admin for:
+   - shared calendar updates
+   - announcements
+   - procurement budgets and approvals
+   - class management workflows
+5. **Teacher users (`role = teacher`)** see only their own data and cannot edit shared calendar events
 
 ### Shared calendar
 
@@ -186,7 +192,7 @@ If you prefer not to store credentials in `config.js`, you can use a build step 
 
 - [ ] Run all Supabase migrations (full list in **Run the database migrations** above)
 - [ ] Deploy the `delete-user` Edge Function (required for GDPR account deletion)
-- [ ] Add your email to `allowed_emails` with `is_admin = true`
+- [ ] Add your email to `allowed_emails` with either `role = 'admin'` (full admin) or `role = 'faculty_head'` (management parity)
 - [ ] Disable email signups in Supabase Auth (if using allowlist-only access)
 - [ ] Update `config.js` with real credentials
 - [ ] Add redirect URLs in Supabase

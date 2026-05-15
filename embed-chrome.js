@@ -1,7 +1,7 @@
 /**
  * When loaded with ?embed=1, hides duplicate navigation so the page fits inside Faculty Hub iframes.
- * Exception: tools whose own .dash-sidebar is the main UI (Faculty Head Dashboard, Procurement,
- * Triangulation) keep that sidebar visible when embedded.
+ * Exception: tools whose own .dash-sidebar is the main UI (Triangulation) keep that sidebar visible
+ * when embedded.
  * "Back to Faculty Hub" links use target="_top" to exit the iframe.
  */
 (function () {
@@ -18,8 +18,6 @@
   } catch (e2) {}
   var p = (path + '').toLowerCase();
   var keepDashChrome =
-    p.indexOf('faculty_dashboard.html') !== -1 ||
-    p.indexOf('purchase_orders.html') !== -1 ||
     p.indexOf('triangulation_evidence.html') !== -1;
 
   document.documentElement.setAttribute('data-fh-embed', '1');

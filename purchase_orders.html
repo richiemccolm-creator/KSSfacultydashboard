@@ -343,7 +343,7 @@ body.is-admin span.admin-only.inline{display:inline}
   <div class="dash-sidebar-title">Procurement</div>
   <div class="dash-sidebar-sub">Purchase orders</div>
   <span class="dash-nav-btn active">Budget &amp; requests</span>
-  <a href="faculty_dashboard.html?embed=1" class="dash-nav-btn">Faculty Head Dashboard</a>
+  <a href="faculty_head_hub.html?view=procurement" class="dash-nav-btn">Faculty Head Hub</a>
   <a href="faculty-hub.html" class="dash-nav-btn">Faculty Hub</a>
   <div class="dash-signout">
     <button type="button" class="dash-nav-btn" style="width:100%;text-align:left;background:none;border:none;cursor:pointer" onclick="(window.doSignOut||function(){location.href='login.html?signout=1';})();">Sign out</button>
@@ -687,8 +687,12 @@ body.is-admin span.admin-only.inline{display:inline}
     return $('yearSelect').value;
   }
 
+  function canManageProcurement() {
+    return !!window.__authGuardCanManageSchool || !!window.__authGuardIsAdmin || !!window.__authGuardIsFacultyHead;
+  }
+
   function setAdminClass() {
-    if (window.__authGuardIsAdmin) document.body.classList.add('is-admin');
+    if (canManageProcurement()) document.body.classList.add('is-admin');
   }
 
   function renderDashboard(stats) {
@@ -966,7 +970,7 @@ body.is-admin span.admin-only.inline{display:inline}
   }
 
   function loadAdmin() {
-    if (!window.__authGuardIsAdmin) return;
+    if (!canManageProcurement()) return;
     renderBudgetAdmin();
     PurchaseOrderService.listSubmittedForAdmin().then(function(rows) {
       var ids = rows.map(function(r) { return r.id; });
@@ -1149,7 +1153,7 @@ body.is-admin span.admin-only.inline{display:inline}
   $('yearSelect').addEventListener('change', function() {
     loadDashboard();
     loadMyRequests();
-    if (window.__authGuardIsAdmin) renderBudgetAdmin();
+    if (canManageProcurement()) renderBudgetAdmin();
   });
   $('refreshDashBtn').onclick = function() {
     loadDashboard();

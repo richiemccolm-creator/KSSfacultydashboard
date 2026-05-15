@@ -1703,10 +1703,10 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
       <span class="sidebar-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/><path d="M21 4h-5"/><path d="M21 8h-8"/></svg></span>
       <span class="sidebar-nav-text">Tracking &amp; Monitoring Hub</span>
     </button>
-    <button type="button" class="sidebar-item" data-panel="embed-faculty-dashboard" onclick="showPanel('embed-faculty-dashboard')">
+    <a class="sidebar-item" href="faculty_head_hub.html">
       <span class="sidebar-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg></span>
-      <span class="sidebar-nav-text">Faculty Head Dashboard</span>
-    </button>
+      <span class="sidebar-nav-text">Faculty Head Hub</span>
+    </a>
     <button type="button" class="sidebar-item" data-panel="embed-faculty-timetable" onclick="showPanel('embed-faculty-timetable')">
       <span class="sidebar-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="14" x2="8.01" y2="14"/><line x1="12" y1="14" x2="12.01" y2="14"/><line x1="16" y1="14" x2="16.01" y2="14"/></svg></span>
       <span class="sidebar-nav-text">Faculty Timetable</span>
@@ -1795,10 +1795,10 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
           <span class="sidebar-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg></span>
           <span class="sidebar-nav-text">Data Backup &amp; Restore</span>
         </button>
-        <button type="button" class="sidebar-item" data-panel="embed-admin-console" onclick="showPanel('embed-admin-console')" id="admin-console-link" style="display:none">
+        <a class="sidebar-item" href="faculty_head_hub.html?view=announcements" id="admin-console-link" style="display:none">
           <span class="sidebar-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></span>
-          <span class="sidebar-nav-text">Admin Console</span>
-        </button>
+          <span class="sidebar-nav-text">Faculty Head Hub</span>
+        </a>
         <button type="button" class="sidebar-item" data-panel="embed-class-management" onclick="showPanel('embed-class-management')" id="class-management-link" style="display:none">
           <span class="sidebar-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 6h16v12H4z"/><path d="M4 11h16"/><path d="M9 6v12"/><path d="M14 6v12"/></svg></span>
           <span class="sidebar-nav-text">Class Management Hub</span>
@@ -6796,7 +6796,7 @@ function calSaveEvents(e){
     if(d)o.description=d;
     return o;
   });
-  var isAdmin=!!(window.__authGuardIsAdmin);
+  var isAdmin=!!window.__authGuardCanManageSchool||!!window.__authGuardIsAdmin||!!window.__authGuardIsFacultyHead;
   var promises=[];
   if(isAdmin){promises.push(DataService.setSharedCalendarEvents(shared).catch(function(){backupToast('Shared calendar save failed');}));}
   promises.push(DataService.set(CAL_STORAGE_KEY,personal).catch(function(){backupToast('Calendar save failed — sign in to save to cloud');}));
@@ -7014,7 +7014,7 @@ function saveAllToCloud(){
   var personal=(ev||[]).filter(function(e){return e.source==='personal'||!e.source;}).map(function(e){return{title:e.title,date:e.date,category:e.category||'general'};});
   var modData=getModerationData();
   var promises=[DataService.set(DIP_STORAGE_KEY,dipPayload),DataService.set(CAL_STORAGE_KEY,personal),DataService.set(MODERATION_STORAGE_KEY,modData)];
-  if(window.__authGuardIsAdmin&&shared.length>0){promises.push(DataService.setSharedCalendarEvents(shared));}
+  if((!!window.__authGuardCanManageSchool||!!window.__authGuardIsAdmin||!!window.__authGuardIsFacultyHead)&&shared.length>0){promises.push(DataService.setSharedCalendarEvents(shared));}
   Promise.all(promises).then(function(){backupToast('Saved to cloud — available on other devices');}).catch(function(){backupToast('Save failed — check you are signed in');});
 }
 
@@ -7440,7 +7440,7 @@ function calAddEvent(){
   const category=document.getElementById('calCategory').value;
   const descriptionRaw=(document.getElementById('calDescription').value||'').trim();
   if(!title||!date){backupToast('Enter an event title and date.');return;}
-  var source=(window.__authGuardIsAdmin)?'shared':'personal';
+  var source=(!!window.__authGuardCanManageSchool||!!window.__authGuardIsAdmin||!!window.__authGuardIsFacultyHead)?'shared':'personal';
   const events=calGetEvents();
   var ev={title:title,date:date,category:category||'general',source:source};
   if(descriptionRaw)ev.description=descriptionRaw;
@@ -7450,8 +7450,8 @@ function calAddEvent(){
   backupToast('Event added to '+(source==='shared'?'shared calendar (visible to all).':'your calendar.'));
 }
 function calDeleteEvent(ev){
-  var canDel=ev.source==='personal'||ev.source===undefined||(ev.source==='shared'&&!!window.__authGuardIsAdmin);
-  if(!canDel){backupToast('Only admins can delete shared events.');return;}
+  var canDel=ev.source==='personal'||ev.source===undefined||(ev.source==='shared'&&(!!window.__authGuardCanManageSchool||!!window.__authGuardIsAdmin||!!window.__authGuardIsFacultyHead));
+  if(!canDel){backupToast('Only school managers can delete shared events.');return;}
   if(!confirm('Delete this event?'))return;
   var events=calGetEvents().filter(function(e){
     if(e.source==='shared'&&e.id)return e.id!==ev.id;
@@ -7464,8 +7464,8 @@ function calDeleteEvent(ev){
   backupToast('Event deleted.');
 }
 function calEditEvent(ev){
-  var canEdit=ev.source==='personal'||ev.source===undefined||(ev.source==='shared'&&!!window.__authGuardIsAdmin);
-  if(!canEdit){backupToast('Only admins can edit shared events.');return;}
+  var canEdit=ev.source==='personal'||ev.source===undefined||(ev.source==='shared'&&(!!window.__authGuardCanManageSchool||!!window.__authGuardIsAdmin||!!window.__authGuardIsFacultyHead));
+  if(!canEdit){backupToast('Only school managers can edit shared events.');return;}
   calEditingEvent=ev;
   document.getElementById('calTitle').value=ev.title||'';
   document.getElementById('calDate').value=ev.date||'';
@@ -7560,7 +7560,7 @@ function calUpcoming(){
     return;
   }
   evList.forEach(function(e,i){
-    const canEdit=e.source==='personal'||e.source===undefined||(e.source==='shared'&&!!window.__authGuardIsAdmin);
+    const canEdit=e.source==='personal'||e.source===undefined||(e.source==='shared'&&(!!window.__authGuardCanManageSchool||!!window.__authGuardIsAdmin||!!window.__authGuardIsFacultyHead));
     const div=document.createElement('div');div.className='cal-event';
     const shortDate=e.date.slice(8)+'/'+e.date.slice(5,7);
     const formatted=calFormatDate(e.date);
@@ -7918,10 +7918,11 @@ document.addEventListener('DOMContentLoaded',function(){
   function updateStorageIndicator(){
     var el=document.getElementById('storage-indicator');
     if(el){if(window.DataService&&window.DataService.isUsingCloud&&window.DataService.isUsingCloud()){el.textContent='● Cloud sync';el.style.color='#6ee7b7';el.title='Calendar, moderation & improvement plan save to cloud — available on other devices';}else{el.textContent='● Local only';el.style.color='#fcd34d';el.title='Data saved in this browser only — sign in to sync to cloud';}}
-    var adminLink=document.getElementById('admin-console-link');if(adminLink)adminLink.style.display=window.__authGuardIsAdmin?'flex':'none';
-    var classMgmtLink=document.getElementById('class-management-link');if(classMgmtLink)classMgmtLink.style.display=(window.__authGuardCanManageSchool||window.__authGuardIsAdmin)?'flex':'none';
-    var triLink=document.getElementById('triangulation-link');if(triLink)triLink.style.display=window.__authGuardIsAdmin?'flex':'none';
-    var qCalLink=document.getElementById('quality-calendar-link');if(qCalLink)qCalLink.style.display=window.__authGuardIsAdmin?'flex':'none';
+    var canManage=!!window.__authGuardCanManageSchool||!!window.__authGuardIsAdmin;
+    var adminLink=document.getElementById('admin-console-link');if(adminLink)adminLink.style.display=canManage?'flex':'none';
+    var classMgmtLink=document.getElementById('class-management-link');if(classMgmtLink)classMgmtLink.style.display=canManage?'flex':'none';
+    var triLink=document.getElementById('triangulation-link');if(triLink)triLink.style.display=canManage?'flex':'none';
+    var qCalLink=document.getElementById('quality-calendar-link');if(qCalLink)qCalLink.style.display=canManage?'flex':'none';
     var banner=document.getElementById('cloud-sync-banner');if(banner)banner.style.display=(window.DataService&&window.DataService.isUsingCloud&&window.DataService.isUsingCloud())?'none':'block';
   }
   homeUpdateStorageIndicatorFn=updateStorageIndicator;

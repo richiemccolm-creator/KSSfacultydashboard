@@ -376,6 +376,9 @@ if(eventsCache.length===0){eventsCache=defaultEvents.slice();if(window.DataServi
 return eventsCache;
 });
 }
+function canManageSharedCalendar(){
+return !!window.__authGuardCanManageSchool||!!window.__authGuardIsAdmin||!!window.__authGuardIsFacultyHead;
+}
 function saveEvents(e){
 eventsCache=e;
 if(!window.DataService){try{localStorage.setItem(storageKey,JSON.stringify(e));}catch(x){}return;}
@@ -386,7 +389,7 @@ var personal=(e||[]).filter(function(ev){return ev.source==="personal"||!ev.sour
   if(d)o.description=d;
   return o;
 });
-var isAdmin=!!(window.__authGuardIsAdmin);
+var isAdmin=canManageSharedCalendar();
 var promises=[];
 if(isAdmin){promises.push(DataService.setSharedCalendarEvents(shared).catch(function(){}));}
 promises.push(DataService.set(storageKey,personal).catch(function(){}));
@@ -461,7 +464,7 @@ var date=document.getElementById("date").value;
 var category=document.getElementById("category").value;
 var descriptionRaw=(document.getElementById("eventDescription").value||"").trim();
 if(!title||!date){showToast("Enter an event title and date.");return;}
-var source=(window.__authGuardIsAdmin)?"shared":"personal";
+var source=canManageSharedCalendar()?"shared":"personal";
 var events=getEvents();
 var ev={title:title,date:date,category:category||"general",source:source};
 if(descriptionRaw)ev.description=descriptionRaw;
@@ -474,8 +477,8 @@ var ed=document.getElementById("eventDescription");if(ed)ed.value="";
 showToast("Event added to "+(source==="shared"?"shared calendar (visible to all).":"your calendar."));
 }
 function deleteEvent(ev){
-var canDel=ev.source==="personal"||ev.source===undefined||(ev.source==="shared"&&!!window.__authGuardIsAdmin);
-if(!canDel){showToast("Only admins can delete shared events.");return;}
+var canDel=ev.source==="personal"||ev.source===undefined||(ev.source==="shared"&&canManageSharedCalendar());
+if(!canDel){showToast("Only school managers can delete shared events.");return;}
 if(!confirm("Delete this event?"))return;
 var events=getEvents().filter(function(e){
 if(e.source==="shared"&&e.id)return e.id!==ev.id;
@@ -488,8 +491,8 @@ render();
 showToast("Event deleted.");
 }
 function editEvent(ev){
-var canEdit=ev.source==="personal"||ev.source===undefined||(ev.source==="shared"&&!!window.__authGuardIsAdmin);
-if(!canEdit){showToast("Only admins can edit shared events.");return;}
+var canEdit=ev.source==="personal"||ev.source===undefined||(ev.source==="shared"&&canManageSharedCalendar());
+if(!canEdit){showToast("Only school managers can edit shared events.");return;}
 editingEvent=ev;
 document.getElementById("title").value=ev.title||"";
 document.getElementById("date").value=ev.date||"";
@@ -549,7 +552,7 @@ strip.appendChild(div);
 function upcoming(){
 const list=document.getElementById("upcoming");
 list.innerHTML="";
-const isAdmin=!!window.__authGuardIsAdmin;
+const isAdmin=canManageSharedCalendar();
 const evList=getFilteredEvents()
 .filter(e=>eventOnOrAfterLocalToday(e.date))
 .sort((a,b)=>(a.date||"").localeCompare(b.date||""))

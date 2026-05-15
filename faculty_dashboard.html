@@ -538,8 +538,11 @@ html,body{min-height:100%;margin:0;width:100%;box-sizing:border-box}
 <script>
 // Aggregated data: { drama: { teacherName, pupils, scores, profiles }[], art: [...] }
 let D = { drama: [], art: [] };
+function canManageFacultyHub() {
+  return !!window.__authGuardCanManageSchool || !!window.__authGuardIsAdmin || !!window.__authGuardIsFacultyHead;
+}
 function canViewCloudTracking() {
-  return !!window.__authGuardCanViewSchoolWideTracking || !!window.__authGuardIsAdmin;
+  return !!window.__authGuardCanViewSchoolWideTracking || canManageFacultyHub();
 }
 
 function loadFromCloud() {
@@ -658,8 +661,8 @@ function getAllPupils() {
 function downloadParentRiskLetter(ev) {
   ev.preventDefault();
   ev.stopPropagation();
-  if (!window.__authGuardIsAdmin) {
-    toast('Admin only');
+  if (!canManageFacultyHub()) {
+    toast('Faculty management access only');
     return;
   }
   const btn = ev.currentTarget;
@@ -1519,6 +1522,7 @@ function refreshAdminUiPlacement() {
 }
 var initialAdminViewApplied = false;
 function syncAdminUiFromAuthState() {
+  if (canManageFacultyHub()) window.__authGuardIsAdmin = true;
   refreshAdminUiPlacement();
   var v = new URLSearchParams(window.location.search).get('view');
   if (!initialAdminViewApplied && v === 'admin-console' && window.__authGuardIsAdmin) {
