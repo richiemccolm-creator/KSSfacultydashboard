@@ -1940,7 +1940,7 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
           <section class="staff-home-welcome staff-home-card">
             <div class="staff-home-welcome-left">
               <div class="staff-home-title-row">
-                <h2 class="staff-home-title">Good morning, <span id="homeGreetingName">Staff Member</span></h2>
+                <h2 class="staff-home-title"><span id="homeGreetingPrefix">Good morning</span>, <span id="homeGreetingName">Staff Member</span></h2>
                 <div class="staff-home-title-icons" aria-hidden="true">
                   <span class="staff-home-title-icon" title="Calendar overview">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -1953,7 +1953,7 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
                   </span>
                 </div>
               </div>
-              <p class="staff-home-subtitle">Welcome to your Faculty Hub. Here's what's happening today.</p>
+              <p class="staff-home-subtitle" id="homeDailySummary">Welcome to your Faculty Hub. Here's what's happening today.</p>
             </div>
             <div class="staff-home-welcome-right">
               <button type="button" class="staff-home-icon-btn" title="Notifications">
@@ -7736,6 +7736,58 @@ function homeInitials(name){
   if(!parts.length) return 'SM';
   return parts.slice(0,2).map(function(p){ return p.charAt(0).toUpperCase(); }).join('');
 }
+function homeGreetingByHour(hour){
+  if(hour < 12) return 'Good morning';
+  if(hour < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+function homeBuildDailySummary(stats){
+  var s=stats||{};
+  var todayEvents=Number(s.todayEvents||0);
+  var tasksDue=Number(s.tasksDue||0);
+  var unreadAnnouncements=Number(s.unreadAnnouncements||0);
+  var classesToTrack=Number(s.classesToTrack||0);
+  var upcomingEvents=Number(s.upcomingEvents||0);
+  function p(n, one, many){ return n+' '+(n===1?one:many); }
+  var variant=(new Date().getDay()+todayEvents+tasksDue+classesToTrack)%3;
+  var pressure=todayEvents+tasksDue+classesToTrack;
+  var intro='';
+  if(pressure===0){
+    intro=variant===0?'A quieter day ahead.'
+      :variant===1?'Today looks calm and manageable.'
+      :'A lighter day is on the cards.';
+  } else if(pressure>=6){
+    intro=variant===0?'Busy day ahead.'
+      :variant===1?'It is a full day, so priorities matter.'
+      :'A high-focus day today.';
+  } else {
+    intro=variant===0?'Here is your day at a glance.'
+      :variant===1?'You are set for a steady day.'
+      :'Today has a clear set of priorities.';
+  }
+
+  var middleBits=[
+    p(todayEvents,'event','events')+' today',
+    p(tasksDue,'task','tasks')+' due'
+  ];
+  if(classesToTrack>0) middleBits.push(p(classesToTrack,'class','classes')+' to track');
+  if(unreadAnnouncements>0) middleBits.push(p(unreadAnnouncements,'announcement','announcements')+' to review');
+
+  var outro='';
+  if(upcomingEvents>0){
+    outro='Coming up: '+p(upcomingEvents,'event','events')+'.';
+  } else {
+    outro='No additional calendar pressure after today.';
+  }
+
+  var reminder='';
+  if(tasksDue===0 && classesToTrack===0){
+    reminder='Use the space to plan ahead and check updates.';
+  } else if(tasksDue>0 || classesToTrack>0){
+    reminder='Tackle key actions early so the day stays on track.';
+  }
+  return intro+' Today: '+middleBits.join(', ')+'. '+outro+' '+reminder;
+}
 function homeTitleCase(v){
   return String(v||'').replace(/[_\-.]/g,' ').split(' ').filter(Boolean).map(function(part){
     return part.charAt(0).toUpperCase()+part.slice(1).toLowerCase();
@@ -7916,7 +7968,11 @@ function homeRenderTasks(tasks, taskState){
 }
 function homeLoadGreeting(){
   var nameEl=document.getElementById('homeGreetingName');
+  var greetingEl=document.getElementById('homeGreetingPrefix');
   var profileEl=document.getElementById('homeProfilePill');
+  if(greetingEl){
+    greetingEl.textContent=homeGreetingByHour(new Date().getHours());
+  }
   if(!nameEl || !profileEl || !window.supabase || !window.supabase.auth) return;
   window.supabase.auth.getSession().then(function(r){
     var session=r&&r.data?r.data.session:null;
@@ -7984,6 +8040,13 @@ function homeDashboardRender(){
     homeSetText('homeTasksDueCount', tasksDue.length);
     homeSetText('homeUnreadAnnouncementsCount', unreadAnnouncements.length);
     homeSetText('homeClassesToTrackCount', classesToTrack.length);
+    homeSetText('homeDailySummary', homeBuildDailySummary({
+      todayEvents: todayEvents.length,
+      tasksDue: tasksDue.length,
+      unreadAnnouncements: unreadAnnouncements.length,
+      classesToTrack: classesToTrack.length,
+      upcomingEvents: upcomingEvents.length
+    }));
 
     homeRenderTodaySchedule(todayEvents);
     homeRenderAnnouncements(announcements, today);
@@ -7995,6 +8058,7 @@ function homeDashboardRender(){
     homeSetText('homeTasksDueCount', 0);
     homeSetText('homeUnreadAnnouncementsCount', 0);
     homeSetText('homeClassesToTrackCount', 0);
+    homeSetText('homeDailySummary', 'Today we have no live dashboard data yet. Please refresh or check your connection.');
     homeRenderTodaySchedule([]);
     homeRenderAnnouncements([], today);
     homeRenderTrackingClasses([]);
