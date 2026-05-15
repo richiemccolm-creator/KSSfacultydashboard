@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Faculty Timetable — Art & Drama</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@700;800&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  /* ── Reset & base ─────────────────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --navy:        #1e2d4a;
+    --navy-mid:    #253352;
+    --navy-light:  #2a3f62;
+    --gold:        #c9a84c;
+    --gold-pale:   #f5edda;
+    --white:       #ffffff;
+    --off-white:   #f0f2f5;
+    --border:      #d8e0ea;
+    --muted:       #64748b;
+    --text:        #1f2937;
+
+    /* Teacher colours */
+    --mccolm-bg:   #fdeade;
+    --mccolm-dk:   #7a1a00;
+    --mccolm-ac:   #e8420a;
+
+    --living-bg:   #ddeaf8;
+    --living-dk:   #0a2d6b;
+    --living-ac:   #1565c0;
+
+    --mclean-bg:   #dceede;
+    --mclean-dk:   #0a3b0c;
+    --mclean-ac:   #2e7d32;
+
+    --airdrie-bg:  #ebd9f8;
+    --airdrie-dk:  #3b0070;
+    --airdrie-ac:  #6a1b9a;
+
+    --gallacher-bg:#ddeaf8;
+    --gallacher-dk:#003850;
+    --gallacher-ac:#0077a8;
+
+    --donald-bg:   #d9f0ea;
+    --donald-dk:   #00382a;
+    --donald-ac:   #00796b;
+
+    --mckenzie-bg: #e8e8f8;
+    --mckenzie-dk: #1a1a6b;
+    --mckenzie-ac: #3949ab;
+
+    --nutt-bg:     #fde8f0;
+    --nutt-dk:     #6b0030;
+    --nutt-ac:     #c2185b;
+
+    --cell-h:      3.1rem;
+    --label-w:     2.8rem;
+    --teacher-w:   6.5rem;
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--off-white);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* ── Banner ───────────────────────────────────────────────────────────── */
+  .banner {
+    background: var(--navy);
+    border-bottom: 3px solid var(--gold);
+    padding: 0;
+  }
+  .banner-inner {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 1.2rem 1.6rem 1rem;
+    display: flex;
+    align-items: flex-end;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+  }
+  .banner-titles { flex: 1; min-width: 220px; }
+  .banner-eyebrow {
+    font-size: 0.65rem;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 0.3rem;
+  }
+  .banner-title {
+    font-family: 'Sora', sans-serif;
+    font-size: clamp(1.35rem, 2.4vw, 1.9rem);
+    font-weight: 800;
+    color: var(--white);
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+  }
+  .banner-title span { color: var(--gold); }
+
+  /* Temp notice */
+  .temp-notice {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    background: rgba(201,168,76,0.15);
+    border: 1px solid rgba(201,168,76,0.4);
+    border-radius: 8px;
+    padding: 0.55rem 0.9rem;
+    font-size: 0.78rem;
+    color: var(--gold);
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  .temp-notice svg { flex-shrink: 0; }
+  .temp-notice strong { color: #f0c95a; }
+
+  /* ── Controls ─────────────────────────────────────────────────────────── */
+  .controls {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 1rem 1.6rem 0.5rem;
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .filter-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-right: 0.2rem;
+  }
+  .filter-btn {
+    background: var(--white);
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    color: var(--muted);
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.38rem 0.85rem;
+    transition: all 0.15s;
+  }
+  .filter-btn:hover { border-color: var(--navy-light); color: var(--navy); }
+  .filter-btn.active {
+    background: var(--navy);
+    border-color: var(--navy);
+    color: var(--white);
+  }
+  .filter-btn.active.drama  { background: #7a2e0e; border-color: #7a2e0e; }
+  .filter-btn.active.art    { background: #0d3b55; border-color: #0d3b55; }
+
+  /* ── Timetable wrapper ────────────────────────────────────────────────── */
+  .timetable-section {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 1rem 1.6rem 2rem;
+  }
+  .subject-heading {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 1.2rem 0 0.5rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* ── Grid container ───────────────────────────────────────────────────── */
+  .grid-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    background: var(--white);
+  }
+  .timetable-grid {
+    display: grid;
+    min-width: 680px;
+    /* cols: period-label, teacher-label, Mon, Tue, Wed, Thu, Fri */
+    grid-template-columns: var(--label-w) var(--teacher-w) repeat(5, 1fr);
+    border-collapse: collapse;
+  }
+
+  /* ── Header row ───────────────────────────────────────────────────────── */
+  .th {
+    background: var(--navy);
+    color: var(--white);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 0.7rem 0.4rem;
+    text-align: center;
+    border-right: 1px solid var(--navy-light);
+  }
+  .th:first-child { border-radius: 10px 0 0 0; }
+  .th:last-child  { border-radius: 0 10px 0 0; border-right: none; }
+  .th.corner { background: var(--navy-mid); }
+
+  /* ── Period label ─────────────────────────────────────────────────────── */
+  .period-label {
+    background: var(--navy-mid);
+    color: var(--white);
+    font-size: 0.82rem;
+    font-weight: 700;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-top: 1px solid rgba(255,255,255,0.08);
+    border-right: 1px solid rgba(255,255,255,0.08);
+    position: sticky;
+    left: 0;
+    z-index: 2;
+  }
+  /* Span period labels across teacher rows */
+  .period-label.span-4 { grid-row: span 4; }
+
+  /* ── Teacher label ────────────────────────────────────────────────────── */
+  .teacher-label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0 0.5rem;
+    border-top: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    font-size: 0.72rem;
+    font-weight: 700;
+    position: sticky;
+    left: var(--label-w);
+    z-index: 1;
+    background: var(--white);
+    min-height: var(--cell-h);
+  }
+  .teacher-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .teacher-name-short { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* ── Class cell ───────────────────────────────────────────────────────── */
+  .cell {
+    border-top: 1px solid var(--border);
+    border-right: 1px solid var(--border);
+    min-height: var(--cell-h);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.25rem;
+    transition: opacity 0.15s;
+  }
+  .cell:last-child { border-right: none; }
+  .cell.na {
+    background: #eaeff5;
+  }
+  .cell.free {
+    background: var(--white);
+  }
+  .class-chip {
+    border-radius: 6px;
+    padding: 0.28rem 0.5rem;
+    text-align: center;
+    width: 100%;
+    max-width: 110px;
+    cursor: default;
+    transition: transform 0.12s, box-shadow 0.12s;
+  }
+  .class-chip:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 3;
+    position: relative;
+  }
+  .class-chip .cls-name {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.78rem;
+    font-weight: 500;
+    display: block;
+    line-height: 1.2;
+  }
+  .class-chip .cls-room {
+    font-size: 0.62rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    display: block;
+    opacity: 0.75;
+    margin-top: 1px;
+  }
+
+  /* Period separator line */
+  .period-sep {
+    grid-column: 1 / -1;
+    height: 3px;
+    background: var(--border);
+  }
+
+  /* ── Teacher key cards ────────────────────────────────────────────────── */
+  .key-row {
+    display: flex;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+  }
+  .key-card {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: var(--white);
+    border: 1.5px solid var(--border);
+    border-radius: 8px;
+    padding: 0.45rem 0.75rem;
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+  .key-swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .key-room {
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--muted);
+    margin-left: 0.1rem;
+  }
+
+  /* ── Hidden state ─────────────────────────────────────────────────────── */
+  .timetable-section.hidden { display: none; }
+
+  /* ── Responsive ───────────────────────────────────────────────────────── */
+  body.embedded .banner {
+    display: none;
+  }
+  body.embedded .controls {
+    padding-top: 1.15rem;
+  }
+
+  @media (max-width: 1024px) {
+    :root { --teacher-w: 5.8rem; --label-w: 2.55rem; --cell-h: 2.9rem; }
+    .banner-inner,
+    .controls,
+    .timetable-section { padding-left: 1.1rem; padding-right: 1.1rem; }
+    .timetable-grid { min-width: 640px; }
+    .key-row { gap: 0.45rem; }
+    .key-card { font-size: 0.72rem; padding: 0.4rem 0.62rem; }
+    .class-chip { max-width: 96px; padding: 0.25rem 0.42rem; }
+    .class-chip .cls-name { font-size: 0.74rem; }
+    .class-chip .cls-room { font-size: 0.58rem; }
+  }
+
+  @media (max-width: 820px) {
+    :root { --teacher-w: 5.2rem; --label-w: 2.35rem; --cell-h: 2.75rem; }
+    .timetable-grid { min-width: 600px; }
+    .th { font-size: 0.66rem; padding: 0.62rem 0.35rem; }
+    .teacher-label { font-size: 0.68rem; }
+    .period-label { font-size: 0.72rem; }
+  }
+
+  @media (max-width: 600px) {
+    .banner-inner { padding: 1rem; }
+    .controls { padding: 0.8rem 1rem 0.4rem; }
+    .timetable-section { padding: 0.8rem 1rem 2rem; }
+    :root { --teacher-w: 5rem; --label-w: 2.2rem; --cell-h: 2.65rem; }
+    .timetable-grid { min-width: 560px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Banner ─────────────────────────────────────────────────────────────── -->
+<div class="banner">
+  <div class="banner-inner">
+    <div class="banner-titles">
+      <div class="banner-eyebrow">Knightswood Secondary School</div>
+      <h1 class="banner-title">Faculty <span>Timetable</span></h1>
+    </div>
+    <div class="temp-notice">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+      </svg>
+      <span><strong>Temporary timetable</strong> — valid until end of June 2026. New timetable from August 2026.</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── Controls ───────────────────────────────────────────────────────────── -->
+<div class="controls">
+  <span class="filter-label">View</span>
+  <button class="filter-btn active" data-filter="all">All Staff</button>
+  <button class="filter-btn drama" data-filter="drama">Drama</button>
+  <button class="filter-btn art" data-filter="art">Art &amp; Photography</button>
+</div>
+
+<!-- ── DRAMA TIMETABLE ─────────────────────────────────────────────────────── -->
+<div class="timetable-section" id="section-drama" data-subject="drama">
+
+  <p class="subject-heading">Drama Department</p>
+
+  <!-- Key -->
+  <div class="key-row">
+    <div class="key-card">
+      <div class="key-swatch" style="background:#e8420a"></div>
+      R. McColm
+      <span class="key-room">Drama Studio</span>
+    </div>
+    <div class="key-card">
+      <div class="key-swatch" style="background:#1565c0"></div>
+      T. Livingstone
+      <span class="key-room">F02</span>
+    </div>
+    <div class="key-card">
+      <div class="key-swatch" style="background:#2e7d32"></div>
+      S. McLean
+      <span class="key-room">F01</span>
+    </div>
+    <div class="key-card">
+      <div class="key-swatch" style="background:#6a1b9a"></div>
+      S. Airdrie
+      <span class="key-room">F23</span>
+    </div>
+  </div>
+
+  <div class="grid-wrap">
+    <div class="timetable-grid" id="drama-grid"></div>
+  </div>
+</div>
+
+<!-- ── ART TIMETABLE ───────────────────────────────────────────────────────── -->
+<div class="timetable-section" id="section-art" data-subject="art">
+
+  <p class="subject-heading">Art &amp; Photography Department</p>
+
+  <!-- Key -->
+  <div class="key-row">
+    <div class="key-card">
+      <div class="key-swatch" style="background:#0077a8"></div>
+      M. Gallacher
+      <span class="key-room">S11</span>
+    </div>
+    <div class="key-card">
+      <div class="key-swatch" style="background:#00796b"></div>
+      P. Donald
+      <span class="key-room">S12</span>
+    </div>
+    <div class="key-card">
+      <div class="key-swatch" style="background:#3949ab"></div>
+      J. McKenzie
+      <span class="key-room">S10</span>
+    </div>
+    <div class="key-card">
+      <div class="key-swatch" style="background:#c2185b"></div>
+      K. Nutt
+      <span class="key-room">S13</span>
+    </div>
+  </div>
+
+  <div class="grid-wrap">
+    <div class="timetable-grid" id="art-grid"></div>
+  </div>
+</div>
+
+<script>
+const isEmbedded = new URLSearchParams(window.location.search).get('embed') === '1';
+if (isEmbedded) document.body.classList.add('embedded');
+
+// ── Data ──────────────────────────────────────────────────────────────────────
+const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
+const DAY_PERIODS = { Monday:7, Tuesday:7, Wednesday:7, Thursday:6, Friday:6 };
+const MAX_P = 7;
+
+const DRAMA_STAFF = [
+  {
+    name: 'R. McColm', short: 'McColm', room: 'Drama Studio',
+    ac: '#e8420a', bg: '#fdeade', dk: '#7a1a00',
+    tt: {
+      Monday:    {3:'4draG'},
+      Tuesday:   {2:'4draG',3:'5ciC',4:'2E',6:'5AHdraB',7:'5AHdraB'},
+      Wednesday: {1:'5ciC',2:'5ciC',4:'4draG',5:'2L',6:'2H'},
+      Thursday:  {5:'5AHdraB',6:'5AHdraB'},
+      Friday:    {2:'2M',5:'4draG'},
+    }
+  },
+  {
+    name: 'T. Livingstone', short: 'Livingstone', room: 'F02',
+    ac: '#1565c0', bg: '#ddeaf8', dk: '#0a2d6b',
+    tt: {
+      Monday:    {1:'3draF',3:'5fsB',4:'5fsB',6:'3draG'},
+      Tuesday:   {2:'2N',3:'3draF',4:'3draG',6:'5fsB',7:'5fsB'},
+      Wednesday: {2:'3draG',4:'2C',7:'3draF'},
+      Thursday:  {2:'3draG',5:'2B'},
+      Friday:    {1:'2F',2:'5draE',5:'5ciC',6:'5ciC'},
+    }
+  },
+  {
+    name: 'S. McLean', short: 'McLean', room: 'F01',
+    ac: '#2e7d32', bg: '#dceede', dk: '#0a3b0c',
+    tt: {
+      Monday:    {2:'4B1',5:'4draF',7:'2B1'},
+      Tuesday:   {1:'5draE',2:'5draE',3:'2B2',4:'5ciC',5:'4draF'},
+      Wednesday: {2:'4B2',5:'4draF'},
+      Thursday:  {1:'4draF',2:'4B1',3:'KIIM',4:'KIIM',5:'5fsB',6:'5fsB'},
+      Friday:    {1:'5draE',3:'2B2',4:'3B1'},
+    }
+  },
+  {
+    name: 'S. Airdrie', short: 'Airdrie', room: 'F23',
+    ac: '#6a1b9a', bg: '#ebd9f8', dk: '#3b0070',
+    tt: {
+      Monday:    {1:'5draA',2:'5draA',3:'5AHdraB',4:'5AHdraB',7:'3draE'},
+      Tuesday:   {4:'2G',6:'3draE',7:'2K'},
+      Wednesday: {1:'3draE',2:'2D',6:'5draA',7:'5draA'},
+      Thursday:  {3:'5draE',4:'5draE',5:'2A'},
+      Friday:    {2:'4B2',3:'5draA',4:'5draA',5:'3draE',6:'3draF'},
+    }
+  },
+];
+
+const ART_STAFF = [
+  {
+    name: 'M. Gallacher', short: 'Gallacher', room: 'S11',
+    ac: '#0077a8', bg: '#ddeaf8', dk: '#003850',
+    tt: {
+      Monday:    {1:'5artA',2:'5artA',3:'4artG',6:'3photoG',7:'3artE'},
+      Tuesday:   {2:'4artG',3:'2D',4:'3photoG',6:'3artE'},
+      Wednesday: {1:'3artE',2:'3photoG',4:'4artG',6:'5artA',7:'5artA'},
+      Thursday:  {2:'3photoG',6:'2C'},
+      Friday:    {2:'2C',3:'5artA',4:'5artA',5:'4artG',6:'2D'},
+    }
+  },
+  {
+    name: 'P. Donald', short: 'Donald', room: 'S12',
+    ac: '#00796b', bg: '#d9f0ea', dk: '#00382a',
+    tt: {
+      Monday:    {3:'5artB',4:'5artB',6:'2G',7:'2L'},
+      Tuesday:   {1:'3artC',4:'2B',6:'5artB',7:'5artB'},
+      Wednesday: {3:'2G',4:'3artC',6:'4artC'},
+      Thursday:  {2:'2L',3:'3artC',5:'5artB',6:'5artB'},
+      Friday:    {1:'3artC',2:'2B',3:'4artC',5:'2H'},
+    }
+  },
+  {
+    name: 'J. McKenzie', short: 'McKenzie', room: 'S10',
+    ac: '#3949ab', bg: '#e8e8f8', dk: '#1a1a6b',
+    tt: {
+      Monday:    {1:'4artD',3:'2F',6:'3artG',7:'2N'},
+      Tuesday:   {1:'5photoE',2:'5photoE',4:'3artG',5:'2E',6:'2N'},
+      Wednesday: {2:'3artG',3:'2M',4:'2A',5:'4photoF',7:'4artD'},
+      Thursday:  {1:'4photoF',2:'3artG',3:'5photoE',4:'5photoE',5:'4artD',6:'2A'},
+      Friday:    {1:'5photoE',2:'5photoE',4:'4artD',6:'2E'},
+    }
+  },
+  {
+    name: 'K. Nutt', short: 'Nutt', room: 'S13',
+    ac: '#c2185b', bg: '#fde8f0', dk: '#6b0030',
+    tt: {
+      Monday:    {1:'3artF',3:'2M',5:'4photoF',6:'2K',7:'2H'},
+      Tuesday:   {3:'3artF',5:'4photoF',7:'4artC'},
+      Wednesday: {2:'2F',7:'3artF'},
+      Thursday:  {3:'2K',6:'4artC'},
+      Friday:    {5:'3artE',6:'3artF'},
+    }
+  },
+];
+
+// ── Grid builder ──────────────────────────────────────────────────────────────
+function buildGrid(containerId, staff) {
+  const container = document.getElementById(containerId);
+
+  // Header row: corner (×2) + day names
+  const cornerA = el('div', 'th corner');
+  const cornerB = el('div', 'th corner');
+  container.append(cornerA, cornerB);
+  DAYS.forEach(day => {
+    const th = el('div', 'th');
+    th.textContent = day;
+    container.append(th);
+  });
+
+  // Period blocks
+  for (let p = 1; p <= MAX_P; p++) {
+    // Period separator (except first)
+    if (p > 1) {
+      const sep = el('div', 'period-sep');
+      container.append(sep);
+    }
+
+    // Period label spanning 4 teacher rows
+    const pLabel = el('div', `period-label span-4`);
+    pLabel.textContent = `P${p}`;
+    pLabel.style.gridRow = `span ${staff.length}`;
+    container.append(pLabel);
+
+    // Each teacher row
+    staff.forEach(s => {
+      // Teacher label
+      const tLabel = el('div', 'teacher-label');
+      tLabel.style.background = s.bg;
+      const dot = el('div', 'teacher-dot');
+      dot.style.background = s.ac;
+      const tName = el('span', 'teacher-name-short');
+      tName.style.color = s.dk;
+      tName.textContent = s.short;
+      tLabel.append(dot, tName);
+      container.append(tLabel);
+
+      // Day cells
+      DAYS.forEach(day => {
+        const nP  = DAY_PERIODS[day];
+        const cls = p <= nP ? (s.tt[day]?.[p] || null) : null;
+        const cell = el('div', 'cell');
+
+        if (p > nP) {
+          cell.classList.add('na');
+        } else if (cls) {
+          cell.classList.add('has-class');
+          const chip = el('div', 'class-chip');
+          chip.style.background   = s.bg;
+          chip.style.border       = `1.5px solid ${s.ac}`;
+          chip.style.color        = s.dk;
+          const name = el('span', 'cls-name');
+          name.textContent = cls;
+          const room = el('span', 'cls-room');
+          room.textContent = s.room;
+          chip.append(name, room);
+          cell.append(chip);
+        } else {
+          cell.classList.add('free');
+        }
+        container.append(cell);
+      });
+    });
+  }
+}
+
+function el(tag, cls) {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  return e;
+}
+
+buildGrid('drama-grid', DRAMA_STAFF);
+buildGrid('art-grid',   ART_STAFF);
+
+// ── Filters ───────────────────────────────────────────────────────────────────
+document.querySelectorAll('.filter-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const filter = btn.dataset.filter;
+    document.querySelectorAll('.timetable-section').forEach(sec => {
+      if (filter === 'all' || sec.dataset.subject === filter) {
+        sec.classList.remove('hidden');
+      } else {
+        sec.classList.add('hidden');
+      }
+    });
+  });
+});
+</script>
+</body>
+</html>
