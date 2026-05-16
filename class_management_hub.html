@@ -717,7 +717,7 @@
   function loadTeachingStaffForLoader() {
     requireSchoolManager();
     return window.DataService.listTeachingStaffForClassLoader().then(function(rows) {
-      loaderState.teachers = (rows || []).map(function(row) {
+      var normalized = (rows || []).map(function(row) {
         return {
           teacher_id: row.teacher_id,
           display_name: row.display_name || row.email || 'Unknown',
@@ -725,6 +725,27 @@
           role: row.role || 'teacher'
         };
       });
+      if (!normalized.length && window.DataService && typeof window.DataService.getAllForMonitoring === 'function') {
+        return window.DataService.getAllForMonitoring().then(function(monitoringRows) {
+          var byUser = {};
+          (monitoringRows || []).forEach(function(row) {
+            var userId = String(row && row.user_id || '').trim();
+            if (!userId) return;
+            if (byUser[userId]) return;
+            byUser[userId] = {
+              teacher_id: userId,
+              display_name: row.teacherName || row.email || 'Unknown',
+              email: row.email || '',
+              role: 'teacher'
+            };
+          });
+          loaderState.teachers = Object.keys(byUser).map(function(key) { return byUser[key]; });
+          return loaderState.teachers;
+        });
+      }
+      loaderState.teachers = normalized;
+      return loaderState.teachers;
+    }).then(function() {
       if (loaderState.selectedTeacherId && !loaderState.teachers.some(function(t) { return t.teacher_id === loaderState.selectedTeacherId; })) {
         loaderState.selectedTeacherId = '';
         loaderState.selectedTeacherName = '';

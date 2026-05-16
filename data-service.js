@@ -341,11 +341,12 @@
               .select('user_id, data_type, data')
               .in('data_type', ['drama-v3', 'art-v2', 'moderation-data', 'plannerTimetable', 'plannerLessons', 'plannerWeekNotes'])
           ]).then(function(results) {
-            if (results[0].error || results[1].error) {
-              reject(results[0].error || results[1].error);
+            if (results[1].error) {
+              reject(results[1].error);
               return;
             }
-            var profiles = (results[0].data || []).reduce(function(acc, p) {
+            var profilesRows = results[0].error ? [] : (results[0].data || []);
+            var profiles = profilesRows.reduce(function(acc, p) {
               acc[p.id] = p;
               return acc;
             }, {});

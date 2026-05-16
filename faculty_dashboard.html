@@ -1516,7 +1516,7 @@ function updateLoadCloudButton() {
   const btn = document.getElementById('load-cloud-btn');
   if (btn) btn.style.display = canViewCloudTracking() ? 'inline-flex' : 'none';
   const staffBtn = document.getElementById('staff-btn');
-  if (staffBtn) staffBtn.style.display = window.__authGuardIsAdmin ? 'block' : 'none';
+  if (staffBtn) staffBtn.style.display = canManageFacultyHub() ? 'block' : 'none';
   const adminBtn = document.getElementById('admin-console-btn');
   if (adminBtn) adminBtn.style.display = window.__authGuardIsAdmin ? 'block' : 'none';
 }
@@ -1529,6 +1529,9 @@ function syncAdminUiFromAuthState() {
   if (canManageFacultyHub()) window.__authGuardIsAdmin = true;
   refreshAdminUiPlacement();
   var v = new URLSearchParams(window.location.search).get('view');
+  if (v === 'staff' && canManageFacultyHub()) {
+    setView('staff');
+  }
   if (!initialAdminViewApplied && v === 'admin-console' && window.__authGuardIsAdmin) {
     initialAdminViewApplied = true;
     setView('admin-console');
@@ -1556,13 +1559,18 @@ window.addEventListener('auth-guard-ready', syncAdminUiFromAuthState);
 
 var staffListCache = [];
 function renderStaffView() {
-  if (!window.__authGuardIsAdmin) return;
+  if (!canManageFacultyHub()) {
+    document.getElementById('staff-list-container').style.display = 'block';
+    document.getElementById('staff-detail-container').style.display = 'none';
+    document.getElementById('staff-list-container').innerHTML = '<div class="empty-s">Staff data is available to admin/faculty-head users only.</div>';
+    return;
+  }
   document.getElementById('staff-list-container').style.display = 'block';
   document.getElementById('staff-detail-container').style.display = 'none';
   loadStaffList();
 }
 function loadStaffList() {
-  if (!window.__authGuardIsAdmin || !window.DataService || typeof DataService.getStaffListWithWorkForAdmin !== 'function') {
+  if (!canManageFacultyHub() || !window.DataService || typeof DataService.getStaffListWithWorkForAdmin !== 'function') {
     document.getElementById('staff-list-container').innerHTML = '<div class="empty-s">Admin only. Cloud required.</div>';
     return;
   }
