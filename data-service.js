@@ -106,6 +106,18 @@
     var startYear = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
     return startYear + '-' + (startYear + 1);
   }
+  function isMissingRpcError(err) {
+    if (!err) return false;
+    var code = String(err.code || '');
+    var msg = String(err.message || err.details || '').toLowerCase();
+    return code === '42883' || msg.indexOf('does not exist') !== -1 || msg.indexOf('could not find the function') !== -1;
+  }
+  function parseYearLevelNumber(value) {
+    var raw = String(value == null ? '' : value).trim();
+    var match = /^s?([1-6])$/i.exec(raw);
+    if (!match) return null;
+    return Number(match[1]);
+  }
 
   window.DataService = {
     isUsingCloud: function() {
@@ -720,11 +732,24 @@
 
     listTeachingStaffForClassLoader: function() {
       if (!useSupabase()) return Promise.resolve([]);
+      var self = this;
       return getSessionWithRetry({ retries: 4, delayMs: 250 }).then(function(session) {
         if (!session) throw new Error('Not authenticated');
         return window.supabase.rpc('list_teaching_staff_for_class_loader').then(function(r) {
           if (r.error) throw r.error;
           return Array.isArray(r.data) ? r.data : [];
+        }).catch(function(err) {
+          if (!isMissingRpcError(err)) throw err;
+          return self.getStaffListWithWorkForAdmin().then(function(rows) {
+            return (rows || []).map(function(row) {
+              return {
+                teacher_id: row.user_id,
+                email: row.email || '',
+                display_name: row.teacherName || row.email || 'Unknown',
+                role: 'teacher'
+              };
+            });
+          });
         });
       });
     },
@@ -747,6 +772,46 @@
         }).then(function(r) {
           if (r.error) throw r.error;
           return Array.isArray(r.data) ? r.data : [];
+        }).catch(function(err) {
+          if (!isMissingRpcError(err)) throw err;
+          return window.supabase.from('academic_years')
+            .select('id, label')
+            .eq('label', academicYearLabel)
+            .maybeSingle()
+            .then(function(yearRes) {
+              if (yearRes.error) throw yearRes.error;
+              if (!yearRes.data || !yearRes.data.id) return [];
+              return window.supabase.from('class_teacher_assignments')
+                .select('class_id')
+                .eq('teacher_id', teacherId)
+                .eq('assignment_role', 'primary')
+                .then(function(assignRes) {
+                  if (assignRes.error) throw assignRes.error;
+                  var classIds = Array.from(new Set((assignRes.data || []).map(function(item) { return item.class_id; }).filter(Boolean)));
+                  if (!classIds.length) return [];
+                  return window.supabase.from('classes')
+                    .select('id, subject, class_code, class_name, year_level_id')
+                    .in('id', classIds)
+                    .eq('academic_year_id', yearRes.data.id)
+                    .eq('subject', subject)
+                    .order('year_level_id', { ascending: true })
+                    .order('class_code', { ascending: true })
+                    .then(function(classRes) {
+                      if (classRes.error) throw classRes.error;
+                      return (classRes.data || []).map(function(row) {
+                        return {
+                          class_id: row.id,
+                          subject: row.subject,
+                          academic_year_label: academicYearLabel,
+                          year_level: row.year_level_id,
+                          year_level_label: 'S' + row.year_level_id,
+                          class_code: row.class_code,
+                          class_name: row.class_name
+                        };
+                      });
+                    });
+                });
+            });
         });
       });
     },
@@ -772,6 +837,170 @@
         }).then(function(r) {
           if (r.error) throw r.error;
           return r.data || {};
+        }).catch(function(err) {
+          if (!isMissingRpcError(err)) throw err;
+          return ensureSessionForMutations().then(function(session) {
+            var result = {
+              teacher_id: teacherId,
+              subject: subject,
+              academic_year_label: academicYearLabel,
+              replace_existing: replaceExisting,
+              inserted_classes: 0,
+              updated_classes: 0,
+              assigned_classes: 0,
+              reassigned_classes: 0,
+              removed_existing_assignments: 0,
+              skipped_rows: 0,
+              conflicts: []
+            };
+            return window.supabase.from('profiles').select('id').eq('id', teacherId).maybeSingle()
+              .then(function(teacherRes) {
+                if (teacherRes.error) throw teacherRes.error;
+                if (!teacherRes.data || !teacherRes.data.id) throw new Error('Teacher account not found');
+                return window.supabase.from('academic_years').select('id').eq('label', academicYearLabel).maybeSingle();
+              })
+              .then(function(yearRes) {
+                if (yearRes.error) throw yearRes.error;
+                if (yearRes.data && yearRes.data.id) return yearRes.data.id;
+                return window.supabase.from('academic_years')
+                  .insert({ label: academicYearLabel, status: 'active' })
+                  .select('id')
+                  .single()
+                  .then(function(insertYearRes) {
+                    if (insertYearRes.error) throw insertYearRes.error;
+                    return insertYearRes.data.id;
+                  });
+              })
+              .then(function(yearId) {
+                if (replaceExisting) {
+                  return window.supabase.from('class_teacher_assignments')
+                    .select('class_id')
+                    .eq('teacher_id', teacherId)
+                    .eq('assignment_role', 'primary')
+                    .then(function(assignRes) {
+                      if (assignRes.error) throw assignRes.error;
+                      var classIds = Array.from(new Set((assignRes.data || []).map(function(item) { return item.class_id; }).filter(Boolean)));
+                      if (!classIds.length) return yearId;
+                      return window.supabase.from('classes')
+                        .select('id')
+                        .in('id', classIds)
+                        .eq('academic_year_id', yearId)
+                        .eq('subject', subject)
+                        .then(function(classRes) {
+                          if (classRes.error) throw classRes.error;
+                          var idsToDelete = (classRes.data || []).map(function(item) { return item.id; }).filter(Boolean);
+                          if (!idsToDelete.length) return yearId;
+                          result.removed_existing_assignments = idsToDelete.length;
+                          return window.supabase.from('class_teacher_assignments')
+                            .delete()
+                            .eq('teacher_id', teacherId)
+                            .eq('assignment_role', 'primary')
+                            .in('class_id', idsToDelete)
+                            .then(function(deleteRes) {
+                              if (deleteRes.error) throw deleteRes.error;
+                              return yearId;
+                            });
+                        });
+                    });
+                }
+                return yearId;
+              })
+              .then(function(yearId) {
+                return classes.reduce(function(chain, row) {
+                  return chain.then(function() {
+                    var yearLevel = parseYearLevelNumber(row && row.year_level);
+                    var classCode = String(row && row.class_code || '').trim();
+                    var className = String(row && row.class_name || classCode).trim();
+                    if (!yearLevel || !classCode || !className) {
+                      result.skipped_rows += 1;
+                      result.conflicts.push({ type: 'invalid_row', row: row });
+                      return;
+                    }
+                    return window.supabase.from('classes')
+                      .select('id')
+                      .eq('academic_year_id', yearId)
+                      .eq('subject', subject)
+                      .eq('class_code', classCode)
+                      .maybeSingle()
+                      .then(function(existingClassRes) {
+                        if (existingClassRes.error) throw existingClassRes.error;
+                        if (existingClassRes.data && existingClassRes.data.id) {
+                          var classId = existingClassRes.data.id;
+                          return window.supabase.from('classes')
+                            .update({ year_level_id: yearLevel, class_name: className })
+                            .eq('id', classId)
+                            .then(function(updateClassRes) {
+                              if (updateClassRes.error) throw updateClassRes.error;
+                              result.updated_classes += 1;
+                              return classId;
+                            });
+                        }
+                        return window.supabase.from('classes')
+                          .insert({
+                            academic_year_id: yearId,
+                            year_level_id: yearLevel,
+                            subject: subject,
+                            class_code: classCode,
+                            class_name: className,
+                            source: 'manual_teacher_loader',
+                            created_by: session.user.id
+                          })
+                          .select('id')
+                          .single()
+                          .then(function(insertClassRes) {
+                            if (insertClassRes.error) throw insertClassRes.error;
+                            result.inserted_classes += 1;
+                            return insertClassRes.data.id;
+                          });
+                      })
+                      .then(function(classId) {
+                        return window.supabase.from('class_teacher_assignments')
+                          .select('teacher_id')
+                          .eq('class_id', classId)
+                          .eq('assignment_role', 'primary')
+                          .maybeSingle()
+                          .then(function(assignmentRes) {
+                            if (assignmentRes.error) throw assignmentRes.error;
+                            if (!assignmentRes.data || !assignmentRes.data.teacher_id) {
+                              return window.supabase.from('class_teacher_assignments')
+                                .insert({
+                                  class_id: classId,
+                                  teacher_id: teacherId,
+                                  assignment_role: 'primary',
+                                  created_by: session.user.id
+                                })
+                                .then(function(insertAssignRes) {
+                                  if (insertAssignRes.error) throw insertAssignRes.error;
+                                  result.assigned_classes += 1;
+                                });
+                            }
+                            if (assignmentRes.data.teacher_id !== teacherId) {
+                              if (!replaceExisting) {
+                                result.conflicts.push({
+                                  type: 'teacher_mismatch',
+                                  subject: subject,
+                                  class_code: classCode,
+                                  year_level: yearLevel
+                                });
+                                return;
+                              }
+                              return window.supabase.from('class_teacher_assignments')
+                                .update({ teacher_id: teacherId, created_by: session.user.id })
+                                .eq('class_id', classId)
+                                .eq('assignment_role', 'primary')
+                                .then(function(updateAssignRes) {
+                                  if (updateAssignRes.error) throw updateAssignRes.error;
+                                  result.reassigned_classes += 1;
+                                });
+                            }
+                          });
+                      });
+                  });
+                }, Promise.resolve()).then(function() {
+                  return result;
+                });
+              });
+          });
         });
       });
     },
@@ -790,6 +1019,46 @@
         }).then(function(r) {
           if (r.error) throw r.error;
           return Array.isArray(r.data) ? r.data : [];
+        }).catch(function(err) {
+          if (!isMissingRpcError(err)) throw err;
+          return window.supabase.from('academic_years')
+            .select('id')
+            .eq('label', academicYearLabel)
+            .maybeSingle()
+            .then(function(yearRes) {
+              if (yearRes.error) throw yearRes.error;
+              if (!yearRes.data || !yearRes.data.id) return [];
+              return window.supabase.from('class_teacher_assignments')
+                .select('class_id')
+                .eq('teacher_id', session.user.id)
+                .eq('assignment_role', 'primary')
+                .then(function(assignRes) {
+                  if (assignRes.error) throw assignRes.error;
+                  var classIds = Array.from(new Set((assignRes.data || []).map(function(item) { return item.class_id; }).filter(Boolean)));
+                  if (!classIds.length) return [];
+                  return window.supabase.from('classes')
+                    .select('id, subject, class_code, class_name, year_level_id')
+                    .in('id', classIds)
+                    .eq('academic_year_id', yearRes.data.id)
+                    .eq('subject', subject)
+                    .order('year_level_id', { ascending: true })
+                    .order('class_code', { ascending: true })
+                    .then(function(classRes) {
+                      if (classRes.error) throw classRes.error;
+                      return (classRes.data || []).map(function(row) {
+                        return {
+                          class_id: row.id,
+                          subject: row.subject,
+                          academic_year_label: academicYearLabel,
+                          year_level: row.year_level_id,
+                          year_level_label: 'S' + row.year_level_id,
+                          class_code: row.class_code,
+                          class_name: row.class_name
+                        };
+                      });
+                    });
+                });
+            });
         });
       });
     },
