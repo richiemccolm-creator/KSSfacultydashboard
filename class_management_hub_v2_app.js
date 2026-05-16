@@ -62,7 +62,7 @@
       '.card h2{margin:0;padding:.86rem 1rem;background:#f8fafc;border-bottom:1px solid #e7edf5;font-size:.95rem}' +
       '.body{padding:1rem}' +
       '.row{display:grid;grid-template-columns:1fr 1fr;gap:.65rem;margin-bottom:.65rem}' +
-      '.row.search{grid-template-columns:2fr 1fr 1fr 1fr}' +
+      '.row.search{grid-template-columns:1fr}' +
       'label{display:block;font-size:.78rem;color:#41556e;font-weight:600;margin-bottom:.3rem}' +
       'input,select,textarea{width:100%;border:1px solid #cfd9e7;border-radius:9px;padding:.56rem .62rem;font:inherit;font-size:.9rem;background:#fff}' +
       'textarea{min-height:112px;resize:vertical}' +
@@ -78,15 +78,15 @@
       '.message.success{border:1px solid #a7f3d0;background:#ecfdf5;color:#065f46}' +
       '.message.warn{border:1px solid #fde68a;background:#fffbeb;color:#92400e}' +
       '.message.error{border:1px solid #fecaca;background:#fef2f2;color:#991b1b}' +
-      '.staff-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:.7rem;margin-top:.6rem}' +
-      '.staff-card{border:1px solid #dbe5f1;border-radius:11px;background:#fff;padding:.72rem;text-align:left;display:grid;gap:.44rem;cursor:pointer}' +
+      '.staff-grid{display:grid;grid-template-columns:1fr;gap:.55rem;margin-top:.6rem}' +
+      '.staff-card{border:1px solid #dbe5f1;border-radius:11px;background:#fff;padding:.72rem;text-align:left;display:grid;grid-template-columns:1fr auto;gap:.55rem;align-items:center;cursor:pointer}' +
       '.staff-card:hover{border-color:#9fb5d0;background:#fbfdff}' +
-      '.staff-head{display:flex;gap:.55rem;align-items:flex-start}' +
+      '.staff-head{display:flex;gap:.55rem;align-items:flex-start;min-width:0}' +
       '.avatar{width:34px;height:34px;border-radius:999px;background:#e8eef7;color:#1f3552;display:inline-flex;align-items:center;justify-content:center;font-size:.76rem;font-weight:700;flex-shrink:0}' +
       '.name{margin:0;font-size:.9rem;color:#17314e}' +
       '.email{margin:0;font-size:.75rem;color:#5d728a;line-height:1.35}' +
       '.meta{font-size:.77rem;color:#42576f}' +
-      '.status{display:inline-flex;align-items:center;border-radius:999px;padding:.18rem .55rem;font-size:.73rem;font-weight:700;border:1px solid transparent}' +
+      '.status{display:inline-flex;align-items:center;border-radius:999px;padding:.14rem .5rem;font-size:.72rem;font-weight:700;border:1px solid transparent}' +
       '.status.assigned{border-color:#a7f3d0;background:#ecfdf5;color:#065f46}' +
       '.status.empty{border-color:#fde68a;background:#fffbeb;color:#92400e}' +
       '.status.review{border-color:#fecaca;background:#fef2f2;color:#991b1b}' +
@@ -112,7 +112,7 @@
       '.panel{border:1px solid #dbe6f2;border-radius:10px;background:#fff;padding:.64rem;margin-top:.65rem}' +
       '.line{font-size:.8rem;color:#31465f;margin-bottom:.25rem}' +
       '.muted{font-size:.79rem;color:#5b6f86}' +
-      '@media (max-width:980px){.row.search{grid-template-columns:1fr 1fr}.workspace{grid-template-columns:1fr}.subjects{grid-template-columns:1fr}}' +
+      '@media (max-width:980px){.workspace{grid-template-columns:1fr}.subjects{grid-template-columns:1fr}}' +
       '@media (max-width:700px){.row,.row.search{grid-template-columns:1fr}}' +
       '</style>' +
       '<div class="wrap">' +
@@ -120,11 +120,8 @@
       '<section class="card" id="staff-view"><h2>Teacher Profiles</h2><div class="body">' +
       '<div class="row search">' +
       '<div><label for="staff-search">Search staff by name or email</label><input id="staff-search" placeholder="Search staff by name or email"></div>' +
-      '<div><label for="filter-department">Department</label><select id="filter-department"><option value="">All departments</option></select></div>' +
-      '<div><label for="filter-role">Role</label><select id="filter-role"><option value="">All roles</option></select></div>' +
-      '<div><label for="filter-subject">Subject</label><select id="filter-subject"><option value="">All subjects</option><option value="art">Art &amp; Design</option><option value="drama">Drama</option><option value="photography">Photography</option></select></div>' +
       '</div>' +
-      '<div class="btns"><button class="ghost" id="bulk-open-btn">Bulk Add Classes</button><button class="ghost" id="import-open-btn">Import Classes</button><button class="ghost" id="export-btn">Export</button><button class="ghost" id="reload-staff-btn">Retry loading staff</button></div>' +
+      '<div class="btns"><button class="ghost" id="reload-staff-btn">Retry loading staff</button></div>' +
       '<div id="staff-fallback-note" class="message warn hidden">Some staff data was loaded from a backup source.</div>' +
       '<div id="staff-source-line" class="line hidden"></div>' +
       '<div id="staff-state" class="state">Loading staff…</div>' +
@@ -242,6 +239,7 @@
   }
 
   function populateFilters() {
+    if (!el('filter-department') || !el('filter-role')) return;
     var departments = {};
     var roles = {};
     state.staff.forEach(function(row) {
@@ -277,9 +275,7 @@
       var st = teacherStatus(t);
       return '<button class="staff-card" data-id="' + esc(t.teacher_id) + '">' +
         '<div class="staff-head"><div class="avatar">' + esc((t.display_name || t.email || '??').slice(0,2).toUpperCase()) + '</div><div><h3 class="name">' + esc(t.display_name || t.email || 'Unknown') + '</h3><p class="email">' + esc(t.email || 'No email available') + '</p></div></div>' +
-        '<div class="meta">Role: ' + esc(t.role || 'teacher') + ' · Department: ' + esc(t.department || 'Unassigned') + '</div>' +
-        '<div class="meta">Total classes: ' + teacherTotal(t) + '</div>' +
-        '<div class="btns" style="margin-top:0"><span class="status ' + st.cls + '">' + st.text + '</span><span class="muted">Manage classes</span></div>' +
+        '<div style="text-align:right"><div class="meta">Total classes: ' + teacherTotal(t) + '</div><div class="status ' + st.cls + '" style="margin-top:.25rem;">' + st.text + '</div><div class="muted" style="margin-top:.3rem;font-weight:700;color:#1f3552;">Manage classes</div></div>' +
       '</button>';
     }).join('');
     Array.prototype.forEach.call(grid.querySelectorAll('.staff-card'), function(card) {
@@ -294,9 +290,9 @@
 
   function applyStaffFilters() {
     var q = String(el('staff-search').value || '').trim().toLowerCase();
-    var dept = String(el('filter-department').value || '').trim().toLowerCase();
-    var role = String(el('filter-role').value || '').trim().toLowerCase();
-    var subject = normalizeSubject(el('filter-subject').value || '');
+    var dept = el('filter-department') ? String(el('filter-department').value || '').trim().toLowerCase() : '';
+    var role = el('filter-role') ? String(el('filter-role').value || '').trim().toLowerCase() : '';
+    var subject = el('filter-subject') ? normalizeSubject(el('filter-subject').value || '') : '';
     state.filtered = state.staff.filter(function(t) {
       var hay = (String(t.display_name || '') + ' ' + String(t.email || '')).toLowerCase();
       var s = teacherStats(t);
@@ -327,7 +323,7 @@
         applyStaffFilters();
         if (diagnostics) {
           el('staff-source-line').className = 'line';
-          el('staff-source-line').textContent = 'Staff loaded: ' + rows.length + ' (source: ' + diagnostics.source + ')';
+          el('staff-source-line').textContent = 'Staff loaded: ' + rows.length;
           if (diagnostics.fallback_used) setMessage('staff-fallback-note', 'warn', 'Some staff data was loaded from a backup source.');
         }
       });
@@ -799,14 +795,18 @@
       setMessage('bulk-message', 'success', 'Sample payload loaded.');
     }, 'bulk-message');
 
-    el('bulk-open-btn').addEventListener('click', function() {
-      el('bulk-tools').open = true;
-      el('bulk-tools').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-    el('import-open-btn').addEventListener('click', function() {
-      el('bulk-tools').open = true;
-      el('bulk-file').click();
-    });
+    if (el('bulk-open-btn')) {
+      el('bulk-open-btn').addEventListener('click', function() {
+        el('bulk-tools').open = true;
+        el('bulk-tools').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }
+    if (el('import-open-btn')) {
+      el('import-open-btn').addEventListener('click', function() {
+        el('bulk-tools').open = true;
+        el('bulk-file').click();
+      });
+    }
     el('bulk-file').addEventListener('change', function(e) {
       var file = e && e.target && e.target.files ? e.target.files[0] : null;
       if (!file) return;
