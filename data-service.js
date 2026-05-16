@@ -736,21 +736,46 @@
       var self = this;
       return getSessionWithRetry({ retries: 4, delayMs: 250 }).then(function(session) {
         if (!session) throw new Error('Not authenticated');
-        return window.supabase.rpc('list_teaching_staff_for_class_loader').then(function(r) {
-          if (r.error) throw r.error;
-          return Array.isArray(r.data) ? r.data : [];
-        }).catch(function(err) {
-          if (!isMissingRpcError(err)) throw err;
-          return self.getStaffListWithWorkForAdmin().then(function(rows) {
-            return (rows || []).map(function(row) {
-              return {
-                teacher_id: row.user_id,
+        function buildFallbackList() {
+          return Promise.all([
+            self.getStaffListWithWorkForAdmin().catch(function() { return []; }),
+            self.getAllForMonitoring().catch(function() { return []; })
+          ]).then(function(parts) {
+            var staffRows = Array.isArray(parts[0]) ? parts[0] : [];
+            var monitoringRows = Array.isArray(parts[1]) ? parts[1] : [];
+            var byUser = {};
+            staffRows.forEach(function(row) {
+              var userId = String(row && row.user_id || '').trim();
+              if (!userId) return;
+              byUser[userId] = {
+                teacher_id: userId,
                 email: row.email || '',
                 display_name: row.teacherName || row.email || 'Unknown',
                 role: 'teacher'
               };
             });
+            monitoringRows.forEach(function(row) {
+              var userId = String(row && row.user_id || '').trim();
+              if (!userId || byUser[userId]) return;
+              byUser[userId] = {
+                teacher_id: userId,
+                email: row.email || '',
+                display_name: row.teacherName || row.email || 'Unknown',
+                role: 'teacher'
+              };
+            });
+            return Object.keys(byUser).map(function(key) { return byUser[key]; })
+              .sort(function(a, b) { return String(a.display_name || '').localeCompare(String(b.display_name || '')); });
           });
+        }
+        return window.supabase.rpc('list_teaching_staff_for_class_loader').then(function(r) {
+          if (r.error) throw r.error;
+          var rows = Array.isArray(r.data) ? r.data : [];
+          if (rows.length) return rows;
+          return buildFallbackList();
+        }).catch(function(err) {
+          if (!isMissingRpcError(err)) return buildFallbackList();
+          return buildFallbackList();
         });
       });
     },
