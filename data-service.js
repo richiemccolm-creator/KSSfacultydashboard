@@ -94,6 +94,18 @@
       return session;
     });
   }
+  function normalizeTrackerSubject(subject) {
+    var value = String(subject == null ? '' : subject).trim().toLowerCase();
+    if (!value) return null;
+    if (value === 'art' || value === 'art & design' || value === 'art and design') return 'art';
+    if (value === 'drama') return 'drama';
+    return null;
+  }
+  function currentAcademicYearLabel() {
+    var now = new Date();
+    var startYear = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
+    return startYear + '-' + (startYear + 1);
+  }
 
   window.DataService = {
     isUsingCloud: function() {
@@ -698,6 +710,86 @@
         }).then(function(r) {
           if (r.error) throw r.error;
           return r.data || {};
+        });
+      });
+    },
+
+    normalizeTrackerSubject: function(subject) {
+      return normalizeTrackerSubject(subject);
+    },
+
+    listTeachingStaffForClassLoader: function() {
+      if (!useSupabase()) return Promise.resolve([]);
+      return getSessionWithRetry({ retries: 4, delayMs: 250 }).then(function(session) {
+        if (!session) throw new Error('Not authenticated');
+        return window.supabase.rpc('list_teaching_staff_for_class_loader').then(function(r) {
+          if (r.error) throw r.error;
+          return Array.isArray(r.data) ? r.data : [];
+        });
+      });
+    },
+
+    listTeacherSubjectClassesForLoader: function(options) {
+      if (!useSupabase()) return Promise.resolve([]);
+      var opts = options || {};
+      var teacherId = String(opts.teacherId || '').trim();
+      var subject = normalizeTrackerSubject(opts.subject);
+      var academicYearLabel = String(opts.academicYearLabel || '').trim();
+      if (!teacherId) return Promise.reject(new Error('Teacher is required'));
+      if (!subject) return Promise.reject(new Error('Subject must be Art or Drama'));
+      if (!academicYearLabel) return Promise.reject(new Error('Academic year label is required'));
+      return getSessionWithRetry({ retries: 4, delayMs: 250 }).then(function(session) {
+        if (!session) throw new Error('Not authenticated');
+        return window.supabase.rpc('list_teacher_subject_classes_for_loader', {
+          p_teacher_id: teacherId,
+          p_subject: subject,
+          p_academic_year_label: academicYearLabel
+        }).then(function(r) {
+          if (r.error) throw r.error;
+          return Array.isArray(r.data) ? r.data : [];
+        });
+      });
+    },
+
+    upsertTeacherSubjectClassesForLoader: function(options) {
+      if (!useSupabase()) return Promise.reject(new Error('Supabase required'));
+      var opts = options || {};
+      var teacherId = String(opts.teacherId || '').trim();
+      var subject = normalizeTrackerSubject(opts.subject);
+      var academicYearLabel = String(opts.academicYearLabel || '').trim();
+      var classes = Array.isArray(opts.classes) ? opts.classes : [];
+      var replaceExisting = !!opts.replaceExisting;
+      if (!teacherId) return Promise.reject(new Error('Teacher is required'));
+      if (!subject) return Promise.reject(new Error('Subject must be Art or Drama'));
+      if (!academicYearLabel) return Promise.reject(new Error('Academic year label is required'));
+      return ensureSessionForMutations().then(function() {
+        return window.supabase.rpc('upsert_teacher_subject_classes_for_loader', {
+          p_teacher_id: teacherId,
+          p_subject: subject,
+          p_academic_year_label: academicYearLabel,
+          p_classes: classes,
+          p_replace_existing: replaceExisting
+        }).then(function(r) {
+          if (r.error) throw r.error;
+          return r.data || {};
+        });
+      });
+    },
+
+    listMyAssignedClassesForTracker: function(options) {
+      if (!useSupabase()) return Promise.resolve([]);
+      var opts = options || {};
+      var subject = normalizeTrackerSubject(opts.subject);
+      var academicYearLabel = String(opts.academicYearLabel || '').trim() || currentAcademicYearLabel();
+      if (!subject) return Promise.reject(new Error('Subject must be Art or Drama'));
+      return getSessionWithRetry({ retries: 4, delayMs: 250 }).then(function(session) {
+        if (!session) throw new Error('Not authenticated');
+        return window.supabase.rpc('list_my_assigned_classes_for_tracker', {
+          p_subject: subject,
+          p_academic_year_label: academicYearLabel
+        }).then(function(r) {
+          if (r.error) throw r.error;
+          return Array.isArray(r.data) ? r.data : [];
         });
       });
     },

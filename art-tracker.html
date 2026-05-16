@@ -814,6 +814,43 @@ function load(){
 }
 function save(){if(window.DataService){return DataService.set('art-v2',S).catch(function(){toast('Save failed — sign in to save to cloud');});}else{try{localStorage.setItem('art-v2',JSON.stringify(S));}catch(e){}return Promise.resolve();}}
 function autoSave(){save().then(function(){toast(window.DataService&&window.DataService.isUsingCloud&&window.DataService.isUsingCloud()?'Saved to cloud':'Saved');}).catch(function(){toast('Save failed — sign in to save to cloud');});}
+function currentAcademicYearLabel(){
+  const now=new Date();
+  const start=now.getMonth()>=7?now.getFullYear():now.getFullYear()-1;
+  return `${start}-${start+1}`;
+}
+function yearLevelToTrackerGroup(level){
+  const n=Number(level);
+  if(n===1)return's1';
+  if(n===2)return's2';
+  if(n===3)return's3';
+  return null;
+}
+function ensureTrackerShape(){
+  S.pupils=S.pupils||{s1:{},s2:{},s3:{}};
+  ['s1','s2','s3'].forEach(yg=>{if(!S.pupils[yg]||typeof S.pupils[yg]!=='object')S.pupils[yg]={};});
+}
+function syncAssignedArtClasses(){
+  if(!window.DataService||!DataService.listMyAssignedClassesForTracker)return Promise.resolve();
+  return DataService.listMyAssignedClassesForTracker({
+    subject:'art',
+    academicYearLabel:currentAcademicYearLabel()
+  }).then(function(rows){
+    ensureTrackerShape();
+    let added=0;
+    (rows||[]).forEach(function(row){
+      const yg=yearLevelToTrackerGroup(row.year_level);
+      const className=String(row.class_name||'').trim();
+      if(!yg||!className)return;
+      if(!S.pupils[yg][className]){
+        S.pupils[yg][className]=[];
+        added++;
+      }
+    });
+    if(!added)return;
+    return save().then(function(){toast(`Synced ${added} class${added!==1?'es':''} from Class Management Hub`);});
+  }).catch(function(){});
+}
 
 // ── UTILS ──
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2)}
@@ -2045,7 +2082,9 @@ function updateStorageIndicator(){
 }
 annotateSidebarItems();
 initSidebarState();
-load().then(function(){updateStorageIndicator();renderHome();});
+load()
+  .then(function(){ return syncAssignedArtClasses(); })
+  .then(function(){updateStorageIndicator();renderHome();});
 </script>
 </body>
 </html>

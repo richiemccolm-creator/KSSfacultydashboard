@@ -184,9 +184,78 @@
     border-color: #a7f3d0;
     color: #065f46;
   }
+  .card.wide { grid-column: 1 / -1; }
+  .teacher-loader {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: .9rem;
+  }
+  .teacher-panel {
+    border: 1px solid #e4ebf4;
+    border-radius: 12px;
+    padding: .75rem;
+    background: #fbfdff;
+  }
+  .teacher-list {
+    margin-top: .55rem;
+    max-height: 360px;
+    overflow: auto;
+    display: grid;
+    gap: .35rem;
+  }
+  .teacher-item {
+    width: 100%;
+    text-align: left;
+    background: #fff;
+    color: #20354d;
+    border: 1px solid #d7e1ed;
+    border-radius: 9px;
+    padding: .5rem .55rem;
+  }
+  .teacher-item.active {
+    background: #ecfdf5;
+    border-color: #6ee7b7;
+    color: #065f46;
+  }
+  .teacher-name { font-size: .82rem; font-weight: 600; }
+  .teacher-email { font-size: .74rem; color: #4f627a; margin-top: .1rem; }
+  .sticky-context {
+    position: sticky;
+    top: .2rem;
+    z-index: 2;
+    background: #f8fafc;
+    border: 1px solid #dbe6f2;
+    border-radius: 10px;
+    padding: .52rem .6rem;
+    margin-bottom: .65rem;
+  }
+  .sticky-context strong { color: #1f3552; }
+  .subject-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: .35rem;
+    padding: .2rem .5rem;
+    border-radius: 999px;
+    border: 1px solid #d2dbe8;
+    background: #eef3f9;
+    color: #1f3552;
+    font-size: .76rem;
+    font-weight: 700;
+    margin-left: .45rem;
+  }
+  .line-preview {
+    background: #f8fafc;
+    border: 1px solid #dbe6f2;
+    border-radius: 10px;
+    padding: .55rem .65rem;
+    margin-top: .55rem;
+    font-size: .78rem;
+    color: #324861;
+  }
   @media (max-width: 900px) {
     .grid { grid-template-columns: 1fr; }
     .row { grid-template-columns: 1fr; }
+    .teacher-loader { grid-template-columns: 1fr; }
   }
 </style>
 </head>
@@ -272,20 +341,142 @@
           <div class="out" id="promo-output">Waiting for action…</div>
         </div>
       </section>
+
+      <section class="card wide">
+        <h2>Teacher Class Loader (Simple)</h2>
+        <div class="body">
+          <div class="teacher-loader">
+            <div class="teacher-panel">
+              <label for="loader-teacher-search">Step 1: Select teacher</label>
+              <input id="loader-teacher-search" placeholder="Search by name or email">
+              <div class="teacher-list" id="loader-teacher-list">
+                <div class="subtle">Loading teaching staff…</div>
+              </div>
+            </div>
+            <div class="teacher-panel">
+              <div class="sticky-context" id="loader-context-banner">
+                Adding classes for: <strong>Select a teacher</strong>
+                <span class="subject-badge" id="loader-subject-badge">Subject: not selected</span>
+              </div>
+              <div class="row">
+                <div>
+                  <label for="loader-year">Academic year label</label>
+                  <input id="loader-year" value="2026-2027">
+                </div>
+                <div>
+                  <label for="loader-subject">Step 2: Select subject</label>
+                  <select id="loader-subject">
+                    <option value="">Choose subject…</option>
+                    <option value="art">Art</option>
+                    <option value="drama">Drama</option>
+                  </select>
+                </div>
+              </div>
+              <label for="loader-class-lines">Step 3: Add classes (one class per line)</label>
+              <p class="subtle">Use format: <code>S1, D1, S1 Drama D1</code> or <code>S2, A3</code>. Subject is fixed from Step 2 to avoid confusion.</p>
+              <textarea id="loader-class-lines" placeholder="S1, D1, S1 Drama D1&#10;S1, D2, S1 Drama D2"></textarea>
+              <div class="line-preview" id="loader-line-preview">No classes parsed yet.</div>
+              <label class="line"><input type="checkbox" id="loader-replace-existing"> Replace this teacher's existing classes for selected subject + year</label>
+              <div class="btns">
+                <button class="ghost" id="loader-refresh-staff-btn">Refresh staff list</button>
+                <button class="secondary" id="loader-load-btn">Load existing classes</button>
+                <button class="ghost" id="loader-clear-btn">Clear class lines</button>
+                <button id="loader-save-btn">Save classes</button>
+              </div>
+              <div class="out" id="loader-output">Pick a teacher to begin.</div>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   </div>
 
 <script>
 (function() {
   var csvRowsCache = null;
+  var loaderState = {
+    teachers: [],
+    filteredTeachers: [],
+    selectedTeacherId: '',
+    selectedTeacherName: '',
+    selectedTeacherEmail: ''
+  };
 
   function toPretty(value) {
     try { return JSON.stringify(value, null, 2); } catch (e) { return String(value); }
   }
 
+  function escapeHtml(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
   function setOut(el, value) {
     var node = document.getElementById(el);
     if (node) node.textContent = toPretty(value);
+  }
+
+  function normalizeTrackerSubject(value) {
+    var raw = String(value || '').trim().toLowerCase();
+    if (!raw) return '';
+    if (raw === 'art' || raw === 'art & design' || raw === 'art and design') return 'art';
+    if (raw === 'drama') return 'drama';
+    return '';
+  }
+
+  function subjectLabel(subject) {
+    var key = normalizeTrackerSubject(subject);
+    if (key === 'art') return 'Art';
+    if (key === 'drama') return 'Drama';
+    return 'not selected';
+  }
+
+  function parseYearLevelToken(value) {
+    var raw = String(value || '').trim();
+    var m = /^s?([1-6])$/i.exec(raw);
+    if (!m) return '';
+    return 'S' + m[1];
+  }
+
+  function parserSampleName(yearLevel, subject, classCode) {
+    var label = subjectLabel(subject);
+    return String(yearLevel || '').trim() + ' ' + label + ' ' + String(classCode || '').trim();
+  }
+
+  function parseClassLines(rawText, selectedSubject) {
+    var lines = String(rawText || '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n');
+    var rows = [];
+    var errors = [];
+    for (var i = 0; i < lines.length; i++) {
+      var lineNo = i + 1;
+      var line = String(lines[i] || '').trim();
+      if (!line) continue;
+      var parts = line.split(/[\t,;|]/).map(function(part) {
+        return String(part || '').trim();
+      }).filter(function(part) { return part !== ''; });
+      if (parts.length < 2) {
+        errors.push('Line ' + lineNo + ': use at least year level and class code (example: S1, D1)');
+        continue;
+      }
+      var yearLevel = parseYearLevelToken(parts[0]);
+      var classCode = String(parts[1] || '').trim();
+      var className = String(parts.slice(2).join(' ') || '').trim();
+      if (!yearLevel || !classCode) {
+        errors.push('Line ' + lineNo + ': invalid year level or class code');
+        continue;
+      }
+      if (!className) className = parserSampleName(yearLevel, selectedSubject, classCode);
+      rows.push({
+        year_level: yearLevel,
+        class_code: classCode,
+        class_name: className
+      });
+    }
+    return { rows: rows, errors: errors };
   }
 
   function parseJsonFrom(id) {
@@ -438,9 +629,197 @@
     var bulkYear = document.getElementById('bulk-year');
     var fromYear = document.getElementById('promo-from-year');
     var toYear = document.getElementById('promo-to-year');
+    var loaderYear = document.getElementById('loader-year');
     if (bulkYear && !bulkYear.value) bulkYear.value = year;
     if (fromYear && !fromYear.value) fromYear.value = year;
     if (toYear && !toYear.value) toYear.value = nextAcademicYear(year);
+    if (loaderYear && !loaderYear.value) loaderYear.value = year;
+  }
+
+  function selectedLoaderSubject() {
+    return normalizeTrackerSubject(document.getElementById('loader-subject').value || '');
+  }
+
+  function updateLoaderContext() {
+    var badge = document.getElementById('loader-subject-badge');
+    var banner = document.getElementById('loader-context-banner');
+    var subject = selectedLoaderSubject();
+    var subjectText = subjectLabel(subject);
+    var teacherText = loaderState.selectedTeacherName
+      ? loaderState.selectedTeacherName + ' (' + loaderState.selectedTeacherEmail + ')'
+      : 'Select a teacher';
+    if (badge) badge.textContent = 'Subject: ' + subjectText;
+    if (banner) {
+      banner.innerHTML = 'Adding classes for: <strong>' + escapeHtml(teacherText) + '</strong>' +
+        '<span class="subject-badge" id="loader-subject-badge">Subject: ' + subjectText + '</span>';
+    }
+  }
+
+  function setLoaderEnabledState() {
+    var hasTeacher = !!loaderState.selectedTeacherId;
+    var hasSubject = !!selectedLoaderSubject();
+    var enabled = hasTeacher && hasSubject;
+    var classLines = document.getElementById('loader-class-lines');
+    var replaceBox = document.getElementById('loader-replace-existing');
+    var loadBtn = document.getElementById('loader-load-btn');
+    var saveBtn = document.getElementById('loader-save-btn');
+    if (classLines) classLines.disabled = !enabled;
+    if (replaceBox) replaceBox.disabled = !enabled;
+    if (loadBtn) loadBtn.disabled = !enabled;
+    if (saveBtn) saveBtn.disabled = !enabled;
+  }
+
+  function renderTeacherList() {
+    var listNode = document.getElementById('loader-teacher-list');
+    if (!listNode) return;
+    if (!loaderState.filteredTeachers.length) {
+      listNode.innerHTML = '<div class="subtle">No teachers found.</div>';
+      return;
+    }
+    listNode.innerHTML = loaderState.filteredTeachers.map(function(teacher) {
+      var active = teacher.teacher_id === loaderState.selectedTeacherId ? 'active' : '';
+      return '' +
+        '<button class="teacher-item ' + active + '" data-teacher-id="' + teacher.teacher_id + '">' +
+          '<div class="teacher-name">' + escapeHtml(teacher.display_name || teacher.email || 'Unknown') + '</div>' +
+          '<div class="teacher-email">' + escapeHtml(teacher.email || 'No email') + '</div>' +
+        '</button>';
+    }).join('');
+    Array.prototype.forEach.call(listNode.querySelectorAll('.teacher-item'), function(btn) {
+      btn.addEventListener('click', function() {
+        var teacherId = String(btn.getAttribute('data-teacher-id') || '');
+        var teacher = loaderState.teachers.find(function(item) { return item.teacher_id === teacherId; });
+        if (!teacher) return;
+        loaderState.selectedTeacherId = teacher.teacher_id;
+        loaderState.selectedTeacherName = teacher.display_name || teacher.email || 'Unknown';
+        loaderState.selectedTeacherEmail = teacher.email || '';
+        renderTeacherList();
+        updateLoaderContext();
+        setLoaderEnabledState();
+        setOut('loader-output', {
+          status: 'teacher_selected',
+          teacher: loaderState.selectedTeacherName,
+          email: loaderState.selectedTeacherEmail
+        });
+      });
+    });
+  }
+
+  function filterTeacherList() {
+    var q = String(document.getElementById('loader-teacher-search').value || '').trim().toLowerCase();
+    loaderState.filteredTeachers = loaderState.teachers.filter(function(teacher) {
+      if (!q) return true;
+      var hay = (String(teacher.display_name || '') + ' ' + String(teacher.email || '')).toLowerCase();
+      return hay.indexOf(q) !== -1;
+    });
+    renderTeacherList();
+  }
+
+  function loadTeachingStaffForLoader() {
+    requireSchoolManager();
+    return window.DataService.listTeachingStaffForClassLoader().then(function(rows) {
+      loaderState.teachers = (rows || []).map(function(row) {
+        return {
+          teacher_id: row.teacher_id,
+          display_name: row.display_name || row.email || 'Unknown',
+          email: row.email || '',
+          role: row.role || 'teacher'
+        };
+      });
+      if (loaderState.selectedTeacherId && !loaderState.teachers.some(function(t) { return t.teacher_id === loaderState.selectedTeacherId; })) {
+        loaderState.selectedTeacherId = '';
+        loaderState.selectedTeacherName = '';
+        loaderState.selectedTeacherEmail = '';
+      }
+      filterTeacherList();
+      updateLoaderContext();
+      setLoaderEnabledState();
+      setOut('loader-output', { status: 'staff_loaded', staff_count: loaderState.teachers.length });
+    });
+  }
+
+  function loaderLinesFromRows(rows) {
+    return (rows || []).map(function(row) {
+      return String(row.year_level_label || row.year_level || '') + ', ' + String(row.class_code || '') + ', ' + String(row.class_name || '');
+    }).join('\n');
+  }
+
+  function refreshLoaderLinePreview() {
+    var preview = document.getElementById('loader-line-preview');
+    if (!preview) return;
+    var subject = selectedLoaderSubject();
+    if (!subject) {
+      preview.textContent = 'Choose a subject first. Every class entered here will map to that tracker.';
+      return;
+    }
+    var parsed = parseClassLines(document.getElementById('loader-class-lines').value || '', subject);
+    if (!parsed.rows.length && !parsed.errors.length) {
+      preview.textContent = 'No classes parsed yet.';
+      return;
+    }
+    var lines = [];
+    if (parsed.rows.length) {
+      lines.push(parsed.rows.length + ' classes ready for ' + subjectLabel(subject) + ' Tracker.');
+      lines.push(parsed.rows.slice(0, 3).map(function(row) {
+        return row.year_level + ' • ' + row.class_code + ' • ' + row.class_name;
+      }).join(' | '));
+      if (parsed.rows.length > 3) lines.push('…and ' + (parsed.rows.length - 3) + ' more');
+    }
+    if (parsed.errors.length) lines.push(parsed.errors.slice(0, 2).join(' | '));
+    preview.textContent = lines.join(' ');
+  }
+
+  function loadSelectedTeacherSubjectClasses() {
+    requireSchoolManager();
+    if (!loaderState.selectedTeacherId) throw new Error('Select a teacher first');
+    var subject = selectedLoaderSubject();
+    if (!subject) throw new Error('Select subject before loading classes');
+    var year = String(document.getElementById('loader-year').value || '').trim();
+    if (!year) throw new Error('Academic year label is required');
+    return window.DataService.listTeacherSubjectClassesForLoader({
+      teacherId: loaderState.selectedTeacherId,
+      subject: subject,
+      academicYearLabel: year
+    }).then(function(rows) {
+      document.getElementById('loader-class-lines').value = loaderLinesFromRows(rows);
+      refreshLoaderLinePreview();
+      setOut('loader-output', {
+        status: 'classes_loaded',
+        teacher: loaderState.selectedTeacherName,
+        subject: subject,
+        academic_year_label: year,
+        class_count: rows.length
+      });
+    });
+  }
+
+  function saveSelectedTeacherSubjectClasses() {
+    requireSchoolManager();
+    if (!loaderState.selectedTeacherId) throw new Error('Select a teacher first');
+    var subject = selectedLoaderSubject();
+    if (!subject) throw new Error('Select subject before saving classes');
+    var year = String(document.getElementById('loader-year').value || '').trim();
+    if (!year) throw new Error('Academic year label is required');
+    var parsed = parseClassLines(document.getElementById('loader-class-lines').value || '', subject);
+    if (!parsed.rows.length) throw new Error('Add at least one class row before saving');
+    if (parsed.errors.length) throw new Error(parsed.errors.slice(0, 3).join(' | '));
+    var replaceExisting = !!document.getElementById('loader-replace-existing').checked;
+    return window.DataService.upsertTeacherSubjectClassesForLoader({
+      teacherId: loaderState.selectedTeacherId,
+      subject: subject,
+      academicYearLabel: year,
+      classes: parsed.rows,
+      replaceExisting: replaceExisting
+    }).then(function(result) {
+      setOut('loader-output', {
+        status: 'classes_saved',
+        teacher: loaderState.selectedTeacherName,
+        subject: subject,
+        tracker: subjectLabel(subject) + ' Tracker',
+        academic_year_label: year,
+        result: result
+      });
+      return loadSelectedTeacherSubjectClasses();
+    });
   }
 
   function loadSample() {
@@ -546,12 +925,15 @@
     var btn = document.getElementById(id);
     if (!btn) return;
     btn.addEventListener('click', function() {
-      setOut(id.indexOf('promo-') === 0 ? 'promo-output' : 'bulk-output', { status: 'running' });
+      var outputId = 'bulk-output';
+      if (id.indexOf('promo-') === 0) outputId = 'promo-output';
+      if (id.indexOf('loader-') === 0) outputId = 'loader-output';
+      setOut(outputId, { status: 'running' });
       withBusy(busyIds, true);
       Promise.resolve()
         .then(action)
         .catch(function(err) {
-          setOut(id.indexOf('promo-') === 0 ? 'promo-output' : 'bulk-output', {
+          setOut(outputId, {
             error: err && err.message ? err.message : String(err)
           });
         })
@@ -564,6 +946,8 @@
   document.addEventListener('DOMContentLoaded', function() {
     bindDefaults();
     loadSample();
+    updateLoaderContext();
+    setLoaderEnabledState();
     var csvInput = document.getElementById('bulk-csv-file');
     if (csvInput) csvInput.addEventListener('change', handleCsvFileSelected);
     var bulkJson = document.getElementById('bulk-json');
@@ -580,6 +964,34 @@
     bindButton('bulk-run-btn', handleBulkRun, ['bulk-sample-btn', 'bulk-template-btn', 'bulk-detect-btn', 'bulk-run-btn']);
     bindButton('promo-preview-btn', handlePreviewPromotion, ['promo-preview-btn', 'promo-commit-btn']);
     bindButton('promo-commit-btn', handleCommitPromotion, ['promo-preview-btn', 'promo-commit-btn']);
+
+    var teacherSearch = document.getElementById('loader-teacher-search');
+    if (teacherSearch) {
+      teacherSearch.addEventListener('input', filterTeacherList);
+    }
+    var subjectSelect = document.getElementById('loader-subject');
+    if (subjectSelect) {
+      subjectSelect.addEventListener('change', function() {
+        updateLoaderContext();
+        setLoaderEnabledState();
+        refreshLoaderLinePreview();
+      });
+    }
+    var classLines = document.getElementById('loader-class-lines');
+    if (classLines) classLines.addEventListener('input', refreshLoaderLinePreview);
+
+    bindButton('loader-refresh-staff-btn', loadTeachingStaffForLoader, ['loader-refresh-staff-btn', 'loader-load-btn', 'loader-save-btn']);
+    bindButton('loader-load-btn', loadSelectedTeacherSubjectClasses, ['loader-refresh-staff-btn', 'loader-load-btn', 'loader-save-btn']);
+    bindButton('loader-save-btn', saveSelectedTeacherSubjectClasses, ['loader-refresh-staff-btn', 'loader-load-btn', 'loader-save-btn']);
+    bindButton('loader-clear-btn', function() {
+      var node = document.getElementById('loader-class-lines');
+      if (node) node.value = '';
+      refreshLoaderLinePreview();
+      setOut('loader-output', { status: 'class_lines_cleared' });
+    }, ['loader-clear-btn']);
+    Promise.resolve().then(loadTeachingStaffForLoader).catch(function(err) {
+      setOut('loader-output', { error: err && err.message ? err.message : String(err) });
+    });
   });
 })();
 </script>
