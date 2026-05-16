@@ -732,6 +732,20 @@
       return normalizeTrackerSubject(subject);
     },
 
+    listAcademicYears: function() {
+      if (!useSupabase()) return Promise.resolve([]);
+      return getSessionWithRetry({ retries: 4, delayMs: 250 }).then(function(session) {
+        if (!session) throw new Error('Not authenticated');
+        return window.supabase.from('academic_years')
+          .select('id, label')
+          .order('label', { ascending: false })
+          .then(function(r) {
+            if (r.error) throw r.error;
+            return Array.isArray(r.data) ? r.data : [];
+          });
+      });
+    },
+
     listTeachingStaffForClassLoaderDetailed: function() {
       if (!useSupabase()) {
         return Promise.resolve({
