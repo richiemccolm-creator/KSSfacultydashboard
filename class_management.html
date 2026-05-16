@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Class Management</title>
+  <script src="app-version.js"></script>
+  <script>
+    (function() {
+      if (window.ensureAppVersionInUrl) window.ensureAppVersionInUrl();
+    })();
+  </script>
+
+  <link rel="stylesheet" href="design-tokens.css" />
+  <link rel="stylesheet" href="faculty-shell.css" />
+  <link rel="stylesheet" href="class_management.css" />
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <script src="config.js"></script>
+  <script src="supabase-init.js"></script>
+  <script src="allowlist-check.js"></script>
+  <script src="data-service.js"></script>
+  <script src="auth-guard.js"></script>
+  <script src="faculty-shell.js"></script>
+  <script type="module" src="class_management.js"></script>
+</head>
+<body>
+  <faculty-shell active="class-management" page-title="Class Management" subtitle="Upload, preview and manage classes">
+    <main class="cm-app">
+      <section class="cm-top">
+        <div>
+          <h1>Class Management</h1>
+          <p>Upload CSV/XLSX class lists, validate staff routing, and apply append-only imports.</p>
+        </div>
+        <div class="cm-actions">
+          <button id="download-template-csv" class="btn btn-secondary">Download CSV Template</button>
+          <button id="download-template-xlsx" class="btn">Download XLSX Template</button>
+          <button id="open-manual-add" class="btn btn-outline">Add Class Manually</button>
+        </div>
+      </section>
+
+      <section class="card cm-import">
+        <h3>Bulk Import</h3>
+        <div class="cm-drop">
+          <p>Drag and drop or choose a CSV/XLSX file (max 5MB)</p>
+          <input id="bulk-file" type="file" accept=".csv,.xlsx,.xls" />
+          <p class="cm-meta">Import mode is append-only; nothing is deleted.</p>
+          <p id="bulk-error" class="cm-error" role="alert"></p>
+        </div>
+      </section>
+
+      <section class="card">
+        <h3>Current Classes</h3>
+        <div class="cm-filterbar">
+          <input id="class-search" placeholder="Search class, teacher, subject" />
+          <select id="subject-filter">
+            <option value="">All subjects</option>
+            <option value="art">Art</option>
+            <option value="drama">Drama</option>
+            <option value="photography">Photography</option>
+          </select>
+          <button id="refresh-classes" class="btn btn-outline">Refresh</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Class</th>
+                <th>Code</th>
+                <th>Year</th>
+                <th>Subject</th>
+                <th>Teacher</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="classes-tbody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </faculty-shell>
+</body>
+</html>

@@ -12,7 +12,6 @@
     if (window.ensureAppVersionInUrl) window.ensureAppVersionInUrl();
   })();
 </script>
-<script src="embed-chrome.js"></script>
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-init.js"></script>
@@ -21,7 +20,12 @@
 <script src="data-service.js"></script>
 <script src="staff-display-name.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://api.fontshare.com/v2/css?f[]=general-sans@500,600,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="design-tokens.css">
+<link rel="stylesheet" href="faculty-shell.css">
+<script type="module" src="faculty-shell.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--navy:#1e2d4a;--navy-dark:#16243c;--accent-drama:#4a7fd4;--accent-art:#c0622a;--white:#fff;--bg:#f0f2f5;--card:#fff;--border:#e2e8f0;--text:#1a202c;--text2:#4a5568;--text3:#718096;--warn:#b45309}
@@ -138,25 +142,7 @@ body.is-embedded .inline-nav{display:flex}
 </style>
 </head>
 <body>
-<div class="app">
-  <aside class="dash-sidebar">
-    <a href="faculty-hub.html" class="dash-sidebar-brand" title="Faculty Hub">
-      <img src="faculty-hub-logo.png" alt="Faculty Hub" class="dash-sidebar-logo">
-    </a>
-    <div class="dash-sidebar-title">Tracking & Monitoring</div>
-    <button class="dash-nav-btn active" data-view="overview" onclick="setView('overview')">Overview</button>
-    <button class="dash-nav-btn" data-view="at-risk" onclick="setView('at-risk')">At Risk</button>
-    <button class="dash-nav-btn" data-view="pivot" onclick="setView('pivot')">Pivot Analysis</button>
-    <button class="dash-nav-btn" data-view="detail" onclick="setView('detail')">Drill-through</button>
-    <button class="dash-nav-btn" data-view="search" onclick="setView('search')">Pupil Search</button>
-    <button class="dash-nav-btn" data-view="profile" onclick="setView('profile')">Pupil Profile</button>
-    <a href="faculty-hub.html" class="dash-nav-btn" style="text-decoration:none">Faculty Hub</a>
-    <div class="dash-signout">
-      <button type="button" class="dash-nav-btn" style="background:none;border:none;cursor:pointer" onclick="try{(window.doSignOut||function(){window.clearSupabaseAuth&&window.clearSupabaseAuth();location.href='login.html?signout=1';})();}catch(e){window.clearSupabaseAuth&&window.clearSupabaseAuth();location.href='login.html?signout=1';}">Sign out</button>
-    </div>
-  </aside>
-
-  <main class="main">
+<faculty-shell active="tracking" page-title="Tracking & Monitoring" subtitle="Cross-filter analytics for Art and Drama">
     <div class="content">
       <div class="hero">
         <h1>Tracking & Monitoring Hub</h1>
@@ -306,8 +292,7 @@ body.is-embedded .inline-nav{display:flex}
         </div>
       </section>
     </div>
-  </main>
-</div>
+</faculty-shell>
 <div class="toast" id="toast"></div>
 <script>
 var HUB = {
@@ -335,6 +320,22 @@ function toast(msg) {
 }
 function safeText(v) { return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function jsEsc(v) { return String(v == null ? '' : v).replace(/\\/g, '\\\\').replace(/'/g, "\\'"); }
+function subjectBadgeClass(subject) {
+  var s = String(subject || '').toLowerCase();
+  if (s.indexOf('drama') !== -1) return 'badge-drama';
+  if (s.indexOf('photo') !== -1) return 'badge-photo';
+  return 'badge-art';
+}
+function rowClassForSubjects(subjectValue) {
+  var s = String(subjectValue || '').toLowerCase();
+  if (s.indexOf('drama') !== -1) return 'row-drama';
+  if (s.indexOf('photo') !== -1) return 'row-photo';
+  return 'row-art';
+}
+function subjectBadgeHtml(subject) {
+  var text = String(subject || '');
+  return '<span class="badge ' + subjectBadgeClass(text) + '">' + safeText(text) + '</span>';
+}
 function avg(values) {
   var nums = (values || []).filter(function(v) { return typeof v === 'number' && v > 0; });
   if (!nums.length) return null;
@@ -847,7 +848,7 @@ function renderDetail() {
     return;
   }
   body.innerHTML = rows.slice(0, 300).map(function(r){
-    return '<tr><td>' + safeText(r.name) + '</td><td>' + safeText(r.yg.toUpperCase()) + '</td><td>' + safeText(r.cls) + '</td><td>' + safeText(r.teacher) + '</td><td>' + safeText(r.subject) + '</td><td>' + safeText(r.tp.toUpperCase()) + '</td><td>' + (r.scoreAvg != null ? r.scoreAvg.toFixed(2) : '—') + '</td><td>' + safeText(r.riskBand) + '</td><td><button class="btn btn-ghost btn-small" onclick="openProfile(\\'' + jsEsc(r.pupilKey) + '\\')">Profile</button></td></tr>';
+    return '<tr class="' + rowClassForSubjects(r.subject) + '"><td>' + safeText(r.name) + '</td><td>' + safeText(r.yg.toUpperCase()) + '</td><td>' + safeText(r.cls) + '</td><td>' + safeText(r.teacher) + '</td><td>' + subjectBadgeHtml(r.subject) + '</td><td>' + safeText(r.tp.toUpperCase()) + '</td><td>' + (r.scoreAvg != null ? r.scoreAvg.toFixed(2) : '—') + '</td><td>' + safeText(r.riskBand) + '</td><td><button class="btn btn-ghost btn-small" onclick="openProfile(\\'' + jsEsc(r.pupilKey) + '\\')">Profile</button></td></tr>';
   }).join('');
 }
 function setDrillContext(ctx) {
@@ -879,13 +880,15 @@ function renderSearch() {
   }
   tbody.innerHTML = rows.map(function(p){
     var riskLabel = p.riskScore >= 4 ? 'High' : p.riskScore >= 2 ? 'Medium' : 'Low';
-    return '<tr><td>' + safeText(p.name) + '</td><td>' + safeText(p.yg.toUpperCase()) + '</td><td>' + safeText(p.cls) + '</td><td>' + safeText(p.teachers) + '</td><td>' + safeText(p.subjects.join(' + ')) + '</td><td>' + riskLabel + '</td><td><button class="btn btn-ghost btn-small" onclick="openProfile(\\'' + jsEsc(p.pupilKey) + '\\')">Open</button></td></tr>';
+    var subjectsRaw = p.subjects.join(' + ');
+    var badges = p.subjects.map(function(s){ return subjectBadgeHtml(s); }).join(' ');
+    return '<tr class="' + rowClassForSubjects(subjectsRaw) + '"><td>' + safeText(p.name) + '</td><td>' + safeText(p.yg.toUpperCase()) + '</td><td>' + safeText(p.cls) + '</td><td>' + safeText(p.teachers) + '</td><td>' + badges + '</td><td>' + riskLabel + '</td><td><button class="btn btn-ghost btn-small" onclick="openProfile(\\'' + jsEsc(p.pupilKey) + '\\')">Open</button></td></tr>';
   }).join('');
   if (cards) {
     cards.innerHTML = rows.map(function(p){
       var riskLabel = p.riskScore >= 4 ? 'High' : p.riskScore >= 2 ? 'Medium' : 'Low';
       return '<div class="search-mobile-card"><div class="search-mobile-name">' + safeText(p.name) + '</div><div class="search-mobile-meta">' +
-        safeText(p.cls) + ' · ' + safeText(p.yg.toUpperCase()) + '<br>' + safeText(p.teachers) + '<br>' + safeText(p.subjects.join(' + ')) + ' · Risk: ' + riskLabel +
+        safeText(p.cls) + ' · ' + safeText(p.yg.toUpperCase()) + '<br>' + safeText(p.teachers) + '<br>' + p.subjects.map(function(s){ return subjectBadgeHtml(s); }).join(' ') + ' · Risk: ' + riskLabel +
         '</div><button class="btn btn-ghost btn-small" onclick="openProfile(\\'' + jsEsc(p.pupilKey) + '\\')">Open profile</button></div>';
     }).join('');
   }
@@ -902,7 +905,7 @@ function populateProfileSelect() {
 }
 function subjectProfileBlock(pupil, subject, subjectLabel, accentClass) {
   var entry = pupil.subjects[subject];
-  if (!entry) return '<div class="subject-card"><div class="subject-head"><div class="subject-label ' + accentClass + '">' + subjectLabel + '</div><span class="chip">No data</span></div><div class="empty">No tracker records yet.</div></div>';
+  if (!entry) return '<div class="subject-card"><div class="subject-head"><div class="subject-label ' + accentClass + '">' + subjectBadgeHtml(subjectLabel) + '</div><span class="chip">No data</span></div><div class="empty">No tracker records yet.</div></div>';
   var tps = Object.keys(entry.scores || {}).sort(tpSort);
   var values = tps.map(function(tp) {
     var row = entry.scores[tp];
@@ -912,7 +915,7 @@ function subjectProfileBlock(pupil, subject, subjectLabel, accentClass) {
   }).filter(function(x){ return x.v != null; });
   var latest = values.length ? values[values.length - 1].v : null;
   var notes = entry.profile || {};
-  return '<div class="subject-card"><div class="subject-head"><div class="subject-label ' + accentClass + '">' + subjectLabel + '</div><span class="chip">Latest ' + (latest != null ? latest.toFixed(2) : '—') + '</span></div>' +
+  return '<div class="subject-card"><div class="subject-head"><div class="subject-label ' + accentClass + '">' + subjectBadgeHtml(subjectLabel) + '</div><span class="chip">Latest ' + (latest != null ? latest.toFixed(2) : '—') + '</span></div>' +
     '<div class="tp-list">' + (values.length ? values.map(function(v){ return '<div class="tp-row"><span>' + safeText(v.tp.toUpperCase()) + '</span><strong>' + v.v.toFixed(2) + '</strong></div>'; }).join('') : '<div class="empty">No TP data.</div>') + '</div>' +
     '<div style="margin-top:.55rem;font-size:.73rem;color:var(--text2)"><strong>Teacher notes:</strong> ' + safeText(notes.teacherNotes || 'No notes yet.') + '</div>' +
     '<div style="margin-top:.32rem;font-size:.73rem;color:var(--text2)"><strong>Pupil reflection:</strong> ' + safeText(notes.pupilReflection || 'No reflection yet.') + '</div></div>';

@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>Triangulation of Evidence — HGIOS4 — Knightswood Secondary</title>
-<script src="embed-chrome.js"></script>
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-init.js"></script>
@@ -15,7 +14,9 @@
 <script src="triangulation-service.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@700;800&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://api.fontshare.com/v2/css?f[]=general-sans@500,600,700&display=swap" rel="stylesheet">
 <link rel="icon" type="image/png" href="faculty-hub-logo.png">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
@@ -231,6 +232,19 @@ function normalizeLikertValue(v) {
   if (/^strongly\s+disagree$/i.test(s)) return 'Strongly disagree';
   return v.trim();
 }
+function escHtml(v) {
+  return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function subjectBadgeClass(subject) {
+  var s = String(subject || '').toLowerCase();
+  if (s.indexOf('drama') !== -1) return 'badge-drama';
+  if (s.indexOf('photo') !== -1) return 'badge-photo';
+  return 'badge-art';
+}
+function subjectBadgeHtml(subject) {
+  if (!subject) return '';
+  return '<span class="badge ' + subjectBadgeClass(subject) + '">' + escHtml(subject) + '</span>';
+}
 
 function setTab(id) {
   document.querySelectorAll('.dash-nav-btn').forEach(function(b) { b.classList.remove('active'); });
@@ -373,7 +387,7 @@ function renderSurveyView(surveys) {
     subjectFilterEl.innerHTML = opts;
   }
   var respCount = (merged.overallRating || merged.overall || []).length;
-  st.innerHTML = '<strong>' + surveys.length + ' survey upload(s)</strong> · ' + respCount + ' responses' + (subjectFilter ? ' · ' + subjectFilter : '');
+  st.innerHTML = '<strong>' + surveys.length + ' survey upload(s)</strong> · ' + respCount + ' responses' + (subjectFilter ? ' · ' + subjectBadgeHtml(subjectFilter) : '');
   var themeLabels = { learningIntentions: 'Learning Intentions', successCriteria: 'Success Criteria', activeLearning: 'Active Learning', support: 'Support / Ethos', feedback: 'Feedback', challenge: 'Challenge', digitalLearning: 'Digital Learning' };
   var sa = computeStrengthAndDev(merged.likert || {}, themeLabels);
   if (strengthsEl) {
@@ -581,8 +595,9 @@ function renderFocusGroupList(list) {
   if (!list || !list.length) { el.innerHTML = '<div class="empty-s">No focus group sessions yet.</div>'; return; }
   el.innerHTML = list.map(function(item) {
     var d = item.data || {};
+    var subject = d.subject || '';
     return '<div style="padding:.75rem;border-bottom:1px solid var(--border);font-size:.82rem">' +
-      '<strong>' + (d.date || '—') + '</strong> · ' + (d.yearGroup || '') + ' ' + (d.subject || '') +
+      '<strong>' + escHtml(d.date || '—') + '</strong> · ' + escHtml(d.yearGroup || '') + ' ' + subjectBadgeHtml(subject) +
       (d.numPupils ? ' · ' + d.numPupils + ' pupils' : '') +
       (d.overallRating ? ' · Rating: ' + d.overallRating + '/10' : '') +
       '</div>';
