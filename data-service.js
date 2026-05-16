@@ -804,7 +804,7 @@
                 teacher_id: row.user_id,
                 email: row.email || '',
                 display_name: row.teacherName || row.email || 'Unknown',
-                role: 'teacher'
+                role: row.role || row.user_role || 'teacher'
               };
             }, 'staff_work');
           });
@@ -818,7 +818,7 @@
                 teacher_id: row.user_id,
                 email: row.email || '',
                 display_name: row.teacherName || row.email || 'Unknown',
-                role: 'teacher'
+                role: row.role || row.user_role || 'teacher'
               };
             }, 'monitoring');
           });
@@ -835,7 +835,7 @@
                   teacher_id: row.id,
                   email: row.email || '',
                   display_name: row.display_name || row.email || 'Unknown',
-                  role: 'teacher'
+                  role: row.role || row.user_role || 'teacher'
                 };
               }, 'profiles');
             }).catch(function() {});
