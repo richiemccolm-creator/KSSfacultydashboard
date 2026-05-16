@@ -99,6 +99,7 @@
     if (!value) return null;
     if (value === 'art' || value === 'art & design' || value === 'art and design') return 'art';
     if (value === 'drama') return 'drama';
+    if (value === 'photography' || value === 'photo') return 'photography';
     return null;
   }
   function currentAcademicYearLabel() {
@@ -731,52 +732,133 @@
       return normalizeTrackerSubject(subject);
     },
 
-    listTeachingStaffForClassLoader: function() {
-      if (!useSupabase()) return Promise.resolve([]);
+    listTeachingStaffForClassLoaderDetailed: function() {
+      if (!useSupabase()) {
+        return Promise.resolve({
+          rows: [],
+          diagnostics: { source: 'local_mode', total: 0, fallback_steps: [] }
+        });
+      }
       var self = this;
       return getSessionWithRetry({ retries: 4, delayMs: 250 }).then(function(session) {
         if (!session) throw new Error('Not authenticated');
-        function buildFallbackList() {
-          return Promise.all([
-            self.getStaffListWithWorkForAdmin().catch(function() { return []; }),
-            self.getAllForMonitoring().catch(function() { return []; })
-          ]).then(function(parts) {
-            var staffRows = Array.isArray(parts[0]) ? parts[0] : [];
-            var monitoringRows = Array.isArray(parts[1]) ? parts[1] : [];
-            var byUser = {};
-            staffRows.forEach(function(row) {
-              var userId = String(row && row.user_id || '').trim();
-              if (!userId) return;
-              byUser[userId] = {
-                teacher_id: userId,
-                email: row.email || '',
-                display_name: row.teacherName || row.email || 'Unknown',
-                role: 'teacher'
-              };
-            });
-            monitoringRows.forEach(function(row) {
-              var userId = String(row && row.user_id || '').trim();
-              if (!userId || byUser[userId]) return;
-              byUser[userId] = {
-                teacher_id: userId,
-                email: row.email || '',
-                display_name: row.teacherName || row.email || 'Unknown',
-                role: 'teacher'
-              };
-            });
-            return Object.keys(byUser).map(function(key) { return byUser[key]; })
-              .sort(function(a, b) { return String(a.display_name || '').localeCompare(String(b.display_name || '')); });
+        var diagnostics = {
+          source: 'none',
+          total: 0,
+          rpc_used: false,
+          fallback_steps: [],
+          fallback_used: false,
+          source_counts: { rpc: 0, staff_work: 0, monitoring: 0, profiles: 0 }
+        };
+        function addRows(target, rows, mapper, stepName) {
+          (rows || []).forEach(function(row) {
+            var mapped = mapper(row);
+            if (!mapped || !mapped.teacher_id) return;
+            var key = String(mapped.teacher_id).trim();
+            if (!key) return;
+            if (!target[key]) target[key] = mapped;
+            if (!target[key].display_name && mapped.display_name) target[key].display_name = mapped.display_name;
+            if (!target[key].email && mapped.email) target[key].email = mapped.email;
           });
+          diagnostics.fallback_steps.push(stepName + ':' + Number((rows || []).length));
+          if (diagnostics.source_counts && diagnostics.source_counts[stepName] != null) {
+            diagnostics.source_counts[stepName] += Number((rows || []).length);
+          }
         }
+        function sortedRows(byUser) {
+          return Object.keys(byUser).map(function(key) { return byUser[key]; })
+            .sort(function(a, b) {
+              var aa = String(a.display_name || a.email || '').toLowerCase();
+              var bb = String(b.display_name || b.email || '').toLowerCase();
+              return aa.localeCompare(bb);
+            });
+        }
+        var byUser = {};
         return window.supabase.rpc('list_teaching_staff_for_class_loader').then(function(r) {
           if (r.error) throw r.error;
-          var rows = Array.isArray(r.data) ? r.data : [];
-          if (rows.length) return rows;
-          return buildFallbackList();
+          diagnostics.rpc_used = true;
+          addRows(byUser, r.data || [], function(row) {
+            return {
+              teacher_id: row.teacher_id,
+              email: row.email || '',
+              display_name: row.display_name || row.email || 'Unknown',
+              role: row.role || 'teacher'
+            };
+          }, 'rpc');
+          if (Object.keys(byUser).length > 0) {
+            diagnostics.source = 'rpc';
+            diagnostics.total = Object.keys(byUser).length;
+            return { rows: sortedRows(byUser), diagnostics: diagnostics };
+          }
+          return null;
         }).catch(function(err) {
-          if (!isMissingRpcError(err)) return buildFallbackList();
-          return buildFallbackList();
+          diagnostics.fallback_steps.push('rpc_error:' + String(err && err.code || 'unknown'));
+          diagnostics.fallback_used = true;
+          return null;
+        }).then(function(found) {
+          if (found) return found;
+          diagnostics.fallback_used = true;
+          return self.getStaffListWithWorkForAdmin().catch(function() { return []; }).then(function(rows) {
+            addRows(byUser, rows || [], function(row) {
+              return {
+                teacher_id: row.user_id,
+                email: row.email || '',
+                display_name: row.teacherName || row.email || 'Unknown',
+                role: 'teacher'
+              };
+            }, 'staff_work');
+          });
+        }).then(function(found) {
+          if (found) return found;
+          if (Object.keys(byUser).length > 0) return null;
+          diagnostics.fallback_used = true;
+          return self.getAllForMonitoring().catch(function() { return []; }).then(function(rows) {
+            addRows(byUser, rows || [], function(row) {
+              return {
+                teacher_id: row.user_id,
+                email: row.email || '',
+                display_name: row.teacherName || row.email || 'Unknown',
+                role: 'teacher'
+              };
+            }, 'monitoring');
+          });
+        }).then(function(found) {
+          if (found) return found;
+          if (Object.keys(byUser).length > 0) return null;
+          diagnostics.fallback_used = true;
+          return window.supabase.from('profiles')
+            .select('id, email, display_name')
+            .then(function(r) {
+              if (r.error) return;
+              addRows(byUser, r.data || [], function(row) {
+                return {
+                  teacher_id: row.id,
+                  email: row.email || '',
+                  display_name: row.display_name || row.email || 'Unknown',
+                  role: 'teacher'
+                };
+              }, 'profiles');
+            }).catch(function() {});
+        }).then(function(found) {
+          if (found) return found;
+          var total = Object.keys(byUser).length;
+          diagnostics.total = total;
+          if (total > 0) {
+            if (diagnostics.fallback_steps.join(',').indexOf('staff_work') !== -1) diagnostics.source = 'fallback_staff_work';
+            else if (diagnostics.fallback_steps.join(',').indexOf('monitoring') !== -1) diagnostics.source = 'fallback_monitoring';
+            else if (diagnostics.fallback_steps.join(',').indexOf('profiles') !== -1) diagnostics.source = 'fallback_profiles';
+            else diagnostics.source = 'fallback_unknown';
+          } else {
+            diagnostics.source = 'empty';
+          }
+          return { rows: sortedRows(byUser), diagnostics: diagnostics };
         });
+      });
+    },
+
+    listTeachingStaffForClassLoader: function() {
+      return this.listTeachingStaffForClassLoaderDetailed().then(function(payload) {
+        return payload && Array.isArray(payload.rows) ? payload.rows : [];
       });
     },
 
@@ -787,19 +869,11 @@
       var subject = normalizeTrackerSubject(opts.subject);
       var academicYearLabel = String(opts.academicYearLabel || '').trim();
       if (!teacherId) return Promise.reject(new Error('Teacher is required'));
-      if (!subject) return Promise.reject(new Error('Subject must be Art or Drama'));
+      if (!subject) return Promise.reject(new Error('Subject must be Art, Drama, or Photography'));
       if (!academicYearLabel) return Promise.reject(new Error('Academic year label is required'));
       return getSessionWithRetry({ retries: 4, delayMs: 250 }).then(function(session) {
         if (!session) throw new Error('Not authenticated');
-        return window.supabase.rpc('list_teacher_subject_classes_for_loader', {
-          p_teacher_id: teacherId,
-          p_subject: subject,
-          p_academic_year_label: academicYearLabel
-        }).then(function(r) {
-          if (r.error) throw r.error;
-          return Array.isArray(r.data) ? r.data : [];
-        }).catch(function(err) {
-          if (!isMissingRpcError(err)) throw err;
+        function fallbackList() {
           return window.supabase.from('academic_years')
             .select('id, label')
             .eq('label', academicYearLabel)
@@ -838,6 +912,20 @@
                     });
                 });
             });
+        }
+        if (subject === 'photography') {
+          return fallbackList();
+        }
+        return window.supabase.rpc('list_teacher_subject_classes_for_loader', {
+          p_teacher_id: teacherId,
+          p_subject: subject,
+          p_academic_year_label: academicYearLabel
+        }).then(function(r) {
+          if (r.error) throw r.error;
+          return Array.isArray(r.data) ? r.data : [];
+        }).catch(function(err) {
+          if (!isMissingRpcError(err)) return fallbackList();
+          return fallbackList();
         });
       });
     },
@@ -851,9 +939,12 @@
       var classes = Array.isArray(opts.classes) ? opts.classes : [];
       var replaceExisting = !!opts.replaceExisting;
       if (!teacherId) return Promise.reject(new Error('Teacher is required'));
-      if (!subject) return Promise.reject(new Error('Subject must be Art or Drama'));
+      if (!subject) return Promise.reject(new Error('Subject must be Art, Drama, or Photography'));
       if (!academicYearLabel) return Promise.reject(new Error('Academic year label is required'));
       return ensureSessionForMutations().then(function() {
+        if (subject === 'photography') {
+          return Promise.reject({ code: 'RPC_BYPASS', message: 'Bypass RPC for photography subject' });
+        }
         return window.supabase.rpc('upsert_teacher_subject_classes_for_loader', {
           p_teacher_id: teacherId,
           p_subject: subject,
@@ -864,7 +955,7 @@
           if (r.error) throw r.error;
           return r.data || {};
         }).catch(function(err) {
-          if (!isMissingRpcError(err)) throw err;
+          if (!isMissingRpcError(err) && String(err && err.code || '') !== 'RPC_BYPASS') throw err;
           return ensureSessionForMutations().then(function(session) {
             var result = {
               teacher_id: teacherId,
@@ -1036,7 +1127,7 @@
       var opts = options || {};
       var subject = normalizeTrackerSubject(opts.subject);
       var academicYearLabel = String(opts.academicYearLabel || '').trim() || currentAcademicYearLabel();
-      if (!subject) return Promise.reject(new Error('Subject must be Art or Drama'));
+      if (!subject) return Promise.reject(new Error('Subject must be Art, Drama, or Photography'));
       return getSessionWithRetry({ retries: 4, delayMs: 250 }).then(function(session) {
         if (!session) throw new Error('Not authenticated');
         return window.supabase.rpc('list_my_assigned_classes_for_tracker', {
