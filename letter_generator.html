@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="apple-mobile-web-app-title" content="Faculty Hub">
 <title>Parent Letter Generator – Faculty of Art & Drama</title>
 <style>
   :root {
@@ -146,17 +145,6 @@
   .section-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-muted); margin-bottom: 12px; }
 
   @media print { .sidebar, .topbar { display: none; } .main { margin-left: 0; padding: 0; } }
-
-  /* Inside Faculty Hub iframe (?embed=1) */
-  html[data-fh-embed="1"] .letter-content-wrap { margin-left: 0 !important; }
-  html[data-fh-embed="1"] .topbar { display: none !important; }
-  html[data-fh-embed="1"] .main { padding-top: 28px !important; }
-  .prefill-banner {
-    display: none; font-size: 12.5px; color: var(--text-muted);
-    background: #f0f7ff; border: 1px solid #bfdbfe; border-radius: 8px;
-    padding: 10px 14px; margin-bottom: 20px; line-height: 1.45;
-  }
-  .prefill-banner.show { display: block; }
 </style>
 </head>
 <body>
@@ -169,11 +157,10 @@
     </div>
     <nav class="sidebar-nav">
       <a class="nav-item active" href="#">Parent Letter Generator</a>
-      <a class="nav-item" href="faculty-hub.html">Faculty Hub</a>
     </nav>
   </aside>
 
-  <div class="letter-content-wrap" style="flex:1; margin-left:var(--sidebar-w);">
+  <div style="flex:1; margin-left:var(--sidebar-w);">
     <div class="topbar">
       <span class="topbar-accent"></span>
       <span class="topbar-title">Parent Letter Generator</span>
@@ -186,8 +173,6 @@
           <span class="badge">Faculty of Art &amp; Drama</span>
         </div>
         <div class="panel-body">
-
-          <div id="prefillBanner" class="prefill-banner" role="status"></div>
 
           <!-- LETTER TYPE -->
           <div class="section-label">Letter Type</div>
@@ -23386,59 +23371,6 @@ function getTodayFormatted() {
 // Set default date on load
 document.getElementById('letterDate').value = getTodayFormatted();
 
-/**
- * Standalone: open letter_generator.html with no query params.
- * From Faculty Head Dashboard (at-risk): letter_generator.html?name=…&class=…&subject=drama|art&type=behaviour|effort|praise&source=dashboard
- * Hub iframe: …?embed=1 (optional same prefill params).
- */
-function applyLetterPrefillFromQuery() {
-  let params;
-  try {
-    params = new URLSearchParams(window.location.search);
-  } catch (e) {
-    return;
-  }
-  const name = (params.get('name') || params.get('pupil') || '').trim();
-  const cls = (params.get('class') || params.get('reg') || '').trim();
-  const subjRaw = (params.get('subject') || '').trim().toLowerCase();
-  const typeRaw = (params.get('type') || params.get('letterType') || '').trim().toLowerCase();
-  const source = (params.get('source') || '').trim().toLowerCase();
-
-  const subjMap = {
-    drama: 'Drama',
-    art: 'Art and Design',
-    photography: 'Photography',
-    photo: 'Photography',
-    ad: 'Art and Design',
-    'art and design': 'Art and Design',
-    'art-design': 'Art and Design',
-  };
-  if (name) document.getElementById('pupilName').value = name;
-  if (cls) document.getElementById('className').value = cls;
-  const subjVal = subjMap[subjRaw];
-  if (subjVal) document.getElementById('subject').value = subjVal;
-
-  if (typeRaw === 'behaviour' || typeRaw === 'effort' || typeRaw === 'praise') {
-    selectType(typeRaw);
-  }
-
-  const banner = document.getElementById('prefillBanner');
-  if (banner && (name || cls || subjVal || typeRaw)) {
-    let msg = 'Some fields were filled from the link you used. Check the letter type and wording before downloading.';
-    if (source === 'dashboard') {
-      msg = 'Opened from the Faculty Head Dashboard (pupils at risk). Review the letter type and text, then generate or edit as needed.';
-    }
-    banner.textContent = msg;
-    banner.classList.add('show');
-  }
-}
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', applyLetterPrefillFromQuery);
-} else {
-  applyLetterPrefillFromQuery();
-}
-
 function getFormValues() {
   return {
     letterType: selectedType,
@@ -23639,11 +23571,6 @@ function resetForm() {
   document.getElementById('senderName').value = 'R. McNeil';
   document.getElementById('senderRole').value = 'Faculty Head of Art & Drama';
   document.getElementById('previewArea').style.display = 'none';
-  const ban = document.getElementById('prefillBanner');
-  if (ban) {
-    ban.classList.remove('show');
-    ban.textContent = '';
-  }
   clearStatus();
 }
 </script>
