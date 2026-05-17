@@ -2321,7 +2321,7 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
                     <div style="font-weight:500;font-size:12px;">Today's timetable</div>
                     <div style="font-size:10px;color:#64748b;margin-top:1px;">today's scheduled events</div>
                   </div>
-                  <a href="#" onclick="event.preventDefault();showPanel('academic-calendar');return false;" style="font-size:10px;color:#2f64bf;text-decoration:none;">Full week →</a>
+                  <a href="#" onclick="event.preventDefault();showPanel('embed-faculty-timetable');return false;" style="font-size:10px;color:#2f64bf;text-decoration:none;">Open timetable →</a>
                 </div>
                 <div id="homeTodaySchedule" style="display:flex;flex-direction:column;"></div>
               </div>
@@ -8178,21 +8178,42 @@ function homeExtractTrackingClasses(dataBlob, subjectLabel){
 function homeRenderTodaySchedule(todayEvents){
   var el=document.getElementById('homeTodaySchedule');
   if(!el) return;
-  if(!todayEvents.length){
-    el.innerHTML='<div style="font-size:10px;color:#64748b;padding:8px 0;">No events scheduled for today.</div>';
+  var slots=Array.isArray(todayEvents)?todayEvents:[];
+  if(!slots.length){
+    el.innerHTML='<div style="font-size:10px;color:#64748b;padding:8px 0;">No timetable periods for today.</div>';
     return;
   }
-  el.innerHTML=todayEvents.slice(0,6).map(function(ev){
-    var meta=homeExtractTimeAndLocation(ev);
-    var cat=String(ev.category||'').toLowerCase();
-    var bar=(cat==='deadline'||cat==='exam')?'#c0622a':(cat==='meeting'?'#8b5cf6':'#4a7fd4');
-    var flag=(cat==='deadline'||cat==='exam')?'Tracking due':(cat==='meeting'?'Meeting':'');
+  var subjectColour={
+    drama:'#4a7fd4',
+    art:'#c0622a',
+    'art & design':'#c0622a',
+    photography:'#8b5cf6'
+  };
+  function normSubject(v){ return String(v||'').toLowerCase().trim(); }
+  function subjectLabel(v){
+    var s=normSubject(v);
+    if(s==='art' || s==='art & design') return 'Art & Design';
+    if(s==='drama') return 'Drama';
+    if(s==='photography') return 'Photography';
+    return v?String(v):'Class';
+  }
+  slots=slots.slice().sort(function(a,b){
+    return Number(a&&a.period||99)-Number(b&&b.period||99);
+  });
+  el.innerHTML=slots.slice(0,7).map(function(slot){
+    var period=Number(slot&&slot.period||0);
+    var pLabel=period>0?'P'+period:'Period';
+    var sub=subjectLabel(slot&&slot.subject);
+    var cls=String(slot&&slot.className||'').trim();
+    var room=String(slot&&slot.room||'').trim();
+    var bar=subjectColour[normSubject(slot&&slot.subject)]||'#4a7fd4';
+    var title=cls?(pLabel+' · '+sub+' ('+cls+')'):(pLabel+' · '+sub);
+    var meta=(room?'Room '+room:'Room TBC');
     return '<div class="staff-home-schedule-item">'+
       '<div style="display:flex;align-items:center;gap:10px;padding:7px 0;border-bottom:.5px solid #f1f4f9;">'+
-      '<div style="width:42px;font-size:10px;color:#64748b;font-weight:500;">'+homeEsc(meta.time)+'</div>'+
+      '<div style="width:42px;font-size:10px;color:#64748b;font-weight:500;">'+homeEsc(pLabel)+'</div>'+
       '<div style="width:3px;height:18px;background:'+bar+';border-radius:99px;"></div>'+
-      '<div style="flex:1;min-width:0;"><div style="font-size:11px;font-weight:500;">'+homeEsc(ev.title||'Untitled event')+'</div><div style="font-size:9px;color:#64748b;">'+homeEsc(meta.location)+'</div></div>'+
-      (flag?'<span style="font-size:9px;color:#b45309;font-weight:500;">'+homeEsc(flag)+'</span>':'')+
+      '<div style="flex:1;min-width:0;"><div style="font-size:11px;font-weight:500;">'+homeEsc(title)+'</div><div style="font-size:9px;color:#64748b;">'+homeEsc(meta)+'</div></div>'+
       '</div>'+
     '</div>';
   }).join('');
@@ -8395,6 +8416,11 @@ function homeLoadGreeting(){
 }
 function homeDashboardRender(){
   var today=typeof calLocalTodayISODate==='function'?calLocalTodayISODate():homeDateISO(new Date());
+  var todayDay=(function(){
+    var d=new Date();
+    var names=['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+    return names[d.getDay()];
+  })();
   homeLoadGreeting();
 
   var eventsPromise=(window.DataService&&typeof window.DataService.getSharedCalendarEvents==='function')
@@ -8402,6 +8428,8 @@ function homeDashboardRender(){
     : ((window.DataService&&typeof window.DataService.getCalendarMerged==='function')
       ? DataService.getCalendarMerged()
       : Promise.resolve(typeof calGetEvents==='function'?calGetEvents():[]));
+  var timetablePromise=(window.DataService&&typeof window.DataService.get==='function')
+    ? DataService.get('plannerTimetable') : Promise.resolve(null);
   var annPromise=(window.DataService&&typeof window.DataService.getAnnouncements==='function')
     ? DataService.getAnnouncements() : Promise.resolve([]);
   var dramaPromise=(window.DataService&&typeof window.DataService.get==='function')
@@ -8412,19 +8440,23 @@ function homeDashboardRender(){
     ? TeacherTasksService.load().then(function(){ return TeacherTasksService.getState()||{ tasks:[], buckets:[] }; }).catch(function(){ return { tasks:[], buckets:[] }; })
     : Promise.resolve({ tasks:[], buckets:[] });
 
-  Promise.all([eventsPromise, annPromise, dramaPromise, artPromise, tasksPromise]).then(function(res){
+  Promise.all([eventsPromise, timetablePromise, annPromise, dramaPromise, artPromise, tasksPromise]).then(function(res){
     var events=Array.isArray(res[0])?res[0]:[];
-    var announcementsRaw=Array.isArray(res[1])?res[1]:[];
+    var timetable=(res[1]&&typeof res[1]==='object')?res[1]:{};
+    var timetableSlots=(Array.isArray(timetable.slots)?timetable.slots:[]).filter(function(s){
+      return String(s&&s.day||'').toLowerCase()===todayDay;
+    });
+    var announcementsRaw=Array.isArray(res[2])?res[2]:[];
     var announcements=announcementsRaw.slice().sort(function(a,b){
       var aHigh=String(a&&a.priority||'none').toLowerCase()==='high'?1:0;
       var bHigh=String(b&&b.priority||'none').toLowerCase()==='high'?1:0;
       if(aHigh!==bHigh) return bHigh-aHigh;
       return String(b&&b.created_at||'').localeCompare(String(a&&a.created_at||''));
     });
-    var dramaRows=homeExtractTrackingClasses(res[2],'Drama');
-    var artRows=homeExtractTrackingClasses(res[3],'Art & Design');
+    var dramaRows=homeExtractTrackingClasses(res[3],'Drama');
+    var artRows=homeExtractTrackingClasses(res[4],'Art & Design');
     var trackingRows=dramaRows.concat(artRows);
-    var taskState=(res[4]&&typeof res[4]==='object')?res[4]:{ tasks:[], buckets:[] };
+    var taskState=(res[5]&&typeof res[5]==='object')?res[5]:{ tasks:[], buckets:[] };
     var tasks=Array.isArray(taskState.tasks)?taskState.tasks:[];
 
     var todayEvents=events.filter(function(e){ return String(e&&e.date||'').slice(0,10)===today; });
@@ -8441,19 +8473,19 @@ function homeDashboardRender(){
     });
     var classesToTrack=trackingRows.filter(function(r){ return r.status!=='Complete'; });
 
-    homeSetText('homeTodayEventsCount', todayEvents.length);
+    homeSetText('homeTodayEventsCount', timetableSlots.length);
     homeSetText('homeTasksDueCount', tasksDue.length);
     homeSetText('homeUnreadAnnouncementsCount', unreadAnnouncements.length);
     homeSetText('homeClassesToTrackCount', classesToTrack.length);
     homeSetText('homeDailySummary', homeBuildDailySummary({
-      todayEvents: todayEvents.length,
+      todayEvents: timetableSlots.length,
       tasksDue: tasksDue.length,
       unreadAnnouncements: unreadAnnouncements.length,
       classesToTrack: classesToTrack.length,
       upcomingEvents: upcomingEvents.length
     }));
 
-    homeRenderTodaySchedule(todayEvents);
+    homeRenderTodaySchedule(timetableSlots);
     homeRenderAnnouncements(announcements, today);
     homeRenderTrackingClasses(trackingRows);
     homeRenderUpcomingEvents(upcomingEvents);
