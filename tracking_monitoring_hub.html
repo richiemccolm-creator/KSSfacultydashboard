@@ -161,7 +161,7 @@ body.is-embedded .inline-nav{display:flex}
           </div>
           <div class="toolbar" style="width:min(520px,100%);justify-content:flex-end">
             <div data-staff-display-name="light"></div>
-            <button class="btn btn-primary" id="load-cloud-btn" type="button">Load from cloud</button>
+            <button class="btn btn-primary" id="load-cloud-btn" type="button" onclick="loadFromCloud()">Load from cloud</button>
           </div>
         </div>
         <div class="card-body">
@@ -999,16 +999,16 @@ function fetchCloudRowsWithFallback() {
     });
   }
   return tryFn('getAllForMonitoring', function() {
-    return DataService.getAllForMonitoring();
+    return window.DataService.getAllForMonitoring();
   }).then(function(rows) {
     if (rows) return rows;
     return tryFn('getAllForAdmin', function() {
-      return DataService.getAllForAdmin();
+      return window.DataService.getAllForAdmin();
     });
   }).then(function(rows) {
     if (rows) return rows;
     return tryFn('getStaffListWithWorkForAdmin', function() {
-      return DataService.getStaffListWithWorkForAdmin().then(rowsFromStaffWork);
+      return window.DataService.getStaffListWithWorkForAdmin().then(rowsFromStaffWork);
     });
   }).then(function(rows) {
     if (rows) return rows;
@@ -1030,9 +1030,9 @@ function loadFromCloud() {
     toast('Cloud data service unavailable');
     return;
   }
-  if (typeof DataService.getAllForMonitoring !== 'function' &&
-      typeof DataService.getAllForAdmin !== 'function' &&
-      typeof DataService.getStaffListWithWorkForAdmin !== 'function') {
+  if (typeof window.DataService.getAllForMonitoring !== 'function' &&
+      typeof window.DataService.getAllForAdmin !== 'function' &&
+      typeof window.DataService.getStaffListWithWorkForAdmin !== 'function') {
     if (statusEl) statusEl.textContent = 'Cloud tracking API is unavailable.';
     toast('Cloud tracking API unavailable');
     return;
@@ -1079,10 +1079,7 @@ function init() {
   if (q) q.addEventListener('keydown', function(ev) { if (ev.key === 'Enter') applyFilterControls(); });
   var loadBtn = document.getElementById('load-cloud-btn');
   if (loadBtn) {
-    loadBtn.addEventListener('click', function(ev) {
-      ev.preventDefault();
-      loadFromCloud();
-    });
+    loadBtn.addEventListener('click', function(ev) { ev.preventDefault(); loadFromCloud(); });
   }
   // Ensure manual console invocation works even if inline handlers are blocked.
   window.loadFromCloud = loadFromCloud;
@@ -1092,7 +1089,11 @@ function init() {
     setTimeout(loadFromCloud, 250);
   });
 }
-document.addEventListener('DOMContentLoaded', init);
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
 </script>
 </body>
 </html>
