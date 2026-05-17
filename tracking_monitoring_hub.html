@@ -959,6 +959,62 @@ function renderAllViews() {
   renderSearch();
   populateProfileSelect();
 }
+function rowsFromStaffWork(staffRows) {
+  var out = [];
+  (staffRows || []).forEach(function(item) {
+    var teacherName = item.teacherName || item.display_name || item.email || 'Unknown';
+    var email = item.email || '';
+    if (item.drama) {
+      out.push({
+        user_id: item.user_id,
+        email: email,
+        teacherName: teacherName,
+        data_type: 'drama-v3',
+        data: item.drama
+      });
+    }
+    if (item.art) {
+      out.push({
+        user_id: item.user_id,
+        email: email,
+        teacherName: teacherName,
+        data_type: 'art-v2',
+        data: item.art
+      });
+    }
+  });
+  return out;
+}
+function fetchCloudRowsWithFallback() {
+  if (!window.DataService) return Promise.reject(new Error('Data service unavailable'));
+  var tried = [];
+  function tryFn(label, fn) {
+    if (typeof fn !== 'function') return Promise.resolve(null);
+    tried.push(label);
+    return Promise.resolve().then(fn).then(function(rows) {
+      if (rows && rows.length) return rows;
+      return null;
+    }).catch(function() {
+      return null;
+    });
+  }
+  return tryFn('getAllForMonitoring', function() {
+    return DataService.getAllForMonitoring();
+  }).then(function(rows) {
+    if (rows) return rows;
+    return tryFn('getAllForAdmin', function() {
+      return DataService.getAllForAdmin();
+    });
+  }).then(function(rows) {
+    if (rows) return rows;
+    return tryFn('getStaffListWithWorkForAdmin', function() {
+      return DataService.getStaffListWithWorkForAdmin().then(rowsFromStaffWork);
+    });
+  }).then(function(rows) {
+    if (rows) return rows;
+    throw new Error('No cloud rows returned from: ' + tried.join(', '));
+  });
+}
 function loadFromCloud() {
   var statusEl = document.getElementById('source-status');
   // If auth flags are not ready yet, allow the fetch attempt.
@@ -974,16 +1030,17 @@ function loadFromCloud() {
     toast('Cloud data service unavailable');
     return;
   }
-  var fetchFn = null;
-  if (typeof DataService.getAllForMonitoring === 'function') fetchFn = function() { return DataService.getAllForMonitoring(); };
-  else if (typeof DataService.getAllForAdmin === 'function') fetchFn = function() { return DataService.getAllForAdmin(); };
-  if (!fetchFn) {
-    if (statusEl) statusEl.textContent = 'Cloud tracking API is unavailable (missing getAllForMonitoring/getAllForAdmin).';
+  if (typeof DataService.getAllForMonitoring !== 'function' &&
+      typeof DataService.getAllForAdmin !== 'function' &&
+      typeof DataService.getStaffListWithWorkForAdmin !== 'function') {
+    if (statusEl) statusEl.textContent = 'Cloud tracking API is unavailable.';
     toast('Cloud tracking API unavailable');
     return;
   }
+  var loadBtn = document.getElementById('load-cloud-btn');
+  if (loadBtn) loadBtn.disabled = true;
   if (statusEl) statusEl.textContent = 'Loading cloud data...';
-  fetchFn().then(function(rows){
+  fetchCloudRowsWithFallback().then(function(rows){
     normalizeCloudRows(rows || []);
     initPivotControls();
     hydrateFilterControls();
@@ -993,11 +1050,15 @@ function loadFromCloud() {
       toast('No tracker sources found in cloud');
       return;
     }
+    var uniqueTeachers = new Set((rows || []).map(function(r) { return String(r.user_id || ''); }).filter(Boolean)).size;
+    if (statusEl) statusEl.textContent = 'Loaded ' + rows.length + ' tracker sources from ' + uniqueTeachers + ' teacher account(s).';
     toast('Cloud data refreshed');
   }).catch(function(err){
     var msg = (err && (err.message || err.details)) ? String(err.message || err.details) : 'Unknown cloud error';
     if (statusEl) statusEl.textContent = 'Cloud load failed: ' + msg;
     toast('Could not load cloud data');
+  }).finally(function() {
+    if (loadBtn) loadBtn.disabled = false;
   });
 }
 function waitForAuthGuardReady(timeoutMs) {
