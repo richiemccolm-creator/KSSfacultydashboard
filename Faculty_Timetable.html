@@ -158,6 +158,22 @@
   }
   .filter-btn.active.drama  { background: #7a2e0e; border-color: #7a2e0e; }
   .filter-btn.active.art    { background: #0d3b55; border-color: #0d3b55; }
+  .teacher-select {
+    min-width: 180px;
+    background: var(--white);
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.38rem 0.65rem;
+  }
+  .teacher-select:focus {
+    outline: none;
+    border-color: var(--navy-light);
+    box-shadow: 0 0 0 2px rgba(42, 63, 98, 0.15);
+  }
 
   /* ── Timetable wrapper ────────────────────────────────────────────────── */
   .timetable-section {
@@ -327,6 +343,7 @@
     font-size: 0.78rem;
     font-weight: 600;
   }
+  .key-card.hidden { display: none; }
   .key-swatch {
     width: 12px;
     height: 12px;
@@ -405,6 +422,10 @@
   <button class="filter-btn active" data-filter="all">All Staff</button>
   <button class="filter-btn drama" data-filter="drama">Drama</button>
   <button class="filter-btn art" data-filter="art">Art &amp; Photography</button>
+  <label for="teacher-filter" class="filter-label" style="margin-left:.4rem">Teacher</label>
+  <select id="teacher-filter" class="teacher-select" aria-label="Filter timetable by teacher">
+    <option value="all">All teachers</option>
+  </select>
 </div>
 
 <!-- ── DRAMA TIMETABLE ─────────────────────────────────────────────────────── -->
@@ -414,22 +435,22 @@
 
   <!-- Key -->
   <div class="key-row">
-    <div class="key-card">
+    <div class="key-card" data-teacher="R. McColm">
       <div class="key-swatch" style="background:#e8420a"></div>
       R. McColm
       <span class="key-room">Drama Studio</span>
     </div>
-    <div class="key-card">
+    <div class="key-card" data-teacher="T. Livingstone">
       <div class="key-swatch" style="background:#1565c0"></div>
       T. Livingstone
       <span class="key-room">F02</span>
     </div>
-    <div class="key-card">
+    <div class="key-card" data-teacher="S. McLean">
       <div class="key-swatch" style="background:#2e7d32"></div>
       S. McLean
       <span class="key-room">F01</span>
     </div>
-    <div class="key-card">
+    <div class="key-card" data-teacher="S. Airdrie">
       <div class="key-swatch" style="background:#6a1b9a"></div>
       S. Airdrie
       <span class="key-room">F23</span>
@@ -448,22 +469,22 @@
 
   <!-- Key -->
   <div class="key-row">
-    <div class="key-card">
+    <div class="key-card" data-teacher="M. Gallacher">
       <div class="key-swatch" style="background:#0077a8"></div>
       M. Gallacher
       <span class="key-room">S11</span>
     </div>
-    <div class="key-card">
+    <div class="key-card" data-teacher="P. Donald">
       <div class="key-swatch" style="background:#00796b"></div>
       P. Donald
       <span class="key-room">S12</span>
     </div>
-    <div class="key-card">
+    <div class="key-card" data-teacher="J. McKenzie">
       <div class="key-swatch" style="background:#3949ab"></div>
       J. McKenzie
       <span class="key-room">S10</span>
     </div>
-    <div class="key-card">
+    <div class="key-card" data-teacher="K. Nutt">
       <div class="key-swatch" style="background:#c2185b"></div>
       K. Nutt
       <span class="key-room">S13</span>
@@ -581,6 +602,8 @@ const ART_STAFF = [
 // ── Grid builder ──────────────────────────────────────────────────────────────
 function buildGrid(containerId, staff) {
   const container = document.getElementById(containerId);
+  container.innerHTML = '';
+  if (!container || !staff || !staff.length) return;
 
   // Header row: corner (×2) + day names
   const cornerA = el('div', 'th corner');
@@ -601,7 +624,7 @@ function buildGrid(containerId, staff) {
     }
 
     // Period label spanning 4 teacher rows
-    const pLabel = el('div', `period-label span-4`);
+    const pLabel = el('div', 'period-label');
     pLabel.textContent = `P${p}`;
     pLabel.style.gridRow = `span ${staff.length}`;
     container.append(pLabel);
@@ -658,18 +681,61 @@ buildGrid('drama-grid', DRAMA_STAFF);
 buildGrid('art-grid',   ART_STAFF);
 
 // ── Filters ───────────────────────────────────────────────────────────────────
+const FILTER_STATE = { subject: 'all', teacher: 'all' };
+const STAFF_BY_SUBJECT = { drama: DRAMA_STAFF, art: ART_STAFF };
+
+function populateTeacherFilter() {
+  const select = document.getElementById('teacher-filter');
+  if (!select) return;
+  const names = [...DRAMA_STAFF, ...ART_STAFF].map(s => s.name).sort((a, b) => a.localeCompare(b));
+  names.forEach(name => {
+    const option = document.createElement('option');
+    option.value = name;
+    option.textContent = name;
+    select.append(option);
+  });
+}
+
+function applyTeacherToKeyCards(sectionEl) {
+  if (!sectionEl) return;
+  sectionEl.querySelectorAll('.key-card').forEach(card => {
+    const cardTeacher = card.dataset.teacher;
+    const show = FILTER_STATE.teacher === 'all' || cardTeacher === FILTER_STATE.teacher;
+    card.classList.toggle('hidden', !show);
+  });
+}
+
+function renderByFilters() {
+  ['drama', 'art'].forEach(subject => {
+    const section = document.getElementById(`section-${subject}`);
+    const baseStaff = STAFF_BY_SUBJECT[subject] || [];
+    const teacherFiltered = FILTER_STATE.teacher === 'all'
+      ? baseStaff
+      : baseStaff.filter(s => s.name === FILTER_STATE.teacher);
+    const visibleBySubject = FILTER_STATE.subject === 'all' || FILTER_STATE.subject === subject;
+    const shouldShowSection = visibleBySubject && teacherFiltered.length > 0;
+
+    if (!section) return;
+    section.classList.toggle('hidden', !shouldShowSection);
+    if (shouldShowSection) {
+      buildGrid(`${subject}-grid`, teacherFiltered);
+      applyTeacherToKeyCards(section);
+    }
+  });
+}
+
+populateTeacherFilter();
+document.getElementById('teacher-filter').addEventListener('change', (e) => {
+  FILTER_STATE.teacher = e.target.value || 'all';
+  renderByFilters();
+});
+
 document.querySelectorAll('.filter-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    const filter = btn.dataset.filter;
-    document.querySelectorAll('.timetable-section').forEach(sec => {
-      if (filter === 'all' || sec.dataset.subject === filter) {
-        sec.classList.remove('hidden');
-      } else {
-        sec.classList.add('hidden');
-      }
-    });
+    FILTER_STATE.subject = btn.dataset.filter || 'all';
+    renderByFilters();
   });
 });
 </script>
