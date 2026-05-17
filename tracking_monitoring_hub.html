@@ -595,11 +595,11 @@ function renderOverview() {
   if (!stats) return;
   var k = computeKpis(rows);
   stats.innerHTML =
-    '<div class="stat" onclick="setDrillContext({type:\\'kpi\\',kpi:\\'pupils\\'})"><div class="stat-num">' + k.pupils + '</div><div class="stat-label">Filtered pupils</div></div>' +
-    '<div class="stat" onclick="setDrillContext({type:\\'kpi\\',kpi:\\'factRows\\'})"><div class="stat-num">' + k.factRows + '</div><div class="stat-label">Fact rows</div></div>' +
-    '<div class="stat" onclick="setDrillContext({type:\\'kpi\\',kpi:\\'dualSubjects\\'})"><div class="stat-num">' + k.dualSubjects + '</div><div class="stat-label">Art + Drama pupils</div></div>' +
-    '<div class="stat" onclick="setDrillContext({type:\\'kpi\\',kpi:\\'atRisk\\'})"><div class="stat-num" style="color:var(--warn)">' + k.atRisk + '</div><div class="stat-label">At-risk pupils</div></div>' +
-    '<div class="stat" onclick="setDrillContext({type:\\'kpi\\',kpi:\\'lowAttainment\\'})"><div class="stat-num">' + (rows.filter(function(r){return r.attainmentBand==='concern';}).length) + '</div><div class="stat-label">Concern attainment rows</div></div>' +
+    '<div class="stat" onclick="setDrillContext({type:\'kpi\',kpi:\'pupils\'})"><div class="stat-num">' + k.pupils + '</div><div class="stat-label">Filtered pupils</div></div>' +
+    '<div class="stat" onclick="setDrillContext({type:\'kpi\',kpi:\'factRows\'})"><div class="stat-num">' + k.factRows + '</div><div class="stat-label">Fact rows</div></div>' +
+    '<div class="stat" onclick="setDrillContext({type:\'kpi\',kpi:\'dualSubjects\'})"><div class="stat-num">' + k.dualSubjects + '</div><div class="stat-label">Art + Drama pupils</div></div>' +
+    '<div class="stat" onclick="setDrillContext({type:\'kpi\',kpi:\'atRisk\'})"><div class="stat-num" style="color:var(--warn)">' + k.atRisk + '</div><div class="stat-label">At-risk pupils</div></div>' +
+    '<div class="stat" onclick="setDrillContext({type:\'kpi\',kpi:\'lowAttainment\'})"><div class="stat-num">' + (rows.filter(function(r){return r.attainmentBand==='concern';}).length) + '</div><div class="stat-label">Concern attainment rows</div></div>' +
     '<div class="stat"><div class="stat-num">' + (k.avgScore != null ? k.avgScore.toFixed(2) : '—') + '</div><div class="stat-label">Average score</div></div>';
   renderOverviewLine(rows);
   renderOverviewClassBreakdown(rows);
@@ -640,8 +640,8 @@ function renderOverviewLine(rows) {
   });
   if (dramaSeries.length) html += '<polyline fill="none" stroke="#4a7fd4" stroke-width="3" points="' + poly(dramaSeries) + '"></polyline>';
   if (artSeries.length) html += '<polyline fill="none" stroke="#c0622a" stroke-width="3" points="' + poly(artSeries) + '"></polyline>';
-  dramaSeries.forEach(function(p){ html += '<circle cx="' + x(p.tp).toFixed(1) + '" cy="' + y(p.value).toFixed(1) + '" r="4" fill="#4a7fd4" style="cursor:pointer" onclick="drillTrend(\\'drama\\',\\'' + jsEsc(p.tp) + '\\')"></circle>'; });
-  artSeries.forEach(function(p){ html += '<circle cx="' + x(p.tp).toFixed(1) + '" cy="' + y(p.value).toFixed(1) + '" r="4" fill="#c0622a" style="cursor:pointer" onclick="drillTrend(\\'art\\',\\'' + jsEsc(p.tp) + '\\')"></circle>'; });
+  dramaSeries.forEach(function(p){ html += '<circle cx="' + x(p.tp).toFixed(1) + '" cy="' + y(p.value).toFixed(1) + '" r="4" fill="#4a7fd4" style="cursor:pointer" onclick="drillTrend(\'drama\',\'' + jsEsc(p.tp) + '\')"></circle>'; });
+  artSeries.forEach(function(p){ html += '<circle cx="' + x(p.tp).toFixed(1) + '" cy="' + y(p.value).toFixed(1) + '" r="4" fill="#c0622a" style="cursor:pointer" onclick="drillTrend(\'art\',\'' + jsEsc(p.tp) + '\')"></circle>'; });
   html += '</svg>';
   html += '<div class="line-legend"><span><span class="legend-dot" style="background:#4a7fd4"></span>Drama</span><span><span class="legend-dot" style="background:#c0622a"></span>Art</span></div>';
   slot.innerHTML = html;
@@ -659,7 +659,7 @@ function renderOverviewClassBreakdown(rows) {
     .sort(function(a,b){ return b.risk - a.risk || b.total - a.total; }).slice(0, 12);
   if (!list.length) { wrap.innerHTML = '<div class="empty">No class distribution in current filters.</div>'; return; }
   wrap.innerHTML = list.map(function(item){
-    return '<div class="side-item" onclick="drillClass(\\'' + jsEsc(item.cls) + '\\')"><span>' + safeText(item.cls) + '</span><span>' + item.risk + ' risk / ' + item.total + '</span></div>';
+    return '<div class="side-item" onclick="drillClass(\'' + jsEsc(item.cls) + '\')"><span>' + safeText(item.cls) + '</span><span>' + item.risk + ' risk / ' + item.total + '</span></div>';
   }).join('');
 }
 function buildPupilRollup(rows) {
@@ -701,7 +701,7 @@ function renderAtRisk() {
   if (!rollup.length) { grid.innerHTML = '<div class="empty">No at-risk pupils for current filters.</div>'; return; }
   grid.innerHTML = rollup.map(function(p){
     var riskTag = p.riskScore >= 4 ? 'High attention' : 'Monitoring';
-    return '<div class="risk-card" onclick="openProfile(\\'' + jsEsc(p.pupilKey) + '\\')">' +
+    return '<div class="risk-card" onclick="openProfile(\'' + jsEsc(p.pupilKey) + '\')">' +
       '<div class="risk-name">' + safeText(p.name) + '</div>' +
       '<div class="risk-meta">' + safeText(p.cls) + ' · ' + safeText(p.yg.toUpperCase()) + ' · ' + safeText(p.teachers) + '</div>' +
       '<div class="risk-tag">' + riskTag + '</div></div>';
@@ -782,7 +782,7 @@ function renderPivot() {
     var tds = colKeys.map(function(cval){
       var agg = matrix[rval] && matrix[rval][cval] ? matrix[rval][cval] : { count: 0, sumScore: 0, scoreCount: 0, riskCount: 0, sumEffort: 0, effortCount: 0, sumBehaviour: 0, behaviourCount: 0 };
       var v = pivotValueFromAgg(agg, metric);
-      return '<td class="pivot-cell" onclick="drillPivotCell(\\'' + jsEsc(rKey) + '\\',\\'' + jsEsc(rval) + '\\',\\'' + jsEsc(cKey) + '\\',\\'' + jsEsc(cval) + '\\')">' + formatPivot(metric, v) + '</td>';
+      return '<td class="pivot-cell" onclick="drillPivotCell(\'' + jsEsc(rKey) + '\',\'' + jsEsc(rval) + '\',\'' + jsEsc(cKey) + '\',\'' + jsEsc(cval) + '\')">' + formatPivot(metric, v) + '</td>';
     }).join('');
     return '<tr><td><strong>' + safeText(rval) + '</strong></td>' + tds + '</tr>';
   }).join('') + '</tbody>';
@@ -808,7 +808,7 @@ function renderPivot() {
     '<div class="card-sub" style="margin-bottom:.4rem">Top ' + safeText(pivotDimensionLabel(rKey)) + ' by ' + safeText(metric) + '</div>' +
     topRows.map(function(row){
       var pct = topRows[0].value ? (row.value / topRows[0].value) * 100 : 0;
-      return '<div class="side-item" onclick="drillPivotRow(\\'' + jsEsc(rKey) + '\\',\\'' + jsEsc(row.label) + '\\')"><span>' + safeText(row.label) + '</span><span style="display:flex;align-items:center;gap:.45rem"><span style="display:inline-block;width:130px;height:8px;background:#e2e8f0;border-radius:999px;overflow:hidden"><span style="display:block;width:' + pct.toFixed(1) + '%;height:100%;background:var(--accent-drama)"></span></span>' + formatPivot(metric, row.value) + '</span></div>';
+      return '<div class="side-item" onclick="drillPivotRow(\'' + jsEsc(rKey) + '\',\'' + jsEsc(row.label) + '\')"><span>' + safeText(row.label) + '</span><span style="display:flex;align-items:center;gap:.45rem"><span style="display:inline-block;width:130px;height:8px;background:#e2e8f0;border-radius:999px;overflow:hidden"><span style="display:block;width:' + pct.toFixed(1) + '%;height:100%;background:var(--accent-drama)"></span></span>' + formatPivot(metric, row.value) + '</span></div>';
     }).join('')
   ) : '<div class="empty">No pivot chart data.</div>';
 }
@@ -843,7 +843,7 @@ function renderDetail() {
     return;
   }
   body.innerHTML = rows.slice(0, 300).map(function(r){
-    return '<tr class="' + rowClassForSubjects(r.subject) + '"><td>' + safeText(r.name) + '</td><td>' + safeText(r.yg.toUpperCase()) + '</td><td>' + safeText(r.cls) + '</td><td>' + safeText(r.teacher) + '</td><td>' + subjectBadgeHtml(r.subject) + '</td><td>' + safeText(r.tp.toUpperCase()) + '</td><td>' + (r.scoreAvg != null ? r.scoreAvg.toFixed(2) : '—') + '</td><td>' + safeText(r.riskBand) + '</td><td><button class="btn btn-ghost btn-small" onclick="openProfile(\\'' + jsEsc(r.pupilKey) + '\\')">Profile</button></td></tr>';
+    return '<tr class="' + rowClassForSubjects(r.subject) + '"><td>' + safeText(r.name) + '</td><td>' + safeText(r.yg.toUpperCase()) + '</td><td>' + safeText(r.cls) + '</td><td>' + safeText(r.teacher) + '</td><td>' + subjectBadgeHtml(r.subject) + '</td><td>' + safeText(r.tp.toUpperCase()) + '</td><td>' + (r.scoreAvg != null ? r.scoreAvg.toFixed(2) : '—') + '</td><td>' + safeText(r.riskBand) + '</td><td><button class="btn btn-ghost btn-small" onclick="openProfile(\'' + jsEsc(r.pupilKey) + '\')">Profile</button></td></tr>';
   }).join('');
 }
 function setDrillContext(ctx) {
@@ -877,14 +877,14 @@ function renderSearch() {
     var riskLabel = p.riskScore >= 4 ? 'High' : p.riskScore >= 2 ? 'Medium' : 'Low';
     var subjectsRaw = p.subjects.join(' + ');
     var badges = p.subjects.map(function(s){ return subjectBadgeHtml(s); }).join(' ');
-    return '<tr class="' + rowClassForSubjects(subjectsRaw) + '"><td>' + safeText(p.name) + '</td><td>' + safeText(p.yg.toUpperCase()) + '</td><td>' + safeText(p.cls) + '</td><td>' + safeText(p.teachers) + '</td><td>' + badges + '</td><td>' + riskLabel + '</td><td><button class="btn btn-ghost btn-small" onclick="openProfile(\\'' + jsEsc(p.pupilKey) + '\\')">Open</button></td></tr>';
+    return '<tr class="' + rowClassForSubjects(subjectsRaw) + '"><td>' + safeText(p.name) + '</td><td>' + safeText(p.yg.toUpperCase()) + '</td><td>' + safeText(p.cls) + '</td><td>' + safeText(p.teachers) + '</td><td>' + badges + '</td><td>' + riskLabel + '</td><td><button class="btn btn-ghost btn-small" onclick="openProfile(\'' + jsEsc(p.pupilKey) + '\')">Open</button></td></tr>';
   }).join('');
   if (cards) {
     cards.innerHTML = rows.map(function(p){
       var riskLabel = p.riskScore >= 4 ? 'High' : p.riskScore >= 2 ? 'Medium' : 'Low';
       return '<div class="search-mobile-card"><div class="search-mobile-name">' + safeText(p.name) + '</div><div class="search-mobile-meta">' +
         safeText(p.cls) + ' · ' + safeText(p.yg.toUpperCase()) + '<br>' + safeText(p.teachers) + '<br>' + p.subjects.map(function(s){ return subjectBadgeHtml(s); }).join(' ') + ' · Risk: ' + riskLabel +
-        '</div><button class="btn btn-ghost btn-small" onclick="openProfile(\\'' + jsEsc(p.pupilKey) + '\\')">Open profile</button></div>';
+        '</div><button class="btn btn-ghost btn-small" onclick="openProfile(\'' + jsEsc(p.pupilKey) + '\')">Open profile</button></div>';
     }).join('');
   }
 }
