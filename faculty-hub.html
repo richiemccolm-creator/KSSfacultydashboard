@@ -8337,11 +8337,28 @@ function homeRenderTasks(tasks, taskState){
       if(dueISO && dueISO<today){ style='display:flex;align-items:flex-start;gap:8px;padding:6px 8px;border:.5px solid #fee2e2;background:#fef2f2;border-radius:6px;'; iconColor='#b91c1c'; }
       else if(dueISO===today){ style='display:flex;align-items:flex-start;gap:8px;padding:6px 8px;border:.5px solid #fef3c7;background:#fffbeb;border-radius:6px;'; iconColor='#b45309'; }
       return '<div style="'+style+'">'+
-        '<i class="ti '+(t.completed?'ti-square-check-filled':'ti-square')+'" style="color:'+iconColor+';margin-top:1px;"></i>'+
+        '<button type="button" class="home-task-toggle-btn" data-task-id="'+homeEsc(t.id||'')+'" aria-label="'+homeEsc(t.completed?'Mark as not complete':'Mark task complete')+'" style="border:none;background:transparent;padding:0;cursor:pointer;line-height:1;margin-top:1px;">'+
+          '<i class="ti '+(t.completed?'ti-square-check-filled':'ti-square')+'" style="color:'+iconColor+';"></i>'+
+        '</button>'+
         '<div style="flex:1;"><div style="font-size:11px;line-height:1.3;'+(t.completed?'text-decoration:line-through;opacity:.6;':'')+'">'+homeEsc(t.title||'Untitled task')+'</div>'+
         '<div style="font-size:9px;color:'+iconColor+';margin-top:2px;">'+homeEsc(due)+'</div></div></div>'+
       '';
     }).join('');
+
+    Array.prototype.forEach.call(el.querySelectorAll('.home-task-toggle-btn'), function(btn){
+      btn.addEventListener('click', function(ev){
+        ev.preventDefault();
+        ev.stopPropagation();
+        var taskId=String(btn.getAttribute('data-task-id')||'').trim();
+        if(!taskId || !window.TeacherTasksService || typeof window.TeacherTasksService.toggleTaskComplete!=='function') return;
+        btn.disabled=true;
+        TeacherTasksService.toggleTaskComplete(taskId).then(function(){
+          homeDashboardRender();
+        }).catch(function(){
+          btn.disabled=false;
+        });
+      });
+    });
   }
   var buckets=taskState&&Array.isArray(taskState.buckets)?taskState.buckets:[];
   var firstBucket=buckets[0]&&buckets[0].id?buckets[0].id:null;
