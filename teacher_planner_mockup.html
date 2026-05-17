@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Teacher Planner — R. McColm</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --navy:       #1e2d4a;
+  --navy-mid:   #253352;
+  --navy-light: #2a3f62;
+  --gold:       #c9a84c;
+  --gold-pale:  #f5edda;
+  --white:      #ffffff;
+  --off-white:  #f0f2f5;
+  --border:     #d8e0ea;
+  --muted:      #64748b;
+  --text:       #1f2937;
+  --text2:      #4a5568;
+  --text3:      #94a3b8;
+
+  --s2-bg:#dceede; --s2-dk:#0a3b0c; --s2-ac:#2e7d32;
+  --s4-bg:#fdeade; --s4-dk:#7a1a00; --s4-ac:#e8420a;
+  --s5-bg:#ede9fe; --s5-dk:#4c1d95; --s5-ac:#7c3aed;
+  --s5ah-bg:#ddeaf8; --s5ah-dk:#0a2d6b; --s5ah-ac:#1565c0;
+
+  --drama-ac:#7c3aed; --drama-bg:#ede9fe; --drama-dk:#4c1d95;
+  --art-ac:#c0622a;   --art-bg:#fff4ed;   --art-dk:#7c2d12;
+  --photo-ac:#0d9488; --photo-bg:#ccfbf1; --photo-dk:#115e59;
+
+  --cell-h: 3.3rem;
+  --period-w: 3rem;
+  --shadow: 0 2px 8px rgba(0,0,0,.06);
+  --shadow-lg: 0 6px 20px rgba(0,0,0,.1);
+  --radius: 10px;
+  --content-max: 1400px;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--off-white);
+  color: var(--text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Topbar (Faculty Hub style) ──────────────────────────────────────────── */
+.topbar {
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  padding: 0.85rem 2rem;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 50;
+  gap: 1rem;
+}
+.topbar-left { display: flex; align-items: center; gap: 0.85rem; }
+.topbar-logo-wrap {
+  display: flex; align-items: center; gap: 0.6rem;
+  padding-right: 0.85rem;
+  border-right: 1px solid var(--border);
+}
+.topbar-logo-img { height: 30px; width: auto; display: block; }
+.topbar-logo-fallback {
+  width: 30px; height: 30px;
+  background: var(--navy); border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Sora', sans-serif; font-size: 0.7rem;
+  font-weight: 800; color: var(--white); letter-spacing: -0.02em;
+}
+.topbar-heading {
+  font-size: 1.06rem; font-weight: 700; color: var(--text);
+}
+.topbar-heading span { color: #4a7fd4; }
+.topbar-meta { display: flex; gap: 0.45rem; align-items: center; flex-wrap: wrap; }
+.meta-badge {
+  font-size: 0.63rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 0.24rem 0.6rem; border-radius: 3px;
+  border: 1px solid var(--border); color: var(--muted); background: var(--off-white);
+}
+.meta-badge.teacher { background: #fdeade; border-color: rgba(232,66,10,.25); color: #7a1a00; }
+
+/* ── Tabs ────────────────────────────────────────────────────────────────── */
+.tabs-bar {
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+}
+.tabs-inner {
+  max-width: var(--content-max); margin: 0 auto;
+  padding: 0 2rem;
+  display: flex; gap: 0;
+  overflow-x: auto; scrollbar-width: none;
+}
+.tabs-inner::-webkit-scrollbar { display: none; }
+.tab-btn {
+  padding: 0.75rem 1rem;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.73rem; font-weight: 600;
+  color: var(--muted);
+  background: transparent; border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer; white-space: nowrap;
+  transition: all 0.14s; letter-spacing: 0.01em;
+  margin-bottom: -1px;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active { color: var(--navy); border-bottom-color: var(--navy); }
+
+/* ── Content ─────────────────────────────────────────────────────────────── */
+.content { max-width: var(--content-max); margin: 0 auto; padding: 1.75rem 2rem 3rem; }
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* ── Stat row ────────────────────────────────────────────────────────────── */
+.stat-row { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+.stat-card {
+  background: var(--white); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 0.9rem 1.2rem;
+  flex: 1; min-width: 130px; box-shadow: var(--shadow);
+}
+.stat-num {
+  font-family: 'Sora', sans-serif;
+  font-size: 1.55rem; font-weight: 800;
+  color: var(--navy); line-height: 1; margin-bottom: 0.28rem;
+}
+.stat-label { font-size: 0.65rem; font-weight: 600; letter-spacing: 0.06em; color: var(--muted); text-transform: uppercase; }
+
+/* ── Section label ───────────────────────────────────────────────────────── */
+.section-lbl {
+  font-size: 0.6rem; font-weight: 700;
+  letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--muted); margin: 1.4rem 0 0.6rem;
+  padding-bottom: 0.38rem; border-bottom: 1px solid var(--border);
+}
+.section-lbl:first-child { margin-top: 0; }
+
+/* ── Timetable grid ──────────────────────────────────────────────────────── */
+.grid-wrap {
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow);
+  background: var(--white);
+}
+.tt-grid {
+  display: grid; min-width: 580px;
+  grid-template-columns: var(--period-w) repeat(5, 1fr);
+}
+.tt-th {
+  background: var(--navy); color: var(--white);
+  font-size: 0.68rem; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 0.72rem 0.4rem; text-align: center;
+  border-right: 1px solid var(--navy-light);
+}
+.tt-th:first-child { border-radius: var(--radius) 0 0 0; }
+.tt-th:last-child  { border-radius: 0 var(--radius) 0 0; border-right: none; }
+.tt-th.corner      { background: var(--navy-mid); }
+.period-sep        { grid-column: 1 / -1; height: 2px; background: var(--border); }
+.period-lbl {
+  background: var(--navy-mid); color: var(--white);
+  font-size: 0.78rem; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  border-top: 1px solid rgba(255,255,255,0.05);
+  border-right: 1px solid rgba(255,255,255,0.05);
+  position: sticky; left: 0; z-index: 2;
+  min-height: var(--cell-h);
+}
+.tt-cell {
+  border-top: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  min-height: var(--cell-h);
+  display: flex; align-items: center; justify-content: center;
+  padding: 0.3rem; cursor: pointer; transition: background 0.12s;
+}
+.tt-cell:last-child { border-right: none; }
+.tt-cell.na    { background: #eaeff5; cursor: default; }
+.tt-cell.free  { background: var(--white); }
+.tt-cell.free:hover { background: #f1f4ff; }
+.tt-cell.busy:hover { background: #f9faff; }
+.class-chip {
+  border-radius: 7px; padding: 0.3rem 0.5rem;
+  text-align: center; width: 100%; max-width: 128px;
+  transition: transform 0.12s, box-shadow 0.12s; cursor: pointer;
+}
+.class-chip:hover { transform: scale(1.05); box-shadow: 0 4px 12px rgba(0,0,0,.14); position: relative; z-index: 3; }
+.chip-cls  { font-size: 0.76rem; font-weight: 700; display: block; line-height: 1.2; font-family: 'Sora', sans-serif; }
+.chip-lsn  { font-size: 0.59rem; font-weight: 500; display: block; opacity: 0.72; margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.chip-add  {
+  font-size: 0.63rem; color: var(--border);
+  display: flex; align-items: center; justify-content: center; gap: 0.2rem;
+  width: 100%; min-height: 2.4rem;
+  opacity: 0; transition: opacity 0.12s;
+  border-radius: 6px; border: 1.5px dashed var(--border);
+}
+.tt-cell.free:hover .chip-add { opacity: 1; color: var(--muted); }
+
+/* ── Week view ───────────────────────────────────────────────────────────── */
+.nav-row { display: flex; align-items: center; gap: 0.7rem; margin-bottom: 1.2rem; flex-wrap: wrap; }
+.nav-btn {
+  width: 34px; height: 34px;
+  border: 1.5px solid var(--border); border-radius: 7px;
+  background: var(--white); cursor: pointer;
+  font-size: 0.85rem; color: var(--text2);
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.12s;
+}
+.nav-btn:hover { border-color: var(--navy-light); background: var(--gold-pale); color: var(--navy); }
+.nav-label { font-weight: 700; font-size: 0.92rem; color: var(--text); min-width: 190px; text-align: center; }
+.nav-today {
+  padding: 0.42rem 0.85rem; border: 1.5px solid var(--border);
+  border-radius: 7px; background: var(--white);
+  font-size: 0.73rem; font-weight: 600; color: var(--text2);
+  cursor: pointer; transition: all 0.12s; font-family: 'Inter', sans-serif;
+}
+.nav-today:hover { background: var(--navy); color: var(--white); border-color: var(--navy); }
+.info-bar {
+  background: var(--gold-pale);
+  border: 1px solid rgba(201,168,76,0.3);
+  border-radius: 8px; padding: 0.58rem 1rem;
+  margin-bottom: 1rem; font-size: 0.76rem; color: var(--navy);
+  display: flex; align-items: center; gap: 0.55rem;
+}
+.info-bar svg { flex-shrink: 0; color: var(--gold); }
+
+/* Week grid */
+.week-grid {
+  display: grid;
+  grid-template-columns: var(--period-w) repeat(5, 1fr);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--border);
+  box-shadow: var(--shadow);
+  gap: 1px;
+}
+.wg-corner { background: var(--navy-mid); }
+.wg-day-head {
+  background: var(--navy); padding: 0.6rem 0.35rem; text-align: center;
+}
+.wg-day-head.today { background: var(--navy-light); }
+.wg-day-name { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; color: rgba(255,255,255,0.6); }
+.wg-day-date {
+  font-size: 0.8rem; font-weight: 700; color: var(--white); margin-top: 0.1rem; font-family: 'Sora', sans-serif;
+}
+.wg-day-head.today .wg-day-date {
+  background: var(--gold); color: var(--navy);
+  width: 1.75rem; height: 1.75rem; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.78rem; margin: 0.12rem auto 0;
+}
+.wg-period-lbl {
+  background: var(--white); border-right: 1px solid var(--border);
+  font-size: 0.64rem; font-weight: 700; color: var(--muted);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding-top: 0.45rem;
+}
+.wg-cell {
+  background: var(--white); min-height: 78px;
+  padding: 0.38rem; cursor: pointer; transition: background 0.12s;
+}
+.wg-cell:hover { background: #f4f7ff; }
+.wg-cell.na { background: #eaeff5; cursor: default; }
+.wg-card {
+  border-radius: 6px; padding: 0.32rem 0.48rem;
+  height: 100%; min-height: 66px;
+  display: flex; flex-direction: column; gap: 0.18rem;
+}
+.wg-card-cls { font-size: 0.62rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; }
+.wg-card-title { font-size: 0.7rem; font-weight: 600; line-height: 1.3; flex: 1; }
+.wg-card-status {
+  font-size: 0.55rem; font-weight: 700;
+  padding: 0.1rem 0.28rem; border-radius: 3px;
+  align-self: flex-start; text-transform: uppercase; letter-spacing: 0.04em;
+}
+.st-planned  { background: #f1f5f9; color: #475569; }
+.st-complete { background: #ecfdf5; color: #047857; }
+.st-draft    { background: #fff7ed; color: #c2410c; }
+.wg-free-slot {
+  display: flex; align-items: center; justify-content: center;
+  height: 100%; min-height: 66px;
+  font-size: 0.62rem; font-weight: 600; color: var(--border);
+  border: 1.5px dashed var(--border); border-radius: 6px;
+  transition: all 0.12s; letter-spacing: 0.04em;
+}
+.wg-cell:hover .wg-free-slot { border-color: var(--muted); color: var(--muted); }
+
+/* ── Day view ────────────────────────────────────────────────────────────── */
+.day-date-title { font-family: 'Sora', sans-serif; font-size: 1.15rem; font-weight: 700; color: var(--text); }
+.day-list { display: flex; flex-direction: column; gap: 0.65rem; }
+.day-card {
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.9rem 1.2rem;
+  display: flex; gap: 0.9rem; align-items: flex-start;
+  box-shadow: var(--shadow); cursor: pointer;
+  transition: all 0.15s; border-left: 4px solid;
+}
+.day-card:hover { box-shadow: var(--shadow-lg); }
+.day-badge {
+  flex-shrink: 0; width: 2.25rem; height: 2.25rem;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.68rem; font-weight: 800; color: var(--white);
+  font-family: 'Sora', sans-serif;
+}
+.day-body { flex: 1; }
+.day-cls-label { font-size: 0.62rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 0.22rem; }
+.day-lesson-title { font-weight: 700; font-size: 0.93rem; color: var(--text); margin-bottom: 0.2rem; font-family: 'Sora', sans-serif; line-height: 1.3; }
+.day-lesson-unit  { font-size: 0.75rem; color: var(--text2); }
+.day-free-card {
+  background: var(--white); border: 1.5px dashed var(--border);
+  border-radius: var(--radius); padding: 0.9rem 1.2rem;
+  display: flex; gap: 0.9rem; align-items: center;
+  cursor: pointer; transition: all 0.15s; color: var(--muted); font-size: 0.8rem;
+}
+.day-free-card:hover { border-color: var(--navy-light); color: var(--navy); }
+.day-free-badge {
+  flex-shrink: 0; width: 2.25rem; height: 2.25rem;
+  border-radius: 8px; background: var(--off-white);
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.68rem; font-weight: 700; color: var(--muted);
+  font-family: 'Sora', sans-serif;
+}
+
+/* ── Month view ──────────────────────────────────────────────────────────── */
+.month-wrap {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  overflow: hidden; box-shadow: var(--shadow); background: var(--border);
+}
+.month-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 1px; }
+.month-head {
+  background: var(--navy); color: rgba(255,255,255,0.65);
+  font-size: 0.62rem; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 0.6rem; text-align: center;
+}
+.month-cell {
+  background: var(--white); min-height: 86px; padding: 0.48rem;
+  cursor: pointer; transition: background 0.12s;
+  display: flex; flex-direction: column; gap: 0.22rem;
+}
+.month-cell:hover { background: #f4f7ff; }
+.month-cell.other   { background: #f5f5f5; }
+.month-cell.weekend { background: #fafafa; }
+.month-cell.today   { background: rgba(201,168,76,0.07); outline: 2px solid var(--gold); outline-offset: -2px; }
+.month-day-num { font-size: 0.8rem; font-weight: 700; color: var(--text2); }
+.month-cell.other .month-day-num { color: var(--muted); }
+.month-cell.today .month-day-num {
+  background: var(--navy); color: var(--white);
+  width: 1.55rem; height: 1.55rem; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; font-size: 0.72rem;
+}
+.month-dots { display: flex; gap: 3px; flex-wrap: wrap; }
+.month-dot  { width: 5px; height: 5px; border-radius: 50%; display: inline-block; }
+.month-preview {
+  font-size: 0.6rem; font-weight: 500; color: var(--text2);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  padding: 0.1rem 0.3rem; border-radius: 3px;
+}
+
+/* ── Lesson bank ─────────────────────────────────────────────────────────── */
+.filter-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1.2rem; flex-wrap: wrap; }
+.filter-lbl { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.f-chip {
+  padding: 0.36rem 0.82rem;
+  border: 1.5px solid var(--border); border-radius: 6px;
+  background: var(--white); font-size: 0.73rem; font-weight: 600;
+  color: var(--muted); cursor: pointer; transition: all 0.12s; font-family: 'Inter', sans-serif;
+}
+.f-chip:hover { border-color: var(--navy-light); color: var(--navy); }
+.f-chip.active { background: var(--navy); border-color: var(--navy); color: var(--white); }
+.search-box {
+  flex: 1; min-width: 160px; max-width: 240px;
+  padding: 0.4rem 0.7rem; border: 1.5px solid var(--border);
+  border-radius: 6px; font-family: 'Inter', sans-serif; font-size: 0.78rem; color: var(--text);
+}
+.search-box:focus { outline: none; border-color: var(--navy-light); }
+.btn-primary {
+  padding: 0.5rem 1rem; background: var(--navy); color: var(--white);
+  border: none; border-radius: 7px; font-weight: 600; font-size: 0.78rem;
+  cursor: pointer; font-family: 'Inter', sans-serif; transition: opacity 0.12s; white-space: nowrap;
+}
+.btn-primary:hover { opacity: 0.88; }
+.btn-secondary {
+  padding: 0.5rem 1rem; background: var(--white); color: var(--text2);
+  border: 1.5px solid var(--border); border-radius: 7px; font-weight: 600; font-size: 0.78rem;
+  cursor: pointer; font-family: 'Inter', sans-serif; transition: all 0.12s;
+}
+.btn-secondary:hover { background: var(--off-white); border-color: var(--border); }
+.lesson-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(275px, 1fr)); gap: 1rem; }
+.lesson-card {
+  background: var(--white); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 1rem 1.2rem;
+  box-shadow: var(--shadow); border-left: 4px solid;
+  display: flex; flex-direction: column; gap: 0.35rem;
+  cursor: pointer; transition: all 0.15s;
+}
+.lesson-card:hover { box-shadow: var(--shadow-lg); }
+.lc-subject { font-size: 0.58rem; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+.lc-title { font-weight: 700; font-size: 0.92rem; color: var(--text); font-family: 'Sora', sans-serif; line-height: 1.3; }
+.lc-unit  { font-size: 0.72rem; color: var(--text2); }
+.lc-preview { font-size: 0.7rem; color: var(--muted); line-height: 1.4; flex: 1; max-height: 3.5em; overflow: hidden; }
+.lc-footer {
+  display: flex; align-items: center; gap: 0.4rem;
+  padding-top: 0.5rem; border-top: 1px solid var(--border); margin-top: 0.2rem;
+}
+.lc-tag {
+  font-size: 0.58rem; font-weight: 700; padding: 0.16rem 0.38rem;
+  border-radius: 4px; text-transform: uppercase; letter-spacing: 0.04em;
+}
+.btn-sm {
+  margin-left: auto; padding: 0.28rem 0.6rem;
+  font-size: 0.68rem; font-weight: 600; border-radius: 5px;
+  cursor: pointer; border: 1.5px solid var(--border);
+  background: var(--white); color: var(--text2);
+  transition: all 0.12s; font-family: 'Inter', sans-serif;
+}
+.btn-sm:hover { background: var(--navy); color: var(--white); border-color: var(--navy); }
+
+/* ── Schemes ─────────────────────────────────────────────────────────────── */
+.scheme-card {
+  background: var(--white); border: 1px solid var(--border);
+  border-left: 6px solid; border-radius: var(--radius);
+  margin-bottom: 0.7rem; box-shadow: var(--shadow); overflow: hidden;
+}
+.scheme-head {
+  padding: 0.95rem 1.2rem;
+  display: flex; align-items: center; gap: 0.7rem;
+  cursor: pointer; transition: background 0.12s;
+}
+.scheme-head:hover { background: #fafafa; }
+.scheme-meta { flex: 1; }
+.scheme-title { font-family: 'Sora', sans-serif; font-size: 0.97rem; font-weight: 700; color: var(--text); }
+.scheme-sub   { font-size: 0.7rem; color: var(--muted); margin-top: 0.18rem; }
+.scheme-chips { display: flex; gap: 0.38rem; align-items: center; }
+.scheme-chip  { font-size: 0.6rem; font-weight: 700; padding: 0.18rem 0.48rem; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.04em; }
+.scheme-count { font-size: 0.7rem; color: var(--muted); font-weight: 500; white-space: nowrap; }
+.scheme-chevron { font-size: 0.8rem; color: var(--muted); transition: transform 0.2s; user-select: none; }
+.scheme-card.open .scheme-chevron { transform: rotate(90deg); }
+.scheme-body { display: none; border-top: 1px solid var(--border); padding: 0.7rem 1.2rem 1rem; }
+.scheme-card.open .scheme-body { display: block; }
+.scheme-row {
+  display: flex; align-items: center; gap: 0.7rem;
+  padding: 0.45rem 0; border-bottom: 1px solid var(--border);
+  font-size: 0.8rem;
+}
+.scheme-row:last-child { border-bottom: none; }
+.scheme-num {
+  width: 1.55rem; height: 1.55rem; border-radius: 50%;
+  background: var(--off-white); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.65rem; font-weight: 700; color: var(--text2); flex-shrink: 0;
+}
+.scheme-lesson-title { flex: 1; font-weight: 600; color: var(--text); }
+.scheme-status {
+  font-size: 0.55rem; font-weight: 700; padding: 0.14rem 0.38rem;
+  border-radius: 999px; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap;
+}
+
+/* colour helpers */
+.drama-b { border-left-color: var(--drama-ac) !important; }
+.art-b   { border-left-color: var(--art-ac) !important; }
+.photo-b { border-left-color: var(--photo-ac) !important; }
+.drama-t { color: var(--drama-dk); }
+.art-t   { color: var(--art-dk); }
+.photo-t { color: var(--photo-dk); }
+.drama-chip-s { background: rgba(124,58,237,.08); color:#5b21b6; border:1px solid rgba(124,58,237,.3); }
+.art-chip-s   { background: rgba(192,98,42,.09);  color:#9a3412; border:1px solid rgba(192,98,42,.3); }
+.photo-chip-s { background: rgba(13,148,136,.09); color:#115e59; border:1px solid rgba(13,148,136,.3); }
+
+/* schemes top row */
+.schemes-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:1.2rem; flex-wrap:wrap; gap:.7rem; }
+
+/* responsive */
+@media (max-width: 900px) {
+  .content { padding: 1rem; }
+  .banner-inner, .tabs-inner { padding-left: 1rem; padding-right: 1rem; }
+  :root { --period-w: 2.6rem; }
+}
+@media (max-width: 600px) {
+  .banner-meta { display: none; }
+  .stat-num { font-size: 1.25rem; }
+  .nav-label { min-width: 140px; font-size: 0.82rem; }
+}
+</style>
+</head>
+<body>
+
+<!-- ── Topbar (Faculty Hub style) ─────────────────────────────────────── -->
+<header class="topbar">
+  <div class="topbar-left">
+    <div class="topbar-logo-wrap">
+      <!-- In production this is faculty-hub-logo.png -->
+      <div class="topbar-logo-fallback">FH</div>
+    </div>
+    <h1 class="topbar-heading">Teacher <span>Planner</span></h1>
+  </div>
+  <div class="topbar-meta">
+    <span class="meta-badge teacher">R. McColm</span>
+    <span class="meta-badge">Drama Studio</span>
+    <span class="meta-badge">2025–26</span>
+  </div>
+</header>
+
+<!-- ── Tabs ────────────────────────────────────────────────────────────── -->
+<nav class="tabs-bar">
+  <div class="tabs-inner">
+    <button class="tab-btn active" data-tab="timetable">My Timetable</button>
+    <button class="tab-btn" data-tab="week">Week View</button>
+    <button class="tab-btn" data-tab="day">Day View</button>
+    <button class="tab-btn" data-tab="month">Month View</button>
+    <button class="tab-btn" data-tab="bank">Lesson Bank</button>
+    <button class="tab-btn" data-tab="schemes">Schemes of Work</button>
+  </div>
+</nav>
+
+<!-- ── Main content ─────────────────────────────────────────────────────── -->
+<main class="content">
+
+  <!-- ── Timetable panel ──────────────────────────────────────────────── -->
+  <div id="panel-timetable" class="panel active">
+    <div class="stat-row">
+      <div class="stat-card"><div class="stat-num">18</div><div class="stat-label">Teaching periods / week</div></div>
+      <div class="stat-card"><div class="stat-num">7</div><div class="stat-label">Classes</div></div>
+      <div class="stat-card"><div class="stat-num">42</div><div class="stat-label">Lesson plans saved</div></div>
+      <div class="stat-card"><div class="stat-num">3</div><div class="stat-label">Schemes of work</div></div>
+    </div>
+    <p class="section-lbl">My weekly timetable</p>
+    <div class="grid-wrap">
+      <div class="tt-grid" id="myTT"></div>
+    </div>
+    <div style="display:flex;gap:.6rem;align-items:center;margin-top:.9rem;flex-wrap:wrap">
+      <button class="btn-secondary">Edit timetable</button>
+      <span style="font-size:.73rem;color:var(--muted)">Click any class chip to open the lesson planner</span>
+    </div>
+  </div>
+
+  <!-- ── Week panel ───────────────────────────────────────────────────── -->
+  <div id="panel-week" class="panel">
+    <div class="nav-row">
+      <button class="nav-btn">&#9664;</button>
+      <div class="nav-label">18 – 22 May 2026</div>
+      <button class="nav-btn">&#9654;</button>
+      <button class="nav-today">Today</button>
+    </div>
+    <div class="info-bar">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span>This week — <strong>Senior Assessment Fortnight</strong> begins Thursday 21 May. S5/6 classes may be affected.</span>
+    </div>
+    <div class="week-grid" id="weekGrid"></div>
+  </div>
+
+  <!-- ── Day panel ────────────────────────────────────────────────────── -->
+  <div id="panel-day" class="panel">
+    <div class="nav-row">
+      <button class="nav-btn">&#9664;</button>
+      <div class="day-date-title">Tuesday 19 May 2026</div>
+      <button class="nav-btn">&#9654;</button>
+      <button class="nav-today">Today</button>
+    </div>
+    <div class="day-list" id="dayList"></div>
+  </div>
+
+  <!-- ── Month panel ──────────────────────────────────────────────────── -->
+  <div id="panel-month" class="panel">
+    <div class="nav-row">
+      <button class="nav-btn">&#9664;</button>
+      <div class="nav-label">May 2026</div>
+      <button class="nav-btn">&#9654;</button>
+      <button class="nav-today">Today</button>
+    </div>
+    <div class="month-wrap">
+      <div class="month-grid" id="monthGrid"></div>
+    </div>
+  </div>
+
+  <!-- ── Lesson Bank panel ────────────────────────────────────────────── -->
+  <div id="panel-bank" class="panel">
+    <div class="filter-row">
+      <span class="filter-lbl">Subject</span>
+      <button class="f-chip active" data-subject="all">All</button>
+      <button class="f-chip" data-subject="drama">Drama</button>
+      <button class="f-chip" data-subject="art">Art</button>
+      <button class="f-chip" data-subject="photography">Photography</button>
+      <input type="text" class="search-box" placeholder="Search lessons…">
+      <button class="btn-primary" style="margin-left:auto">+ New lesson</button>
+    </div>
+    <div class="lesson-grid" id="lessonGrid"></div>
+  </div>
+
+  <!-- ── Schemes panel ────────────────────────────────────────────────── -->
+  <div id="panel-schemes" class="panel">
+    <div class="schemes-top">
+      <div>
+        <div style="font-size:.93rem;font-weight:700;color:var(--text)">Schemes of Work</div>
+        <div style="font-size:.75rem;color:var(--muted);margin-top:.18rem">Your unit plans and lesson sequences</div>
+      </div>
+      <button class="btn-primary">+ New unit</button>
+    </div>
+    <div id="schemesList"></div>
+  </div>
+
+</main>
+
+<script>
+// ── Mock data ──────────────────────────────────────────────────────────────
+const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
+const DAY_DATES = ['18','19','20','21','22'];
+const DAY_PERIODS = { Monday:7, Tuesday:7, Wednesday:7, Thursday:6, Friday:6 };
+const MAX_P = 7;
+
+const CLASS_STYLE = {
+  '2E':      { bg:'#dceede', dk:'#0a3b0c', ac:'#2e7d32' },
+  '2H':      { bg:'#dceede', dk:'#0a3b0c', ac:'#2e7d32' },
+  '2L':      { bg:'#dceede', dk:'#0a3b0c', ac:'#2e7d32' },
+  '2M':      { bg:'#dceede', dk:'#0a3b0c', ac:'#2e7d32' },
+  '4draG':   { bg:'#fdeade', dk:'#7a1a00', ac:'#e8420a' },
+  '5ciC':    { bg:'#ede9fe', dk:'#4c1d95', ac:'#7c3aed' },
+  '5AHdraB': { bg:'#ddeaf8', dk:'#0a2d6b', ac:'#1565c0' },
+};
+
+const MY_TT = {
+  Monday:    { 3:'4draG' },
+  Tuesday:   { 2:'4draG', 3:'5ciC', 4:'2E', 6:'5AHdraB', 7:'5AHdraB' },
+  Wednesday: { 1:'5ciC', 2:'5ciC', 4:'4draG', 5:'2L', 6:'2H' },
+  Thursday:  { 5:'5AHdraB', 6:'5AHdraB' },
+  Friday:    { 2:'2M', 5:'4draG' },
+};
+
+const LESSONS = {
+  'Monday-3':    { cls:'4draG', title:'Devised Piece — Group Rehearsal', unit:'Unit 3: Devising', status:'planned' },
+  'Tuesday-2':   { cls:'4draG', title:'Character Motivation', unit:'Unit 3: Devising', status:'complete' },
+  'Tuesday-3':   { cls:'5ciC', title:'Critical Essay — Intro Techniques', unit:'Unit 1: Drama Analysis', status:'planned' },
+  'Tuesday-4':   { cls:'2E', title:'Mime & Physical Theatre', unit:'Unit 2: Performance Skills', status:'planned' },
+  'Tuesday-6':   { cls:'5AHdraB', title:'Portfolio Review', unit:'AH: Independent Study', status:'draft' },
+  'Tuesday-7':   { cls:'5AHdraB', title:'Portfolio Review (cont.)', unit:'AH: Independent Study', status:'draft' },
+  'Wednesday-1': { cls:'5ciC', title:'Monologue Analysis', unit:'Unit 1: Drama Analysis', status:'complete' },
+  'Wednesday-2': { cls:'5ciC', title:'Performing the Monologue', unit:'Unit 1: Drama Analysis', status:'planned' },
+  'Wednesday-4': { cls:'4draG', title:'Status & Power Exercises', unit:'Unit 3: Devising', status:'planned' },
+  'Wednesday-5': { cls:'2L', title:'Script Reading Warm-Up', unit:'Unit 2: Performance Skills', status:'planned' },
+  'Wednesday-6': { cls:'2H', title:'Improvisation Games', unit:'Unit 2: Performance Skills', status:'planned' },
+  'Thursday-5':  { cls:'5AHdraB', title:'Portfolio Workshop', unit:'AH: Independent Study', status:'planned' },
+  'Thursday-6':  { cls:'5AHdraB', title:'Peer Feedback Session', unit:'AH: Independent Study', status:'planned' },
+  'Friday-2':    { cls:'2M', title:'Drama Conventions Intro', unit:'Unit 1: Introduction to Drama', status:'planned' },
+  'Friday-5':    { cls:'4draG', title:'Run-Through & Notes', unit:'Unit 3: Devising', status:'planned' },
+};
+
+const LESSON_BANK = [
+  { subject:'drama', title:'Hot Seating', unit:'Unit 2: Character Work', preview:'Students take turns as characters from the play answering in-role questions. Works well S3–S5.' },
+  { subject:'drama', title:'Stanislavski — Emotional Memory', unit:'Unit 3: Realism', preview:'Introduction to method acting: given circumstances, emotional memory, the magic "if".' },
+  { subject:'drama', title:'Forum Theatre (Boal)', unit:'Unit 4: TIE', preview:'Students explore a social conflict scene. Spectators become "spect-actors" to intervene and change outcomes.' },
+  { subject:'drama', title:'Physical Theatre — Frantic Assembly', unit:'Unit 2: Physical', preview:'Chair duets and contact improvisation techniques. Focus on ensemble movement and spatial awareness.' },
+  { subject:'drama', title:'Commedia dell\'arte Characters', unit:'Unit 1: Traditions', preview:'Explore stock characters and physicality through mask work and improvisation.' },
+  { subject:'drama', title:'Greek Chorus Techniques', unit:'Unit 5: Ancient Forms', preview:'Unison movement, stylised voice, mask work. Explore function of the chorus in Greek tragedy.' },
+  { subject:'art', title:'Expressive Painting — Atmosphere', unit:'Unit 1: Colour Theory', preview:'Exploring warm and cool palettes with watercolour. Focus on mood and emotional resonance.' },
+  { subject:'art', title:'Still Life Observational Drawing', unit:'Unit 2: Drawing Skills', preview:'Tonal drawing using graphite and charcoal. Form, proportion, and light source.' },
+  { subject:'photography', title:'Rule of Thirds Composition', unit:'Unit 1: Composition', preview:'Studio and outdoor shoot focusing on compositional techniques. Peer critique activity.' },
+  { subject:'photography', title:'Portraiture Lighting Setups', unit:'Unit 3: Portrait', preview:'Three-point lighting in the studio. Students photograph each other and analyse professional portraits.' },
+];
+
+const SCHEMES = [
+  {
+    subject: 'drama', title: 'S4 Drama — Unit 3: Devising', meta: 'S4 · 8 weeks · 4draG',
+    lessons: [
+      { title:'Introduction to Devising Principles', status:'complete' },
+      { title:'Stimulus Exploration', status:'complete' },
+      { title:'Character & Motivation', status:'complete' },
+      { title:'Status & Power Dynamics', status:'planned' },
+      { title:'Rehearsal & Refinement', status:'planned' },
+      { title:'Technical Elements', status:'planned' },
+      { title:'Performance Run-Through', status:'planned' },
+      { title:'Assessment Performance', status:'planned' },
+    ]
+  },
+  {
+    subject: 'drama', title: 'S5 CI — Unit 1: Drama Analysis', meta: 'S5 · 6 weeks · 5ciC',
+    lessons: [
+      { title:'Reading a Play Text', status:'complete' },
+      { title:'Monologue Analysis Techniques', status:'complete' },
+      { title:'Performing the Monologue', status:'planned' },
+      { title:'Critical Essay Structure', status:'planned' },
+      { title:'Essay Writing Workshop', status:'planned' },
+      { title:'Peer Review & Finalising', status:'planned' },
+    ]
+  },
+  {
+    subject: 'drama', title: 'S5/6 AH — Independent Study', meta: 'S5/6 AH · Full year · 5AHdraB',
+    lessons: [
+      { title:'Research & Concept Development', status:'complete' },
+      { title:'Portfolio Structure & Curation', status:'complete' },
+      { title:'Practical Development Sessions', status:'planned' },
+      { title:'Portfolio Review & Peer Feedback', status:'draft' },
+      { title:'External Moderation Prep', status:'planned' },
+    ]
+  },
+];
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function el(tag, cls) { const e = document.createElement(tag); if (cls) e.className = cls; return e; }
+function cs(c) { return CLASS_STYLE[c] || { bg:'#f0f2f5', dk:'#1f2937', ac:'#64748b' }; }
+
+// ── Build personal timetable ───────────────────────────────────────────────
+function buildTimetable() {
+  const grid = document.getElementById('myTT');
+  grid.innerHTML = '';
+  // Header row
+  const corner = el('div','tt-th corner'); grid.append(corner);
+  DAYS.forEach(day => { const th = el('div','tt-th'); th.textContent = day; grid.append(th); });
+  // Period rows
+  for (let p = 1; p <= MAX_P; p++) {
+    if (p > 1) { const sep = el('div','period-sep'); grid.append(sep); }
+    const lbl = el('div','period-lbl'); lbl.textContent = 'P'+p; grid.append(lbl);
+    DAYS.forEach(day => {
+      const nP = DAY_PERIODS[day];
+      const cls = p <= nP ? (MY_TT[day]?.[p] || null) : null;
+      const cell = el('div','tt-cell');
+      if (p > nP) {
+        cell.classList.add('na');
+      } else if (cls) {
+        cell.classList.add('busy');
+        const s = cs(cls);
+        const chip = el('div','class-chip');
+        chip.style.cssText = `background:${s.bg};border:1.5px solid ${s.ac};color:${s.dk}`;
+        const nm = el('span','chip-cls'); nm.textContent = cls; chip.append(nm);
+        const lesson = LESSONS[day+'-'+p];
+        if (lesson) { const lt = el('span','chip-lsn'); lt.textContent = lesson.title; chip.append(lt); }
+        cell.append(chip);
+      } else {
+        cell.classList.add('free');
+        const add = el('div','chip-add'); add.textContent = '+ plan lesson'; cell.append(add);
+      }
+      grid.append(cell);
+    });
+  }
+}
+
+// ── Build week grid ────────────────────────────────────────────────────────
+function buildWeek() {
+  const grid = document.getElementById('weekGrid');
+  grid.innerHTML = '';
+  // Top-left corner
+  grid.append(el('div','wg-corner'));
+  // Day headers
+  DAYS.forEach((day, i) => {
+    const head = el('div','wg-day-head');
+    if (i === 1) head.classList.add('today'); // Tuesday = today in mockup
+    const nm = el('div','wg-day-name'); nm.textContent = day.slice(0,3); head.append(nm);
+    const dt = el('div','wg-day-date'); dt.textContent = DAY_DATES[i]; head.append(dt);
+    grid.append(head);
+  });
+  // Period rows
+  for (let p = 1; p <= MAX_P; p++) {
+    const lbl = el('div','wg-period-lbl'); lbl.textContent = 'P'+p; grid.append(lbl);
+    DAYS.forEach(day => {
+      const nP = DAY_PERIODS[day];
+      const cls = p <= nP ? (MY_TT[day]?.[p] || null) : null;
+      const cell = el('div','wg-cell');
+      if (p > nP) {
+        cell.classList.add('na'); grid.append(cell); return;
+      }
+      if (cls) {
+        const s = cs(cls);
+        const lesson = LESSONS[day+'-'+p];
+        const card = el('div','wg-card');
+        card.style.cssText = `background:${s.bg};border:1.5px solid ${s.ac}`;
+        const clsEl = el('div','wg-card-cls'); clsEl.style.color = s.dk; clsEl.textContent = cls; card.append(clsEl);
+        if (lesson) {
+          const titleEl = el('div','wg-card-title'); titleEl.style.color = s.dk; titleEl.textContent = lesson.title; card.append(titleEl);
+          const stEl = el('div','wg-card-status st-'+lesson.status); stEl.textContent = lesson.status; card.append(stEl);
+        } else {
+          const blank = el('div','wg-card-title'); blank.style.cssText = `color:${s.dk};opacity:.55;font-style:italic`; blank.textContent = 'No lesson plan yet'; card.append(blank);
+        }
+        cell.append(card);
+      } else {
+        const free = el('div','wg-free-slot'); free.textContent = 'Free'; cell.append(free);
+      }
+      grid.append(cell);
+    });
+  }
+}
+
+// ── Build day list ─────────────────────────────────────────────────────────
+function buildDay() {
+  const list = document.getElementById('dayList');
+  list.innerHTML = '';
+  // Tuesday
+  const tuesdayTT = { 2:'4draG', 3:'5ciC', 4:'2E', 6:'5AHdraB', 7:'5AHdraB' };
+  for (let p = 1; p <= 7; p++) {
+    const cls = tuesdayTT[p];
+    if (cls) {
+      const s = cs(cls);
+      const lesson = LESSONS['Tuesday-'+p];
+      const card = el('div','day-card');
+      card.style.borderLeftColor = s.ac;
+      const badge = el('div','day-badge'); badge.style.background = s.ac; badge.textContent = 'P'+p;
+      const body = el('div','day-body');
+      const clsLbl = el('div','day-cls-label'); clsLbl.textContent = cls+' · Drama Studio'; body.append(clsLbl);
+      if (lesson) {
+        const t = el('div','day-lesson-title'); t.textContent = lesson.title; body.append(t);
+        const u = el('div','day-lesson-unit'); u.textContent = lesson.unit; body.append(u);
+      } else {
+        const t = el('div','day-lesson-title'); t.style.cssText = 'color:var(--muted);font-style:italic;font-family:Inter,sans-serif;font-weight:500'; t.textContent = 'No lesson plan — click to add'; body.append(t);
+      }
+      card.append(badge, body);
+      // Status badge on right
+      if (lesson) {
+        const st = el('span','wg-card-status st-'+lesson.status); st.textContent = lesson.status; st.style.alignSelf = 'center'; card.append(st);
+      }
+      list.append(card);
+    } else {
+      const free = el('div','day-free-card');
+      const badge = el('div','day-free-badge'); badge.textContent = 'P'+p;
+      const txt = document.createTextNode('Free period');
+      free.append(badge, txt); list.append(free);
+    }
+  }
+}
+
+// ── Build month grid ───────────────────────────────────────────────────────
+function buildMonth() {
+  const grid = document.getElementById('monthGrid');
+  grid.innerHTML = '';
+  ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].forEach(d => {
+    const h = el('div','month-head'); h.textContent = d; grid.append(h);
+  });
+  // May 2026: May 1 = Friday → Mon-index 4, pad = 4 cells from April
+  const pad = 4;
+  for (let i = 0; i < pad; i++) {
+    const c = el('div','month-cell other');
+    const n = el('div','month-day-num'); n.textContent = 27+i; c.append(n); grid.append(c);
+  }
+  const teachingDots = { 18:['#e8420a'], 19:['#e8420a','#7c3aed','#2e7d32','#1565c0','#1565c0'], 20:['#7c3aed','#7c3aed','#e8420a','#2e7d32','#2e7d32'], 21:['#1565c0','#1565c0'], 22:['#2e7d32','#e8420a'] };
+  const previews = { 19:'4draG · Character Motivation', 20:'5ciC · Monologue Analysis' };
+  for (let d = 1; d <= 31; d++) {
+    const dow = (pad + d - 1) % 7;
+    const c = el('div','month-cell');
+    if (dow >= 5) c.classList.add('weekend');
+    if (d === 17) c.classList.add('today');
+    if (dow >= 5 || d > 28) c.classList.add('weekend');
+    const n = el('div','month-day-num'); n.textContent = d; c.append(n);
+    if (teachingDots[d]) {
+      const row = el('div','month-dots');
+      teachingDots[d].forEach(col => { const dot = el('span','month-dot'); dot.style.background = col; row.append(dot); });
+      c.append(row);
+    }
+    if (previews[d]) {
+      const pv = el('div','month-preview');
+      const dotColours = {19:'#fdeade;color:#7a1a00', 20:'#ede9fe;color:#4c1d95'};
+      pv.style.cssText = 'background:'+dotColours[d];
+      pv.textContent = previews[d]; c.append(pv);
+    }
+    grid.append(c);
+  }
+  // trailing
+  const trail = 7 - ((pad + 31) % 7);
+  if (trail < 7) for (let i = 1; i <= trail; i++) {
+    const c = el('div','month-cell other');
+    const n = el('div','month-day-num'); n.textContent = i; c.append(n); grid.append(c);
+  }
+}
+
+// ── Build lesson bank ──────────────────────────────────────────────────────
+function buildBank(filter) {
+  const grid = document.getElementById('lessonGrid');
+  grid.innerHTML = '';
+  const subMap = {
+    drama:       { cls:'drama-b', textCls:'drama-t', chipCls:'drama-chip-s', label:'Drama' },
+    art:         { cls:'art-b',   textCls:'art-t',   chipCls:'art-chip-s',   label:'Art & Design' },
+    photography: { cls:'photo-b', textCls:'photo-t', chipCls:'photo-chip-s', label:'Photography' },
+  };
+  LESSON_BANK.filter(l => !filter || filter === 'all' || l.subject === filter).forEach(lesson => {
+    const m = subMap[lesson.subject];
+    const card = el('div','lesson-card '+m.cls);
+    const sub = el('div','lc-subject '+m.textCls); sub.textContent = m.label;
+    const title = el('div','lc-title'); title.textContent = lesson.title;
+    const unit  = el('div','lc-unit');  unit.textContent  = lesson.unit;
+    const prev  = el('div','lc-preview'); prev.textContent = lesson.preview;
+    const footer = el('div','lc-footer');
+    const tag = el('span','lc-tag '+m.chipCls); tag.textContent = lesson.subject;
+    const btn = el('button','btn-sm'); btn.textContent = 'Apply →';
+    footer.append(tag, btn);
+    card.append(sub, title, unit, prev, footer);
+    grid.append(card);
+  });
+}
+
+// ── Build schemes ──────────────────────────────────────────────────────────
+function buildSchemes() {
+  const list = document.getElementById('schemesList');
+  list.innerHTML = '';
+  const sMap = {
+    drama:       { bc:'drama-b', chipCls:'scheme-chip drama-chip-s', label:'Drama' },
+    art:         { bc:'art-b',   chipCls:'scheme-chip art-chip-s',   label:'Art' },
+    photography: { bc:'photo-b', chipCls:'scheme-chip photo-chip-s', label:'Photography' },
+  };
+  const stMap = { complete:'st-complete', planned:'st-planned', draft:'st-draft' };
+  SCHEMES.forEach((scheme, idx) => {
+    const m = sMap[scheme.subject];
+    const card = el('div','scheme-card '+m.bc);
+    if (idx === 0) card.classList.add('open');
+    const head = el('div','scheme-head');
+    head.addEventListener('click', () => card.classList.toggle('open'));
+    const meta = el('div','scheme-meta');
+    const title = el('div','scheme-title'); title.textContent = scheme.title;
+    const sub   = el('div','scheme-sub');   sub.textContent   = scheme.meta;
+    meta.append(title, sub);
+    const chips = el('div','scheme-chips');
+    const chip  = el('span',m.chipCls); chip.textContent = m.label; chips.append(chip);
+    const count = el('span','scheme-count'); count.textContent = scheme.lessons.length+' lessons';
+    const chev  = el('span','scheme-chevron'); chev.textContent = '›';
+    head.append(meta, chips, count, chev);
+    const body = el('div','scheme-body');
+    scheme.lessons.forEach((lesson, i) => {
+      const row = el('div','scheme-row');
+      const num = el('div','scheme-num'); num.textContent = i+1;
+      const t   = el('div','scheme-lesson-title'); t.textContent = lesson.title;
+      const st  = el('span','scheme-status '+stMap[lesson.status]); st.textContent = lesson.status;
+      row.append(num, t, st); body.append(row);
+    });
+    card.append(head, body); list.append(card);
+  });
+}
+
+// ── Tab switching ──────────────────────────────────────────────────────────
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
+  });
+});
+
+// ── Subject filter in lesson bank ──────────────────────────────────────────
+document.querySelectorAll('.f-chip').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.f-chip').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    buildBank(btn.dataset.subject);
+  });
+});
+
+// ── Init ───────────────────────────────────────────────────────────────────
+buildTimetable();
+buildWeek();
+buildDay();
+buildMonth();
+buildBank('all');
+buildSchemes();
+</script>
+</body>
+</html>
