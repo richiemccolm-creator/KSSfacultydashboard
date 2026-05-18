@@ -109,11 +109,57 @@ body{font-family:'Inter',sans-serif;background:linear-gradient(135deg,#16243c,#1
     document.getElementById('submitBtn').textContent = loading ? 'Signing in…' : 'Sign in';
   }
 
-  var redirect = new URLSearchParams(window.location.search).get('redirect') || 'faculty-hub.html';
-  if (redirect.startsWith('/')) redirect = redirect.slice(1);
+  function normalizeRedirectTarget(raw) {
+    var fallback = 'faculty-hub.html';
+    var aliases = {
+      'faculty_dashboard.html': 'faculty-hub.html',
+      'faculty_hub_home_redesign.html': 'faculty-hub.html',
+      'tracking_hub_overview_redesign.html': 'tracking_monitoring_hub.html',
+      'fh_tracking.html': 'tracking_monitoring_hub.html',
+      'fh_class_management.html': 'class_management_hub_v2.html'
+    };
+    var allowed = {
+      'faculty-hub.html': true,
+      'tracking_monitoring_hub.html': true,
+      'class_management_hub_v2.html': true,
+      'drama-tracker.html': true,
+      'art-tracker.html': true,
+      'faculty_dashboard.html': true,
+      'teacher_planner.html': true,
+      'teacher_tasks.html': true,
+      'department_meetings.html': true,
+      'academic_calendar_app.html': true,
+      'learning_teaching.html': true
+    };
+
+    try {
+      var candidate = String(raw || fallback).trim();
+      if (!candidate) return fallback;
+
+      if (/^https?:\/\//i.test(candidate)) {
+        var abs = new URL(candidate, window.location.origin);
+        if (abs.origin !== window.location.origin) return fallback;
+        candidate = abs.pathname + abs.search;
+      }
+
+      candidate = candidate.split('#')[0];
+      if (candidate.startsWith('/')) candidate = candidate.slice(1);
+      candidate = candidate.split('?')[0];
+
+      candidate = aliases[candidate] || candidate;
+      if (!allowed[candidate]) return fallback;
+
+      return candidate;
+    } catch (e) {
+      return fallback;
+    }
+  }
+
+  var rawRedirect = new URLSearchParams(window.location.search).get('redirect');
+  var redirect = normalizeRedirectTarget(rawRedirect);
 
   function goToApp() {
-    window.location.replace(withVersion(redirect || 'faculty-hub.html'));
+    window.location.replace(withVersion(redirect));
   }
 
   function checkAndGo() {
