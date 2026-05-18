@@ -1865,14 +1865,21 @@ function collectTimetableFromDOM() {
       var cls = cell.querySelector('.slot-class');
       var room = cell.querySelector('.slot-room');
       var colorSel = cell.querySelector('.slot-color');
-      if (subj && subj.value) {
+      var subjVal = subj && subj.value ? String(subj.value).trim() : '';
+      var clsVal = cls && cls.value ? String(cls.value).trim() : '';
+      var roomVal = room && room.value ? String(room.value).trim() : '';
+      var hasAnyInput = !!(subjVal || clsVal || roomVal);
+      if (hasAnyInput) {
+        // Allow adding a new timetable slot from class/room input alone.
+        // If subject isn't chosen, keep it explicit but non-blocking.
+        if (!subjVal) subjVal = 'other';
         slots.push({
           id: PS.id(),
           day: day,
           period: period,
-          subject: subj.value,
-          className: cls ? cls.value : '',
-          room: room ? room.value : '',
+          subject: subjVal,
+          className: clsVal,
+          room: roomVal,
           color: colorSel && colorSel.value ? colorSel.value : undefined
         });
       }
