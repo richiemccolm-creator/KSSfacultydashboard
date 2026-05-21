@@ -1281,6 +1281,55 @@ a.subject-card-link{text-decoration:none;cursor:pointer}
   .staff-home-week-grid{grid-template-columns:1fr}
   .staff-home-quick-grid{grid-template-columns:1fr}
 }
+.home-notif-wrap{position:relative;display:inline-flex}
+.home-notif-bell{
+  position:relative;display:inline-flex;align-items:center;justify-content:center;
+  width:34px;height:34px;border:1px solid rgba(255,255,255,.22);border-radius:8px;
+  background:rgba(255,255,255,.1);color:#fff;cursor:pointer;padding:0;
+  transition:background .15s,border-color .15s;
+}
+.home-notif-bell:hover,.home-notif-bell[aria-expanded="true"]{
+  background:rgba(255,255,255,.18);border-color:rgba(255,255,255,.35);
+}
+.home-notif-bell .ti{font-size:17px;line-height:1}
+.home-notif-badge{
+  position:absolute;top:-5px;right:-5px;min-width:16px;height:16px;padding:0 4px;
+  border-radius:99px;background:#ef4444;color:#fff;font-size:9px;font-weight:600;
+  line-height:16px;text-align:center;border:2px solid #2a3f62;box-sizing:content-box;
+}
+.home-notif-panel{
+  position:absolute;top:calc(100% + 8px);right:0;width:min(300px,calc(100vw - 32px));
+  background:#fff;border:.5px solid #e2e8f0;border-radius:10px;
+  box-shadow:0 12px 32px rgba(15,23,42,.18);z-index:40;overflow:hidden;
+}
+.home-notif-panel-head{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  padding:10px 12px;border-bottom:.5px solid #e2e8f0;
+}
+.home-notif-panel-head span{font-size:11px;font-weight:600;color:#0f172a}
+.home-notif-mark-all{
+  border:none;background:none;padding:0;font-size:10px;color:#2f64bf;cursor:pointer;font-weight:500;
+}
+.home-notif-mark-all:hover{text-decoration:underline}
+.home-notif-mark-all:disabled{opacity:.45;cursor:not-allowed;text-decoration:none}
+.home-notif-list{max-height:280px;overflow-y:auto}
+.home-notif-item{
+  display:flex;gap:10px;width:100%;padding:10px 12px;border:none;border-bottom:.5px solid #f1f4f9;
+  background:#fff;text-align:left;cursor:pointer;align-items:flex-start;
+}
+.home-notif-item:last-child{border-bottom:none}
+.home-notif-item:hover{background:#f8fafc}
+.home-notif-item-icon{
+  width:28px;height:28px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.home-notif-item-icon.announcement{background:#fee2e2;color:#b91c1c}
+.home-notif-item-icon.calendar{background:#dbeafe;color:#2f64bf}
+.home-notif-item-body{flex:1;min-width:0}
+.home-notif-item-type{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#94a3b8}
+.home-notif-item-title{font-size:11px;font-weight:500;color:#0f172a;line-height:1.35;margin-top:2px}
+.home-notif-item-sub{font-size:10px;color:#64748b;line-height:1.35;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.home-notif-item-meta{font-size:9px;color:#94a3b8;margin-top:3px}
+.home-notif-empty{padding:18px 12px;font-size:10px;color:#64748b;text-align:center;line-height:1.45}
 @media(max-width:1100px){
   .home-core-grid{grid-template-columns:1fr 1fr !important}
   .home-core-grid > div:first-child{grid-column:1 / -1}
@@ -2245,9 +2294,11 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
 
         <div class="staff-home-shell">
           <div style="background:#fff;border-radius:10px;overflow:hidden;padding:18px;font-size:11px;color:#0b1220;">
-            <section style="position:relative;background:linear-gradient(120deg,#1e2d4a 0%,#2a3f62 65%,#3a5489 100%);border-radius:12px;padding:18px 22px;margin-bottom:14px;color:#fff;overflow:hidden;">
-              <div style="position:absolute;right:-60px;top:-60px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(251,191,36,.18),transparent 65%);"></div>
-              <div style="position:absolute;right:120px;bottom:-100px;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(74,127,212,.18),transparent 65%);"></div>
+            <section style="position:relative;background:linear-gradient(120deg,#1e2d4a 0%,#2a3f62 65%,#3a5489 100%);border-radius:12px;padding:18px 22px;margin-bottom:14px;color:#fff;overflow:visible;">
+              <div style="position:absolute;inset:0;border-radius:12px;overflow:hidden;pointer-events:none;" aria-hidden="true">
+                <div style="position:absolute;right:-60px;top:-60px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(251,191,36,.18),transparent 65%);"></div>
+                <div style="position:absolute;right:120px;bottom:-100px;width:260px;height:260px;border-radius:50%;background:radial-gradient(circle,rgba(74,127,212,.18),transparent 65%);"></div>
+              </div>
               <div class="home-hero-wrap" style="position:relative;display:flex;justify-content:space-between;align-items:flex-start;gap:20px;">
                 <div style="flex:1;min-width:0;">
                   <div id="homeCurrentDate" style="font-size:9px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:6px;">Monday · 18 May · Week B</div>
@@ -2260,7 +2311,21 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
                   <div style="display:flex;gap:6px;align-items:center;justify-content:flex-end;margin-top:8px;font-size:11px;color:rgba(255,255,255,.85);">
                     <i class="ti ti-cloud" style="font-size:15px;color:#fbbf24;"></i> 12°C · Glasgow
                   </div>
-                  <div style="margin-top:8px;display:flex;gap:5px;justify-content:flex-end;align-items:center;"></div>
+                  <div style="margin-top:8px;display:flex;gap:5px;justify-content:flex-end;align-items:center;">
+                    <div class="home-notif-wrap" id="homeNotifWrap">
+                      <button type="button" class="home-notif-bell" id="homeNotifBellBtn" aria-label="Notifications" aria-expanded="false" aria-haspopup="true" title="Notifications">
+                        <i class="ti ti-bell" aria-hidden="true"></i>
+                        <span class="home-notif-badge" id="homeNotifBadge" hidden>0</span>
+                      </button>
+                      <div class="home-notif-panel" id="homeNotifPanel" hidden role="menu" aria-label="Notifications">
+                        <div class="home-notif-panel-head">
+                          <span>Notifications</span>
+                          <button type="button" class="home-notif-mark-all" id="homeNotifMarkAllBtn" disabled>Mark all read</button>
+                        </div>
+                        <div class="home-notif-list" id="homeNotifList"></div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </section>
@@ -2323,7 +2388,7 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
                   <i class="ti ti-alert-triangle" style="color:#b91c1c;"></i>
                 </div>
                 <div id="homeUnreadAnnouncementsCount" style="font-size:22px;font-weight:500;line-height:1.1;margin-top:4px;">0</div>
-                <div style="font-size:9px;color:#64748b;margin-top:4px;">new or priority</div>
+                <div style="font-size:9px;color:#64748b;margin-top:4px;">unread</div>
               </div>
             </section>
 
@@ -8047,6 +8112,170 @@ function homeQualityCalendarRender(){
   }
   homeQualityCalendarRenderMonth(pick, esc);
 }
+var homeNotificationUnreadItems=[];
+var homeNotificationPanelOpen=false;
+var homeNotificationListenersBound=false;
+function homeNotificationKey(itemType, itemId){
+  return String(itemType)+':'+String(itemId);
+}
+function homeNotificationReadSet(reads){
+  var set={};
+  (reads||[]).forEach(function(r){
+    if(r&&r.item_type&&r.item_id) set[homeNotificationKey(r.item_type,r.item_id)]=true;
+  });
+  return set;
+}
+function homeBuildNotificationItems(announcements, sharedEvents, reads, today){
+  var readSet=homeNotificationReadSet(reads);
+  var isFirstVisit=!(reads&&reads.length);
+  function isRecentEnough(createdAt){
+    if(!isFirstVisit) return true;
+    var created=String(createdAt||'').slice(0,10);
+    if(!created) return false;
+    var t0=new Date(today+'T00:00:00');
+    var cutoff=new Date(t0.getTime()-7*86400000);
+    var cDate=new Date(created+'T00:00:00');
+    if(Number.isNaN(cDate.getTime())||Number.isNaN(cutoff.getTime())) return true;
+    return cDate>=cutoff;
+  }
+  var items=[];
+  (announcements||[]).forEach(function(a){
+    if(!a||!a.id) return;
+    if(readSet[homeNotificationKey('announcement',a.id)]) return;
+    if(!isRecentEnough(a.created_at)) return;
+    items.push({
+      item_type:'announcement',
+      item_id:a.id,
+      title:a.title||'Untitled announcement',
+      subtitle:String(a.body||'').trim()||'New announcement',
+      meta:homeFormatDateHuman(String(a.created_at||'').slice(0,10)),
+      created_at:a.created_at
+    });
+  });
+  (sharedEvents||[]).forEach(function(ev){
+    if(!ev||!ev.id) return;
+    var d=String(ev.date||'').slice(0,10);
+    if(!d||d<today) return;
+    if(readSet[homeNotificationKey('calendar_event',ev.id)]) return;
+    if(!isRecentEnough(ev.created_at)) return;
+    items.push({
+      item_type:'calendar_event',
+      item_id:ev.id,
+      title:ev.title||'Untitled event',
+      subtitle:homeFormatDateHuman(d)+(ev.category?(' · '+String(ev.category).replace(/_/g,' ')):''),
+      meta:homeRelativeDayText(d,today)||'Upcoming',
+      created_at:ev.created_at,
+      date:d
+    });
+  });
+  items.sort(function(a,b){
+    return String(b.created_at||'').localeCompare(String(a.created_at||''));
+  });
+  return items;
+}
+function homeSetNotificationPanelOpen(open){
+  homeNotificationPanelOpen=!!open;
+  var panel=document.getElementById('homeNotifPanel');
+  var btn=document.getElementById('homeNotifBellBtn');
+  if(panel) panel.hidden=!homeNotificationPanelOpen;
+  if(btn) btn.setAttribute('aria-expanded', homeNotificationPanelOpen?'true':'false');
+}
+function homeRenderNotificationBell(items){
+  homeNotificationUnreadItems=Array.isArray(items)?items:[];
+  var badge=document.getElementById('homeNotifBadge');
+  var list=document.getElementById('homeNotifList');
+  var markAll=document.getElementById('homeNotifMarkAllBtn');
+  var count=homeNotificationUnreadItems.length;
+  if(badge){
+    if(count>0){
+      badge.hidden=false;
+      badge.textContent=count>9?'9+':String(count);
+    } else {
+      badge.hidden=true;
+      badge.textContent='0';
+    }
+  }
+  if(markAll) markAll.disabled=count===0;
+  if(!list) return;
+  if(!count){
+    list.innerHTML='<div class="home-notif-empty">You\u2019re all caught up.<br>New announcements and calendar dates will appear here.</div>';
+    return;
+  }
+  list.innerHTML=homeNotificationUnreadItems.map(function(item){
+    var isAnn=item.item_type==='announcement';
+    var iconClass=isAnn?'announcement':'calendar';
+    var icon=isAnn?'ti-speakerphone':'ti-calendar-event';
+    var typeLabel=isAnn?'Announcement':'Calendar date';
+    var sub=String(item.subtitle||'').replace(/\s+/g,' ').trim();
+    if(sub.length>90) sub=sub.slice(0,87)+'\u2026';
+    return '<button type="button" class="home-notif-item" data-notif-type="'+homeEsc(item.item_type)+'" data-notif-id="'+homeEsc(item.item_id)+'">'+
+      '<span class="home-notif-item-icon '+iconClass+'"><i class="ti '+icon+'" style="font-size:14px;"></i></span>'+
+      '<span class="home-notif-item-body">'+
+      '<span class="home-notif-item-type">'+homeEsc(typeLabel)+'</span>'+
+      '<span class="home-notif-item-title">'+homeEsc(item.title)+'</span>'+
+      (sub?'<span class="home-notif-item-sub">'+homeEsc(sub)+'</span>':'')+
+      '<span class="home-notif-item-meta">'+homeEsc(item.meta||'')+'</span>'+
+      '</span></button>';
+  }).join('');
+  Array.prototype.forEach.call(list.querySelectorAll('.home-notif-item'), function(row){
+    row.addEventListener('click', function(){
+      var itemType=String(row.getAttribute('data-notif-type')||'');
+      var itemId=String(row.getAttribute('data-notif-id')||'');
+      if(!itemType||!itemId) return;
+      homeMarkNotificationsRead([{ item_type:itemType, item_id:itemId }]).then(function(){
+        if(itemType==='calendar_event') showPanel('academic-calendar');
+        else {
+          var annSection=document.querySelector('.home-top-priority');
+          if(annSection) annSection.scrollIntoView({ behavior:'smooth', block:'start' });
+        }
+      });
+    });
+  });
+}
+function homeMarkNotificationsRead(items){
+  if(!window.DataService||typeof DataService.markNotificationsRead!=='function'){
+    return Promise.resolve();
+  }
+  return DataService.markNotificationsRead(items).then(function(){
+    homeSetNotificationPanelOpen(false);
+    homeDashboardRender();
+  }).catch(function(){
+    homeDashboardRender();
+  });
+}
+function homeInitNotificationBell(){
+  if(homeNotificationListenersBound) return;
+  homeNotificationListenersBound=true;
+  var btn=document.getElementById('homeNotifBellBtn');
+  var markAll=document.getElementById('homeNotifMarkAllBtn');
+  var wrap=document.getElementById('homeNotifWrap');
+  if(btn){
+    btn.addEventListener('click', function(ev){
+      ev.preventDefault();
+      ev.stopPropagation();
+      homeSetNotificationPanelOpen(!homeNotificationPanelOpen);
+    });
+  }
+  if(markAll){
+    markAll.addEventListener('click', function(ev){
+      ev.preventDefault();
+      ev.stopPropagation();
+      if(!homeNotificationUnreadItems.length) return;
+      var payload=homeNotificationUnreadItems.map(function(item){
+        return { item_type:item.item_type, item_id:item.item_id };
+      });
+      homeMarkNotificationsRead(payload);
+    });
+  }
+  document.addEventListener('click', function(ev){
+    if(!homeNotificationPanelOpen||!wrap) return;
+    if(wrap.contains(ev.target)) return;
+    homeSetNotificationPanelOpen(false);
+  });
+  document.addEventListener('keydown', function(ev){
+    if(ev.key==='Escape'&&homeNotificationPanelOpen) homeSetNotificationPanelOpen(false);
+  });
+}
 function homeEsc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function homeDateISO(d){
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
@@ -8465,6 +8694,8 @@ function homeDashboardRender(){
     ? DataService.get('plannerTimetable') : Promise.resolve(null);
   var annPromise=(window.DataService&&typeof window.DataService.getAnnouncements==='function')
     ? DataService.getAnnouncements() : Promise.resolve([]);
+  var readsPromise=(window.DataService&&typeof window.DataService.getNotificationReads==='function')
+    ? DataService.getNotificationReads() : Promise.resolve([]);
   var dramaPromise=(window.DataService&&typeof window.DataService.get==='function')
     ? DataService.get('drama-v3') : Promise.resolve(null);
   var artPromise=(window.DataService&&typeof window.DataService.get==='function')
@@ -8473,34 +8704,37 @@ function homeDashboardRender(){
     ? TeacherTasksService.load().then(function(){ return TeacherTasksService.getState()||{ tasks:[], buckets:[] }; }).catch(function(){ return { tasks:[], buckets:[] }; })
     : Promise.resolve({ tasks:[], buckets:[] });
 
-  Promise.all([eventsPromise, timetablePromise, annPromise, dramaPromise, artPromise, tasksPromise]).then(function(res){
+  Promise.all([eventsPromise, timetablePromise, annPromise, readsPromise, dramaPromise, artPromise, tasksPromise]).then(function(res){
     var events=Array.isArray(res[0])?res[0]:[];
     var timetable=(res[1]&&typeof res[1]==='object')?res[1]:{};
     var timetableSlots=(Array.isArray(timetable.slots)?timetable.slots:[]).filter(function(s){
       return String(s&&s.day||'').toLowerCase()===todayDay;
     });
     var announcementsRaw=Array.isArray(res[2])?res[2]:[];
+    var notificationReads=Array.isArray(res[3])?res[3]:[];
     var announcements=announcementsRaw.slice().sort(function(a,b){
       var aHigh=String(a&&a.priority||'none').toLowerCase()==='high'?1:0;
       var bHigh=String(b&&b.priority||'none').toLowerCase()==='high'?1:0;
       if(aHigh!==bHigh) return bHigh-aHigh;
       return String(b&&b.created_at||'').localeCompare(String(a&&a.created_at||''));
     });
-    var dramaRows=homeExtractTrackingClasses(res[3],'Drama');
-    var artRows=homeExtractTrackingClasses(res[4],'Art & Design');
+    var dramaRows=homeExtractTrackingClasses(res[4],'Drama');
+    var artRows=homeExtractTrackingClasses(res[5],'Art & Design');
     var trackingRows=dramaRows.concat(artRows);
-    var taskState=(res[5]&&typeof res[5]==='object')?res[5]:{ tasks:[], buckets:[] };
+    var taskState=(res[6]&&typeof res[6]==='object')?res[6]:{ tasks:[], buckets:[] };
     var tasks=Array.isArray(taskState.tasks)?taskState.tasks:[];
 
     var todayEvents=events.filter(function(e){ return String(e&&e.date||'').slice(0,10)===today; });
     var upcomingEvents=events
       .filter(function(e){ var d=String(e&&e.date||'').slice(0,10); return d && d>today; })
       .sort(function(a,b){ return String(a.date||'').localeCompare(String(b.date||'')); });
-    var unreadAnnouncements=announcements.filter(function(a){
-      var created=String(a&&a.created_at||'').slice(0,10);
-      var priority=String(a&&a.priority||'none').toLowerCase();
-      return priority==='high' || (created && created>=today);
+    var sharedCalendarEvents=events.filter(function(e){
+      return String(e&&e.source||'shared')==='shared';
     });
+    var notificationItems=homeBuildNotificationItems(announcements, sharedCalendarEvents, notificationReads, today);
+    var unreadAnnouncementCount=notificationItems.filter(function(item){
+      return item.item_type==='announcement';
+    }).length;
     var tasksDue=tasks.filter(function(t){
       return !t.completed && t.dueDate && String(t.dueDate).slice(0,10)<=today;
     });
@@ -8508,16 +8742,17 @@ function homeDashboardRender(){
 
     homeSetText('homeTodayEventsCount', timetableSlots.length);
     homeSetText('homeTasksDueCount', tasksDue.length);
-    homeSetText('homeUnreadAnnouncementsCount', unreadAnnouncements.length);
+    homeSetText('homeUnreadAnnouncementsCount', unreadAnnouncementCount);
     homeSetText('homeClassesToTrackCount', classesToTrack.length);
     homeSetText('homeDailySummary', homeBuildDailySummary({
       todayEvents: timetableSlots.length,
       tasksDue: tasksDue.length,
-      unreadAnnouncements: unreadAnnouncements.length,
+      unreadAnnouncements: unreadAnnouncementCount,
       classesToTrack: classesToTrack.length,
       upcomingEvents: upcomingEvents.length
     }));
 
+    homeRenderNotificationBell(notificationItems);
     homeRenderTodaySchedule(timetableSlots);
     homeRenderAnnouncements(announcements, today);
     homeRenderTrackingClasses(trackingRows);
@@ -8530,6 +8765,7 @@ function homeDashboardRender(){
     homeSetText('homeUnreadAnnouncementsCount', 0);
     homeSetText('homeClassesToTrackCount', 0);
     homeSetText('homeDailySummary', 'Today we have no live dashboard data yet. Please refresh or check your connection.');
+    homeRenderNotificationBell([]);
     homeRenderTodaySchedule([]);
     homeRenderAnnouncements([], today);
     homeRenderTrackingClasses([]);
@@ -8588,6 +8824,7 @@ function injectLiteracyNumeracyIntoCurriculumCards(){
 
 document.addEventListener('DOMContentLoaded',function(){
   injectLiteracyNumeracyIntoCurriculumCards();
+  homeInitNotificationBell();
   // Restore sidebar accordion state from sessionStorage
   ['sidebar-accordion-drama','sidebar-accordion-ad','sidebar-accordion-photo','sidebar-accordion-admin'].forEach(function(id){
     try{

@@ -395,7 +395,7 @@
       return new Promise(function(resolve, reject) {
         if (!useSupabase()) { resolve([]); return; }
         window.supabase.from('shared_calendar_events')
-          .select('id, title, date, category, description')
+          .select('id, title, date, category, description, created_at')
           .order('date')
           .then(function(r) {
             if (r.error) { resolve([]); return; }
@@ -406,9 +406,88 @@
                 date: e.date,
                 category: e.category,
                 description: e.description || '',
+                created_at: e.created_at || null,
                 source: 'shared'
               };
             }));
+          });
+      });
+    },
+
+    getNotificationReads: function() {
+      var localKey = 'facultyHubNotificationReads';
+      return new Promise(function(resolve) {
+        if (!useSupabase()) {
+          try {
+            var raw = localStorage.getItem(localKey);
+            resolve(raw ? JSON.parse(raw) : []);
+          } catch (e) {
+            resolve([]);
+          }
+          return;
+        }
+        getSessionWithRetry({ retries: 4, delayMs: 250 }).then(function(session) {
+          if (!session) { resolve([]); return; }
+          window.supabase.from('notification_reads')
+            .select('item_type, item_id, read_at')
+            .then(function(r) {
+              if (r.error) { resolve([]); return; }
+              resolve(r.data || []);
+            });
+        }).catch(function() { resolve([]); });
+      });
+    },
+
+    markNotificationsRead: function(items) {
+      var list = Array.isArray(items) ? items : [];
+      if (!list.length) return Promise.resolve([]);
+      var localKey = 'facultyHubNotificationReads';
+      var now = new Date().toISOString();
+      var normalized = list.map(function(item) {
+        return {
+          item_type: String(item.item_type || '').trim(),
+          item_id: String(item.item_id || '').trim(),
+          read_at: now
+        };
+      }).filter(function(item) {
+        return (item.item_type === 'announcement' || item.item_type === 'calendar_event') && item.item_id;
+      });
+      if (!normalized.length) return Promise.resolve([]);
+
+      if (!useSupabase()) {
+        try {
+          var existing = [];
+          try {
+            var raw = localStorage.getItem(localKey);
+            existing = raw ? JSON.parse(raw) : [];
+          } catch (e) { existing = []; }
+          var byKey = {};
+          (existing || []).forEach(function(row) {
+            var key = String(row.item_type || '') + ':' + String(row.item_id || '');
+            if (key !== ':') byKey[key] = row;
+          });
+          normalized.forEach(function(row) {
+            byKey[row.item_type + ':' + row.item_id] = row;
+          });
+          localStorage.setItem(localKey, JSON.stringify(Object.keys(byKey).map(function(k) { return byKey[k]; })));
+        } catch (e) {}
+        return Promise.resolve(normalized);
+      }
+
+      return ensureSessionForMutations().then(function(session) {
+        var rows = normalized.map(function(item) {
+          return {
+            user_id: session.user.id,
+            item_type: item.item_type,
+            item_id: item.item_id,
+            read_at: item.read_at
+          };
+        });
+        return window.supabase.from('notification_reads')
+          .upsert(rows, { onConflict: 'user_id,item_type,item_id' })
+          .then(function(r) {
+            if (r.error) throw r.error;
+            return normalized;
           });
       });
     },
