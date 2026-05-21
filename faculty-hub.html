@@ -1281,6 +1281,19 @@ a.subject-card-link{text-decoration:none;cursor:pointer}
   .staff-home-week-grid{grid-template-columns:1fr}
   .staff-home-quick-grid{grid-template-columns:1fr}
 }
+.home-section-loading{display:flex;flex-direction:column;gap:8px;padding:12px 14px}
+.home-skel-line{
+  height:10px;border-radius:4px;
+  background:linear-gradient(90deg,#eef2f7 25%,#f8fafc 50%,#eef2f7 75%);
+  background-size:200% 100%;animation:homeSkelPulse 1.2s ease-in-out infinite;
+}
+.home-skel-line.short{width:65%}
+.home-week-skel{
+  min-height:90px;border-radius:7px;
+  background:linear-gradient(90deg,#eef2f7 25%,#f8fafc 50%,#eef2f7 75%);
+  background-size:200% 100%;animation:homeSkelPulse 1.2s ease-in-out infinite;
+}
+@keyframes homeSkelPulse{0%{background-position:200% 0}100%{background-position:-200% 0}}
 .home-notif-wrap{position:relative;display:inline-flex}
 .home-notif-bell{
   position:relative;display:inline-flex;align-items:center;justify-content:center;
@@ -5103,7 +5116,7 @@ function showPanel(id){
   updateTopbar(id,subj);
   if(id.endsWith('retrieval')) initRetrieval(subj);
   if(id==='academic-calendar'){calCurrentYear=calGetCurrentAcademicYear();calLoadEvents().then(function(){calRender();}).catch(function(){calRender();});}
-  if(id==='home') homeDashboardRender();
+  if(id==='home') homeDashboardRender({ showLoading: !homeHasCompletedInitialLoad });
   if(id==='dip-main') dipRenderProgressTimeline();
   if(id==='drama-moderation'||id==='ad-moderation'||id==='photo-moderation'){
     const s=id.replace('-moderation','');
@@ -5143,6 +5156,7 @@ var homeResumeRefreshTimer=null;
 var homeRefreshDataTimer=null;
 var homeLastResumeRefreshMs=0;
 var homeHasCompletedInitialLoad=false;
+var homeDashboardLoadSeq=0;
 var homeUpdateStorageIndicatorFn=null;
 function scheduleHomeDataRefresh(delayMs){
   if(homeRefreshDataTimer) clearTimeout(homeRefreshDataTimer);
@@ -5151,7 +5165,7 @@ function scheduleHomeDataRefresh(delayMs){
     loadCalendar.catch(function(){ return []; }).then(function(){
       if(typeof homeUpdateStorageIndicatorFn==='function') homeUpdateStorageIndicatorFn();
       if(typeof calRender==='function') calRender();
-      if(typeof homeDashboardRender==='function') homeDashboardRender();
+      if(typeof homeDashboardRender==='function') homeDashboardRender({ showLoading: false });
     });
   },typeof delayMs==='number'?delayMs:120);
 }
@@ -5172,6 +5186,7 @@ function waitForAuthGuardReady(timeoutMs){
   });
 }
 function ensureStartupSessionSettled(timeoutMs){
+  if(window.__authReady===true) return Promise.resolve();
   if(!(window.supabase&&window.supabase.auth&&typeof window.supabase.auth.getSession==='function')){
     return Promise.resolve();
   }
@@ -8241,9 +8256,9 @@ function homeMarkNotificationsRead(items){
   }
   return DataService.markNotificationsRead(items).then(function(){
     homeSetNotificationPanelOpen(false);
-    homeDashboardRender();
+    homeDashboardRender({ showLoading: false });
   }).catch(function(){
-    homeDashboardRender();
+    homeDashboardRender({ showLoading: false });
   });
 }
 function homeInitNotificationBell(){
@@ -8601,7 +8616,7 @@ function homeRenderTasks(tasks, taskState){
         if(!taskId || !window.TeacherTasksService || typeof window.TeacherTasksService.toggleTaskComplete!=='function') return;
         btn.disabled=true;
         TeacherTasksService.toggleTaskComplete(taskId).then(function(){
-          homeDashboardRender();
+          homeDashboardRender({ showLoading: false });
         }).catch(function(){
           btn.disabled=false;
         });
@@ -8624,7 +8639,7 @@ function homeRenderTasks(tasks, taskState){
     btn.disabled=true;
     TeacherTasksService.addTask(firstBucket,{title:title}).then(function(){
       input.value='';
-      homeDashboardRender();
+      homeDashboardRender({ showLoading: false });
     }).catch(function(){
       btn.disabled=false;
     });
@@ -8637,6 +8652,73 @@ function homeRenderTasks(tasks, taskState){
     }
   });
   el.appendChild(quick);
+}
+function homeSectionLoadingHtml(){
+  return '<div class="home-section-loading" aria-busy="true" aria-label="Loading">'+
+    '<span class="home-skel-line"></span><span class="home-skel-line short"></span><span class="home-skel-line"></span>'+
+  '</div>';
+}
+function homeShowSectionLoading(){
+  ['homeTodayEventsCount','homeTasksDueCount','homeClassesToTrackCount','homeUnreadAnnouncementsCount'].forEach(function(id){
+    homeSetText(id,'…');
+  });
+  homeSetText('homeDailySummary','Loading your dashboard…');
+  var skel=homeSectionLoadingHtml();
+  ['homeAnnouncements','homeUpcomingEvents','homeTodaySchedule','homeTaskChecklist','homeTrackingClasses'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(el) el.innerHTML=skel;
+  });
+  var weekEl=document.getElementById('homeWeekAhead');
+  if(weekEl){
+    weekEl.innerHTML='<div class="home-week-skel"></div><div class="home-week-skel"></div><div class="home-week-skel"></div><div class="home-week-skel"></div><div class="home-week-skel"></div>';
+  }
+}
+function homeApplyDashboardData(ctx){
+  var today=ctx.today;
+  var events=ctx.events;
+  var timetableSlots=ctx.timetableSlots;
+  var announcements=ctx.announcements;
+  var notificationReads=ctx.notificationReads;
+  var trackingRows=ctx.trackingRows;
+  var tasks=ctx.tasks;
+  var taskState=ctx.taskState;
+  var skipTracking=ctx.skipTracking===true;
+
+  var todayEvents=events.filter(function(e){ return String(e&&e.date||'').slice(0,10)===today; });
+  var upcomingEvents=events
+    .filter(function(e){ var d=String(e&&e.date||'').slice(0,10); return d && d>today; })
+    .sort(function(a,b){ return String(a.date||'').localeCompare(String(b.date||'')); });
+  var sharedCalendarEvents=events.filter(function(e){
+    return String(e&&e.source||'shared')==='shared';
+  });
+  var notificationItems=homeBuildNotificationItems(announcements, sharedCalendarEvents, notificationReads, today);
+  var unreadAnnouncementCount=notificationItems.filter(function(item){
+    return item.item_type==='announcement';
+  }).length;
+  var tasksDue=tasks.filter(function(t){
+    return !t.completed && t.dueDate && String(t.dueDate).slice(0,10)<=today;
+  });
+  var classesToTrack=skipTracking?null:trackingRows.filter(function(r){ return r.status!=='Complete'; });
+
+  homeSetText('homeTodayEventsCount', timetableSlots.length);
+  homeSetText('homeTasksDueCount', tasksDue.length);
+  homeSetText('homeUnreadAnnouncementsCount', unreadAnnouncementCount);
+  if(!skipTracking) homeSetText('homeClassesToTrackCount', classesToTrack.length);
+  homeSetText('homeDailySummary', homeBuildDailySummary({
+    todayEvents: timetableSlots.length,
+    tasksDue: tasksDue.length,
+    unreadAnnouncements: unreadAnnouncementCount,
+    classesToTrack: skipTracking?0:(classesToTrack.length),
+    upcomingEvents: upcomingEvents.length
+  }));
+
+  homeRenderNotificationBell(notificationItems);
+  homeRenderTodaySchedule(timetableSlots);
+  homeRenderAnnouncements(announcements, today);
+  if(!skipTracking) homeRenderTrackingClasses(trackingRows);
+  homeRenderUpcomingEvents(upcomingEvents);
+  homeRenderWeekAhead(events, today);
+  homeRenderTasks(tasks.filter(function(t){ return !t.completed; }), taskState);
 }
 function homeLoadGreeting(){
   var nameEl=document.getElementById('homeGreetingName');
@@ -8679,7 +8761,11 @@ function homeLoadGreeting(){
     }
   }).catch(function(){});
 }
-function homeDashboardRender(){
+function homeDashboardRender(opts){
+  opts=opts||{};
+  var showLoading=opts.showLoading!==false;
+  var loadId=++homeDashboardLoadSeq;
+  function isStale(){ return loadId!==homeDashboardLoadSeq; }
   var today=typeof calLocalTodayISODate==='function'?calLocalTodayISODate():homeDateISO(new Date());
   var todayDay=(function(){
     var d=new Date();
@@ -8687,27 +8773,27 @@ function homeDashboardRender(){
     return names[d.getDay()];
   })();
   homeLoadGreeting();
+  if(showLoading) homeShowSectionLoading();
 
-  var eventsPromise=(window.DataService&&typeof window.DataService.getSharedCalendarEvents==='function')
-    ? DataService.getSharedCalendarEvents()
-    : ((window.DataService&&typeof window.DataService.getCalendarMerged==='function')
-      ? DataService.getCalendarMerged()
-      : Promise.resolve(typeof calGetEvents==='function'?calGetEvents():[]));
+  var eventsPromise=(calEventsCache&&Array.isArray(calEventsCache)&&calEventsCache.length)
+    ? Promise.resolve(calEventsCache)
+    : ((window.DataService&&typeof window.DataService.getSharedCalendarEvents==='function')
+      ? DataService.getSharedCalendarEvents()
+      : ((window.DataService&&typeof window.DataService.getCalendarMerged==='function')
+        ? DataService.getCalendarMerged()
+        : Promise.resolve(typeof calGetEvents==='function'?calGetEvents():[])));
   var timetablePromise=(window.DataService&&typeof window.DataService.get==='function')
     ? DataService.get('plannerTimetable') : Promise.resolve(null);
   var annPromise=(window.DataService&&typeof window.DataService.getAnnouncements==='function')
     ? DataService.getAnnouncements() : Promise.resolve([]);
   var readsPromise=(window.DataService&&typeof window.DataService.getNotificationReads==='function')
     ? DataService.getNotificationReads() : Promise.resolve([]);
-  var dramaPromise=(window.DataService&&typeof window.DataService.get==='function')
-    ? DataService.get('drama-v3') : Promise.resolve(null);
-  var artPromise=(window.DataService&&typeof window.DataService.get==='function')
-    ? DataService.get('art-v2') : Promise.resolve(null);
   var tasksPromise=(window.TeacherTasksService&&typeof window.TeacherTasksService.load==='function')
     ? TeacherTasksService.load().then(function(){ return TeacherTasksService.getState()||{ tasks:[], buckets:[] }; }).catch(function(){ return { tasks:[], buckets:[] }; })
     : Promise.resolve({ tasks:[], buckets:[] });
 
-  Promise.all([eventsPromise, timetablePromise, annPromise, readsPromise, dramaPromise, artPromise, tasksPromise]).then(function(res){
+  Promise.all([eventsPromise, timetablePromise, annPromise, readsPromise, tasksPromise]).then(function(res){
+    if(isStale()) return;
     var events=Array.isArray(res[0])?res[0]:[];
     var timetable=(res[1]&&typeof res[1]==='object')?res[1]:{};
     var timetableSlots=(Array.isArray(timetable.slots)?timetable.slots:[]).filter(function(s){
@@ -8721,48 +8807,25 @@ function homeDashboardRender(){
       if(aHigh!==bHigh) return bHigh-aHigh;
       return String(b&&b.created_at||'').localeCompare(String(a&&a.created_at||''));
     });
-    var dramaRows=homeExtractTrackingClasses(res[4],'Drama');
-    var artRows=homeExtractTrackingClasses(res[5],'Art & Design');
-    var trackingRows=dramaRows.concat(artRows);
-    var taskState=(res[6]&&typeof res[6]==='object')?res[6]:{ tasks:[], buckets:[] };
+    var taskState=(res[4]&&typeof res[4]==='object')?res[4]:{ tasks:[], buckets:[] };
     var tasks=Array.isArray(taskState.tasks)?taskState.tasks:[];
 
-    var todayEvents=events.filter(function(e){ return String(e&&e.date||'').slice(0,10)===today; });
-    var upcomingEvents=events
-      .filter(function(e){ var d=String(e&&e.date||'').slice(0,10); return d && d>today; })
-      .sort(function(a,b){ return String(a.date||'').localeCompare(String(b.date||'')); });
-    var sharedCalendarEvents=events.filter(function(e){
-      return String(e&&e.source||'shared')==='shared';
+    homeApplyDashboardData({
+      today:today,
+      events:events,
+      timetableSlots:timetableSlots,
+      announcements:announcements,
+      notificationReads:notificationReads,
+      trackingRows:[],
+      tasks:tasks,
+      taskState:taskState,
+      skipTracking:true
     });
-    var notificationItems=homeBuildNotificationItems(announcements, sharedCalendarEvents, notificationReads, today);
-    var unreadAnnouncementCount=notificationItems.filter(function(item){
-      return item.item_type==='announcement';
-    }).length;
-    var tasksDue=tasks.filter(function(t){
-      return !t.completed && t.dueDate && String(t.dueDate).slice(0,10)<=today;
-    });
-    var classesToTrack=trackingRows.filter(function(r){ return r.status!=='Complete'; });
 
-    homeSetText('homeTodayEventsCount', timetableSlots.length);
-    homeSetText('homeTasksDueCount', tasksDue.length);
-    homeSetText('homeUnreadAnnouncementsCount', unreadAnnouncementCount);
-    homeSetText('homeClassesToTrackCount', classesToTrack.length);
-    homeSetText('homeDailySummary', homeBuildDailySummary({
-      todayEvents: timetableSlots.length,
-      tasksDue: tasksDue.length,
-      unreadAnnouncements: unreadAnnouncementCount,
-      classesToTrack: classesToTrack.length,
-      upcomingEvents: upcomingEvents.length
-    }));
-
-    homeRenderNotificationBell(notificationItems);
-    homeRenderTodaySchedule(timetableSlots);
-    homeRenderAnnouncements(announcements, today);
-    homeRenderTrackingClasses(trackingRows);
-    homeRenderUpcomingEvents(upcomingEvents);
-    homeRenderWeekAhead(events, today);
-    homeRenderTasks(tasks.filter(function(t){ return !t.completed; }), taskState);
+    var trackEl=document.getElementById('homeTrackingClasses');
+    if(trackEl && showLoading) trackEl.innerHTML=homeSectionLoadingHtml();
   }).catch(function(){
+    if(isStale()) return;
     homeSetText('homeTodayEventsCount', 0);
     homeSetText('homeTasksDueCount', 0);
     homeSetText('homeUnreadAnnouncementsCount', 0);
@@ -8775,6 +8838,47 @@ function homeDashboardRender(){
     homeRenderUpcomingEvents([]);
     homeRenderWeekAhead([], today);
     homeRenderTasks([], { tasks:[], buckets:[] });
+  });
+
+  var dramaPromise=(window.DataService&&typeof window.DataService.get==='function')
+    ? DataService.get('drama-v3') : Promise.resolve(null);
+  var artPromise=(window.DataService&&typeof window.DataService.get==='function')
+    ? DataService.get('art-v2') : Promise.resolve(null);
+  Promise.all([eventsPromise, timetablePromise, annPromise, readsPromise, tasksPromise, dramaPromise, artPromise]).then(function(res){
+    if(isStale()) return;
+    var events=Array.isArray(res[0])?res[0]:[];
+    var timetable=(res[1]&&typeof res[1]==='object')?res[1]:{};
+    var timetableSlots=(Array.isArray(timetable.slots)?timetable.slots:[]).filter(function(s){
+      return String(s&&s.day||'').toLowerCase()===todayDay;
+    });
+    var announcementsRaw=Array.isArray(res[2])?res[2]:[];
+    var notificationReads=Array.isArray(res[3])?res[3]:[];
+    var announcements=announcementsRaw.slice().sort(function(a,b){
+      var aHigh=String(a&&a.priority||'none').toLowerCase()==='high'?1:0;
+      var bHigh=String(b&&b.priority||'none').toLowerCase()==='high'?1:0;
+      if(aHigh!==bHigh) return bHigh-aHigh;
+      return String(b&&b.created_at||'').localeCompare(String(a&&a.created_at||''));
+    });
+    var taskState=(res[4]&&typeof res[4]==='object')?res[4]:{ tasks:[], buckets:[] };
+    var tasks=Array.isArray(taskState.tasks)?taskState.tasks:[];
+    var dramaRows=homeExtractTrackingClasses(res[5],'Drama');
+    var artRows=homeExtractTrackingClasses(res[6],'Art & Design');
+    var trackingRows=dramaRows.concat(artRows);
+
+    homeApplyDashboardData({
+      today:today,
+      events:events,
+      timetableSlots:timetableSlots,
+      announcements:announcements,
+      notificationReads:notificationReads,
+      trackingRows:trackingRows,
+      tasks:tasks,
+      taskState:taskState
+    });
+  }).catch(function(){
+    if(isStale()) return;
+    homeSetText('homeClassesToTrackCount', 0);
+    homeRenderTrackingClasses([]);
   });
 }
 
@@ -8845,7 +8949,6 @@ document.addEventListener('DOMContentLoaded',function(){
       }catch(e){}
     });
   });
-  var loadDip=window.DataService?DataService.get('dipSelfEvaluation'):Promise.resolve(JSON.parse(localStorage.getItem('dipSelfEvaluation')||'{}'));
   function updateStorageIndicator(){
     var el=document.getElementById('storage-indicator');
     if(el){if(window.DataService&&window.DataService.isUsingCloud&&window.DataService.isUsingCloud()){el.textContent='● Cloud sync';el.style.color='#6ee7b7';el.title='Calendar, moderation & improvement plan save to cloud — available on other devices';}else{el.textContent='● Local only';el.style.color='#fcd34d';el.title='Data saved in this browser only — sign in to sync to cloud';}}
@@ -8859,22 +8962,31 @@ document.addEventListener('DOMContentLoaded',function(){
     var banner=document.getElementById('cloud-sync-banner');if(banner)banner.style.display=(window.DataService&&window.DataService.isUsingCloud&&window.DataService.isUsingCloud())?'none':'block';
   }
   homeUpdateStorageIndicatorFn=updateStorageIndicator;
-  waitForAuthGuardReady(1600).then(function(){
-    return ensureStartupSessionSettled(1400);
-  }).then(function(){
-    return Promise.all([calLoadEvents(),loadModerationData(),loadDip]);
+  showPanel('home');
+  homeLoadGreeting();
+  homeShowSectionLoading();
+
+  var loadDip=window.DataService?DataService.get('dipSelfEvaluation'):Promise.resolve(JSON.parse(localStorage.getItem('dipSelfEvaluation')||'{}'));
+  waitForAuthGuardReady(800).then(function(){
+    homeDashboardRender({ showLoading: false });
+    return Promise.all([
+      ensureStartupSessionSettled(400),
+      calLoadEvents(),
+      loadModerationData(),
+      loadDip
+    ]);
   }).then(function(res){
-    var dipData=res[2]||{};
+    var dipData=(res&&res[3])||{};
     updateStorageIndicator();
-    showPanel('home');
+    homeDashboardRender({ showLoading: false });
     calRender();
-    homeDashboardRender();
     dipLoadEval(dipData);
     dipRenderProgressTimeline();
     homeHasCompletedInitialLoad=true;
   }).catch(function(){
     updateStorageIndicator();
     showPanel('home');
+    homeDashboardRender({ showLoading: false });
     scheduleHomeDataRefresh(60);
     homeHasCompletedInitialLoad=true;
   });
