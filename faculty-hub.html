@@ -2353,7 +2353,7 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
                     <i class="ti ti-speakerphone" style="font-size:14px;color:#475569;"></i>
                     <span style="font-size:12px;font-weight:500;">Announcements</span>
                   </div>
-                  <a href="#" onclick="event.preventDefault();showPanel('embed-admin-console');return false;" style="font-size:10px;color:#2f64bf;text-decoration:none;display:inline-flex;align-items:center;gap:3px;">View all <i class="ti ti-arrow-right" style="font-size:11px;"></i></a>
+                  <a href="#" onclick="event.preventDefault();showPanel('home-announcements-all');return false;" style="font-size:10px;color:#2f64bf;text-decoration:none;display:inline-flex;align-items:center;gap:3px;">View all <i class="ti ti-arrow-right" style="font-size:11px;"></i></a>
                 </div>
                 <div id="homeAnnouncements"></div>
               </div>
@@ -2470,6 +2470,33 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
           </div>
         </div>
 
+      </div>
+
+      <!-- ALL ANNOUNCEMENTS (staff read-only) -->
+      <div id="home-announcements-all" class="panel">
+        <div class="cal-purpose-strip">
+          <div class="cal-purpose-label">Announcements<em>Faculty notices</em></div>
+          <div class="cal-purpose-text">
+            <p>All current faculty announcements. Priority notices appear first. Expired announcements are hidden automatically.</p>
+          </div>
+        </div>
+        <div class="section-card">
+          <div class="section-card-header">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;flex-wrap:wrap;width:100%;">
+              <div>
+                <div class="section-card-title">All announcements</div>
+                <div class="section-card-sub" id="homeAnnouncementsAllCount">Loading…</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:.65rem;flex-shrink:0;">
+                <a href="#" onclick="event.preventDefault();showPanel('home');return false;" style="font-size:.78rem;color:var(--text2);text-decoration:none;display:inline-flex;align-items:center;gap:4px;">← Back to home</a>
+                <a href="#" id="homeAnnManageLink" onclick="event.preventDefault();showPanel('embed-admin-console');return false;" style="display:none;font-size:.78rem;color:#2f64bf;text-decoration:none;align-items:center;gap:3px;">Manage <i class="ti ti-arrow-right" style="font-size:11px;"></i></a>
+              </div>
+            </div>
+          </div>
+          <div class="section-card-body" style="padding:0;">
+            <div id="homeAnnouncementsAll"></div>
+          </div>
+        </div>
       </div>
 
       <!-- ACADEMIC CALENDAR PANEL -->
@@ -5083,7 +5110,7 @@ function getVocab(s){
 }
 
 function showPanel(id){
-  const subj=id==='home'||id==='academic-calendar'||id==='data-backup'||id.startsWith('embed-')?'home':id.startsWith('drama')?'drama':id.startsWith('photo')?'photo':id.startsWith('dip')?'dip':'ad';
+  const subj=id==='home'||id==='home-announcements-all'||id==='academic-calendar'||id==='data-backup'||id.startsWith('embed-')?'home':id.startsWith('drama')?'drama':id.startsWith('photo')?'photo':id.startsWith('dip')?'dip':'ad';
   // Show/hide subject group wrappers
   const dPanel=document.getElementById('panel-drama');
   const aPanel=document.getElementById('panel-ad');
@@ -5117,6 +5144,7 @@ function showPanel(id){
   if(id.endsWith('retrieval')) initRetrieval(subj);
   if(id==='academic-calendar'){calCurrentYear=calGetCurrentAcademicYear();calLoadEvents().then(function(){calRender();}).catch(function(){calRender();});}
   if(id==='home') homeDashboardRender({ showLoading: !homeHasCompletedInitialLoad });
+  if(id==='home-announcements-all') homeRenderAllAnnouncementsPanel();
   if(id==='dip-main') dipRenderProgressTimeline();
   if(id==='drama-moderation'||id==='ad-moderation'||id==='photo-moderation'){
     const s=id.replace('-moderation','');
@@ -5156,6 +5184,8 @@ var homeResumeRefreshTimer=null;
 var homeRefreshDataTimer=null;
 var homeLastResumeRefreshMs=0;
 var homeHasCompletedInitialLoad=false;
+var homeAnnouncementsCache=[];
+var homeAnnouncementsToday='';
 var homeDashboardLoadSeq=0;
 var homeUpdateStorageIndicatorFn=null;
 function scheduleHomeDataRefresh(delayMs){
@@ -5278,7 +5308,7 @@ function updateTopbar(panelId,subj){
     'photo-higher':'Higher Photography',
     'photo-assessment':'Assessment & Tracking — Photography',
     'photo-moderation':'Moderation — Photography',
-    'photo-retrieval':'Retrieval Practice — Photography','dip-main':'Faculty Improvement Plan 2025–26','home':'Faculty of Art &amp; Drama','academic-calendar':'Academic Calendar','data-backup':'Data Backup &amp; Restore',
+    'photo-retrieval':'Retrieval Practice — Photography','dip-main':'Faculty Improvement Plan 2025–26','home':'Faculty of Art &amp; Drama','home-announcements-all':'Announcements','academic-calendar':'Academic Calendar','data-backup':'Data Backup &amp; Restore',
     'embed-learning-teaching':'Learning &amp; Teaching',
     'embed-teacher-planner':'Teacher Planner',
     'embed-teacher-tasks':'My tasks',
@@ -8242,10 +8272,7 @@ function homeRenderNotificationBell(items){
       if(!itemType||!itemId) return;
       homeMarkNotificationsRead([{ item_type:itemType, item_id:itemId }]).then(function(){
         if(itemType==='calendar_event') showPanel('academic-calendar');
-        else {
-          var annSection=document.querySelector('.home-top-priority');
-          if(annSection) annSection.scrollIntoView({ behavior:'smooth', block:'start' });
-        }
+        else showPanel('home-announcements-all');
       });
     });
   });
@@ -8483,27 +8510,83 @@ function homeRenderTodaySchedule(todayEvents){
     '</div>';
   }).join('');
 }
-function homeRenderAnnouncements(announcements, today){
-  var el=document.getElementById('homeAnnouncements');
+function homeSortAnnouncements(list){
+  return (list||[]).slice().sort(function(a,b){
+    var aHigh=String(a&&a.priority||'none').toLowerCase()==='high'?1:0;
+    var bHigh=String(b&&b.priority||'none').toLowerCase()==='high'?1:0;
+    if(aHigh!==bHigh) return bHigh-aHigh;
+    return String(b&&b.created_at||'').localeCompare(String(a&&a.created_at||''));
+  });
+}
+function homeAnnouncementRowHtml(a, today){
+  var status=homeAnnouncementStatus(a,today);
+  var isPriority=String(a&&a.priority||'none').toLowerCase()==='high';
+  var bar=status==='New'?'#b91c1c':(status==='Reminder'?'#b45309':'#cbd5e0');
+  if(isPriority) bar='#b91c1c';
+  var shaded=!!(a&&a.highlight_priority)&&String(a.priority||'none').toLowerCase()!=='none';
+  var rowBg=shaded?'background:#fef2f2;':'';
+  return '<div style="padding:11px 14px;border-bottom:.5px solid #f1f4f9;display:flex;gap:10px;'+rowBg+'">'+
+    '<div style="width:3px;align-self:stretch;background:'+bar+';border-radius:99px;flex-shrink:0;"></div>'+
+    '<div style="flex:1;min-width:0;"><div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;flex-wrap:wrap;">'+
+    (isPriority?'<span style="display:inline-flex;align-items:center;gap:3px;padding:1px 6px;border-radius:99px;background:#fee2e2;color:#b91c1c;font-size:9px;font-weight:600;"><i class="ti ti-alert-circle" style="font-size:10px;"></i>Priority</span>':'')+
+    '<span style="font-size:9px;color:#94a3b8;">'+homeEsc(status)+' \u00b7 '+homeEsc(homeFormatDateHuman(String(a.created_at||'').slice(0,10)))+'</span></div>'+
+    '<div style="font-size:12px;font-weight:500;line-height:1.35;">'+homeEsc(a.title||'Untitled announcement')+'</div>'+
+    '<div style="font-size:10px;color:#64748b;line-height:1.45;margin-top:3px;white-space:pre-wrap;">'+homeEsc(String(a.body||'No summary provided.'))+'</div></div>'+
+  '</div>';
+}
+function homeRenderAnnouncementsList(el, announcements, today, limit){
   if(!el) return;
-  if(!announcements.length){
+  var list=Array.isArray(announcements)?announcements:[];
+  if(!list.length){
     el.innerHTML='<div style="font-size:10px;color:#64748b;padding:11px 14px;">No announcements right now.</div>';
     return;
   }
-  el.innerHTML=announcements.slice(0,5).map(function(a){
-    var status=homeAnnouncementStatus(a,today);
-    var isPriority=String(a&&a.priority||'none').toLowerCase()==='high';
-    var bar=status==='New'?'#b91c1c':(status==='Reminder'?'#b45309':'#cbd5e0');
-    if(isPriority) bar='#b91c1c';
-    return '<div style="padding:11px 14px;border-bottom:.5px solid #f1f4f9;display:flex;gap:10px;">'+
-      '<div style="width:3px;align-self:stretch;background:'+bar+';border-radius:99px;flex-shrink:0;"></div>'+
-      '<div style="flex:1;min-width:0;"><div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">'+
-      (isPriority?'<span style="display:inline-flex;align-items:center;gap:3px;padding:1px 6px;border-radius:99px;background:#fee2e2;color:#b91c1c;font-size:9px;font-weight:600;"><i class="ti ti-alert-circle" style="font-size:10px;"></i>Priority</span>':'')+
-      '<span style="font-size:9px;color:#94a3b8;">'+homeEsc(status)+' \u00b7 '+homeEsc(homeFormatDateHuman(String(a.created_at||'').slice(0,10)))+'</span></div>'+
-      '<div style="font-size:12px;font-weight:500;line-height:1.35;">'+homeEsc(a.title||'Untitled announcement')+'</div>'+
-      '<div style="font-size:10px;color:#64748b;line-height:1.45;margin-top:3px;white-space:pre-wrap;">'+homeEsc(String(a.body||'No summary provided.'))+'</div></div>'+
-    '</div>';
-  }).join('');
+  var visible=typeof limit==='number'?list.slice(0,limit):list;
+  el.innerHTML=visible.map(function(a){ return homeAnnouncementRowHtml(a,today); }).join('');
+}
+function homeRenderAnnouncements(announcements, today){
+  homeRenderAnnouncementsList(document.getElementById('homeAnnouncements'), announcements, today, 5);
+}
+function homeUpdateAnnouncementsManageLink(){
+  var link=document.getElementById('homeAnnManageLink');
+  if(!link) return;
+  var isAdmin=!!window.__authGuardIsAdmin;
+  link.style.display=isAdmin?'inline-flex':'none';
+}
+function homeRenderAllAnnouncementsPanel(announcements, today){
+  homeUpdateAnnouncementsManageLink();
+  var el=document.getElementById('homeAnnouncementsAll');
+  var countEl=document.getElementById('homeAnnouncementsAllCount');
+  var todayIso=today||homeAnnouncementsToday||(typeof calLocalTodayISODate==='function'?calLocalTodayISODate():homeDateISO(new Date()));
+  function render(list){
+    var sorted=homeSortAnnouncements(list);
+    homeAnnouncementsCache=sorted;
+    homeAnnouncementsToday=todayIso;
+    if(countEl){
+      countEl.textContent=sorted.length?sorted.length+' active announcement'+(sorted.length===1?'':'s'):'No active announcements';
+    }
+    homeRenderAnnouncementsList(el, sorted, todayIso, null);
+  }
+  if(Array.isArray(announcements)){
+    render(announcements);
+    return;
+  }
+  if(homeAnnouncementsCache.length){
+    render(homeAnnouncementsCache);
+    return;
+  }
+  if(el) el.innerHTML=homeSectionLoadingHtml();
+  if(countEl) countEl.textContent='Loading…';
+  if(window.DataService&&typeof window.DataService.getAnnouncements==='function'){
+    DataService.getAnnouncements().then(function(list){
+      render(list||[]);
+    }).catch(function(){
+      if(el) el.innerHTML='<div style="font-size:10px;color:#64748b;padding:11px 14px;">Could not load announcements.</div>';
+      if(countEl) countEl.textContent='Could not load announcements';
+    });
+    return;
+  }
+  render([]);
 }
 function homeRenderTrackingClasses(rows){
   var el=document.getElementById('homeTrackingClasses');
@@ -8714,7 +8797,13 @@ function homeApplyDashboardData(ctx){
 
   homeRenderNotificationBell(notificationItems);
   homeRenderTodaySchedule(timetableSlots);
+  homeAnnouncementsCache=announcements;
+  homeAnnouncementsToday=today;
   homeRenderAnnouncements(announcements, today);
+  var allAnnPanel=document.getElementById('home-announcements-all');
+  if(allAnnPanel&&allAnnPanel.classList.contains('active')){
+    homeRenderAllAnnouncementsPanel(announcements, today);
+  }
   if(!skipTracking) homeRenderTrackingClasses(trackingRows);
   homeRenderUpcomingEvents(upcomingEvents);
   homeRenderWeekAhead(events, today);
@@ -8801,12 +8890,7 @@ function homeDashboardRender(opts){
     });
     var announcementsRaw=Array.isArray(res[2])?res[2]:[];
     var notificationReads=Array.isArray(res[3])?res[3]:[];
-    var announcements=announcementsRaw.slice().sort(function(a,b){
-      var aHigh=String(a&&a.priority||'none').toLowerCase()==='high'?1:0;
-      var bHigh=String(b&&b.priority||'none').toLowerCase()==='high'?1:0;
-      if(aHigh!==bHigh) return bHigh-aHigh;
-      return String(b&&b.created_at||'').localeCompare(String(a&&a.created_at||''));
-    });
+    var announcements=homeSortAnnouncements(announcementsRaw);
     var taskState=(res[4]&&typeof res[4]==='object')?res[4]:{ tasks:[], buckets:[] };
     var tasks=Array.isArray(taskState.tasks)?taskState.tasks:[];
 
@@ -8853,12 +8937,7 @@ function homeDashboardRender(opts){
     });
     var announcementsRaw=Array.isArray(res[2])?res[2]:[];
     var notificationReads=Array.isArray(res[3])?res[3]:[];
-    var announcements=announcementsRaw.slice().sort(function(a,b){
-      var aHigh=String(a&&a.priority||'none').toLowerCase()==='high'?1:0;
-      var bHigh=String(b&&b.priority||'none').toLowerCase()==='high'?1:0;
-      if(aHigh!==bHigh) return bHigh-aHigh;
-      return String(b&&b.created_at||'').localeCompare(String(a&&a.created_at||''));
-    });
+    var announcements=homeSortAnnouncements(announcementsRaw);
     var taskState=(res[4]&&typeof res[4]==='object')?res[4]:{ tasks:[], buckets:[] };
     var tasks=Array.isArray(taskState.tasks)?taskState.tasks:[];
     var dramaRows=homeExtractTrackingClasses(res[5],'Drama');
@@ -8954,6 +9033,7 @@ document.addEventListener('DOMContentLoaded',function(){
     if(el){if(window.DataService&&window.DataService.isUsingCloud&&window.DataService.isUsingCloud()){el.textContent='● Cloud sync';el.style.color='#6ee7b7';el.title='Calendar, moderation & improvement plan save to cloud — available on other devices';}else{el.textContent='● Local only';el.style.color='#fcd34d';el.title='Data saved in this browser only — sign in to sync to cloud';}}
     var canManage=!!window.__authGuardCanManageSchool||!!window.__authGuardIsAdmin;
     var adminLink=document.getElementById('admin-console-link');if(adminLink)adminLink.style.display=canManage?'flex':'none';
+    homeUpdateAnnouncementsManageLink();
     var classVisitLink=document.getElementById('class-visit-feedback-link');if(classVisitLink)classVisitLink.style.display=canManage?'flex':'none';
     var homeClassVisits=document.getElementById('home-quick-class-visits');if(homeClassVisits)homeClassVisits.style.display=canManage?'flex':'none';
     var classMgmtLink=document.getElementById('class-management-link');if(classMgmtLink)classMgmtLink.style.display=canManage?'flex':'none';
