@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Senior Phase Tracker — Creative Arts Faculty</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=DM+Mono:ital,wght@0,400;0,500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --navy:        #1a2744;
+            --navy-mid:    #243460;
+            --teal:        #0891b2;
+            --teal-light:  #e0f7fa;
+            --green:       #10b981;
+            --green-light: #d1fae5;
+            --amber:       #f59e0b;
+            --amber-light: #fef3c7;
+            --red:         #ef4444;
+            --red-light:   #fee2e2;
+            --grey:        #94a3b8;
+            --grey-light:  #f1f5f9;
+            --white:       #ffffff;
+            --text:        #1e293b;
+            --text-muted:  #64748b;
+            --border:      #e2e8f0;
+            --bg:          #f0f4f8;
+            --shadow:      0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+            --shadow-md:   0 4px 12px rgba(0,0,0,0.08);
+            --radius:      10px;
+        }
+
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            font-size: 14px;
+        }
+
+        /* ── Header ───────────────────────────────────────────── */
+        header {
+            background: var(--navy);
+            color: white;
+            padding: 0 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 60px;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .logo-mark {
+            width: 34px;
+            height: 34px;
+            background: var(--teal);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 13px;
+            letter-spacing: 0.04em;
+            flex-shrink: 0;
+        }
+
+        .site-name {
+            font-size: 15px;
+            font-weight: 600;
+            letter-spacing: 0.01em;
+        }
+
+        .site-sub {
+            font-size: 11px;
+            color: rgba(255,255,255,0.45);
+            font-weight: 300;
+            letter-spacing: 0.02em;
+        }
+
+        /* View Toggle */
+        .view-toggle {
+            display: flex;
+            background: rgba(255,255,255,0.1);
+            border-radius: 8px;
+            padding: 3px;
+            gap: 2px;
+        }
+
+        .view-btn {
+            padding: 6px 18px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-family: 'Outfit', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s;
+            color: rgba(255,255,255,0.55);
+            background: transparent;
+            letter-spacing: 0.01em;
+        }
+
+        .view-btn.active {
+            background: white;
+            color: var(--navy);
+            box-shadow: 0 1px 4px rgba(0,0,0,0.15);
+        }
+
+        /* ── Main ─────────────────────────────────────────────── */
+        main {
+            max-width: 1380px;
+            margin: 0 auto;
+            padding: 1.75rem 2rem;
+        }
+
+        .view { display: none; }
+        .view.active { display: block; }
+
+        /* Page heading */
+        .page-heading {
+            margin-bottom: 1.5rem;
+        }
+        .page-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--navy);
+        }
+        .page-hint {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: 3px;
+        }
+
+        /* ── Subject Tabs ─────────────────────────────────────── */
+        .subject-tabs {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+            margin-bottom: 1.25rem;
+        }
+
+        .subject-tab {
+            padding: 7px 15px;
+            border-radius: 8px;
+            border: 2px solid var(--border);
+            background: white;
+            cursor: pointer;
+            font-family: 'Outfit', sans-serif;
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text-muted);
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+        .subject-tab:hover { border-color: var(--teal); color: var(--teal); }
+        .subject-tab.active {
+            border-color: var(--teal);
+            background: var(--teal);
+            color: white;
+        }
+
+        /* ── Card ─────────────────────────────────────────────── */
+        .card {
+            background: white;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 1.1rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .card-title   { font-size: 15px; font-weight: 700; color: var(--navy); }
+        .card-meta    { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+        .card-stat    { font-size: 13px; color: var(--text-muted); text-align: right; }
+
+        /* ── Tracker Table ────────────────────────────────────── */
+        .table-wrap { overflow-x: auto; }
+
+        .tracker-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .tracker-table th {
+            padding: 9px 14px;
+            text-align: left;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            background: var(--grey-light);
+            border-bottom: 1px solid var(--border);
+            white-space: nowrap;
+        }
+
+        .tracker-table th.cp-th {
+            text-align: center;
+            max-width: 130px;
+            line-height: 1.3;
+            white-space: normal;
+            padding: 9px 10px;
+            font-size: 10.5px;
+        }
+
+        .tracker-table td {
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+        }
+
+        .tracker-table tr:last-child td { border-bottom: none; }
+
+        .tracker-table tr:hover td { background: #fafbff; }
+
+        .pupil-name {
+            font-weight: 600;
+            color: var(--navy);
+            white-space: nowrap;
+        }
+
+        /* Checkpoint button */
+        .cp-cell { text-align: center; }
+
+        .cp-btn {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 7px;
+            border: 2px solid var(--border);
+            background: white;
+            transition: all 0.15s;
+            min-width: 68px;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        .cp-btn:hover { border-color: var(--green); background: var(--green-light); }
+
+        .cp-btn.done {
+            border-color: var(--green);
+            background: var(--green-light);
+        }
+
+        .cp-icon { font-size: 15px; line-height: 1; color: var(--grey); }
+        .cp-btn.done .cp-icon { color: var(--green); }
+
+        .cp-date {
+            font-size: 10px;
+            font-family: 'DM Mono', monospace;
+            color: var(--text-muted);
+            white-space: nowrap;
+        }
+        .cp-btn.done .cp-date { color: var(--green); font-weight: 500; }
+
+        /* Status badge */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11.5px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        .badge.complete    { background: var(--green-light);  color: #065f46; }
+        .badge.on-track    { background: #e0f2fe;              color: #0c4a6e; }
+        .badge.at-risk     { background: var(--amber-light);   color: #78350f; }
+        .badge.concern     { background: var(--red-light);     color: #7f1d1d; }
+        .badge.not-started { background: var(--grey-light);    color: var(--text-muted); }
+
+        /* ── Faculty View: Stats Row ──────────────────────────── */
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: var(--radius);
+            padding: 1.2rem 1.4rem;
+            box-shadow: var(--shadow);
+            border-top: 3px solid var(--border);
+            transition: box-shadow 0.2s;
+        }
+        .stat-card:hover { box-shadow: var(--shadow-md); }
+        .stat-card.s-teal  { border-top-color: var(--teal); }
+        .stat-card.s-green { border-top-color: var(--green); }
+        .stat-card.s-red   { border-top-color: var(--red); }
+        .stat-card.s-amber { border-top-color: var(--amber); }
+
+        .stat-label {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
+        .stat-val {
+            font-size: 30px;
+            font-weight: 700;
+            color: var(--navy);
+            line-height: 1;
+        }
+        .stat-sub {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 5px;
+        }
+
+        /* ── Faculty View: Subject Grid ───────────────────────── */
+        .subject-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.75rem;
+        }
+
+        .subj-card {
+            background: white;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+        }
+
+        .subj-card-head {
+            padding: 1rem 1.25rem 0.75rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .subj-name  { font-size: 14px; font-weight: 700; color: var(--navy); }
+        .subj-level { font-size: 11px; color: var(--text-muted); font-weight: 400; margin-top: 1px; }
+
+        .subj-pct { font-size: 22px; font-weight: 700; color: var(--navy); text-align: right; }
+        .subj-pct-sub { font-size: 10px; color: var(--text-muted); text-align: right; }
+
+        /* Progress bar */
+        .prog-bar {
+            height: 4px;
+            background: var(--border);
+            margin: 0 1.25rem 0.75rem;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .prog-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.4s ease;
+        }
+        .prog-fill.green { background: var(--green); }
+        .prog-fill.amber { background: var(--amber); }
+        .prog-fill.red   { background: var(--red); }
+
+        /* Pupil rows inside subject card */
+        .subj-pupils { padding: 0 1.25rem 0.75rem; }
+
+        .pupil-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 0;
+            border-bottom: 1px solid var(--border);
+            gap: 8px;
+        }
+        .pupil-row:last-child { border-bottom: none; }
+
+        .pupil-row-name {
+            font-size: 13px;
+            font-weight: 500;
+            color: var(--text);
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .dots {
+            display: flex;
+            gap: 3px;
+            flex-shrink: 0;
+        }
+        .dot {
+            width: 9px;
+            height: 9px;
+            border-radius: 50%;
+            background: var(--border);
+        }
+        .dot.done    { background: var(--green); }
+        .dot.missing { background: var(--red); }
+
+        /* ── At Risk Section ──────────────────────────────────── */
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 1rem;
+        }
+        .section-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--navy);
+        }
+        .count-pill {
+            background: var(--red);
+            color: white;
+            border-radius: 20px;
+            padding: 2px 9px;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .concern-list { display: flex; flex-direction: column; gap: 10px; }
+
+        .concern-item {
+            background: white;
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            padding: 1.1rem 1.4rem;
+            border-left: 4px solid var(--red);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            flex-wrap: wrap;
+            transition: box-shadow 0.2s;
+        }
+        .concern-item:hover { box-shadow: var(--shadow-md); }
+        .concern-item.amber { border-left-color: var(--amber); }
+
+        .concern-name   { font-size: 15px; font-weight: 700; color: var(--navy); margin-bottom: 3px; }
+        .concern-detail { font-size: 12px; color: var(--text-muted); }
+
+        .concern-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+
+        .ctag {
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+            background: var(--red-light);
+            color: #7f1d1d;
+        }
+        .ctag.amber { background: var(--amber-light); color: #78350f; }
+
+        /* ── Responsive ───────────────────────────────────────── */
+        @media (max-width: 900px) {
+            .stats-row { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 640px) {
+            main { padding: 1rem; }
+            header { padding: 0 1rem; }
+            .site-sub { display: none; }
+            .stats-row { grid-template-columns: 1fr 1fr; }
+            .view-btn { padding: 6px 12px; font-size: 12px; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="header-left">
+        <div class="logo-mark">SP</div>
+        <div>
+            <div class="site-name">Senior Phase Tracker</div>
+            <div class="site-sub">Creative Arts Faculty</div>
+        </div>
+    </div>
+    <div class="view-toggle">
+        <button class="view-btn active" data-view="teacher" onclick="switchView('teacher')">Teacher View</button>
+        <button class="view-btn" data-view="faculty" onclick="switchView('faculty')">Faculty Head</button>
+    </div>
+</header>
+
+<main>
+
+    <!-- ── TEACHER VIEW ─────────────────────────────────────── -->
+    <div id="view-teacher" class="view active">
+        <div class="page-heading">
+            <div class="page-title">Evidence Checkpoints</div>
+            <div class="page-hint">Select your class below — click a checkpoint to mark it complete. Click again to undo.</div>
+        </div>
+
+        <div class="subject-tabs" id="subject-tabs"></div>
+
+        <div class="card">
+            <div class="card-header">
+                <div>
+                    <div class="card-title" id="tbl-subject-name">—</div>
+                    <div class="card-meta" id="tbl-subject-meta">—</div>
+                </div>
+                <div class="card-stat" id="tbl-stats">—</div>
+            </div>
+            <div class="table-wrap">
+                <table class="tracker-table">
+                    <thead id="tbl-head"></thead>
+                    <tbody id="tbl-body"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── FACULTY HEAD VIEW ────────────────────────────────── -->
+    <div id="view-faculty" class="view">
+        <div class="page-heading">
+            <div class="page-title">Faculty Overview</div>
+            <div class="page-hint">Evidence progress across all Senior Phase subjects. Pupils flagged below need follow-up.</div>
+        </div>
+
+        <div class="stats-row" id="stats-row"></div>
+        <div class="subject-grid" id="subject-grid"></div>
+
+        <div>
+            <div class="section-header">
+                <div class="section-title">Pupils Requiring Attention</div>
+                <span class="count-pill" id="concern-count">0</span>
+            </div>
+            <div class="concern-list" id="concern-list"></div>
+        </div>
+    </div>
+
+</main>
+
+<script>
+// ── Data ──────────────────────────────────────────────────────────
+const subjects = [
+    {
+        id: 'S4Art', name: 'S4 Art', level: 'N4/5', teacher: 'Ms Anderson',
+        checkpoints: [
+            'Expressive brief approved',
+            'Expressive evidence gathered',
+            'Design brief approved',
+            'Design evidence gathered',
+            'Portfolio review'
+        ],
+        pupils: [
+            { name: 'Emma Campbell',   done: [1,1,1,1,0], dates: ['12 Sep','15 Oct','20 Oct','01 Nov', null] },
+            { name: 'Jamie Morrison',  done: [1,1,1,0,0], dates: ['12 Sep','22 Oct','25 Oct', null, null] },
+            { name: 'Chloe Robertson', done: [1,1,1,1,1], dates: ['11 Sep','10 Oct','12 Oct','25 Oct','10 Nov'] },
+            { name: 'Lewis MacKenzie', done: [1,1,0,0,0], dates: ['15 Sep','29 Oct', null, null, null] },
+            { name: 'Sophie Henderson',done: [1,1,1,1,1], dates: ['12 Sep','14 Oct','14 Oct','28 Oct','12 Nov'] },
+            { name: 'Ryan Stewart',    done: [1,0,0,0,0], dates: ['20 Sep', null, null, null, null] },
+            { name: 'Isla Thomson',    done: [1,1,1,1,0], dates: ['12 Sep','18 Oct','18 Oct','04 Nov', null] },
+            { name: 'Connor Reid',     done: [0,0,0,0,0], dates: [null, null, null, null, null] }
+        ]
+    },
+    {
+        id: 'AHArt', name: 'Advanced Higher Art', level: 'Advanced Higher', teacher: 'Ms Anderson',
+        checkpoints: [
+            'Proposal approved',
+            'Developmental work evidenced',
+            'Refinement stage',
+            'Folio ready for submission'
+        ],
+        pupils: [
+            { name: 'Chloe Robertson', done: [1,1,1,1], dates: ['08 Sep','20 Oct','05 Nov','22 Nov'] },
+            { name: 'Sophie Henderson',done: [1,1,1,0], dates: ['08 Sep','22 Oct','08 Nov', null] },
+            { name: 'Megan Fraser',    done: [1,1,0,0], dates: ['10 Sep','28 Oct', null, null] },
+            { name: 'Callum Murray',   done: [1,1,1,1], dates: ['08 Sep','18 Oct','01 Nov','20 Nov'] },
+            { name: 'Emma Campbell',   done: [1,0,0,0], dates: ['12 Sep', null, null, null] }
+        ]
+    },
+    {
+        id: 'HigherDrama', name: 'Higher Drama', level: 'Higher', teacher: 'Mr MacLeod',
+        checkpoints: [
+            'Drama Skills evidence',
+            'Production Skills evidence',
+            'Performance recorded',
+            'Written prep complete'
+        ],
+        pupils: [
+            { name: 'Isla Thomson',    done: [1,1,1,0], dates: ['05 Oct','02 Nov','15 Nov', null] },
+            { name: 'Ryan Stewart',    done: [1,1,1,1], dates: ['05 Oct','04 Nov','14 Nov','28 Nov'] },
+            { name: 'Jamie Morrison',  done: [1,1,0,0], dates: ['08 Oct','08 Nov', null, null] },
+            { name: 'Connor Reid',     done: [1,1,1,1], dates: ['05 Oct','01 Nov','12 Nov','26 Nov'] },
+            { name: 'Lewis MacKenzie', done: [1,0,0,0], dates: ['10 Oct', null, null, null] },
+            { name: 'Amy Wallace',     done: [1,1,1,0], dates: ['05 Oct','05 Nov','18 Nov', null] }
+        ]
+    },
+    {
+        id: 'S4Drama', name: 'S4 Drama', level: 'N4/5', teacher: 'Mr MacLeod',
+        checkpoints: [
+            'Drama Skills started',
+            'Drama Skills evidence complete',
+            'Production Skills evidence',
+            'Added Value Unit complete'
+        ],
+        pupils: [
+            { name: 'Amy Wallace',     done: [1,1,1,1], dates: ['15 Sep','20 Oct','10 Nov','28 Nov'] },
+            { name: 'Callum Murray',   done: [1,1,1,0], dates: ['15 Sep','22 Oct','12 Nov', null] },
+            { name: 'Megan Fraser',    done: [1,1,1,1], dates: ['15 Sep','20 Oct','08 Nov','25 Nov'] },
+            { name: 'Ryan Stewart',    done: [1,1,0,0], dates: ['18 Sep','28 Oct', null, null] },
+            { name: 'Emma Campbell',   done: [1,1,1,1], dates: ['15 Sep','18 Oct','05 Nov','22 Nov'] },
+            { name: 'Jamie Morrison',  done: [1,0,0,0], dates: ['22 Sep', null, null, null] },
+            { name: 'Isla Thomson',    done: [1,1,1,0], dates: ['15 Sep','25 Oct','15 Nov', null] }
+        ]
+    },
+    {
+        id: 'NPAPhoto', name: 'NPA Photography', level: 'NPA', teacher: 'Ms Reid',
+        checkpoints: [
+            'Unit 1: Exploring Photography',
+            'Unit 2: Digital Editing',
+            'Unit 3: Portfolio Development',
+            'Final portfolio submitted'
+        ],
+        pupils: [
+            { name: 'Lewis MacKenzie', done: [1,1,1,0], dates: ['20 Sep','25 Oct','15 Nov', null] },
+            { name: 'Sophie Henderson',done: [1,1,1,1], dates: ['18 Sep','22 Oct','10 Nov','02 Dec'] },
+            { name: 'Connor Reid',     done: [1,1,0,0], dates: ['20 Sep','28 Oct', null, null] },
+            { name: 'Megan Fraser',    done: [1,0,0,0], dates: ['25 Sep', null, null, null] },
+            { name: 'Callum Murray',   done: [1,1,1,1], dates: ['18 Sep','20 Oct','08 Nov','30 Nov'] },
+            { name: 'Amy Wallace',     done: [1,1,1,0], dates: ['18 Sep','25 Oct','18 Nov', null] }
+        ]
+    },
+    {
+        id: 'FilmScreen', name: 'Level 6 Film & Screen', level: 'SCQF Level 6', teacher: 'Ms Reid',
+        checkpoints: [
+            'Unit 1 evidence complete',
+            'Practical production evidenced',
+            'Written component complete',
+            'Final submission ready'
+        ],
+        pupils: [
+            { name: 'Jamie Morrison',  done: [1,1,1,1], dates: ['12 Sep','18 Oct','05 Nov','22 Nov'] },
+            { name: 'Ryan Stewart',    done: [1,1,1,0], dates: ['12 Sep','20 Oct','08 Nov', null] },
+            { name: 'Isla Thomson',    done: [1,1,1,1], dates: ['10 Sep','15 Oct','02 Nov','20 Nov'] },
+            { name: 'Emma Campbell',   done: [1,1,0,0], dates: ['15 Sep','25 Oct', null, null] },
+            { name: 'Lewis MacKenzie', done: [1,0,0,0], dates: ['20 Sep', null, null, null] }
+        ]
+    },
+    {
+        id: 'N5Creative', name: 'N5 Creative Industries', level: 'National 5', teacher: 'Ms Reid',
+        checkpoints: [
+            'Project brief approved',
+            'Production evidence gathered',
+            'Creative project submitted',
+            'Assessment complete'
+        ],
+        pupils: [
+            { name: 'Chloe Robertson', done: [1,1,1,1], dates: ['10 Sep','15 Oct','05 Nov','25 Nov'] },
+            { name: 'Connor Reid',     done: [1,1,1,0], dates: ['10 Sep','18 Oct','08 Nov', null] },
+            { name: 'Amy Wallace',     done: [1,1,1,1], dates: ['10 Sep','12 Oct','02 Nov','22 Nov'] },
+            { name: 'Callum Murray',   done: [1,1,0,0], dates: ['12 Sep','22 Oct', null, null] },
+            { name: 'Sophie Henderson',done: [1,1,1,1], dates: ['10 Sep','14 Oct','04 Nov','24 Nov'] },
+            { name: 'Ryan Stewart',    done: [1,0,0,0], dates: ['18 Sep', null, null, null] },
+            { name: 'Megan Fraser',    done: [1,1,1,0], dates: ['10 Sep','20 Oct','10 Nov', null] }
+        ]
+    }
+];
+
+// ── State ─────────────────────────────────────────────────────────
+let activeSubject = 0;
+
+// ── Helpers ───────────────────────────────────────────────────────
+function status(done) {
+    const total = done.length;
+    const n     = done.filter(Boolean).length;
+    if (n === 0)     return { label: 'Not Started', cls: 'not-started', icon: '○' };
+    if (n === total) return { label: 'Complete',    cls: 'complete',    icon: '✓' };
+    if (n / total >= 0.5) return { label: 'On Track', cls: 'on-track', icon: '→' };
+    return { label: 'Needs Attention', cls: 'at-risk', icon: '⚠' };
+}
+
+function pupilConcerns(name) {
+    const out = [];
+    subjects.forEach(subj => {
+        const p = subj.pupils.find(x => x.name === name);
+        if (!p) return;
+        const s = status(p.done);
+        if (s.cls === 'not-started' || s.cls === 'at-risk') {
+            out.push({ subj: subj.name, cls: s.cls, done: p.done.filter(Boolean).length, total: p.done.length });
+        }
+    });
+    return out;
+}
+
+function todayStr() {
+    return new Date().toLocaleDateString('en-GB', { day:'2-digit', month:'short' });
+}
+
+// ── View Switch ───────────────────────────────────────────────────
+function switchView(view) {
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('view-' + view).classList.add('active');
+    document.querySelector('[data-view="' + view + '"]').classList.add('active');
+    if (view === 'faculty') renderFaculty();
+}
+
+// ── Teacher View ──────────────────────────────────────────────────
+function renderTabs() {
+    document.getElementById('subject-tabs').innerHTML = subjects.map((s, i) =>
+        `<button class="subject-tab ${i === activeSubject ? 'active' : ''}" onclick="selectSubject(${i})">${s.name}</button>`
+    ).join('');
+}
+
+function selectSubject(i) {
+    activeSubject = i;
+    renderTabs();
+    renderTable();
+}
+
+function renderTable() {
+    const s     = subjects[activeSubject];
+    const total = s.pupils.length * s.checkpoints.length;
+    const done  = s.pupils.reduce((a, p) => a + p.done.filter(Boolean).length, 0);
+
+    document.getElementById('tbl-subject-name').textContent = s.name;
+    document.getElementById('tbl-subject-meta').textContent = s.level + ' · ' + s.teacher;
+    document.getElementById('tbl-stats').textContent        = done + ' of ' + total + ' checkpoints complete';
+
+    document.getElementById('tbl-head').innerHTML = `<tr>
+        <th style="min-width:160px">Pupil</th>
+        ${s.checkpoints.map(cp => `<th class="cp-th">${cp}</th>`).join('')}
+        <th>Status</th>
+    </tr>`;
+
+    document.getElementById('tbl-body').innerHTML = s.pupils.map((p, pi) => {
+        const st = status(p.done);
+        return `<tr>
+            <td><span class="pupil-name">${p.name}</span></td>
+            ${p.done.map((d, ci) => `
+                <td class="cp-cell">
+                    <button class="cp-btn ${d ? 'done' : ''}"
+                        onclick="toggle(${activeSubject},${pi},${ci})"
+                        title="${d ? 'Marked complete — click to undo' : 'Click to mark complete'}">
+                        <span class="cp-icon">${d ? '✓' : '○'}</span>
+                        <span class="cp-date">${p.dates[ci] || (d ? 'Done' : 'Pending')}</span>
+                    </button>
+                </td>
+            `).join('')}
+            <td><span class="badge ${st.cls}">${st.icon} ${st.label}</span></td>
+        </tr>`;
+    }).join('');
+}
+
+function toggle(si, pi, ci) {
+    const p = subjects[si].pupils[pi];
+    p.done[ci]  = p.done[ci] ? 0 : 1;
+    p.dates[ci] = p.done[ci] ? todayStr() : null;
+    renderTable();
+}
+
+// ── Faculty Head View ─────────────────────────────────────────────
+function renderFaculty() {
+    renderStats();
+    renderSubjectGrid();
+    renderConcerns();
+}
+
+function renderStats() {
+    // aggregate
+    let totalSlots = 0, completedSlots = 0, atRiskSlots = 0;
+    const allNames = new Set();
+    subjects.forEach(s => {
+        s.pupils.forEach(p => {
+            allNames.add(p.name);
+            totalSlots++;
+            const st = status(p.done);
+            if (st.cls === 'complete')    completedSlots++;
+            if (st.cls === 'not-started' || st.cls === 'at-risk') atRiskSlots++;
+        });
+    });
+    const concernCount = [...allNames].filter(n => pupilConcerns(n).length > 0).length;
+
+    document.getElementById('stats-row').innerHTML = `
+        <div class="stat-card s-teal">
+            <div class="stat-label">Subjects Tracked</div>
+            <div class="stat-val">${subjects.length}</div>
+            <div class="stat-sub">Creative Arts Faculty</div>
+        </div>
+        <div class="stat-card s-green">
+            <div class="stat-label">Fully On Track</div>
+            <div class="stat-val">${completedSlots}</div>
+            <div class="stat-sub">of ${totalSlots} pupil-subject records</div>
+        </div>
+        <div class="stat-card s-red">
+            <div class="stat-label">Pupils of Concern</div>
+            <div class="stat-val">${concernCount}</div>
+            <div class="stat-sub">flagged across any subject</div>
+        </div>
+        <div class="stat-card s-amber">
+            <div class="stat-label">Evidence Gaps</div>
+            <div class="stat-val">${atRiskSlots}</div>
+            <div class="stat-sub">pupil-subject combinations</div>
+        </div>
+    `;
+}
+
+function renderSubjectGrid() {
+    document.getElementById('subject-grid').innerHTML = subjects.map(s => {
+        const totalCP = s.pupils.length * s.checkpoints.length;
+        const doneCP  = s.pupils.reduce((a, p) => a + p.done.filter(Boolean).length, 0);
+        const pct     = Math.round(doneCP / totalCP * 100);
+        const pcls    = pct >= 75 ? 'green' : pct >= 45 ? 'amber' : 'red';
+
+        const rows = s.pupils.map(p => {
+            const st  = status(p.done);
+            const isBehind = st.cls === 'not-started' || st.cls === 'at-risk';
+            return `
+                <div class="pupil-row">
+                    <span class="pupil-row-name" style="${isBehind ? 'color:var(--red);font-weight:600' : ''}">${p.name}</span>
+                    <div style="display:flex;align-items:center;gap:7px;flex-shrink:0">
+                        <div class="dots">${p.done.map(d => `<div class="dot ${d ? 'done' : (isBehind ? 'missing' : '')}"></div>`).join('')}</div>
+                        <span class="badge ${st.cls}" style="font-size:10.5px;padding:2px 8px">${st.label}</span>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        return `
+            <div class="subj-card">
+                <div class="subj-card-head">
+                    <div>
+                        <div class="subj-name">${s.name}</div>
+                        <div class="subj-level">${s.level} · ${s.teacher}</div>
+                    </div>
+                    <div>
+                        <div class="subj-pct">${pct}%</div>
+                        <div class="subj-pct-sub">${doneCP}/${totalCP} checkpoints</div>
+                    </div>
+                </div>
+                <div class="prog-bar"><div class="prog-fill ${pcls}" style="width:${pct}%"></div></div>
+                <div class="subj-pupils">${rows}</div>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderConcerns() {
+    const allNames = new Set();
+    subjects.forEach(s => s.pupils.forEach(p => allNames.add(p.name)));
+
+    const list = [...allNames]
+        .map(name => ({ name, issues: pupilConcerns(name) }))
+        .filter(x => x.issues.length > 0)
+        .sort((a, b) => b.issues.length - a.issues.length);
+
+    document.getElementById('concern-count').textContent = list.length;
+
+    document.getElementById('concern-list').innerHTML = list.map(({ name, issues }) => {
+        const hasNS    = issues.some(i => i.cls === 'not-started');
+        const cardCls  = hasNS ? '' : 'amber';
+        const tagsCls  = issues.map(i => `
+            <span class="ctag ${i.cls === 'at-risk' ? 'amber' : ''}">${i.subj}: ${i.done}/${i.total}</span>
+        `).join('');
+        return `
+            <div class="concern-item ${cardCls}">
+                <div>
+                    <div class="concern-name">${name}</div>
+                    <div class="concern-detail">${issues.length} subject${issues.length > 1 ? 's' : ''} requiring attention</div>
+                </div>
+                <div class="concern-tags">${tagsCls}</div>
+            </div>
+        `;
+    }).join('');
+}
+
+// ── Init ──────────────────────────────────────────────────────────
+renderTabs();
+renderTable();
+</script>
+</body>
+</html>

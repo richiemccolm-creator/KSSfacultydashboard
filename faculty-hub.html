@@ -35,6 +35,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/dist/tabler-icons.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="curriculum-units.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -2036,6 +2037,23 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
 .print-header-sub { font-size:.7rem;color:#64748b;font-weight:600 }
 .print-header-right { font-size:.65rem;color:#94a3b8;text-align:right }
 
+/* Curriculum handbook export modal */
+.curriculum-handbook-modal{position:fixed;inset:0;z-index:9000;display:flex;align-items:center;justify-content:center;padding:1rem;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .2s,visibility .2s}
+.curriculum-handbook-modal.visible{opacity:1;visibility:visible;pointer-events:auto}
+.curriculum-handbook-modal-backdrop{position:absolute;inset:0;background:rgba(15,23,42,.55)}
+.curriculum-handbook-modal-panel{position:relative;background:#fff;border-radius:12px;max-width:420px;width:100%;padding:1.5rem;box-shadow:0 20px 50px rgba(0,0,0,.2)}
+.curriculum-handbook-modal-panel h2{font-family:'Sora',sans-serif;font-size:1.05rem;color:#1e2d4a;margin-bottom:.35rem}
+.curriculum-handbook-modal-panel p{font-size:.82rem;color:#64748b;line-height:1.5;margin-bottom:1.25rem}
+.curriculum-handbook-modal-actions{display:flex;flex-direction:column;gap:.5rem}
+.curriculum-handbook-modal-actions button{display:flex;align-items:center;justify-content:center;gap:.5rem;padding:.65rem 1rem;border-radius:8px;font-size:.82rem;font-weight:600;cursor:pointer;border:none;font-family:inherit}
+.curriculum-handbook-btn-preview{background:#1e2d4a;color:#fff}
+.curriculum-handbook-btn-preview:hover{background:#2a3f62}
+.curriculum-handbook-btn-word{background:#f1f5f9;color:#1e293b;border:1px solid #e2e8f0!important}
+.curriculum-handbook-btn-word:hover{background:#e2e8f0}
+.curriculum-handbook-modal-close{position:absolute;top:.75rem;right:.75rem;background:none;border:none;font-size:1.25rem;line-height:1;color:#94a3b8;cursor:pointer;padding:.25rem}
+.curriculum-handbook-modal-close:hover{color:#475569}
+.sidebar-handbook-export{border-left:3px solid #4a7fd4}
+
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    @media print — SLIDE PDF printing
    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
@@ -2156,6 +2174,10 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
 
   <nav class="sidebar-nav-group" aria-label="Curriculum">
     <div class="sidebar-section-label">Curriculum</div>
+    <button type="button" class="sidebar-item sidebar-handbook-export" onclick="openCurriculumHandbookModal();return false;">
+      <span class="sidebar-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span>
+      <span class="sidebar-nav-text">Export Curriculum Handbook</span>
+    </button>
 
   <details class="sidebar-accordion" data-subject="drama" id="sidebar-accordion-drama">
     <summary class="sidebar-accordion-summary">
@@ -9008,6 +9030,11 @@ function injectLiteracyNumeracyIntoCurriculumCards(){
   });
 }
 
+window.MODERATION_UNITS = MODERATION_UNITS;
+window.SLIDE_DATA = SLIDE_DATA;
+window.DRAMA_VOCAB = DRAMA_VOCAB;
+window.AD_VOCAB = AD_VOCAB;
+
 document.addEventListener('DOMContentLoaded',function(){
   injectLiteracyNumeracyIntoCurriculumCards();
   homeInitNotificationBell();
@@ -9105,8 +9132,27 @@ document.addEventListener('visibilitychange',function(){
 });
 </script>
 
+<div id="curriculumHandbookModal" class="curriculum-handbook-modal" aria-hidden="true" role="dialog" aria-labelledby="curriculumHandbookModalTitle">
+  <div class="curriculum-handbook-modal-backdrop" onclick="closeCurriculumHandbookModal()" aria-label="Close"></div>
+  <div class="curriculum-handbook-modal-panel">
+    <button type="button" class="curriculum-handbook-modal-close" onclick="closeCurriculumHandbookModal()" aria-label="Close">&times;</button>
+    <h2 id="curriculumHandbookModalTitle">Export Curriculum Handbook</h2>
+    <p>Full faculty handbook — Drama, Art &amp; Design, Photography, curriculum maps, assessment overview, and vocabulary glossaries. Ideal for printing and giving to new staff.</p>
+    <div class="curriculum-handbook-modal-actions">
+      <button type="button" class="curriculum-handbook-btn-preview" onclick="closeCurriculumHandbookModal();CurriculumExport.openPreview();">
+        Preview &amp; Print / PDF
+      </button>
+      <button type="button" class="curriculum-handbook-btn-word" onclick="closeCurriculumHandbookModal();CurriculumExport.downloadWord();">
+        Download Word (.docx)
+      </button>
+    </div>
+  </div>
+</div>
+
 <div id="slide-overlay" class="slide-overlay" onclick="if(event.target===this){if(currentModerationUnit)closeModerationForm();else closeSlide();}">
   <div class="slide-modal" id="slide-modal"><div id="slide-modal-inner"></div></div>
 </div>
+
+<script src="curriculum-export.js"></script>
 </body>
 </html>
