@@ -133,6 +133,9 @@
     var ds = DataService;
     var tasks = [
       ['dip', ds.get('dipSelfEvaluation')],
+      ['dipTracker', (window.DipTrackerService && DipTrackerService.loadTracker)
+        ? DipTrackerService.loadTracker().catch(function() { return null; })
+        : Promise.resolve(null)],
       ['drama', ds.get('drama-v3')],
       ['art', ds.get('art-v2')],
       ['dramaReports', ds.get('bge_drama_reports_v1')],
@@ -295,6 +298,11 @@
       }
       if (rule.key === 'improvement-plan') {
         if (dipFilled) return { suggested: true, reason: 'DIP improvement plan in Faculty Hub' };
+        var dt = snap.dipTracker || {};
+        if (window.DipTrackerService && DipTrackerService.computeCompletion) {
+          var dc = DipTrackerService.computeCompletion(dt);
+          if (dc.percent >= 25) return { suggested: true, reason: 'DIP mission tracker ' + dc.percent + '% complete' };
+        }
       }
       if (rule.key === 'cpd') {
         var clpl = snap.clpl || {};
@@ -417,6 +425,27 @@
 
       if (qiId === '3.1' && dip['dip-eval-next']) {
         evidence.push('Areas for development (DIP): ' + hubTruncate(dip['dip-eval-next'], 300));
+      }
+
+      var dipTracker = snap.dipTracker || {};
+      if (['2.2', '2.3', '3.1', '3.2'].indexOf(qiId) !== -1 && dipTracker.sheets && window.DipTrackerService) {
+        var dc = DipTrackerService.computeCompletion(dipTracker);
+        if (dc.percent) {
+          evidence.push('DIP mission tracker (25–26): ' + dc.percent + '% of collaborative mission fields complete across six sheets.');
+        }
+        ['gc2m1', 'gc2m2', 'gc3m1', 'gc3m2'].forEach(function(sid) {
+          var sh = dipTracker.sheets[sid];
+          if (!sh || !sh.commitments || !sh.commitments.length) return;
+          var row = sh.commitments[0];
+          var t4 = row.terms && row.terms.t4 ? row.terms.t4.progress : '';
+          if (t4 && ['2.2', '2.3'].indexOf(qiId) !== -1 && (sid === 'gc2m1' || sid === 'gc2m2')) {
+            evidence.push(sh.mission + ' — ' + hubTruncate(t4, 220));
+          }
+          if (t4 && ['3.1', '3.2'].indexOf(qiId) !== -1 && (sid === 'gc3m1' || sid === 'gc3m2')) {
+            evidence.push(sh.mission + ' — ' + hubTruncate(t4, 220));
+          }
+        });
+        fileRefs.push('Faculty Hub → DIP Mission Tracker');
       }
 
       var monRef = analyzeMonitoringRows(snap.monitoring || []);

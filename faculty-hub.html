@@ -23,6 +23,7 @@
 <script src="allowlist-check.js"></script>
 <script src="auth-guard.js"></script>
 <script src="data-service.js"></script>
+<script src="dip-tracker-service.js"></script>
 <script src="planner-service.js"></script>
 <script src="staff-display-name.js"></script>
 <script src="teacher-tasks-service.js"></script>
@@ -2172,6 +2173,10 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
       <span class="sidebar-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg></span>
       <span class="sidebar-nav-text">Improvement Plan 25–26</span>
     </button>
+    <button type="button" class="sidebar-item dip-pin" data-panel="embed-dip-tracker" onclick="showPanel('embed-dip-tracker')">
+      <span class="sidebar-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="13" y2="14"/></svg></span>
+      <span class="sidebar-nav-text">DIP Mission Tracker</span>
+    </button>
   </nav>
 
   <div class="sidebar-divider"></div>
@@ -2495,6 +2500,7 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
                 <button type="button" id="home-quick-hgios-toolkit" onclick="showPanel('embed-hgios4-toolkit')" style="display:none;text-decoration:none;color:inherit;padding:9px 10px;border:.5px solid #fde68a;border-radius:7px;align-items:center;gap:7px;font-size:11px;background:#fffbeb;cursor:pointer;"><i class="ti ti-clipboard-check" style="color:#d97706;"></i>HGIOS 4</button>
                 <button type="button" onclick="showPanel('embed-procurement')" style="text-decoration:none;color:inherit;padding:9px 10px;border:.5px solid #d9e9d5;border-radius:7px;display:flex;align-items:center;gap:7px;font-size:11px;background:#f8fbf7;cursor:pointer;"><i class="ti ti-shopping-cart" style="color:#4b8f5a;"></i>Procurement</button>
                 <button type="button" onclick="showPanel('dip-main')" style="text-decoration:none;color:inherit;padding:9px 10px;border:.5px solid #f6e4bf;border-radius:7px;display:flex;align-items:center;gap:7px;font-size:11px;background:#fffbf3;cursor:pointer;"><i class="ti ti-target" style="color:#b45309;"></i>Imp. plan</button>
+                <button type="button" id="home-quick-dip-tracker" onclick="showPanel('embed-dip-tracker')" style="text-decoration:none;color:inherit;padding:9px 10px;border:.5px solid #f6e4bf;border-radius:7px;display:flex;align-items:center;gap:7px;font-size:11px;background:#fffbf3;cursor:pointer;"><i class="ti ti-table" style="color:#b45309;"></i><span id="home-dip-tracker-label">DIP tracker</span></button>
                 <button type="button" onclick="showPanel('embed-learning-teaching')" style="text-decoration:none;color:inherit;padding:9px 10px;border:.5px solid #d7ebe6;border-radius:7px;display:flex;align-items:center;gap:7px;font-size:11px;background:#f6fbfa;cursor:pointer;"><i class="ti ti-book" style="color:#2f7c73;"></i>Learning</button>
               </div>
             </section>
@@ -2668,6 +2674,10 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
       <div id="embed-hgios4-toolkit" class="panel report-builder-embed">
         <iframe src="hgios4-toolkit.html?embed=1" title="HGIOS 4 Inspection Toolkit"></iframe>
         <div class="report-builder-print-msg">Use the toolkit’s Print Report or Export options.</div>
+      </div>
+      <div id="embed-dip-tracker" class="panel report-builder-embed">
+        <iframe src="dip-tracker.html?embed=1" title="DIP Mission Tracker 25-26"></iframe>
+        <div class="report-builder-print-msg">Use Save now or print the active mission sheet from the tracker toolbar.</div>
       </div>
       <div id="embed-triangulation" class="panel report-builder-embed">
         <iframe src="triangulation_evidence.html?embed=1" title="Triangulation of Evidence"></iframe>
@@ -4492,6 +4502,13 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
             <div class="dip-meta-item"><strong>Link SLT</strong> M. McNeil</div>
             <div class="dip-meta-item"><strong>Evaluation Focus</strong> HGIOS4 QIs 2.2 / 2.3 / 3.1 / 3.2</div>
           </div>
+          <div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+            <button type="button" class="dip-eval-export-btn" onclick="showPanel('embed-dip-tracker')" style="margin:0;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="8" y1="10" x2="16" y2="10"/><line x1="8" y1="14" x2="13" y2="14"/></svg>
+              Open DIP Mission Tracker (6 sheets)
+            </button>
+            <span id="dip-main-tracker-pct" style="font-size:.75rem;color:#92400e"></span>
+          </div>
           <div class="dip-priority-row">
             <span class="dip-priority">Inclusion</span>
             <span class="dip-priority">High-Quality L&amp;T</span>
@@ -5196,6 +5213,13 @@ function showPanel(id){
       try{hgiosFrame.contentWindow.postMessage({type:'hgios-hub-refresh'},window.location.origin);}catch(e){}
     }
   }
+  if(id==='embed-dip-tracker'){
+    var dipFrame=document.querySelector('#embed-dip-tracker iframe');
+    if(dipFrame&&dipFrame.contentWindow){
+      try{dipFrame.contentWindow.postMessage({type:'dip-tracker-refresh'},window.location.origin);}catch(e){}
+    }
+  }
+  if(id==='dip-main') dipUpdateTrackerWidgets();
 }
 
 /** Open My tasks inside hub iframe; optional hash e.g. #task-abc */
@@ -5368,6 +5392,7 @@ function updateTopbar(panelId,subj){
     'embed-admin-console':'Admin Console',
     'embed-class-management':'Class Management Hub',
     'embed-hgios4-toolkit':'HGIOS 4 Toolkit',
+    'embed-dip-tracker':'DIP Mission Tracker 25–26',
     'embed-triangulation':'Triangulation of Evidence',
     'embed-quality-calendar':'Quality Calendar'
   };
@@ -7279,6 +7304,26 @@ function calSaveEvents(e){
 
 // ── DIP SELF-EVALUATION ───────────────────────────────────────────
 const DIP_STORAGE_KEY='dipSelfEvaluation';
+
+function dipUpdateTrackerWidgets(){
+  if(!window.DipTrackerService||typeof DipTrackerService.loadTracker!=='function') return;
+  DipTrackerService.loadTracker().then(function(data){
+    var c=DipTrackerService.computeCompletion(data||{});
+    var pctEl=document.getElementById('dip-main-tracker-pct');
+    if(pctEl) pctEl.textContent='Mission tracker: '+c.percent+'% of collaborative fields complete';
+    var homeLbl=document.getElementById('home-dip-tracker-label');
+    if(homeLbl) homeLbl.textContent='DIP tracker '+c.percent+'%';
+  }).catch(function(){});
+}
+window.dipUpdateTrackerWidgets=dipUpdateTrackerWidgets;
+
+window.addEventListener('message',function(ev){
+  if(!ev.data||ev.origin!==window.location.origin) return;
+  if(ev.data.type==='dip-tracker-updated') dipUpdateTrackerWidgets();
+  if(ev.data.type==='dip-tracker-navigate'&&ev.data.panel&&typeof showPanel==='function'){
+    showPanel(ev.data.panel);
+  }
+});
 const DIP_FIELDS=['dip-eval-date','dip-eval-period','dip-eval-overall','dip-eval-achievements','dip-eval-next','dip-reflect-1a','dip-reflect-1b','dip-reflect-1c','dip-reflect-2a','dip-reflect-2b','dip-reflect-2c','dip-reflect-3a','dip-reflect-3b','dip-reflect-3c'];
 var dipCheckpoints=[];
 var dipEditingCheckpointIndex=null;
@@ -9117,6 +9162,7 @@ document.addEventListener('DOMContentLoaded',function(){
     calRender();
     dipLoadEval(dipData);
     dipRenderProgressTimeline();
+    dipUpdateTrackerWidgets();
     homeHasCompletedInitialLoad=true;
   }).catch(function(){
     updateStorageIndicator();

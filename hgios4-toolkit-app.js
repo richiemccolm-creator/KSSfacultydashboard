@@ -436,6 +436,39 @@
       }
     },
     {
+      id: 'dip-tracker',
+      label: 'DIP Mission Tracker',
+      panel: 'embed-dip-tracker',
+      qis: ['2.2', '2.3', '3.1', '3.2'],
+      fetch: function() {
+        if (!window.DipTrackerService || !DipTrackerService.loadTracker) {
+          return Promise.resolve({ status: 'unavailable', detail: 'DIP tracker service not loaded' });
+        }
+        return DipTrackerService.loadTracker().then(function(data) {
+          data = data || {};
+          var c = DipTrackerService.computeCompletion(data);
+          if (!c.total) return { status: 'empty', detail: 'Open DIP Mission Tracker in Faculty Hub' };
+          if (c.percent >= 40) {
+            return {
+              status: 'ok',
+              detail: c.percent + '% of mission tracker fields complete (' + c.filled + '/' + c.total + ')',
+              summary: 'Six mission sheets — Art & Drama DIP 25–26 collaborative tracker'
+            };
+          }
+          if (c.percent > 0) {
+            return {
+              status: 'hint',
+              detail: c.percent + '% complete — add term measures and progress in the tracker',
+              summary: 'Faculty Hub → DIP Mission Tracker'
+            };
+          }
+          return { status: 'empty', detail: 'Fill collaborative fields in the DIP Mission Tracker' };
+        }).catch(function() {
+          return { status: 'empty', detail: 'Open DIP Mission Tracker in Faculty Hub' };
+        });
+      }
+    },
+    {
       id: 'meetings',
       label: 'Department Meetings',
       panel: 'embed-department-meetings',
