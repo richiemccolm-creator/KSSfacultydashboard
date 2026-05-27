@@ -201,6 +201,32 @@
     window.open('faculty-hub.html', '_blank');
   }
 
+  function openQiDetail(qiId) {
+    if (!qiId) return;
+    showView('qi');
+    renderQIDetail(qiId);
+    try {
+      window.scrollTo(0, 0);
+      var main = document.querySelector('.main');
+      if (main) main.scrollTop = 0;
+      var view = document.getElementById('view-qi');
+      if (view && view.scrollIntoView) view.scrollIntoView({ block: 'start', behavior: 'instant' });
+    } catch (e) { /* ignore */ }
+  }
+
+  function onQiTileClick(e) {
+    var tile = e.target.closest('.qi-link, .qi-tile[data-qi]');
+    if (!tile || !tile.dataset.qi) return;
+    e.preventDefault();
+    e.stopPropagation();
+    openQiDetail(tile.dataset.qi);
+  }
+
+  function bindQiNavigation() {
+    document.removeEventListener('click', onQiTileClick, true);
+    document.addEventListener('click', onQiTileClick, true);
+  }
+
   function hubSchoolYear() {
     return window.getCurrentSchoolYear ? window.getCurrentSchoolYear() : '';
   }
@@ -1223,8 +1249,8 @@
           ? hubEvidenceEntriesForQI(qi.id).filter(function(e) { return e.result.status === 'ok'; }).length
           : 0;
 
-        const tile = document.createElement('a');
-        tile.href = '#';
+        const tile = document.createElement('button');
+        tile.type = 'button';
         tile.className = `qi-tile qi-link ${complete ? 'complete' : ''} ${hasContent && !complete ? 'started' : ''}`;
         tile.dataset.qi = qi.id;
         tile.innerHTML = `
@@ -1794,19 +1820,25 @@
     renderDashboard();
   }
 
+  function safeOn(el, event, handler) {
+    if (el) el.addEventListener(event, handler);
+  }
+
   // Event bindings
   function bindEvents() {
+    bindQiNavigation();
+
     document.querySelectorAll('.nav-btn').forEach(btn => {
       btn.addEventListener('click', () => showView(btn.dataset.view));
     });
 
-    document.getElementById('back-to-dashboard').addEventListener('click', () => showView('dashboard'));
+    safeOn(document.getElementById('back-to-dashboard'), 'click', () => showView('dashboard'));
 
-    document.getElementById('school-name').addEventListener('input', (e) => {
+    safeOn(document.getElementById('school-name'), 'input', (e) => {
       appData.schoolName = e.target.value;
       debounceSave();
     });
-    document.getElementById('faculty-name').addEventListener('input', (e) => {
+    safeOn(document.getElementById('faculty-name'), 'input', (e) => {
       appData.facultyName = e.target.value;
       debounceSave();
     });
@@ -1820,40 +1852,48 @@
       });
     }
 
-    document.getElementById('export-btn').addEventListener('click', exportData);
+    safeOn(document.getElementById('export-btn'), 'click', exportData);
 
-    document.getElementById('pupilvoice-upload-btn').addEventListener('click', () => {
-      document.getElementById('pupilvoice-file').click();
+    safeOn(document.getElementById('pupilvoice-upload-btn'), 'click', () => {
+      var f = document.getElementById('pupilvoice-file');
+      if (f) f.click();
     });
-    document.getElementById('pupilvoice-file').addEventListener('change', (e) => {
+    safeOn(document.getElementById('pupilvoice-file'), 'change', (e) => {
       const file = e.target.files[0];
       if (file) handlePupilVoiceUpload(file);
       e.target.value = '';
     });
 
-    document.getElementById('import-btn').addEventListener('click', () => {
-      document.getElementById('import-file').click();
+    safeOn(document.getElementById('import-btn'), 'click', () => {
+      var f = document.getElementById('import-file');
+      if (f) f.click();
     });
-    document.getElementById('import-file').addEventListener('change', (e) => {
+    safeOn(document.getElementById('import-file'), 'change', (e) => {
       const file = e.target.files[0];
       if (file) {
-        const mode = document.querySelector('input[name="import-mode"]:checked').value;
-        importData(file, mode);
+        const modeEl = document.querySelector('input[name="import-mode"]:checked');
+        importData(file, modeEl ? modeEl.value : 'replace');
         e.target.value = '';
       }
     });
 
-    document.getElementById('print-report').addEventListener('click', () => window.print());
+    safeOn(document.getElementById('print-report'), 'click', () => window.print());
 
-    document.getElementById('celebration-dismiss').addEventListener('click', hideCelebration);
+    safeOn(document.getElementById('celebration-dismiss'), 'click', hideCelebration);
 
-    document.getElementById('shortcut-hint').addEventListener('click', () => {
-      document.getElementById('shortcuts-modal').classList.add('visible');
-      document.getElementById('shortcuts-modal').setAttribute('aria-hidden', 'false');
+    safeOn(document.getElementById('shortcut-hint'), 'click', () => {
+      var modal = document.getElementById('shortcuts-modal');
+      if (modal) {
+        modal.classList.add('visible');
+        modal.setAttribute('aria-hidden', 'false');
+      }
     });
-    document.getElementById('shortcuts-close').addEventListener('click', () => {
-      document.getElementById('shortcuts-modal').classList.remove('visible');
-      document.getElementById('shortcuts-modal').setAttribute('aria-hidden', 'true');
+    safeOn(document.getElementById('shortcuts-close'), 'click', () => {
+      var modal = document.getElementById('shortcuts-modal');
+      if (modal) {
+        modal.classList.remove('visible');
+        modal.setAttribute('aria-hidden', 'true');
+      }
     });
 
     const searchInput = document.getElementById('search-input');
@@ -1880,8 +1920,7 @@
             `).join('');
             searchResults.querySelectorAll('.search-result-item').forEach(btn => {
               btn.addEventListener('click', () => {
-                showView('qi');
-                renderQIDetail(btn.dataset.qi);
+                openQiDetail(btn.dataset.qi);
                 searchInput.value = '';
                 searchResults.innerHTML = '';
                 searchResults.classList.remove('visible');
@@ -1916,7 +1955,7 @@
       }
     });
 
-    if ('serviceWorker' in navigator && (location.protocol === 'http:' || location.protocol === 'https:')) {
+    if (!IS_EMBED && 'serviceWorker' in navigator && (location.protocol === 'http:' || location.protocol === 'https:')) {
       navigator.serviceWorker.register('hgios4-toolkit-sw.js').catch(() => {});
     }
 
@@ -1950,18 +1989,10 @@
       });
     }
 
-    document.addEventListener('click', (e) => {
-      const link = e.target.closest('.qi-link');
-      if (link && link.dataset.qi) {
-        e.preventDefault();
-        const qiId = link.dataset.qi;
-        showView('qi');
-        renderQIDetail(qiId);
-      }
-    });
   }
 
-  // Init
+  // Init — QI navigation binds immediately so embed mode works even if later setup throws
+  bindQiNavigation();
   Storage.init().then(function() {
     return loadData();
   }).then(function() {
