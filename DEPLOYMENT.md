@@ -212,22 +212,20 @@ If you prefer not to store credentials in `config.js`, you can use a build step 
 - [ ] Test shared calendar (admin adds event, staff sees it)
 - [ ] Test Privacy Policy: Export my data and Delete my account (full erasure)
 - [ ] Test **HGIOS 4 Toolkit**: Faculty Hub → Admin → HGIOS 4 Toolkit loads (no blank iframe)
-- [ ] Verify live URLs return **200**: `/hgios4-toolkit/app.js`, `/hgios4-toolkit/styles.css`, `/hgios4-toolkit-service.js`
+- [ ] Verify live URLs return **200**: `/hgios4-toolkit.html`, `/hgios4-toolkit-app.js`, `/hgios4-toolkit-styles.css`, `/hgios4-toolkit-service.js`
 
 ### Static files required at deploy root
 
-Upload the **entire project folder** (not only loose HTML files). Critical paths:
+Upload the **entire project folder** (not only loose HTML files). HGIOS 4 Toolkit lives at the **root** (same pattern as `triangulation_evidence.html`):
 
 | Path | Purpose |
 |------|---------|
-| `hgios4-toolkit/index.html` | Toolkit UI (embedded from Faculty Hub) |
-| `hgios4-toolkit/app.js` | Toolkit logic — must be **inside** this folder |
-| `hgios4-toolkit/styles.css` | Toolkit styles — must be **inside** this folder |
-| `hgios4-toolkit-service.js` | Supabase save/load (project **root**) |
+| `hgios4-toolkit.html` | Toolkit UI (Faculty Hub iframe: `hgios4-toolkit.html?embed=1`) |
+| `hgios4-toolkit-app.js` | Toolkit logic |
+| `hgios4-toolkit-styles.css` | Toolkit styles |
+| `hgios4-toolkit-service.js` | Supabase save/load |
 | `design-tokens.css`, `faculty-shell.css` | Linked by procurement, class visits, fh_* pages |
-| `config.js`, `faculty-hub.html`, `hgios4-toolkit-service.js` | Auth and hub |
-
-Do **not** put toolkit `app.js` / `styles.css` at the project root — the iframe loads them from `/hgios4-toolkit/`.
+| `config.js`, `faculty-hub.html` | Auth and hub |
 
 ---
 

@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="HGIOS 4 Inspection Toolkit - Faculty Head preparation for school inspection">
+  <title>HGIOS 4 Inspection Toolkit</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://api.fontshare.com/v2/css?f[]=general-sans@500,600,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="hgios4-toolkit-styles.css">
+  <link rel="icon" type="image/png" href="faculty-hub-logo.png">
+  <script>
+    window.HGIOS_EMBED = new URLSearchParams(window.location.search).get('embed') === '1';
+    if (window.HGIOS_EMBED) {
+      document.documentElement.classList.add('hgios-embed-pending');
+      window.__authGuardLoginPath = 'login.html';
+    }
+  </script>
+  <script src="config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-init.js"></script>
+  <script src="allowlist-check.js"></script>
+  <script src="auth-guard.js"></script>
+  <script src="data-service.js"></script>
+  <script src="triangulation-service.js"></script>
+  <script src="hgios4-toolkit-service.js"></script>
+</head>
+<body>
+  <header class="header" id="app-header">
+    <div class="header-top">
+      <div>
+        <h1>HGIOS 4 Inspection Toolkit</h1>
+        <p class="subtitle">Faculty Head preparation — connected to Faculty Hub evidence</p>
+      </div>
+      <div class="header-actions">
+        <span class="sync-status-label" id="sync-status-label" hidden></span>
+        <div class="search-wrap">
+          <input type="search" id="search-input" placeholder="Search QIs..." class="search-input" autocomplete="off">
+          <div class="search-results" id="search-results"></div>
+        </div>
+        <button type="button" class="shortcut-hint" id="shortcut-hint" title="Keyboard shortcuts">?</button>
+      </div>
+    </div>
+    <nav class="main-nav" id="main-nav">
+      <button type="button" class="nav-btn active" data-view="dashboard">Dashboard</button>
+      <button type="button" class="nav-btn" data-view="evidence">Inspection-Ready</button>
+      <button type="button" class="nav-btn" data-view="pupilvoice">Pupil Voice</button>
+      <button type="button" class="nav-btn" data-view="report">Print Report</button>
+      <button type="button" class="nav-btn" data-view="export">Export / Import</button>
+    </nav>
+  </header>
+
+  <main class="main">
+    <section id="view-dashboard" class="view active">
+      <div class="infographic-hero">
+        <div class="hero-content">
+          <div class="metadata-inline">
+            <input type="text" id="school-name" placeholder="School name" class="hero-input">
+            <input type="text" id="faculty-name" placeholder="Faculty / Department" class="hero-input">
+            <input type="date" id="inspection-date" class="hero-input hero-date" placeholder="Inspection date">
+          </div>
+          <p class="hero-countdown" id="hero-countdown"></p>
+          <h2 class="hero-title">Your Inspection Picture</h2>
+          <p class="hero-subtitle">Build your evidence as you complete each Quality Indicator — linked to live Faculty Hub tools</p>
+          <div class="progress-ring-container">
+            <svg class="progress-ring" viewBox="0 0 120 120">
+              <circle class="progress-ring-bg" cx="60" cy="60" r="54"/>
+              <circle class="progress-ring-fill" id="progress-ring-fill" cx="60" cy="60" r="54"/>
+            </svg>
+            <div class="progress-ring-center">
+              <span class="progress-percent" id="progress-percent">0</span>
+              <span class="progress-label">% ready</span>
+            </div>
+          </div>
+          <p class="progress-detail" id="progress-detail">0 of 14 QIs completed</p>
+          <p class="progress-evidence" id="progress-evidence"></p>
+          <p class="last-updated-label" id="last-updated-label"></p>
+        </div>
+      </div>
+
+      <div id="hub-evidence-dashboard" class="hub-evidence-panel" hidden></div>
+
+      <div class="infographic-grid">
+        <div class="infographic-section">
+          <h3 class="infographic-category"><span class="cat-num">1</span> Leadership and Management</h3>
+          <div class="qi-tiles" id="qi-tiles-1"></div>
+        </div>
+        <div class="infographic-section">
+          <h3 class="infographic-category"><span class="cat-num">2</span> Learning Provision</h3>
+          <div class="qi-tiles" id="qi-tiles-2"></div>
+        </div>
+        <div class="infographic-section">
+          <h3 class="infographic-category"><span class="cat-num">3</span> Successes and Achievements</h3>
+          <div class="qi-tiles" id="qi-tiles-3"></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="view-qi" class="view">
+      <div class="qi-detail-header">
+        <button type="button" class="back-btn" id="back-to-dashboard">&larr; Back to Dashboard</button>
+        <h2 id="qi-detail-title"></h2>
+      </div>
+      <div class="qi-detail-content" id="qi-detail-content"></div>
+    </section>
+
+    <section id="view-evidence" class="view">
+      <div class="evidence-checklist" id="evidence-checklist"></div>
+    </section>
+
+    <section id="view-pupilvoice" class="view">
+      <div class="pupilvoice-card">
+        <h2>Pupil Voice Surveys</h2>
+        <p class="pupilvoice-desc">Upload Excel or CSV from Microsoft Forms, or use <strong>Triangulation of Evidence</strong> in Faculty Hub for the canonical pupil survey store.</p>
+        <div class="pupilvoice-upload">
+          <input type="file" id="pupilvoice-file" accept=".xlsx,.xls,.csv" hidden>
+          <button type="button" class="btn btn-primary" id="pupilvoice-upload-btn">Upload Excel or CSV</button>
+          <span class="pupilvoice-hint">Microsoft Forms: Responses → Open in Excel → Save as .xlsx or .csv</span>
+        </div>
+        <p class="pupilvoice-status" id="pupilvoice-status"></p>
+      </div>
+      <div class="pupilvoice-summary" id="pupilvoice-summary"></div>
+    </section>
+
+    <section id="view-report" class="view report-view">
+      <div class="report-header">
+        <h2>HGIOS 4 Inspection Report</h2>
+        <p class="report-meta" id="report-meta"></p>
+        <button type="button" class="print-btn" id="print-report">Print / Save as PDF</button>
+      </div>
+      <div class="report-content" id="report-content"></div>
+    </section>
+
+    <section id="view-export" class="view">
+      <div class="export-import-card">
+        <h2>Export Data</h2>
+        <p>Download your toolkit data as JSON for backup. Cloud sync keeps the live copy in Faculty Hub when signed in.</p>
+        <button type="button" class="btn btn-primary" id="export-btn">Export to JSON</button>
+      </div>
+      <div class="export-import-card">
+        <h2>Import Data</h2>
+        <p>Restore from a JSON file (replaces or merges with your current toolkit).</p>
+        <div class="import-options">
+          <label class="radio-option">
+            <input type="radio" name="import-mode" value="replace" checked> Replace all
+          </label>
+          <label class="radio-option">
+            <input type="radio" name="import-mode" value="merge"> Merge with existing
+          </label>
+        </div>
+        <div class="import-actions">
+          <input type="file" id="import-file" accept=".json" hidden>
+          <button type="button" class="btn btn-secondary" id="import-btn">Select File to Import</button>
+        </div>
+        <p class="import-status" id="import-status"></p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer" id="app-footer">
+    <p>HGIOS 4 Inspection Toolkit — Faculty of Art &amp; Drama, Knightswood Secondary</p>
+  </footer>
+
+  <div class="celebration-overlay" id="celebration-overlay" aria-hidden="true">
+    <div class="celebration-content">
+      <h2>Inspection Ready!</h2>
+      <p>All 14 Quality Indicators completed. You're prepared.</p>
+      <button type="button" class="btn btn-primary" id="celebration-dismiss">Continue</button>
+    </div>
+  </div>
+
+  <div class="shortcuts-modal" id="shortcuts-modal" aria-hidden="true">
+    <div class="shortcuts-content">
+      <h3>Keyboard Shortcuts</h3>
+      <ul class="shortcuts-list">
+        <li><kbd>D</kbd> Dashboard</li>
+        <li><kbd>E</kbd> Inspection-Ready</li>
+        <li><kbd>P</kbd> Pupil Voice</li>
+        <li><kbd>R</kbd> Print Report</li>
+        <li><kbd>/</kbd> Focus search</li>
+        <li><kbd>?</kbd> Show shortcuts</li>
+      </ul>
+      <button type="button" class="btn btn-secondary" id="shortcuts-close">Close</button>
+    </div>
+  </div>
+
+  <div class="pwa-banner" id="pwa-banner" aria-hidden="true">
+    <p>Install for quick access</p>
+    <button type="button" class="btn btn-primary btn-sm" id="pwa-install">Install</button>
+    <button type="button" class="pwa-dismiss" id="pwa-dismiss" aria-label="Dismiss">×</button>
+  </div>
+
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js" crossorigin="anonymous"></script>
+  <script src="hgios4-toolkit-app.js"></script>
+</body>
+</html>
