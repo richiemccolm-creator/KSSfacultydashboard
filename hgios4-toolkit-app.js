@@ -11,6 +11,7 @@
   const DEBOUNCE_MS = 500;
   const IS_EMBED = new URLSearchParams(window.location.search).get('embed') === '1' || !!window.HGIOS_EMBED;
   let hubEvidenceCache = null;
+  let hubDataSnapshot = null;
   let hubEvidenceLastRefresh = null;
   let hubEvidenceRefreshInFlight = false;
   let cloudSaveEnabled = false;
@@ -553,6 +554,66 @@
           };
         });
       }
+    },
+    {
+      id: 'curriculum',
+      label: 'Art & Drama Curriculum',
+      panel: 'ad-map',
+      qis: ['2.2', '2.3'],
+      fetch: function() {
+        if (!window.HgiosHubBridge) return Promise.resolve({ status: 'hint', detail: 'Curriculum maps in Faculty Hub sidebar' });
+        return HgiosHubBridge.curriculumFetch();
+      }
+    },
+    {
+      id: 'bge-trackers',
+      label: 'BGE Trackers (Art & Drama)',
+      panel: 'embed-tracking-monitoring-hub',
+      qis: ['2.3', '2.4', '3.2'],
+      fetch: function() {
+        if (!window.HgiosHubBridge) return Promise.resolve({ status: 'unavailable', detail: 'Sign in to Faculty Hub' });
+        return HgiosHubBridge.bgeTrackersFetch(hubDataSnapshot);
+      }
+    },
+    {
+      id: 'tracking-hub',
+      label: 'Tracking & Monitoring Hub',
+      panel: 'embed-tracking-monitoring-hub',
+      qis: ['3.2', '2.3', '2.4', '3.1'],
+      fetch: function() {
+        if (!window.HgiosHubBridge) return Promise.resolve({ status: 'unavailable', detail: 'Sign in to Faculty Hub' });
+        return HgiosHubBridge.trackingHubFetch(hubDataSnapshot);
+      }
+    },
+    {
+      id: 'report-builders',
+      label: 'BGE Report Builders',
+      panel: 'drama-report-builder',
+      qis: ['2.3', '3.2', '3.1', '3.3'],
+      fetch: function() {
+        if (!window.HgiosHubBridge) return Promise.resolve({ status: 'unavailable', detail: 'Sign in to Faculty Hub' });
+        return HgiosHubBridge.reportBuildersFetch(hubDataSnapshot);
+      }
+    },
+    {
+      id: 'teacher-planner',
+      label: 'Teacher Planner',
+      panel: 'embed-teacher-planner',
+      qis: ['2.2', '2.3', '1.4'],
+      fetch: function() {
+        if (!window.HgiosHubBridge) return Promise.resolve({ status: 'unavailable', detail: 'Sign in to Faculty Hub' });
+        return HgiosHubBridge.plannerFetch(hubDataSnapshot);
+      }
+    },
+    {
+      id: 'senior-phase',
+      label: 'Senior Phase Tracker',
+      panel: 'embed-senior-phase-tracker',
+      qis: ['2.2', '3.2'],
+      fetch: function() {
+        if (!window.HgiosHubBridge) return Promise.resolve({ status: 'hint', detail: 'Senior phase tracker in Faculty Hub' });
+        return HgiosHubBridge.seniorPhaseFetch();
+      }
     }
   ];
 
@@ -562,13 +623,18 @@
     hubEvidenceRefreshInFlight = true;
     var refreshBtn = document.querySelector('.hub-refresh-btn');
     if (refreshBtn) refreshBtn.disabled = true;
-    return Promise.all(HUB_EVIDENCE_SOURCES.map(function(src) {
+    var snapPromise = (window.HgiosHubBridge && HgiosHubBridge.loadSnapshot)
+      ? HgiosHubBridge.loadSnapshot().then(function(s) { hubDataSnapshot = s; return s; })
+      : Promise.resolve(null);
+    return snapPromise.then(function() {
+      return Promise.all(HUB_EVIDENCE_SOURCES.map(function(src) {
       return src.fetch().then(function(result) {
         return { source: src, result: result || { status: 'empty', detail: '' } };
       }).catch(function() {
         return { source: src, result: { status: 'error', detail: 'Could not load' } };
       });
-    })).then(function(entries) {
+    }));
+    }).then(function(entries) {
       hubEvidenceCache = entries;
       hubEvidenceLastRefresh = new Date();
       renderHubEvidenceDashboard();
@@ -580,6 +646,8 @@
       }
       var reportView = document.getElementById('view-report');
       if (reportView && reportView.classList.contains('active')) renderReport();
+      var evView = document.getElementById('view-evidence');
+      if (evView && evView.classList.contains('active')) renderEvidenceChecklist();
     }).finally(function() {
       hubEvidenceRefreshInFlight = false;
       var btn = document.querySelector('.hub-refresh-btn');
@@ -666,6 +734,55 @@
         if (e.result.summary) line += ' — ' + e.result.summary;
         return line;
       });
+  }
+
+  function applyHubSuggestionToQi(qiId, mode) {
+    if (!window.HgiosHubBridge || !HgiosHubBridge.buildQiSuggestion) return;
+    var suggestion = HgiosHubBridge.buildQiSuggestion(qiId, hubDataSnapshot, hubEvidenceCache || []);
+    var data = appData.qis[qiId];
+    if (!data) return;
+
+    function mergeField(field, incoming) {
+      incoming = String(incoming || '').trim();
+      if (!incoming) return;
+      var existing = String(data[field] || '').trim();
+      if (mode === 'replace' || !existing) {
+        data[field] = incoming;
+      } else if (existing.indexOf(incoming) === -1) {
+        data[field] = existing + '\n\n--- Faculty Hub (' + new Date().toLocaleDateString() + ') ---\n' + incoming;
+      }
+    }
+
+    mergeField('evidenceSummary', suggestion.evidenceSummary);
+    mergeField('strengths', suggestion.strengths);
+    mergeField('fileReferences', suggestion.fileReferences);
+    debounceSave();
+    renderQIDetail(qiId);
+    var status = document.getElementById('qi-suggest-status');
+    if (status) status.textContent = 'Faculty Hub content applied. Review and edit before saving.';
+  }
+
+  function applyChecklistSuggestions(mode) {
+    if (!window.HgiosHubBridge || !HgiosHubBridge.getChecklistSuggestions) return 0;
+    var applied = 0;
+    INSPECTION_READY_EVIDENCE.forEach(function(section, sIdx) {
+      section.items.forEach(function(item, iIdx) {
+        var key = getEvidenceItemKey(sIdx, iIdx);
+        var sug = HgiosHubBridge.getChecklistSuggestions(hubDataSnapshot, item, hubEvidenceCache);
+        if (!sug.suggested) return;
+        if (mode === 'preview') return;
+        if (!appData.evidenceChecklist[key]) {
+          appData.evidenceChecklist[key] = true;
+          applied++;
+        }
+      });
+    });
+    if (applied) {
+      debounceSave();
+      renderEvidenceChecklist();
+      renderDashboard();
+    }
+    return applied;
   }
 
   function renderHubEvidenceDashboard() {
@@ -1285,8 +1402,22 @@
     const evidenceGuide = EVIDENCE_GUIDANCE[qiId] || '';
 
     const content = document.getElementById('qi-detail-content');
+    const suggestBar = IS_EMBED && window.HgiosHubBridge ? `
+      <div class="qi-suggest-bar">
+        <div>
+          <strong>Suggest from Faculty Hub</strong>
+          <p class="qi-suggest-sub">Pre-fill evidence summary, strengths and file references from trackers, curriculum, DIP and other hub tools. Always review before inspection.</p>
+        </div>
+        <div class="qi-suggest-actions">
+          <button type="button" class="btn btn-primary btn-sm" id="qi-suggest-merge">Add hub summary</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="qi-suggest-replace">Replace with hub summary</button>
+        </div>
+        <p class="qi-suggest-status" id="qi-suggest-status"></p>
+      </div>
+    ` : '';
     content.innerHTML = `
       <div id="hub-evidence-qi" class="hub-evidence-panel" hidden></div>
+      ${suggestBar}
       <div class="qi-form">
         <div class="form-section guidance-box">
           <h4>What Inspectors Look For</h4>
@@ -1377,6 +1508,14 @@
       }
     });
     if (IS_EMBED) renderHubEvidenceForQI(qiId);
+    var mergeBtn = document.getElementById('qi-suggest-merge');
+    var replaceBtn = document.getElementById('qi-suggest-replace');
+    if (mergeBtn) mergeBtn.addEventListener('click', function() { applyHubSuggestionToQi(qiId, 'merge'); });
+    if (replaceBtn) replaceBtn.addEventListener('click', function() {
+      if (confirm('Replace existing text in strengths, evidence summary and file references with Faculty Hub suggestions?')) {
+        applyHubSuggestionToQi(qiId, 'replace');
+      }
+    });
   }
 
   function escapeHtml(str) {
@@ -1691,11 +1830,20 @@
 
     const evProgress = getEvidenceProgress();
 
+    var suggestBar = IS_EMBED && window.HgiosHubBridge ? `
+      <div class="evidence-suggest-bar">
+        <p><strong>Hub-linked suggestions</strong> — items with a green hint can be ticked automatically when Faculty Hub already has evidence.</p>
+        <button type="button" class="btn btn-primary btn-sm" id="checklist-apply-suggestions">Tick suggested items</button>
+        <span class="evidence-suggest-note" id="checklist-suggest-note"></span>
+      </div>
+    ` : '';
+
     let html = `
       <div class="evidence-intro">
         <h2>Inspection-Ready Evidence Checklist</h2>
         <p>Everything a Faculty Head should have ready for inspection. Tick items as you gather them.</p>
         <p class="evidence-progress-bar"><strong>${evProgress.completed} of ${evProgress.total}</strong> evidence items gathered</p>
+        ${suggestBar}
       </div>
     `;
 
@@ -1710,10 +1858,17 @@
             ${section.items.map((item, iIdx) => {
               const key = getEvidenceItemKey(sIdx, iIdx);
               const checked = appData.evidenceChecklist && appData.evidenceChecklist[key];
-              return `<li class="evidence-item ${checked ? 'checked' : ''}">
+              var hubSug = (IS_EMBED && window.HgiosHubBridge)
+                ? HgiosHubBridge.getChecklistSuggestions(hubDataSnapshot, item, hubEvidenceCache)
+                : { suggested: false, reason: '' };
+              var sugHint = hubSug.suggested && !checked
+                ? `<span class="evidence-hub-hint" title="${escapeHtml(hubSug.reason)}">Hub: ${escapeHtml(hubSug.reason)}</span>`
+                : '';
+              return `<li class="evidence-item ${checked ? 'checked' : ''} ${hubSug.suggested ? 'evidence-hub-suggested' : ''}">
                 <label class="evidence-checkbox-label">
                   <input type="checkbox" class="evidence-checkbox" data-key="${escapeHtml(key)}" ${checked ? 'checked' : ''}>
                   <span>${escapeHtml(item)}</span>
+                  ${sugHint}
                 </label>
               </li>`;
             }).join('')}
@@ -1736,6 +1891,17 @@
     `;
 
     container.innerHTML = html;
+
+    var applySugBtn = document.getElementById('checklist-apply-suggestions');
+    if (applySugBtn) {
+      applySugBtn.addEventListener('click', function() {
+        var n = applyChecklistSuggestions('apply');
+        var note = document.getElementById('checklist-suggest-note');
+        if (note) {
+          note.textContent = n ? ('Ticked ' + n + ' item' + (n !== 1 ? 's' : '') + ' based on hub data.') : 'No new suggestions to apply (refresh hub evidence first).';
+        }
+      });
+    }
 
     container.querySelectorAll('.evidence-checkbox').forEach(cb => {
       cb.addEventListener('change', () => {

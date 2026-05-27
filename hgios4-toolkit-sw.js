@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hgios4-toolkit-v5';
+const CACHE_NAME = 'hgios4-toolkit-v6';
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
@@ -21,6 +21,8 @@ self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
   var isToolkit =
     url.pathname.endsWith('hgios4-toolkit-app.js') ||
+    url.pathname.endsWith('hgios4-toolkit-hub-bridge.js') ||
+    url.pathname.endsWith('curriculum-units.js') ||
     url.pathname.endsWith('hgios4-toolkit.html') ||
     url.pathname.endsWith('hgios4-toolkit-styles.css');
 
