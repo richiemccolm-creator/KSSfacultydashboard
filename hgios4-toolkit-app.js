@@ -11,7 +11,12 @@
   const DEBOUNCE_MS = 500;
   const IS_EMBED = new URLSearchParams(window.location.search).get('embed') === '1' || !!window.HGIOS_EMBED;
   let hubEvidenceCache = null;
+  let hubEvidenceLastRefresh = null;
+  let hubEvidenceRefreshInFlight = false;
   let cloudSaveEnabled = false;
+  let selectedSchoolYear = null;
+  let pendingLocalMerge = null;
+  let cloudMeta = { updatedAt: null, schoolYear: null };
 
   // Quality Indicators structure (HGIOS 4 framework)
   const QUALITY_INDICATORS = [
@@ -176,13 +181,14 @@
     el.hidden = false;
     el.className = 'sync-status-label sync-' + (state || 'local');
     var labels = {
-      cloud: '● Saved to Faculty Hub cloud',
-      local: '● Saved on this device',
-      saving: '● Saving…',
+      cloud: '● Saved to Faculty Hub cloud (' + getActiveSchoolYear() + ')',
+      local: '● Saved on this device only',
+      saving: '● Saving to cloud…',
       error: '● Cloud save failed — saved locally',
       offline: '● Sign in as Faculty Head for cloud sync'
     };
     el.textContent = message || labels[state] || labels.local;
+    el.title = message || '';
   }
 
   function openHubPanel(panelId) {
@@ -195,22 +201,144 @@
     window.open('faculty-hub.html', '_blank');
   }
 
+  function hubSchoolYear() {
+    return window.getCurrentSchoolYear ? window.getCurrentSchoolYear() : '';
+  }
+
+  function hubTruncate(str, max) {
+    str = String(str || '').trim();
+    if (!str) return '';
+    max = max || 140;
+    return str.length <= max ? str : str.slice(0, max - 1) + '…';
+  }
+
+  function hubFormatWhen(iso) {
+    if (!iso) return '';
+    try {
+      var d = new Date(iso);
+      if (isNaN(d.getTime())) return '';
+      return d.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+    } catch (e) { return ''; }
+  }
+
+  function hubExtractQiCodes(text) {
+    var codes = [];
+    var re = /\b(\d\.\d+)\b/g;
+    var m;
+    while ((m = re.exec(String(text || '')))) {
+      if (codes.indexOf(m[1]) === -1) codes.push(m[1]);
+    }
+    return codes;
+  }
+
+  function hubMeetingAgendaQis(meeting) {
+    var codes = [];
+    (meeting.agenda_rows || []).forEach(function(row) {
+      hubExtractQiCodes(row.agenda_item).forEach(function(c) {
+        if (codes.indexOf(c) === -1) codes.push(c);
+      });
+    });
+    return codes;
+  }
+
+  function hubTriangulationPriorities(syn) {
+    var hints = [];
+    if (!syn || !syn.hasData) return hints;
+    var survey = syn.survey || [];
+    if (survey.length) {
+      var allLikert = {};
+      survey.forEach(function(s) {
+        Object.keys((s.data && s.data.likert) || {}).forEach(function(k) {
+          allLikert[k] = allLikert[k] || {};
+          Object.keys(s.data.likert[k] || {}).forEach(function(v) {
+            allLikert[k][v] = (allLikert[k][v] || 0) + (s.data.likert[k][v] || 0);
+          });
+        });
+      });
+      var themeNames = {
+        learningIntentions: 'Learning intentions',
+        successCriteria: 'Success criteria',
+        activeLearning: 'Active learning',
+        support: 'Support',
+        feedback: 'Feedback',
+        challenge: 'Challenge',
+        digitalLearning: 'Digital learning'
+      };
+      Object.keys(allLikert).forEach(function(k) {
+        var dist = allLikert[k];
+        var total = Object.values(dist).reduce(function(a, b) { return a + b; }, 0);
+        if (!total) return;
+        var neg = (dist['Disagree'] || 0) + (dist['Strongly disagree'] || 0);
+        if (neg / total > 0.15) {
+          hints.push((themeNames[k] || k) + ': ' + Math.round(neg / total * 100) + '% disagreed in surveys');
+        }
+      });
+    }
+    (syn.focus_group || []).slice(0, 2).forEach(function(f) {
+      var imp = f.data && f.data.improve;
+      if (imp) hints.push('Focus group: ' + hubTruncate(imp, 90));
+    });
+    (syn.observation || []).slice(0, 2).forEach(function(o) {
+      var d = o.data || {};
+      if (d.nextsteps) hints.push((d.teacher ? d.teacher + ' — ' : '') + hubTruncate(d.nextsteps, 80));
+    });
+    return hints.slice(0, 3);
+  }
+
+  function hubLatestIso(rows, field) {
+    var latest = '';
+    (rows || []).forEach(function(r) {
+      var t = r[field] || r.updated_at || r.created_at;
+      if (t && (!latest || t > latest)) latest = t;
+    });
+    return latest;
+  }
+
+  function hubClassVisitDraft() {
+    try {
+      var raw = localStorage.getItem('kss_obs_v2');
+      if (!raw) return null;
+      var d = JSON.parse(raw);
+      if (d && (d.teacher || d.date || d.nextsteps)) return d;
+    } catch (e) { /* ignore */ }
+    return null;
+  }
+
+  function hubClplSummary(progress) {
+    progress = progress || {};
+    var courseIds = Object.keys(progress);
+    if (!courseIds.length) return { courses: 0, stages: 0 };
+    var stages = 0;
+    courseIds.forEach(function(id) {
+      stages += ((progress[id] || {}).completedStages || []).length;
+    });
+    return { courses: courseIds.length, stages: stages };
+  }
+
+  const HUB_EVIDENCE_STATUS_ORDER = { ok: 0, hint: 1, empty: 2, unavailable: 3, error: 4 };
+
   const HUB_EVIDENCE_SOURCES = [
     {
       id: 'triangulation',
       label: 'Triangulation of Evidence',
       panel: 'embed-triangulation',
-      qis: ['2.3'],
+      qis: ['2.3', '3.1'],
       fetch: function() {
-        if (!window.TriangulationService) return Promise.resolve({ status: 'unavailable', detail: 'Sign in to Faculty Hub' });
-        var yr = window.getCurrentSchoolYear ? window.getCurrentSchoolYear() : '';
+        if (!window.TriangulationService) return Promise.resolve({ status: 'unavailable', detail: 'Sign in to Faculty Hub as admin' });
+        var yr = hubSchoolYear();
         return TriangulationService.getSynthesis(yr).then(function(s) {
           if (!s.hasData) return { status: 'empty', detail: 'No survey, focus group or observation data for ' + yr };
           var parts = [];
-          if (s.survey.length) parts.push(s.survey.length + ' survey upload' + (s.survey.length !== 1 ? 's' : ''));
+          if (s.survey.length) parts.push(s.survey.length + ' survey' + (s.survey.length !== 1 ? 's' : ''));
           if (s.focus_group.length) parts.push(s.focus_group.length + ' focus group' + (s.focus_group.length !== 1 ? 's' : ''));
           if (s.observation.length) parts.push(s.observation.length + ' observation' + (s.observation.length !== 1 ? 's' : ''));
-          return { status: 'ok', detail: parts.join(' · ') };
+          var hints = hubTriangulationPriorities(s);
+          return {
+            status: 'ok',
+            detail: parts.join(' · ') + ' (' + yr + ')',
+            summary: hints.length ? hints[0] : '',
+            updatedAt: hubLatestIso(s.survey.concat(s.focus_group, s.observation), 'created_at')
+          };
         }).catch(function() { return { status: 'error', detail: 'Could not load triangulation data' }; });
       }
     },
@@ -220,14 +348,42 @@
       panel: 'embed-class-visit',
       qis: ['2.3', '1.2'],
       fetch: function() {
-        if (!window.TriangulationService) return Promise.resolve({ status: 'hint', detail: 'Record visits and export to Triangulation for inspection evidence' });
-        var yr = window.getCurrentSchoolYear ? window.getCurrentSchoolYear() : '';
+        var draft = hubClassVisitDraft();
+        if (!window.TriangulationService) {
+          if (draft) {
+            return Promise.resolve({
+              status: 'hint',
+              detail: 'Draft visit on this device — export to Triangulation when ready',
+              summary: (draft.teacher || 'Teacher') + (draft.date ? ' · ' + draft.date : '')
+            });
+          }
+          return Promise.resolve({ status: 'hint', detail: 'Record visits and export to Triangulation for inspection evidence' });
+        }
+        var yr = hubSchoolYear();
         return TriangulationService.getEvidence(yr, 'observation').then(function(rows) {
-          var fromVisits = (rows || []).filter(function(r) { return r.metadata && r.metadata.source === 'class_visit_feedback'; });
-          if (fromVisits.length) return { status: 'ok', detail: fromVisits.length + ' visit' + (fromVisits.length !== 1 ? 's' : '') + ' in triangulation' };
-          if ((rows || []).length) return { status: 'ok', detail: (rows || []).length + ' observation record(s) in triangulation' };
-          return { status: 'empty', detail: 'No observations exported yet' };
-        }).catch(function() { return { status: 'empty', detail: 'Open Class Visit Feedback to gather evidence' }; });
+          rows = rows || [];
+          var fromVisits = rows.filter(function(r) { return r.metadata && r.metadata.source === 'class_visit_feedback'; });
+          if (fromVisits.length) {
+            var last = fromVisits[0];
+            var ld = last.data || {};
+            return {
+              status: 'ok',
+              detail: fromVisits.length + ' exported visit' + (fromVisits.length !== 1 ? 's' : '') + ' in triangulation',
+              summary: hubTruncate((ld.teacher || '') + (ld.class ? ' · ' + ld.class : '') + (ld.nextsteps ? ' — ' + ld.nextsteps : ''), 120),
+              updatedAt: last.created_at
+            };
+          }
+          if (rows.length) {
+            return { status: 'ok', detail: rows.length + ' observation record(s) in triangulation', updatedAt: hubLatestIso(rows, 'created_at') };
+          }
+          if (draft) {
+            return { status: 'hint', detail: 'Draft visit saved locally — not yet in triangulation', summary: (draft.teacher || 'Teacher') + (draft.date ? ' · ' + draft.date : '') };
+          }
+          return { status: 'empty', detail: 'No class visits exported yet for ' + yr };
+        }).catch(function() {
+          if (draft) return { status: 'hint', detail: 'Draft visit on this device', summary: draft.teacher || '' };
+          return { status: 'empty', detail: 'Open Class Visit Feedback to gather evidence' };
+        });
       }
     },
     {
@@ -241,7 +397,13 @@
           dip = dip || {};
           var keys = ['dip-eval-overall', 'dip-eval-achievements', 'dip-eval-next', 'dip-eval-period'];
           var filled = keys.filter(function(k) { return dip[k] && String(dip[k]).trim(); }).length;
-          if (filled) return { status: 'ok', detail: 'DIP self-evaluation has ' + filled + ' section' + (filled !== 1 ? 's' : '') + ' completed' };
+          if (filled) {
+            return {
+              status: 'ok',
+              detail: filled + ' of 4 evaluation sections completed' + (dip['dip-eval-period'] ? ' · Period: ' + dip['dip-eval-period'] : ''),
+              summary: hubTruncate(dip['dip-eval-achievements'] || dip['dip-eval-overall'] || '', 130)
+            };
+          }
           return { status: 'empty', detail: 'Add evaluation notes in the DIP panel' };
         }).catch(function() { return { status: 'empty', detail: 'Open the DIP in Faculty Hub' }; });
       }
@@ -255,9 +417,20 @@
         if (!window.DataService || !DataService.listDepartmentMeetings) return Promise.resolve({ status: 'unavailable', detail: 'Sign in to Faculty Hub' });
         return DataService.listDepartmentMeetings().then(function(rows) {
           rows = rows || [];
-          var pub = rows.filter(function(m) { return m.status === 'published'; }).length;
-          if (!rows.length) return { status: 'empty', detail: 'No meetings yet' };
-          return { status: 'ok', detail: pub + ' published · ' + rows.length + ' total' };
+          var pub = rows.filter(function(m) { return m.status === 'published'; });
+          if (!rows.length) return { status: 'empty', detail: 'No meetings yet — first agenda item should be QI 2.3' };
+          var qiCounts = {};
+          rows.forEach(function(m) {
+            hubMeetingAgendaQis(m).forEach(function(q) { qiCounts[q] = (qiCounts[q] || 0) + 1; });
+          });
+          var topQis = Object.keys(qiCounts).sort(function(a, b) { return qiCounts[b] - qiCounts[a]; }).slice(0, 4);
+          var latest = rows[0];
+          return {
+            status: pub.length ? 'ok' : 'hint',
+            detail: pub.length + ' published · ' + rows.length + ' total' + (latest.meeting_date ? ' · Latest ' + hubFormatWhen(latest.meeting_date) : ''),
+            summary: topQis.length ? 'Agenda QIs: ' + topQis.map(function(q) { return q + ' (' + qiCounts[q] + ')'; }).join(', ') : 'Add HGIOS agenda items to link meetings to QIs',
+            updatedAt: hubLatestIso(rows, 'updated_at')
+          };
         });
       }
     },
@@ -265,33 +438,104 @@
       id: 'dashboard',
       label: 'Faculty Head Dashboard',
       panel: 'embed-admin-console',
-      qis: ['3.2', '2.4', '3.1'],
+      qis: ['3.2', '2.4', '3.1', '3.4'],
       fetch: function() {
-        return Promise.resolve({ status: 'hint', detail: 'Attainment, at-risk pupils and class overview' });
+        if (!window.DataService || !DataService.get) return Promise.resolve({ status: 'hint', detail: 'Attainment, at-risk pupils and class overview' });
+        return DataService.get('moderation-data').then(function(mod) {
+          mod = mod && typeof mod === 'object' ? mod : {};
+          var subjects = Object.keys(mod).filter(function(k) { return mod[k] && typeof mod[k] === 'object'; });
+          if (subjects.length) {
+            return { status: 'ok', detail: 'Moderation data for ' + subjects.length + ' subject area' + (subjects.length !== 1 ? 's' : ''), summary: 'Open dashboard for attainment and tracking views' };
+          }
+          return { status: 'hint', detail: 'Use the dashboard for attainment, at-risk pupils and class overview', summary: 'Link tracker exports and moderation in the hub' };
+        }).catch(function() { return { status: 'hint', detail: 'Attainment, at-risk pupils and class overview' }; });
       }
     },
     {
       id: 'quality-calendar',
       label: 'Quality Calendar',
       panel: 'embed-quality-calendar',
-      qis: ['1.1', '1.3'],
+      qis: ['1.1', '1.3', '2.2'],
       fetch: function() {
-        return Promise.resolve({ status: 'hint', detail: 'Improvement timeline and faculty deadlines' });
+        if (!window.DataService || !DataService.getCombinedCalendarEvents) {
+          return Promise.resolve({ status: 'hint', detail: 'Improvement timeline and faculty deadlines' });
+        }
+        return DataService.getCombinedCalendarEvents().then(function(events) {
+          events = events || [];
+          var today = new Date();
+          today.setHours(0, 0, 0, 0);
+          var upcoming = events.filter(function(e) {
+            if (!e.date) return false;
+            var d = new Date(e.date);
+            if (isNaN(d.getTime())) return false;
+            d.setHours(0, 0, 0, 0);
+            var diff = (d - today) / (1000 * 60 * 60 * 24);
+            return diff >= 0 && diff <= 90;
+          });
+          if (!events.length) return { status: 'empty', detail: 'No calendar events — add faculty deadlines in Quality Calendar' };
+          var next = upcoming.sort(function(a, b) { return (a.date || '').localeCompare(b.date || ''); })[0];
+          return {
+            status: upcoming.length ? 'ok' : 'hint',
+            detail: upcoming.length + ' event' + (upcoming.length !== 1 ? 's' : '') + ' in the next 90 days · ' + events.length + ' total',
+            summary: next ? 'Next: ' + hubTruncate(next.title || 'Event', 60) + ' (' + hubFormatWhen(next.date) + ')' : 'No upcoming events in the next 90 days'
+          };
+        }).catch(function() { return { status: 'hint', detail: 'Improvement timeline and faculty deadlines' }; });
       }
     },
     {
       id: 'learning-teaching',
       label: 'Learning & Teaching',
       panel: 'embed-learning-teaching',
-      qis: ['2.3', '1.2'],
+      qis: ['2.3', '1.2', '1.4'],
       fetch: function() {
-        return Promise.resolve({ status: 'hint', detail: 'CLPL courses and EEF evidence strands' });
+        if (!window.DataService || !DataService.get) return Promise.resolve({ status: 'hint', detail: 'CLPL courses and EEF evidence strands' });
+        return DataService.get('clplProgress').then(function(progress) {
+          var sum = hubClplSummary(progress);
+          if (sum.stages > 0) {
+            return {
+              status: 'ok',
+              detail: sum.stages + ' CLPL stage' + (sum.stages !== 1 ? 's' : '') + ' completed across ' + sum.courses + ' course' + (sum.courses !== 1 ? 's' : ''),
+              summary: 'Staff professional learning tracked in Learning & Teaching'
+            };
+          }
+          return { status: 'empty', detail: 'No CLPL progress recorded yet — assign courses in Learning & Teaching' };
+        }).catch(function() { return { status: 'hint', detail: 'CLPL courses and EEF evidence strands' }; });
+      }
+    },
+    {
+      id: 'announcements',
+      label: 'Faculty Announcements',
+      panel: 'home',
+      qis: ['1.3', '1.4', '2.4'],
+      fetch: function() {
+        if (!window.DataService || !DataService.getAnnouncements) return Promise.resolve({ status: 'unavailable', detail: 'Sign in to Faculty Hub' });
+        return DataService.getAnnouncements().then(function(rows) {
+          rows = rows || [];
+          var now = Date.now();
+          var active = rows.filter(function(a) {
+            if (!a.expires_at) return true;
+            var ex = new Date(a.expires_at).getTime();
+            return isNaN(ex) || ex >= now;
+          });
+          if (!active.length) return { status: 'empty', detail: 'No active announcements on the hub home screen' };
+          var latest = active[0];
+          return {
+            status: 'ok',
+            detail: active.length + ' active announcement' + (active.length !== 1 ? 's' : ''),
+            summary: hubTruncate(latest.title || latest.body || '', 100),
+            updatedAt: latest.created_at
+          };
+        });
       }
     }
   ];
 
   function refreshHubEvidence() {
     if (!IS_EMBED) return Promise.resolve();
+    if (hubEvidenceRefreshInFlight) return Promise.resolve();
+    hubEvidenceRefreshInFlight = true;
+    var refreshBtn = document.querySelector('.hub-refresh-btn');
+    if (refreshBtn) refreshBtn.disabled = true;
     return Promise.all(HUB_EVIDENCE_SOURCES.map(function(src) {
       return src.fetch().then(function(result) {
         return { source: src, result: result || { status: 'empty', detail: '' } };
@@ -300,6 +544,7 @@
       });
     })).then(function(entries) {
       hubEvidenceCache = entries;
+      hubEvidenceLastRefresh = new Date();
       renderHubEvidenceDashboard();
       var qiView = document.getElementById('view-qi');
       if (qiView && qiView.classList.contains('active')) {
@@ -307,26 +552,58 @@
         var m = title && title.textContent && title.textContent.match(/^QI\s+([\d.]+)/);
         if (m) renderHubEvidenceForQI(m[1]);
       }
+      var reportView = document.getElementById('view-report');
+      if (reportView && reportView.classList.contains('active')) renderReport();
+    }).finally(function() {
+      hubEvidenceRefreshInFlight = false;
+      var btn = document.querySelector('.hub-refresh-btn');
+      if (btn) btn.disabled = false;
     });
+  }
+
+  function hubEvidenceEntriesForQI(qiId) {
+    if (!hubEvidenceCache) return [];
+    return hubEvidenceCache.filter(function(e) {
+      return !qiId || e.source.qis.indexOf(qiId) !== -1;
+    }).sort(function(a, b) {
+      var oa = HUB_EVIDENCE_STATUS_ORDER[a.result.status] != null ? HUB_EVIDENCE_STATUS_ORDER[a.result.status] : 5;
+      var ob = HUB_EVIDENCE_STATUS_ORDER[b.result.status] != null ? HUB_EVIDENCE_STATUS_ORDER[b.result.status] : 5;
+      return oa - ob;
+    });
+  }
+
+  function hubEvidenceStatusLabel(status) {
+    var labels = { ok: 'Ready', empty: 'No data', hint: 'Tip', error: 'Error', unavailable: 'Offline' };
+    return labels[status] || 'Status';
   }
 
   function renderHubEvidenceCards(container, qiId) {
     if (!container || !hubEvidenceCache) return;
-    var entries = hubEvidenceCache.filter(function(e) {
-      return !qiId || e.source.qis.indexOf(qiId) !== -1;
-    });
+    var entries = hubEvidenceEntriesForQI(qiId);
     if (!entries.length) {
       container.hidden = true;
       return;
     }
     container.hidden = false;
-    var html = '<div class="hub-evidence-header"><div><h3>Faculty Hub evidence</h3><p class="hub-evidence-sub">Live status from tools in the hub. Click Open to jump to the source.</p></div><button type="button" class="btn btn-secondary btn-sm hub-refresh-btn" id="hub-evidence-refresh">Refresh</button></div><div class="hub-evidence-grid">';
+    var refreshed = hubEvidenceLastRefresh
+      ? 'Updated ' + hubEvidenceLastRefresh.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })
+      : '';
+    var sub = qiId
+      ? 'Sources linked to QI ' + qiId + ' in Faculty Hub. Open a tool to add or update evidence, then refresh.'
+      : 'Live read-only snapshot from Faculty Hub tools. Refreshes when you open this toolkit or return to the tab.';
+    var html = '<div class="hub-evidence-header"><div><h3>Faculty Hub evidence</h3><p class="hub-evidence-sub">' + escapeHtml(sub) + '</p>';
+    if (refreshed) html += '<p class="hub-evidence-refreshed">' + escapeHtml(refreshed) + '</p>';
+    html += '</div><button type="button" class="btn btn-secondary btn-sm hub-refresh-btn" id="hub-evidence-refresh">Refresh</button></div><div class="hub-evidence-grid">';
     entries.forEach(function(e) {
       var st = e.result.status || 'hint';
+      var tags = qiId ? ('QI ' + qiId) : e.source.qis.map(function(q) { return 'QI ' + q; }).join(', ');
       html += '<article class="hub-evidence-card hub-status-' + st + '">';
       html += '<div class="hub-evidence-card-head"><strong>' + escapeHtml(e.source.label) + '</strong>';
-      html += '<span class="hub-qi-tags">' + e.source.qis.map(function(q) { return 'QI ' + q; }).join(', ') + '</span></div>';
+      html += '<span class="hub-evidence-badge">' + escapeHtml(hubEvidenceStatusLabel(st)) + '</span>';
+      html += '<span class="hub-qi-tags">' + escapeHtml(tags) + '</span></div>';
       html += '<p class="hub-evidence-detail">' + escapeHtml(e.result.detail || '') + '</p>';
+      if (e.result.summary) html += '<p class="hub-evidence-summary">' + escapeHtml(e.result.summary) + '</p>';
+      if (e.result.updatedAt) html += '<p class="hub-evidence-meta">Last activity: ' + escapeHtml(hubFormatWhen(e.result.updatedAt)) + '</p>';
       html += '<button type="button" class="btn btn-primary btn-sm hub-open-btn" data-hub-panel="' + escapeHtml(e.source.panel) + '">Open in Hub</button>';
       html += '</article>';
     });
@@ -339,6 +616,30 @@
     });
     var ref = container.querySelector('#hub-evidence-refresh');
     if (ref) ref.addEventListener('click', function() { refreshHubEvidence(); });
+  }
+
+  function setupHubEvidenceAutoRefresh() {
+    document.addEventListener('visibilitychange', function() {
+      if (document.visibilityState === 'visible') refreshHubEvidence();
+    });
+    window.addEventListener('focus', function() { refreshHubEvidence(); });
+    window.addEventListener('message', function(e) {
+      if (!e.data) return;
+      if (e.data === 'hgios-hub-refresh' || e.data.type === 'hgios-hub-refresh') refreshHubEvidence();
+    });
+    setInterval(function() {
+      if (document.visibilityState === 'visible') refreshHubEvidence();
+    }, 120000);
+  }
+
+  function getHubEvidenceLinesForQI(qiId) {
+    return hubEvidenceEntriesForQI(qiId)
+      .filter(function(e) { return e.result.status === 'ok' || e.result.status === 'hint'; })
+      .map(function(e) {
+        var line = e.source.label + ': ' + (e.result.detail || '');
+        if (e.result.summary) line += ' — ' + e.result.summary;
+        return line;
+      });
   }
 
   function renderHubEvidenceDashboard() {
@@ -362,6 +663,30 @@
     });
   }
 
+  function getActiveSchoolYear() {
+    if (selectedSchoolYear) return selectedSchoolYear;
+    if (window.Hgios4ToolkitService && Hgios4ToolkitService.getSchoolYear) {
+      return Hgios4ToolkitService.getSchoolYear();
+    }
+    return '';
+  }
+
+  function dataTimestamp(data) {
+    if (!data) return 0;
+    var t = data.lastUpdated || data._cloudUpdatedAt || data.exportedAt;
+    var n = t ? Date.parse(t) : 0;
+    return isNaN(n) ? 0 : n;
+  }
+
+  function localDataHasContent(data) {
+    if (!data || !data.qis) return false;
+    if (data.schoolName || data.facultyName || data.inspectionDate) return true;
+    return Object.keys(data.qis).some(function(id) {
+      var q = data.qis[id];
+      return q && (q.level || q.strengths || q.evidenceSummary || q.fileReferences || q.areasForImprovement);
+    });
+  }
+
   async function persistAppData() {
     appData.lastUpdated = new Date().toISOString();
     await Storage.set(appData);
@@ -369,20 +694,169 @@
     if (cloudSaveEnabled && window.Hgios4ToolkitService) {
       updateSyncStatus('saving');
       try {
-        var saved = await Hgios4ToolkitService.saveToolkit(appData);
-        if (saved && saved.id) appData._cloudId = saved.id;
-        if (saved && saved.updated_at) appData._cloudUpdatedAt = saved.updated_at;
+        var saved = await Hgios4ToolkitService.saveToolkit(appData, getActiveSchoolYear());
+        if (saved && saved.id) {
+          appData._cloudId = saved.id;
+          appData._cloudUpdatedAt = saved.updated_at;
+          appData._cloudSchoolYear = saved.school_year;
+          cloudMeta.updatedAt = saved.updated_at;
+          cloudMeta.schoolYear = saved.school_year;
+        }
         await Storage.set(appData);
+        pendingLocalMerge = null;
+        renderCloudMigrateBanner();
         updateSyncStatus('cloud');
+        if (document.getElementById('view-export').classList.contains('active')) renderCloudSyncPanel();
       } catch (err) {
         console.error(err);
-        updateSyncStatus('error');
+        updateSyncStatus('error', Hgios4ToolkitService.formatError(err));
       }
     } else if (IS_EMBED) {
       updateSyncStatus(cloudSaveEnabled ? 'local' : 'offline');
     } else {
       updateSyncStatus('local');
     }
+  }
+
+  function renderCloudMigrateBanner() {
+    var el = document.getElementById('cloud-migrate-banner');
+    if (!el) return;
+    if (!pendingLocalMerge || !cloudSaveEnabled) {
+      el.hidden = true;
+      el.innerHTML = '';
+      return;
+    }
+    el.hidden = false;
+    var localTs = pendingLocalMerge.local.lastUpdated
+      ? new Date(pendingLocalMerge.local.lastUpdated).toLocaleString()
+      : 'unknown';
+    var cloudTs = pendingLocalMerge.cloud.lastUpdated || pendingLocalMerge.cloud._cloudUpdatedAt
+      ? new Date(pendingLocalMerge.cloud.lastUpdated || pendingLocalMerge.cloud._cloudUpdatedAt).toLocaleString()
+      : 'unknown';
+    el.innerHTML = `
+      <div class="cloud-migrate-inner">
+        <strong>Local work is newer than the cloud copy</strong>
+        <p>This device has changes (${localTs}) that are newer than Faculty Hub cloud (${cloudTs}). Choose what to keep.</p>
+        <div class="cloud-migrate-actions">
+          <button type="button" class="btn btn-primary btn-sm" id="cloud-use-local-btn">Keep this device &amp; upload to cloud</button>
+          <button type="button" class="btn btn-secondary btn-sm" id="cloud-use-cloud-btn">Use cloud copy</button>
+          <button type="button" class="btn btn-ghost btn-sm" id="cloud-merge-btn">Merge cloud into local</button>
+        </div>
+      </div>
+    `;
+    document.getElementById('cloud-use-local-btn').addEventListener('click', function() {
+      pendingLocalMerge = null;
+      persistAppData().then(function() { render(); renderCloudMigrateBanner(); });
+    });
+    document.getElementById('cloud-use-cloud-btn').addEventListener('click', function() {
+      appData = mergeData(getDefaultData(), pendingLocalMerge.cloud);
+      pendingLocalMerge = null;
+      persistAppData().then(function() { render(); renderCloudMigrateBanner(); });
+    });
+    document.getElementById('cloud-merge-btn').addEventListener('click', function() {
+      appData = mergeData(pendingLocalMerge.local, pendingLocalMerge.cloud);
+      pendingLocalMerge = null;
+      persistAppData().then(function() { render(); renderCloudMigrateBanner(); });
+    });
+  }
+
+  async function pullFromCloud() {
+    if (!cloudSaveEnabled || !window.Hgios4ToolkitService) return;
+    var status = document.getElementById('cloud-sync-status');
+    if (status) status.textContent = 'Pulling from cloud…';
+    try {
+      var cloud = await Hgios4ToolkitService.loadToolkit(getActiveSchoolYear());
+      if (!cloud || !cloud.version) {
+        if (status) { status.textContent = 'No cloud data for this school year yet.'; status.className = 'cloud-sync-status warn'; }
+        return;
+      }
+      appData = mergeData(getDefaultData(), cloud);
+      pendingLocalMerge = null;
+      await persistAppData();
+      render();
+      renderCloudMigrateBanner();
+      if (status) { status.textContent = 'Loaded from cloud.'; status.className = 'cloud-sync-status success'; }
+    } catch (err) {
+      if (status) { status.textContent = Hgios4ToolkitService.formatError(err); status.className = 'cloud-sync-status error'; }
+    }
+  }
+
+  async function pushToCloud() {
+    if (!cloudSaveEnabled) return;
+    var status = document.getElementById('cloud-sync-status');
+    if (status) status.textContent = 'Uploading to cloud…';
+    try {
+      await persistAppData();
+      if (status) { status.textContent = 'Cloud copy saved.'; status.className = 'cloud-sync-status success'; }
+    } catch (err) {
+      if (status) {
+        status.textContent = window.Hgios4ToolkitService
+          ? Hgios4ToolkitService.formatError(err)
+          : err.message;
+        status.className = 'cloud-sync-status error';
+      }
+    }
+  }
+
+  async function renderCloudSyncPanel() {
+    var panel = document.getElementById('cloud-sync-panel');
+    if (!panel) return;
+    var year = getActiveSchoolYear();
+    var years = [year];
+    if (cloudSaveEnabled && window.Hgios4ToolkitService) {
+      try {
+        var rows = await Hgios4ToolkitService.listToolkitYears();
+        rows.forEach(function(r) {
+          if (r.school_year && years.indexOf(r.school_year) === -1) years.push(r.school_year);
+        });
+      } catch (e) { /* ignore */ }
+    }
+    years.sort().reverse();
+    var yearOptions = years.map(function(y) {
+      return `<option value="${escapeHtml(y)}"${y === year ? ' selected' : ''}>${escapeHtml(y)}</option>`;
+    }).join('');
+
+    var cloudLine = cloudSaveEnabled
+      ? (cloudMeta.updatedAt
+        ? 'Last cloud save: ' + new Date(cloudMeta.updatedAt).toLocaleString() + ' (' + escapeHtml(cloudMeta.schoolYear || year) + ')'
+        : 'No cloud record for ' + escapeHtml(year) + ' yet — saves will create one.')
+      : 'Sign in to Faculty Hub as Faculty Head or admin to enable cloud sync.';
+
+    var localSnap = await Storage.get();
+    var localLine = localSnap && localSnap.lastUpdated
+      ? 'This device: ' + new Date(localSnap.lastUpdated).toLocaleString()
+      : 'This device: no saved data yet';
+
+    panel.innerHTML = `
+      <h2>Faculty Hub cloud sync</h2>
+      <p class="cloud-sync-intro">Your toolkit auto-saves to Supabase when signed in. Use this panel to move data between devices or resolve conflicts.</p>
+      <div class="cloud-sync-meta">
+        <div><span class="cloud-sync-label">School year</span>
+          <select id="cloud-school-year" class="cloud-school-year">${yearOptions}</select></div>
+        <p class="cloud-sync-detail">${escapeHtml(cloudLine)}</p>
+        <p class="cloud-sync-detail">${escapeHtml(localLine)}</p>
+      </div>
+      <p class="cloud-sync-status" id="cloud-sync-status"></p>
+      <div class="cloud-sync-actions">
+        <button type="button" class="btn btn-primary btn-sm" id="cloud-pull-btn" ${cloudSaveEnabled ? '' : 'disabled'}>Pull from cloud</button>
+        <button type="button" class="btn btn-secondary btn-sm" id="cloud-push-btn" ${cloudSaveEnabled ? '' : 'disabled'}>Push to cloud now</button>
+      </div>
+      <p class="cloud-sync-hint">Apply migration <code>20260527100000_hgios4_toolkit.sql</code> and <code>20260527120000_hgios4_toolkit_management_rls.sql</code> in Supabase if cloud save fails.</p>
+    `;
+
+    var sel = document.getElementById('cloud-school-year');
+    if (sel) {
+      sel.addEventListener('change', function() {
+        selectedSchoolYear = sel.value;
+        loadData().then(function() {
+          renderCloudSyncPanel();
+        });
+      });
+    }
+    var pullBtn = document.getElementById('cloud-pull-btn');
+    var pushBtn = document.getElementById('cloud-push-btn');
+    if (pullBtn) pullBtn.addEventListener('click', pullFromCloud);
+    if (pushBtn) pushBtn.addEventListener('click', pushToCloud);
   }
 
   // Field-specific placeholders and hints
@@ -572,37 +1046,75 @@
 
   async function loadData() {
     applyEmbedChrome();
-    var loaded = false;
+    pendingLocalMerge = null;
+    if (!selectedSchoolYear && window.Hgios4ToolkitService) {
+      selectedSchoolYear = Hgios4ToolkitService.getSchoolYear();
+    }
+
+    cloudSaveEnabled = false;
     if (window.Hgios4ToolkitService && Hgios4ToolkitService.isCloudEnabled()) {
       await waitForAuthReady(IS_EMBED ? 3500 : 0);
-      if (window.__authReady && (window.__authGuardCanManageSchool || window.__authGuardIsAdmin)) {
+      if (window.__authReady && Hgios4ToolkitService.canManage && Hgios4ToolkitService.canManage()) {
         cloudSaveEnabled = true;
-        try {
-          var cloud = await Hgios4ToolkitService.loadToolkit();
-          if (cloud && cloud.version) {
-            appData = mergeData(appData, cloud);
-            loaded = true;
-            updateSyncStatus('cloud');
-          }
-        } catch (e) {
-          console.error(e);
-        }
+      } else if (window.__authReady && (window.__authGuardCanManageSchool || window.__authGuardIsAdmin)) {
+        cloudSaveEnabled = true;
       }
     }
-    if (!loaded) {
+
+    var local = null;
+    var cloud = null;
+    try {
+      local = await Storage.get();
+    } catch (e) {
+      console.error(e);
+    }
+
+    if (cloudSaveEnabled) {
       try {
-        var local = await Storage.get();
-        if (local && local.version) {
-          appData = mergeData(appData, local);
-          if (cloudSaveEnabled) await persistAppData();
-          else updateSyncStatus(IS_EMBED ? 'offline' : 'local');
-        } else if (!IS_EMBED) updateSyncStatus('local');
+        cloud = await Hgios4ToolkitService.loadToolkit(getActiveSchoolYear());
+        if (cloud && cloud._cloudUpdatedAt) {
+          cloudMeta.updatedAt = cloud._cloudUpdatedAt;
+          cloudMeta.schoolYear = cloud._cloudSchoolYear || getActiveSchoolYear();
+        } else {
+          cloudMeta.updatedAt = null;
+          cloudMeta.schoolYear = getActiveSchoolYear();
+        }
       } catch (e) {
         console.error(e);
+        updateSyncStatus('error', Hgios4ToolkitService.formatError(e));
       }
     }
+
+    if (cloud && cloud.version) {
+      if (local && local.version && localDataHasContent(local) && dataTimestamp(local) > dataTimestamp(cloud) + 2000) {
+        pendingLocalMerge = { local: local, cloud: cloud };
+        appData = mergeData(getDefaultData(), local);
+        updateSyncStatus('local', '● Local copy shown — newer than cloud. See banner to sync.');
+      } else {
+        appData = mergeData(getDefaultData(), cloud);
+        await Storage.set(appData);
+        updateSyncStatus('cloud');
+      }
+    } else if (local && local.version) {
+      appData = mergeData(getDefaultData(), local);
+      if (cloudSaveEnabled && localDataHasContent(local)) {
+        try {
+          await persistAppData();
+        } catch (e) {
+          console.error(e);
+          updateSyncStatus('error', Hgios4ToolkitService.formatError(e));
+        }
+      } else {
+        updateSyncStatus(IS_EMBED && !cloudSaveEnabled ? 'offline' : 'local');
+      }
+    } else {
+      appData = getDefaultData();
+      updateSyncStatus(cloudSaveEnabled ? 'cloud' : (IS_EMBED ? 'offline' : 'local'));
+    }
+
     render();
-    if (IS_EMBED) return refreshHubEvidence();
+    renderCloudMigrateBanner();
+    if (IS_EMBED) await refreshHubEvidence();
   }
 
   function mergeData(existing, incoming) {
@@ -707,6 +1219,9 @@
         const complete = isQIComplete(data);
         const hasContent = !!(data.level || data.strengths || data.evidenceSummary || data.fileReferences);
         const docCount = data.fileReferences ? data.fileReferences.split(/[,;]/).filter(s => s.trim()).length : 0;
+        const hubReady = hubEvidenceCache
+          ? hubEvidenceEntriesForQI(qi.id).filter(function(e) { return e.result.status === 'ok'; }).length
+          : 0;
 
         const tile = document.createElement('a');
         tile.href = '#';
@@ -718,6 +1233,7 @@
           <span class="qi-tile-level">${data.level ? `L${data.level}` : '—'}</span>
           <span class="qi-tile-status">
             ${complete ? '<span class="tile-check">✓</span>' : docCount > 0 ? `<span class="tile-docs">${docCount} doc${docCount !== 1 ? 's' : ''}</span>` : '<span class="tile-empty">Add evidence</span>'}
+            ${hubReady ? `<span class="qi-tile-hub" title="${hubReady} Faculty Hub source${hubReady !== 1 ? 's' : ''} with data">${hubReady} hub</span>` : ''}
           </span>
         `;
         container.appendChild(tile);
@@ -886,11 +1402,28 @@
             ${d.challengeQuestions ? `<p><strong>Challenge Questions:</strong></p><p>${escapeHtml(d.challengeQuestions)}</p>` : ''}
             ${d.actionPlan ? `<p><strong>Action Plan:</strong></p><p>${escapeHtml(d.actionPlan)}</p>` : ''}
             ${d.fileReferences ? `<p><strong>File References:</strong> ${escapeHtml(d.fileReferences)}</p>` : ''}
+            ${IS_EMBED && hubEvidenceCache ? (function() {
+              var lines = getHubEvidenceLinesForQI(qi.id);
+              if (!lines.length) return '';
+              return '<div class="report-hub-qi"><p><strong>Faculty Hub snapshot:</strong></p><ul>' +
+                lines.map(function(l) { return '<li>' + escapeHtml(l) + '</li>'; }).join('') + '</ul></div>';
+            })() : ''}
           </div>
         `;
       });
       html += '</div>';
     });
+
+    if (IS_EMBED && hubEvidenceCache && hubEvidenceLastRefresh) {
+      var hubOk = hubEvidenceCache.filter(function(e) { return e.result.status === 'ok'; }).length;
+      html += '<div class="report-category report-hub-appendix"><h3>Faculty Hub evidence overview</h3>';
+      html += '<p class="report-hub-note">Live snapshot at ' + hubEvidenceLastRefresh.toLocaleString() + ' — ' + hubOk + ' of ' + hubEvidenceCache.length + ' linked tools have data. Refresh in the toolkit before printing for the latest status.</p><ul>';
+      hubEvidenceCache.forEach(function(e) {
+        html += '<li><strong>' + escapeHtml(e.source.label) + ':</strong> ' + escapeHtml(e.result.detail || '') +
+          (e.result.summary ? ' <span class="report-hub-summary">' + escapeHtml(e.result.summary) + '</span>' : '') + '</li>';
+      });
+      html += '</ul></div>';
+    }
 
     if (appData.pupilVoiceSurveys && appData.pupilVoiceSurveys.length > 0) {
       html += `<div class="report-category report-pupilvoice"><h3>Pupil Voice Summary</h3>`;
@@ -948,10 +1481,15 @@
     if (view) view.classList.add('active');
     if (btn) btn.classList.add('active');
 
-    if (viewId === 'dashboard') renderDashboard();
+    if (viewId === 'dashboard') {
+      renderDashboard();
+      if (IS_EMBED) refreshHubEvidence();
+    }
     if (viewId === 'evidence') renderEvidenceChecklist();
     if (viewId === 'pupilvoice') renderPupilVoice();
     if (viewId === 'report') renderReport();
+    if (viewId === 'export') renderCloudSyncPanel();
+    if (viewId === 'qi' && IS_EMBED) refreshHubEvidence();
   }
 
   // Parse CSV to array of objects (handles quoted fields with commas)
@@ -1235,11 +1773,12 @@
           }
         }
         persistAppData().then(() => {
-          document.getElementById('import-status').textContent = 'Import successful.';
+          document.getElementById('import-status').textContent = 'Import successful' + (cloudSaveEnabled ? ' and synced to cloud.' : '.');
           document.getElementById('import-status').className = 'import-status success';
           showView('dashboard');
         }).catch(err => {
-          document.getElementById('import-status').textContent = 'Import failed: ' + err.message;
+          var msg = window.Hgios4ToolkitService ? Hgios4ToolkitService.formatError(err) : err.message;
+          document.getElementById('import-status').textContent = 'Import failed: ' + msg;
           document.getElementById('import-status').className = 'import-status error';
         });
       } catch (err) {
@@ -1420,5 +1959,9 @@
     return loadData();
   }).then(function() {
     bindEvents();
+    if (IS_EMBED) {
+      setupHubEvidenceAutoRefresh();
+      window.addEventListener('auth-guard-ready', function() { refreshHubEvidence(); }, { once: true });
+    }
   }).catch(console.error);
 })();

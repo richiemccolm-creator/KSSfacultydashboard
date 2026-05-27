@@ -1,4 +1,4 @@
-const CACHE_NAME = 'hgios4-toolkit-v3';
+const CACHE_NAME = 'hgios4-toolkit-v4';
 const urlsToCache = [
   './hgios4-toolkit.html',
   './hgios4-toolkit-styles.css',

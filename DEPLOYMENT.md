@@ -41,6 +41,7 @@
    | 17 | `supabase/migrations/20260516101500_teacher_subject_class_loader.sql` |
    | 18 | `supabase/migrations/20260521120000_notification_reads.sql` |
    | 19 | `supabase/migrations/20260527100000_hgios4_toolkit.sql` (HGIOS 4 Toolkit cloud sync) |
+   | 20 | `supabase/migrations/20260527120000_hgios4_toolkit_management_rls.sql` (Faculty Head can read/write toolkit) |
 
 #### Apply migrations with Supabase CLI (optional)
 
@@ -212,6 +213,8 @@ If you prefer not to store credentials in `config.js`, you can use a build step 
 - [ ] Test shared calendar (admin adds event, staff sees it)
 - [ ] Test Privacy Policy: Export my data and Delete my account (full erasure)
 - [ ] Test **HGIOS 4 Toolkit**: Faculty Hub → Admin → HGIOS 4 Toolkit loads (no blank iframe)
+- [ ] Test **Cloud sync**: Export / Import tab → status shows “Saved to Faculty Hub cloud”; edit a QI, refresh on another device/browser
+- [ ] Run both HGIOS migrations if cloud save shows permission denied
 - [ ] Verify live URLs return **200**: `/hgios4-toolkit.html`, `/hgios4-toolkit-app.js`, `/hgios4-toolkit-styles.css`, `/hgios4-toolkit-service.js`
 
 ### Static files required at deploy root
