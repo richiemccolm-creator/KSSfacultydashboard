@@ -1930,18 +1930,25 @@
         banner.setAttribute('aria-hidden', 'false');
       }
     });
-    document.getElementById('pwa-install').addEventListener('click', () => {
-      if (deferredPrompt) {
-        deferredPrompt.prompt();
-        deferredPrompt.userChoice.then(() => {
-          document.getElementById('pwa-banner').classList.remove('visible');
-        });
-      }
-    });
-    document.getElementById('pwa-dismiss').addEventListener('click', () => {
-      document.getElementById('pwa-banner').classList.remove('visible');
-      localStorage.setItem('pwa-banner-dismissed', '1');
-    });
+    var pwaInstall = document.getElementById('pwa-install');
+    var pwaDismiss = document.getElementById('pwa-dismiss');
+    var pwaBanner = document.getElementById('pwa-banner');
+    if (pwaInstall) {
+      pwaInstall.addEventListener('click', () => {
+        if (deferredPrompt) {
+          deferredPrompt.prompt();
+          deferredPrompt.userChoice.then(() => {
+            if (pwaBanner) pwaBanner.classList.remove('visible');
+          });
+        }
+      });
+    }
+    if (pwaDismiss) {
+      pwaDismiss.addEventListener('click', () => {
+        if (pwaBanner) pwaBanner.classList.remove('visible');
+        localStorage.setItem('pwa-banner-dismissed', '1');
+      });
+    }
 
     document.addEventListener('click', (e) => {
       const link = e.target.closest('.qi-link');
