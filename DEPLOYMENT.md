@@ -34,6 +34,13 @@
    | 10 | `supabase/migrations/20250402120000_department_meetings.sql` |
    | 11 | `supabase/migrations/20250402140000_department_meetings_minutes_rpc.sql` |
    | 12 | `supabase/migrations/20250402150000_department_meetings_minutes_hardening.sql` |
+   | 13 | `supabase/migrations/20260425164000_announcements_priority.sql` |
+   | 14 | `supabase/migrations/20260510090000_school_management_phase1.sql` |
+   | 15 | `supabase/migrations/20260510100000_tracking_monitoring_visibility.sql` |
+   | 16 | `supabase/migrations/20260515171000_faculty_head_management_parity.sql` |
+   | 17 | `supabase/migrations/20260516101500_teacher_subject_class_loader.sql` |
+   | 18 | `supabase/migrations/20260521120000_notification_reads.sql` |
+   | 19 | `supabase/migrations/20260527100000_hgios4_toolkit.sql` (HGIOS 4 Toolkit cloud sync) |
 
 #### Apply migrations with Supabase CLI (optional)
 
@@ -204,6 +211,23 @@ If you prefer not to store credentials in `config.js`, you can use a build step 
 - [ ] Test Faculty Head Dashboard "Load from cloud" (admin only)
 - [ ] Test shared calendar (admin adds event, staff sees it)
 - [ ] Test Privacy Policy: Export my data and Delete my account (full erasure)
+- [ ] Test **HGIOS 4 Toolkit**: Faculty Hub → Admin → HGIOS 4 Toolkit loads (no blank iframe)
+- [ ] Verify live URLs return **200**: `/hgios4-toolkit/app.js`, `/hgios4-toolkit/styles.css`, `/hgios4-toolkit-service.js`
+
+### Static files required at deploy root
+
+Upload the **entire project folder** (not only loose HTML files). Critical paths:
+
+| Path | Purpose |
+|------|---------|
+| `hgios4-toolkit/index.html` | Toolkit UI (embedded from Faculty Hub) |
+| `hgios4-toolkit/app.js` | Toolkit logic — must be **inside** this folder |
+| `hgios4-toolkit/styles.css` | Toolkit styles — must be **inside** this folder |
+| `hgios4-toolkit-service.js` | Supabase save/load (project **root**) |
+| `design-tokens.css`, `faculty-shell.css` | Linked by procurement, class visits, fh_* pages |
+| `config.js`, `faculty-hub.html`, `hgios4-toolkit-service.js` | Auth and hub |
+
+Do **not** put toolkit `app.js` / `styles.css` at the project root — the iframe loads them from `/hgios4-toolkit/`.
 
 ---
 
