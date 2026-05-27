@@ -18,7 +18,10 @@
   var path = window.location.pathname;
   if (path === '/' || path === '/index.html') path = 'faculty-hub.html';
   var redirect = encodeURIComponent(path + window.location.search);
-  var loginUrl = 'login.html' + (redirect && redirect !== '/' ? '?redirect=' + redirect : '');
+  var loginBase = (typeof window.__authGuardLoginPath === 'string' && window.__authGuardLoginPath)
+    ? window.__authGuardLoginPath
+    : 'login.html';
+  var loginUrl = loginBase + (redirect && redirect !== '/' ? '?redirect=' + redirect : '');
 
   if (typeof window.supabase === 'undefined' || window.supabase === null) {
     console.error('Auth guard: Supabase client not loaded. Include config.js and Supabase JS before auth-guard.js');
