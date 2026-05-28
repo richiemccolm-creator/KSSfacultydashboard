@@ -14,6 +14,7 @@
 <script src="allowlist-check.js"></script>
 <script src="auth-guard.js"></script>
 <script src="data-service.js"></script>
+<script src="report-builder-bridge.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -140,6 +141,13 @@ header .spacer{flex:1}
 .section-head .badge{font-size:.68rem;font-weight:600;padding:2px 7px;border-radius:4px;text-transform:uppercase;letter-spacing:.06em}
 .badge-strengths{background:var(--green-lt);color:var(--green)}
 .badge-aod{background:var(--amber-lt);color:var(--amber)}
+.badge-attitude{background:#f5f3ff;color:#6d28d9}
+.writing-guide{font-size:.78rem;color:var(--text-2);line-height:1.55;padding:10px 12px;margin-bottom:14px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px}
+.section-hint{font-size:.74rem;color:var(--text-3);margin:-4px 0 8px 0;line-height:1.45}
+.tracker-suggest-banner{font-size:.78rem;color:#1e40af;line-height:1.5;padding:9px 12px;margin-bottom:14px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px}
+.no-str-warning{font-size:.78rem;color:#92400e;line-height:1.5;padding:9px 12px;margin-bottom:14px;background:#fffbeb;border:1px solid #fcd34d;border-radius:6px}
+.pupil-item .review-flag{font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:#f59e0b;background:rgba(245,158,11,.15);border-radius:3px;padding:1px 5px;flex-shrink:0;margin-left:4px}
+.badge-aod{background:var(--amber-lt);color:var(--amber)}
 .badge-next{background:var(--blue-lt);color:var(--blue-sec)}
 .section-head .count{margin-left:auto;font-size:.75rem;color:var(--text-3);font-weight:500}
 .comments-grid{padding:10px;display:flex;flex-direction:column;gap:5px;max-height:340px;overflow-y:auto}
@@ -169,7 +177,8 @@ header .spacer{flex:1}
 .preview-section.ps-s h4{background:var(--green-lt);color:var(--green)}
 .preview-section.ps-a h4{background:var(--amber-lt);color:var(--amber)}
 .preview-section.ps-n h4{background:var(--blue-lt);color:var(--blue-sec)}
-.preview-section .empty{color:var(--text-3);font-style:italic}
+.preview-section.ps-t h4{background:#f5f3ff;color:#6d28d9}
+.preview-section .empty{color:var(--text-3);font-style:italic;font-size:.75rem}
 .preview-rec{margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-style:italic;color:var(--text-3);font-size:.77rem}
 
 /* Recommend row */
@@ -227,6 +236,10 @@ header .spacer{flex:1}
   <div class="header-divider"></div>
   <div class="header-context">Broad General Education · CfE</div>
   <div class="spacer"></div>
+  <button class="tracker-import-btn" onclick="importFromTracker()" title="Import pupils and suggested comments from the Unit Tracker" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);color:rgba(255,255,255,.85);padding:0 14px;height:34px;border-radius:5px;font-family:'Inter',sans-serif;font-size:.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:7px">
+    <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+    Import from Tracker
+  </button>
   <button id="exportBtn" disabled onclick="exportWord()">
     <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
     Export Word Document
@@ -512,6 +525,8 @@ const CPE_LABELS = {
 };
 
 // ─── State ────────────────────────────────────────────────────────────────────
+const REPORT_SUBJECT = 'art';
+const SECTION_KEYS = ['strengths', 'aod', 'next_steps', 'attitude'];
 let pupils = [];
 let activePupilId = null;
 let contextSummary = '';
@@ -537,7 +552,10 @@ function loadData(){
       return {
         ...p,
         cfeLevel: p && p.cfeLevel ? p.cfeLevel : '',
-        s4Destination: p && p.s4Destination ? p.s4Destination : ''
+        s4Destination: p && p.s4Destination ? p.s4Destination : '',
+        trackerImport: !!(p && p.trackerImport),
+        noStrengthsSuggested: !!(p && p.noStrengthsSuggested),
+        selections: ReportBuilderBridge.hydrateSelections(p && p.selections)
       };
     }
     pupils = (d.pupils || []).map(hydratePupil);
@@ -553,10 +571,12 @@ function createPupil(firstName='New', lastName='Pupil'){
     id: uid(), firstName, lastName, year: 'S1',
     cfeLevel: '',
     s4Destination: '',
-    selections: { strengths:[], aod:[], next_steps:[] },
+    selections: ReportBuilderBridge.emptySelections(),
     recommend: false,
     additionalComments: '',
     confirmed: false,
+    trackerImport: false,
+    noStrengthsSuggested: false,
   };
 }
 
@@ -578,6 +598,7 @@ function renderSidebar(){
       <span class="sel-cb"></span>
       <span class="initials">${initials(p)}</span>
       <span class="pname">${p.firstName} ${p.lastName}</span>
+      ${p.noStrengthsSuggested && !p.confirmed ? '<span class="review-flag" title="No strengths suggested from tracker">Review</span>' : ''}
       <span class="tick">✓</span>
       <button class="del-btn" title="Remove" onclick="deletePupil(event,'${p.id}')">✕</button>`;
     div.onclick = selectMode ? ()=>togglePupilSelection(p.id) : ()=>selectPupil(p.id);
@@ -727,15 +748,20 @@ function renderEditor(){
         <span class="toggle-slider"></span>
       </label>
     </div>` : ''}
+    ${p.trackerImport ? `<div class="tracker-suggest-banner">Comments suggested from Tracker — review and adjust before confirming. Remove any that don&apos;t fit this pupil.</div>` : ''}
+    ${showNoStrengthsWarning(p) ? `<div class="no-str-warning">No strengths selected — that&apos;s fine if nothing applies honestly. Consider a brief framing sentence in Additional Comments, or select an Approach to Learning comment if effort has been reasonable.</div>` : ''}
+    <div class="writing-guide">${ReportBuilderBridge.WRITING_GUIDE}</div>
     ${renderSection(p,'strengths','Strengths','badge-strengths')}
     ${renderSection(p,'aod','Areas of Development','badge-aod')}
     ${renderSection(p,'next_steps','Next Steps','badge-next')}
+    ${renderAttitudeSection(p)}
     <div class="section" style="margin-bottom:14px">
       <div class="section-head">
         <h3>Additional Comments</h3>
         <span class="badge" style="background:#f1f5f9;color:var(--text-2)">Optional</span>
         <span class="count">Free text</span>
       </div>
+      <p class="section-hint">${ReportBuilderBridge.SECTION_HINTS.additional}</p>
       <div style="padding:10px">
         <textarea id="additionalComments"
           placeholder="Add any additional comments here — these will appear at the end of the report as written..."
@@ -752,6 +778,33 @@ function renderEditor(){
       </button>
       <span class="confirm-hint">${p.confirmed?'<span style="color:#16a34a">✓ Report saved</span>':'Confirm to mark as done'}</span>
     </div>`;
+}
+
+function showNoStrengthsWarning(p) {
+  if (!p || p.selections.strengths.length > 0) return false;
+  return p.selections.aod.length > 0 || p.selections.next_steps.length > 0 || p.selections.attitude.length > 0;
+}
+
+function renderAttitudeSection(p) {
+  const bank = ReportBuilderBridge.getAttitudeBank(REPORT_SUBJECT);
+  const sel = p.selections.attitude || [];
+  const chips = Object.entries(bank).map(([code, text]) => {
+    const selected = sel.includes(code);
+    return `<div class="comment-chip ${selected?'selected':''}" onclick="toggleComment('attitude','${code}')">
+      <div class="cb"></div>
+      <span class="code">${code}</span>
+      <span>${text.replace('X','<em style="color:var(--accent);font-style:normal;font-weight:600">NAME</em>')}</span>
+    </div>`;
+  }).join('');
+  return `<div class="section">
+    <div class="section-head">
+      <h3>Approach to Learning</h3>
+      <span class="badge badge-attitude">Effort &amp; Attitude</span>
+      <span class="count">${sel.length} selected</span>
+    </div>
+    <p class="section-hint">${ReportBuilderBridge.SECTION_HINTS.attitude}</p>
+    <div class="comments-grid">${chips}</div>
+  </div>`;
 }
 
 function renderSection(p, key, label, badgeClass){
@@ -788,6 +841,7 @@ function renderSection(p, key, label, badgeClass){
       <span class="badge ${badgeClass}">${label}</span>
       <span class="count">${count} selected</span>
     </div>
+    <p class="section-hint">${ReportBuilderBridge.SECTION_HINTS[key] || ''}</p>
     <div class="comments-grid">${groupHtml}</div>
   </div>`;
 }
@@ -803,7 +857,10 @@ function updateName(val){
 function setYear(year){
   const p = pupils.find(x=>x.id===activePupilId); if (!p) return;
   if (year !== 'S3') p.s4Destination = '';
-  p.year = year; p.selections = { strengths:[], aod:[], next_steps:[] };
+  p.year = year;
+  p.selections = ReportBuilderBridge.emptySelections();
+  p.trackerImport = false;
+  p.noStrengthsSuggested = false;
   saveData(); renderEditor(); renderPreview();
 }
 function setCfeLevel(level){
@@ -837,7 +894,7 @@ function toggleComment(key, code){
   if (chip){ chip.classList.toggle('selected', p.selections[key].includes(code)); }
   // Update count
   const heads = document.querySelectorAll('.section-head .count');
-  const keys = ['strengths','aod','next_steps'];
+  const keys = ['strengths','aod','next_steps','attitude'];
   heads.forEach((h,i)=>{ if(keys[i]) h.textContent = `${p.selections[keys[i]].length} selected`; });
   renderPreview();
 }
@@ -869,8 +926,19 @@ function renderPreview(){
             <span style="font-size:.63rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:${CPE_LABELS[cat].color}">${CPE_LABELS[cat].label}</span>
             <p style="margin-top:2px;color:var(--text-2)">${sents.join(' ')}</p>
           </div>`).join('')
-      : '<p class="empty">No comments selected</p>';
+      : '<p class="empty">Section omitted from export</p>';
     return `<div class="preview-section ${cls}"><h4>${title}</h4>${inner}</div>`;
+  }
+
+  function attitudeHtml() {
+    const attBank = ReportBuilderBridge.getAttitudeBank(REPORT_SUBJECT);
+    const sents = (p.selections.attitude || [])
+      .filter(code => attBank[code])
+      .map(code => attBank[code].replace('X', name));
+    const inner = sents.length
+      ? `<p style="color:var(--text-2)">${sents.join(' ')}</p>`
+      : '<p class="empty">Section omitted from export</p>';
+    return `<div class="preview-section ps-t"><h4>Approach to Learning</h4>${inner}</div>`;
   }
 
   body.innerHTML = `
@@ -882,6 +950,7 @@ function renderPreview(){
     ${sectionHtml('strengths','ps-s','Strengths')}
     ${sectionHtml('aod','ps-a','Areas of Development')}
     ${sectionHtml('next_steps','ps-n','Next Steps')}
+    ${attitudeHtml()}
     ${p.recommend ? `<div class="preview-rec">I would recommend that ${p.firstName} continues with Art &amp; Design. The skills developed through this subject — including creativity, critical thinking, visual communication and problem-solving — are highly valuable in a wide range of careers and in everyday life.</div>` : ''}
     ${p.additionalComments ? `<div class="preview-rec" style="font-style:normal;color:var(--text-2)">${p.additionalComments}</div>` : ''}`;
 }
@@ -1046,6 +1115,16 @@ function buildDocXml(){
     addSection('aod',        'Areas of Development', 'BF360C');
     addSection('next_steps', 'Next Steps',           '0D47A1');
 
+    (function(){
+      const attBank = ReportBuilderBridge.getAttitudeBank(REPORT_SUBJECT);
+      const sents = (p.selections.attitude || [])
+        .filter(code => attBank[code])
+        .map(code => attBank[code].replace('X', name));
+      if (!sents.length) return;
+      body += para('Approach to Learning', {bold:true,size:22,color:'6D28D9',spaceAfter:60});
+      body += para(sents.join(' '), {size:20,color:'1A1A1A',spaceAfter:100});
+    })();
+
     if (p.recommend){
       body += para(`I would recommend that ${name} continues with Art & Design. The skills developed through this subject — including creativity, critical thinking, visual communication and problem-solving — are highly valuable in a wide range of careers and in everyday life.`,{size:20,italic:true,color:'555555',spaceAfter:120});
     }
@@ -1086,6 +1165,44 @@ function showToast(msg){
   const t = document.getElementById('toast');
   t.textContent = msg; t.classList.add('show');
   setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+// ─── Import from Tracker ──────────────────────────────────────────────────────
+function importFromTracker() {
+  const TRACKER_KEY = ReportBuilderBridge.EXPORT_KEYS[REPORT_SUBJECT];
+  (window.DataService ? DataService.get(TRACKER_KEY) : Promise.resolve(JSON.parse(localStorage.getItem(TRACKER_KEY) || 'null'))).then(function(data) {
+    if (!data || !Array.isArray(data) || data.length === 0) {
+      showToast('No tracker data found — use "Send to Report Builder" in the Tracker first');
+      return;
+    }
+    var added = 0, updated = 0, reviewed = 0;
+    for (var i = 0; i < data.length; i++) {
+      var entry = data[i];
+      if (!entry.firstName) continue;
+      let p = pupils.find(x =>
+        x.firstName.toLowerCase() === entry.firstName.toLowerCase() &&
+        x.lastName.toLowerCase() === entry.lastName.toLowerCase()
+      );
+      if (!p) {
+        p = createPupil(entry.firstName, entry.lastName);
+        pupils.push(p);
+        added++;
+      } else {
+        updated++;
+      }
+      if (entry.year && ['S1','S2','S3'].includes(entry.year)) p.year = entry.year;
+      if (entry.cfeLevel) p.cfeLevel = entry.cfeLevel;
+      ReportBuilderBridge.applySuggestedToPupil(p, entry, true);
+      if (p.noStrengthsSuggested) reviewed++;
+    }
+    activePupilId = pupils[0] ? pupils[0].id : null;
+    saveData();
+    renderSidebar();
+    if (activePupilId) { renderEditor(); renderPreview(); }
+    var msg = added > 0 && updated > 0 ? 'Imported: ' + added + ' new, ' + updated + ' updated' : added > 0 ? added + ' pupils imported from Tracker' : updated + ' pupils updated from Tracker';
+    if (reviewed > 0) msg += ' (' + reviewed + ' need strength review)';
+    showToast(msg + ' \u2713');
+  });
 }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────

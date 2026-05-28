@@ -14,6 +14,7 @@
 <script src="allowlist-check.js"></script>
 <script src="auth-guard.js"></script>
 <script src="data-service.js"></script>
+<script src="report-builder-bridge.js"></script>
 <script src="curriculum-units.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -651,7 +652,7 @@ html,body{max-width:100%;overscroll-behavior-x:none}
         </div>
         <div class="exp-card" style="border-top:4px solid var(--accent)">
           <div class="exp-icon"><svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
-          <div class="exp-title">Send to Report Builder</div><div class="exp-desc">Export pupil names and year groups to the BGE Drama Report Builder. Open the Report Builder and use "Import from Tracker" to load your class list.</div>
+          <div class="exp-title">Send to Report Builder</div><div class="exp-desc">Export pupil names, year groups and suggested report comments based on tracker scores. Open the Drama Report Builder and use Import from Tracker.</div>
           <button class="btn btn-primary" onclick="sendToReportBuilder()"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Send to Report Builder</button>
         </div>
       </div>
@@ -2007,18 +2008,28 @@ function exportForFacultyHead(){
 function sendToReportBuilder(){
   var out=[];
   ['s1','s2','s3'].forEach(function(yg){
+    var tpIds=(TPS[yg]||[]).map(function(tp){ return tp.id; });
+    var year=yg.toUpperCase();
     Object.keys(S.pupils[yg]||{}).forEach(function(cls){
       (S.pupils[yg][cls]||[]).forEach(function(p){
-        var parts=(p.name||'').trim().split(/\s+/);
-        var firstName=parts[0]||'Unknown';
-        var lastName=parts.slice(1).join(' ')||'';
-        out.push({firstName:firstName,lastName:lastName,year:yg.toUpperCase(),benchmarks:[]});
+        var scoresByTp=S.scores[yg]&&S.scores[yg][p.id]?S.scores[yg][p.id]:{};
+        var profile=S.profiles[yg]&&S.profiles[yg][p.id]?S.profiles[yg][p.id]:{};
+        var notes='';
+        tpIds.forEach(function(tpId){
+          var n=scoresByTp[tpId]&&scoresByTp[tpId].notes;
+          if(n&&String(n).trim()) notes=String(n).trim();
+        });
+        out.push(ReportBuilderBridge.buildTrackerExportEntry('drama', p, year, scoresByTp, tpIds, {
+          cfeLevel: profile.cfeLevel||'',
+          notes: notes
+        }));
       });
     });
   });
   if(out.length===0){toast('No pupils to send. Add pupils in Class Setup first.');return;}
-  if(window.DataService){DataService.set('bge_drama_tracker_export_v1',out).then(function(){toast('Sent '+out.length+' pupils to Report Builder. Open the Report Builder and click "Import from Tracker".');}).catch(function(){toast('Failed to send.');});}
-  else{try{localStorage.setItem('bge_drama_tracker_export_v1',JSON.stringify(out));toast('Sent '+out.length+' pupils to Report Builder. Open the Report Builder and click "Import from Tracker".');}catch(e){toast('Failed to send.');}}
+  var key=ReportBuilderBridge.EXPORT_KEYS.drama;
+  if(window.DataService){DataService.set(key,out).then(function(){toast('Sent '+out.length+' pupils to Report Builder with suggested comments. Open the Report Builder and click Import from Tracker.');}).catch(function(){toast('Failed to send.');});}
+  else{try{localStorage.setItem(key,JSON.stringify(out));toast('Sent '+out.length+' pupils to Report Builder with suggested comments. Open the Report Builder and click Import from Tracker.');}catch(e){toast('Failed to send.');}}
 }
 
 function exportCSV(target){
