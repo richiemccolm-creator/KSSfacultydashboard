@@ -608,6 +608,9 @@
   .preview-section p { color: var(--text-2); }
   .preview-section .empty { color: var(--text-3); font-style: italic; font-size: .75rem; }
   .preview-rec { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); font-style: italic; color: var(--text-3); font-size: .77rem; }
+  .preview-progress { font-size: .84rem; font-weight: 500; color: var(--text); margin-bottom: 10px; line-height: 1.5; }
+  .year-select-row { flex-wrap: wrap; }
+  .year-select-row .year-btn { font-size: .72rem; padding: 0 10px; }
 
   /* Toast */
   #toast {
@@ -979,6 +982,8 @@ function createPupil(firstName = 'New', lastName = 'Pupil') {
     lastName,
     year: 'S2',
     cfeLevel: '',
+    trackStatus: '',
+    isEal: false,
     s4Destination: '',
     recommend: false,
     additionalComments: '',
@@ -1173,10 +1178,26 @@ function renderEditor() {
       `).join('')}
     </div>
     <div class="year-select-row">
-      <span style="font-size:.85rem;color:var(--text-2);align-self:center;margin-right:4px">Working at / towards:</span>
+      <span style="font-size:.85rem;color:var(--text-2);align-self:center;margin-right:4px">Progress:</span>
+      ${ReportBuilderBridge.TRACK_STATUSES.map(s => `
+        <button class="year-btn ${p.trackStatus === s.id ? 'active' : ''}" onclick="setTrackStatus('${s.id}')">${s.label}</button>
+      `).join('')}
+    </div>
+    <div class="year-select-row">
+      <span style="font-size:.85rem;color:var(--text-2);align-self:center;margin-right:4px">CfE level:</span>
       ${['First Level','Second Level','Third Level','Fourth Level'].map(level => `
         <button class="year-btn ${p.cfeLevel === level ? 'active' : ''}" onclick="setCfeLevel('${level}')">${level}</button>
       `).join('')}
+    </div>
+    <div class="recommend-row">
+      <div style="flex:1">
+        <div style="font-size:.85rem;font-weight:500;color:var(--text)">EAL learner?</div>
+        <div style="font-size:.75rem;color:var(--text-3);margin-top:2px">Adds an EAL sentence to Additional Comments and is useful alongside personal targets</div>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="ealToggle" ${p.isEal ? 'checked' : ''} onchange="setEal(this.checked)">
+        <span class="toggle-slider"></span>
+      </label>
     </div>
     ${p.year === 'S3' ? `
     <div class="year-select-row">
@@ -1356,6 +1377,35 @@ function setCfeLevel(level) {
   renderPreview();
 }
 
+function setTrackStatus(status) {
+  const p = pupils.find(x => x.id === activePupilId);
+  if (!p) return;
+  p.trackStatus = status;
+  saveData();
+  renderEditor();
+  renderPreview();
+}
+
+function applyEalToPupil(p) {
+  p.isEal = true;
+  if (!p.trackStatus) p.trackStatus = 'working_on_targets';
+  const snippet = ReportBuilderBridge.getEalSnippet(REPORT_SUBJECT, p.firstName);
+  const existing = (p.additionalComments || '').trim();
+  if (!existing.toLowerCase().includes('eal')) {
+    p.additionalComments = existing ? existing + '\n\n' + snippet : snippet;
+  }
+}
+
+function setEal(checked) {
+  const p = pupils.find(x => x.id === activePupilId);
+  if (!p) return;
+  if (checked) applyEalToPupil(p);
+  else p.isEal = false;
+  saveData();
+  renderEditor();
+  renderPreview();
+}
+
 function setS4Destination(level) {
   const p = pupils.find(x => x.id === activePupilId);
   if (!p) return;
@@ -1449,9 +1499,12 @@ function renderPreview() {
 
   body.innerHTML = `
     ${contextSummary && contextSummary.trim() ? `<div class="preview-section" style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border)"><h4 style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-3);margin-bottom:4px">Context</h4><p style="font-size:.8rem;color:var(--text-2);line-height:1.6">${contextSummary.trim().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p></div>` : ''}
+    ${(() => {
+      const prog = ReportBuilderBridge.buildProgressSentence(p);
+      return prog ? `<div class="preview-progress">${prog.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</div>` : '';
+    })()}
     <div class="preview-name">${p.firstName} ${p.lastName}</div>
     <div class="preview-year">Year Group: ${p.year}</div>
-    ${p.cfeLevel ? `<div class="preview-year">Working at / towards: ${p.cfeLevel}</div>` : ''}
     ${p.year === 'S3' && p.s4Destination ? `<div class="preview-year">S4 pathway: ${p.s4Destination}</div>` : ''}
     ${sectionHtml('strengths', 'ps-s', 'Strengths')}
     ${sectionHtml('aod', 'ps-a', 'Areas of Development')}
@@ -1584,8 +1637,9 @@ function buildDocXml() {
 
     body += para(fullName, { bold:true, size:28, color:'0F3460', spaceBefore:280, spaceAfter:40 });
     body += para(`Year Group: ${p.year}`, { size:18, color:'888888', italic:true, spaceAfter:160 });
-    if (p.cfeLevel) {
-      body += para(`Working at / towards: ${p.cfeLevel}`, { size:18, color:'666666', italic:true, spaceAfter:120 });
+    const progressLine = ReportBuilderBridge.buildProgressSentence(p);
+    if (progressLine) {
+      body += para(progressLine, { size:20, color:'1A1A1A', spaceAfter:160 });
     }
     if (p.year === 'S3' && p.s4Destination) {
       body += para(`S4 pathway: ${p.s4Destination}`, { size:18, color:'666666', italic:true, spaceAfter:120 });
@@ -1781,6 +1835,8 @@ function loadData() {
       return {
         ...p,
         cfeLevel: p && p.cfeLevel ? p.cfeLevel : '',
+        trackStatus: p && p.trackStatus ? p.trackStatus : '',
+        isEal: !!(p && p.isEal),
         s4Destination: p && p.s4Destination ? p.s4Destination : '',
         trackerImport: !!(p && p.trackerImport),
         noStrengthsSuggested: !!(p && p.noStrengthsSuggested),
@@ -1861,9 +1917,10 @@ function importFromTracker() {
       }
     }
 
-    if (entry.cfeLevel) p.cfeLevel = entry.cfeLevel;
-
     ReportBuilderBridge.applySuggestedToPupil(p, entry, true);
+    if (entry.cfeLevel) p.cfeLevel = entry.cfeLevel;
+    if (entry.trackStatus) p.trackStatus = entry.trackStatus;
+    if (entry.isEal) applyEalToPupil(p);
     if (p.noStrengthsSuggested) reviewed++;
   }
 

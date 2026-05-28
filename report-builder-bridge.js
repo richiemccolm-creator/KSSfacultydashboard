@@ -47,7 +47,55 @@
     additional: 'Attendance, pastoral context, or a brief honest framing sentence.'
   };
 
-  var WRITING_GUIDE = 'Start from what you have observed, not the section order. Strengths are optional — empty sections are omitted from export. Aim for 0–3 strengths, 2–4 areas of development, and 2–3 next steps.';
+  var WRITING_GUIDE = 'Select Progress and CfE level first — this creates the opening progress sentence (e.g. "Jamie is on track at Second Level."). Strengths are optional — empty sections are omitted from export. Aim for 0–3 strengths, 2–4 areas of development, and 2–3 next steps.';
+
+  var TRACK_STATUSES = [
+    { id: 'working_on_targets', label: 'Working on personal targets' },
+    { id: 'not_yet_on_track', label: 'Not yet on track' },
+    { id: 'on_track', label: 'On track' },
+    { id: 'performing_above', label: 'Performing above' }
+  ];
+
+  var EAL_SNIPPET = {
+    drama: 'NAME is an EAL learner and is building confidence in spoken English through drama activities.',
+    art: 'NAME is an EAL learner and is developing vocabulary and confidence in expressive arts.'
+  };
+
+  function processAvg(dimAvgs) {
+    if (!dimAvgs) return null;
+    var vals = ['creating', 'presenting', 'evaluating']
+      .map(function (d) { return dimAvgs[d]; })
+      .filter(function (v) { return v != null; });
+    if (!vals.length) return null;
+    return vals.reduce(function (a, b) { return a + b; }, 0) / vals.length;
+  }
+
+  function suggestTrackStatus(dimAvgs) {
+    var proc = processAvg(dimAvgs);
+    if (proc == null) return '';
+    if (proc >= 3.5) return 'performing_above';
+    if (proc >= 2.5) return 'on_track';
+    if (proc >= 2.0) return 'not_yet_on_track';
+    return 'working_on_targets';
+  }
+
+  function buildProgressSentence(p) {
+    if (!p || !p.firstName || !p.cfeLevel || !p.trackStatus) return null;
+    var name = p.firstName;
+    var level = p.cfeLevel;
+    var phrases = {
+      working_on_targets: name + ' is working on personal targets at ' + level + '.',
+      not_yet_on_track: name + ' is not yet on track at ' + level + '.',
+      on_track: name + ' is on track at ' + level + '.',
+      performing_above: name + ' is performing above expectations at ' + level + '.'
+    };
+    return phrases[p.trackStatus] || null;
+  }
+
+  function getEalSnippet(subject, firstName) {
+    var tpl = EAL_SNIPPET[subject] || EAL_SNIPPET.drama;
+    return tpl.replace(/NAME/g, firstName || 'They');
+  }
 
   function getAttitudeBank(subject) {
     return ATTITUDE_TEXT[subject] || ATTITUDE_TEXT.drama;
@@ -164,12 +212,14 @@
       dimAvgs: dimAvgs,
       suggestedCodes: codes,
       benchmarks: codes,
-      noStrengthsSuggested: suggested.strengths.length === 0
+      noStrengthsSuggested: suggested.strengths.length === 0,
+      trackStatus: suggestTrackStatus(dimAvgs)
     };
 
     if (extra) {
       if (extra.cfeLevel) entry.cfeLevel = extra.cfeLevel;
       if (extra.notes) entry.notes = extra.notes;
+      if (extra.isEal) entry.isEal = true;
     }
     return entry;
   }
@@ -208,6 +258,8 @@
     pupil.trackerImport = true;
     pupil.noStrengthsSuggested = !!entry.noStrengthsSuggested;
     if (entry.cfeLevel && !pupil.cfeLevel) pupil.cfeLevel = entry.cfeLevel;
+    if (entry.trackStatus) pupil.trackStatus = entry.trackStatus;
+    if (entry.isEal) pupil.isEal = true;
     if (entry.notes && !pupil.additionalComments) pupil.additionalComments = entry.notes;
   }
 
@@ -215,7 +267,11 @@
     EXPORT_KEYS: EXPORT_KEYS,
     SECTION_HINTS: SECTION_HINTS,
     WRITING_GUIDE: WRITING_GUIDE,
+    TRACK_STATUSES: TRACK_STATUSES,
     getAttitudeBank: getAttitudeBank,
+    getEalSnippet: getEalSnippet,
+    buildProgressSentence: buildProgressSentence,
+    suggestTrackStatus: suggestTrackStatus,
     codeToSection: codeToSection,
     suggestCodes: suggestCodes,
     computeDimAvgs: computeDimAvgs,
