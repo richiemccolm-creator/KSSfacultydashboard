@@ -322,7 +322,7 @@ html,body{min-height:100%;margin:0;width:100%;box-sizing:border-box}
       <div class="sc-header">
         <div>
           <div class="sc-title">Class Performance</div>
-          <div class="sc-sub">Choose subject, year, teacher (staff member), then class — or leave teacher/class on “All” to compare cohorts.</div>
+          <div class="sc-sub">Choose subject, year, teacher (staff member), then class — or leave teacher/class on “All” to compare cohorts. When one teacher is selected, open their full tracker in read-only mode.</div>
         </div>
         <div class="filter-toolbar">
           <div><label class="form-label">Subject</label><select id="cls-subject" class="form-input" onchange="renderClasses()"><option value="drama">Drama</option><option value="art">Art & Design</option></select></div>
@@ -366,7 +366,7 @@ html,body{min-height:100%;margin:0;width:100%;box-sizing:border-box}
       <div class="sc-header">
         <div>
           <div class="sc-title">Staff</div>
-          <div class="sc-sub">View planner, moderation, and tracker data for each staff member. Click a name to see their work.</div>
+          <div class="sc-sub">View planner, moderation, and tracker data for each staff member. Open a staff member’s Drama or Art tracker in read-only mode — the same layout they use.</div>
         </div>
         <button class="btn btn-primary" id="staff-refresh-btn" onclick="loadStaffList()">Refresh</button>
       </div>
@@ -573,7 +573,7 @@ function loadFromCloud() {
     rows.forEach(function(r) {
       const subj = r.data_type === 'drama-v3' ? 'drama' : r.data_type === 'art-v2' ? 'art' : null;
       if (!subj || !r.data) return;
-      const entry = { teacherName: r.teacherName || r.email || 'Unknown', trackingPeriod: null, exportDate: null, ...r.data };
+      const entry = { userId: r.user_id, teacherName: r.teacherName || r.email || 'Unknown', trackingPeriod: null, exportDate: null, ...r.data };
       const existing = D[subj].findIndex(s => (s.teacherName || '') === (entry.teacherName || '') && (s.trackingPeriod || '') === (entry.trackingPeriod || ''));
       if (existing >= 0) D[subj][existing] = entry; else D[subj].push(entry);
     });
@@ -1151,6 +1151,16 @@ function renderClasses() {
   const dims = subj === 'drama' ? ['creating','presenting','evaluating','effort','behaviour','homelearning'] : ['progress','effort','behaviour','homelearning'];
   const dimLbl = d => d === 'homelearning' ? 'Home learning' : d.charAt(0).toUpperCase() + d.slice(1);
   pupils.sort((a, b) => (a.cls || '').localeCompare(b.cls || '') || a.name.localeCompare(b.name));
+  let trackerLinkHtml = '';
+  if (selTeacher) {
+    const userId = findStaffUserIdForTeacher(selTeacher, subj);
+    if (userId) {
+      trackerLinkHtml = '<div style="margin-bottom:1rem;display:flex;flex-wrap:wrap;gap:.5rem;align-items:center">' +
+        '<a class="btn btn-primary" href="' + attrEsc(staffTrackerViewUrl(userId, selTeacher, subj, 'faculty_dashboard.html?view=classes')) + '">Open ' +
+        (subj === 'drama' ? 'Drama' : 'Art & Design') + ' tracker (read-only)</a>' +
+        '<span style="font-size:.75rem;color:var(--text3)">Same layout as ' + escHtml(selTeacher) + ' sees — viewing only.</span></div>';
+    }
+  }
   const rows = pupils.map(p => {
     const avgs = {};
     dims.forEach(d => {
@@ -1167,7 +1177,7 @@ function renderClasses() {
     return `<tr onclick="selectForProfile('${esc(p.id)}','${subj}','${yg}','${esc(p.cls)}','${esc(p.teacher)}')"><td>${escHtml(p.name)}</td><td>${escHtml(p.cls || '')}<div style="font-size:.65rem;color:var(--text3)">${escHtml(p.teacher || '')}</div></td>${avgCells}<td>${lowCount >= 2 ? '<span class="badge badge-risk">At risk</span>' : '—'}</td></tr>`;
   });
   const hdrs = dims.map(d => dimLbl(d)).join('</th><th>');
-  body.innerHTML = `<div class="table-wrap"><table class="dash-pupil-table"><thead><tr><th>Pupil</th><th>Class / Teacher</th><th>${hdrs}</th><th>Flag</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
+  body.innerHTML = trackerLinkHtml + `<div class="table-wrap"><table class="dash-pupil-table"><thead><tr><th>Pupil</th><th>Class / Teacher</th><th>${hdrs}</th><th>Flag</th></tr></thead><tbody>${rows.join('')}</tbody></table></div>`;
 }
 
 function searchPupils() {
@@ -1546,9 +1556,18 @@ var initialAdminViewApplied = false;
 function syncAdminUiFromAuthState() {
   if (canManageFacultyHub()) window.__authGuardIsAdmin = true;
   refreshAdminUiPlacement();
+  if (canManageFacultyHub() && !staffListCache.length && window.DataService &&
+      typeof DataService.getStaffListWithWorkForAdmin === 'function') {
+    DataService.getStaffListWithWorkForAdmin().then(function(list) {
+      staffListCache = list || [];
+    }).catch(function() {});
+  }
   var v = new URLSearchParams(window.location.search).get('view');
   if (v === 'staff' && canManageFacultyHub()) {
     setView('staff');
+  }
+  if (v === 'classes' && canViewCloudTracking()) {
+    setView('classes');
   }
   if (!initialAdminViewApplied && v === 'admin-console' && window.__authGuardIsAdmin) {
     initialAdminViewApplied = true;
@@ -1576,6 +1595,23 @@ window.addEventListener('auth-guard-ready', syncAdminUiFromAuthState);
 })();
 
 var staffListCache = [];
+
+function staffTrackerViewUrl(userId, teacherName, subject, returnView) {
+  var page = subject === 'drama' ? 'drama-tracker.html' : 'art-tracker.html';
+  var ret = returnView || 'faculty_dashboard.html?view=staff';
+  return page + '?viewAs=' + encodeURIComponent(userId) +
+    '&name=' + encodeURIComponent(teacherName || '') +
+    '&return=' + encodeURIComponent(ret);
+}
+
+function findStaffUserIdForTeacher(teacherName, subject) {
+  var s = staffListCache.find(function(x) { return (x.teacherName || '') === teacherName; });
+  if (s && s.user_id) return s.user_id;
+  var sources = D[subject || 'drama'] || [];
+  var src = sources.find(function(x) { return (x.teacherName || '') === teacherName; });
+  return src && src.userId ? src.userId : null;
+}
+
 function renderStaffView() {
   if (!canManageFacultyHub()) {
     document.getElementById('staff-list-container').style.display = 'block';
@@ -1667,6 +1703,19 @@ function showStaffDetail(userId) {
   if (ap) { ['s1','s2','s3'].forEach(function(yg) { Object.values(ap[yg] || {}).forEach(function(arr) { apCount += (arr || []).length; }); }); }
   if (apCount) html += apCount + ' pupils tracked.';
   else html += '<span class="staff-empty">No Art & Design tracker data yet.</span>';
+  html += '</div></div>';
+  html += '<div class="staff-detail-section"><h3>View tracker (read-only)</h3><div class="staff-planner-summary" style="display:flex;flex-wrap:wrap;gap:.5rem">';
+  var hasDrama = s.drama && (s.drama.pupils || s.drama.scores);
+  var hasArt = s.art && (s.art.pupils || s.art.scores);
+  if (hasDrama) {
+    html += '<a class="btn btn-primary" href="' + esc(staffTrackerViewUrl(s.user_id, s.teacherName, 'drama')) + '" style="background:#7c3aed">Open Drama tracker</a>';
+  }
+  if (hasArt) {
+    html += '<a class="btn btn-primary" href="' + esc(staffTrackerViewUrl(s.user_id, s.teacherName, 'art')) + '" style="background:#c0622a">Open Art & Design tracker</a>';
+  }
+  if (!hasDrama && !hasArt) {
+    html += '<span class="staff-empty">No tracker data to view yet.</span>';
+  }
   html += '</div></div>';
   body.innerHTML = html;
 }

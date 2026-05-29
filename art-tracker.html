@@ -14,6 +14,7 @@
 <script src="allowlist-check.js"></script>
 <script src="auth-guard.js"></script>
 <script src="data-service.js"></script>
+<script src="tracker-readonly-view.js"></script>
 <script src="report-builder-bridge.js"></script>
 <script src="curriculum-units.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -830,7 +831,8 @@ function load(){
     })
     .catch(function(){});
 }
-function save(){if(window.DataService){return DataService.set('art-v2',S).catch(function(){toast('Save failed — sign in to save to cloud');});}else{try{localStorage.setItem('art-v2',JSON.stringify(S));}catch(e){}return Promise.resolve();}}
+function save(){if(window.TrackerReadonlyView&&TrackerReadonlyView.isActive())return Promise.resolve();if(window.DataService){return DataService.set('art-v2',S).catch(function(){toast('Save failed — sign in to save to cloud');});}else{try{localStorage.setItem('art-v2',JSON.stringify(S));}catch(e){}return Promise.resolve();}}
+function roBlock(){return window.TrackerReadonlyView&&TrackerReadonlyView.block();}
 function autoSave(){save().then(function(){toast(window.DataService&&window.DataService.isUsingCloud&&window.DataService.isUsingCloud()?'Saved to cloud':'Saved');}).catch(function(){toast('Save failed — sign in to save to cloud');});}
 function currentAcademicYearLabel(){
   const now=new Date();
@@ -992,18 +994,21 @@ function classCard(yg,cls){
   </div>`;
 }
 function addClass(yg){
+  if(roBlock())return;
   const inp=document.getElementById('nc-'+yg);const n=inp.value.trim();
   if(!n){toast('Enter a class name');return;}
   if(S.pupils[yg][n]){toast('Already exists');return;}
   S.pupils[yg][n]=[];save();inp.value='';renderSetup(yg);toast(`"${n}" added`);
 }
 function delClass(yg,cls){
+  if(roBlock())return;
   showModal(`Delete "${cls}"?`,`This removes all ${(S.pupils[yg][cls]||[]).length} pupils and their scores. Cannot be undone.`,'Delete',()=>{
     (S.pupils[yg][cls]||[]).forEach(p=>{delete S.scores[yg][p.id];if(S.profiles[yg])delete S.profiles[yg][p.id];});
     delete S.pupils[yg][cls];save();renderSetup(yg);toast('Class deleted');
   });
 }
 function renameClass(yg,cls){
+  if(roBlock())return;
   if(!cls)return;
   showModal(`Rename "${cls}"`,`<label class="form-label">Class name</label><input class="form-input" id="rename-cls-inp" value="${escAttr(cls)}" />`,'Rename',()=>{
     const inp=document.getElementById('rename-cls-inp');const newCls=(inp?.value||'').trim();
@@ -1015,20 +1020,24 @@ function renameClass(yg,cls){
   setTimeout(()=>{const inp=document.getElementById('rename-cls-inp');if(inp){inp.focus();inp.select();}},50);
 }
 function addPupil(yg,cls){
+  if(roBlock())return;
   const k=`np-${yg}-${cls.replace(/\s/g,'_')}`;const inp=document.getElementById(k);
   const n=inp.value.trim();if(!n){toast('Enter a name');return;}
   S.pupils[yg][cls].push({id:uid(),name:n});save();inp.value='';renderSetup(yg);toast(`Added: ${n}`);
 }
 function delPupil(yg,cls,pid){
+  if(roBlock())return;
   S.pupils[yg][cls]=S.pupils[yg][cls].filter(p=>p.id!==pid);
   delete S.scores[yg][pid];if(S.profiles[yg])delete S.profiles[yg][pid];save();renderSetup(yg);toast('Pupil removed');
 }
 let _bYG='',_bCLS='';
 function bulkAdd(yg,cls){
+  if(roBlock())return;
   _bYG=yg;_bCLS=cls;
   showModal(`Bulk Add to ${cls}`,'Paste names — one per line:<br><br><textarea class="bulk-ta" id="bta" placeholder="First Last&#10;First Last&#10;First Last"></textarea><div class="helper">Duplicates skipped automatically.</div>','Add Pupils',processBulk,false);
 }
 function processBulk(){
+  if(roBlock())return;
   const ta=document.getElementById('bta');if(!ta)return;
   const existing=(S.pupils[_bYG][_bCLS]||[]).map(p=>p.name.toLowerCase());
   let added=0;
@@ -1048,6 +1057,7 @@ function suggestPromotedClassName(cls,yg,nextYg){
   return S.pupils[nextYg][cls]?cls+' (promoted)':cls;
 }
 function promoteClass(yg,cls){
+  if(roBlock())return;
   if(!cls)return;
   const nextYg=yg==='s1'?'s2':yg==='s2'?'s3':null;
   if(!nextYg){toast('S3 is the highest year group');return;}
@@ -1079,6 +1089,7 @@ function exportForHandover(yg,cls){
 
 // ── IMPORT FROM HANDOVER ──
 function handleImportFile(ev){
+  if(roBlock())return;
   const f=ev.target.files[0];if(!f)return;
   const r=new FileReader();r.onload=()=>{
     try{
@@ -1276,6 +1287,7 @@ function setTP(yg,id){S.curTP[yg]=id;renderTracker(yg);}
 function setCls(yg,cls){S.curCls[yg]=cls;renderTracker(yg);}
 function isDefaultsOn(yg,tpId){return S.defaultsOn?.[yg]?.[tpId]===true;}
 function toggleDefaults(yg,tpId){
+  if(roBlock())return;
   if(!S.defaultsOn[yg])S.defaultsOn[yg]={};
   const isCurrentlyOn=S.defaultsOn[yg][tpId]===true;
   if(isCurrentlyOn){
@@ -1295,6 +1307,7 @@ function toggleDefaults(yg,tpId){
   );
 }
 function setScore(yg,pid,tpId,dim,val,btn){
+  if(roBlock())return;
   if(!S.scores[yg])S.scores[yg]={};
   if(!S.scores[yg][pid])S.scores[yg][pid]={};
   if(!S.scores[yg][pid][tpId])S.scores[yg][pid][tpId]={};
@@ -1306,6 +1319,7 @@ function setScore(yg,pid,tpId,dim,val,btn){
   cell.querySelectorAll('.na-btn').forEach(b=>b.classList.toggle('active',nv===0));
 }
 function setNote(yg,pid,tpId,val){
+  if(roBlock())return;
   if(!S.scores[yg])S.scores[yg]={};
   if(!S.scores[yg][pid])S.scores[yg][pid]={};
   if(!S.scores[yg][pid][tpId])S.scores[yg][pid][tpId]={};
@@ -1324,6 +1338,7 @@ function selectBulk(yg,dim,val){
 }
 
 function applyBulk(yg,tpId){
+  if(roBlock())return;
   const dims=Object.keys(_bulkSel).filter(d=>_bulkSel[d]!=null);
   if(!dims.length){toast('Select a score for at least one column first');return;}
 
@@ -1453,6 +1468,7 @@ function buildArtProfileAnalysis(yg,pid){
 
 function setProfPupil(yg,cls,pid){ _profYG=yg;_profCls=cls;_profPid=pid;renderProfiles(); }
 function saveProfileField(yg,pid,field,val){
+  if(roBlock())return;
   if(!S.profiles[yg])S.profiles[yg]={};
   if(!S.profiles[yg][pid])S.profiles[yg][pid]={};
   S.profiles[yg][pid][field]=val;
@@ -2154,9 +2170,18 @@ function updateStorageIndicator(){
 }
 annotateSidebarItems();
 initSidebarState();
-load()
-  .then(function(){ return syncAssignedArtClasses(); })
-  .then(function(){updateStorageIndicator();renderHome();});
+if(window.TrackerReadonlyView&&TrackerReadonlyView.isConfigured()){
+  TrackerReadonlyView.boot({
+    state:S,dataType:'art-v2',subjectLabel:'Art & Design BGE tracker',
+    loadOwn:load,syncClasses:syncAssignedArtClasses,
+    afterLoad:function(){migrateLegacyArtScores();},
+    onReady:function(){updateStorageIndicator();renderHome();}
+  });
+}else{
+  load()
+    .then(function(){ return syncAssignedArtClasses(); })
+    .then(function(){updateStorageIndicator();renderHome();});
+}
 </script>
 </body>
 </html>

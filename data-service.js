@@ -156,6 +156,63 @@
       });
     },
 
+    /** School-wide tracking viewers: read another user's pupil_data row (RLS enforced). */
+    getForUser: function(userId, dataType) {
+      return new Promise(function(resolve, reject) {
+        if (!userId || !dataType) {
+          resolve(null);
+          return;
+        }
+        if (!useSupabase()) {
+          resolve(null);
+          return;
+        }
+        getSessionWithRetry().then(function(session) {
+          if (!session) {
+            reject(new Error('Not authenticated'));
+            return;
+          }
+          window.supabase.from('pupil_data')
+            .select('data, user_id')
+            .eq('user_id', userId)
+            .eq('data_type', dataType)
+            .maybeSingle()
+            .then(function(r) {
+              if (r.error) {
+                reject(r.error);
+                return;
+              }
+              if (r.data && r.data.data) {
+                window.supabase.from('audit_log').insert({
+                  actor_id: session.user.id,
+                  actor_email: session.user.email,
+                  action: 'monitoring_viewed_user_tracker',
+                  target_type: 'pupil_data'
+                }).then(function() {});
+              }
+              resolve(r.data && r.data.data ? r.data.data : null);
+            });
+        });
+      });
+    },
+
+    getProfileByUserId: function(userId) {
+      return new Promise(function(resolve) {
+        if (!userId || !useSupabase()) {
+          resolve(null);
+          return;
+        }
+        window.supabase.from('profiles')
+          .select('id, email, display_name')
+          .eq('id', userId)
+          .maybeSingle()
+          .then(function(r) {
+            if (r.error || !r.data) resolve(null);
+            else resolve(r.data);
+          });
+      });
+    },
+
     set: function(dataType, data) {
       return new Promise(function(resolve, reject) {
         if (!useSupabase()) {
