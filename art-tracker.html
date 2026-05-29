@@ -878,9 +878,10 @@ function showModal(title,desc,okLbl,okFn,danger=true){
   document.getElementById('m-title').textContent=title;
   document.getElementById('m-desc').innerHTML=desc;
   const b=document.getElementById('m-ok');b.textContent=okLbl;b.className='btn '+(danger?'btn-danger':'btn-primary');
-  b.onclick=()=>{okFn();closeModal();};
+  b.onclick=()=>{if(okFn()!==false)closeModal();};
   document.getElementById('modal-overlay').classList.add('open');
 }
+function escAttr(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
 function avg(arr){const f=arr.filter(v=>v&&v>0);return f.length?(f.reduce((a,b)=>a+b,0)/f.length):null;}
 function pct(a){return a?((a/4)*100):0;}
 function toggleSidebar(){
@@ -972,6 +973,7 @@ function classCard(yg,cls){
       <div><div class="sc-title">${cls}</div><div class="sc-sub">${pupils.length} pupil${pupils.length!==1?'s':''}</div></div>
       <div style="display:flex;gap:.32rem;flex-wrap:wrap">
         <button class="btn btn-ghost" style="font-size:.61rem;padding:.26rem .58rem" onclick="bulkAdd('${yg}','${cls}')">Bulk Add</button>
+        <button class="btn btn-ghost" style="font-size:.61rem;padding:.26rem .58rem" onclick="renameClass('${yg}',this.closest('.sc').dataset.cls)" title="Rename class">Rename</button>
         ${yg!=='s3'?`<button class="btn btn-ghost" style="font-size:.61rem;padding:.26rem .58rem" onclick="promoteClass('${yg}',this.closest('.sc').dataset.cls)" title="Copy class and pupils to ${yg==='s1'?'S2':'S3'}">Promote</button>`:''}
         <button class="btn btn-ghost" style="font-size:.61rem;padding:.26rem .58rem" onclick="exportForHandover('${yg}',this.closest('.sc').dataset.cls)" title="Download for another teacher">Export</button>
         <button class="btn btn-danger" style="font-size:.61rem;padding:.26rem .58rem" onclick="delClass('${yg}','${cls}')">Delete</button>
@@ -1001,6 +1003,17 @@ function delClass(yg,cls){
     delete S.pupils[yg][cls];save();renderSetup(yg);toast('Class deleted');
   });
 }
+function renameClass(yg,cls){
+  if(!cls)return;
+  showModal(`Rename "${cls}"`,`<label class="form-label">Class name</label><input class="form-input" id="rename-cls-inp" value="${escAttr(cls)}" />`,'Rename',()=>{
+    const inp=document.getElementById('rename-cls-inp');const newCls=(inp?.value||'').trim();
+    if(!newCls){toast('Enter a class name');return false;}
+    if(newCls===cls){toast('Name unchanged');return false;}
+    if(S.pupils[yg][newCls]){toast('A class with that name already exists');return false;}
+    S.pupils[yg][newCls]=S.pupils[yg][cls];delete S.pupils[yg][cls];save();renderSetup(yg);toast(`Renamed to "${newCls}"`);
+  },false);
+  setTimeout(()=>{const inp=document.getElementById('rename-cls-inp');if(inp){inp.focus();inp.select();}},50);
+}
 function addPupil(yg,cls){
   const k=`np-${yg}-${cls.replace(/\s/g,'_')}`;const inp=document.getElementById(k);
   const n=inp.value.trim();if(!n){toast('Enter a name');return;}
@@ -1026,19 +1039,30 @@ function processBulk(){
 }
 
 // ── PROMOTE CLASS (copy to next year, keep data) ──
+function suggestPromotedClassName(cls,yg,nextYg){
+  const toLabel=nextYg.toUpperCase();
+  if(/\bS1\b/i.test(cls)&&nextYg==='s2')return cls.replace(/\bS1\b/gi,toLabel);
+  if(/\bS2\b/i.test(cls)&&nextYg==='s3')return cls.replace(/\bS2\b/gi,toLabel);
+  if(/\bs1\b/i.test(cls)&&nextYg==='s2')return cls.replace(/\bs1\b/gi,nextYg);
+  if(/\bs2\b/i.test(cls)&&nextYg==='s3')return cls.replace(/\bs2\b/gi,nextYg);
+  return S.pupils[nextYg][cls]?cls+' (promoted)':cls;
+}
 function promoteClass(yg,cls){
   if(!cls)return;
   const nextYg=yg==='s1'?'s2':yg==='s2'?'s3':null;
   if(!nextYg){toast('S3 is the highest year group');return;}
   const pupils=S.pupils[yg][cls]||[];
   if(!pupils.length){toast('No pupils to promote');return;}
-  const targetCls=S.pupils[nextYg][cls]?cls+' (promoted)':cls;
-  if(S.pupils[nextYg][targetCls]){toast(`"${targetCls}" already exists in ${nextYg.toUpperCase()}`);return;}
-  showModal(`Promote "${cls}" to ${nextYg.toUpperCase()}?`,`${pupils.length} pupils will be copied to ${nextYg.toUpperCase()} as "${targetCls}". Their ${yg.toUpperCase()} data stays in ${yg.toUpperCase()} for reference. You can continue tracking them in the new year with fresh TP columns.`,'Promote',()=>{
+  const defaultTarget=suggestPromotedClassName(cls,yg,nextYg);
+  showModal(`Promote "${cls}" to ${nextYg.toUpperCase()}?`,`${pupils.length} pupils will be copied to ${nextYg.toUpperCase()}. Their ${yg.toUpperCase()} data stays in ${yg.toUpperCase()} for reference. You can continue tracking them in the new year with fresh TP columns.<br><br><label class="form-label">Class name in ${nextYg.toUpperCase()}</label><input class="form-input" id="promote-cls-inp" value="${escAttr(defaultTarget)}" />`,'Promote',()=>{
+    const inp=document.getElementById('promote-cls-inp');const targetCls=(inp?.value||'').trim();
+    if(!targetCls){toast('Enter a class name');return false;}
+    if(S.pupils[nextYg][targetCls]){toast(`"${targetCls}" already exists in ${nextYg.toUpperCase()}`);return false;}
     const newPupils=pupils.map(p=>({id:uid(),name:p.name}));
     S.pupils[nextYg][targetCls]=newPupils;
     save();renderSetup(yg);nav('setup-'+nextYg);toast(`Promoted to ${nextYg.toUpperCase()} as "${targetCls}"`);
   },false);
+  setTimeout(()=>{const inp=document.getElementById('promote-cls-inp');if(inp){inp.focus();inp.select();}},50);
 }
 
 // ── EXPORT FOR HANDOVER ──
