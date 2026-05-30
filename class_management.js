@@ -13,7 +13,11 @@
     academicYear: '',
     selectedTeacherId: '',
     classes: [],
-    loading: false
+    loading: false,
+    tab: 'roster',
+    trackerRows: [],
+    trackerLoaded: false,
+    wizardRow: null
   };
 
   function $(id) { return document.getElementById(id); }
@@ -468,7 +472,257 @@
     }
   }
 
+  function setTab(tab) {
+    state.tab = tab;
+    var rosterPanel = $('cm-panel-roster');
+    var trackerPanel = $('cm-panel-tracker');
+    var tabRoster = $('cm-tab-roster');
+    var tabTracker = $('cm-tab-tracker');
+    if (tabRoster) tabRoster.classList.toggle('is-active', tab === 'roster');
+    if (tabTracker) tabTracker.classList.toggle('is-active', tab === 'tracker');
+    if (rosterPanel) rosterPanel.classList.toggle('is-active', tab === 'roster');
+    if (trackerPanel) trackerPanel.classList.toggle('is-active', tab === 'tracker');
+    if (tab === 'tracker') loadTrackerClasses();
+  }
+
+  function fillModalYearSelects() {
+    var yearSel = $('cm-year-label');
+    var labels = yearSel ? Array.from(yearSel.options).map(function(o) { return o.value; }) : [currentAcademicYearLabel()];
+    ['cm-transfer-year-roster', 'cm-promote-year-roster'].forEach(function(id) {
+      var sel = $(id);
+      if (!sel) return;
+      sel.innerHTML = labels.map(function(l) {
+        return '<option value="' + escAttr(l) + '">' + escHtml(l) + '</option>';
+      }).join('');
+      if (state.academicYear) sel.value = state.academicYear;
+    });
+  }
+
+  function fillTeacherSelect(selectId, excludeUserId) {
+    var sel = $(selectId);
+    if (!sel) return;
+    sel.innerHTML = '<option value="">Select teacher…</option>' +
+      state.teachers.map(function(t) {
+        if (excludeUserId && t.teacher_id === excludeUserId) return '';
+        var label = (t.display_name || t.email || 'Staff').trim();
+        return '<option value="' + escAttr(t.teacher_id) + '">' + escHtml(label) + '</option>';
+      }).join('');
+  }
+
+  function loadTrackerClasses() {
+    var body = $('cm-trk-body');
+    if (!body) return;
+    if (!window.ClassManagementTracker) {
+      body.innerHTML = '<tr><td colspan="7" class="cm-empty">Tracker module not loaded</td></tr>';
+      return;
+    }
+    body.innerHTML = '<tr><td colspan="7" class="cm-empty">Loading…</td></tr>';
+    ClassManagementTracker.loadStaff().then(function(staff) {
+      state.trackerLoaded = true;
+      var q = ($('cm-trk-search') && $('cm-trk-search').value) || '';
+      var subj = ($('cm-trk-subject') && $('cm-trk-subject').value) || '';
+      var yg = ($('cm-trk-yg') && $('cm-trk-yg').value) || '';
+      state.trackerRows = ClassManagementTracker.buildClassRowsFromStaff(staff, {
+        q: q, subject: subj, yearGroup: yg
+      });
+      renderTrackerTable();
+    }).catch(function(err) {
+      body.innerHTML = '<tr><td colspan="7" class="cm-empty">Could not load: ' + escHtml(err.message || err) + '</td></tr>';
+    });
+  }
+
+  function renderTrackerTable() {
+    var body = $('cm-trk-body');
+    if (!body) return;
+    var rows = state.trackerRows;
+    if (!rows.length) {
+      body.innerHTML = '<tr><td colspan="7" class="cm-empty">No tracker classes match filters.</td></tr>';
+      return;
+    }
+    body.innerHTML = rows.map(function(r, idx) {
+      var dataBadge = r.hasScores
+        ? '<span class="badge badge-success">Scores</span>'
+        : '<span class="badge">Setup only</span>';
+      var subjBadge = r.subject === 'drama' ? 'badge-drama' : 'badge-art';
+      return '<tr class="row-' + r.subject + '">' +
+        '<td><strong>' + escHtml(r.teacherName) + '</strong></td>' +
+        '<td><span class="badge ' + subjBadge + '">' + escHtml(r.subject === 'drama' ? 'Drama' : 'Art') + '</span></td>' +
+        '<td>' + escHtml(r.yearGroup.toUpperCase()) + '</td>' +
+        '<td>' + escHtml(r.className) + '</td>' +
+        '<td>' + r.pupilCount + '</td>' +
+        '<td>' + dataBadge + '</td>' +
+        '<td><div class="cm-tracker-actions">' +
+        '<button type="button" class="btn btn-ghost" data-trk-action="view" data-idx="' + idx + '">View</button>' +
+        '<button type="button" class="btn btn-ghost" data-trk-action="transfer" data-idx="' + idx + '">Transfer</button>' +
+        '<button type="button" class="btn btn-primary" data-trk-action="promote" data-idx="' + idx + '"' +
+        (r.yearGroup === 's3' ? ' disabled title="S3 cannot promote higher"' : '') + '>Promote</button>' +
+        '</div></td></tr>';
+    }).join('');
+
+    body.querySelectorAll('[data-trk-action]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var idx = parseInt(btn.getAttribute('data-idx'), 10);
+        var row = state.trackerRows[idx];
+        if (!row) return;
+        var action = btn.getAttribute('data-trk-action');
+        if (action === 'view') {
+          var page = row.subject === 'drama' ? 'drama-tracker.html' : 'art-tracker.html';
+          var ret = encodeURIComponent(isEmbed ? 'faculty-hub.html?panel=embed-class-management' : 'class_management.html');
+          window.open(page + '?viewAs=' + encodeURIComponent(row.userId) +
+            '&name=' + encodeURIComponent(row.teacherName) + '&return=' + ret, '_blank');
+        } else if (action === 'transfer') {
+          openTransferModal(row);
+        } else if (action === 'promote') {
+          openPromoteModal(row);
+        }
+      });
+    });
+  }
+
+  function openTransferModal(row) {
+    state.wizardRow = row;
+    var modal = $('cm-transfer-modal');
+    var desc = $('cm-transfer-desc');
+    if (desc) {
+      desc.textContent = 'Move “' + row.className + '” (' + row.yearGroup.toUpperCase() + ' ' +
+        (row.subject === 'drama' ? 'Drama' : 'Art') + ', ' + row.pupilCount + ' pupils) from ' +
+        row.teacherName + ' to another teacher. Tracking data is copied like a handover export.';
+    }
+    fillTeacherSelect('cm-transfer-to', row.userId);
+    var clsInp = $('cm-transfer-cls');
+    if (clsInp) clsInp.value = row.className;
+    fillModalYearSelects();
+    if (modal) modal.classList.add('open');
+  }
+
+  function openPromoteModal(row) {
+    state.wizardRow = row;
+    var modal = $('cm-promote-modal');
+    var desc = $('cm-promote-desc');
+    var nextYg = ClassManagementTracker.nextYearGroup(row.yearGroup);
+    if (desc) {
+      desc.textContent = 'Promote “' + row.className + '” from ' + row.yearGroup.toUpperCase() +
+        ' to ' + (nextYg || '').toUpperCase() + ' for a teacher. Prior-year scores can be stored as a snapshot on each pupil profile.';
+    }
+    fillTeacherSelect('cm-promote-to', null);
+    var toSel = $('cm-promote-to');
+    if (toSel) toSel.value = row.userId;
+    var ygSel = $('cm-promote-to-yg');
+    if (ygSel) {
+      ygSel.innerHTML = nextYg
+        ? '<option value="' + nextYg + '">' + nextYg.toUpperCase() + '</option>'
+        : '';
+    }
+    var clsInp = $('cm-promote-cls');
+    if (clsInp && nextYg) {
+      clsInp.value = ClassManagementTracker.suggestPromotedClassName(row.className, row.yearGroup, nextYg, null);
+    }
+    fillModalYearSelects();
+    if (modal) modal.classList.add('open');
+  }
+
+  function closeModal(id) {
+    var m = $(id);
+    if (m) m.classList.remove('open');
+    state.wizardRow = null;
+  }
+
+  function confirmTransfer() {
+    var row = state.wizardRow;
+    if (!row || !window.ClassManagementTracker) return;
+    var toId = ($('cm-transfer-to') && $('cm-transfer-to').value) || '';
+    var targetCls = ($('cm-transfer-cls') && $('cm-transfer-cls').value.trim()) || row.className;
+    var remove = $('cm-transfer-remove') && $('cm-transfer-remove').checked;
+    var syncRoster = $('cm-transfer-roster') && $('cm-transfer-roster').checked;
+    var year = ($('cm-transfer-year-roster') && $('cm-transfer-year-roster').value) || state.academicYear;
+    if (!toId) { toast('Select receiving teacher', 'error'); return; }
+    var btn = $('cm-transfer-confirm');
+    if (btn) btn.disabled = true;
+    ClassManagementTracker.transferClass({
+      fromUserId: row.userId,
+      toUserId: toId,
+      subject: row.subject,
+      yearGroup: row.yearGroup,
+      className: row.className,
+      targetClassName: targetCls,
+      removeFromSource: remove,
+      syncRoster: syncRoster,
+      academicYearLabel: year
+    }).then(function(res) {
+      toast('Transferred ' + res.pupilCount + ' pupils to new teacher', 'success');
+      closeModal('cm-transfer-modal');
+      loadTrackerClasses();
+    }).catch(function(err) {
+      toast('Transfer failed: ' + (err.message || err), 'error');
+    }).finally(function() {
+      if (btn) btn.disabled = false;
+    });
+  }
+
+  function confirmPromote() {
+    var row = state.wizardRow;
+    if (!row || !window.ClassManagementTracker) return;
+    var toId = ($('cm-promote-to') && $('cm-promote-to').value) || row.userId;
+    var toYg = ($('cm-promote-to-yg') && $('cm-promote-to-yg').value) || ClassManagementTracker.nextYearGroup(row.yearGroup);
+    var toCls = ($('cm-promote-cls') && $('cm-promote-cls').value.trim()) || '';
+    var snapshot = $('cm-promote-snapshot') && $('cm-promote-snapshot').checked;
+    var year = ($('cm-promote-year-roster') && $('cm-promote-year-roster').value) || state.academicYear;
+    if (!toYg) { toast('Invalid promote target year', 'error'); return; }
+    var btn = $('cm-promote-confirm');
+    if (btn) btn.disabled = true;
+    ClassManagementTracker.promoteAndAssign({
+      fromUserId: row.userId,
+      toUserId: toId,
+      subject: row.subject,
+      fromYearGroup: row.yearGroup,
+      className: row.className,
+      toYearGroup: toYg,
+      toClassName: toCls,
+      includeSnapshot: snapshot,
+      academicYearLabel: year
+    }).then(function(res) {
+      toast('Promoted ' + res.pupilCount + ' pupils to ' + res.toClassName + ' (' + res.toYearGroup.toUpperCase() + ')', 'success');
+      closeModal('cm-promote-modal');
+      loadTrackerClasses();
+    }).catch(function(err) {
+      toast('Promote failed: ' + (err.message || err), 'error');
+    }).finally(function() {
+      if (btn) btn.disabled = false;
+    });
+  }
+
   function wireEvents() {
+    var tabRoster = $('cm-tab-roster');
+    var tabTracker = $('cm-tab-tracker');
+    if (tabRoster) tabRoster.addEventListener('click', function() { setTab('roster'); });
+    if (tabTracker) tabTracker.addEventListener('click', function() { setTab('tracker'); });
+
+    var trkRefresh = $('cm-trk-refresh');
+    if (trkRefresh) trkRefresh.addEventListener('click', loadTrackerClasses);
+    ['cm-trk-search', 'cm-trk-subject', 'cm-trk-yg'].forEach(function(id) {
+      var el = $(id);
+      if (el) el.addEventListener('change', function() {
+        if (state.tab === 'tracker') loadTrackerClasses();
+      });
+      if (el && id === 'cm-trk-search') {
+        el.addEventListener('input', function() {
+          if (state.trackerLoaded && state.tab === 'tracker') {
+            clearTimeout(wireEvents._searchT);
+            wireEvents._searchT = setTimeout(loadTrackerClasses, 280);
+          }
+        });
+      }
+    });
+
+    var trCancel = $('cm-transfer-cancel');
+    var prCancel = $('cm-promote-cancel');
+    if (trCancel) trCancel.addEventListener('click', function() { closeModal('cm-transfer-modal'); });
+    if (prCancel) prCancel.addEventListener('click', function() { closeModal('cm-promote-modal'); });
+    var trConfirm = $('cm-transfer-confirm');
+    var prConfirm = $('cm-promote-confirm');
+    if (trConfirm) trConfirm.addEventListener('click', confirmTransfer);
+    if (prConfirm) prConfirm.addEventListener('click', confirmPromote);
+
     var teacherSel = $('cm-teacher');
     if (teacherSel) {
       teacherSel.addEventListener('change', function() {
@@ -588,7 +842,7 @@
       wireEvents();
       Promise.all([loadAcademicYears(), loadTeachers()])
         .then(function() {
-          toast('Select a teacher to set up their classes', '');
+          fillModalYearSelects();
         })
         .catch(function(err) {
           toast(err.message || 'Could not load', 'error');

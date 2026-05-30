@@ -196,6 +196,34 @@
       });
     },
 
+    /** School managers: write another user's tracker blob (class transfer / promote). */
+    setForUser: function(userId, dataType, data) {
+      if (!userId || !dataType) {
+        return Promise.reject(new Error('user_id and data_type are required'));
+      }
+      if (!useSupabase()) {
+        return Promise.reject(new Error('Supabase required'));
+      }
+      return ensureSessionForMutations().then(function() {
+        return window.supabase.rpc('admin_upsert_pupil_data_for_user', {
+          p_user_id: userId,
+          p_data_type: dataType,
+          p_data: data || {}
+        }).then(function(r) {
+          if (r.error) throw r.error;
+          return r.data || {};
+        }).catch(function(err) {
+          if (!isMissingRpcError(err)) throw err;
+          return window.supabase.from('pupil_data')
+            .upsert({ user_id: userId, data_type: dataType, data: data || {} }, { onConflict: 'user_id,data_type' })
+            .then(function(fb) {
+              if (fb.error) throw fb.error;
+              return { user_id: userId, data_type: dataType, ok: true };
+            });
+        });
+      });
+    },
+
     getProfileByUserId: function(userId) {
       return new Promise(function(resolve) {
         if (!userId || !useSupabase()) {

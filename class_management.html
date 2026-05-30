@@ -33,10 +33,17 @@
     <header class="cm-top" id="cm-top-header">
       <div>
         <h1>Class Management</h1>
-        <p>Set up Art and Drama classes for a teacher. When they open their tracker and sync, classes appear under <strong>Set Up Classes</strong>.</p>
+        <p>Set up roster classes, or view tracker classes to transfer or promote to another teacher.</p>
       </div>
       <a class="cm-back" id="cm-back-link" href="faculty-hub.html">← Faculty Hub</a>
     </header>
+
+    <nav class="cm-tabs" aria-label="Class management views">
+      <button type="button" class="is-active" id="cm-tab-roster" data-tab="roster">Roster setup</button>
+      <button type="button" id="cm-tab-tracker" data-tab="tracker">Tracker classes &amp; handover</button>
+    </nav>
+
+    <div id="cm-panel-roster" class="cm-panel is-active">
 
     <section class="card cm-picker" aria-label="Teacher and subject">
       <div class="cm-field" style="grid-column:1/-1">
@@ -124,7 +131,128 @@
         <span>Rows are assigned to the teacher selected above</span>
       </label>
     </section>
+
+    </div><!-- /cm-panel-roster -->
+
+    <div id="cm-panel-tracker" class="cm-panel">
+      <section class="card" aria-labelledby="cm-tracker-title">
+        <h2 id="cm-tracker-title" style="margin:0 0 var(--sp-2);font-size:var(--fs-lg)">Classes in Art &amp; Drama trackers</h2>
+        <p style="margin:0 0 var(--sp-4);color:var(--ink-500);font-size:var(--fs-sm)">Live classes from each teacher’s tracker. Transfer a class to another teacher, or promote to the next year (e.g. S1 → S2) with prior-year scores kept as a snapshot on the new teacher’s pupils.</p>
+        <div class="cm-tracker-filters">
+          <div class="cm-field">
+            <label for="cm-trk-search">Search</label>
+            <input type="search" id="cm-trk-search" placeholder="Teacher, class…" />
+          </div>
+          <div class="cm-field">
+            <label for="cm-trk-subject">Subject</label>
+            <select id="cm-trk-subject">
+              <option value="">All</option>
+              <option value="art">Art</option>
+              <option value="drama">Drama</option>
+            </select>
+          </div>
+          <div class="cm-field">
+            <label for="cm-trk-yg">Year</label>
+            <select id="cm-trk-yg">
+              <option value="">All</option>
+              <option value="s1">S1</option>
+              <option value="s2">S2</option>
+              <option value="s3">S3</option>
+            </select>
+          </div>
+          <button type="button" class="btn" id="cm-trk-refresh">Refresh</button>
+        </div>
+        <div class="table-wrap">
+          <table class="table" id="cm-trk-table">
+            <thead>
+              <tr>
+                <th>Teacher</th>
+                <th>Subject</th>
+                <th>Year</th>
+                <th>Class</th>
+                <th>Pupils</th>
+                <th>Data</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="cm-trk-body">
+              <tr><td colspan="7" class="cm-empty">Loading tracker classes…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+
   </main>
+
+  <div class="cm-modal-overlay" id="cm-transfer-modal" role="dialog" aria-modal="true" aria-labelledby="cm-transfer-title">
+    <div class="cm-modal cm-modal-wide">
+      <h3 id="cm-transfer-title">Transfer class to another teacher</h3>
+      <p id="cm-transfer-desc"></p>
+      <div class="cm-form-grid">
+        <div class="cm-field">
+          <label for="cm-transfer-to">Receiving teacher</label>
+          <select id="cm-transfer-to"></select>
+        </div>
+        <div class="cm-field">
+          <label for="cm-transfer-cls">Class name on their tracker</label>
+          <input id="cm-transfer-cls" type="text" />
+        </div>
+        <div class="cm-field">
+          <label for="cm-transfer-year-roster">Roster academic year</label>
+          <select id="cm-transfer-year-roster"></select>
+        </div>
+        <label class="cm-check">
+          <input type="checkbox" id="cm-transfer-remove" checked />
+          <span>Remove class from outgoing teacher’s tracker (recommended)</span>
+        </label>
+        <label class="cm-check">
+          <input type="checkbox" id="cm-transfer-roster" checked />
+          <span>Update cloud roster for receiving teacher</span>
+        </label>
+      </div>
+      <div class="cm-modal-actions">
+        <button type="button" class="btn" id="cm-transfer-cancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="cm-transfer-confirm">Transfer</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="cm-modal-overlay" id="cm-promote-modal" role="dialog" aria-modal="true" aria-labelledby="cm-promote-title">
+    <div class="cm-modal cm-modal-wide">
+      <h3 id="cm-promote-title">Promote &amp; assign</h3>
+      <p id="cm-promote-desc"></p>
+      <div class="cm-form-grid">
+        <div class="cm-field">
+          <label for="cm-promote-to">Teacher for new year</label>
+          <select id="cm-promote-to"></select>
+        </div>
+        <div class="cm-field">
+          <label for="cm-promote-to-yg">Promote to</label>
+          <select id="cm-promote-to-yg">
+            <option value="s2">S2</option>
+            <option value="s3">S3</option>
+          </select>
+        </div>
+        <div class="cm-field">
+          <label for="cm-promote-cls">New class name</label>
+          <input id="cm-promote-cls" type="text" />
+        </div>
+        <div class="cm-field">
+          <label for="cm-promote-year-roster">Roster academic year</label>
+          <select id="cm-promote-year-roster"></select>
+        </div>
+        <label class="cm-check">
+          <input type="checkbox" id="cm-promote-snapshot" checked />
+          <span>Attach prior-year scores as read-only snapshot on each pupil (recommended)</span>
+        </label>
+      </div>
+      <div class="cm-modal-actions">
+        <button type="button" class="btn" id="cm-promote-cancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="cm-promote-confirm">Promote &amp; assign</button>
+      </div>
+    </div>
+  </div>
 
   <div class="cm-modal-overlay" id="cm-paste-modal" role="dialog" aria-modal="true" aria-labelledby="cm-paste-title">
     <div class="cm-modal">
@@ -140,6 +268,7 @@
 
   <div class="cm-toast" id="cm-toast" role="status" aria-live="polite"></div>
 
+  <script src="class_management_tracker.js"></script>
   <script src="class_management.js"></script>
 </body>
 </html>

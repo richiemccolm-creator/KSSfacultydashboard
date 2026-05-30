@@ -1563,6 +1563,28 @@ function saveProfileField(yg,pid,field,val){
   save();
 }
 
+function profileTrackingHistoryHtml(prof){
+  const hist=prof.trackingHistory;
+  if(!hist||typeof hist!=='object')return '';
+  return Object.keys(hist).sort().map(fromYg=>{
+    const h=hist[fromYg];
+    if(!h||!h.scores||typeof h.scores!=='object')return '';
+    const tps=TPS[fromYg]||[];
+    const rows=tps.map(tp=>{
+      const s=h.scores[tp.id]||{};
+      const a=avg([s.creating,s.presenting,s.evaluating,s.progress,s.development,s.expression,s.effort,s.behaviour,s.homelearning].filter(v=>v>0));
+      if(a==null)return '';
+      return `<tr><td style="font-size:.72rem">${tp.label}</td><td style="font-size:.72rem;color:var(--text2)">${tp.unit||''}</td><td style="font-family:monospace;font-weight:600">${a.toFixed(1)}</td></tr>`;
+    }).filter(Boolean).join('');
+    if(!rows)return '';
+    return `<div class="profile-section" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.85rem 1rem;margin:0 0 1rem">
+      <div class="profile-section-title">${fromYg.toUpperCase()} snapshot (read-only)${h.className?' — '+h.className:''}</div>
+      <p style="font-size:.72rem;color:var(--text3);margin:0 0 .5rem">Prior-year tracking from class handover or promotion. Use the current year tracker for new scores.</p>
+      <table class="tbl" style="font-size:.75rem"><thead><tr><th>TP</th><th>Unit</th><th>Avg</th></tr></thead><tbody>${rows}</tbody></table>
+    </div>`;
+  }).join('');
+}
+
 function renderProfiles(){
   const body=document.getElementById('profiles-body');
   const classes=Object.keys(S.pupils[_profYG]||{}).sort();
@@ -1623,6 +1645,7 @@ function renderProfiles(){
         <div><div class="profile-name">${pupil.name}</div><div class="profile-meta">${pupil.cls} · ${_profYG.toUpperCase()} Drama</div></div>
         <button class="profile-print-btn no-print" onclick="window.print()" title="Print or Save as PDF to email"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print / Save PDF</button>
       </div>
+      ${profileTrackingHistoryHtml(prof)}
       <div class="profile-body">
         <div class="profile-section">
           <div class="profile-section-title">Achievement badges</div>
