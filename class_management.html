@@ -1,86 +1,145 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Class Management</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Class Management · Faculty Hub</title>
+  <link rel="icon" type="image/png" href="faculty-hub-logo.png">
+  <link rel="preconnect" href="https://api.fontshare.com" crossorigin>
+  <link href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="design-tokens.css">
+  <link rel="stylesheet" href="class_management.css">
   <script src="app-version.js"></script>
-  <script>
-    (function() {
-      if (window.ensureAppVersionInUrl) window.ensureAppVersionInUrl();
-    })();
-  </script>
-
-  <link rel="stylesheet" href="design-tokens.css" />
-  <link rel="stylesheet" href="faculty-shell.css" />
-  <link rel="stylesheet" href="class_management.css" />
-
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-
+  <script>if (window.ensureAppVersionInUrl) window.ensureAppVersionInUrl();</script>
   <script src="config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="supabase-init.js"></script>
   <script src="allowlist-check.js"></script>
   <script src="data-service.js"></script>
   <script src="auth-guard.js"></script>
-  <script src="faculty-shell.js"></script>
-  <script type="module" src="class_management.js"></script>
 </head>
 <body>
-  <faculty-shell active="class-management" page-title="Class Management" subtitle="Upload, preview and manage classes">
-    <main class="cm-app">
-      <section class="cm-top">
-        <div>
-          <h1>Class Management</h1>
-          <p>Upload CSV/XLSX class lists, validate staff routing, and apply append-only imports.</p>
-        </div>
-        <div class="cm-actions">
-          <button id="download-template-csv" class="btn btn-secondary">Download CSV Template</button>
-          <button id="download-template-xlsx" class="btn">Download XLSX Template</button>
-          <button id="open-manual-add" class="btn btn-outline">Add Class Manually</button>
-        </div>
-      </section>
+  <div id="cm-denied" class="cm-denied card" style="display:none;max-width:480px;margin:2rem auto">
+    <p><strong>Access restricted</strong></p>
+    <p>Class Management is for faculty heads and school managers.</p>
+    <p style="margin-top:1rem"><a href="faculty-hub.html">← Faculty Hub</a></p>
+  </div>
 
-      <section class="card cm-import">
-        <h3>Bulk Import</h3>
-        <div class="cm-drop">
-          <p>Drag and drop or choose a CSV/XLSX file (max 5MB)</p>
-          <input id="bulk-file" type="file" accept=".csv,.xlsx,.xls" />
-          <p class="cm-meta">Import mode is append-only; nothing is deleted.</p>
-          <p id="bulk-error" class="cm-error" role="alert"></p>
-        </div>
-      </section>
+  <main id="cm-app" class="cm-page" style="display:none">
+    <header class="cm-top" id="cm-top-header">
+      <div>
+        <h1>Class Management</h1>
+        <p>Set up Art and Drama classes for a teacher. When they open their tracker and sync, classes appear under <strong>Set Up Classes</strong>.</p>
+      </div>
+      <a class="cm-back" id="cm-back-link" href="faculty-hub.html">← Faculty Hub</a>
+    </header>
 
-      <section class="card">
-        <h3>Current Classes</h3>
-        <div class="cm-filterbar">
-          <input id="class-search" placeholder="Search class, teacher, subject" />
-          <select id="subject-filter">
-            <option value="">All subjects</option>
-            <option value="art">Art</option>
-            <option value="drama">Drama</option>
-            <option value="photography">Photography</option>
+    <section class="card cm-picker" aria-label="Teacher and subject">
+      <div class="cm-field" style="grid-column:1/-1">
+        <label for="cm-teacher">Teacher</label>
+        <select id="cm-teacher" aria-label="Select teacher">
+          <option value="">Loading staff…</option>
+        </select>
+      </div>
+      <div class="cm-field">
+        <label>Subject</label>
+        <div class="cm-subject-toggle" role="group" aria-label="Subject">
+          <button type="button" class="btn btn-art is-active" id="cm-subj-art" data-subject="art">Art</button>
+          <button type="button" class="btn btn-drama" id="cm-subj-drama" data-subject="drama">Drama</button>
+        </div>
+      </div>
+      <div class="cm-field">
+        <label for="cm-year-label">Academic year</label>
+        <select id="cm-year-label" aria-label="Academic year"></select>
+      </div>
+      <div class="cm-field" id="cm-tracker-link-wrap" style="display:none">
+        <label>Preview</label>
+        <a class="btn btn-ghost" id="cm-tracker-link" href="#" target="_blank" rel="noopener">View tracker (read-only)</a>
+      </div>
+    </section>
+
+    <section class="card" style="margin-top:var(--sp-4)" aria-labelledby="cm-roster-title">
+      <div class="cm-roster-head">
+        <h2 id="cm-roster-title">Classes for this teacher</h2>
+        <span class="badge" id="cm-class-count">0 classes</span>
+      </div>
+
+      <div class="cm-add-row">
+        <div class="cm-field">
+          <label for="cm-add-year">Year</label>
+          <select id="cm-add-year">
+            <option value="1">S1</option>
+            <option value="2">S2</option>
+            <option value="3">S3</option>
           </select>
-          <button id="refresh-classes" class="btn btn-outline">Refresh</button>
         </div>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Class</th>
-                <th>Code</th>
-                <th>Year</th>
-                <th>Subject</th>
-                <th>Teacher</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody id="classes-tbody"></tbody>
-          </table>
+        <div class="cm-field">
+          <label for="cm-add-code">Class code</label>
+          <input id="cm-add-code" type="text" placeholder="e.g. 1A1" autocomplete="off" />
         </div>
-      </section>
-    </main>
-  </faculty-shell>
+        <div class="cm-field">
+          <label for="cm-add-name">Display name</label>
+          <input id="cm-add-name" type="text" placeholder="Same as code if blank" autocomplete="off" />
+        </div>
+        <button type="button" class="btn btn-primary cm-add-btn" id="cm-add-btn">+ Add</button>
+      </div>
+
+      <div class="cm-actions-bar">
+        <button type="button" class="btn" id="cm-paste-btn">Paste list</button>
+        <button type="button" class="btn btn-primary" id="cm-save-btn">Save for this teacher</button>
+      </div>
+      <p class="cm-hint">Saving replaces this teacher’s <span id="cm-subject-label">Art</span> class list for the selected academic year. Teachers see new classes after opening their tracker (cloud sync).</p>
+
+      <div class="table-wrap" style="margin-top:var(--sp-4)">
+        <table class="table" id="cm-table">
+          <thead>
+            <tr>
+              <th>Year</th>
+              <th>Class code</th>
+              <th>Name</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="cm-table-body">
+            <tr><td colspan="4" class="cm-empty">Select a teacher to view or add classes.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card cm-upload" aria-labelledby="cm-upload-title">
+      <h2 id="cm-upload-title" style="margin:0 0 var(--sp-2);font-size:var(--fs-lg)">Optional: upload spreadsheet</h2>
+      <p style="margin:0 0 var(--sp-4);color:var(--ink-500);font-size:var(--fs-sm)">CSV or XLSX with columns <code>year_level</code>, <code>class_code</code>, <code>class_name</code>. Add <code>pupil_name</code> to enrol pupils. Subject column optional if rows match the selected subject.</p>
+      <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;margin-bottom:var(--sp-3)">
+        <button type="button" class="btn" id="cm-template-csv">Template (CSV)</button>
+        <button type="button" class="btn" id="cm-template-xlsx">Template (XLSX)</button>
+      </div>
+      <label class="cm-drop" id="cm-drop">
+        <input type="file" id="cm-file" accept=".csv,.xlsx,.xls" hidden />
+        <strong>Drop file here or browse</strong>
+        <span>Rows are assigned to the teacher selected above</span>
+      </label>
+    </section>
+  </main>
+
+  <div class="cm-modal-overlay" id="cm-paste-modal" role="dialog" aria-modal="true" aria-labelledby="cm-paste-title">
+    <div class="cm-modal">
+      <h3 id="cm-paste-title">Paste class list</h3>
+      <p>One class per line, e.g. <code>S1 1A1</code> or <code>1A1</code> (uses S1 if year omitted).</p>
+      <textarea id="cm-paste-text" placeholder="S1 1A1&#10;S1 1A2&#10;S2 2B1"></textarea>
+      <div class="cm-modal-actions">
+        <button type="button" class="btn" id="cm-paste-cancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="cm-paste-apply">Add to list</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="cm-toast" id="cm-toast" role="status" aria-live="polite"></div>
+
+  <script src="class_management.js"></script>
 </body>
 </html>
