@@ -13,14 +13,15 @@ LANGS = ("ar", "fa", "zh", "ur", "pl")
 
 
 def extract_defaults(html: str) -> dict[str, str]:
+    body = html.split("<script", 1)[0]
     defaults: dict[str, str] = {}
-    for m in re.finditer(r'data-i18n="([^"]+)"[^>]*>(.*?)</', html, re.DOTALL):
+    for m in re.finditer(r'data-i18n="([^"]+)"[^>]*>(.*?)</', body, re.DOTALL):
         key, raw = m.group(1), m.group(2).strip()
         if key.startswith("<") or not key:
             continue
         if key not in defaults:
             defaults[key] = raw
-    for m in re.finditer(r'data-i18n-html="([^"]+)"[^>]*>(.*?)</', html, re.DOTALL):
+    for m in re.finditer(r'data-i18n-html="([^"]+)"[^>]*>(.*?)</', body, re.DOTALL):
         key, raw = m.group(1), m.group(2).strip()
         if key not in defaults:
             defaults[key] = raw

@@ -12,6 +12,8 @@
  * Regenerate unit 01 translations: python3 scripts/generate-unit01-i18n.py
  *
  * Shared features: fullscreen (F key), language bar (top), double-click deck.
+ * Lesson timing: plan for 50-minute periods (Connect 5 · Explore 10 · Create 20 · Share 10 · Reflect 5).
+ * Navigation: Previous undoes reveals first; ← / Backspace / Page Up go back.
  * Template: drama-slides-unit01_1.html
  */
 window.DRAMA_CURRICULUM = {

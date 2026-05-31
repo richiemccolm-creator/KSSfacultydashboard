@@ -122,7 +122,21 @@
     isFullscreen: isFullscreen,
     enterFullscreen: enterFullscreen,
     exitFullscreen: exitFullscreen,
-    toggleFullscreen: toggleFullscreen
+    toggleFullscreen: toggleFullscreen,
+    /** Undo last reveal on current slide, or null if at start. */
+    undoReveal: function (state, getSlide) {
+      if (!state || state.currentReveal <= 0) return false;
+      var slide = getSlide(state.currentSlide);
+      if (!slide) return false;
+      var items = slide.querySelectorAll('.reveal-item');
+      state.currentReveal -= 1;
+      if (items[state.currentReveal]) items[state.currentReveal].classList.remove('revealed');
+      return true;
+    },
+    /** True when Previous should be disabled. */
+    isPrevDisabled: function (state) {
+      return state.currentSlide === 1 && state.currentReveal === 0;
+    }
   };
 
   if (d.readyState === 'loading') d.addEventListener('DOMContentLoaded', init);
