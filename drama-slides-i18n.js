@@ -93,9 +93,22 @@
   function deckTranslation(key, lang) {
     var packs = w.DRAMA_SLIDE_TRANSLATIONS;
     if (!packs) return '';
-    var pack = packs[lang] || packs.en;
-    if (!pack || !pack.t) return '';
-    return pack.t[key];
+    var enPack = (packs.en && packs.en.t) || {};
+    if (lang === 'en') return enPack[key];
+    var pack = packs[lang];
+    var langPack = (pack && pack.t) || {};
+    if (langPack[key] !== undefined && langPack[key] !== null && langPack[key] !== '') {
+      return langPack[key];
+    }
+    return enPack[key];
+  }
+
+  function deckDir(lang) {
+    var packs = w.DRAMA_SLIDE_TRANSLATIONS;
+    if (!packs) return '';
+    var pack = packs[lang];
+    if (pack && pack.dir) return pack.dir;
+    return langMeta(lang).dir || 'ltr';
   }
 
   function t(key, vars) {
@@ -153,10 +166,11 @@
     try { w.localStorage.setItem(STORAGE_KEY, currentLang); } catch (e) {}
 
     var meta = langMeta(currentLang);
+    var dir = deckDir(currentLang) || meta.dir || 'ltr';
     d.documentElement.lang = currentLang === 'zh' ? 'zh-Hans' : currentLang;
-    d.documentElement.dir = meta.dir || 'ltr';
-    d.body.classList.toggle('slides-rtl', meta.dir === 'rtl');
-    d.body.classList.toggle('rtl', meta.dir === 'rtl');
+    d.documentElement.dir = dir;
+    d.body.classList.toggle('slides-rtl', dir === 'rtl');
+    d.body.classList.toggle('rtl', dir === 'rtl');
 
     d.querySelectorAll('[data-i18n]').forEach(function (el) {
       var key = el.getAttribute('data-i18n');
@@ -262,13 +276,22 @@
     applyLanguage(readStoredLang());
   }
 
+  /** Re-apply after inline deck translations load (drama-u*.html). */
+  function refresh() {
+    cacheDefaults();
+    applyLanguage(currentLang || readStoredLang());
+  }
+
   w.DramaSlidesI18n = {
     init: init,
+    refresh: refresh,
     t: t,
     apply: applyLanguage,
     getLang: function () { return currentLang; },
     languages: LANGUAGES
   };
+
+  if (w.DRAMA_SLIDE_DEFER_I18N) return;
 
   if (d.readyState === 'loading') d.addEventListener('DOMContentLoaded', init);
   else init();
