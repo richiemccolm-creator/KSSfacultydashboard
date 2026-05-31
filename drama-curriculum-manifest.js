@@ -1,6 +1,18 @@
 /**
  * Drama lesson slides — units, lessons, and slide file paths.
  * Single source of truth for drama-homepage.html and future slide decks.
+ *
+ * New slide HTML files (drama-slides-*.html) must include in <head>:
+ *   drama-slides-core.css, drama-slides-i18n.css
+ *   drama-slides-core.js, drama-slides-i18n.js
+ *   drama-slides-{deck-id}.i18n.js  (per-deck translations)
+ *
+ * Mark every user-facing string with data-i18n="key" (or data-i18n-html for HTML).
+ * English stays in the HTML; add ar/fa/zh/ur/pl to the deck .i18n.js file.
+ * Regenerate unit 01 translations: python3 scripts/generate-unit01-i18n.py
+ *
+ * Shared features: fullscreen (F key), language bar (top), double-click deck.
+ * Template: drama-slides-unit01_1.html
  */
 window.DRAMA_CURRICULUM = {
   units: {
