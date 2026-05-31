@@ -71,21 +71,25 @@
   }
 
   function createButton() {
-    var nav = d.getElementById('nav-controls');
-    if (!nav || d.getElementById('btn-fullscreen') || !isSupported()) return;
+    if (d.getElementById('btn-fullscreen') || d.getElementById('nb-fullscreen') || !isSupported()) {
+      return;
+    }
+
+    var nav = d.getElementById('nav-controls') || d.getElementById('nav');
+    if (!nav) return;
 
     btn = d.createElement('button');
     btn.type = 'button';
-    btn.className = 'nav-btn nav-btn-fullscreen';
-    btn.id = 'btn-fullscreen';
+    btn.id = nav.id === 'nav' ? 'nb-fullscreen' : 'btn-fullscreen';
+    btn.className = nav.id === 'nav' ? 'nb nb-fullscreen' : 'nav-btn nav-btn-fullscreen';
     btn.setAttribute('aria-label', 'Toggle fullscreen');
     btn.addEventListener('click', function (e) {
       e.preventDefault();
       toggleFullscreen().catch(function () {});
     });
 
-    var nextBtn = d.getElementById('btn-next');
-    if (nextBtn) nav.insertBefore(btn, nextBtn);
+    var nextBtn = d.getElementById('btn-next') || d.getElementById('bnext');
+    if (nextBtn && nextBtn.parentNode === nav) nav.insertBefore(btn, nextBtn);
     else nav.appendChild(btn);
 
     updateButton();
@@ -101,7 +105,7 @@
   }
 
   function onDeckDblClick(e) {
-    if (e.target.closest('#nav-controls')) return;
+    if (e.target.closest('#nav-controls') || e.target.closest('#nav')) return;
     toggleFullscreen().catch(function () {});
   }
 
@@ -126,11 +130,14 @@
     /** Undo last reveal on current slide, or null if at start. */
     undoReveal: function (state, getSlide) {
       if (!state || state.currentReveal <= 0) return false;
-      var slide = getSlide(state.currentSlide);
-      if (!slide) return false;
-      var items = slide.querySelectorAll('.reveal-item');
+      var slideEl = getSlide(state.currentSlide);
+      if (!slideEl) return false;
+      var items = slideEl.querySelectorAll('.reveal-item, .rv');
       state.currentReveal -= 1;
-      if (items[state.currentReveal]) items[state.currentReveal].classList.remove('revealed');
+      if (items[state.currentReveal]) {
+        items[state.currentReveal].classList.remove('revealed');
+        items[state.currentReveal].classList.remove('on');
+      }
       return true;
     },
     /** True when Previous should be disabled. */

@@ -90,11 +90,21 @@
     });
   }
 
+  function deckTranslation(key, lang) {
+    var packs = w.DRAMA_SLIDE_TRANSLATIONS;
+    if (!packs) return '';
+    var pack = packs[lang] || packs.en;
+    if (!pack || !pack.t) return '';
+    return pack.t[key];
+  }
+
   function t(key, vars) {
     if (currentLang === 'en') {
       if (defaults[key]) return interpolate(defaults[key], vars);
       return '';
     }
+    var fromDeck = deckTranslation(key, currentLang);
+    if (fromDeck) return interpolate(fromDeck, vars);
     var strings = allStrings();
     var entry = strings[key];
     if (!entry) return defaults[key] ? interpolate(defaults[key], vars) : '';
@@ -112,6 +122,12 @@
     d.querySelectorAll('[data-i18n-html]').forEach(function (el) {
       var key = el.getAttribute('data-i18n-html');
       if (key && !defaults[key]) defaults[key] = el.innerHTML;
+    });
+    d.querySelectorAll('[data-t]').forEach(function (el) {
+      var key = el.getAttribute('data-t');
+      if (key && !defaults[key]) {
+        defaults[key] = el.children.length ? el.innerHTML : el.textContent;
+      }
     });
     var uiDefaults = {
       'ui.nav.back': '← Back to Drama Hub',
@@ -140,6 +156,7 @@
     d.documentElement.lang = currentLang === 'zh' ? 'zh-Hans' : currentLang;
     d.documentElement.dir = meta.dir || 'ltr';
     d.body.classList.toggle('slides-rtl', meta.dir === 'rtl');
+    d.body.classList.toggle('rtl', meta.dir === 'rtl');
 
     d.querySelectorAll('[data-i18n]').forEach(function (el) {
       var key = el.getAttribute('data-i18n');
@@ -160,6 +177,17 @@
       } else {
         var html = t(key);
         if (html) el.innerHTML = html;
+      }
+    });
+
+    d.querySelectorAll('[data-t]').forEach(function (el) {
+      var key = el.getAttribute('data-t');
+      if (!key) return;
+      if (currentLang === 'en') {
+        setElementText(el, defaults[key] || el.textContent);
+      } else {
+        var translated = t(key);
+        if (translated) setElementText(el, translated);
       }
     });
 
@@ -208,8 +236,13 @@
 
     var deck = d.getElementById('deck');
     var viewport = deck.querySelector('.slide-viewport');
-    if (viewport) deck.insertBefore(bar, viewport);
-    else deck.insertBefore(bar, deck.firstChild);
+    if (viewport) {
+      deck.insertBefore(bar, viewport);
+    } else if (deck.parentNode) {
+      deck.parentNode.insertBefore(bar, deck);
+    } else {
+      deck.insertBefore(bar, deck.firstChild);
+    }
 
     defaults['ui.lang.label'] = 'Language';
     UI_STRINGS['ui.lang.label'].en = 'Language';

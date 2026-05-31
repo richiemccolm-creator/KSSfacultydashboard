@@ -2,10 +2,10 @@
  * Drama lesson slides — units, lessons, and slide file paths.
  * Single source of truth for drama-homepage.html and future slide decks.
  *
- * New slide HTML files (drama-slides-*.html) must include in <head>:
- *   drama-slides-core.css, drama-slides-i18n.css
- *   drama-slides-core.js, drama-slides-i18n.js
- *   drama-slides-{deck-id}.i18n.js  (per-deck translations)
+ * New slide HTML files (drama-slides-*.html, drama-u*.html) must include:
+ *   drama-slides-core.css, drama-slides-i18n.css, drama-slides-compat.css (legacy u decks)
+ *   drama-slides-core.js, drama-slides-i18n.js, drama-slides-deck.js (legacy u decks)
+ *   drama-slides-{deck-id}.i18n.js  (per-deck translations for drama-slides-* format)
  *
  * Mark every user-facing string with data-i18n="key" (or data-i18n-html for HTML).
  * English stays in the HTML; add ar/fa/zh/ur/pl to the deck .i18n.js file.
@@ -30,8 +30,20 @@ window.DRAMA_CURRICULUM = {
       lessons: [
         {
           id: '1',
-          title: 'Building Confidence in Group Work',
-          slides: 'drama-slides-unit01_1.html',
+          title: 'Welcome to Drama',
+          slides: 'drama-u01-l01.html',
+          status: 'ready'
+        },
+        {
+          id: '2',
+          title: 'Group Work & Trust',
+          slides: 'drama-u01-l02.html',
+          status: 'ready'
+        },
+        {
+          id: '3',
+          title: 'Freeze Frames',
+          slides: 'drama-u01-l03.html',
           status: 'ready'
         }
       ]
@@ -45,7 +57,20 @@ window.DRAMA_CURRICULUM = {
       colour: '#F97316',
       gradEnd: '#FBA04A',
       desc: 'Communicate meaning without words using physical performance.',
-      lessons: []
+      lessons: [
+        {
+          id: '1',
+          title: 'What is Mime?',
+          slides: 'drama-u02-l01.html',
+          status: 'ready'
+        },
+        {
+          id: '2',
+          title: 'Mime Skills Practice',
+          slides: 'drama-u02-l02.html',
+          status: 'ready'
+        }
+      ]
     },
     '03': {
       id: '03',

@@ -1,0 +1,1115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Drama · S1 · Unit 01 · Lesson 3 — Freeze Frames</title>
+<style>
+/* ── TOKENS — Lesson 3 identity: Blue #2563EB ─── */
+:root {
+  font-family: Aptos,"Aptos Display","Segoe UI",system-ui,-apple-system,sans-serif;
+  --bg:#F7F9FC; --surface:#fff; --ink:#111827; --muted:#64748B; --border:#E5E7EB;
+  --u:#2563EB; --ul:#EFF6FF; --um:rgba(37,99,235,.13);
+  --coral:#FF3B30; --purple:#6D28D9; --cyan:#06B6D4;
+  --amber:#F59E0B; --green:#22C55E;
+  --r-sm:10px; --r-md:16px; --r-lg:24px; --r-xl:32px;
+  --sh-sm:0 2px 8px rgba(15,23,42,.06);
+  --sh-md:0 8px 24px rgba(15,23,42,.09);
+  --sh-lg:0 16px 40px rgba(15,23,42,.12);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;background:#1a1a2e}
+
+/* ── LANG BAR ───────────────────────────────── */
+#lbar{position:fixed;inset:0 0 auto 0;height:36px;background:#0F172A;border-bottom:1px solid rgba(255,255,255,.07);display:flex;align-items:center;padding:0 14px;gap:5px;z-index:300;}
+.lb-lbl{font-size:9.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.32);margin-right:4px;white-space:nowrap;}
+.lbtn{padding:3px 9px;border-radius:20px;border:1px solid rgba(255,255,255,.1);background:transparent;color:rgba(255,255,255,.5);font-size:11.5px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit;white-space:nowrap;}
+.lbtn:hover{background:rgba(255,255,255,.1);color:#fff}
+.lbtn.on{background:var(--u);border-color:var(--u);color:#fff}
+.lb-rtl{margin-left:auto;font-size:9.5px;color:rgba(255,255,255,.28);display:none;white-space:nowrap;}
+body.rtl .lb-rtl{display:block}
+
+/* ── DECK ───────────────────────────────────── */
+#deck{position:fixed;top:36px;bottom:44px;inset-inline:0;display:flex;align-items:center;justify-content:center;}
+.vp{position:relative;width:min(100%,calc((100vh - 80px)*16/9));height:min(100%,calc(100vw * 9/16));container-type:inline-size;overflow:hidden;}
+
+/* ── SLIDE BASE ─────────────────────────────── */
+.slide{position:absolute;inset:0;background:var(--bg);display:flex;flex-direction:column;opacity:0;pointer-events:none;transform:translateX(22px);transition:opacity .34s ease,transform .34s cubic-bezier(.4,0,.2,1);overflow:hidden;}
+.slide.active{opacity:1;pointer-events:all;transform:none}
+.slide.exit{opacity:0;transform:translateX(-22px);pointer-events:none}
+body.rtl .slide-body{direction:rtl;text-align:right}
+body.rtl .blist li::before{margin-right:0;margin-left:.55em}
+body.rtl .sn,.step-n,.in-n{margin-right:0;margin-left:.65em}
+
+/* ── HEADER ─────────────────────────────────── */
+.sh{display:flex;align-items:center;gap:.55em;height:7%;background:var(--surface);border-bottom:1px solid var(--border);flex-shrink:0;padding:0 2.2%;z-index:10;}
+.sh-mid{flex:1;display:flex;justify-content:center;}
+.sh-r{display:flex;align-items:center;gap:.55em;}
+.ubadge{display:inline-flex;align-items:center;padding:.2em .72em;border-radius:30px;background:var(--coral);color:#fff;font-size:1cqi;font-weight:700;letter-spacing:.05em;white-space:nowrap;}
+.lbadge{display:inline-flex;align-items:center;padding:.2em .68em;border-radius:30px;border:1.5px solid var(--u);color:var(--u);font-size:1cqi;font-weight:700;white-space:nowrap;}
+.ph-ind{font-size:.9cqi;font-weight:700;color:var(--muted);white-space:nowrap;}
+.sh-title{font-size:1cqi;font-weight:600;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sh-count{font-size:.92cqi;font-weight:600;color:var(--muted);font-variant-numeric:tabular-nums;white-space:nowrap;}
+
+/* ── FOOTER ─────────────────────────────────── */
+.sf{height:3.5%;background:var(--surface);border-top:1px solid var(--border);flex-shrink:0;overflow:hidden;}
+.pt{height:100%;background:var(--border);}
+.pf{height:100%;background:var(--u);transition:width .4s ease;}
+
+/* ── BODY + DECO ────────────────────────────── */
+.slide-body{flex:1;position:relative;overflow:hidden;display:flex;flex-direction:column;}
+.blob{position:absolute;border-radius:50%;pointer-events:none;animation:ba 14s ease-in-out infinite;}
+.ba{width:28%;height:28%;background:radial-gradient(circle,var(--u),transparent 65%);opacity:.09;top:-8%;right:-3%;animation-duration:13s;}
+.bb{width:18%;height:18%;background:radial-gradient(circle,var(--coral),transparent 65%);opacity:.06;bottom:4%;left:-2%;animation-duration:11s;animation-delay:-5s;}
+.bc{width:13%;height:13%;background:radial-gradient(circle,var(--purple),transparent 65%);opacity:.09;bottom:14%;right:5%;animation-duration:16s;animation-delay:-8s;}
+@keyframes ba{0%,100%{transform:translate(0,0)scale(1)}33%{transform:translate(13px,-10px)scale(1.04)}66%{transform:translate(-7px,6px)scale(.97)}}
+.dots{position:absolute;inset:0;background-image:radial-gradient(circle,rgba(15,23,42,.042) 1.2px,transparent 1.2px);background-size:2.6% 2.6%;pointer-events:none;}
+
+/* ── REVEALS ────────────────────────────────── */
+.rv{opacity:0;transform:translateY(10px)scale(.97);transition:opacity .38s ease,transform .38s cubic-bezier(.2,.9,.2,1.1);}
+.rv.on{opacity:1;transform:none}
+.rv:nth-child(1){transition-delay:0s}.rv:nth-child(2){transition-delay:.07s}
+.rv:nth-child(3){transition-delay:.14s}.rv:nth-child(4){transition-delay:.21s}
+.rv:nth-child(5){transition-delay:.28s}.rv:nth-child(6){transition-delay:.35s}
+.rv:nth-child(7){transition-delay:.42s}.rv:nth-child(8){transition-delay:.49s}
+
+/* ── CARDS ──────────────────────────────────── */
+.card{background:rgba(255,255,255,.93);border:1px solid rgba(15,23,42,.07);border-radius:var(--r-lg);box-shadow:var(--sh-md);}
+.card-sm{background:#fff;border:1px solid var(--border);border-radius:var(--r-md);box-shadow:var(--sh-sm);}
+
+/* ── CHIPS ──────────────────────────────────── */
+.chip{display:inline-flex;align-items:center;gap:.35em;padding:.25em .72em;border-radius:30px;font-size:1cqi;font-weight:700;letter-spacing:.04em;}
+.ch-r{background:rgba(255,59,48,.12);color:#CC2D24}
+.ch-p{background:rgba(109,40,217,.12);color:#5B21B6}
+.ch-b{background:rgba(37,99,235,.12);color:#1D4ED8}
+.ch-c{background:rgba(6,182,212,.12);color:#0E7490}
+.ch-y{background:rgba(245,158,11,.15);color:#92400E}
+.ch-g{background:rgba(34,197,94,.13);color:#15803D}
+
+/* ── HELPERS ────────────────────────────────── */
+.clbl{font-size:.8cqi;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--u);margin-bottom:.35em;}
+.blist{list-style:none;display:flex;flex-direction:column;gap:.55em;}
+.blist li{display:flex;align-items:flex-start;gap:.52em;font-size:1cqi;color:var(--ink);line-height:1.35;font-weight:500;}
+.blist li::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--u);flex-shrink:0;margin-top:.42em;}
+.vchip{padding:.2em .62em;background:var(--um);color:var(--u);border-radius:6px;font-size:.88cqi;font-weight:600;}
+.echip{padding:.2em .62em;background:rgba(37,99,235,.1);color:#1D4ED8;border-radius:6px;font-size:.82cqi;font-weight:700;font-family:'Courier New',monospace;}
+.chip-row{display:flex;flex-wrap:wrap;gap:.42em;}
+.sn{width:24px;height:24px;border-radius:50%;background:var(--u);color:#fff;font-size:.82cqi;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.in-n{width:24px;height:24px;border-radius:50%;background:var(--u);color:#fff;font-size:.8cqi;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+
+/* ════════════════════════════════════════════
+   S1 — LESSON 3 HEADER
+════════════════════════════════════════════ */
+.lh{flex:1;display:grid;grid-template-columns:44% 1fr;overflow:hidden;}
+.lhl{background:linear-gradient(150deg,#1D4ED8 0%,#1E40AF 58%,#1e3a8a 100%);display:flex;flex-direction:column;justify-content:center;padding:5% 6%;position:relative;overflow:hidden;}
+.lh-d1{position:absolute;width:55%;height:55%;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.14),transparent 65%);top:-18%;right:-12%;animation:ba 11s ease-in-out infinite;}
+.lh-d2{position:absolute;width:28%;height:28%;border-radius:50%;background:radial-gradient(circle,rgba(6,182,212,.4),transparent 65%);bottom:-6%;left:-6%;animation:ba 9s ease-in-out infinite;animation-delay:-4s;}
+.lh-of{font-size:.82cqi;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.58);margin-bottom:2%;}
+.lh-num{font-size:10cqi;font-weight:900;color:rgba(255,255,255,.14);line-height:.8;letter-spacing:-.05em;margin-bottom:2%;user-select:none;}
+.lh-tit{font-size:2.4cqi;font-weight:900;color:#fff;line-height:1.1;margin-bottom:4%;}
+.lh-dur{display:inline-flex;align-items:center;gap:.5em;padding:.36em .9em;background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.26);border-radius:30px;color:rgba(255,255,255,.92);font-size:.92cqi;font-weight:700;width:fit-content;backdrop-filter:blur(6px);}
+.lhr{background:#EFF6FF;display:flex;flex-direction:column;justify-content:center;padding:3.5% 4.5%;gap:2.5%;}
+.journey{background:#fff;border:1px solid var(--border);border-radius:var(--r-lg);padding:3.5% 4%;box-shadow:var(--sh-md);}
+.journey h3{font-size:.76cqi;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:1.3em;}
+.j-row{display:flex;align-items:flex-start;}
+.j-step{flex:1;display:flex;flex-direction:column;align-items:center;gap:.38em;position:relative;}
+.j-step:not(:last-child)::after{content:'';position:absolute;top:13px;left:50%;width:100%;height:2px;background:var(--border);z-index:0;}
+.jd{width:26px;height:26px;border-radius:50%;background:var(--border);color:var(--muted);font-size:.7cqi;font-weight:800;display:flex;align-items:center;justify-content:center;position:relative;z-index:1;flex-shrink:0;}
+.j-step.cur .jd{background:var(--u);color:#fff;box-shadow:0 0 0 3px rgba(37,99,235,.22);}
+.jl{font-size:.72cqi;font-weight:700;color:var(--muted);text-align:center;}
+.jt{font-size:.63cqi;color:var(--muted);font-weight:500;}
+.j-step.cur .jl{color:var(--u);}
+.recap-pre{background:linear-gradient(135deg,rgba(37,99,235,.06),rgba(6,182,212,.04));border:1px solid rgba(37,99,235,.16);border-radius:var(--r-md);padding:2.8% 3.5%;}
+.recap-pre h3{font-size:.76cqi;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:var(--u);margin-bottom:.72em;}
+.recap-pre ul{list-style:none;display:flex;flex-direction:column;gap:.48em;}
+.recap-pre li{font-size:.86cqi;font-weight:600;color:var(--ink);display:flex;align-items:flex-start;gap:.48em;line-height:1.3;}
+.recap-pre li::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--u);flex-shrink:0;margin-top:.34em;}
+
+/* ════════════════════════════════════════════
+   S2 — VOCAB RECALL / DO NOW
+════════════════════════════════════════════ */
+.dn{display:flex;align-items:center;justify-content:center;padding:2.5% 4%;gap:3%;height:100%;}
+.dn-wm{writing-mode:vertical-rl;text-orientation:mixed;transform:rotate(180deg);font-size:4.2cqi;font-weight:900;color:var(--u);letter-spacing:-.02em;line-height:1;opacity:.08;user-select:none;flex-shrink:0;}
+.dn-main{flex:1;max-width:73%;display:flex;flex-direction:column;gap:2%;}
+.dn-q{background:#fff;border:2px solid var(--u);border-radius:var(--r-xl);padding:3% 4%;box-shadow:0 8px 32px rgba(37,99,235,.1);}
+.dn-q h2{font-size:1.8cqi;font-weight:900;color:var(--ink);line-height:1.25;margin-bottom:.6em;}
+.dn-chips{display:flex;flex-wrap:wrap;gap:.4em;}
+.dn-chip{padding:.22em .65em;background:var(--um);color:var(--u);border-radius:6px;font-size:.88cqi;font-weight:700;}
+.dn-steps{display:flex;flex-direction:column;gap:1.2%;}
+.dn-step{display:flex;align-items:center;gap:.75em;background:#fff;border:1px solid var(--border);border-radius:var(--r-md);padding:1.8% 3%;box-shadow:var(--sh-sm);font-size:1cqi;font-weight:600;color:var(--ink);}
+
+/* ════════════════════════════════════════════
+   S3 — WHAT IS A FREEZE FRAME?
+════════════════════════════════════════════ */
+.exp{padding:2.5% 3.5% 2%;display:grid;grid-template-columns:1.1fr 1fr;gap:2.5%;height:100%;}
+.exp-col{display:flex;flex-direction:column;gap:2%;}
+.exp-card{padding:3.5% 4%;display:flex;flex-direction:column;gap:.68em;}
+.bqcard{flex:1;background:linear-gradient(150deg,#1D4ED8,#1e3a8a);border-radius:var(--r-lg);padding:5% 4.5%;display:flex;flex-direction:column;justify-content:center;color:#fff;}
+.bqcard h3{font-size:.74cqi;text-transform:uppercase;letter-spacing:.12em;opacity:.6;font-weight:700;margin-bottom:.72em;}
+.bqcard blockquote{font-size:1.25cqi;font-weight:800;line-height:1.35;font-style:italic;opacity:.95;}
+.bqcard cite{display:block;font-size:.76cqi;opacity:.46;font-style:normal;margin-top:.72em;}
+
+/* ════════════════════════════════════════════
+   S4 — FREEZE FRAME ACTIVITY
+════════════════════════════════════════════ */
+.act{padding:2.5% 3.5% 2%;display:grid;grid-template-columns:1.2fr 1fr;gap:2.5%;height:100%;}
+.act-l,.act-r{display:flex;flex-direction:column;gap:2%;}
+.act-card{flex:1;padding:3.5% 4%;display:flex;flex-direction:column;}
+.i-steps{display:flex;flex-direction:column;gap:.72em;flex:1;margin-top:.6em;}
+.i-step{display:flex;align-items:flex-start;gap:.75em;background:#fff;border:1.5px solid var(--border);border-radius:var(--r-md);border-left:4px solid var(--u);padding:.8em 1.1em;font-size:1cqi;font-weight:600;color:var(--ink);line-height:1.35;box-shadow:var(--sh-sm);}
+.timer-card{background:linear-gradient(145deg,#0F172A,#1E3A8A);border-radius:var(--r-lg);padding:5% 4%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.4em;}
+.timer-lbl{font-size:.76cqi;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:rgba(255,255,255,.42);}
+.timer-val{font-size:5.2cqi;font-weight:900;color:#fff;font-variant-numeric:tabular-nums;line-height:1;}
+.timer-sub{font-size:.74cqi;color:rgba(255,255,255,.32);font-weight:600;}
+.rem-card{flex:1;padding:3.5% 4%;display:flex;flex-direction:column;}
+.rem-card h3{font-size:.76cqi;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:var(--u);margin-bottom:.78em;}
+.rem-grid{display:grid;grid-template-columns:1fr 1fr;gap:.55em;flex:1;}
+.rem-item{background:var(--bg);border:1px solid var(--border);border-radius:var(--r-md);padding:.62em .88em;font-size:.86cqi;font-weight:700;color:var(--ink);display:flex;align-items:center;gap:.5em;}
+.rem-dot{width:7px;height:7px;border-radius:50%;background:var(--u);flex-shrink:0;}
+
+/* ════════════════════════════════════════════
+   S5 — SHARE / PEER FEEDBACK
+════════════════════════════════════════════ */
+.share-body{padding:2.5% 3.5% 2%;display:flex;flex-direction:column;gap:2%;height:100%;}
+.share-cards{flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:2%;}
+.share-card{padding:4.5% 4%;display:flex;flex-direction:column;gap:.65em;}
+.share-card h3{font-size:1.12cqi;font-weight:800;color:var(--ink);line-height:1.2;flex:1;}
+.share-card p{font-size:.85cqi;color:var(--muted);font-weight:500;line-height:1.4;}
+.share-banner{background:var(--bg);border:1px solid var(--border);border-radius:var(--r-md);padding:1.1% 3%;display:flex;align-items:center;justify-content:center;font-size:.88cqi;font-weight:700;color:var(--muted);}
+
+/* ════════════════════════════════════════════
+   S6 — FULL VOCABULARY
+════════════════════════════════════════════ */
+.vocab-body{padding:1.8% 3% 1.2%;display:flex;flex-direction:column;gap:1.2%;height:100%;}
+.vocab-grid{flex:1;display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:1fr 1fr;gap:1.2%;}
+/* 7 cards in 4-col = row1: 4, row2: 3 — last card spans to fill */
+.vocab-grid .vc-card:last-child{grid-column:4;}
+.vc-card{padding:4% 4%;display:flex;flex-direction:column;gap:.42em;transition:transform .18s,box-shadow .18s;}
+.vc-card:hover{transform:translateY(-2px);box-shadow:var(--sh-lg);}
+.vc-abbr{width:30px;height:30px;border-radius:var(--r-sm);background:var(--um);display:flex;align-items:center;justify-content:center;font-size:.78cqi;font-weight:800;color:var(--u);}
+.vc-word{font-size:1.1cqi;font-weight:800;color:var(--ink);line-height:1.1;}
+.vc-def{font-size:.8cqi;color:var(--muted);font-weight:500;line-height:1.35;flex:1;}
+
+/* ════════════════════════════════════════════
+   S7 — RUBRIC (5 skills, full unit)
+════════════════════════════════════════════ */
+.rub{padding:1.5% 2.8% 1.2%;display:flex;flex-direction:column;gap:1.1%;height:100%;}
+.rub-top{flex-shrink:0;}
+.rub-top h2{font-size:2cqi;font-weight:900;color:var(--ink);margin-top:.22em;line-height:1.1;}
+.rub-top p{font-size:.86cqi;color:var(--muted);font-weight:500;margin-top:.22em;}
+.rub-note{display:inline-flex;align-items:center;gap:.4em;margin-top:.36em;padding:.18em .62em;border-radius:6px;background:rgba(37,99,235,.1);border:1px solid rgba(37,99,235,.2);font-size:.7cqi;font-weight:700;color:var(--u);}
+.rub-skills{flex:1;display:flex;flex-direction:column;gap:.85%;min-height:0;}
+.rub-row{display:flex;gap:1%;align-items:stretch;flex:1;min-height:0;}
+.rub-sname{width:15%;flex-shrink:0;display:flex;flex-direction:column;justify-content:center;background:#fff;border:1px solid var(--border);border-radius:var(--r-md);padding:1.6% 2%;box-shadow:var(--sh-sm);}
+.rub-sname strong{font-size:.8cqi;font-weight:800;color:var(--ink);line-height:1.2;display:block;margin-bottom:.22em;}
+.rub-sname span{font-size:.62cqi;color:var(--muted);font-weight:500;}
+.rub-levels{flex:1;display:grid;grid-template-columns:repeat(4,1fr);gap:.8%;}
+.lvbtn{display:flex;flex-direction:column;gap:.28em;background:#fff;border:2px solid var(--border);border-radius:var(--r-md);padding:1.6% 1.5%;cursor:pointer;transition:all .18s;font-family:inherit;text-align:left;box-shadow:var(--sh-sm);}
+.lvbtn:hover{border-color:#CBD5E1;transform:translateY(-1px);box-shadow:var(--sh-md);}
+.lvbtn.s1{border-color:#FF3B30;background:#FFF0EF;}
+.lvbtn.s2{border-color:#F59E0B;background:#FFFBEB;}
+.lvbtn.s3{border-color:#22C55E;background:#F0FDF4;}
+.lvbtn.s4{border-color:#6D28D9;background:#F5F3FF;}
+.lv-n{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.74cqi;font-weight:900;color:#fff;flex-shrink:0;}
+.n1{background:#FF3B30}.n2{background:#F59E0B}.n3{background:#22C55E}.n4{background:#6D28D9}
+.lv-lbl{font-size:.65cqi;font-weight:800;color:var(--ink);line-height:1.1;}
+.lv-desc{font-size:.6cqi;color:var(--muted);font-weight:500;line-height:1.28;flex:1;}
+.rub-prof{flex-shrink:0;background:#fff;border:1px solid var(--border);border-radius:var(--r-md);padding:1.1% 2%;display:flex;align-items:center;gap:1.1em;box-shadow:var(--sh-sm);}
+.rp-lbl{font-size:.68cqi;font-weight:800;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);white-space:nowrap;flex-shrink:0;}
+.rp-skills{flex:1;display:flex;gap:1em;align-items:center;}
+.rp-item{display:flex;align-items:center;gap:.42em;flex:1;}
+.rp-name{font-size:.62cqi;font-weight:700;color:var(--muted);white-space:nowrap;}
+.rp-dots{display:flex;gap:.22em;}
+.rp-dot{width:11px;height:11px;border-radius:50%;background:var(--border);transition:background .22s,transform .18s;}
+.rp-dot.lit{transform:scale(1.12);}
+.rp-score{font-size:.62cqi;font-weight:800;color:var(--muted);white-space:nowrap;}
+.rp-share{font-size:.64cqi;color:var(--muted);font-weight:500;white-space:nowrap;flex-shrink:0;font-style:italic;}
+
+/* ════════════════════════════════════════════
+   S8 — WRITTEN REFLECTION
+════════════════════════════════════════════ */
+.reflect{padding:2.5% 3.5% 2%;display:grid;grid-template-columns:1fr 1fr;gap:2.5%;height:100%;}
+.ref-l,.ref-r{display:flex;flex-direction:column;gap:2%;}
+.ref-card{flex:1;padding:4%;}
+.rating-scale{display:flex;gap:.6em;margin-top:.9em;justify-content:center;}
+.r-dot{flex:1;aspect-ratio:1;max-width:46px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:.95cqi;font-weight:800;color:var(--muted);cursor:pointer;transition:all .2s;}
+.r-dot:hover,.r-dot.on{background:var(--u);border-color:var(--u);color:#fff;transform:scale(1.1);}
+.rating-lbs{display:flex;justify-content:space-between;margin-top:.5em;font-size:.72cqi;color:var(--muted);font-weight:600;}
+.ref-prompt{margin-top:1em;padding:.8em 1em;background:var(--ul);border-radius:var(--r-md);border-left:3px solid var(--u);font-size:.9cqi;font-weight:600;color:var(--ink);line-height:1.45;}
+.lit-row{display:flex;gap:.4em;flex-wrap:wrap;margin-top:.5em;}
+.next-card{flex:1;background:linear-gradient(150deg,#FF3B30,#C0392B);border-radius:var(--r-lg);padding:5%;color:#fff;display:flex;flex-direction:column;justify-content:center;}
+.next-card .nc-lbl{font-size:.72cqi;text-transform:uppercase;letter-spacing:.12em;opacity:.65;font-weight:700;margin-bottom:.6em;}
+.next-card h3{font-size:1.45cqi;font-weight:900;line-height:1.2;margin-bottom:.5em;}
+.next-card p{font-size:.86cqi;opacity:.72;font-weight:500;line-height:1.4;}
+
+/* ════════════════════════════════════════════
+   S9 — EXIT TICKET (FINAL)
+════════════════════════════════════════════ */
+.et{padding:2.5% 3.5% 2%;display:flex;flex-direction:column;gap:2%;height:100%;}
+.et-cards{flex:1;display:grid;grid-template-columns:repeat(3,1fr);gap:2%;}
+.et-card{padding:4.5% 4%;display:flex;flex-direction:column;gap:.78em;}
+.et-ico{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.iy{background:rgba(245,158,11,.15)}.ig{background:rgba(34,197,94,.13)}.ic{background:rgba(6,182,212,.13)}
+.et-card h3{font-size:1.1cqi;font-weight:800;color:var(--ink);line-height:1.2;flex:1;}
+.et-card p{font-size:.84cqi;color:var(--muted);font-weight:500;line-height:1.4;}
+.wh{font-size:.74cqi;font-weight:700;color:var(--u);padding:.24em .6em;background:var(--um);border-radius:6px;margin-top:auto;width:fit-content;}
+.et-foot{background:linear-gradient(135deg,#1D4ED8,#1e3a8a);border-radius:var(--r-md);padding:1.2% 3%;color:#fff;text-align:center;font-size:.9cqi;font-weight:700;}
+.et-end{display:inline-flex;align-items:center;gap:.45em;padding:.28em .75em;background:var(--um);border:1px solid rgba(37,99,235,.22);border-radius:30px;color:var(--u);font-size:.78cqi;font-weight:700;margin-bottom:.7em;}
+
+/* ════════════════════════════════════════════
+   S10 — EXTENSION / HOMEWORK
+════════════════════════════════════════════ */
+.ext{padding:2.5% 3.5% 2%;display:grid;grid-template-columns:1fr 1fr;gap:2.5%;height:100%;}
+.ext-col{display:flex;flex-direction:column;gap:2%;}
+.ext-card{padding:3.5% 4%;display:flex;flex-direction:column;gap:.65em;}
+.ext-card.grow{flex:1;}
+.ext-note{padding:.7em .9em;background:var(--ul);border-radius:var(--r-md);border-left:3px solid var(--u);font-size:.88cqi;font-weight:600;color:var(--ink);margin-top:.3em;}
+
+/* ════════════════════════════════════════════
+   S11 — UNIT COMPLETE
+════════════════════════════════════════════ */
+.complete-body{flex:1;display:flex;align-items:center;justify-content:center;background:linear-gradient(150deg,#0F172A 0%,#1E1B4B 50%,#0F172A 100%);position:relative;overflow:hidden;}
+.c-glow{position:absolute;width:45%;height:45%;border-radius:50%;background:radial-gradient(circle,rgba(37,99,235,.28),transparent 65%);top:12%;left:27%;animation:ba 10s ease-in-out infinite;}
+.c-glow2{position:absolute;width:25%;height:25%;border-radius:50%;background:radial-gradient(circle,rgba(255,59,48,.18),transparent 65%);bottom:5%;right:8%;animation:ba 13s ease-in-out infinite;animation-delay:-6s;}
+.c-inner{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);border-radius:var(--r-xl);padding:5% 6%;max-width:62%;text-align:center;backdrop-filter:blur(20px);position:relative;z-index:1;}
+.c-badge{display:inline-flex;align-items:center;gap:.5em;padding:.3em .9em;border-radius:30px;background:rgba(37,99,235,.22);border:1px solid rgba(37,99,235,.42);color:#93C5FD;font-size:.88cqi;font-weight:700;text-transform:uppercase;letter-spacing:.1em;margin-bottom:3.5%;}
+.c-inner h2{font-size:4.2cqi;font-weight:900;color:#fff;line-height:1;margin-bottom:2%;}
+.c-inner p{font-size:1.02cqi;color:rgba(255,255,255,.55);font-weight:500;line-height:1.55;margin-bottom:3.5%;}
+.c-prog{height:5px;background:rgba(255,255,255,.1);border-radius:999px;margin-bottom:1.5%;overflow:hidden;}
+.c-prog-fill{height:100%;background:linear-gradient(90deg,#2563EB,#06B6D4,#22C55E);border-radius:999px;width:0;transition:width 1.8s cubic-bezier(.2,.9,.2,1) .5s;}
+.c-prog-fill.run{width:100%;}
+.c-lbl{font-size:.76cqi;color:rgba(255,255,255,.35);font-weight:700;text-align:right;margin-bottom:3.5%;}
+.c-cta{padding:.72em 1.9em;background:var(--u);color:#fff;border-radius:30px;font-size:.98cqi;font-weight:800;display:inline-block;cursor:pointer;box-shadow:0 4px 20px rgba(37,99,235,.45);}
+.c-skills{display:flex;justify-content:center;gap:2%;margin-top:3%;flex-wrap:wrap;}
+.c-skill-pill{padding:.22em .72em;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);border-radius:20px;font-size:.72cqi;font-weight:600;color:rgba(255,255,255,.65);}
+
+/* ── NAV ────────────────────────────────────── */
+#nav{position:fixed;bottom:0;left:0;right:0;height:44px;background:rgba(15,23,42,.92);backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:space-between;padding:0 1.5%;z-index:200;}
+.nb{display:flex;align-items:center;gap:.38em;padding:.35em .88em;border-radius:8px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.13);color:rgba(255,255,255,.7);font-size:12.5px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit;white-space:nowrap;}
+.nb:hover{background:rgba(255,255,255,.16);color:#fff}
+.nb:disabled{opacity:.27;cursor:not-allowed}
+.nb-p{background:var(--u);border-color:var(--u);color:#fff}
+.nb-p:hover{background:#1D4ED8}
+#ninfo{color:rgba(255,255,255,.4);font-size:11.5px;font-weight:600;text-align:center;flex:1;}
+#rhint{position:fixed;bottom:52px;left:50%;transform:translateX(-50%);background:rgba(15,23,42,.7);backdrop-filter:blur(8px);color:rgba(255,255,255,.4);font-size:10px;font-weight:600;padding:.25em .78em;border-radius:20px;z-index:199;pointer-events:none;transition:opacity .3s;}
+</style>
+
+<link rel="stylesheet" href="drama-slides-core.css">
+<link rel="stylesheet" href="drama-slides-i18n.css">
+<link rel="stylesheet" href="drama-slides-compat.css">
+</head>
+<body>
+
+
+<div id="deck"><div class="vp" id="vp">
+
+<!-- ══════════════════════════
+     S1 — LESSON 3 HEADER
+══════════════════════════ -->
+<section class="slide active" id="s1" data-rv="0">
+  <div class="sh">
+    <div class="ubadge">Unit 01</div>
+    <div class="lbadge" data-t="lbadge">Lesson 3 of 3</div>
+    <div class="sh-mid"><span class="sh-title" data-t="l3.title">Freeze Frames</span></div>
+    <div class="sh-r"><span class="sh-count">1 / 11</span></div>
+  </div>
+  <div class="slide-body">
+    <div class="lh">
+      <div class="lhl">
+        <div class="lh-d1"></div><div class="lh-d2"></div>
+        <p class="lh-of" data-t="lbadge">Lesson 3 of 3</p>
+        <div class="lh-num">03</div>
+        <h2 class="lh-tit" data-t="l3.title">Freeze Frames</h2>
+        <div class="lh-dur">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span data-t="label.50min">50 minutes</span>
+        </div>
+      </div>
+      <div class="lhr">
+        <div class="journey">
+          <h3 data-t="label.thisLesson">This Lesson</h3>
+          <div class="j-row">
+            <div class="j-step cur"><div class="jd">01</div><div class="jl" data-t="phase.connect">Connect</div><div class="jt">8 min</div></div>
+            <div class="j-step"><div class="jd">02</div><div class="jl" data-t="phase.explore">Explore</div><div class="jt">8 min</div></div>
+            <div class="j-step"><div class="jd">03</div><div class="jl" data-t="phase.create">Create</div><div class="jt">20 min</div></div>
+            <div class="j-step"><div class="jd">04</div><div class="jl" data-t="phase.share">Share</div><div class="jt">8 min</div></div>
+            <div class="j-step"><div class="jd">05</div><div class="jl" data-t="phase.reflect">Reflect</div><div class="jt">6 min</div></div>
+          </div>
+        </div>
+        <div class="recap-pre">
+          <h3 data-t="label.sofar">What We've Done So Far</h3>
+          <ul>
+            <li data-t="recap.1">Lesson 1 — Drama rules, the space and Name &amp; Gesture Circle</li>
+            <li data-t="recap.2">Lesson 2 — Trust exercises, levels, proxemics and status</li>
+            <li data-t="recap.3">Today — applying all skills in a Freeze Frame performance</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="sf"><div class="pt"><div class="pf" style="width:9.1%"></div></div></div>
+</section>
+
+<!-- ══════════════════════════
+     S2 — VOCAB RECALL / DO NOW
+══════════════════════════ -->
+<section class="slide" id="s2" data-rv="5">
+  <div class="sh">
+    <div class="ubadge">Unit 01</div>
+    <div class="lbadge" data-t="lbadge">Lesson 3 of 3</div>
+    <span class="ph-ind" data-t="ph.connect">Connect &nbsp;·&nbsp; 8 min</span>
+    <div class="sh-mid"></div>
+    <div class="sh-r"><span class="sh-count">2 / 11</span></div>
+  </div>
+  <div class="slide-body">
+    <div class="blob ba" style="opacity:.07"></div>
+    <div class="dn">
+      <div class="dn-wm" data-t="label.recall">RECALL</div>
+      <div class="dn-main">
+        <div class="rv"><div class="chip ch-b" data-t="ph.connect.chip">Connect &nbsp;·&nbsp; 8 minutes</div></div>
+        <div class="dn-q card rv">
+          <h2 data-t="recall.q">For each word below — write a definition in your own words. Then use one in a sentence about a performance you have seen.</h2>
+          <div class="dn-chips" style="margin-top:.7em">
+            <span class="dn-chip">Body Language</span>
+            <span class="dn-chip">Eye Contact</span>
+            <span class="dn-chip">Posture</span>
+            <span class="dn-chip">Use of Levels</span>
+            <span class="dn-chip">Proxemics</span>
+            <span class="dn-chip">Status</span>
+          </div>
+        </div>
+        <div class="dn-steps">
+          <div class="dn-step rv"><div class="sn">1</div><span data-t="step.1">Write your definitions quietly — 3 minutes</span></div>
+          <div class="dn-step rv"><div class="sn">2</div><span data-t="step.2">Compare with your neighbour — are your definitions similar?</span></div>
+          <div class="dn-step rv"><div class="sn">3</div><span data-t="step.3">Share your sentence with the class — use the vocabulary word correctly</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="sf"><div class="pt"><div class="pf" style="width:18.2%"></div></div></div>
+</section>
+
+<!-- ══════════════════════════
+     S3 — WHAT IS A FREEZE FRAME?
+══════════════════════════ -->
+<section class="slide" id="s3" data-rv="4">
+  <div class="sh">
+    <div class="ubadge">Unit 01</div>
+    <div class="lbadge" data-t="lbadge">Lesson 3 of 3</div>
+    <span class="ph-ind" data-t="ph.explore">Explore &nbsp;·&nbsp; 8 min</span>
+    <div class="sh-mid"></div>
+    <div class="sh-r"><span class="sh-count">3 / 11</span></div>
+  </div>
+  <div class="slide-body">
+    <div class="blob ba" style="opacity:.08"></div><div class="blob bb"></div>
+    <div class="exp">
+      <div class="exp-col">
+        <div class="rv">
+          <div class="chip ch-y" data-t="ph.explore.chip">Explore &nbsp;·&nbsp; 8 min</div>
+          <h2 style="font-size:2.7cqi;font-weight:900;color:var(--ink);margin-top:.4em;line-height:1.05" data-t="slide.ff">What is a Freeze Frame?</h2>
+        </div>
+        <div class="card exp-card rv" style="flex:1">
+          <div class="clbl" data-t="label.definition">Definition</div>
+          <p style="font-size:1.05cqi;font-weight:700;color:var(--ink);line-height:1.4;margin-bottom:.7em" data-t="ff.def">A stage picture held completely still — a frozen image that represents a moment, emotion or idea.</p>
+          <ul class="blist">
+            <li data-t="ff.pt1">Everyone in the group freezes at exactly the same moment</li>
+            <li data-t="ff.pt2">Your body, face and position all communicate meaning</li>
+            <li data-t="ff.pt3">The audience must understand the story without words</li>
+            <li data-t="ff.pt4">Think about levels, proxemics and body language in every freeze</li>
+          </ul>
+        </div>
+      </div>
+      <div class="exp-col">
+        <div class="card exp-card rv" style="flex:0">
+          <div class="clbl" data-t="label.vocabToUse">Vocabulary to Use Today</div>
+          <div class="chip-row">
+            <span class="vchip">Freeze Frame</span>
+            <span class="vchip">Tableau</span>
+            <span class="vchip">Body Language</span>
+            <span class="vchip">Use of Levels</span>
+            <span class="vchip">Proxemics</span>
+            <span class="vchip">Status</span>
+            <span class="vchip">Mood &amp; Atmosphere</span>
+          </div>
+        </div>
+        <div class="bqcard rv">
+          <h3 data-t="label.remember">Remember</h3>
+          <blockquote data-t="ff.quote">"Every part of your body is part of the picture. Nothing is accidental."</blockquote>
+          <cite>— Expressive Arts Faculty</cite>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="sf"><div class="pt"><div class="pf" style="width:27.3%"></div></div></div>
+</section>
+
+<!-- ══════════════════════════
+     S4 — FREEZE FRAME ACTIVITY
+══════════════════════════ -->
+<section class="slide" id="s4" data-rv="7">
+  <div class="sh">
+    <div class="ubadge">Unit 01</div>
+    <div class="lbadge" data-t="lbadge">Lesson 3 of 3</div>
+    <span class="ph-ind" data-t="ph.create">Create &nbsp;·&nbsp; 20 min</span>
+    <div class="sh-mid"></div>
+    <div class="sh-r"><span class="sh-count">4 / 11</span></div>
+  </div>
+  <div class="slide-body">
+    <div class="blob ba" style="opacity:.06"></div>
+    <div class="act">
+      <div class="act-l">
+        <div class="rv">
+          <div class="chip ch-b" data-t="ph.create.chip">Main Activity &nbsp;·&nbsp; Groups of 4–5</div>
+          <h2 style="font-size:2.5cqi;font-weight:900;color:var(--ink);margin-top:.4em;line-height:1.1" data-t="slide.ff">Freeze Frames</h2>
+        </div>
+        <div class="card act-card rv">
+          <p style="font-size:.95cqi;font-weight:600;color:var(--muted)" data-t="ff.task.intro">Create 3 freeze frames that tell a clear story. Each freeze must communicate meaning without words.</p>
+          <div class="i-steps">
+            <div class="i-step rv"><div class="in-n">1</div><span data-t="ff.frame1">A <strong>problem</strong> — show a clear situation using levels, proxemics and body language</span></div>
+            <div class="i-step rv"><div class="in-n">2</div><span data-t="ff.frame2">The problem <strong>getting worse</strong> — tension should increase; show this through your staging choices</span></div>
+            <div class="i-step rv"><div class="in-n">3</div><span data-t="ff.frame3">A <strong>possible solution</strong> — how does the mood and atmosphere change?</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="act-r">
+        <div class="timer-card rv">
+          <div class="timer-lbl" data-t="label.planPractise">Plan &amp; Practise</div>
+          <div class="timer-val">15:00</div>
+          <div class="timer-sub" data-t="label.thenShare">then we share</div>
+        </div>
+        <div class="card rem-card rv">
+          <h3 data-t="label.remember">Remember</h3>
+          <div class="rem-grid">
+            <div class="rem-item"><div class="rem-dot"></div><span>Levels</span></div>
+            <div class="rem-item"><div class="rem-dot"></div><span>Body Language</span></div>
+            <div class="rem-item"><div class="rem-dot"></div><span>Proxemics</span></div>
+            <div class="rem-item"><div class="rem-dot"></div><span>Facial Expression</span></div>
+            <div class="rem-item"><div class="rem-dot"></div><span>Focus</span></div>
+            <div class="rem-item"><div class="rem-dot"></div><span>Status</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="sf"><div class="pt"><div class="pf" style="width:36.4%"></div></div></div>
+</section>
+
+<!-- ══════════════════════════
+     S5 — SHARE & PEER FEEDBACK
+══════════════════════════ -->
+<section class="slide" id="s5" data-rv="5">
+  <div class="sh">
+    <div class="ubadge">Unit 01</div>
+    <div class="lbadge" data-t="lbadge">Lesson 3 of 3</div>
+    <span class="ph-ind" data-t="ph.share">Share &nbsp;·&nbsp; 8 min</span>
+    <div class="sh-mid"></div>
+    <div class="sh-r"><span class="sh-count">5 / 11</span></div>
+  </div>
+  <div class="slide-body">
+    <div class="share-body">
+      <div class="rv">
+        <div class="chip ch-b" data-t="ph.share.chip">Share &nbsp;·&nbsp; 8 min</div>
+        <h2 style="font-size:2.5cqi;font-weight:900;color:var(--ink);margin-top:.4em" data-t="slide.peerfeedback">Watch &amp; Peer Feedback</h2>
+      </div>
+      <div class="share-cards">
+        <div class="card share-card rv">
+          <div class="sn" style="width:28px;height:28px;font-size:.88cqi">1</div>
+          <h3 data-t="share.q1">Describe what you saw</h3>
+          <p data-t="share.q1.sub">Name each freeze frame. What story did the group tell? Could you understand the narrative without words?</p>
+        </div>
+        <div class="card share-card rv">
+          <div class="sn" style="width:28px;height:28px;font-size:.88cqi">2</div>
+          <h3 data-t="share.q2">Name the techniques</h3>
+          <p data-t="share.q2.sub">Levels, proxemics, body language, facial expression, status — which were used most effectively? Be specific.</p>
+        </div>
+        <div class="card share-card rv">
+          <div class="sn" style="width:28px;height:28px;font-size:.88cqi">3</div>
+          <h3 data-t="share.q3">One thing to develop</h3>
+          <p data-t="share.q3.sub">Using Drama vocabulary, give one specific, constructive suggestion that would make the freeze frames stronger.</p>
+        </div>
+      </div>
+      <div class="share-banner rv" data-t="share.banner">Use Drama vocabulary in your feedback &nbsp;·&nbsp; Be specific &nbsp;·&nbsp; Be kind and constructive</div>
+    </div>
+  </div>
+  <div class="sf"><div class="pt"><div class="pf" style="width:45.5%"></div></div></div>
+</section>
+
+<!-- ══════════════════════════
+     S6 — FULL VOCABULARY
+══════════════════════════ -->
+<section class="slide" id="s6" data-rv="8">
+  <div class="sh">
+    <div class="ubadge">Unit 01</div>
+    <div class="lbadge" data-t="lbadge">Lesson 3 of 3</div>
+    <span class="ph-ind" data-t="label.allVocab">Unit 01 — All Vocabulary</span>
+    <div class="sh-mid"></div>
+    <div class="sh-r"><span class="sh-count">6 / 11</span></div>
+  </div>
+  <div class="slide-body">
+    <div class="dots"></div>
+    <div class="vocab-body">
+      <div class="rv">
+        <div class="chip ch-p" data-t="label.allVocab">Unit 01 — All Vocabulary</div>
+        <h2 style="font-size:2.1cqi;font-weight:900;color:var(--ink);margin-top:.3em" data-t="vocab.heading">All 7 words from this unit</h2>
+        <p style="font-size:.88cqi;color:var(--muted);font-weight:500;margin-top:.2em" data-t="vocab.sub">These are the words to use in your evaluation and written reflection today.</p>
+      </div>
+      <div class="vocab-grid">
+        <div class="card vc-card rv"><div class="vc-abbr">BL</div><div class="vc-word">Body Language</div><div class="vc-def" data-t="v.bl">Communicating non-verbally through the position and movement of the body.</div></div>
+        <div class="card vc-card rv"><div class="vc-abbr">EC</div><div class="vc-word">Eye Contact</div><div class="vc-def" data-t="v.ec">Using direct gaze to show relationships, power or emotion between performers.</div></div>
+        <div class="card vc-card rv"><div class="vc-abbr">PS</div><div class="vc-word">Posture</div><div class="vc-def" data-t="v.ps">How you stand and carry your body to represent character or status.</div></div>
+        <div class="card vc-card rv"><div class="vc-abbr">UL</div><div class="vc-word">Use of Levels</div><div class="vc-def" data-t="v.ul">Using different heights on stage to show status and create visual variety.</div></div>
+        <div class="card vc-card rv"><div class="vc-abbr">PX</div><div class="vc-word">Proxemics</div><div class="vc-def" data-t="v.px">The use of space and distance between performers to communicate relationships and tension.</div></div>
+        <div class="card vc-card rv"><div class="vc-abbr">ST</div><div class="vc-word">Status</div><div class="vc-def" data-t="v.st">How much power a character has — shown through levels, eye contact, proximity and posture.</div></div>
+        <div class="card vc-card rv"><div class="vc-abbr">MA</div><div class="vc-word">Mood &amp; Atmosphere</div><div class="vc-def" data-t="v.ma">Mood is the tone of the drama. Atmosphere is the feeling the audience gets from watching.</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="sf"><div class="pt"><div class="pf" style="width:54.5%"></div></div></div>
+</section>
+
+<!-- ══════════════════════════
+     S7 — RUBRIC (5 skills, full)
+══════════════════════════ -->
+<section class="slide" id="s7" data-rv="0">
+  <div class="sh">
+    <div class="ubadge">Unit 01</div>
+    <div class="lbadge" data-t="lbadge">Lesson 3 of 3</div>
+    <span class="ph-ind" data-t="ph.reflect">Reflect &nbsp;·&nbsp; Self Assessment</span>
+    <div class="sh-mid"></div>
+    <div class="sh-r"><span class="sh-count">7 / 11</span></div>
+  </div>
+  <div class="slide-body">
+    <div class="dots"></div>
+    <div class="rub">
+      <div class="rub-top">
+        <div class="chip ch-c" data-t="label.selfAssess">Final Self Assessment &nbsp;·&nbsp; Unit 01</div>
+        <h2 data-t="rub.heading">How have you progressed across all 3 lessons?</h2>
+        <p data-t="rub.sub">Tap the level that best describes you across the full unit — this feeds your TP record.</p>
+        <div class="rub-note" data-t="rub.note">All 5 skills · This assessment informs your Tracking Period 1 record</div>
+      </div>
+      <div class="rub-skills">
+
+        <div class="rub-row" id="skill-bl">
+          <div class="rub-sname"><strong data-t="skill.bl">Body Language</strong><span data-t="skill.sub.l1">Lessons 1–3</span></div>
+          <div class="rub-levels">
+            <button class="lvbtn" onclick="pick('bl',1,this)"><div class="lv-n n1">1</div><div class="lv-lbl" data-t="lv.1">Working on targets</div><div class="lv-desc" data-t="bl.1">My body language doesn't clearly show meaning yet.</div></button>
+            <button class="lvbtn" onclick="pick('bl',2,this)"><div class="lv-n n2">2</div><div class="lv-lbl" data-t="lv.2">Developing</div><div class="lv-desc" data-t="bl.2">I'm starting to use posture and gesture to show emotion.</div></button>
+            <button class="lvbtn" onclick="pick('bl',3,this)"><div class="lv-n n3">3</div><div class="lv-lbl" data-t="lv.3">On track</div><div class="lv-desc" data-t="bl.3">I use body language deliberately to communicate meaning to an audience.</div></button>
+            <button class="lvbtn" onclick="pick('bl',4,this)"><div class="lv-n n4">4</div><div class="lv-lbl" data-t="lv.4">Above expectations</div><div class="lv-desc" data-t="bl.4">Precise and impactful — the audience reads exactly what I intend.</div></button>
+          </div>
+        </div>
+
+        <div class="rub-row" id="skill-ec">
+          <div class="rub-sname"><strong data-t="skill.ec">Eye Contact</strong><span data-t="skill.sub.l1">Lessons 1–3</span></div>
+          <div class="rub-levels">
+            <button class="lvbtn" onclick="pick('ec',1,this)"><div class="lv-n n1">1</div><div class="lv-lbl" data-t="lv.1">Working on targets</div><div class="lv-desc" data-t="ec.1">I avoid eye contact or use it without thinking.</div></button>
+            <button class="lvbtn" onclick="pick('ec',2,this)"><div class="lv-n n2">2</div><div class="lv-lbl" data-t="lv.2">Developing</div><div class="lv-desc" data-t="ec.2">I use eye contact sometimes and can see how it shows relationships.</div></button>
+            <button class="lvbtn" onclick="pick('ec',3,this)"><div class="lv-n n3">3</div><div class="lv-lbl" data-t="lv.3">On track</div><div class="lv-desc" data-t="ec.3">I use eye contact on purpose to show status or emotion.</div></button>
+            <button class="lvbtn" onclick="pick('ec',4,this)"><div class="lv-n n4">4</div><div class="lv-lbl" data-t="lv.4">Above expectations</div><div class="lv-desc" data-t="ec.4">I control my eye contact with skill to create tension and connection.</div></button>
+          </div>
+        </div>
+
+        <div class="rub-row" id="skill-ul">
+          <div class="rub-sname"><strong data-t="skill.ul">Use of Levels</strong><span data-t="skill.sub.l2">Lessons 2–3</span></div>
+          <div class="rub-levels">
+            <button class="lvbtn" onclick="pick('ul',1,this)"><div class="lv-n n1">1</div><div class="lv-lbl" data-t="lv.1">Working on targets</div><div class="lv-desc" data-t="ul.1">I stay at one level — I'm not yet thinking about how height changes meaning.</div></button>
+            <button class="lvbtn" onclick="pick('ul',2,this)"><div class="lv-n n2">2</div><div class="lv-lbl" data-t="lv.2">Developing</div><div class="lv-desc" data-t="ul.2">I'm starting to use different levels and can see how they show status.</div></button>
+            <button class="lvbtn" onclick="pick('ul',3,this)"><div class="lv-n n3">3</div><div class="lv-lbl" data-t="lv.3">On track</div><div class="lv-desc" data-t="ul.3">I use levels deliberately to show status and create visual variety on stage.</div></button>
+            <button class="lvbtn" onclick="pick('ul',4,this)"><div class="lv-n n4">4</div><div class="lv-lbl" data-t="lv.4">Above expectations</div><div class="lv-desc" data-t="ul.4">Every level choice is intentional and clearly serves the drama.</div></button>
+          </div>
+        </div>
+
+        <div class="rub-row" id="skill-px">
+          <div class="rub-sname"><strong data-t="skill.px">Proxemics</strong><span data-t="skill.sub.l2">Lessons 2–3</span></div>
+          <div class="rub-levels">
+            <button class="lvbtn" onclick="pick('px',1,this)"><div class="lv-n n1">1</div><div class="lv-lbl" data-t="lv.1">Working on targets</div><div class="lv-desc" data-t="px.1">I don't yet think about the space between performers and what it communicates.</div></button>
+            <button class="lvbtn" onclick="pick('px',2,this)"><div class="lv-n n2">2</div><div class="lv-lbl" data-t="lv.2">Developing</div><div class="lv-desc" data-t="px.2">I'm starting to use space to suggest relationships between characters.</div></button>
+            <button class="lvbtn" onclick="pick('px',3,this)"><div class="lv-n n3">3</div><div class="lv-lbl" data-t="lv.3">On track</div><div class="lv-desc" data-t="px.3">I use space and distance deliberately to show relationships and create tension.</div></button>
+            <button class="lvbtn" onclick="pick('px',4,this)"><div class="lv-n n4">4</div><div class="lv-lbl" data-t="lv.4">Above expectations</div><div class="lv-desc" data-t="px.4">My spatial choices are precise and always communicate something specific.</div></button>
+          </div>
+        </div>
+
+        <div class="rub-row" id="skill-gc">
+          <div class="rub-sname"><strong data-t="skill.gc">Collaboration</strong><span data-t="skill.sub.all">All 3 lessons</span></div>
+          <div class="rub-levels">
+            <button class="lvbtn" onclick="pick('gc',1,this)"><div class="lv-n n1">1</div><div class="lv-lbl" data-t="lv.1">Working on targets</div><div class="lv-desc" data-t="gc.1">I find it hard to contribute or respond positively in group work.</div></button>
+            <button class="lvbtn" onclick="pick('gc',2,this)"><div class="lv-n n2">2</div><div class="lv-lbl" data-t="lv.2">Developing</div><div class="lv-desc" data-t="gc.2">I contribute sometimes and I'm starting to listen and respond to others.</div></button>
+            <button class="lvbtn" onclick="pick('gc',3,this)"><div class="lv-n n3">3</div><div class="lv-lbl" data-t="lv.3">On track</div><div class="lv-desc" data-t="gc.3">I listen well, contribute ideas and respond to others. My group works well.</div></button>
+            <button class="lvbtn" onclick="pick('gc',4,this)"><div class="lv-n n4">4</div><div class="lv-lbl" data-t="lv.4">Above expectations</div><div class="lv-desc" data-t="gc.4">I build on others' ideas, include everyone and help the whole group succeed.</div></button>
+          </div>
+        </div>
+
+      </div><!-- rub-skills -->
+      <div class="rub-prof">
+        <div class="rp-lbl" data-t="rub.profile">TP1 Profile</div>
+        <div class="rp-skills">
+          <div class="rp-item"><span class="rp-name" data-t="sk.bl">Body Lang.</span><div class="rp-dots" data-skill="bl"><div class="rp-dot" data-d="1"></div><div class="rp-dot" data-d="2"></div><div class="rp-dot" data-d="3"></div><div class="rp-dot" data-d="4"></div></div><span class="rp-score" data-profile="bl">—</span></div>
+          <div class="rp-item"><span class="rp-name" data-t="sk.ec">Eye Contact</span><div class="rp-dots" data-skill="ec"><div class="rp-dot" data-d="1"></div><div class="rp-dot" data-d="2"></div><div class="rp-dot" data-d="3"></div><div class="rp-dot" data-d="4"></div></div><span class="rp-score" data-profile="ec">—</span></div>
+          <div class="rp-item"><span class="rp-name" data-t="sk.ul">Levels</span><div class="rp-dots" data-skill="ul"><div class="rp-dot" data-d="1"></div><div class="rp-dot" data-d="2"></div><div class="rp-dot" data-d="3"></div><div class="rp-dot" data-d="4"></div></div><span class="rp-score" data-profile="ul">—</span></div>
+          <div class="rp-item"><span class="rp-name" data-t="sk.px">Proxemics</span><div class="rp-dots" data-skill="px"><div class="rp-dot" data-d="1"></div><div class="rp-dot" data-d="2"></div><div class="rp-dot" data-d="3"></div><div class="rp-dot" data-d="4"></div></div><span class="rp-score" data-profile="px">—</span></div>
+          <div class="rp-item"><span class="rp-name" data-t="sk.gc">Collab.</span><div class="rp-dots" data-skill="gc"><div class="rp-dot" data-d="1"></div><div class="rp-dot" data-d="2"></div><div class="rp-dot" data-d="3"></div><div class="rp-dot" data-d="4"></div></div><span class="rp-score" data-profile="gc">—</span></div>
+        </div>
+        <span class="rp-share" data-t="rub.share">Share with your teacher — this informs your TP1 record</span>
+      </div>
+    </div>
+  </div>
+  <div class="sf"><div class="pt"><div class="pf" style="width:63.6%"></div></div></div>
+</section>
+
+<!-- ══════════════════════════
+     S8 — WRITTEN REFLECTION
+══════════════════════════ -->
+<section class="slide" id="s8" data-rv="4">
+  <div class="sh">
+    <div class="ubadge">Unit 01</div>
+    <div class="lbadge" data-t="lbadge">Lesson 3 of 3</div>
+    <span class="ph-ind" data-t="ph.reflect">Reflect &nbsp;·&nbsp; 6 min</span>
+    <div class="sh-mid"></div>
+    <div class="sh-r"><span class="sh-count">8 / 11</span></div>
+  </div>
+  <div class="slide-body">
+    <div class="dots"></div>
+    <div class="reflect">
+      <div class="ref-l">
+        <div class="rv">
+          <div class="chip ch-c" data-t="ph.reflect.chip">Reflect &nbsp;·&nbsp; Do Last</div>
+          <h2 style="font-size:2.5cqi;font-weight:900;color:var(--ink);margin-top:.4em" data-t="ref.heading">Self Evaluation</h2>
+        </div>
+        <div class="card ref-card rv">
+          <div class="clbl" data-t="ref.rating.lbl">How well did you meet today's success criteria?</div>
+          <div class="rating-scale">
+            <div class="r-dot" onclick="rateMe(this,1)">1</div>
+            <div class="r-dot" onclick="rateMe(this,2)">2</div>
+            <div class="r-dot" onclick="rateMe(this,3)">3</div>
+            <div class="r-dot" onclick="rateMe(this,4)">4</div>
+          </div>
+          <div class="rating-lbs"><span data-t="lv.1">Working on targets</span><span data-t="lv.4">Above expectations</span></div>
+          <div class="ref-prompt" style="margin-top:1em" data-t="ref.prompt">Write 2–3 sentences: what have you learned in this unit? Use at least 3 Drama vocabulary words.</div>
+          <div class="clbl" style="margin-top:.8em">Literacy Focus</div>
+          <div class="lit-row"><span class="echip">LIT 3-02a</span><span class="echip">LIT 3-05a</span><span class="echip">LIT 3-23a</span></div>
+        </div>
+      </div>
+      <div class="ref-r">
+        <div class="next-card rv">
+          <div class="nc-lbl" data-t="label.nextUnit">Coming Up Next</div>
+          <h3 data-t="next.title">Unit 02: Mime &amp; Melodrama</h3>
+          <p data-t="next.desc">We will explore how to communicate meaning entirely through body language and exaggerated movement — no words allowed.</p>
+        </div>
+        <div class="card ref-card rv" style="flex:0">
+          <div class="clbl" data-t="label.unitComplete">Unit 01 Complete</div>
+          <p style="font-size:.95cqi;font-weight:600;color:var(--ink);line-height:1.45" data-t="complete.summary">Drama rules · Trust exercises · Name &amp; Gesture Circle · Freeze Frames · 7 vocabulary words · 5 performance skills assessed</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="sf"><div class="pt"><div class="pf" style="width:72.7%"></div></div></div>
+</section>
+
+<!-- ══════════════════════════
+     S9 — FINAL EXIT TICKET
+══════════════════════════ -->
+<section class="slide" id="s9" data-rv="5">
+  <div class="sh">
+    <div class="ubadge">Unit 01</div>
+    <div class="lbadge" data-t="lbadge">Lesson 3 of 3</div>
+    <span class="ph-ind" data-t="ph.reflect">Reflect &nbsp;·&nbsp; All 3 Lessons</span>
+    <div class="sh-mid"></div>
+    <div class="sh-r"><span class="sh-count">9 / 11</span></div>
+  </div>
+  <div class="slide-body">
+    <div class="et">
+      <div class="rv">
+        <div class="et-end" data-t="label.finalET">Final Exit Ticket &nbsp;·&nbsp; End of Unit 01</div>
+        <h2 style="font-size:2.3cqi;font-weight:900;color:var(--ink)" data-t="et.heading">Reflect on all 3 lessons — take 2 minutes.</h2>
+      </div>
+      <div class="et-cards">
+        <div class="card et-card rv">
+          <div class="et-ico iy"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#92400E" stroke-width="2.5"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
+          <h3 data-t="et.learnt">One thing I learnt in this unit</h3>
+          <p data-t="et.learnt.sub">Think across all three lessons — rules, trust, vocabulary, freeze frames.</p>
+          <div class="wh" data-t="et.write">Write it down</div>
+        </div>
+        <div class="card et-card rv">
+          <div class="et-ico ig"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#15803D" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+          <h3 data-t="et.didwell">One thing I'm most proud of</h3>
+          <p data-t="et.didwell.sub">What are you proudest of from all three lessons? Name a specific moment or skill.</p>
+          <div class="wh" data-t="et.write">Write it down</div>
+        </div>
+        <div class="card et-card rv">
+          <div class="et-ico ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0E7490" stroke-width="2.5"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg></div>
+          <h3 data-t="et.improve">One thing I want to develop</h3>
+          <p data-t="et.improve.sub">What will you focus on as you move into Unit 02?</p>
+          <div class="wh" data-t="et.write">Write it down</div>
+        </div>
+      </div>
+      <div class="et-foot rv" data-t="et.footer">Share with your group or write it in your Drama notebook &nbsp;·&nbsp; Unit 01 complete</div>
+    </div>
+  </div>
+  <div class="sf"><div class="pt"><div class="pf" style="width:81.8%"></div></div></div>
+</section>
+
+<!-- ══════════════════════════
+     S10 — EXTENSION / HOMEWORK
+══════════════════════════ -->
+<section class="slide" id="s10" data-rv="4">
+  <div class="sh">
+    <div class="ubadge">Unit 01</div>
+    <div class="lbadge" data-t="lbadge">Lesson 3 of 3</div>
+    <span class="ph-ind" data-t="label.extension">Extension &amp; Homework</span>
+    <div class="sh-mid"></div>
+    <div class="sh-r"><span class="sh-count">10 / 11</span></div>
+  </div>
+  <div class="slide-body">
+    <div class="blob ba" style="opacity:.07"></div>
+    <div class="ext">
+      <div class="ext-col">
+        <div class="rv">
+          <div class="chip ch-g" data-t="label.extension">Extension Task</div>
+          <h2 style="font-size:2.5cqi;font-weight:900;color:var(--ink);margin-top:.5em" data-t="ext.heading">Take It Further</h2>
+        </div>
+        <div class="card ext-card grow rv">
+          <div class="clbl" data-t="label.observation">Observation Task</div>
+          <p style="font-size:1cqi;font-weight:600;color:var(--ink);line-height:1.45;margin-bottom:.7em" data-t="ext.intro">Before Unit 02 begins, observe a conversation between two people — in real life, on TV or in a film.</p>
+          <ul class="blist">
+            <li data-t="ext.q1">What body language do they use?</li>
+            <li data-t="ext.q2">What does their posture tell you about their relationship?</li>
+            <li data-t="ext.q3">How does eye contact change the power balance between them?</li>
+            <li data-t="ext.q4">Can you describe their status using Drama vocabulary?</li>
+          </ul>
+          <div class="ext-note" data-t="ext.note">Write 3–4 sentences ready to share at the start of Unit 02.</div>
+        </div>
+      </div>
+      <div class="ext-col">
+        <div class="card ext-card grow rv">
+          <div class="clbl" data-t="label.vocabToLearn">Vocabulary to Consolidate</div>
+          <div class="chip-row" style="margin-top:.3em">
+            <span class="vchip">body language</span><span class="vchip">eye contact</span>
+            <span class="vchip">posture</span><span class="vchip">use of levels</span>
+            <span class="vchip">proxemics</span><span class="vchip">status</span>
+            <span class="vchip">mood &amp; atmosphere</span>
+          </div>
+          <p style="font-size:.9cqi;color:var(--muted);font-weight:500;line-height:1.45;margin-top:.8em" data-t="ext.vocab.task">Can you write a definition for each word without looking? Try using each in a sentence about a performance you have seen.</p>
+        </div>
+        <div class="card ext-card rv" style="flex:0">
+          <div class="clbl" data-t="label.nextUnit">Next Unit</div>
+          <p style="font-size:1.05cqi;font-weight:800;color:var(--ink)" data-t="next.title">Unit 02: Mime &amp; Melodrama</p>
+          <p style="font-size:.86cqi;color:var(--muted);margin-top:.3em;font-weight:500;line-height:1.4" data-t="next.short">Communicating without words — exaggerated movement, gesture and expression.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="sf"><div class="pt"><div class="pf" style="width:90.9%"></div></div></div>
+</section>
+
+<!-- ══════════════════════════
+     S11 — UNIT COMPLETE
+══════════════════════════ -->
+<section class="slide" id="s11" data-rv="0">
+  <div class="sh" style="background:rgba(15,23,42,.96);border-color:rgba(255,255,255,.07)">
+    <div class="ubadge">Unit 01</div>
+    <div class="sh-mid"><span class="sh-title" style="color:rgba(255,255,255,.38)" data-t="label.unitComplete">Unit 01 Complete</span></div>
+    <div class="sh-r"><span class="sh-count" style="color:rgba(255,255,255,.3)">11 / 11</span></div>
+  </div>
+  <div class="slide-body complete-body">
+    <div class="c-glow"></div><div class="c-glow2"></div>
+    <div class="c-inner">
+      <div class="c-badge" data-t="c.badge">3 Lessons &nbsp;·&nbsp; Unit 01 &nbsp;·&nbsp; S1</div>
+      <h2 data-t="c.heading">Well Done.</h2>
+      <p data-t="c.desc">You have completed Intro to Drama &amp; Group Work. Across three lessons you practised Drama rules, built trust in your group, explored levels and proxemics, and performed Freeze Frames.</p>
+      <div class="c-prog"><div class="c-prog-fill" id="cpf"></div></div>
+      <div class="c-lbl" data-t="c.progress">Unit 01 — 100% complete</div>
+      <div class="c-skills">
+        <span class="c-skill-pill">Body Language</span>
+        <span class="c-skill-pill">Eye Contact</span>
+        <span class="c-skill-pill">Use of Levels</span>
+        <span class="c-skill-pill">Proxemics</span>
+        <span class="c-skill-pill">Collaboration</span>
+      </div>
+      <div class="c-cta" style="margin-top:3.5%" data-t="c.next">Next: Unit 02 — Mime &amp; Melodrama →</div>
+    </div>
+  </div>
+  <div class="sf"><div class="pt"><div class="pf" style="width:100%;background:linear-gradient(90deg,#2563EB,#06B6D4)"></div></div></div>
+</section>
+
+</div></div>
+
+<!-- NAV -->
+<div id="nav">
+  <button class="nb" id="bprev"  disabled>← Previous</button>
+  <div id="ninfo">Slide 1 of 11</div>
+  <button class="nb nb-p" id="bnext" >Next →</button>
+</div>
+<div id="rhint">Space or → to reveal</div>
+
+<script>
+/* ── TRANSLATIONS ────────────────────── */
+const T={
+en:{dir:'ltr',t:{
+  'lbadge':'Lesson 3 of 3','l3.title':'Freeze Frames',
+  'label.50min':'50 minutes','label.thisLesson':'This Lesson',
+  'label.sofar':'What We\'ve Done So Far',
+  'label.recall':'Recall','label.definition':'Definition',
+  'label.vocabToUse':'Vocabulary to Use Today',
+  'label.remember':'Remember','label.allVocab':'Unit 01 — All Vocabulary',
+  'label.selfAssess':'Final Self Assessment',
+  'label.extension':'Extension & Homework',
+  'label.observation':'Observation Task',
+  'label.vocabToLearn':'Vocabulary to Consolidate',
+  'label.nextUnit':'Next Unit','label.unitComplete':'Unit 01 Complete',
+  'label.finalET':'Final Exit Ticket · End of Unit 01',
+  'label.planPractise':'Plan & Practise','label.thenShare':'then we share',
+  'phase.connect':'Connect','phase.explore':'Explore',
+  'phase.create':'Create','phase.share':'Share','phase.reflect':'Reflect',
+  'ph.connect':'Connect · 8 min','ph.explore':'Explore · 8 min',
+  'ph.create':'Create · 20 min','ph.share':'Share · 8 min',
+  'ph.reflect':'Reflect · 6 min',
+  'ph.connect.chip':'Connect · 8 minutes',
+  'ph.explore.chip':'Explore · 8 min',
+  'ph.create.chip':'Main Activity · Groups of 4–5',
+  'ph.share.chip':'Share · 8 min',
+  'ph.reflect.chip':'Reflect · Do Last',
+  'recap.1':'Lesson 1 — Drama rules, the space and Name & Gesture Circle',
+  'recap.2':'Lesson 2 — Trust exercises, levels, proxemics and status',
+  'recap.3':'Today — applying all skills in a Freeze Frame performance',
+  'recall.q':'For each word below — write a definition in your own words. Then use one in a sentence about a performance you have seen.',
+  'step.1':'Write your definitions quietly — 3 minutes',
+  'step.2':'Compare with your neighbour — are your definitions similar?',
+  'step.3':'Share your sentence with the class — use the vocabulary word correctly',
+  'slide.ff':'What is a Freeze Frame?',
+  'ff.def':'A stage picture held completely still — a frozen image that represents a moment, emotion or idea.',
+  'ff.pt1':'Everyone in the group freezes at exactly the same moment',
+  'ff.pt2':'Your body, face and position all communicate meaning',
+  'ff.pt3':'The audience must understand the story without words',
+  'ff.pt4':'Think about levels, proxemics and body language in every freeze',
+  'ff.quote':'"Every part of your body is part of the picture. Nothing is accidental."',
+  'ff.task.intro':'Create 3 freeze frames that tell a clear story. Each freeze must communicate meaning without words.',
+  'ff.frame1':'A problem — show a clear situation using levels, proxemics and body language',
+  'ff.frame2':'The problem getting worse — tension should increase; show this through your staging choices',
+  'ff.frame3':'A possible solution — how does the mood and atmosphere change?',
+  'slide.peerfeedback':'Watch & Peer Feedback',
+  'share.q1':'Describe what you saw','share.q1.sub':'Name each freeze frame. What story did the group tell? Could you understand the narrative without words?',
+  'share.q2':'Name the techniques','share.q2.sub':'Levels, proxemics, body language, facial expression, status — which were used most effectively? Be specific.',
+  'share.q3':'One thing to develop','share.q3.sub':'Using Drama vocabulary, give one specific, constructive suggestion.',
+  'share.banner':'Use Drama vocabulary in your feedback · Be specific · Be kind and constructive',
+  'vocab.heading':'All 7 words from this unit',
+  'vocab.sub':'These are the words to use in your evaluation and written reflection today.',
+  'v.bl':'Communicating non-verbally through the position and movement of the body.',
+  'v.ec':'Using direct gaze to show relationships, power or emotion between performers.',
+  'v.ps':'How you stand and carry your body to represent character or status.',
+  'v.ul':'Using different heights on stage to show status and create visual variety.',
+  'v.px':'The use of space and distance between performers to communicate relationships and tension.',
+  'v.st':'How much power a character has — shown through levels, eye contact, proximity and posture.',
+  'v.ma':'Mood is the tone of the drama. Atmosphere is the feeling the audience gets from watching.',
+  'rub.heading':'How have you progressed across all 3 lessons?',
+  'rub.sub':'Tap the level that best describes you across the full unit — this feeds your TP record.',
+  'rub.note':'All 5 skills · This assessment informs your Tracking Period 1 record',
+  'rub.profile':'TP1 Profile','rub.share':'Share with your teacher — this informs your TP1 record',
+  'skill.bl':'Body Language','skill.ec':'Eye Contact',
+  'skill.ul':'Use of Levels','skill.px':'Proxemics','skill.gc':'Collaboration',
+  'skill.sub.l1':'Lessons 1–3','skill.sub.l2':'Lessons 2–3','skill.sub.all':'All 3 lessons',
+  'sk.bl':'Body Lang.','sk.ec':'Eye Contact','sk.ul':'Levels','sk.px':'Proxemics','sk.gc':'Collab.',
+  'lv.1':'Working on targets','lv.2':'Developing','lv.3':'On track','lv.4':'Above expectations',
+  'bl.1':'My body language doesn\'t clearly show meaning yet.',
+  'bl.2':'I\'m starting to use posture and gesture to show emotion.',
+  'bl.3':'I use body language deliberately to communicate meaning to an audience.',
+  'bl.4':'Precise and impactful — the audience reads exactly what I intend.',
+  'ec.1':'I avoid eye contact or use it without thinking.',
+  'ec.2':'I use eye contact sometimes and can see how it shows relationships.',
+  'ec.3':'I use eye contact on purpose to show status or emotion.',
+  'ec.4':'I control my eye contact with skill to create tension and connection.',
+  'ul.1':'I stay at one level — I\'m not yet thinking about how height changes meaning.',
+  'ul.2':'I\'m starting to use different levels and can see how they show status.',
+  'ul.3':'I use levels deliberately to show status and create visual variety on stage.',
+  'ul.4':'Every level choice is intentional and clearly serves the drama.',
+  'px.1':'I don\'t yet think about the space between performers and what it communicates.',
+  'px.2':'I\'m starting to use space to suggest relationships between characters.',
+  'px.3':'I use space and distance deliberately to show relationships and create tension.',
+  'px.4':'My spatial choices are precise and always communicate something specific.',
+  'gc.1':'I find it hard to contribute or respond positively in group work.',
+  'gc.2':'I contribute sometimes and I\'m starting to listen and respond to others.',
+  'gc.3':'I listen well, contribute ideas and respond to others. My group works well.',
+  'gc.4':'I build on others\' ideas, include everyone and help the whole group succeed.',
+  'ref.heading':'Self Evaluation',
+  'ref.rating.lbl':'How well did you meet today\'s success criteria?',
+  'ref.prompt':'Write 2–3 sentences: what have you learned in this unit? Use at least 3 Drama vocabulary words.',
+  'next.title':'Unit 02: Mime & Melodrama',
+  'next.desc':'We will explore how to communicate meaning entirely through body language and exaggerated movement — no words allowed.',
+  'next.short':'Communicating without words — exaggerated movement, gesture and expression.',
+  'label.nextUnit':'Coming Up Next','label.unitComplete':'Unit 01 Complete',
+  'complete.summary':'Drama rules · Trust exercises · Name & Gesture Circle · Freeze Frames · 7 vocabulary words · 5 performance skills assessed',
+  'et.heading':'Reflect on all 3 lessons — take 2 minutes.',
+  'et.learnt':'One thing I learnt in this unit',
+  'et.learnt.sub':'Think across all three lessons — rules, trust, vocabulary, freeze frames.',
+  'et.didwell':'One thing I\'m most proud of',
+  'et.didwell.sub':'What are you proudest of from all three lessons? Name a specific moment or skill.',
+  'et.improve':'One thing I want to develop',
+  'et.improve.sub':'What will you focus on as you move into Unit 02?',
+  'et.write':'Write it down',
+  'et.footer':'Share with your group or write it in your Drama notebook · Unit 01 complete',
+  'ext.heading':'Take It Further',
+  'ext.intro':'Before Unit 02 begins, observe a conversation between two people — in real life, on TV or in a film.',
+  'ext.q1':'What body language do they use?',
+  'ext.q2':'What does their posture tell you about their relationship?',
+  'ext.q3':'How does eye contact change the power balance between them?',
+  'ext.q4':'Can you describe their status using Drama vocabulary?',
+  'ext.note':'Write 3–4 sentences ready to share at the start of Unit 02.',
+  'ext.vocab.task':'Can you write a definition for each word without looking? Try using each in a sentence about a performance you have seen.',
+  'c.badge':'3 Lessons · Unit 01 · S1','c.heading':'Well Done.',
+  'c.desc':'You have completed Intro to Drama & Group Work. Across three lessons you practised Drama rules, built trust in your group, explored levels and proxemics, and performed Freeze Frames.',
+  'c.progress':'Unit 01 — 100% complete','c.next':'Next: Unit 02 — Mime & Melodrama →'
+}},
+ar:{dir:'rtl',t:{
+  'lbadge':'الدرس 3 من 3','l3.title':'المشاهد المجمدة',
+  'label.50min':'٥٠ دقيقة','label.thisLesson':'هذا الدرس',
+  'label.sofar':'ما أنجزناه حتى الآن',
+  'label.recall':'مراجعة','label.selfAssess':'التقييم الذاتي النهائي',
+  'label.extension':'مهمة إضافية والواجب',
+  'label.finalET':'بطاقة الخروج النهائية · نهاية الوحدة ٠١',
+  'label.unitComplete':'الوحدة ٠١ مكتملة',
+  'phase.connect':'تواصل','phase.explore':'استكشاف',
+  'phase.create':'إبداع','phase.share':'مشاركة','phase.reflect':'تأمل',
+  'recap.1':'الدرس ١ — قواعد الدراما والفضاء ودائرة الاسم والإيماءة',
+  'recap.2':'الدرس ٢ — تمارين الثقة والمستويات والقرب والوضع',
+  'recap.3':'اليوم — تطبيق جميع المهارات في أداء المشاهد المجمدة',
+  'recall.q':'لكل كلمة أدناه — اكتب تعريفاً بكلماتك الخاصة. ثم استخدم إحداها في جملة عن عرض شاهدته.',
+  'step.1':'اكتب تعاريفك بهدوء — ٣ دقائق',
+  'step.2':'قارن مع جارك — هل تعاريفكما متشابهة؟',
+  'step.3':'شارك جملتك مع الصف — استخدم كلمة المفردات بشكل صحيح',
+  'ff.task.intro':'أنشئ ٣ مشاهد مجمدة تحكي قصة واضحة. يجب أن يوصل كل تجميد المعنى دون كلمات.',
+  'ff.frame1':'مشكلة — أظهر موقفاً واضحاً باستخدام المستويات والقرب ولغة الجسد',
+  'ff.frame2':'تفاقم المشكلة — يجب أن يزداد التوتر؛ أظهر هذا من خلال خياراتك في التنظيم',
+  'ff.frame3':'حل ممكن — كيف يتغير المزاج والجو؟',
+  'rub.heading':'كيف تطورت خلال الدروس الثلاثة؟',
+  'rub.sub':'انقر على المستوى الذي يصفك بشكل أفضل عبر الوحدة الكاملة.',
+  'rub.note':'جميع المهارات الخمس · هذا التقييم يُعلم سجل الفترة التتبعية ١',
+  'rub.profile':'ملف TP1','rub.share':'شارك معلمك — هذا يُعلم سجل TP1',
+  'skill.sub.l1':'الدروس ١-٣','skill.sub.l2':'الدروس ٢-٣','skill.sub.all':'الدروس الثلاثة',
+  'lv.1':'أعمل على الأهداف','lv.2':'في طور التطوير','lv.3':'على المسار الصحيح','lv.4':'فوق التوقعات',
+  'et.heading':'فكر في الدروس الثلاثة — دقيقتان.',
+  'et.learnt':'شيء واحد تعلمته في هذه الوحدة',
+  'et.learnt.sub':'فكر عبر الدروس الثلاثة — القواعد والثقة والمفردات والمشاهد المجمدة.',
+  'et.didwell':'شيء واحد أفخر به','et.improve':'شيء واحد أريد تطويره',
+  'et.write':'اكتبه','et.footer':'شارك مجموعتك أو اكتبه في دفتر الدراما · الوحدة ٠١ مكتملة',
+  'c.heading':'أحسنت.','c.badge':'٣ دروس · الوحدة ٠١ · S1',
+  'c.progress':'الوحدة ٠١ — مكتملة ١٠٠٪','c.next':'التالي: الوحدة ٠٢ — الميم والميلودراما ←'
+}},
+fa:{dir:'rtl',t:{
+  'lbadge':'درس ۳ از ۳','l3.title':'تصاویر ثابت',
+  'label.50min':'۵۰ دقیقه','label.selfAssess':'ارزیابی نهایی خود',
+  'label.unitComplete':'واحد ۰۱ کامل شد','label.finalET':'بلیت خروج نهایی · پایان واحد ۰۱',
+  'phase.connect':'ارتباط','phase.explore':'کاوش',
+  'phase.create':'خلق','phase.share':'به اشتراک گذاشتن','phase.reflect':'تأمل',
+  'lv.1':'در حال کار روی اهداف','lv.2':'در حال توسعه','lv.3':'در مسیر درست','lv.4':'بالاتر از انتظارات',
+  'et.heading':'درباره هر ۳ درس فکر کنید — ۲ دقیقه.',
+  'et.learnt':'یک چیز که در این واحد یاد گرفتم','et.didwell':'یک چیز که به آن افتخار می‌کنم',
+  'et.improve':'یک چیز که می‌خواهم توسعه دهم',
+  'et.write':'آن را بنویسید','et.footer':'با گروهتان به اشتراک بگذارید یا در دفترچه درامتان بنویسید',
+  'c.heading':'آفرین.','c.progress':'واحد ۰۱ — ۱۰۰٪ کامل','c.next':'بعدی: واحد ۰۲ — میم و ملودرام ←'
+}},
+zh:{dir:'ltr',t:{
+  'lbadge':'第3课 共3课','l3.title':'定格画面',
+  'label.50min':'50分钟','label.selfAssess':'最终自我评估',
+  'label.unitComplete':'第01单元完成','label.finalET':'最终离场票 · 第01单元结束',
+  'phase.connect':'连接','phase.explore':'探索',
+  'phase.create':'创造','phase.share':'分享','phase.reflect':'反思',
+  'lv.1':'正在努力达标','lv.2':'正在发展中','lv.3':'达到标准','lv.4':'超出预期',
+  'et.heading':'反思所有3节课——花2分钟。',
+  'et.learnt':'本单元我学到的一件事','et.didwell':'我最自豪的一件事',
+  'et.improve':'我想发展的一件事',
+  'et.write':'写下来','et.footer':'与小组分享或写在戏剧笔记本上 · 第01单元完成',
+  'c.heading':'做得好。','c.progress':'第01单元 — 100%完成','c.next':'下一个：第02单元 — 哑剧与情节剧 →'
+}},
+ur:{dir:'rtl',t:{
+  'lbadge':'سبق ۳ از ۳','l3.title':'فریز فریمز',
+  'label.50min':'۵۰ منٹ','label.selfAssess':'حتمی خود تشخیصی',
+  'label.unitComplete':'یونٹ ۰۱ مکمل','label.finalET':'حتمی خروج ٹکٹ · یونٹ ۰۱ کا اختتام',
+  'phase.connect':'جڑنا','phase.explore':'دریافت کرنا',
+  'phase.create':'بنانا','phase.share':'شیئر کریں','phase.reflect':'غور کریں',
+  'lv.1':'اہداف پر کام جاری ہے','lv.2':'ترقی میں ہے','lv.3':'ٹریک پر ہے','lv.4':'توقع سے اوپر',
+  'et.heading':'تینوں سبقوں پر غور کریں — ۲ منٹ۔',
+  'et.learnt':'اس یونٹ میں ایک چیز جو میں نے سیکھی','et.didwell':'ایک چیز جس پر مجھے فخر ہے',
+  'et.improve':'ایک چیز جسے میں ترقی دینا چاہتا/چاہتی ہوں',
+  'et.write':'اسے لکھیں','et.footer':'اپنے گروپ کے ساتھ شیئر کریں یا ڈرامہ نوٹ بک میں لکھیں',
+  'c.heading':'شاباش۔','c.progress':'یونٹ ۰۱ — ۱۰۰٪ مکمل','c.next':'اگلا: یونٹ ۰۲ — میم اور میلوڈراما ←'
+}},
+pl:{dir:'ltr',t:{
+  'lbadge':'Lekcja 3 z 3','l3.title':'Zatrzymane obrazy',
+  'label.50min':'50 minut','label.selfAssess':'Końcowa samoocena',
+  'label.unitComplete':'Jednostka 01 ukończona','label.finalET':'Karta wyjścia · Koniec jednostki 01',
+  'phase.connect':'Połącz','phase.explore':'Odkrywaj',
+  'phase.create':'Twórz','phase.share':'Podziel się','phase.reflect':'Refleksja',
+  'lv.1':'Pracuję nad celami','lv.2':'Rozwijam się','lv.3':'Na właściwej drodze','lv.4':'Powyżej oczekiwań',
+  'et.heading':'Zastanów się nad wszystkimi 3 lekcjami — 2 minuty.',
+  'et.learnt':'Jedna rzecz, której nauczyłem/am się w tej jednostce',
+  'et.didwell':'Jedna rzecz, z której jestem najbardziej dumny/a',
+  'et.improve':'Jedna rzecz, którą chcę rozwinąć',
+  'et.write':'Zapisz to','et.footer':'Podziel się z grupą lub zapisz w zeszycie Drama · Jednostka 01 ukończona',
+  'c.heading':'Świetna robota.','c.progress':'Jednostka 01 — 100% ukończona','c.next':'Następna: Jednostka 02 — Pantomima i melodramat →'
+}}
+};
+
+
+/* ── RUBRIC ─────────────────────────────────── */
+window.lvlCols={1:'#FF3B30',2:'#F59E0B',3:'#22C55E',4:'#6D28D9'};
+window.lvlLabels={
+  en:['—','Working on targets','Developing','On track','Above expectations'],
+  ar:['—','أعمل على الأهداف','في طور التطوير','على المسار الصحيح','فوق التوقعات'],
+  fa:['—','در حال کار روی اهداف','در حال توسعه','در مسیر درست','بالاتر از انتظارات'],
+  zh:['—','正在努力达标','正在发展中','达到标准','超出预期'],
+  ur:['—','اہداف پر کام جاری ہے','ترقی میں ہے','ٹریک پر ہے','توقع سے اوپر'],
+  pl:['—','Pracuję nad celami','Rozwijam się','Na właściwej drodze','Powyżej oczekiwań']
+};
+window.sel={bl:0,ec:0,ul:0,px:0,gc:0};
+function pick(skill,level,btn){
+  btn.closest('.rub-levels').querySelectorAll('.lvbtn').forEach(b=>b.classList.remove('s1','s2','s3','s4'));
+  btn.classList.add('s'+level);sel[skill]=level;updProf(skill,level);
+}
+function updProf(skill,level){
+  document.querySelectorAll(`.rp-dots[data-skill="${skill}"] .rp-dot`).forEach(d=>{
+    const n=parseInt(d.dataset.d);d.classList.toggle('lit',n<=level);d.style.background=n<=level?lvC[level]:'';
+  });
+  const sc=document.querySelector(`[data-profile="${skill}"]`);
+  if(sc){const lb=lvL[lang]||lvL.en;sc.textContent=level>0?level+' — '+lb[level]:lb[0];sc.style.color=level>0?lvC[level]:'';sc.style.fontWeight=level>0?'700':'';}
+}
+
+/* ── RATING SCALE (S8) ──────────────────────── */
+function rateMe(el,val){
+  el.closest('.rating-scale').querySelectorAll('.r-dot').forEach(d=>d.classList.remove('on'));
+  el.classList.add('on');
+}
+
+
+</script>
+
+<script src="drama-slides-core.js"></script>
+<script src="drama-slides-i18n.js"></script>
+<script src="drama-slides-deck.js"></script>
+<script>
+(function () {
+  if (window.DramaSlidesI18n) window.DramaSlidesI18n.init();
+  if (window.DramaSlidesCore) window.DramaSlidesCore.init();
+  if (window.DramaSlidesDeck) window.DramaSlidesDeck.init();
+  window.addEventListener('drama-slides-lang-change', function (e) {
+    window.lang = e.detail.lang;
+    var skills = ['bl', 'ec', 'gc', 'ul', 'px', 'fe', 'ge'];
+    if (typeof updateProfile === 'function' && window.selections) {
+      skills.forEach(function (skill) {
+        if (window.selections[skill] > 0) updateProfile(skill, window.selections[skill]);
+      });
+    }
+    if (typeof updateProf === 'function' && window.sel) {
+      skills.forEach(function (skill) {
+        if (window.sel[skill] > 0) updateProf(skill, window.sel[skill]);
+      });
+    }
+    if (typeof updProf === 'function' && window.sel) {
+      skills.forEach(function (skill) {
+        if (window.sel[skill] > 0) updProf(skill, window.sel[skill]);
+      });
+    }
+  });
+  window.lang = window.DramaSlidesI18n ? window.DramaSlidesI18n.getLang() : 'en';
+})();
+</script>
+</body>
+</html>
