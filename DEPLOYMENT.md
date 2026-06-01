@@ -42,6 +42,7 @@
    | 18 | `supabase/migrations/20260521120000_notification_reads.sql` |
    | 19 | `supabase/migrations/20260527100000_hgios4_toolkit.sql` (HGIOS 4 Toolkit cloud sync) |
    | 20 | `supabase/migrations/20260527120000_hgios4_toolkit_management_rls.sql` (Faculty Head can read/write toolkit) |
+   | 21 | `supabase/migrations/20250601120000_calendar_event_requests.sql` (staff calendar approval → shared calendar + home notifications) |
 
 #### Apply migrations with Supabase CLI (optional)
 
@@ -83,6 +84,7 @@ supabase db push
 
 - Admin-added events in the Academic Calendar are stored in `shared_calendar_events` and appear for all users
 - Personal events are stored per user in `pupil_data.academicCalendarEvents`
+- **Calendar approval:** staff use **Request shared calendar approval** on the Academic Calendar; pending items appear on the Faculty Hub home **notification bell** and **Calendar requests** tile for faculty heads, and in Admin Console → **Calendar approval requests**
 - To seed default Glasgow term dates: log in as admin, open the Academic Calendar, and add events (or run a one-off SQL insert into `shared_calendar_events`)
 
 ### Enable authentication providers

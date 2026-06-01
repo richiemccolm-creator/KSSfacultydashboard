@@ -535,7 +535,14 @@
           read_at: now
         };
       }).filter(function(item) {
-        return (item.item_type === 'announcement' || item.item_type === 'calendar_event') && item.item_id;
+        var t = item.item_type;
+        return (
+          t === 'announcement' ||
+          t === 'calendar_event' ||
+          t === 'calendar_request_pending' ||
+          t === 'calendar_request_approved' ||
+          t === 'calendar_request_rejected'
+        ) && item.item_id;
       });
       if (!normalized.length) return Promise.resolve([]);
 

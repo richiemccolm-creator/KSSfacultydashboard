@@ -23,6 +23,7 @@
 <script src="allowlist-check.js"></script>
 <script src="auth-guard.js"></script>
 <script src="data-service.js"></script>
+<script src="calendar-request-service.js"></script>
 <script src="staff-display-name.js"></script>
 <script src="department-meetings-shared.js"></script>
 <script src="https://unpkg.com/mammoth@1.9.0/mammoth.browser.min.js"></script>
@@ -439,6 +440,17 @@ html,body{min-height:100%;margin:0;width:100%;box-sizing:border-box}
             </div>
             <div id="admin-ann-schema-warning" style="display:none;margin-bottom:1rem;padding:.65rem .75rem;border:1px solid #fcd34d;border-radius:8px;background:#fffbeb;color:#92400e;font-size:.75rem"></div>
             <div id="admin-announcements-list" style="font-size:.85rem"></div>
+          </div>
+        </div>
+        <div class="sc" style="margin-bottom:1.5rem">
+          <div class="sc-header">
+            <div>
+              <div class="sc-title">Calendar approval requests</div>
+              <div class="sc-sub">Staff submissions waiting for you. Approving adds the date(s) to the shared faculty calendar. You also get these on the Faculty Hub home notification bell.</div>
+            </div>
+          </div>
+          <div class="sc-body">
+            <div id="admin-cal-requests-list" style="font-size:.85rem"></div>
           </div>
         </div>
         <div class="sc" style="margin-bottom:1.5rem">
@@ -2098,8 +2110,53 @@ function adminDmSave(mode) {
   }
 }
 var catLbl = { exam: 'Exam', meeting: 'Meeting', deadline: 'Deadline', assessment: 'Assessment', reporting: 'Reporting', training: 'Training', cpd: 'CPD', inset: 'In-Service', holiday: 'Holiday', general: 'General' };
+function adminRenderCalendarRequests() {
+  var list = document.getElementById('admin-cal-requests-list');
+  if (!list || !canManageFacultyHub() || !window.CalendarRequestService) {
+    if (list) list.innerHTML = '';
+    return;
+  }
+  CalendarRequestService.listPendingForReview().then(function(pending) {
+    if (!pending.length) {
+      list.innerHTML = '<div class="empty-s" style="padding:1rem">No pending calendar requests.</div>';
+      return;
+    }
+    var ids = pending.map(function(r) { return r.requester_id; });
+    return CalendarRequestService.getRequesterProfiles(ids).then(function(profiles) {
+      var esc = function(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/'/g, '&#39;'); };
+      list.innerHTML = '<table class="table-wrap" style="width:100%"><thead><tr><th>Submitted</th><th>Staff</th><th>Title</th><th>Dates</th><th>Category</th><th></th></tr></thead><tbody>' +
+        pending.map(function(r) {
+          var who = profiles[r.requester_id] || 'Staff';
+          var range = CalendarRequestService.formatDateRange(r);
+          var sub = (r.submitted_at || '').slice(0, 10);
+          var rid = (r.id || '').replace(/'/g, "\\'");
+          return '<tr><td>' + esc(sub) + '</td><td>' + esc(who) + '</td><td>' + esc(r.title) + '</td><td>' + esc(range) + '</td><td>' + esc(r.category) + '</td><td style="white-space:nowrap">' +
+            '<button class="btn btn-primary" style="font-size:.7rem;padding:.25rem .5rem" onclick="adminApproveCalendarRequest(\'' + rid + '\')">Approve</button> ' +
+            '<button class="btn btn-ghost" style="font-size:.7rem;padding:.25rem .5rem" onclick="adminRejectCalendarRequest(\'' + rid + '\')">Reject</button></td></tr>';
+        }).join('') + '</tbody></table>';
+    });
+  }).catch(function() {
+    list.innerHTML = '<div class="empty-s" style="padding:1rem;color:#b45309">Could not load requests. Run migration <code>20250601120000_calendar_event_requests.sql</code> in Supabase.</div>';
+  });
+}
+function adminApproveCalendarRequest(id) {
+  if (!canManageFacultyHub() || !window.CalendarRequestService) return;
+  if (!confirm('Approve and publish to the shared faculty calendar?')) return;
+  CalendarRequestService.approveRequest(id).then(function() {
+    toast('Approved — on shared calendar for all staff');
+    renderAdminConsole();
+  }).catch(function(err) { toast((err && err.message) || 'Approval failed'); });
+}
+function adminRejectCalendarRequest(id) {
+  if (!canManageFacultyHub() || !window.CalendarRequestService) return;
+  var reason = window.prompt('Optional reason for the teacher:', '') || '';
+  CalendarRequestService.rejectRequest(id, reason).then(function() {
+    toast('Request rejected');
+    renderAdminConsole();
+  }).catch(function(err) { toast((err && err.message) || 'Reject failed'); });
+}
 function renderAdminConsole() {
-  if (!window.__authGuardIsAdmin || !window.DataService) return;
+  if (!canManageFacultyHub() || !window.DataService) return;
   adminAnnSetSchemaWarning('');
   if (typeof DataService.getAnnouncementsSchemaSupport === 'function') {
     DataService.getAnnouncementsSchemaSupport().then(function(info) {
@@ -2131,6 +2188,7 @@ function renderAdminConsole() {
       }
     }
   });
+  adminRenderCalendarRequests();
   DataService.getSharedCalendarEvents().then(function(events) {
     adminSharedEvents = events || [];
     var list = document.getElementById('admin-shared-events-list');

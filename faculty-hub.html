@@ -28,6 +28,7 @@
 <script src="staff-display-name.js"></script>
 <script src="teacher-tasks-service.js"></script>
 <script src="teacher-tasks-home.js"></script>
+<script src="calendar-request-service.js"></script>
 <script src="quality-calendar-months.js"></script>
 <link rel="preconnect" href="https://api.fontshare.com" crossorigin>
 <link href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700,800&display=swap" rel="stylesheet">
@@ -1893,7 +1894,7 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
 .cal-badge.training{background:#dbeafe;color:#1d4ed8}
 .cal-badge.cpd{background:#e0e7ff;color:#3730a3}
 .cal-badge.inset{background:#fce7f3;color:#9d174d}
-.cal-form-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:1rem}
+.cal-form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:1rem}
 .cal-form-grid input,.cal-form-grid select{
   padding:.5rem .75rem;border:1px solid var(--border2);border-radius:6px;font-size:.85rem
 }
@@ -1933,6 +1934,20 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
   transition:background .12s;
 }
 .cal-add-btn:hover{background:var(--navy-hover)}
+.cal-requests-list{display:flex;flex-direction:column;gap:.5rem}
+.cal-request-row{
+  display:flex;flex-wrap:wrap;gap:.5rem;align-items:flex-start;justify-content:space-between;
+  padding:.65rem .75rem;border:1px solid var(--border);border-radius:8px;background:var(--card);
+}
+.cal-request-row-main{flex:1;min-width:200px}
+.cal-request-row-title{font-size:.82rem;font-weight:600;color:var(--text)}
+.cal-request-row-meta{font-size:.72rem;color:var(--text3);margin-top:.2rem}
+.cal-request-row-actions{display:flex;flex-wrap:wrap;gap:.35rem}
+.cal-request-status{font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.cal-request-status.pending{color:#b45309}
+.cal-request-status.approved{color:#166534}
+.cal-request-status.rejected{color:#b91c1c}
+.home-notif-item-icon.calendar-request{background:#ede9fe;color:#6d28d9}
 .btn-ghost{padding:.5rem 1rem;border-radius:6px;font-weight:500;cursor:pointer;font-size:.85rem;background:var(--bg,#f0f2f5);color:var(--text2,#4a5568);border:1px solid var(--border,#e2e8f0)}
 .btn-ghost:hover{border-color:var(--navy,#1e2d4a);color:var(--navy,#1e2d4a)}
 .cal-calendar{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-top:1.5rem}
@@ -2500,6 +2515,15 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
                 <div id="homeUnreadAnnouncementsCount" style="font-size:22px;font-weight:500;line-height:1.1;margin-top:4px;">0</div>
                 <div style="font-size:9px;color:#64748b;margin-top:4px;">unread</div>
               </div>
+
+              <div id="homeCalendarRequestsTile" style="display:none;background:#fff;border:.5px solid #e2e8f0;border-radius:8px;padding:10px 12px;border-top:2px solid #7c3aed;cursor:pointer" role="button" tabindex="0" title="Open calendar pending requests">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                  <div style="font-size:9px;font-weight:500;color:#64748b;text-transform:uppercase;letter-spacing:.06em;">Calendar requests</div>
+                  <i class="ti ti-calendar-check" style="color:#7c3aed;"></i>
+                </div>
+                <div id="homePendingCalendarRequestsCount" style="font-size:22px;font-weight:500;line-height:1.1;margin-top:4px;">0</div>
+                <div style="font-size:9px;color:#64748b;margin-top:4px;">awaiting your approval</div>
+              </div>
             </section>
 
             <section class="home-core-grid" style="display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:8px;margin-bottom:14px;">
@@ -2604,7 +2628,7 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
         <div class="cal-purpose-strip">
           <div class="cal-purpose-label">Academic Calendar<em>Term Dates &amp; Events</em></div>
           <div class="cal-purpose-text">
-            <p>Glasgow term dates, holidays, and faculty events for the academic year. Add department meetings, assessment deadlines, and reporting dates. Shared events (from admin) appear for everyone; your personal events are saved to your account.</p>
+            <p>Glasgow term dates, holidays, and faculty events for the academic year. Add personal dates to your calendar, or <strong>request shared calendar approval</strong> when the whole faculty should see an entry (e.g. absence). Faculty heads approve from here or from the home notification bell.</p>
           </div>
         </div>
         <div class="cal-container">
@@ -2640,6 +2664,23 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
               <div id="calUpcoming" class="cal-upcoming-list"></div>
             </div>
           </div>
+          <div class="section-card" id="calPendingApprovalsCard" style="display:none">
+            <div class="section-card-header">
+              <div class="section-card-title">Pending shared calendar requests</div>
+            </div>
+            <div class="section-card-body">
+              <p style="font-size:.78rem;color:var(--text2);margin-bottom:.75rem;line-height:1.45">Staff have asked for these dates on the faculty-wide calendar. Approve to publish for everyone, or reject with an optional note.</p>
+              <div id="calPendingApprovalsList" class="cal-requests-list"></div>
+            </div>
+          </div>
+          <div class="section-card" id="calMyRequestsCard" style="display:none">
+            <div class="section-card-header">
+              <div class="section-card-title">My shared calendar requests</div>
+            </div>
+            <div class="section-card-body">
+              <div id="calMyRequestsList" class="cal-requests-list"></div>
+            </div>
+          </div>
           <div class="section-card">
             <div class="section-card-header">
               <div class="section-card-title">Add Event</div>
@@ -2647,7 +2688,8 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
             <div class="section-card-body">
               <div class="cal-form-grid">
                 <input id="calTitle" placeholder="Event title">
-                <input id="calDate" type="date">
+                <input id="calDate" type="date" title="Start date">
+                <input id="calEndDate" type="date" title="End date (optional, for multi-day)">
                 <select id="calCategory">
                   <option value="exam">Exam</option>
                   <option value="meeting">Meeting</option>
@@ -2663,9 +2705,13 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
               </div>
               <label class="cal-desc-label" for="calDescription">Description <span class="cal-optional">(optional — staff can click the event for full details)</span></label>
               <textarea id="calDescription" class="cal-desc-input" rows="3" placeholder="Room, agenda, links, or anything staff should know…"></textarea>
-              <button class="cal-add-btn" id="calAddBtn" onclick="calAddEvent()">Add Event</button>
-              <button class="cal-add-btn" id="calUpdateBtn" onclick="calUpdateEvent()" style="display:none;background:#0369a1">Update Event</button>
-              <button class="btn btn-ghost" id="calCancelEditBtn" onclick="calCancelEdit()" style="display:none;padding:.5rem 1rem">Cancel</button>
+              <div class="cal-add-actions" style="display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-top:.35rem">
+                <button class="cal-add-btn" id="calAddBtn" onclick="calAddEvent()">Add to my calendar</button>
+                <button class="cal-add-btn" id="calRequestApprovalBtn" onclick="calSubmitCalendarRequest()" style="display:none;background:#0f766e">Request shared calendar approval</button>
+                <button class="cal-add-btn" id="calUpdateBtn" onclick="calUpdateEvent()" style="display:none;background:#0369a1">Update Event</button>
+                <button class="btn btn-ghost" id="calCancelEditBtn" onclick="calCancelEdit()" style="display:none;padding:.5rem 1rem">Cancel</button>
+              </div>
+              <p id="calRequestApprovalHint" style="display:none;font-size:.72rem;color:var(--text3);margin-top:.5rem;line-height:1.45;max-width:42rem">Use <strong>Request shared calendar approval</strong> when the whole faculty should see the date (e.g. absence or cover). Your faculty head will review it; you will get a notification on the home page when it is approved.</p>
             </div>
           </div>
           <div class="cal-calendar" id="calCalendar"></div>
@@ -5264,7 +5310,7 @@ function showPanel(id){
   if(sb){sb.classList.remove('active-drama','active-ad','active-photo','active-dip','active-home');sb.classList.add('active-'+subj);}
   updateTopbar(id,subj);
   if(id.endsWith('retrieval')) initRetrieval(subj);
-  if(id==='academic-calendar'){calCurrentYear=calGetCurrentAcademicYear();calLoadEvents().then(function(){calRender();}).catch(function(){calRender();});}
+  if(id==='academic-calendar'){calCurrentYear=calGetCurrentAcademicYear();calSyncAddEventFormChrome();calLoadEvents().then(function(){calRender();return calRefreshCalendarRequests();}).catch(function(){calRender();calRefreshCalendarRequests();});}
   if(id==='home') homeDashboardRender({ showLoading: !homeHasCompletedInitialLoad });
   if(id==='home-announcements-all') homeRenderAllAnnouncementsPanel();
   if(id==='dip-main') dipRenderProgressTimeline();
@@ -8026,19 +8072,177 @@ function calOpenEventDetailModal(events){
   document.addEventListener('keydown',window._calModalKeyHandler);
 }
 function calChangeYear(dir){calCurrentYear+=dir;calRender();}
+function calCanManageSchool(){
+  return !!(window.__authGuardCanManageSchool||window.__authGuardIsAdmin||window.__authGuardIsFacultyHead);
+}
+function calSyncAddEventFormChrome(){
+  var isMgr=calCanManageSchool();
+  var addBtn=document.getElementById('calAddBtn');
+  var reqBtn=document.getElementById('calRequestApprovalBtn');
+  var hint=document.getElementById('calRequestApprovalHint');
+  if(addBtn) addBtn.textContent=isMgr?'Add shared event':'Add to my calendar';
+  if(reqBtn) reqBtn.style.display=isMgr?'none':'inline-flex';
+  if(hint) hint.style.display=isMgr?'none':'block';
+}
+function calClearAddForm(){
+  document.getElementById('calTitle').value='';
+  document.getElementById('calDate').value='';
+  var endEl=document.getElementById('calEndDate');if(endEl)endEl.value='';
+  document.getElementById('calDescription').value='';
+}
+function calSubmitCalendarRequest(){
+  if(calCanManageSchool()){backupToast('Faculty heads can add shared events directly.');return;}
+  if(!window.CalendarRequestService||typeof CalendarRequestService.submitRequest!=='function'){
+    backupToast('Sign in with cloud sync to submit calendar requests.');
+    return;
+  }
+  var title=(document.getElementById('calTitle').value||'').trim();
+  var date=document.getElementById('calDate').value;
+  var endDate=(document.getElementById('calEndDate')&&document.getElementById('calEndDate').value)||'';
+  var category=document.getElementById('calCategory').value;
+  var descriptionRaw=(document.getElementById('calDescription').value||'').trim();
+  if(!title||!date){backupToast('Enter an event title and start date.');return;}
+  if(endDate&&endDate<date){backupToast('End date must be on or after the start date.');return;}
+  CalendarRequestService.submitRequest({
+    title:title,date:date,end_date:endDate||null,category:category||'general',description:descriptionRaw
+  }).then(function(){
+    calClearAddForm();
+    calRefreshCalendarRequests();
+    if(typeof homeDashboardRender==='function') homeDashboardRender({ showLoading:false });
+    backupToast('Request sent to your faculty head for approval.');
+  }).catch(function(err){
+    backupToast((err&&err.message)||'Could not submit request. Run the calendar requests migration in Supabase.');
+  });
+}
+function calRefreshCalendarRequests(){
+  calSyncAddEventFormChrome();
+  if(!window.CalendarRequestService||!window.supabase){
+    var pc=document.getElementById('calPendingApprovalsCard');if(pc)pc.style.display='none';
+    var mc=document.getElementById('calMyRequestsCard');if(mc)mc.style.display='none';
+    return Promise.resolve();
+  }
+  var promises=[];
+  if(calCanManageSchool()){
+    promises.push(CalendarRequestService.listPendingForReview());
+  } else {
+    promises.push(Promise.resolve([]));
+  }
+  promises.push(CalendarRequestService.listMyRequests());
+  return Promise.all(promises).then(function(res){
+    var pending=res[0]||[];
+    var mine=res[1]||[];
+    return calRenderPendingApprovals(pending).then(function(){
+      calRenderMyRequests(mine);
+    });
+  }).catch(function(){
+    var list=document.getElementById('calPendingApprovalsList');
+    if(list) list.innerHTML='<p style="font-size:.78rem;color:var(--text3)">Could not load requests. Apply the calendar requests migration in Supabase.</p>';
+  });
+}
+function calEscHtml(s){
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function calRenderPendingApprovals(pending){
+  var card=document.getElementById('calPendingApprovalsCard');
+  var list=document.getElementById('calPendingApprovalsList');
+  if(!card||!list) return Promise.resolve();
+  if(!calCanManageSchool()||!pending.length){
+    card.style.display='none';
+    return Promise.resolve();
+  }
+  card.style.display='block';
+  var ids=pending.map(function(r){return r.requester_id;}).filter(Boolean);
+  return CalendarRequestService.getRequesterProfiles(ids).then(function(profiles){
+    list.innerHTML=pending.map(function(r){
+      var who=profiles[r.requester_id]||'Staff member';
+      var range=CalendarRequestService.formatDateRange(r);
+      var desc=(r.description&&String(r.description).trim())?('<div style="font-size:.72rem;color:var(--text2);margin-top:.25rem">'+calEscHtml(r.description)+'</div>'):'';
+      return '<div class="cal-request-row" data-request-id="'+calEscHtml(r.id)+'">'+
+        '<div class="cal-request-row-main">'+
+        '<div class="cal-request-row-title">'+calEscHtml(r.title)+'</div>'+
+        '<div class="cal-request-row-meta">'+calEscHtml(who)+' · '+calEscHtml(range)+' · '+calEscHtml(r.category||'general')+'</div>'+
+        desc+
+        '</div>'+
+        '<div class="cal-request-row-actions">'+
+        '<button type="button" class="btn btn-primary" style="font-size:.72rem;padding:.35rem .65rem" data-cal-approve="'+calEscHtml(r.id)+'">Approve</button>'+
+        '<button type="button" class="btn btn-ghost" style="font-size:.72rem;padding:.35rem .65rem" data-cal-reject="'+calEscHtml(r.id)+'">Reject</button>'+
+        '</div></div>';
+    }).join('');
+    list.querySelectorAll('[data-cal-approve]').forEach(function(btn){
+      btn.addEventListener('click',function(){
+        var id=btn.getAttribute('data-cal-approve');
+        if(!id||!confirm('Approve and add to the shared faculty calendar?')) return;
+        CalendarRequestService.approveRequest(id).then(function(){
+          backupToast('Approved — event is on the shared calendar.');
+          calLoadEvents().then(function(){calRender();});
+          calRefreshCalendarRequests();
+          if(typeof homeDashboardRender==='function') homeDashboardRender({ showLoading:false });
+        }).catch(function(err){ backupToast((err&&err.message)||'Approval failed'); });
+      });
+    });
+    list.querySelectorAll('[data-cal-reject]').forEach(function(btn){
+      btn.addEventListener('click',function(){
+        var id=btn.getAttribute('data-cal-reject');
+        if(!id) return;
+        var reason=window.prompt('Optional reason for rejection (shown to the teacher):','')||'';
+        CalendarRequestService.rejectRequest(id,reason).then(function(){
+          backupToast('Request rejected.');
+          calRefreshCalendarRequests();
+          if(typeof homeDashboardRender==='function') homeDashboardRender({ showLoading:false });
+        }).catch(function(err){ backupToast((err&&err.message)||'Reject failed'); });
+      });
+    });
+  });
+}
+function calRenderMyRequests(mine){
+  var card=document.getElementById('calMyRequestsCard');
+  var list=document.getElementById('calMyRequestsList');
+  if(!card||!list) return;
+  if(calCanManageSchool()||!mine.length){
+    card.style.display='none';
+    return;
+  }
+  card.style.display='block';
+  list.innerHTML=mine.slice(0,12).map(function(r){
+    var range=CalendarRequestService.formatDateRange(r);
+    var st=String(r.status||'pending');
+    var extra='';
+    if(st==='rejected'&&r.rejected_reason) extra='<div style="font-size:.72rem;color:var(--text2);margin-top:.25rem">'+calEscHtml(r.rejected_reason)+'</div>';
+    var actions='';
+    if(st==='pending'){
+      actions='<button type="button" class="btn btn-ghost" style="font-size:.72rem;padding:.35rem .65rem" data-cal-cancel="'+calEscHtml(r.id)+'">Withdraw</button>';
+    }
+    return '<div class="cal-request-row">'+
+      '<div class="cal-request-row-main">'+
+      '<div class="cal-request-row-title">'+calEscHtml(r.title)+' <span class="cal-request-status '+calEscHtml(st)+'">'+calEscHtml(st)+'</span></div>'+
+      '<div class="cal-request-row-meta">'+calEscHtml(range)+'</div>'+extra+
+      '</div><div class="cal-request-row-actions">'+actions+'</div></div>';
+  }).join('');
+  list.querySelectorAll('[data-cal-cancel]').forEach(function(btn){
+    btn.addEventListener('click',function(){
+      var id=btn.getAttribute('data-cal-cancel');
+      if(!id||!confirm('Withdraw this request?')) return;
+      CalendarRequestService.cancelMyPending(id).then(function(){
+        backupToast('Request withdrawn.');
+        calRefreshCalendarRequests();
+        if(typeof homeDashboardRender==='function') homeDashboardRender({ showLoading:false });
+      }).catch(function(err){ backupToast((err&&err.message)||'Could not withdraw'); });
+      });
+  });
+}
 function calAddEvent(){
   const title=(document.getElementById('calTitle').value||'').trim();
   const date=document.getElementById('calDate').value;
   const category=document.getElementById('calCategory').value;
   const descriptionRaw=(document.getElementById('calDescription').value||'').trim();
   if(!title||!date){backupToast('Enter an event title and date.');return;}
-  var source=(!!window.__authGuardCanManageSchool||!!window.__authGuardIsAdmin||!!window.__authGuardIsFacultyHead)?'shared':'personal';
+  var source=calCanManageSchool()?'shared':'personal';
   const events=calGetEvents();
   var ev={title:title,date:date,category:category||'general',source:source};
   if(descriptionRaw)ev.description=descriptionRaw;
   events.push(ev);
   calSaveEvents(events);calRender();
-  document.getElementById('calTitle').value='';document.getElementById('calDate').value='';document.getElementById('calDescription').value='';
+  calClearAddForm();
   backupToast('Event added to '+(source==='shared'?'shared calendar (visible to all).':'your calendar.'));
 }
 function calDeleteEvent(ev){
@@ -8338,9 +8542,10 @@ function homeNotificationReadSet(reads){
   });
   return set;
 }
-function homeBuildNotificationItems(announcements, sharedEvents, reads, today){
+function homeBuildNotificationItems(announcements, sharedEvents, reads, today, calendarNotifCtx){
   var readSet=homeNotificationReadSet(reads);
   var isFirstVisit=!(reads&&reads.length);
+  var ctx=calendarNotifCtx||{};
   function isRecentEnough(createdAt){
     if(!isFirstVisit) return true;
     var created=String(createdAt||'').slice(0,10);
@@ -8381,6 +8586,38 @@ function homeBuildNotificationItems(announcements, sharedEvents, reads, today){
       date:d
     });
   });
+  if(ctx.isManager&&(ctx.pendingRequests||[]).length){
+    (ctx.pendingRequests||[]).forEach(function(r){
+      if(!r||!r.id) return;
+      if(readSet[homeNotificationKey('calendar_request_pending',r.id)]) return;
+      var who=(ctx.pendingProfiles&&ctx.pendingProfiles[r.requester_id])||'Staff member';
+      var range=(window.CalendarRequestService&&CalendarRequestService.formatDateRange)
+        ? CalendarRequestService.formatDateRange(r) : String(r.date||'');
+      items.push({
+        item_type:'calendar_request_pending',
+        item_id:r.id,
+        title:'Calendar approval: '+String(r.title||'Request'),
+        subtitle:who+' · '+range,
+        meta:'Awaiting your approval',
+        created_at:r.submitted_at||r.created_at
+      });
+    });
+  }
+  (ctx.myReviewedRequests||[]).forEach(function(r){
+    if(!r||!r.id||!r.status||r.status==='pending') return;
+    var type=r.status==='approved'?'calendar_request_approved':'calendar_request_rejected';
+    if(readSet[homeNotificationKey(type,r.id)]) return;
+    var range=(window.CalendarRequestService&&CalendarRequestService.formatDateRange)
+      ? CalendarRequestService.formatDateRange(r) : String(r.date||'');
+    items.push({
+      item_type:type,
+      item_id:r.id,
+      title:String(r.title||'Calendar request')+(r.status==='approved'?' approved':' not approved'),
+      subtitle:range,
+      meta:r.status==='approved'?'Now on the shared faculty calendar':'See Academic Calendar for details',
+      created_at:r.reviewed_at||r.updated_at
+    });
+  });
   items.sort(function(a,b){
     return String(b.created_at||'').localeCompare(String(a.created_at||''));
   });
@@ -8411,14 +8648,15 @@ function homeRenderNotificationBell(items){
   if(markAll) markAll.disabled=count===0;
   if(!list) return;
   if(!count){
-    list.innerHTML='<div class="home-notif-empty">You\u2019re all caught up.<br>New announcements and calendar dates will appear here.</div>';
+    list.innerHTML='<div class="home-notif-empty">You\u2019re all caught up.<br>New announcements, calendar dates, and approval updates will appear here.</div>';
     return;
   }
   list.innerHTML=homeNotificationUnreadItems.map(function(item){
     var isAnn=item.item_type==='announcement';
-    var iconClass=isAnn?'announcement':'calendar';
-    var icon=isAnn?'ti-speakerphone':'ti-calendar-event';
-    var typeLabel=isAnn?'Announcement':'Calendar date';
+    var isCalReq=item.item_type&&item.item_type.indexOf('calendar_request')===0;
+    var iconClass=isAnn?'announcement':(isCalReq?'calendar-request':'calendar');
+    var icon=isAnn?'ti-speakerphone':(isCalReq?'ti-calendar-check':'ti-calendar-event');
+    var typeLabel=isAnn?'Announcement':(isCalReq?'Calendar request':'Calendar date');
     var sub=String(item.subtitle||'').replace(/\s+/g,' ').trim();
     if(sub.length>90) sub=sub.slice(0,87)+'\u2026';
     return '<button type="button" class="home-notif-item" data-notif-type="'+homeEsc(item.item_type)+'" data-notif-id="'+homeEsc(item.item_id)+'">'+
@@ -8436,7 +8674,7 @@ function homeRenderNotificationBell(items){
       var itemId=String(row.getAttribute('data-notif-id')||'');
       if(!itemType||!itemId) return;
       homeMarkNotificationsRead([{ item_type:itemType, item_id:itemId }]).then(function(){
-        if(itemType==='calendar_event') showPanel('academic-calendar');
+        if(itemType==='calendar_event'||itemType.indexOf('calendar_request')===0) showPanel('academic-calendar');
         else showPanel('home-announcements-all');
       });
     });
@@ -8485,6 +8723,19 @@ function homeInitNotificationBell(){
   document.addEventListener('keydown', function(ev){
     if(ev.key==='Escape'&&homeNotificationPanelOpen) homeSetNotificationPanelOpen(false);
   });
+  var calTile=document.getElementById('homeCalendarRequestsTile');
+  if(calTile&&!calTile._boundCalendarClick){
+    calTile._boundCalendarClick=true;
+    function openCalPending(){
+      showPanel('academic-calendar');
+      var card=document.getElementById('calPendingApprovalsCard');
+      if(card) try{ card.scrollIntoView({ behavior:'smooth', block:'start' }); }catch(e){}
+    }
+    calTile.addEventListener('click', function(ev){ ev.preventDefault(); openCalPending(); });
+    calTile.addEventListener('keydown', function(ev){
+      if(ev.key==='Enter'||ev.key===' '){ ev.preventDefault(); openCalPending(); }
+    });
+  }
 }
 function homeEsc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function homeDateISO(d){
@@ -8954,6 +9205,7 @@ function homeApplyDashboardData(ctx){
   var tasks=ctx.tasks;
   var taskState=ctx.taskState;
   var skipTracking=ctx.skipTracking===true;
+  var calendarNotifCtx=ctx.calendarNotifCtx||{};
 
   var todayEvents=events.filter(function(e){ return String(e&&e.date||'').slice(0,10)===today; });
   var upcomingEvents=events
@@ -8962,10 +9214,24 @@ function homeApplyDashboardData(ctx){
   var sharedCalendarEvents=events.filter(function(e){
     return String(e&&e.source||'shared')==='shared';
   });
-  var notificationItems=homeBuildNotificationItems(announcements, sharedCalendarEvents, notificationReads, today);
+  var notificationItems=homeBuildNotificationItems(announcements, sharedCalendarEvents, notificationReads, today, calendarNotifCtx);
   var unreadAnnouncementCount=notificationItems.filter(function(item){
     return item.item_type==='announcement';
   }).length;
+  var pendingCalCount=(calendarNotifCtx.pendingRequests||[]).length;
+  var homeCalTile=document.getElementById('homeCalendarRequestsTile');
+  var homeCalCountEl=document.getElementById('homePendingCalendarRequestsCount');
+  var summaryStrip=document.querySelector('.home-summary-strip');
+  if(homeCalTile){
+    if(calendarNotifCtx.isManager){
+      homeCalTile.style.display='block';
+      if(homeCalCountEl) homeCalCountEl.textContent=String(pendingCalCount);
+      if(summaryStrip) summaryStrip.style.gridTemplateColumns='repeat(5,1fr)';
+    } else {
+      homeCalTile.style.display='none';
+      if(summaryStrip) summaryStrip.style.gridTemplateColumns='repeat(4,1fr)';
+    }
+  }
   var tasksDue=tasks.filter(function(t){
     return !t.completed && t.dueDate && String(t.dueDate).slice(0,10)<=today;
   });
@@ -9038,6 +9304,28 @@ function homeLoadGreeting(){
     }
   }).catch(function(){});
 }
+function homeFetchCalendarNotifCtx(){
+  var isManager=!!(window.__authGuardCanManageSchool||window.__authGuardIsAdmin||window.__authGuardIsFacultyHead);
+  if(!window.CalendarRequestService||!window.supabase){
+    return Promise.resolve({ isManager:isManager, pendingRequests:[], pendingProfiles:{}, myReviewedRequests:[] });
+  }
+  var pPending=isManager?CalendarRequestService.listPendingForReview():Promise.resolve([]);
+  var pReviewed=CalendarRequestService.listRecentReviewedForRequester();
+  return Promise.all([pPending,pReviewed]).then(function(res){
+    var pending=res[0]||[];
+    var reviewed=(res[1]||[]).filter(function(r){
+      if(!r||!r.reviewed_at) return false;
+      var t=new Date(r.reviewed_at).getTime();
+      if(Number.isNaN(t)) return false;
+      return (Date.now()-t)<=14*86400000;
+    });
+    return CalendarRequestService.getRequesterProfiles(pending.map(function(r){ return r.requester_id; })).then(function(profiles){
+      return { isManager:isManager, pendingRequests:pending, pendingProfiles:profiles||{}, myReviewedRequests:reviewed };
+    });
+  }).catch(function(){
+    return { isManager:isManager, pendingRequests:[], pendingProfiles:{}, myReviewedRequests:[] };
+  });
+}
 function homeDashboardRender(opts){
   opts=opts||{};
   var showLoading=opts.showLoading!==false;
@@ -9068,8 +9356,9 @@ function homeDashboardRender(opts){
   var tasksPromise=(window.TeacherTasksService&&typeof window.TeacherTasksService.load==='function')
     ? TeacherTasksService.load().then(function(){ return TeacherTasksService.getState()||{ tasks:[], buckets:[] }; }).catch(function(){ return { tasks:[], buckets:[] }; })
     : Promise.resolve({ tasks:[], buckets:[] });
+  var calendarNotifPromise=homeFetchCalendarNotifCtx();
 
-  Promise.all([eventsPromise, timetablePromise, annPromise, readsPromise, tasksPromise]).then(function(res){
+  Promise.all([eventsPromise, timetablePromise, annPromise, readsPromise, tasksPromise, calendarNotifPromise]).then(function(res){
     if(isStale()) return;
     var events=Array.isArray(res[0])?res[0]:[];
     var timetable=(res[1]&&typeof res[1]==='object')?res[1]:{};
@@ -9081,6 +9370,7 @@ function homeDashboardRender(opts){
     var announcements=homeSortAnnouncements(announcementsRaw);
     var taskState=(res[4]&&typeof res[4]==='object')?res[4]:{ tasks:[], buckets:[] };
     var tasks=Array.isArray(taskState.tasks)?taskState.tasks:[];
+    var calendarNotifCtx=(res[5]&&typeof res[5]==='object')?res[5]:{};
 
     homeApplyDashboardData({
       today:today,
@@ -9091,7 +9381,8 @@ function homeDashboardRender(opts){
       trackingRows:[],
       tasks:tasks,
       taskState:taskState,
-      skipTracking:true
+      skipTracking:true,
+      calendarNotifCtx:calendarNotifCtx
     });
 
     var trackEl=document.getElementById('homeTrackingClasses');
@@ -9116,7 +9407,7 @@ function homeDashboardRender(opts){
     ? DataService.get('drama-v3') : Promise.resolve(null);
   var artPromise=(window.DataService&&typeof window.DataService.get==='function')
     ? DataService.get('art-v2') : Promise.resolve(null);
-  Promise.all([eventsPromise, timetablePromise, annPromise, readsPromise, tasksPromise, dramaPromise, artPromise]).then(function(res){
+  Promise.all([eventsPromise, timetablePromise, annPromise, readsPromise, tasksPromise, calendarNotifPromise, dramaPromise, artPromise]).then(function(res){
     if(isStale()) return;
     var events=Array.isArray(res[0])?res[0]:[];
     var timetable=(res[1]&&typeof res[1]==='object')?res[1]:{};
@@ -9128,8 +9419,9 @@ function homeDashboardRender(opts){
     var announcements=homeSortAnnouncements(announcementsRaw);
     var taskState=(res[4]&&typeof res[4]==='object')?res[4]:{ tasks:[], buckets:[] };
     var tasks=Array.isArray(taskState.tasks)?taskState.tasks:[];
-    var dramaRows=homeExtractTrackingClasses(res[5],'Drama');
-    var artRows=homeExtractTrackingClasses(res[6],'Art & Design');
+    var calendarNotifCtx=(res[5]&&typeof res[5]==='object')?res[5]:{};
+    var dramaRows=homeExtractTrackingClasses(res[6],'Drama');
+    var artRows=homeExtractTrackingClasses(res[7],'Art & Design');
     var trackingRows=dramaRows.concat(artRows);
 
     homeApplyDashboardData({
@@ -9140,7 +9432,8 @@ function homeDashboardRender(opts){
       notificationReads:notificationReads,
       trackingRows:trackingRows,
       tasks:tasks,
-      taskState:taskState
+      taskState:taskState,
+      calendarNotifCtx:calendarNotifCtx
     });
   }).catch(function(){
     if(isStale()) return;
@@ -9204,6 +9497,7 @@ window.AD_VOCAB = AD_VOCAB;
 document.addEventListener('DOMContentLoaded',function(){
   injectLiteracyNumeracyIntoCurriculumCards();
   homeInitNotificationBell();
+  if(typeof calSyncAddEventFormChrome==='function') calSyncAddEventFormChrome();
   // Restore sidebar accordion state from sessionStorage
   ['sidebar-accordion-drama','sidebar-accordion-ad','sidebar-accordion-photo','sidebar-accordion-admin'].forEach(function(id){
     try{
