@@ -6,6 +6,7 @@
 <title>Drama — Knightswood Secondary School</title>
 <script src="app-version.js"></script>
 <script src="drama-curriculum-manifest.js"></script>
+<script src="n5-ci-curriculum-manifest.js"></script>
 <style>
 
 /* ═══════════════════════════════════════════════════════════════
@@ -1785,19 +1786,32 @@ function buildDramaUnitsList() {
     '04': `<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>`,
     '05': `<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>`,
     '06': `<rect x="2" y="2" width="20" height="20" rx="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/><path d="m17 6-5 6 5 6"/>`,
-    '07': `<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>`
+    '07': `<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>`,
+    ci01: `<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>`,
+    ci02: `<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/>`,
+    ci03: `<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><path d="M22 6l-10 7L2 6"/>`,
+    ci04: `<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>`
   };
   const shadows = {
     '01': 'rgba(255,59,48,0.22)', '02': 'rgba(249,115,22,0.22)', '03': 'rgba(212,168,0,0.22)',
-    '04': 'rgba(101,163,13,0.2)', '05': 'rgba(37,99,235,0.22)', '06': 'rgba(6,182,212,0.2)', '07': 'rgba(109,40,217,0.22)'
+    '04': 'rgba(101,163,13,0.2)', '05': 'rgba(37,99,235,0.22)', '06': 'rgba(6,182,212,0.2)', '07': 'rgba(109,40,217,0.22)',
+    ci01: 'rgba(0,170,255,0.25)', ci02: 'rgba(170,255,0,0.2)', ci03: 'rgba(204,68,255,0.25)', ci04: 'rgba(255,153,0,0.25)'
   };
-  const textDarkIds = ['03'];
-  return Object.keys(manifest).sort().map(function(key) {
+  const textDarkIds = ['03', 'ci02'];
+  const bgeOrder = ['01', '02', '03', '04', '05', '06', '07'];
+  const seniorOrder = ['ci01', 'ci02', 'ci03', 'ci04'];
+  const keys = bgeOrder.filter(function(k) { return manifest[k]; })
+    .concat(seniorOrder.filter(function(k) { return manifest[k]; }));
+  return keys.map(function(key) {
     const u = manifest[key];
     const hasReady = (u.lessons || []).some(function(l) { return l.status === 'ready'; });
+    const lessonCount = (u.lessons || []).length;
+    const readyCount = (u.lessons || []).filter(function(l) { return l.status === 'ready'; }).length;
     return {
       id: u.id,
+      unitLabel: u.unitLabel,
       year: u.year,
+      course: u.course,
       title: u.title,
       weeks: u.weeks,
       month: u.month,
@@ -1806,8 +1820,8 @@ function buildDramaUnitsList() {
       shadow: shadows[u.id] || 'rgba(0,0,0,0.15)',
       textDark: textDarkIds.indexOf(u.id) >= 0,
       iconPath: icons[u.id] || icons['01'],
-      status: hasReady ? 'In Progress' : 'Not Started',
-      progress: hasReady ? 25 : 0,
+      status: hasReady ? 'In Progress' : (lessonCount ? 'Planned' : 'Not Started'),
+      progress: lessonCount ? Math.round((readyCount / lessonCount) * 100) : 0,
       desc: u.desc || ''
     };
   });
@@ -1817,11 +1831,11 @@ function buildCard(u) {
   const col = u.textDark ? '#1a1a00' : '#fff';
   const hasReady = (u.progress || 0) > 0;
   const statusBg = hasReady ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.14)';
-  const statusText = hasReady ? 'Slides ready' : 'Coming soon';
+  const statusText = hasReady ? (u.progress + '% slides ready') : 'Slides planned';
 
   return `<div class="unit-card" style="background:linear-gradient(145deg,${u.colour},${u.gradEnd});box-shadow:0 4px 16px ${u.shadow};color:${col}" onclick="openUnit('${u.id}')">
     <div class="unit-card-top">
-      <div class="unit-number">${u.id} · ${u.year}</div>
+      <div class="unit-number">${u.unitLabel || u.id} · ${u.year}</div>
       <div class="unit-icon-wrap">
         <svg viewBox="0 0 24 24" style="stroke:${col};fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round">${u.iconPath}</svg>
       </div>
@@ -1866,7 +1880,7 @@ function openUnit(id) {
   if (hero) {
     hero.style.background = 'linear-gradient(145deg,' + (display.colour || meta.colour) + ',' + (display.gradEnd || meta.gradEnd || meta.colour) + ')';
     hero.innerHTML =
-      '<div style="font-size:12px;font-weight:700;opacity:0.85;margin-bottom:6px">Unit ' + (meta.id || id) + ' &nbsp;&middot;&nbsp; ' + (meta.year || display.year || 'S1') + '</div>' +
+      '<div style="font-size:12px;font-weight:700;opacity:0.85;margin-bottom:6px">' + (meta.unitLabel ? meta.unitLabel + ' · ' : 'Unit ' + (meta.id || id) + ' · ') + (meta.year || display.year || 'S1') + (meta.course ? ' &nbsp;&middot;&nbsp; N5 Creative Industries' : '') + '</div>' +
       '<h2>' + (meta.title || display.title) + '</h2>' +
       '<div class="unit-detail-meta">' + (meta.weeks || display.weeks || '') + ' &nbsp;&middot;&nbsp; ' + (meta.month || display.month || '') + '</div>' +
       '<p>' + (meta.desc || display.desc || '') + '</p>';
@@ -1886,16 +1900,18 @@ function renderLessons(unit, id) {
     grid.innerHTML = '<div class="lessons-empty">Lesson slides for this unit are coming soon.</div>';
     return;
   }
+  const isSenior = unit && unit.year === 'Senior';
+  const sessionLabel = isSenior ? 'Session' : 'Lesson';
   grid.innerHTML = lessons.map(function(lesson, idx) {
     const ready = lesson.status === 'ready' && lesson.slides;
     const soonClass = ready ? '' : ' lesson-card-soon';
-    const statusLabel = ready ? 'Ready' : 'Coming soon';
+    const statusLabel = ready ? 'Ready' : (lesson.status === 'planned' ? 'Planned' : 'Coming soon');
     const statusClass = ready ? ' ready' : '';
     const launchBtn = ready
       ? '<button type="button" class="lesson-launch-btn" onclick="launchLesson(\'' + lesson.slides.replace(/'/g, "\\'") + '\')">Launch slides &#8594;</button>'
       : '';
     return '<div class="lesson-card' + soonClass + '">' +
-      '<div class="lesson-card-num">Lesson ' + (lesson.id || (idx + 1)) + '</div>' +
+      '<div class="lesson-card-num">' + sessionLabel + ' ' + (lesson.session || lesson.id || (idx + 1)) + '</div>' +
       '<div class="lesson-card-title">' + lesson.title + '</div>' +
       '<span class="lesson-card-status' + statusClass + '">' + statusLabel + '</span>' +
       launchBtn +

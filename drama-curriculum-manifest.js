@@ -15,6 +15,9 @@
  * Lesson timing: plan for 50-minute periods (Connect 5 · Explore 10 · Create 20 · Share 10 · Reflect 5).
  * Navigation: Previous undoes reveals first; ← / Backspace / Page Up go back.
  * Template: drama-slides-unit01_1.html
+ *
+ * Senior Phase N5 Creative Industries (ci01–ci04): n5-ci-curriculum-manifest.js
+ * Slide files: drama-ci-s01.html … drama-ci-s61.html (100-minute doubles).
  */
 window.DRAMA_CURRICULUM = {
   units: {
