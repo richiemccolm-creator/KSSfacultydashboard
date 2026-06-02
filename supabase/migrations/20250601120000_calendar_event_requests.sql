@@ -37,6 +37,9 @@ $$;
 DROP POLICY IF EXISTS "Admin can insert shared calendar" ON public.shared_calendar_events;
 DROP POLICY IF EXISTS "Admin can update shared calendar" ON public.shared_calendar_events;
 DROP POLICY IF EXISTS "Admin can delete shared calendar" ON public.shared_calendar_events;
+DROP POLICY IF EXISTS "School managers can insert shared calendar" ON public.shared_calendar_events;
+DROP POLICY IF EXISTS "School managers can update shared calendar" ON public.shared_calendar_events;
+DROP POLICY IF EXISTS "School managers can delete shared calendar" ON public.shared_calendar_events;
 
 CREATE POLICY "School managers can insert shared calendar"
   ON public.shared_calendar_events FOR INSERT
@@ -81,6 +84,12 @@ CREATE INDEX IF NOT EXISTS idx_calendar_event_requests_requester
   ON public.calendar_event_requests (requester_id, status);
 
 ALTER TABLE public.calendar_event_requests ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Requesters can view own calendar requests" ON public.calendar_event_requests;
+DROP POLICY IF EXISTS "Authenticated staff can submit calendar requests" ON public.calendar_event_requests;
+DROP POLICY IF EXISTS "Requesters can update own pending requests" ON public.calendar_event_requests;
+DROP POLICY IF EXISTS "School managers can review calendar requests" ON public.calendar_event_requests;
+DROP POLICY IF EXISTS "Requesters can delete own pending calendar requests" ON public.calendar_event_requests;
 
 CREATE POLICY "Requesters can view own calendar requests"
   ON public.calendar_event_requests FOR SELECT
