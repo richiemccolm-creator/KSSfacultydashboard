@@ -1,13 +1,15 @@
 /**
  * N5 Skills for Work: Creative Industries — Senior Phase (S5/6).
  * Merged into window.DRAMA_CURRICULUM.units for drama-homepage lesson slides.
- * Slide files: drama-ci-s01.html … drama-ci-s61.html (100-minute double periods).
+ * Slide files: drama-ci-s01.html … drama-ci-s61.html (100-minute doubles).
+ * Assets: n5-ci-slides-core.css, n5-ci-slides-deck.js
+ * Regenerate U1: python3 scripts/build_n5_ci_u01_slides.py
  */
 (function () {
-  function session(n, title) {
+  function session(n, title, status) {
     var id = String(n);
     var file = 'drama-ci-s' + (n < 10 ? '0' + n : String(n)) + '.html';
-    return { id: id, title: title, slides: file, status: 'planned', session: n };
+    return { id: id, title: title, slides: file, status: status || 'planned', session: n };
   }
 
   var ciUnits = {
@@ -25,16 +27,16 @@
       desc: 'Investigate the Creative Industries, employment pathways, and employability skills.',
       nabWindow: 'Wks 8–9',
       lessons: [
-        session(1, 'Course Induction + Self-Eval #1'),
-        session(2, 'Marketplace Activity — Exploring the Sectors'),
-        session(3, 'Structure, Scale & Sectors Deep Dive'),
-        session(4, 'Legal Parameters, Health & Safety + Agencies'),
-        session(5, 'O1 Completion + Sector Confirmed + O2 Launch'),
-        session(6, 'Employment Opportunities + Freelance Issues'),
-        session(7, 'Job Roles, Career Paths + Self-Eval #2'),
-        session(8, 'Focus Job Role in Depth'),
-        session(9, 'Presenting O2 Findings'),
-        session(10, 'Folio Audit + Full O1/O2 Consolidation')
+        session(1, 'Course Induction + Self-Eval #1', 'ready'),
+        session(2, 'Marketplace Activity — Exploring the Sectors', 'ready'),
+        session(3, 'Structure, Scale & Sectors Deep Dive', 'ready'),
+        session(4, 'Legal Parameters, Health & Safety + Agencies', 'ready'),
+        session(5, 'O1 Completion + Sector Confirmed + O2 Launch', 'ready'),
+        session(6, 'Employment Opportunities + Freelance Issues', 'ready'),
+        session(7, 'Job Roles, Career Paths + Self-Eval #2', 'ready'),
+        session(8, 'Focus Job Role in Depth', 'ready'),
+        session(9, 'Presenting O2 Findings', 'ready'),
+        session(10, 'Folio Audit + Full O1/O2 Consolidation', 'ready')
       ]
     },
     ci02: {

@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>N5 CREATIVE INDUSTRIES — SLIDE TEMPLATES</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400&family=Barlow+Condensed:wght@300;400;600;700;800&family=JetBrains+Mono:wght@300;400;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --black:   #050505;
+  --white:   #F0EEE8;
+  --grey:    #1A1A1A;
+  --midgrey: #2E2E2E;
+  --ltgrey:  #888;
+  --mono:    'JetBrains Mono', monospace;
+  --display: 'Bebas Neue', sans-serif;
+  --cond:    'Barlow Condensed', sans-serif;
+  --body:    'Barlow', sans-serif;
+
+  /* Unit 1 — Introduction: Electric Blue */
+  --u1-accent:  #00AAFF;
+  --u1-mid:     #0066CC;
+  --u1-dark:    #001A33;
+  --u1-glow:    rgba(0,170,255,0.12);
+
+  /* Unit 2 — Skills Development: Acid Green */
+  --u2-accent:  #AAFF00;
+  --u2-mid:     #66AA00;
+  --u2-dark:    #0D1A00;
+  --u2-glow:    rgba(170,255,0,0.10);
+
+  /* Unit 3 — Creative Process: Deep Violet */
+  --u3-accent:  #CC44FF;
+  --u3-mid:     #8800CC;
+  --u3-dark:    #1A0033;
+  --u3-glow:    rgba(204,68,255,0.10);
+
+  /* Unit 4 — Creative Project: Warm Amber */
+  --u4-accent:  #FF9900;
+  --u4-mid:     #CC6600;
+  --u4-dark:    #2A1500;
+  --u4-glow:    rgba(255,153,0,0.10);
+}
+
+html, body { width:100%; height:100%; background:var(--black); overflow:hidden; cursor:none; }
+
+.cursor { position:fixed; width:8px; height:8px; border-radius:50%; pointer-events:none; z-index:9999; transform:translate(-50%,-50%); transition:transform 0.1s; mix-blend-mode:difference; }
+
+body::before {
+  content:''; position:fixed; inset:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px);
+  pointer-events:none; z-index:1000;
+}
+body::after {
+  content:''; position:fixed; inset:-200%; width:400%; height:400%;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+  opacity:0.025; pointer-events:none; z-index:999;
+  animation:grainShift 0.5s steps(2) infinite;
+}
+@keyframes grainShift {
+  0%{transform:translate(0,0)} 25%{transform:translate(-1%,-1%)} 50%{transform:translate(1%,1%)} 75%{transform:translate(-1%,1%)} 100%{transform:translate(1%,-1%)}
+}
+
+#deck { position:fixed; inset:0; z-index:10; }
+
+.slide {
+  position:absolute; inset:0; display:flex; flex-direction:column;
+  justify-content:center; align-items:flex-start;
+  padding:6vh 8vw; opacity:0; pointer-events:none; overflow:hidden;
+  background:rgba(5,5,5,0.9);
+}
+.slide.active { opacity:1; pointer-events:all; }
+.slide-enter { animation:slideIn 0.5s cubic-bezier(0.16,1,0.3,1) forwards; }
+.slide-exit  { animation:slideOut 0.4s cubic-bezier(0.7,0,0.84,0) forwards; }
+@keyframes slideIn { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+@keyframes slideOut { from{opacity:1;transform:translateY(0)} to{opacity:0;transform:translateY(-20px)} }
+
+/* HUD */
+.hud { position:fixed; bottom:3vh; left:8vw; right:8vw; display:flex; align-items:center; justify-content:space-between; z-index:200; pointer-events:none; }
+.hud-left { font-family:var(--mono); font-size:10px; color:var(--ltgrey); letter-spacing:0.1em; opacity:0; transition:opacity 0.3s; }
+.hud-left.visible { opacity:1; }
+.hud-progress { display:flex; gap:6px; align-items:center; }
+.hud-dot { width:4px; height:4px; border-radius:50%; background:var(--midgrey); transition:background 0.3s,transform 0.3s; cursor:pointer; }
+.hud-right { font-family:var(--mono); font-size:10px; color:var(--ltgrey); letter-spacing:0.1em; }
+.key-hint { position:fixed; bottom:3vh; left:50%; transform:translateX(-50%); font-family:var(--mono); font-size:9px; color:var(--ltgrey); letter-spacing:0.15em; opacity:0.5; z-index:100; pointer-events:none; transition:opacity 0.5s; }
+.key-hint.hidden { opacity:0; }
+
+/* Unit switcher */
+.unit-nav { position:fixed; top:3vh; right:3vw; display:flex; gap:8px; z-index:300; pointer-events:all; }
+.unit-btn {
+  font-family:var(--mono); font-size:9px; letter-spacing:0.1em; text-transform:uppercase;
+  padding:6px 12px; border:1px solid var(--midgrey); background:transparent;
+  color:var(--ltgrey); cursor:pointer; transition:all 0.2s;
+}
+.unit-btn:hover { color:var(--white); border-color:var(--ltgrey); }
+.unit-btn.active { color:var(--black); }
+
+/* TYPOGRAPHY */
+@keyframes fadeUp  { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+@keyframes fadeIn  { to{opacity:1} }
+@keyframes revealTitle { from{opacity:0;clip-path:inset(0 100% 0 0)} to{opacity:1;clip-path:inset(0 0% 0 0)} }
+@keyframes moneyDrop { from{opacity:0;transform:scale(1.3)} to{opacity:1;transform:scale(1)} }
+@keyframes expandFull { to{width:100%} }
+@keyframes expandLine { from{width:0} to{width:clamp(60px,8vw,120px)} }
+@keyframes bgDrift { from{transform:translateX(0)} to{transform:translateX(-5%)} }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+
+.label { font-family:var(--mono); font-size:clamp(9px,1vw,11px); font-weight:400; color:var(--ltgrey); letter-spacing:0.15em; text-transform:uppercase; margin-bottom:2vh; opacity:0; animation:fadeUp 0.6s 0.1s forwards; }
+.title { font-family:var(--display); font-size:clamp(40px,7vw,90px); line-height:0.95; color:var(--white); letter-spacing:0.02em; opacity:0; animation:fadeUp 0.7s 0.2s forwards; }
+.mega  { font-family:var(--display); font-size:clamp(70px,12vw,150px); line-height:0.9; color:var(--white); opacity:0; animation:fadeUp 0.7s 0.2s forwards; }
+.body-text { font-family:var(--body); font-size:clamp(14px,1.6vw,20px); font-weight:300; line-height:1.6; color:var(--ltgrey); max-width:60vw; opacity:0; animation:fadeUp 0.6s 0.5s forwards; }
+.mono-text  { font-family:var(--mono); font-size:clamp(12px,1.3vw,16px); color:var(--ltgrey); line-height:1.7; opacity:0; animation:fadeUp 0.6s 0.5s forwards; }
+
+.accent-line { width:0; height:2px; margin:3vh 0; animation:expandLine 0.8s 0.3s cubic-bezier(0.16,1,0.3,1) forwards; }
+.v-rule { position:absolute; left:5vw; top:0; bottom:0; width:1px; background:linear-gradient(to bottom,transparent,var(--midgrey) 20%,var(--midgrey) 80%,transparent); opacity:0; animation:fadeIn 1s 0.5s forwards; }
+.grid-bg { position:absolute; inset:0; background-image:linear-gradient(rgba(255,255,255,0.015) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.015) 1px,transparent 1px); background-size:60px 60px; pointer-events:none; }
+.coords { position:absolute; font-family:var(--mono); font-size:9px; color:rgba(255,255,255,0.07); letter-spacing:0.1em; }
+.coords.tl{top:2vh;left:3vw} .coords.tr{top:2vh;right:3vw} .coords.br{bottom:8vh;right:3vw}
+
+/* Row / column components (reusable) */
+.row-list { display:flex; flex-direction:column; gap:1px; width:84vw; background:var(--midgrey); margin-top:3vh; opacity:0; animation:fadeUp 0.6s 0.5s forwards; }
+.row-item { display:flex; align-items:stretch; background:var(--grey); gap:0; }
+.row-num  { font-family:var(--display); font-size:clamp(28px,3.5vw,48px); padding:1.5vh 2vw; min-width:6vw; display:flex; align-items:center; border-right:1px solid var(--midgrey); }
+.row-content { padding:1.5vh 2vw; display:flex; flex-direction:column; justify-content:center; }
+.row-title { font-family:var(--cond); font-size:clamp(14px,1.6vw,20px); font-weight:700; color:var(--white); letter-spacing:0.04em; }
+.row-desc  { font-family:var(--body); font-size:clamp(11px,1.1vw,14px); font-weight:300; color:var(--ltgrey); font-style:italic; margin-top:3px; }
+
+.col-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; width:84vw; background:var(--midgrey); margin-top:4vh; opacity:0; animation:fadeUp 0.6s 0.5s forwards; }
+.col-box  { background:var(--grey); padding:3.5vh 2.5vw; position:relative; overflow:hidden; }
+.col-head { font-family:var(--display); font-size:clamp(32px,4.5vw,58px); line-height:1; margin-bottom:1.5vh; }
+.col-body { font-family:var(--body); font-size:clamp(12px,1.3vw,16px); font-weight:300; color:var(--ltgrey); line-height:1.6; }
+
+.bottom-bar { position:absolute; bottom:0; left:0; right:0; height:4px; width:0; animation:expandFull 1.2s 0.5s cubic-bezier(0.16,1,0.3,1) forwards; }
+.bg-text { position:absolute; top:-5vh; left:-2vw; font-family:var(--display); font-size:clamp(200px,28vw,380px); line-height:1; pointer-events:none; white-space:nowrap; letter-spacing:-0.02em; animation:bgDrift 20s linear infinite; }
+
+/* GLITCH */
+.glitch { position:relative; display:inline-block; }
+.glitch::before,.glitch::after { content:attr(data-text); position:absolute; inset:0; clip-path:inset(0 0 100% 0); opacity:0; }
+.glitch::before{color:#E8272A} .glitch::after{color:#00D4FF}
+.glitch-entry::before{animation:gE1 0.55s 0.25s steps(1) forwards}
+.glitch-entry::after {animation:gE2 0.55s 0.25s steps(1) forwards}
+@keyframes gE1{0%{opacity:0;clip-path:inset(0 0 100% 0);transform:translate(0,0)}10%{opacity:1;clip-path:inset(10% 0 65% 0);transform:translate(-3px,1px)}20%{clip-path:inset(55% 0 20% 0);transform:translate(3px,-1px)}30%{clip-path:inset(30% 0 45% 0);transform:translate(-2px,2px)}40%{clip-path:inset(70% 0 5% 0);transform:translate(2px,-1px)}50%{clip-path:inset(15% 0 70% 0);transform:translate(-3px,0)}60%{clip-path:inset(45% 0 30% 0);transform:translate(3px,1px)}70%{clip-path:inset(80% 0 2% 0);transform:translate(-2px,-1px)}80%{clip-path:inset(5% 0 80% 0);transform:translate(2px,0)}90%{opacity:1;clip-path:inset(25% 0 55% 0);transform:translate(-1px,1px)}100%{opacity:0;clip-path:inset(0 0 100% 0);transform:translate(0,0)}}
+@keyframes gE2{0%{opacity:0;clip-path:inset(0 0 100% 0);transform:translate(0,0)}10%{opacity:1;clip-path:inset(60% 0 15% 0);transform:translate(3px,-1px)}20%{clip-path:inset(20% 0 55% 0);transform:translate(-3px,1px)}30%{clip-path:inset(75% 0 5% 0);transform:translate(2px,2px)}40%{clip-path:inset(35% 0 40% 0);transform:translate(-2px,-1px)}50%{clip-path:inset(5% 0 78% 0);transform:translate(3px,0)}60%{clip-path:inset(50% 0 28% 0);transform:translate(-3px,-1px)}70%{clip-path:inset(15% 0 65% 0);transform:translate(2px,1px)}80%{clip-path:inset(82% 0 3% 0);transform:translate(-1px,-1px)}90%{opacity:1;clip-path:inset(40% 0 35% 0);transform:translate(1px,0)}100%{opacity:0;clip-path:inset(0 0 100% 0);transform:translate(0,0)}}
+.glitch-ambient::before{animation:gA1 0.28s steps(1) forwards}
+.glitch-ambient::after {animation:gA2 0.28s steps(1) forwards}
+@keyframes gA1{0%{opacity:0;clip-path:inset(0 0 100% 0)}20%{opacity:1;clip-path:inset(20% 0 55% 0);transform:translate(-3px,1px)}60%{clip-path:inset(40% 0 35% 0);transform:translate(-2px,2px)}100%{opacity:0;clip-path:inset(0 0 100% 0)}}
+@keyframes gA2{0%{opacity:0;clip-path:inset(0 0 100% 0)}20%{opacity:1;clip-path:inset(55% 0 22% 0);transform:translate(3px,-1px)}60%{clip-path:inset(72% 0 8% 0);transform:translate(2px,2px)}100%{opacity:0;clip-path:inset(0 0 100% 0)}}
+
+/* REVEALS */
+.reveal,.reveal-stat { opacity:0; transform:translateY(18px); transition:none; pointer-events:none; }
+.reveal.shown,.reveal-stat.shown { opacity:1; transform:translateY(0); transition:opacity 0.45s cubic-bezier(0.16,1,0.3,1),transform 0.45s cubic-bezier(0.16,1,0.3,1); pointer-events:all; }
+.reveal-counter { position:fixed; bottom:3vh; left:50%; transform:translateX(-50%); display:flex; gap:5px; z-index:300; pointer-events:none; }
+.reveal-pip { width:5px; height:5px; border-radius:50%; background:var(--midgrey); transition:background 0.3s; }
+
+/* ═══════════════════════════════════════════
+   UNIT 1 — INTRODUCTION  (Electric Blue)
+═══════════════════════════════════════════ */
+.u1 .bg-text { color:rgba(0,170,255,0.04); }
+.u1 .label   { color:var(--u1-accent); animation:fadeUp 0.6s 0.1s forwards; }
+.u1 .accent-line { background:var(--u1-accent); }
+.u1 .bottom-bar  { background:var(--u1-accent); }
+.u1 .row-num  { color:var(--u1-accent); background:rgba(0,170,255,0.06); }
+.u1 .col-head { color:var(--u1-accent); }
+.u1 .col-box::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:var(--u1-accent); }
+.u1 .unit-tag { background:var(--u1-accent); color:var(--black); }
+.u1 .hud-dot.active { background:var(--u1-accent); }
+.u1 .reveal-pip.done { background:var(--u1-accent); }
+.u1 .tag-line { color:var(--ltgrey); }
+.u1 .main-title { color:var(--white); }
+/* title slide bg stripe */
+.u1-stripe { position:absolute; top:0; left:0; width:4px; height:100%; background:var(--u1-accent); opacity:0; animation:fadeIn 1s 0.3s forwards; }
+/* title slide large number */
+.u1-num { font-family:var(--display); font-size:clamp(180px,28vw,340px); position:absolute; right:-2vw; top:-4vh; color:rgba(0,170,255,0.05); line-height:1; pointer-events:none; letter-spacing:-0.04em; }
+/* quote / callout box */
+.callout-box { border-left:3px solid var(--u1-accent); padding:2.5vh 2.5vw; margin-top:4vh; width:84vw; background:var(--u1-glow); opacity:0; animation:fadeUp 0.6s 0.6s forwards; }
+.callout-text { font-family:var(--cond); font-size:clamp(18px,2.5vw,32px); font-weight:600; color:var(--white); line-height:1.3; }
+
+/* ═══════════════════════════════════════════
+   UNIT 2 — SKILLS DEVELOPMENT  (Acid Green)
+═══════════════════════════════════════════ */
+.u2 .bg-text  { color:rgba(170,255,0,0.035); }
+.u2 .label    { color:var(--u2-accent); }
+.u2 .accent-line { background:var(--u2-accent); }
+.u2 .bottom-bar  { background:var(--u2-accent); }
+.u2 .row-num  { color:var(--u2-accent); background:rgba(170,255,0,0.05); }
+.u2 .col-head { color:var(--u2-accent); }
+.u2 .col-box::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:var(--u2-accent); }
+.u2 .unit-tag { background:var(--u2-accent); color:var(--black); }
+.u2 .hud-dot.active { background:var(--u2-accent); }
+.u2 .reveal-pip.done { background:var(--u2-accent); }
+.u2-stripe { position:absolute; top:0; left:0; width:4px; height:100%; background:var(--u2-accent); opacity:0; animation:fadeIn 1s 0.3s forwards; }
+.u2-num { font-family:var(--display); font-size:clamp(180px,28vw,340px); position:absolute; right:-2vw; top:-4vh; color:rgba(170,255,0,0.04); line-height:1; pointer-events:none; letter-spacing:-0.04em; }
+/* progress bar row */
+.skill-row { display:flex; align-items:center; gap:2vw; margin:1vh 0; opacity:0; animation:fadeUp 0.5s forwards; }
+.skill-label { font-family:var(--cond); font-size:clamp(13px,1.5vw,18px); font-weight:700; color:var(--white); min-width:22vw; letter-spacing:0.04em; }
+.skill-bar-track { flex:1; height:6px; background:var(--midgrey); border-radius:3px; overflow:hidden; }
+.skill-bar-fill  { height:100%; background:var(--u2-accent); border-radius:3px; width:0; transition:width 1s cubic-bezier(0.16,1,0.3,1); }
+
+/* ═══════════════════════════════════════════
+   UNIT 3 — CREATIVE PROCESS  (Deep Violet)
+═══════════════════════════════════════════ */
+.u3 .bg-text  { color:rgba(204,68,255,0.04); }
+.u3 .label    { color:var(--u3-accent); }
+.u3 .accent-line { background:var(--u3-accent); }
+.u3 .bottom-bar  { background:var(--u3-accent); }
+.u3 .row-num  { color:var(--u3-accent); background:rgba(204,68,255,0.06); }
+.u3 .col-head { color:var(--u3-accent); }
+.u3 .col-box::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:var(--u3-accent); }
+.u3 .unit-tag { background:var(--u3-accent); color:var(--black); }
+.u3 .hud-dot.active { background:var(--u3-accent); }
+.u3 .reveal-pip.done { background:var(--u3-accent); }
+.u3-stripe { position:absolute; top:0; left:0; width:4px; height:100%; background:var(--u3-accent); opacity:0; animation:fadeIn 1s 0.3s forwards; }
+.u3-num { font-family:var(--display); font-size:clamp(180px,28vw,340px); position:absolute; right:-2vw; top:-4vh; color:rgba(204,68,255,0.04); line-height:1; pointer-events:none; letter-spacing:-0.04em; }
+/* Process step with horizontal flow */
+.process-flow { display:flex; gap:1px; width:84vw; background:var(--midgrey); margin-top:4vh; opacity:0; animation:fadeUp 0.6s 0.5s forwards; }
+.process-step { flex:1; background:var(--grey); padding:3vh 2vw; position:relative; overflow:hidden; }
+.process-step::after { content:attr(data-n); position:absolute; bottom:-1vh; right:0.5vw; font-family:var(--display); font-size:clamp(60px,8vw,110px); color:rgba(204,68,255,0.06); pointer-events:none; }
+.process-n    { font-family:var(--display); font-size:clamp(28px,3.5vw,46px); color:var(--u3-accent); line-height:1; margin-bottom:1vh; }
+.process-name { font-family:var(--cond); font-size:clamp(13px,1.5vw,18px); font-weight:700; color:var(--white); letter-spacing:0.05em; margin-bottom:0.5vh; }
+.process-desc { font-family:var(--body); font-size:clamp(10px,1vw,13px); font-weight:300; color:var(--ltgrey); font-style:italic; line-height:1.4; }
+
+/* ═══════════════════════════════════════════
+   UNIT 4 — CREATIVE PROJECT  (Warm Amber)
+═══════════════════════════════════════════ */
+.u4 .bg-text  { color:rgba(255,153,0,0.04); }
+.u4 .label    { color:var(--u4-accent); }
+.u4 .accent-line { background:var(--u4-accent); }
+.u4 .bottom-bar  { background:var(--u4-accent); }
+.u4 .row-num  { color:var(--u4-accent); background:rgba(255,153,0,0.06); }
+.u4 .col-head { color:var(--u4-accent); }
+.u4 .col-box::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:var(--u4-accent); }
+.u4 .unit-tag { background:var(--u4-accent); color:var(--black); }
+.u4 .hud-dot.active { background:var(--u4-accent); }
+.u4 .reveal-pip.done { background:var(--u4-accent); }
+.u4-stripe { position:absolute; top:0; left:0; width:4px; height:100%; background:var(--u4-accent); opacity:0; animation:fadeIn 1s 0.3s forwards; }
+.u4-num { font-family:var(--display); font-size:clamp(180px,28vw,340px); position:absolute; right:-2vw; top:-4vh; color:rgba(255,153,0,0.04); line-height:1; pointer-events:none; letter-spacing:-0.04em; }
+/* Deadline / milestone row */
+.milestone-grid { display:grid; grid-template-columns:1fr 1fr; gap:1px; width:84vw; background:var(--midgrey); margin-top:4vh; opacity:0; animation:fadeUp 0.6s 0.5s forwards; }
+.milestone-box  { background:var(--grey); padding:2.5vh 2.5vw; border-left:3px solid var(--u4-accent); }
+.milestone-date { font-family:var(--display); font-size:clamp(24px,3vw,40px); color:var(--u4-accent); line-height:1; margin-bottom:0.8vh; }
+.milestone-title{ font-family:var(--cond); font-size:clamp(13px,1.5vw,18px); font-weight:700; color:var(--white); letter-spacing:0.04em; }
+.milestone-desc { font-family:var(--body); font-size:clamp(10px,1vw,13px); font-weight:300; color:var(--ltgrey); font-style:italic; margin-top:4px; }
+
+/* ═══════════════════════════
+   SHARED SLIDE-TYPE LAYOUTS
+═══════════════════════════ */
+
+/* Title slide */
+.slide-title { justify-content:flex-end; padding-bottom:12vh; }
+.slide-title .main-q {
+  font-family:var(--display); font-size:clamp(52px,9vw,115px);
+  line-height:0.92; color:var(--white); max-width:85vw;
+  opacity:0; animation:revealTitle 1s 0.4s cubic-bezier(0.16,1,0.3,1) forwards;
+}
+.slide-title .tag-line { font-family:var(--mono); font-size:clamp(10px,1.1vw,13px); color:var(--ltgrey); letter-spacing:0.2em; margin-top:4vh; opacity:0; animation:fadeUp 0.6s 1s forwards; }
+.unit-badge { display:inline-block; font-family:var(--mono); font-size:10px; letter-spacing:0.15em; padding:5px 14px; margin-bottom:3vh; opacity:0; animation:fadeUp 0.5s 0.6s forwards; }
+
+/* Section header slide */
+.slide-section { justify-content:center; }
+.section-kicker { font-family:var(--mono); font-size:clamp(10px,1.1vw,13px); letter-spacing:0.2em; opacity:0; animation:fadeUp 0.5s 0.3s forwards; margin-bottom:3vh; }
+.section-head { font-family:var(--display); font-size:clamp(70px,12vw,150px); line-height:0.88; color:var(--white); opacity:0; animation:fadeUp 0.8s 0.4s forwards; }
+
+/* Content / body slide */
+.slide-content { justify-content:flex-start; padding-top:10vh; }
+
+/* Two-col text slide */
+.two-col { display:grid; grid-template-columns:1fr 1fr; gap:4vw; width:84vw; margin-top:4vh; opacity:0; animation:fadeUp 0.6s 0.5s forwards; }
+.two-col-text { font-family:var(--body); font-size:clamp(13px,1.4vw,18px); font-weight:300; color:var(--ltgrey); line-height:1.7; }
+.two-col-text strong { color:var(--white); font-weight:600; }
+
+/* Big stat */
+.big-stat-row { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; width:84vw; background:var(--midgrey); margin-top:4vh; opacity:0; animation:fadeUp 0.6s 0.5s forwards; }
+.stat-box { background:var(--grey); padding:3vh 2.5vw; position:relative; }
+.stat-box::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; }
+.stat-num   { font-family:var(--display); font-size:clamp(50px,7vw,90px); line-height:1; }
+.stat-label { font-family:var(--body); font-size:clamp(11px,1.1vw,14px); color:var(--ltgrey); font-weight:300; margin-top:1vh; line-height:1.4; }
+
+/* Quote slide */
+.slide-quote { justify-content:center; align-items:center; }
+.big-quote {
+  font-family:var(--display); font-size:clamp(42px,7vw,90px);
+  line-height:0.93; color:var(--white); text-align:center; max-width:80vw;
+  opacity:0; animation:fadeUp 0.8s 0.3s forwards;
+}
+.quote-attr { font-family:var(--mono); font-size:clamp(10px,1vw,12px); color:var(--ltgrey); letter-spacing:0.15em; text-align:center; margin-top:4vh; opacity:0; animation:fadeUp 0.5s 0.8s forwards; }
+
+/* Image placeholder slide */
+.img-placeholder {
+  width:84vw; height:45vh; background:var(--grey);
+  border:1px dashed var(--midgrey); margin-top:4vh;
+  display:flex; align-items:center; justify-content:center;
+  opacity:0; animation:fadeUp 0.6s 0.5s forwards;
+}
+.img-placeholder-text { font-family:var(--mono); font-size:11px; color:var(--midgrey); letter-spacing:0.15em; }
+
+/* Task / activity slide */
+.task-box {
+  border:1px solid; padding:4vh 3vw; width:84vw;
+  margin-top:4vh; position:relative;
+  opacity:0; animation:fadeUp 0.6s 0.5s forwards;
+}
+.task-box::before {
+  content:'TASK'; position:absolute; top:-1px; left:2vw;
+  background:var(--black); padding:0 1vw;
+  font-family:var(--mono); font-size:9px; letter-spacing:0.2em;
+  transform:translateY(-50%);
+}
+.task-text { font-family:var(--cond); font-size:clamp(20px,2.8vw,36px); font-weight:700; color:var(--white); line-height:1.25; }
+.task-steps { margin-top:2.5vh; display:flex; flex-direction:column; gap:1.5vh; }
+.task-step  { font-family:var(--body); font-size:clamp(13px,1.4vw,17px); font-weight:300; color:var(--ltgrey); font-style:italic; display:flex; gap:1.5vw; align-items:flex-start; }
+.task-step::before { content:attr(data-n); font-family:var(--mono); font-size:10px; flex-shrink:0; padding-top:3px; letter-spacing:0.1em; }
+
+</style>
+</head>
+<body>
+
+<div class="cursor" id="cursor"></div>
+<canvas id="particleCanvas" style="position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:2;"></canvas>
+
+<div class="hud">
+  <div class="hud-left" id="hudLeft">N5 CREATIVE INDUSTRIES</div>
+  <div class="hud-progress" id="hudProgress"></div>
+  <div class="hud-right" id="hudRight">01 / 00</div>
+</div>
+<div class="key-hint" id="keyHint">SPACE / ARROWS TO NAVIGATE · TAB = NEXT UNIT</div>
+
+<!-- Unit switcher buttons -->
+<div class="unit-nav" id="unitNav">
+  <button class="unit-btn active" id="btn-u1" onclick="switchUnit(1)">U1 INTRO</button>
+  <button class="unit-btn" id="btn-u2" onclick="switchUnit(2)">U2 SKILLS</button>
+  <button class="unit-btn" id="btn-u3" onclick="switchUnit(3)">U3 PROCESS</button>
+  <button class="unit-btn" id="btn-u4" onclick="switchUnit(4)">U4 PROJECT</button>
+</div>
+
+<div id="deck">
+
+<!-- ═══════════════════════════════════════════════════════
+     UNIT 1 — INTRODUCTION TO CREATIVE INDUSTRIES
+     Colour: Electric Blue  |  Mood: Expansive, informative
+════════════════════════════════════════════════════════ -->
+
+<!-- U1 S1: TITLE -->
+<div class="slide u1 slide-title" id="u1s1" data-unit="1">
+  <div class="grid-bg"></div>
+  <div class="u1-stripe"></div>
+  <div class="u1-num">1</div>
+  <div class="bg-text">INTRO</div>
+  <div class="coords tl">UNIT 01 / INTRODUCTION</div>
+  <div class="coords tr">N5 CREATIVE INDUSTRIES</div>
+  <div class="unit-badge unit-tag">UNIT 01 / INTRODUCTION TO THE CREATIVE INDUSTRIES</div>
+  <div class="main-q glitch glitch-entry" data-text="[YOUR LESSON TITLE GOES HERE]">[YOUR LESSON<br>TITLE GOES<br>HERE]</div>
+  <div class="tag-line">[SUBTITLE OR SESSION FOCUS — ADD YOUR OWN] · [DATE]</div>
+  <div class="bottom-bar"></div>
+</div>
+
+<!-- U1 S2: SECTION HEADER -->
+<div class="slide u1 slide-section" id="u1s2" data-unit="1">
+  <div class="grid-bg"></div>
+  <div class="u1-num">1</div>
+  <div class="coords tl">UNIT 01 / SECTION BREAK</div>
+  <div class="label">SECTION HEADER TEMPLATE</div>
+  <div class="section-kicker" style="color:var(--u1-accent)">[SECTION NUMBER OR PHASE]</div>
+  <div class="section-head glitch glitch-entry" data-text="[SECTION TITLE HERE]">[SECTION<br>TITLE HERE]</div>
+  <div class="body-text" style="margin-top:4vh">[Optional short description of what this section covers — one or two sentences max.]</div>
+</div>
+
+<!-- U1 S3: TWO COLUMN TEXT -->
+<div class="slide u1 slide-content" id="u1s3" data-unit="1">
+  <div class="grid-bg"></div>
+  <div class="coords tl">UNIT 01 / CONTENT</div>
+  <div class="label">TWO COLUMN CONTENT TEMPLATE</div>
+  <div class="title glitch glitch-entry" data-text="[SLIDE HEADING]">[SLIDE HEADING]</div>
+  <div class="accent-line"></div>
+  <div class="two-col">
+    <div class="two-col-text">
+      <strong>[LEFT COLUMN HEADING]</strong><br><br>
+      Add your content here. This layout works well for comparing two ideas, presenting pros and cons, or splitting a topic into two clear themes. Keep each column to 4–6 lines.
+    </div>
+    <div class="two-col-text">
+      <strong>[RIGHT COLUMN HEADING]</strong><br><br>
+      Add your content here. Use this space for the second idea, the contrast, or the example that brings the left column to life. Short sentences work best.
+    </div>
+  </div>
+</div>
+
+<!-- U1 S4: NUMBERED LIST (reveal) -->
+<div class="slide u1 slide-content" id="u1s4" data-unit="1">
+  <div class="grid-bg"></div>
+  <div class="coords tl">UNIT 01 / LIST</div>
+  <div class="label">NUMBERED LIST TEMPLATE — CLICK TO REVEAL</div>
+  <div class="title glitch glitch-entry" data-text="[SLIDE HEADING]">[SLIDE HEADING]</div>
+  <div class="row-list" style="opacity:1;animation:none">
+    <div class="row-item reveal">
+      <div class="row-num" style="color:var(--u1-accent);background:rgba(0,170,255,0.06)">01</div>
+      <div class="row-content"><div class="row-title">[POINT HEADING]</div><div class="row-desc">[Supporting detail or description goes here — keep it brief and punchy.]</div></div>
+    </div>
+    <div class="row-item reveal">
+      <div class="row-num" style="color:var(--u1-accent);background:rgba(0,170,255,0.06)">02</div>
+      <div class="row-content"><div class="row-title">[POINT HEADING]</div><div class="row-desc">[Supporting detail or description goes here.]</div></div>
+    </div>
+    <div class="row-item reveal">
+      <div class="row-num" style="color:var(--u1-accent);background:rgba(0,170,255,0.06)">03</div>
+      <div class="row-content"><div class="row-title">[POINT HEADING]</div><div class="row-desc">[Supporting detail or description goes here.]</div></div>
+    </div>
+    <div class="row-item reveal">
+      <div class="row-num" style="color:var(--u1-accent);background:rgba(0,170,255,0.06)">04</div>
+      <div class="row-content"><div class="row-title">[POINT HEADING]</div><div class="row-desc">[Supporting detail or description goes here.]</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- U1 S5: THREE COLUMNS -->
+<div class="slide u1 slide-content" id="u1s5" data-unit="1">
+  <div class="grid-bg"></div>
+  <div class="coords tl">UNIT 01 / COLUMNS</div>
+  <div class="label">THREE COLUMN TEMPLATE</div>
+  <div class="title glitch glitch-entry" data-text="[SLIDE HEADING]">[SLIDE HEADING]</div>
+  <div class="col-grid">
+    <div class="col-box">
+      <div class="col-head">[A]</div>
+      <div class="col-body">[Column one content. Use for three equal ideas, sectors, examples, or categories.]</div>
+    </div>
+    <div class="col-box">
+      <div class="col-head">[B]</div>
+      <div class="col-body">[Column two content. Keep all three columns roughly the same length for visual balance.]</div>
+    </div>
+    <div class="col-box">
+      <div class="col-head">[C]</div>
+      <div class="col-body">[Column three content. Works great for job roles, industries, or skills breakdowns.]</div>
+    </div>
+  </div>
+</div>
+
+<!-- U1 S6: CALLOUT / KEY IDEA -->
+<div class="slide u1 slide-content" id="u1s6" data-unit="1">
+  <div class="grid-bg"></div>
+  <div class="v-rule"></div>
+  <div class="coords tl">UNIT 01 / KEY IDEA</div>
+  <div class="label" style="margin-left:6vw">KEY IDEA / CALLOUT TEMPLATE</div>
+  <div class="title glitch glitch-entry" data-text="[SLIDE HEADING]" style="margin-left:6vw">[SLIDE HEADING]</div>
+  <div class="callout-box" style="margin-left:6vw">
+    <div class="callout-text">[Your key idea, quote, definition, or headline point goes here. This format draws the eye to what matters most on the slide.]</div>
+  </div>
+  <div class="body-text" style="margin-left:6vw; margin-top:3vh">[Supporting explanation, context, or additional detail beneath the callout box.]</div>
+</div>
+
+<!-- U1 S7: IMAGE PLACEHOLDER -->
+<div class="slide u1 slide-content" id="u1s7" data-unit="1">
+  <div class="grid-bg"></div>
+  <div class="coords tl">UNIT 01 / IMAGE</div>
+  <div class="label">IMAGE + CAPTION TEMPLATE</div>
+  <div class="title glitch glitch-entry" data-text="[SLIDE HEADING]">[SLIDE HEADING]</div>
+  <div class="img-placeholder">
+    <div class="img-placeholder-text">[ INSERT IMAGE HERE ]</div>
+  </div>
+  <div class="mono-text" style="margin-top:2vh;opacity:0;animation:fadeUp 0.5s 0.7s forwards">[Caption or image description goes here — keep it short and informative.]</div>
+</div>
+
+<!-- U1 S8: TASK SLIDE -->
+<div class="slide u1 slide-content" id="u1s8" data-unit="1">
+  <div class="grid-bg"></div>
+  <div class="coords tl">UNIT 01 / TASK</div>
+  <div class="label">TASK / ACTIVITY TEMPLATE</div>
+  <div class="title glitch glitch-entry" data-text="[TASK TITLE]">[TASK TITLE]</div>
+  <div class="task-box" style="border-color:var(--u1-accent);">
+    <div class="task-text">[What do learners need to do? State the task clearly in one or two sentences.]</div>
+    <div class="task-steps">
+      <div class="task-step" data-n="01 /" style="color:var(--ltgrey)">[Step one of the task — what do they do first?]</div>
+      <div class="task-step" data-n="02 /" style="color:var(--ltgrey)">[Step two — what comes next?]</div>
+      <div class="task-step" data-n="03 /" style="color:var(--ltgrey)">[Step three — how do they complete or share their work?]</div>
+    </div>
+  </div>
+  <div class="task-box::before" style="color:var(--u1-accent)"></div>
+  <div class="mono-text" style="margin-top:2vh;opacity:0;animation:fadeUp 0.5s 0.8s forwards;color:var(--u1-accent)">[TIME ALLOWED: XX MINUTES] · [INDIVIDUAL / PAIRS / GROUPS]</div>
+</div>
+
+<!-- U1 S9: QUOTE -->
+<div class="slide u1 slide-quote" id="u1s9" data-unit="1">
+  <div class="grid-bg"></div>
+  <div class="u1-num" style="opacity:0.5">1</div>
+  <div class="big-quote glitch glitch-entry" data-text="[YOUR QUOTE OR KEY STATEMENT GOES HERE]">[YOUR QUOTE OR<br>KEY STATEMENT<br>GOES HERE]</div>
+  <div class="quote-attr">[ATTRIBUTION — NAME, ROLE, ORGANISATION]</div>
+  <div class="accent-line" style="margin:4vh auto 0;"></div>
+</div>
+
+<!-- U1 S10: CLOSE -->
+<div class="slide u1 slide-title" id="u1s10" data-unit="1">
+  <div class="grid-bg"></div>
+  <div class="u1-stripe"></div>
+  <div class="u1-num">1</div>
+  <div class="bg-text">END</div>
+  <div class="coords tl">UNIT 01 / CLOSE</div>
+  <div class="label" style="position:absolute;top:6vh;left:8vw">UNIT 01 / END OF LESSON</div>
+  <div class="main-q glitch glitch-entry" data-text="[CLOSING QUESTION OR REFLECTION PROMPT]">[CLOSING QUESTION<br>OR REFLECTION<br>PROMPT]</div>
+  <div class="tag-line">[E.G. EXIT TICKET — ONE THING YOU LEARNED TODAY IS...]</div>
+  <div class="bottom-bar"></div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     UNIT 2 — SKILLS DEVELOPMENT
+     Colour: Acid Green  |  Mood: Energetic, practical, active
+════════════════════════════════════════════════════════ -->
+
+<!-- U2 S1: TITLE -->
+<div class="slide u2 slide-title" id="u2s1" data-unit="2" style="display:none">
+  <div class="grid-bg"></div>
+  <div class="u2-stripe"></div>
+  <div class="u2-num">2</div>
+  <div class="bg-text">SKILLS</div>
+  <div class="coords tl">UNIT 02 / SKILLS DEVELOPMENT</div>
+  <div class="coords tr">N5 CREATIVE INDUSTRIES</div>
+  <div class="unit-badge unit-tag">UNIT 02 / CREATIVE INDUSTRIES SKILLS DEVELOPMENT</div>
+  <div class="main-q glitch glitch-entry" data-text="[YOUR LESSON TITLE GOES HERE]">[YOUR LESSON<br>TITLE GOES<br>HERE]</div>
+  <div class="tag-line">[SUBTITLE OR SESSION FOCUS] · [DATE]</div>
+  <div class="bottom-bar"></div>
+</div>
+
+<!-- U2 S2: SECTION HEADER -->
+<div class="slide u2 slide-section" id="u2s2" data-unit="2" style="display:none">
+  <div class="grid-bg"></div>
+  <div class="u2-num">2</div>
+  <div class="coords tl">UNIT 02 / SECTION BREAK</div>
+  <div class="label">SECTION HEADER TEMPLATE</div>
+  <div class="section-kicker" style="color:var(--u2-accent)">[SECTION NUMBER OR PHASE]</div>
+  <div class="section-head glitch glitch-entry" data-text="[SECTION TITLE HERE]">[SECTION<br>TITLE HERE]</div>
+  <div class="body-text" style="margin-top:4vh">[Optional short description of what this section covers.]</div>
+</div>
+
+<!-- U2 S3: NUMBERED LIST (reveal) -->
+<div class="slide u2 slide-content" id="u2s3" data-unit="2" style="display:none">
+  <div class="grid-bg"></div>
+  <div class="coords tl">UNIT 02 / LIST</div>
+  <div class="label">NUMBERED LIST TEMPLATE — CLICK TO REVEAL</div>
+  <div class="title glitch glitch-entry" data-text="[SLIDE HEADING]">[SLIDE HEADING]</div>
+  <div class="row-list" style="opacity:1;animation:none">
+    <div class="row-item reveal">
+      <div class="row-num" style="color:var(--u2-accent);background:rgba(170,255,0,0.05)">01</div>
+      <div class="row-content"><div class="row-title">[POINT HEADING]</div><div class="row-desc">[Supporting detail — keep it brief.]</div></div>
+    </div>
+    <div class="row-item reveal">
+      <div class="row-num" style="color:var(--u2-accent);background:rgba(170,255,0,0.05)">02</div>
+      <div class="row-content"><div class="row-title">[POINT HEADING]</div><div class="row-desc">[Supporting detail.]</div></div>
+    </div>
+    <div class="row-item reveal">
+      <div class="row-num" style="color:var(--u2-accent);background:rgba(170,255,0,0.05)">03</div>
+      <div class="row-content"><div class="row-title">[POINT HEADING]</div><div class="row-desc">[Supporting detail.]</div></div>
+    </div>
+    <div class="row-item reveal">
+      <div class="row-num" style="color:var(--u2-accent);background:rgba(170,255,0,0.05)">04</div>
+      <div class="row-content"><div class="row-title">[POINT HEADING]</div><div class="row-desc">[Supporting detail.]</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- U2 S4: SKILLS TRACKER (unique to Unit 2) -->
+<div class="slide u2 slide-content" id="u2s4" data-unit="2" style="display:none">
+  <div class="grid-bg"></div>
+  <div class="coords tl">UNIT 02 / SKILLS</div>
+  <div class="label">SKILLS OVERVIEW TEMPLATE — EDITABLE BARS</div>
+  <div class="title glitch glitch-entry" data-text="[EMPLOYABILITY SKILLS]">[EMPLOYABILITY SKILLS]</div>
+  <div class="accent-line"></div>
+  <div style="width:84vw; margin-top:2vh; display:flex; flex-direction:column; gap:2vh;">
+    <div class="skill-row" style="animation-delay:0.4s">
+      <div class="skill-label">[SKILL NAME]</div>
+      <div class="skill-bar-track"><div class="skill-bar-fill" data-width="75%"></div></div>
+      <div class="mono-text" style="opacity:1;min-width:5vw;text-align:right;font-size:12px;color:var(--u2-accent)">75%</div>
+    </div>
+    <div class="skill-row" style="animation-delay:0.55s">
+      <div class="skill-label">[SKILL NAME]</div>
+      <div class="skill-bar-track"><div class="skill-bar-fill" data-width="60%"></div></div>
+      <div class="mono-text" style="opacity:1;min-width:5vw;text-align:right;font-size:12px;color:var(--u2-accent)">60%</div>
+    </div>
+    <div class="skill-row" style="animation-delay:0.7s">
+      <div class="skill-label">[SKILL NAME]</div>
+      <div class="skill-bar-track"><div class="skill-bar-fill" data-width="85%"></div></div>
+      <div class="mono-text" style="opacity:1;min-width:5vw;text-align:right;font-size:12px;color:var(--u2-accent)">85%</div>
+    </div>
+    <div class="skill-row" style="animation-delay:0.85s">
+      <div class="skill-label">[SKILL NAME]</div>
+      <div class="skill-bar-track"><div class="skill-bar-fill" data-width="50%"></div></div>
+      <div class="mono-text" style="opacity:1;min-width:5vw;text-align:right;font-size:12px;color:var(--u2-accent)">50%</div>
+    </div>
+    <div class="skill-row" style="animation-delay:1.0s">
+      <div class="skill-label">[SKILL NAME]</div>
+      <div class="skill-bar-track"><div class="skill-bar-fill" data-width="90%"></div></div>
+      <div class="mono-text" style="opacity:1;min-width:5vw;text-align:right;font-size:12px;color:var(--u2-accent)">90%</div>
+    </div>
+  </div>
+</div>
+
+<!-- U2 S5: THREE COLUMNS -->
+<div class="slide u2 slide-content" id="u2s5" data-unit="2" style="display:none">
+  <div class="grid-bg"></div>
+  <div class="coords tl">UNIT 02 / COLUMNS</div>
+  <div class="label">THREE COLUMN TEMPLATE</div>
+  <div class="title glitch glitch-entry" data-text="[SLIDE HEADING]">[SLIDE HEADING]</div>
+  <div class="col-grid">
+    <div class="col-box">
+      <div class="col-head" style="color:var(--u2-accent)">[A]</div>
+      <div class="col-body">[Column one — three equal ideas, skills, or examples.]</div>
+    </div>
+    <div class="col-box">
+      <div class="col-head" style="color:var(--u2-accent)">[B]</div>
+      <div class="col-body">[Column two — keep all three columns roughly the same length.]</div>
+    </div>
+    <div class="col-box">
+      <div class="col-head" style="color:var(--u2-accent)">[C]</div>
+      <div class="col-body">[Column three — works great for job roles, skills, or comparisons.]</div>
+    </div>
+  </div>
+</div>
+
+<!-- U2 S6: TASK SLIDE -->
+<div class="slide u2 slide-content" id="u2s6" data-unit="2" style="display:none">
+  <div class="grid-bg"></div>
+  <div class="coords tl">UNIT 02 / TASK</div>
+  <div class="label">TASK / ACTIVITY TEMPLATE</div>
+  <div class="title glitch glitch-entry" data-text="[TASK TITLE]">[TASK TITLE]</div>
+  <div class="task-box" style="border-color:var(--u2-accent)">
+    <div class="task-text">[What do learners need to do? State the task clearly in one or two sentences.]</div>
+    <div class="task-steps">
+      <div class="task-step" data-n="01 /" style="color:var(--ltgrey)">[Step one of the task.]</div>
+      <div class="task-step" data-n="02 /" style="color:var(--ltgrey)">[Step two.]</div>
+      <div class="task-step" data-n="03 /" style="color:var(--ltgrey)">[Step three — how do they complete or share their work?]</div>
+    </div>
+  </div>
+  <div class="mono-text" style="margin-top:2vh;opacity:0;animation:fadeUp 0.5s 0.8s forwards;color:var(--u2-accent)">[TIME: XX MINUTES] · [INDIVIDUAL / PAIRS / GROUPS]</div>
+</div>
+
+<!-- U2 S7: IMAGE PLACEHOLDER -->
+<div class="slide u2 slide-content" id="u2s7" data-unit="2" style="display:none">
+  <div class="grid-bg"></div>
+  <div class="coords tl">UNIT 02 / IMAGE</div>
+  <div class="label">IMAGE + CAPTION TEMPLATE</div>
+  <div class="title glitch glitch-entry" data-text="[SLIDE HEADING]">[SLIDE HEADING]</div>
+  <div class="img-placeholder" style="border-color:var(--u2-mid)">
+    <div class="img-placeholder-text">[ INSERT IMAGE HERE ]</div>
+  </div>
+  <div class="mono-text" style="margin-top:2vh;opacity:0;animation:fadeUp 0.5s 0.7s forwards">[Caption or image description.]</div>
+</div>
+
+<!-- U2 S8: QUOTE -->
+<div class="slide u2 slide-quote" id="u2s8" data-unit="2" style="display:none">
+  <div class="grid-bg"></div>
+  <div class="u2-num" style="opacity:0.5">2</div>
+  <div class="big-quote glitch glitch-entry" data-text="[YOUR QUOTE OR KEY STATEMENT GOES HERE]">[YOUR QUOTE OR<br>KEY STATEMENT<br>GOES HERE]</div>
+  <div class="quote-attr">[ATTRIBUTION — NAME, ROLE, ORGANISATION]</div>
+  <div class="accent-line" style="margin:4vh auto 0;background:var(--u2-accent)"></div>
+</div>
+
+<!-- U2 S9: CLOSE -->
+<div class="slide u2 slide-title" id="u2s9" data-unit="2" style="display:none">
+  <div class="grid-bg"></div>
+  <div class="u2-stripe"></div>
+  <div class="u2-num">2</div>
+  <div class="bg-text">END</div>
+  <div class="coords tl">UNIT 02 / CLOSE</div>
+  <div class="label" style="position:absolute;top:6vh;left:8vw">UNIT 02 / END OF LESSON</div>
+  <div class="main-q glitch glitch-entry" data-text="[CLOSING QUESTION OR REFLECTION]">[CLOSING QUESTION<br>OR REFLECTION]</div>
+  <div class="tag-line">[E.G. SELF-EVALUATION — WHAT SKILL DID YOU PRACTISE TODAY?]</div>
+  <div class="bottom-bar"></div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     UNIT 3 — CREATIVE PROCESS
+     Colour: Deep Violet  |  Mood: Reflective, structured, artistic
+════════════════════════════════════════════════════════ -->
+
+<!-- U3 S1: TITLE -->
+<div class="slide u3 slide-title" id="u3s1" data-unit="3" style="display:none">
+  <div class="grid-bg"></div>
+  <div class="u3-stripe"></div>
+  <div class="u3-num">3</div>
+  <div class="bg-text">PROCESS</div>
+  <div class="coords tl">UNIT 03 / CREATIVE PROCESS</div>
+  <div class="coords tr">N5 CREATIVE INDUSTRIES</div>
+  <div class="unit-badge unit-tag">UNIT 03 / THE CREATIVE PROCESS</div>
+  <div class="main-q glitch glitch-entry" data-text="[YOUR LESSON TITLE GOES HERE]">[YOUR LESSON<br>TITLE GOES<br>HERE]</div>
+  <div class="tag-line">[SUBTITLE OR SESSION FOCUS] · [DATE]</div>
+  <div class="bottom-bar"></div>
+</div>
+
+<!-- U3 S2: SECTION HEADER -->
+<div class="slide u3 slide-section" id="u3s2" data-unit="3" style="display:none">
+  <div class="grid-bg"></div>
+  <div class="u3-num">3</div>
+  <div class="coords tl">UNIT 03 / SECTION BREAK</div>
+  <div class="label">SECTION HEADER TEMPLATE</div>
+  <div class="section-kicker" style="color:var(--u3-accent)">[SECTION NUMBER OR PHASE]</div>
+  <div class="section-head glitch glitch-entry" data-text="[SECTION TITLE]">[SECTION<br>TITLE]</div>
+  <div class="body-text" style="margin-top:4vh">[Optional short description of the section.]</div>
+</div>
+
+<!-- U3 S3: PROCESS FLOW (unique to Unit 3) -->
+<div class="slide u3 slide-content" id="u3s3" data-unit="3" style="display:none">
+  <div class="grid-bg"></div>
+  <div class="coords tl">UNIT 03 / PROCESS</div>
+  <div class="label">PROCESS FLOW TEMPLATE</div>
+  <div class="title glitch glitch-entry" data-text="[PROCESS TITLE]">[PROCESS TITLE]</div>
+  <div class="process-flow">
+    <div class="process-step" data-n="1"><div class="process-n">01</div><div class="process-name">[STAGE NAME]</div><div class="process-desc">[Brief description of this stage in the process.]</div></div>
+    <div class="process-step" data-n="2"><div class="process-n">02</div><div class="process-name">[STAGE NAME]</div><div class="process-desc">[Brief description of this stage.]</div></div>
+    <div class="process-step" data-n="3"><div class="process-n">03</div><div class="process-name">[STAGE NAME]</div><div class="process-desc">[Brief description.]</div></div>
+    <div class="process-step" data-n="4"><div class="process-n">04</div><div class="process-name">[STAGE NAME]</div><div class="process-desc">[Brief description.]</div></div>
+    <div class="process-step" data-n="5"><div class="process-n">05</div><div class="process-name">[STAGE NAME]</div><div class="process-desc">[Brief description.]</div></div>
+  </div>
+  <div class="mono-text" style="margin-top:3vh;opacity:0;animation:fadeUp 0.5s 0.9s forwards">[SUPPORTING NOTE OR INSTRUCTION — ADD YOUR OWN CONTEXT HERE]</div>
+</div>
+
+<!-- U3 S4: NUMBERED LIST (reveal) -->
+<div class="slide u3 slide-content" id="u3s4" data-unit="3" style="display:none">
+  <div class="grid-bg"></div>
+  <div class="coords tl">UNIT 03 / LIST</div>
+  <div class="label">NUMBERED LIST TEMPLATE — CLICK TO REVEAL</div>
+  <div class="title glitch glitch-entry" data-text="[SLIDE HEADING]">[SLIDE HEADING]</div>
+  <div class="row-list" style="opacity:1;animation:none">
+    <div class="row-item reveal">
+      <div class="row-num" style="color:var(--u3-accent);background:rgba(204,68,255,0.06)">01</div>
+      <div class="row-content"><div class="row-title">[POINT HEADING]</div><div class="row-desc">[Supporting detail.]</div></div>
+    </div>
+    <div class="row-item reveal">
+      <div class="row-num" style="color:var(--u3-accent);background:rgba(204,68,255,0.06)">02</div>
+      <div class="row-content"><div class="row-title">[POINT HEADING]</div><div class="row-desc">[Supporting detail.]</div></div>
+    </div>
+    <div class="row-item reveal">
+      <div class="row-num" style="color:var(--u3-accent);background:rgba(204,68,255,0.06)">03</div>
+      <div class="row-content"><div class="row-title">[POINT HEADING]</div><div class="row-desc">[Supporting detail.]</div></div>
+    </div>
+    <div class="row-item reveal">
+      <div class="row-num" style="color:var(--u3-accent);background:rgba(204,68,255,0.06)">04</div>
+      <div class="row-content"><div class="row-title">[POINT HEADING]</div><div class="row-desc">[Supporting detail.]</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- U3 S5: TWO COLUMN -->
+<div class="slide u3 slide-content" id="u3s5" data-unit="3" style="display:none">
+  <div class="grid-bg"></div>
+  <div class="coords tl">UNIT 03 / CONTENT</div>
+  <div class="label">TWO COLUMN CONTENT TEMPLATE</div>
+  <div class="title glitch glitch-entry" data-text="[SLIDE HEADING]">[SLIDE HEADING]</div>
+  <div class="accent-line"></div>
+  <div class="two-col">
+    <div class="two-col-text"><strong>[LEFT HEADING]</strong><br><br>Add your content here. Four to six lines works well per column.</div>
+    <div class="two-col-text"><strong>[RIGHT HEADING]</strong><br><br>Add your content here. Use short sentences and active language.</div>
+  </div>
+</div>
+
+<!-- U3 S6: TASK SLIDE -->
+<div class="slide u3 slide-content" id="u3s6" data-unit="3" style="display:none">
+  <div class="grid-bg"></div>
+  <div class="coords tl">UNIT 03 / TASK</div>
+  <div class="label">TASK / ACTIVITY TEMPLATE</div>
+  <div class="title glitch glitch-entry" data-text="[TASK TITLE]">[TASK TITLE]</div>
+  <div class="task-box" style="border-color:var(--u3-accent)">
+    <div class="task-text">[Task instruction — clear and direct. One or two sentences.]</div>
+    <div class="task-steps">
+      <div class="task-step" data-n="01 /" style="color:var(--ltgrey)">[Step one.]</div>
+      <div class="task-step" data-n="02 /" style="color:var(--ltgrey)">[Step two.]</div>
+      <div class="task-step" data-n="03 /" style="color:var(--ltgrey)">[Step three.]</div>
+    </div>
+  </div>
+  <div class="mono-text" style="margin-top:2vh;opacity:0;animation:fadeUp 0.5s 0.8s forwards;color:var(--u3-accent)">[TIME: XX MINUTES] · [INDIVIDUAL / PAIRS / GROUPS]</div>
+</div>
+
+<!-- U3 S7: IMAGE PLACEHOLDER -->
+<div class="slide u3 slide-content" id="u3s7" data-unit="3" style="display:none">
+  <div class="grid-bg"></div>
+  <div class="coords tl">UNIT 03 / IMAGE</div>
+  <div class="label">IMAGE + CAPTION TEMPLATE</div>
+  <div class="title glitch glitch-entry" data-text="[SLIDE HEADING]">[SLIDE HEADING]</div>
+  <div class="img-placeholder" style="border-color:var(--u3-mid)">
+    <div class="img-placeholder-text">[ INSERT IMAGE HERE ]</div>
+  </div>
+  <div class="mono-text" style="margin-top:2vh;opacity:0;animation:fadeUp 0.5s 0.7s forwards">[Caption or image description.]</div>
+</div>
+
+<!-- U3 S8: QUOTE -->
+<div class="slide u3 slide-quote" id="u3s8" data-unit="3" style="display:none">
+  <div class="grid-bg"></div>
+  <div class="u3-num" style="opacity:0.5">3</div>
+  <div class="big-quote glitch glitch-entry" data-text="[YOUR QUOTE OR KEY STATEMENT]">[YOUR QUOTE OR<br>KEY STATEMENT<br>GOES HERE]</div>
+  <div class="quote-attr">[ATTRIBUTION — NAME, ROLE, ORGANISATION]</div>
+  <div class="accent-line" style="margin:4vh auto 0;background:var(--u3-accent)"></div>
+</div>
+
+<!-- U3 S9: CLOSE -->
+<div class="slide u3 slide-title" id="u3s9" data-unit="3" style="display:none">
+  <div class="grid-bg"></div>
+  <div class="u3-stripe"></div>
+  <div class="u3-num">3</div>
+  <div class="bg-text">END</div>
+  <div class="coords tl">UNIT 03 / CLOSE</div>
+  <div class="label" style="position:absolute;top:6vh;left:8vw">UNIT 03 / END OF LESSON</div>
+  <div class="main-q glitch glitch-entry" data-text="[CLOSING QUESTION OR REFLECTION]">[CLOSING QUESTION<br>OR REFLECTION]</div>
+  <div class="tag-line">[E.G. WHAT STAGE OF THE CREATIVE PROCESS DID YOU FIND HARDEST TODAY?]</div>
+  <div class="bottom-bar"></div>
+</div>
+
+
+<!-- ═══════════════════════════════════════════════════════
+     UNIT 4 — CREATIVE PROJECT
+     Colour: Warm Amber  |  Mood: Ambitious, deadline-driven, bold
+════════════════════════════════════════════════════════ -->
+
+<!-- U4 S1: TITLE -->
+<div class="slide u4 slide-title" id="u4s1" data-unit="4" style="display:none">
+  <div class="grid-bg"></div>
+  <div class="u4-stripe"></div>
+  <div class="u4-num">4</div>
+  <div class="bg-text">PROJECT</div>
+  <div class="coords tl">UNIT 04 / CREATIVE PROJECT</div>
+  <div class="coords tr">N5 CREATIVE INDUSTRIES</div>
+  <div class="unit-badge unit-tag">UNIT 04 / THE CREATIVE PROJECT</div>
+  <div class="main-q glitch glitch-entry" data-text="[YOUR LESSON TITLE GOES HERE]">[YOUR LESSON<br>TITLE GOES<br>HERE]</div>
+  <div class="tag-line">[SUBTITLE OR SESSION FOCUS] · [DATE]</div>
+  <div class="bottom-bar"></div>
+</div>
+
+<!-- U4 S2: SECTION HEADER -->
+<div class="slide u4 slide-section" id="u4s2" data-unit="4" style="display:none">
+  <div class="grid-bg"></div>
+  <div class="u4-num">4</div>
+  <div class="coords tl">UNIT 04 / SECTION BREAK</div>
+  <div class="label">SECTION HEADER TEMPLATE</div>
+  <div class="section-kicker" style="color:var(--u4-accent)">[SECTION NUMBER OR PHASE]</div>
+  <div class="section-head glitch glitch-entry" data-text="[SECTION TITLE]">[SECTION<br>TITLE]</div>
+  <div class="body-text" style="margin-top:4vh">[Optional short description of the section.]</div>
+</div>
+
+<!-- U4 S3: MILESTONE GRID (unique to Unit 4) -->
+<div class="slide u4 slide-content" id="u4s3" data-unit="4" style="display:none">
+  <div class="grid-bg"></div>
+  <div class="coords tl">UNIT 04 / MILESTONES</div>
+  <div class="label">PROJECT MILESTONES TEMPLATE</div>
+  <div class="title glitch glitch-entry" data-text="[PROJECT TIMELINE]">[PROJECT TIMELINE]</div>
+  <div class="milestone-grid">
+    <div class="milestone-box reveal">
+      <div class="milestone-date">[DATE]</div>
+      <div class="milestone-title">[MILESTONE NAME]</div>
+      <div class="milestone-desc">[Brief description of what's due or expected at this point.]</div>
+    </div>
+    <div class="milestone-box reveal">
+      <div class="milestone-date">[DATE]</div>
+      <div class="milestone-title">[MILESTONE NAME]</div>
+      <div class="milestone-desc">[Brief description.]</div>
+    </div>
+    <div class="milestone-box reveal">
+      <div class="milestone-date">[DATE]</div>
+      <div class="milestone-title">[MILESTONE NAME]</div>
+      <div class="milestone-desc">[Brief description.]</div>
+    </div>
+    <div class="milestone-box reveal">
+      <div class="milestone-date">[DATE]</div>
+      <div class="milestone-title">[MILESTONE NAME]</div>
+      <div class="milestone-desc">[Brief description.]</div>
+    </div>
+  </div>
+</div>
+
+<!-- U4 S4: NUMBERED LIST (reveal) -->
+<div class="slide u4 slide-content" id="u4s4" data-unit="4" style="display:none">
+  <div class="grid-bg"></div>
+  <div class="coords tl">UNIT 04 / LIST</div>
+  <div class="label">NUMBERED LIST TEMPLATE — CLICK TO REVEAL</div>
+  <div class="title glitch glitch-entry" data-text="[SLIDE HEADING]">[SLIDE HEADING]</div>
+  <div class="row-list" style="opacity:1;animation:none">
+    <div class="row-item reveal">
+      <div class="row-num" style="color:var(--u4-accent);background:rgba(255,153,0,0.06)">01</div>
+      <div class="row-content"><div class="row-title">[POINT HEADING]</div><div class="row-desc">[Supporting detail.]</div></div>
+    </div>
+    <div class="row-item reveal">
+      <div class="row-num" style="color:var(--u4-accent);background:rgba(255,153,0,0.06)">02</div>
+      <div class="row-content"><div class="row-title">[POINT HEADING]</div><div class="row-desc">[Supporting detail.]</div></div>
+    </div>
+    <div class="row-item reveal">
+      <div class="row-num" style="color:var(--u4-accent);background:rgba(255,153,0,0.06)">03</div>
+      <div class="row-content"><div class="row-title">[POINT HEADING]</div><div class="row-desc">[Supporting detail.]</div></div>
+    </div>
+    <div class="row-item reveal">
+      <div class="row-num" style="color:var(--u4-accent);background:rgba(255,153,0,0.06)">04</div>
+      <div class="row-content"><div class="row-title">[POINT HEADING]</div><div class="row-desc">[Supporting detail.]</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- U4 S5: THREE COLUMNS -->
+<div class="slide u4 slide-content" id="u4s5" data-unit="4" style="display:none">
+  <div class="grid-bg"></div>
+  <div class="coords tl">UNIT 04 / COLUMNS</div>
+  <div class="label">THREE COLUMN TEMPLATE</div>
+  <div class="title glitch glitch-entry" data-text="[SLIDE HEADING]">[SLIDE HEADING]</div>
+  <div class="col-grid">
+    <div class="col-box"><div class="col-head" style="color:var(--u4-accent)">[A]</div><div class="col-body">[Column one content.]</div></div>
+    <div class="col-box"><div class="col-head" style="color:var(--u4-accent)">[B]</div><div class="col-body">[Column two content.]</div></div>
+    <div class="col-box"><div class="col-head" style="color:var(--u4-accent)">[C]</div><div class="col-body">[Column three content.]</div></div>
+  </div>
+</div>
+
+<!-- U4 S6: TASK SLIDE -->
+<div class="slide u4 slide-content" id="u4s6" data-unit="4" style="display:none">
+  <div class="grid-bg"></div>
+  <div class="coords tl">UNIT 04 / TASK</div>
+  <div class="label">TASK / ACTIVITY TEMPLATE</div>
+  <div class="title glitch glitch-entry" data-text="[TASK TITLE]">[TASK TITLE]</div>
+  <div class="task-box" style="border-color:var(--u4-accent)">
+    <div class="task-text">[Task instruction — clear and direct.]</div>
+    <div class="task-steps">
+      <div class="task-step" data-n="01 /" style="color:var(--ltgrey)">[Step one.]</div>
+      <div class="task-step" data-n="02 /" style="color:var(--ltgrey)">[Step two.]</div>
+      <div class="task-step" data-n="03 /" style="color:var(--ltgrey)">[Step three.]</div>
+    </div>
+  </div>
+  <div class="mono-text" style="margin-top:2vh;opacity:0;animation:fadeUp 0.5s 0.8s forwards;color:var(--u4-accent)">[TIME: XX MINUTES] · [INDIVIDUAL / PAIRS / GROUPS]</div>
+</div>
+
+<!-- U4 S7: IMAGE PLACEHOLDER -->
+<div class="slide u4 slide-content" id="u4s7" data-unit="4" style="display:none">
+  <div class="grid-bg"></div>
+  <div class="coords tl">UNIT 04 / IMAGE</div>
+  <div class="label">IMAGE + CAPTION TEMPLATE</div>
+  <div class="title glitch glitch-entry" data-text="[SLIDE HEADING]">[SLIDE HEADING]</div>
+  <div class="img-placeholder" style="border-color:var(--u4-mid)">
+    <div class="img-placeholder-text">[ INSERT IMAGE HERE ]</div>
+  </div>
+  <div class="mono-text" style="margin-top:2vh;opacity:0;animation:fadeUp 0.5s 0.7s forwards">[Caption or image description.]</div>
+</div>
+
+<!-- U4 S8: QUOTE -->
+<div class="slide u4 slide-quote" id="u4s8" data-unit="4" style="display:none">
+  <div class="grid-bg"></div>
+  <div class="u4-num" style="opacity:0.5">4</div>
+  <div class="big-quote glitch glitch-entry" data-text="[YOUR QUOTE OR KEY STATEMENT]">[YOUR QUOTE OR<br>KEY STATEMENT<br>GOES HERE]</div>
+  <div class="quote-attr">[ATTRIBUTION]</div>
+  <div class="accent-line" style="margin:4vh auto 0;background:var(--u4-accent)"></div>
+</div>
+
+<!-- U4 S9: CLOSE -->
+<div class="slide u4 slide-title" id="u4s9" data-unit="4" style="display:none">
+  <div class="grid-bg"></div>
+  <div class="u4-stripe"></div>
+  <div class="u4-num">4</div>
+  <div class="bg-text">END</div>
+  <div class="coords tl">UNIT 04 / CLOSE</div>
+  <div class="label" style="position:absolute;top:6vh;left:8vw">UNIT 04 / END OF LESSON</div>
+  <div class="main-q glitch glitch-entry" data-text="[CLOSING QUESTION OR REFLECTION]">[CLOSING QUESTION<br>OR REFLECTION]</div>
+  <div class="tag-line">[E.G. WHAT IS YOUR NEXT STEP ON YOUR PROJECT?]</div>
+  <div class="bottom-bar"></div>
+</div>
+
+</div><!-- /deck -->
+
+<script>
+const cursor = document.getElementById('cursor');
+document.addEventListener('mousemove', e => { cursor.style.left = e.clientX+'px'; cursor.style.top = e.clientY+'px'; });
+
+// Unit accent colours for cursor
+const unitAccents = { 1:'#00AAFF', 2:'#AAFF00', 3:'#CC44FF', 4:'#FF9900' };
+
+let currentUnit = 1;
+let slides = [], current = 0, isAnimating = false;
+
+const hudLeft    = document.getElementById('hudLeft');
+const hudRight   = document.getElementById('hudRight');
+const hudProgress= document.getElementById('hudProgress');
+const keyHint    = document.getElementById('keyHint');
+
+const revealMap   = {};
+const revealState = {};
+const revealCounter = document.createElement('div');
+revealCounter.className = 'reveal-counter';
+document.body.appendChild(revealCounter);
+
+function getUnitSlides(unit) {
+  return Array.from(document.querySelectorAll(`.slide[data-unit="${unit}"]`));
+}
+
+function buildRevealMap(unitSlides) {
+  const map = {};
+  unitSlides.forEach(slide => {
+    const reveals = Array.from(slide.querySelectorAll('.reveal,.reveal-stat'));
+    if (reveals.length > 0) {
+      map[slide.id] = reveals.map(el => [el]);
+    }
+    // skills bars on u2s4
+    if (slide.id === 'u2s4') delete map[slide.id];
+  });
+  return map;
+}
+
+function switchUnit(unit) {
+  // hide all
+  document.querySelectorAll('.slide').forEach(s => { s.classList.remove('active','slide-enter','slide-exit'); s.style.display='none'; });
+  // show unit slides
+  const unitSlides = getUnitSlides(unit);
+  unitSlides.forEach(s => { s.style.display=''; });
+
+  // update buttons
+  document.querySelectorAll('.unit-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.getElementById(`btn-u${unit}`);
+  btn.classList.add('active');
+  btn.style.background = unitAccents[unit];
+
+  // cursor colour
+  cursor.style.background = unitAccents[unit];
+
+  slides = unitSlides;
+  current = 0;
+  currentUnit = unit;
+
+  // reset reveals
+  Object.keys(revealMap).forEach(k => delete revealMap[k]);
+  Object.keys(revealState).forEach(k => delete revealState[k]);
+  const newMap = buildRevealMap(slides);
+  Object.assign(revealMap, newMap);
+  slides.forEach(s => { revealState[s.id] = 0; resetReveal(s.id); });
+
+  // activate first
+  slides[0].classList.add('active','slide-enter');
+  slides[0].addEventListener('animationend', () => {
+    slides[0].classList.remove('slide-enter');
+    triggerEntryGlitch(slides[0]);
+    updateRevealPips(slides[0].id);
+    animateSkillBars(slides[0]);
+  }, { once: true });
+
+  buildProgressDots();
+  updateHUD();
+  setTimeout(() => keyHint.classList.remove('hidden'), 100);
+  keyHint.classList.remove('hidden');
+
+  // non-active unit buttons reset colour
+  document.querySelectorAll('.unit-btn').forEach(b => {
+    if (!b.classList.contains('active')) { b.style.background = ''; b.style.color = ''; }
+  });
+  btn.style.color = '#050505';
+}
+
+function buildProgressDots() {
+  hudProgress.innerHTML = '';
+  slides.forEach((_, i) => {
+    const dot = document.createElement('div');
+    dot.className = 'hud-dot' + (i === 0 ? ' active' : '');
+    dot.style.cursor = 'pointer';
+    dot.onclick = () => goTo(i);
+    hudProgress.appendChild(dot);
+  });
+}
+
+function updateHUD() {
+  const unitNames = {1:'INTRODUCTION',2:'SKILLS DEVELOPMENT',3:'CREATIVE PROCESS',4:'CREATIVE PROJECT'};
+  hudLeft.textContent = `N5 CREATIVE INDUSTRIES / ${unitNames[currentUnit]}`;
+  hudLeft.classList.add('visible');
+  hudRight.textContent = `${String(current+1).padStart(2,'0')} / ${String(slides.length).padStart(2,'0')}`;
+  document.querySelectorAll('.hud-dot').forEach((d,i) => d.classList.toggle('active', i===current));
+}
+
+function goTo(idx) {
+  if (idx === current || isAnimating || idx < 0 || idx >= slides.length) return;
+  isAnimating = true;
+  const outSlide = slides[current], inSlide = slides[idx];
+  outSlide.classList.add('slide-exit');
+  outSlide.addEventListener('animationend', () => {
+    outSlide.classList.remove('active','slide-exit');
+    resetReveal(outSlide.id);
+    inSlide.classList.add('active','slide-enter');
+    inSlide.addEventListener('animationend', () => { inSlide.classList.remove('slide-enter'); isAnimating = false; }, { once: true });
+    current = idx;
+    updateHUD();
+    inSlide.querySelectorAll('[style*="animation"]').forEach(el => { el.style.animation='none'; el.offsetHeight; el.style.animation=''; });
+    triggerEntryGlitch(inSlide);
+    resetReveal(inSlide.id);
+    updateRevealPips(inSlide.id);
+    animateSkillBars(inSlide);
+  }, { once: true });
+}
+
+function next() {
+  const sid = slides[current]?.id;
+  if (hasUnrevealedItems(sid)) { showNextReveal(sid); return; }
+  if (current < slides.length - 1) goTo(current + 1);
+}
+function prev() {
+  const sid = slides[current]?.id;
+  if (revealMap[sid] && revealState[sid] > 0) { resetReveal(sid); return; }
+  if (current > 0) goTo(current - 1);
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key==='ArrowRight'||e.key===' '||e.key==='ArrowDown') { e.preventDefault(); next(); }
+  if (e.key==='ArrowLeft'||e.key==='ArrowUp') { e.preventDefault(); prev(); }
+  if (e.key==='Tab') { e.preventDefault(); switchUnit(currentUnit % 4 + 1); }
+  if (e.key==='Escape') toggleFullscreen();
+  if (e.key>='1'&&e.key<='9') goTo(parseInt(e.key)-1);
+});
+
+let touchStartX = 0;
+document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; });
+document.addEventListener('touchend', e => { const dx = e.changedTouches[0].clientX - touchStartX; if(Math.abs(dx)>50) dx<0?next():prev(); });
+document.getElementById('deck').addEventListener('click', e => { if(!e.target.closest('.unit-nav')) next(); });
+
+// Reveal
+function updateRevealPips(sid) {
+  revealCounter.innerHTML = '';
+  if (!revealMap[sid]) return;
+  const t = revealMap[sid].length, d = revealState[sid]||0;
+  for (let i=0;i<t;i++) { const p=document.createElement('div'); p.className='reveal-pip'+(i<d?' done':''); revealCounter.appendChild(p); }
+}
+function resetReveal(sid) {
+  if (!revealMap[sid]) return;
+  revealState[sid]=0;
+  revealMap[sid].flat().forEach(el=>{if(el)el.classList.remove('shown')});
+  updateRevealPips(sid);
+}
+function showNextReveal(sid) {
+  const steps=revealMap[sid]; if(!steps) return;
+  const step=revealState[sid]; if(step>=steps.length) return;
+  steps[step].forEach(el=>{if(el)el.classList.add('shown')});
+  revealState[sid]++;
+  updateRevealPips(sid);
+}
+function hasUnrevealedItems(sid) { return revealMap[sid] && revealState[sid] < revealMap[sid].length; }
+
+// Skill bars (Unit 2 S4)
+function animateSkillBars(slide) {
+  slide.querySelectorAll('.skill-bar-fill').forEach(bar => {
+    const w = bar.getAttribute('data-width') || '0%';
+    bar.style.width = '0%';
+    requestAnimationFrame(() => { setTimeout(() => { bar.style.width = w; }, 200); });
+  });
+}
+
+// Glitch
+function triggerEntryGlitch(slide) {
+  slide.querySelectorAll('.glitch').forEach(el => {
+    el.classList.remove('glitch-entry','glitch-ambient'); void el.offsetWidth;
+    el.classList.add('glitch-entry');
+    el.addEventListener('animationend', ()=>el.classList.remove('glitch-entry'), {once:true});
+  });
+}
+function scheduleAmbientGlitch() {
+  const delay = 6000 + Math.random()*6000;
+  setTimeout(() => {
+    if (slides[current]) {
+      const els = Array.from(slides[current].querySelectorAll('.glitch'));
+      if(els.length>0){ const el=els[Math.floor(Math.random()*els.length)]; el.classList.remove('glitch-entry','glitch-ambient'); void el.offsetWidth; el.classList.add('glitch-ambient'); el.addEventListener('animationend',()=>el.classList.remove('glitch-ambient'),{once:true}); }
+    }
+    scheduleAmbientGlitch();
+  }, delay);
+}
+scheduleAmbientGlitch();
+
+// Fullscreen
+function toggleFullscreen() {
+  if(!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{});
+  else document.exitFullscreen();
+}
+document.addEventListener('click', ()=>{ if(!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{}); }, {once:true});
+
+// Particles
+const canvas = document.getElementById('particleCanvas');
+const ctx = canvas.getContext('2d');
+function resizeCanvas(){ canvas.width=window.innerWidth; canvas.height=window.innerHeight; }
+resizeCanvas();
+window.addEventListener('resize', ()=>{ resizeCanvas(); initParticles(); });
+
+const unitRGB = { 1:[0,170,255], 2:[170,255,0], 3:[204,68,255], 4:[255,153,0] };
+const WHITE_HEX = [240,238,232];
+let particles=[], mouse={x:-9999,y:-9999};
+document.addEventListener('mousemove', e=>{ mouse.x=e.clientX; mouse.y=e.clientY; });
+
+class Particle {
+  constructor(){ this.reset(true); }
+  reset(randomY=false){
+    this.x=Math.random()*canvas.width;
+    this.y=randomY?Math.random()*canvas.height:canvas.height+10;
+    this.vx=(Math.random()-0.5)*0.35; this.vy=-(Math.random()*0.25+0.08);
+    this.size=Math.random()*1.5+0.4;
+    this.isAccent=Math.random()<0.12;
+    this.baseAlpha=Math.random()*0.25+0.06; this.alpha=this.baseAlpha;
+    this.pulse=Math.random()*Math.PI*2; this.pulseSpeed=Math.random()*0.008+0.003;
+  }
+  update(){
+    this.x+=this.vx; this.y+=this.vy; this.pulse+=this.pulseSpeed;
+    this.alpha=this.baseAlpha+Math.sin(this.pulse)*0.04;
+    const dx=this.x-mouse.x,dy=this.y-mouse.y,dist=Math.sqrt(dx*dx+dy*dy);
+    if(dist<120){const f=(120-dist)/120;this.x+=dx/dist*f*0.6;this.y+=dy/dist*f*0.6;}
+    if(this.y<-20||this.x<-20||this.x>canvas.width+20) this.reset(false);
+  }
+  draw(){
+    const [r,g,b]=this.isAccent?unitRGB[currentUnit]:WHITE_HEX;
+    ctx.beginPath(); ctx.arc(this.x,this.y,this.size,0,Math.PI*2);
+    ctx.fillStyle=`rgba(${r},${g},${b},${this.alpha})`; ctx.fill();
+  }
+}
+function initParticles(){ particles=Array.from({length:90},()=>new Particle()); }
+function drawConnections(){
+  for(let i=0;i<particles.length;i++) for(let j=i+1;j<particles.length;j++){
+    const a=particles[i],b=particles[j],dx=a.x-b.x,dy=a.y-b.y,dist=Math.sqrt(dx*dx+dy*dy);
+    if(dist<160){const op=(1-dist/160)*0.12;const [r,g,bv]=(a.isAccent||b.isAccent)?unitRGB[currentUnit]:WHITE_HEX;ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.strokeStyle=`rgba(${r},${g},${bv},${op})`;ctx.lineWidth=0.5;ctx.stroke();}
+  }
+}
+let flashTimer=0,flashParticle=null,flashAlpha=0;
+function updateFlash(){
+  flashTimer--;
+  if(flashTimer<=0){flashParticle=particles[Math.floor(Math.random()*particles.length)];flashAlpha=1;flashTimer=Math.floor(Math.random()*180+120);}
+  if(flashParticle&&flashAlpha>0){
+    const [r,g,b]=flashParticle.isAccent?unitRGB[currentUnit]:WHITE_HEX;
+    ctx.beginPath();ctx.arc(flashParticle.x,flashParticle.y,3,0,Math.PI*2);ctx.fillStyle=`rgba(${r},${g},${b},${flashAlpha*0.7})`;ctx.fill();
+    ctx.beginPath();ctx.arc(flashParticle.x,flashParticle.y,(1-flashAlpha)*30+3,0,Math.PI*2);ctx.strokeStyle=`rgba(${r},${g},${b},${flashAlpha*0.3})`;ctx.lineWidth=1;ctx.stroke();
+    flashAlpha-=0.015;
+  }
+}
+function animate(){ ctx.clearRect(0,0,canvas.width,canvas.height); drawConnections(); particles.forEach(p=>{p.update();p.draw();}); updateFlash(); requestAnimationFrame(animate); }
+initParticles(); animate();
+
+// Init
+switchUnit(1);
+</script>
+</body>
+</html>
