@@ -1164,8 +1164,12 @@ def build_html(session: dict) -> str:
 
 
 def main():
+    skip_hand_authored = {1}  # drama-ci-s01.html — hand-built deck (U1_S1_Session1_Slides.html)
     for session in SESSIONS:
         n = session["num"]
+        if n in skip_hand_authored:
+            print(f"Skip session {n:02d} (hand-authored: drama-ci-s{n:02d}.html)")
+            continue
         out = os.path.join(ROOT, f"drama-ci-s{n:02d}.html")
         with open(out, "w", encoding="utf-8") as f:
             f.write(build_html(session))
