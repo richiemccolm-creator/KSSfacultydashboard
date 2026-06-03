@@ -1486,6 +1486,12 @@ function renderPreview() {
     return groups;
   }
 
+  function sectionTexts(key) {
+    return (p.selections[key] || [])
+      .filter(code => bank[key] && bank[key][code])
+      .map(code => bank[key][code].replace(/X/g, name));
+  }
+
   function sectionHtml(key, cls, title) {
     const groups = buildCPEGroups(key);
     const hasAny = Object.values(groups).some(g => g.length > 0);
@@ -1493,7 +1499,7 @@ function renderPreview() {
       ? Object.entries(groups).filter(([,g]) => g.length > 0).map(([cat, sents]) =>
           `<div style="margin-bottom:5px">
             <span style="font-size:.63rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:${CPE_LABELS[cat].color}">${cat}</span>
-            <p style="margin-top:2px;color:var(--text-2)">${sents.join(' ')}</p>
+            <p style="margin-top:2px;color:var(--text-2)">${ReportBuilderBridge.composeSectionSentences(sents, { firstName: name })}</p>
           </div>`).join('')
       : '<p class="empty">Section omitted from export</p>';
     return `<div class="preview-section ${cls}"><h4>${title}</h4>${inner}</div>`;
@@ -1505,10 +1511,14 @@ function renderPreview() {
       .filter(code => attBank[code])
       .map(code => attBank[code].replace('X', name));
     const inner = sents.length
-      ? `<p style="color:var(--text-2)">${sents.join(' ')}</p>`
+      ? `<p style="color:var(--text-2)">${ReportBuilderBridge.composeSectionSentences(sents, { firstName: name })}</p>`
       : '<p class="empty">Section omitted from export</p>';
     return `<div class="preview-section ps-t"><h4>Approach to Learning</h4>${inner}</div>`;
   }
+
+  const overlapWarn = ReportBuilderBridge.formatOverlapWarningHtml(
+    ReportBuilderBridge.detectAodNextStepsOverlap(sectionTexts('aod'), sectionTexts('next_steps'))
+  );
 
   body.innerHTML = `
     ${contextSummary && contextSummary.trim() ? `<div class="preview-section" style="margin-bottom:12px;padding-bottom:12px;border-bottom:1px solid var(--border)"><h4 style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-3);margin-bottom:4px">Context</h4><p style="font-size:.8rem;color:var(--text-2);line-height:1.6">${contextSummary.trim().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</p></div>` : ''}
@@ -1519,6 +1529,7 @@ function renderPreview() {
     <div class="preview-name">${p.firstName} ${p.lastName}</div>
     <div class="preview-year">Year Group: ${p.year}</div>
     ${p.year === 'S3' && p.s4Destination ? `<div class="preview-year">S4 pathway: ${p.s4Destination}</div>` : ''}
+    ${overlapWarn}
     ${sectionHtml('strengths', 'ps-s', 'Strengths')}
     ${sectionHtml('aod', 'ps-a', 'Areas of Development')}
     ${sectionHtml('next_steps', 'ps-n', 'Next Steps')}
@@ -1644,7 +1655,7 @@ function buildDocXml() {
       for (const [cat, sents] of Object.entries(groups)) {
         if (sents.length === 0) continue;
         body += para(cat, { bold:true, size:18, color:cpeDocColors[cat], spaceAfter:40, spaceBefore:60 });
-        body += para(sents.join(' '), { size:20, color:'1A1A1A', spaceAfter:100 });
+        body += para(ReportBuilderBridge.composeSectionSentences(sents, { firstName: name }), { size:20, color:'1A1A1A', spaceAfter:100 });
       }
     }
 
@@ -1669,7 +1680,7 @@ function buildDocXml() {
         .map(code => attBank[code].replace('X', name));
       if (!sents.length) return;
       body += para('Approach to Learning', { bold:true, size:22, color:'6D28D9', spaceAfter:60 });
-      body += para(sents.join(' '), { size:20, color:'1A1A1A', spaceAfter:100 });
+      body += para(ReportBuilderBridge.composeSectionSentences(sents, { firstName: name }), { size:20, color:'1A1A1A', spaceAfter:100 });
     })();
 
     if (p.recommend) {

@@ -238,6 +238,168 @@
     };
   }
 
+  var THEME_OVERLAP_PHRASES = [
+    'voice, movement, and expression',
+    'voice and movement',
+    'imaginative ideas',
+    'short dramatic narratives',
+    'observational drawing',
+    'proportion, scale',
+    'colour mixing',
+    'tonal variation',
+    'working from scripts',
+    'timing, cues, and delivery',
+    'group work',
+    'audience engagement',
+    'character more convincingly',
+    'real and imaginary scenarios'
+  ];
+
+  function escapeRegExp(str) {
+    return String(str).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  }
+
+  function lowerFirst(str) {
+    if (!str) return str;
+    return str.charAt(0).toLowerCase() + str.slice(1);
+  }
+
+  function stripOpener(sentence, firstName) {
+    var name = escapeRegExp(firstName);
+    var patterns = [
+      { type: 'encouraged', re: new RegExp('^' + name + '\\s+is encouraged to\\s+', 'i') },
+      { type: 'could', re: new RegExp('^' + name + '\\s+could\\s+', 'i') },
+      { type: 'should', re: new RegExp('^' + name + '\\s+should\\s+', 'i') },
+      { type: 'needs', re: new RegExp('^' + name + '\\s+needs to\\s+', 'i') },
+      { type: 'would_benefit', re: new RegExp('^' + name + '\\s+would benefit from\\s+', 'i') }
+    ];
+    for (var i = 0; i < patterns.length; i++) {
+      var m = sentence.match(patterns[i].re);
+      if (m) {
+        return { type: patterns[i].type, rest: sentence.slice(m[0].length) };
+      }
+    }
+    return { type: null, rest: sentence };
+  }
+
+  function rewriteOpener(type, firstName, rest, duplicateIndex) {
+    if (duplicateIndex <= 0) {
+      return firstName + ' is encouraged to ' + rest;
+    }
+    if (type === 'encouraged') {
+      var alts = [
+        function () { return firstName + ' should also ' + rest; },
+        function () { return 'They could also ' + lowerFirst(rest); },
+        function () { return 'A further focus is for ' + firstName + ' to ' + rest; },
+        function () { return 'Next, ' + firstName + ' should ' + rest; }
+      ];
+      return alts[(duplicateIndex - 1) % alts.length]();
+    }
+    if (type === 'could') {
+      var couldAlts = [
+        function () { return firstName + ' should also ' + rest; },
+        function () { return 'It would help if ' + firstName + ' could ' + rest; },
+        function () { return firstName + ' is encouraged to ' + rest; }
+      ];
+      return couldAlts[(duplicateIndex - 1) % couldAlts.length]();
+    }
+    if (type === 'should') {
+      var shouldAlts = [
+        function () { return firstName + ' could also ' + rest; },
+        function () { return 'Continuing this focus, ' + firstName + ' should ' + rest; },
+        function () { return firstName + ' is encouraged to ' + rest; }
+      ];
+      return shouldAlts[(duplicateIndex - 1) % shouldAlts.length]();
+    }
+    if (type === 'needs') {
+      return (duplicateIndex === 1 ? firstName + ' should also ' : 'They also need to ') + rest;
+    }
+    if (type === 'would_benefit') {
+      return (duplicateIndex === 1 ? firstName + ' should also ' : firstName + ' is encouraged to ') + rest;
+    }
+    return sentence;
+  }
+
+  function rebuildOpener(type, firstName, rest) {
+    if (type === 'encouraged') return firstName + ' is encouraged to ' + rest;
+    if (type === 'could') return firstName + ' could ' + rest;
+    if (type === 'should') return firstName + ' should ' + rest;
+    if (type === 'needs') return firstName + ' needs to ' + rest;
+    if (type === 'would_benefit') return firstName + ' would benefit from ' + rest;
+    return rest;
+  }
+
+  function dedupeOpeners(sentences, firstName) {
+    var counts = { encouraged: 0, could: 0, should: 0, needs: 0, would_benefit: 0 };
+    return sentences.map(function (sentence) {
+      var parsed = stripOpener(sentence, firstName);
+      if (!parsed.type) return sentence;
+      var n = counts[parsed.type]++;
+      if (n === 0) {
+        return rebuildOpener(parsed.type, firstName, parsed.rest);
+      }
+      return rewriteOpener(parsed.type, firstName, parsed.rest, n);
+    });
+  }
+
+  function joinComposed(sentences) {
+    if (!sentences.length) return '';
+    if (sentences.length === 1) return sentences[0];
+    if (sentences.length === 2) return sentences.join(' ');
+    return sentences.join('; ');
+  }
+
+  /**
+   * Rule-based stitching: vary repeated openers, then join (semicolons if 3+).
+   * @param {string[]} sentences - already personalised (X → name)
+   * @param {{ firstName?: string }} options
+   * @returns {string}
+   */
+  function composeSectionSentences(sentences, options) {
+    var list = (sentences || []).filter(function (s) { return s && String(s).trim(); });
+    if (!list.length) return '';
+    var firstName = (options && options.firstName) || 'They';
+    return joinComposed(dedupeOpeners(list, firstName));
+  }
+
+  function normaliseForOverlap(text) {
+    return String(text).toLowerCase().replace(/\s+/g, ' ');
+  }
+
+  /**
+   * Detect shared themes between AoD and Next Steps (preview warnings).
+   * @param {string[]} aodSentences
+   * @param {string[]} nextStepSentences
+   * @returns {string[]} human-readable theme labels
+   */
+  function detectAodNextStepsOverlap(aodSentences, nextStepSentences) {
+    var aod = (aodSentences || []).map(normaliseForOverlap);
+    var next = (nextStepSentences || []).map(normaliseForOverlap);
+    if (!aod.length || !next.length) return [];
+
+    var found = [];
+    THEME_OVERLAP_PHRASES.forEach(function (phrase) {
+      var p = phrase.toLowerCase();
+      var inAod = aod.some(function (s) { return s.indexOf(p) !== -1; });
+      var inNext = next.some(function (s) { return s.indexOf(p) !== -1; });
+      if (inAod && inNext) found.push(phrase);
+    });
+
+    return found;
+  }
+
+  function formatOverlapWarningHtml(themes) {
+    if (!themes || !themes.length) return '';
+    var list = themes.slice(0, 3).map(function (t) {
+      return '<li>' + String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</li>';
+    }).join('');
+    var more = themes.length > 3 ? ' (+' + (themes.length - 3) + ' more)' : '';
+    return '<div class="preview-overlap-warn" style="margin:10px 0 14px;padding:10px 12px;background:#fff8e6;border:1px solid #f0d78c;border-radius:6px;font-size:.75rem;color:#7a5c00;line-height:1.5">' +
+      '<strong style="display:block;margin-bottom:4px">Overlapping themes in Areas of Development and Next Steps</strong>' +
+      '<span>Consider removing or swapping a comment so these sections do not repeat the same focus' + more + ':</span>' +
+      '<ul style="margin:6px 0 0 16px;padding:0">' + list + '</ul></div>';
+  }
+
   function applySuggestedToPupil(pupil, entry, replace) {
     pupil.selections = pupil.selections || emptySelections();
     if (replace) {
@@ -278,6 +440,9 @@
     buildTrackerExportEntry: buildTrackerExportEntry,
     emptySelections: emptySelections,
     hydrateSelections: hydrateSelections,
-    applySuggestedToPupil: applySuggestedToPupil
+    applySuggestedToPupil: applySuggestedToPupil,
+    composeSectionSentences: composeSectionSentences,
+    detectAodNextStepsOverlap: detectAodNextStepsOverlap,
+    formatOverlapWarningHtml: formatOverlapWarningHtml
   };
 })(typeof window !== 'undefined' ? window : globalThis);
