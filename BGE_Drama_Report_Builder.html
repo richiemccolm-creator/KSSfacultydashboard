@@ -483,6 +483,7 @@
   .badge-strengths { background: var(--green-lt); color: var(--green); }
   .badge-aod { background: var(--amber-lt); color: var(--amber); }
   .badge-attitude { background: #f5f3ff; color: #6d28d9; }
+  .badge-closing { background: #ecfdf5; color: #059669; }
   .writing-guide-details {
     font-size: .76rem; color: var(--text-2); line-height: 1.48;
     padding: 7px 11px; margin-bottom: 10px;
@@ -608,6 +609,7 @@
   .preview-section.ps-a h4 { background: var(--amber-lt); color: var(--amber); }
   .preview-section.ps-n h4 { background: var(--blue-lt); color: var(--blue-sec); }
   .preview-section.ps-t h4 { background: #f5f3ff; color: #6d28d9; }
+  .preview-section.ps-c h4 { background: #ecfdf5; color: #059669; }
   .preview-section p { color: var(--text-2); }
   .preview-section .empty { color: var(--text-3); font-style: italic; font-size: .75rem; }
   .preview-rec { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); font-style: italic; color: var(--text-3); font-size: .77rem; }
@@ -867,8 +869,8 @@ const COMMENTS = {"S1":{"strengths":{"A1":"X demonstrates enthusiasm and creativ
 
 // ─── State ───────────────────────────────────────────────────────────────────
 const REPORT_SUBJECT = 'drama';
-const SECTION_KEYS = ['strengths', 'aod', 'next_steps', 'attitude'];
-let pupils = [];          // [{id, firstName, lastName, year, selections:{strengths:[], aod:[], next_steps:[], attitude:[]}, recommend}]
+const SECTION_KEYS = ['strengths', 'aod', 'next_steps', 'attitude', 'closing'];
+let pupils = [];          // [{id, firstName, lastName, year, selections:{strengths:[], aod:[], next_steps:[], attitude:[], closing:[]}, recommend}]
 let activePupilId = null;
 let contextSummary = '';  // Teacher summary of what pupils have been doing (global context)
 let selectMode = false;
@@ -1224,7 +1226,7 @@ function renderEditor() {
     </div>` : ''}
 
     ${p.trackerImport ? `<div class="tracker-suggest-banner">Comments suggested from Tracker — review and adjust before confirming. Remove any that don&apos;t fit this pupil.</div>` : ''}
-    ${showNoStrengthsWarning(p) ? `<div class="no-str-warning">No strengths selected — that&apos;s fine if nothing applies honestly. Consider a brief framing sentence in Additional Comments, or select an Approach to Learning comment if effort has been reasonable.</div>` : ''}
+    ${showNoStrengthsWarning(p) ? `<div class="no-str-warning">No strengths selected — that&apos;s fine if nothing applies honestly. Consider a Closing note, Approach to Learning comment, or brief sentence in Additional Comments if effort has been reasonable.</div>` : ''}
 
     <details class="writing-guide-details">
       <summary>Writing this report</summary>
@@ -1235,6 +1237,7 @@ function renderEditor() {
     ${renderSection(p, 'aod', 'Areas of Development', 'badge-aod')}
     ${renderSection(p, 'next_steps', 'Next Steps', 'badge-next')}
     ${renderAttitudeSection(p)}
+    ${renderClosingSection(p)}
 
     <div class="section" style="margin-bottom:14px">
       <div class="section-head">
@@ -1301,6 +1304,32 @@ function renderAttitudeSection(p) {
         <span class="count">${sel.length} selected</span>
       </div>
       <p class="section-hint">${ReportBuilderBridge.SECTION_HINTS.attitude}</p>
+      <div class="comments-grid">${chips}</div>
+    </div>`;
+}
+
+function renderClosingSection(p) {
+  const bank = ReportBuilderBridge.getClosingBank(REPORT_SUBJECT);
+  const sel = p.selections.closing || [];
+  const max = ReportBuilderBridge.CLOSING_MAX_SELECTIONS;
+  const chips = Object.entries(bank).map(([code, text]) => {
+    const selected = sel.includes(code);
+    return `
+      <div class="comment-chip ${selected ? 'selected' : ''}" data-key="closing" data-code="${code}" onclick="toggleComment('closing','${code}')">
+        <div class="cb"></div>
+        <span class="code">${code}</span>
+        <span>${text.replace('X', '<em style="color:var(--accent);font-style:normal;font-weight:600">NAME</em>')}</span>
+      </div>`;
+  }).join('');
+
+  return `
+    <div class="section">
+      <div class="section-head">
+        <h3>Closing Note</h3>
+        <span class="badge badge-closing">Optional</span>
+        <span class="count" data-closing-count>${sel.length} / ${max} selected</span>
+      </div>
+      <p class="section-hint">${ReportBuilderBridge.SECTION_HINTS.closing}</p>
       <div class="comments-grid">${chips}</div>
     </div>`;
 }
@@ -1454,9 +1483,16 @@ function updateCommentCounts(p) {
 function toggleComment(key, code) {
   const p = pupils.find(x => x.id === activePupilId);
   if (!p) return;
-  if (!p.selections[key]) return;
+  if (!p.selections[key]) {
+    if (key === 'closing') p.selections.closing = [];
+    else return;
+  }
   const idx = p.selections[key].indexOf(code);
   if (idx === -1) {
+    if (key === 'closing' && p.selections.closing.length >= ReportBuilderBridge.CLOSING_MAX_SELECTIONS) {
+      showToast('Maximum ' + ReportBuilderBridge.CLOSING_MAX_SELECTIONS + ' closing notes per report');
+      return;
+    }
     p.selections[key].push(code);
   } else {
     p.selections[key].splice(idx, 1);
@@ -1465,6 +1501,11 @@ function toggleComment(key, code) {
   const chip = document.querySelector('.comment-chip[data-key="' + key + '"][data-code="' + code + '"]');
   if (chip) chip.classList.toggle('selected', p.selections[key].includes(code));
   updateCommentCounts(p);
+  const closingCount = document.querySelector('[data-closing-count]');
+  if (closingCount && key === 'closing') {
+    const n = p.selections.closing.length;
+    closingCount.textContent = n + ' / ' + ReportBuilderBridge.CLOSING_MAX_SELECTIONS + ' selected';
+  }
   renderPreview();
 }
 
@@ -1516,6 +1557,17 @@ function renderPreview() {
     return `<div class="preview-section ps-t"><h4>Approach to Learning</h4>${inner}</div>`;
   }
 
+  function closingHtml() {
+    const closeBank = ReportBuilderBridge.getClosingBank(REPORT_SUBJECT);
+    const sents = (p.selections.closing || [])
+      .filter(code => closeBank[code])
+      .map(code => closeBank[code].replace('X', name));
+    const inner = sents.length
+      ? `<p style="color:var(--text-2)">${ReportBuilderBridge.composeSectionSentences(sents, { firstName: name })}</p>`
+      : '<p class="empty">Section omitted from export</p>';
+    return `<div class="preview-section ps-c"><h4>Closing Note</h4>${inner}</div>`;
+  }
+
   const overlapWarn = ReportBuilderBridge.formatOverlapWarningHtml(
     ReportBuilderBridge.detectAodNextStepsOverlap(sectionTexts('aod'), sectionTexts('next_steps'))
   );
@@ -1534,6 +1586,7 @@ function renderPreview() {
     ${sectionHtml('aod', 'ps-a', 'Areas of Development')}
     ${sectionHtml('next_steps', 'ps-n', 'Next Steps')}
     ${attitudeHtml()}
+    ${closingHtml()}
     ${p.recommend ? `<div class="preview-rec">I would recommend that ${p.firstName} continues with Drama into S3. Studying Drama will help ${p.firstName} to develop a range of skills that will be valuable in future employment and beyond, including communication, collaboration, creativity, and confidence.</div>` : ''}
     ${p.additionalComments ? `<div class="preview-rec" style="font-style:normal;color:var(--text-2)">${p.additionalComments}</div>` : ''}
   `;
@@ -1686,6 +1739,17 @@ function buildDocXml() {
     if (p.recommend) {
       body += para(`I would recommend that ${name} continues with Drama into S3. Studying Drama will help ${name} to develop a range of skills that will be valuable in future employment and beyond, including communication, collaboration, creativity, and confidence.`, { size:20, italic:true, color:'555555', spaceAfter:120 });
     }
+
+    (function addClosingSection() {
+      const closeBank = ReportBuilderBridge.getClosingBank(REPORT_SUBJECT);
+      const sents = (p.selections.closing || [])
+        .filter(code => closeBank[code])
+        .map(code => closeBank[code].replace('X', name));
+      if (!sents.length) return;
+      body += para('Closing Note', { bold:true, size:22, color:'059669', spaceAfter:60 });
+      body += para(ReportBuilderBridge.composeSectionSentences(sents, { firstName: name }), { size:20, color:'1A1A1A', spaceAfter:100 });
+    })();
+
     if (p.additionalComments && p.additionalComments.trim()) {
       body += para(p.additionalComments.trim(), { size:20, color:'1A1A1A', spaceAfter:120 });
     }

@@ -22,6 +22,31 @@
     art: {"A1":"EC","A2":"EC","A3":"EC","A4":"EC","A5":"EC","A6":"RA","A7":"EC","A8":"EC","A9":"EC","A10":"EC","A11":"RA","A12":"EC","A13":"EC","A14":"RA","A15":"RA","A16":"EC","A17":"EC","A18":"EC","A19":"EC","A20":"RA","A21":"EC","A22":"EC","A23":"RA","A24":"EC","A25":"EC","A26":"EC","A27":"EC","A28":"EC","A29":"RA","A30":"EC","A31":"EC","A32":"EC","A33":"EC","A34":"EC","A35":"RA","A36":"RA","A37":"EC","A38":"EC","A39":"EC","A40":"EC","A41":"EC","A42":"RA","A43":"EC","A44":"EC","A45":"RA","B1":"EC","B2":"EC","B3":"EC","B4":"EC","B5":"EC","B6":"RA","B7":"EC","B8":"EC","B9":"RA","B10":"EC","B11":"EC","B12":"EC","B13":"RA","B14":"EC","B15":"EC","B16":"EC","B17":"EC","B18":"EC","B19":"EC","B20":"RA","B21":"EC","B22":"EC","B23":"RA","B24":"EC","B25":"EC","B26":"EC","B27":"RA","B28":"RA","B29":"RA","B30":"EC","B31":"EC","B32":"EC","B33":"EC","B34":"EC","B35":"RA","B36":"RA","B37":"EC","B38":"EC","B39":"EC","B40":"EC","B41":"RA","B42":"EC","B43":"EC","B44":"EC","B45":"RA","C1":"EC","C2":"EC","C3":"EC","C4":"EC","C5":"EC","C6":"RA","C7":"EC","C8":"EC","C9":"RA","C10":"EC","C11":"RA","C12":"RA","C13":"EC","C14":"EC","C15":"EC","C16":"EC","C17":"EC","C18":"RA","C19":"EC","C20":"EC","C21":"EC","C22":"RA","C23":"EC","C24":"RA","C25":"RA","C26":"EC","C27":"RA","C28":"EC","C29":"EC","C30":"EC","C31":"EC","C32":"EC","C33":"EC","C34":"RA","C35":"RA","C36":"RA","C37":"EC","C38":"EC","C39":"EC","C40":"RA","C41":"EC","C42":"RA","C43":"RA","C44":"EC","C45":"EC"}
   };
 
+  var CLOSING_MAX_SELECTIONS = 2;
+
+  var CLOSING_TEXT = {
+    drama: {
+      CL1: 'It has been a pleasure to work with X in Drama this year; their contribution to the classroom is valued.',
+      CL2: 'X approaches drama activities with growing confidence and is well placed to build on this progress.',
+      CL3: 'X is a supportive member of the group and responds positively to feedback from staff and peers.',
+      CL4: 'X shows resilience when tasks are challenging and keeps working to improve.',
+      CL5: 'X brings energy and enthusiasm to lessons, which benefits the learning atmosphere for others.',
+      CL6: 'With continued effort and focus, X can make strong progress in Drama.',
+      CL7: 'X\'s willingness to participate and try new ideas is an encouraging foundation for future learning.',
+      CL8: 'Overall, X has engaged positively with Drama this session and should be proud of their efforts.'
+    },
+    art: {
+      CL1: 'It has been a pleasure to work with X in Art & Design this year; their contribution to the classroom is valued.',
+      CL2: 'X approaches practical tasks with growing confidence and is well placed to build on this progress.',
+      CL3: 'X is a supportive member of the class and responds positively to feedback from staff and peers.',
+      CL4: 'X shows resilience when work is challenging and keeps working to improve.',
+      CL5: 'X brings enthusiasm to lessons, which benefits the learning atmosphere for others.',
+      CL6: 'With continued effort and focus, X can make strong progress in Art & Design.',
+      CL7: 'X\'s willingness to experiment and try new ideas is an encouraging foundation for future learning.',
+      CL8: 'Overall, X has engaged positively with Art & Design this session and should be proud of their efforts.'
+    }
+  };
+
   var ATTITUDE_TEXT = {
     drama: {
       AT1: 'X shows a positive attitude in Drama and is willing to try new activities, even when finding them challenging.',
@@ -44,6 +69,7 @@
     aod: 'Focus on 2–4 specific gaps. Avoid repeating the same theme.',
     next_steps: 'Forward-looking actions. Should connect to AoD but not duplicate it.',
     attitude: 'Effort, behaviour and home learning — use when subject strengths are limited.',
+    closing: 'Optional warm closing — select at most 2 that genuinely fit this pupil. Not subject benchmarks.',
     additional: 'Attendance, pastoral context, or a brief honest framing sentence.'
   };
 
@@ -101,8 +127,13 @@
     return ATTITUDE_TEXT[subject] || ATTITUDE_TEXT.drama;
   }
 
+  function getClosingBank(subject) {
+    return CLOSING_TEXT[subject] || CLOSING_TEXT.drama;
+  }
+
   function codeToSection(code) {
     if (!code) return null;
+    if (code.indexOf('CL') === 0) return 'closing';
     if (code.indexOf('AT') === 0) return 'attitude';
     var num = parseInt(code.slice(1), 10);
     if (isNaN(num)) return null;
@@ -225,7 +256,7 @@
   }
 
   function emptySelections() {
-    return { strengths: [], aod: [], next_steps: [], attitude: [] };
+    return { strengths: [], aod: [], next_steps: [], attitude: [], closing: [] };
   }
 
   function hydrateSelections(selections) {
@@ -234,7 +265,8 @@
       strengths: s.strengths || [],
       aod: s.aod || [],
       next_steps: s.next_steps || [],
-      attitude: s.attitude || []
+      attitude: s.attitude || [],
+      closing: s.closing || []
     };
   }
 
@@ -407,7 +439,7 @@
     var prefix = YEAR_PREFIX[pupil.year];
     var codes = entry.suggestedCodes || entry.benchmarks || [];
     codes.forEach(function (code) {
-      if (code.indexOf('AT') !== 0 && prefix && code.charAt(0) !== prefix) return;
+      if (code.indexOf('AT') !== 0 && code.indexOf('CL') !== 0 && prefix && code.charAt(0) !== prefix) return;
       var key = codeToSection(code);
       if (!key || !pupil.selections[key]) return;
       if (pupil.selections[key].indexOf(code) === -1) {
@@ -428,7 +460,9 @@
     SECTION_HINTS: SECTION_HINTS,
     WRITING_GUIDE: WRITING_GUIDE,
     TRACK_STATUSES: TRACK_STATUSES,
+    CLOSING_MAX_SELECTIONS: CLOSING_MAX_SELECTIONS,
     getAttitudeBank: getAttitudeBank,
+    getClosingBank: getClosingBank,
     getEalSnippet: getEalSnippet,
     buildProgressSentence: buildProgressSentence,
     suggestTrackStatus: suggestTrackStatus,
