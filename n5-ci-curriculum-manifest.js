@@ -2,8 +2,9 @@
  * N5 Skills for Work: Creative Industries — Senior Phase (S5/6).
  * Merged into window.DRAMA_CURRICULUM.units for drama-homepage lesson slides.
  * Slide files: drama-ci-s01.html … drama-ci-s61.html (100-minute doubles).
- * Assets: n5-ci-slides-core.css, n5-ci-slides-deck.js
- * Regenerate U1: python3 scripts/build_n5_ci_u01_slides.py
+ * U1 sessions 1–6 are hand-authored (dev/senior-phase-tracking/U1_S*.html → drama-ci-s01–s06).
+ * Sessions 7–10+ use n5-ci-slides-core.css + n5-ci-slides-deck.js unless replaced.
+ * Regenerate U1 stubs (s07+ only if skipped): python3 scripts/build_n5_ci_u01_slides.py
  */
 (function () {
   function session(n, title, status) {

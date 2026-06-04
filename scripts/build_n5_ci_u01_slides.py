@@ -1164,7 +1164,8 @@ def build_html(session: dict) -> str:
 
 
 def main():
-    skip_hand_authored = {1}  # drama-ci-s01.html — hand-built deck (U1_S1_Session1_Slides.html)
+    # Hand-built decks in dev/senior-phase-tracking/U1_S*.html — copied to drama-ci-sNN.html
+    skip_hand_authored = {1, 2, 3, 4, 5, 6}
     for session in SESSIONS:
         n = session["num"]
         if n in skip_hand_authored:
