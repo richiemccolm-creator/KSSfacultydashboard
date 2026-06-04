@@ -344,13 +344,11 @@
 
   function joinComposed(sentences) {
     if (!sentences.length) return '';
-    if (sentences.length === 1) return sentences[0];
-    if (sentences.length === 2) return sentences.join(' ');
-    return sentences.join('; ');
+    return sentences.join(' ');
   }
 
   /**
-   * Rule-based stitching: vary repeated openers, then join (semicolons if 3+).
+   * Rule-based stitching: vary repeated openers, then join with spaces.
    * @param {string[]} sentences - already personalised (X → name)
    * @param {{ firstName?: string }} options
    * @returns {string}
