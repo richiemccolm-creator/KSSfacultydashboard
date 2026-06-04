@@ -180,7 +180,7 @@
       return Promise.resolve({
         status: 'ok',
         detail: 'BGE: Drama ' + dramaU + ' units · Art ' + artU + ' units' + (photoParts.length ? ' · Photo: ' + photoParts.join(', ') : ''),
-        summary: 'Senior phase: S4/S5/6 curriculum panels in hub + Senior Phase Tracker (Planning & assessment)',
+        summary: 'Senior phase: S4/S5/6 curriculum panels in hub (Planning & assessment)',
         panel: 'ad-map'
       });
     },
@@ -264,15 +264,6 @@
         detail: count + ' scheme' + (count !== 1 ? 's' : '') + ' of work in planner',
         summary: 'Supports QI 2.2 curriculum rationale and 2.3 learning sequences',
         panel: 'embed-teacher-planner'
-      });
-    },
-
-    seniorPhaseFetch: function() {
-      return Promise.resolve({
-        status: 'hint',
-        detail: 'Senior Phase Tracker linked in Faculty Hub (Planning & assessment)',
-        summary: 'Use for S4–S6 qualification evidence; connect tracker data to cloud in a future update',
-        panel: 'embed-senior-phase-tracker'
       });
     },
 
@@ -384,7 +375,7 @@
       if (qiId === '2.2') {
         var cu = window.CURRICULUM_TPS || window.CURRICULUM_UNITS;
         if (cu) {
-          evidence.push('BGE curriculum documented via curriculum-units: Drama S1–S3 (' + countCurriculumUnits(cu, 'drama', ['s1', 's2', 's3']) + ' units), Art S1–S3 (' + countCurriculumUnits(cu, 'art', ['s1', 's2', 's3']) + ' units). Senior phase curriculum in hub S4/S5/6 panels and Senior Phase Tracker.');
+          evidence.push('BGE curriculum documented via curriculum-units: Drama S1–S3 (' + countCurriculumUnits(cu, 'drama', ['s1', 's2', 's3']) + ' units), Art S1–S3 (' + countCurriculumUnits(cu, 'art', ['s1', 's2', 's3']) + ' units). Senior phase curriculum in hub S4/S5/6 panels.');
         }
         if (snap.schemes && Object.keys(snap.schemes).length) {
           evidence.push('Teacher Planner: ' + Object.keys(snap.schemes).length + ' scheme(s) of work.');

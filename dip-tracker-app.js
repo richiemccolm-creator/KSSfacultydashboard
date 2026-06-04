@@ -50,7 +50,7 @@
       { label: 'Report Builders', panel: 'ad-report-builder' }
     ],
     gc3m2: [
-      { label: 'Senior Phase Tracker', panel: 'embed-senior-phase-tracker' },
+      { label: 'Tracking Hub', panel: 'embed-tracking-monitoring-hub' },
       { label: 'Faculty Dashboard', panel: 'embed-faculty-dashboard' }
     ]
   };

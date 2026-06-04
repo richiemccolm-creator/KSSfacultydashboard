@@ -637,16 +637,6 @@
         if (!window.HgiosHubBridge) return Promise.resolve({ status: 'unavailable', detail: 'Sign in to Faculty Hub' });
         return HgiosHubBridge.plannerFetch(hubDataSnapshot);
       }
-    },
-    {
-      id: 'senior-phase',
-      label: 'Senior Phase Tracker',
-      panel: 'embed-senior-phase-tracker',
-      qis: ['2.2', '3.2'],
-      fetch: function() {
-        if (!window.HgiosHubBridge) return Promise.resolve({ status: 'hint', detail: 'Senior phase tracker in Faculty Hub' });
-        return HgiosHubBridge.seniorPhaseFetch();
-      }
     }
   ];
 
