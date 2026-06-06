@@ -321,8 +321,8 @@ def main():
 {dolast(
     '"One thing I learnt today about working in a group was… because…"',
     'Write 2–3 sentences on your exit slip. Be specific — relate your answer to the success criteria. Use at least one Drama vocabulary word if you can.',
-    ['body language', 'gesture', 'eye contact', 'collaboration', 'trust'],
-    '<strong>Next lesson:</strong> Group Work &amp; Trust — trust exercises, levels, proxemics and status in action.',
+    ['body language', 'eye contact'],
+    '<strong>Next lesson:</strong> Group Work &amp; Trust — trust exercises, levels, proxemics and timing in action.',
     's7',
 )}"""
 
@@ -340,7 +340,7 @@ def main():
     l2_dolast = dolast(
         '"In today\'s trust exercise, the skill I used most effectively was… because…"',
         'Write 2–3 sentences. Name at least two vocabulary words from today. What will you focus on in Lesson 3?',
-        ['proxemics', 'status', 'levels', 'body language', 'trust'],
+        ['proxemics', 'timing', 'use of levels', 'body language', 'eye contact'],
         '<strong>Next lesson:</strong> Freeze Frames — applying all your skills from Lessons 1 and 2 in a group performance.',
         's7',
     )
@@ -379,7 +379,7 @@ def main():
       <div class="lisc-heading">TODAY'S LESSON</div>
       <div class="li-block">
         <div class="block-label">LEARNING INTENTION</div>
-        <div class="block-text">Work effectively as part of a group — applying trust, body language, levels and proxemics in practical exercises.</div>
+        <div class="block-text">Work effectively as part of a group — applying trust, body language, levels, proxemics and timing in practical exercises.</div>
       </div>
       <div>
         <div class="block-label" style="color:var(--navy);margin-bottom:10px;">SUCCESS CRITERIA — SAME AS LESSON 1</div>
@@ -400,10 +400,10 @@ def main():
       <div class="vocab-grid">
         <div class="vocab-card"><div class="vocab-term">Body Language</div><div class="vocab-def">Communicating non-verbally through the position and movement of the body.</div></div>
         <div class="vocab-card"><div class="vocab-term">Eye Contact</div><div class="vocab-def">Using direct gaze to show relationships, power or emotion between performers.</div></div>
-        <div class="vocab-card"><div class="vocab-term">Posture</div><div class="vocab-def">How you stand and carry your body to represent character or status.</div></div>
-        <div class="vocab-card"><div class="vocab-term">Use of Levels</div><div class="vocab-def">Using different heights on stage to show status and create visual variety.</div></div>
+        <div class="vocab-card"><div class="vocab-term">Posture</div><div class="vocab-def">How you stand and carry your body to show relationships and emotion between characters.</div></div>
+        <div class="vocab-card"><div class="vocab-term">Use of Levels</div><div class="vocab-def">Using different heights on stage to show relationships and create visual variety.</div></div>
         <div class="vocab-card"><div class="vocab-term">Proxemics</div><div class="vocab-def">The use of space and distance between performers to communicate relationships.<span class="vocab-new">NEW TODAY</span></div></div>
-        <div class="vocab-card"><div class="vocab-term">Status</div><div class="vocab-def">How much power a character has — shown through levels, eye contact and posture.<span class="vocab-new">NEW TODAY</span></div></div>
+        <div class="vocab-card"><div class="vocab-term">Timing</div><div class="vocab-def">The precision of when a movement or action is delivered — everyone must move or freeze together.<span class="vocab-new">NEW TODAY</span></div></div>
       </div>
     </div>
   </div>
@@ -416,7 +416,7 @@ def main():
       <div class="trust-grid">
         <div class="trust-card"><div class="trust-head">Mirror Work</div><div class="trust-body">Face your partner and copy their movements exactly. Take turns to lead. No touching.</div></div>
         <div class="trust-card"><div class="trust-head">Blind Walk</div><div class="trust-body">One person closes their eyes. Their partner guides them safely around the space using voice only.</div></div>
-        <div class="trust-card"><div class="trust-head">Status Walk</div><div class="trust-body">Walk around the space. Use levels, posture and eye contact to communicate high, medium or low status.</div></div>
+        <div class="trust-card"><div class="trust-head">Levels Walk</div><div class="trust-body">Walk around the space. Use levels, posture and eye contact to show different relationships — who leads, who follows, who stands apart.</div></div>
       </div>
       <div class="info-box"><div class="info-text"><strong>Remember:</strong> safety first · listen to your partner · use Drama vocabulary in your debrief</div></div>
     </div>
@@ -429,7 +429,7 @@ def main():
       <div class="time-row"><div><div class="time-num">44–48</div><div class="time-label">minutes</div></div><div class="activity-title">Watch &amp; Give Feedback</div></div>
       <div class="feedback-grid">
         <div class="fb-card"><div class="fb-q">What did you see?</div><div class="fb-sub">Describe what happened. Name the activity and what each person did.</div></div>
-        <div class="fb-card"><div class="fb-q">Which skills were used?</div><div class="fb-sub">Levels, proxemics, body language, eye contact, status — which did you notice most clearly?</div></div>
+        <div class="fb-card"><div class="fb-q">Which skills were used?</div><div class="fb-sub">Levels, proxemics, body language, eye contact, timing — which did you notice most clearly?</div></div>
         <div class="fb-card"><div class="fb-q">One thing to develop</div><div class="fb-sub">Use Drama vocabulary to give one specific, constructive improvement.</div></div>
       </div>
       <div class="discuss-box"><div class="discuss-label">FEEDBACK RULES</div><div class="discuss-q">Use Drama vocabulary · Be specific · Be kind and constructive</div></div>
@@ -469,7 +469,7 @@ def main():
       <div class="donow-heading">RECALL</div>
       <div class="donow-discuss" style="background:var(--navy-dk)">
         <div class="donow-discuss-label">VOCABULARY CHECK</div>
-        <div class="donow-q">Write a definition for: body language, proxemics, status, use of levels</div>
+        <div class="donow-q">Write a definition for: body language, proxemics, timing, use of levels</div>
         <div class="donow-q">Use one word in a sentence about a performance you have seen</div>
         <div class="donow-q">Compare with your neighbour — are your definitions similar?</div>
       </div>
@@ -483,7 +483,7 @@ def main():
       <div class="lisc-heading">TODAY'S LESSON</div>
       <div class="li-block">
         <div class="block-label">LEARNING INTENTION</div>
-        <div class="block-text">Apply body language, levels, proxemics and status to create clear freeze frames that tell a story without words.</div>
+        <div class="block-text">Apply body language, levels, proxemics, posture and timing to create clear still images that tell a story without words.</div>
       </div>
       <div>
         <div class="block-label" style="color:var(--navy);margin-bottom:10px;">SUCCESS CRITERIA — BY THE END OF TODAY I CAN...</div>
@@ -505,7 +505,7 @@ def main():
         <div class="quote-text">A stage picture held completely still — a frozen image that represents a moment, emotion or idea.</div>
       </div>
       <div class="instructions">
-        <div class="instr-row"><div class="instr-num">→</div><div class="instr-text">Everyone in the group freezes at exactly the same moment</div></div>
+        <div class="instr-row"><div class="instr-num">→</div><div class="instr-text">Everyone in the group freezes at exactly the same moment — <em>timing</em> is essential</div></div>
         <div class="instr-row"><div class="instr-num">→</div><div class="instr-text">Your body, face and position all communicate meaning</div></div>
         <div class="instr-row"><div class="instr-num">→</div><div class="instr-text">The audience must understand the story without words</div></div>
         <div class="instr-row"><div class="instr-num">→</div><div class="instr-text">Think about levels, proxemics and body language in every freeze</div></div>
@@ -538,7 +538,7 @@ def main():
       <div class="time-row"><div><div class="time-num">38–46</div><div class="time-label">minutes</div></div><div class="activity-title">Watch &amp; Peer Feedback</div></div>
       <div class="feedback-grid">
         <div class="fb-card"><div class="fb-q">Describe what you saw</div><div class="fb-sub">Name each freeze frame. What story did the group tell? Could you understand without words?</div></div>
-        <div class="fb-card"><div class="fb-q">Name the techniques</div><div class="fb-sub">Levels, proxemics, body language, facial expression, status — which were used most effectively?</div></div>
+        <div class="fb-card"><div class="fb-q">Name the techniques</div><div class="fb-sub">Levels, proxemics, body language, eye contact, timing, mood and atmosphere — which were used most effectively?</div></div>
         <div class="fb-card"><div class="fb-q">One thing to develop</div><div class="fb-sub">Using Drama vocabulary, give one specific, constructive suggestion.</div></div>
       </div>
     </div>
@@ -550,12 +550,12 @@ def main():
     <div class="activity-inner">
       <div class="activity-title" style="margin-bottom:12px">Unit 01 — All 7 Vocabulary Words</div>
       <div class="vocab-grid" style="grid-template-columns:repeat(4,1fr)">
-        <div class="vocab-card"><div class="vocab-term">Body Language</div></div>
         <div class="vocab-card"><div class="vocab-term">Eye Contact</div></div>
-        <div class="vocab-card"><div class="vocab-term">Posture</div></div>
+        <div class="vocab-card"><div class="vocab-term">Body Language</div></div>
+        <div class="vocab-card"><div class="vocab-term">Timing</div></div>
         <div class="vocab-card"><div class="vocab-term">Use of Levels</div></div>
+        <div class="vocab-card"><div class="vocab-term">Posture</div></div>
         <div class="vocab-card"><div class="vocab-term">Proxemics</div></div>
-        <div class="vocab-card"><div class="vocab-term">Status</div></div>
         <div class="vocab-card"><div class="vocab-term">Mood &amp; Atmosphere</div></div>
       </div>
       <div class="info-box"><div class="info-text">Use these words in your written evaluation today — at least <strong>three</strong> across your answer.</div></div>
@@ -565,7 +565,7 @@ def main():
 {dolast(
     '"Across Unit 01, the Drama skill I have improved most is… because…"',
     'Write 2–3 sentences for your unit evaluation. Use at least three Drama vocabulary words. Hand in before you leave.',
-    ['body language', 'proxemics', 'status', 'levels', 'mood & atmosphere', 'freeze frame'],
+    ['eye contact', 'body language', 'timing', 'use of levels', 'posture', 'proxemics', 'mood & atmosphere'],
     '<strong>Unit 01 complete.</strong> Next up — Unit 02: Mime &amp; Melodrama. Communicating meaning entirely through body language and exaggerated movement.',
     's8',
 )}"""
