@@ -64,13 +64,49 @@ window.DRAMA_CURRICULUM = {
         {
           id: '1',
           title: 'What is Mime?',
-          slides: 'drama-u02-l01.html',
+          slides: 'Unit02_Lesson01_What_is_Mime.html',
           status: 'ready'
         },
         {
           id: '2',
-          title: 'Mime Skills Practice',
-          slides: 'drama-u02-l02.html',
+          title: 'Developing Mime',
+          slides: 'Unit02_Lesson02_Developing_Mime.html',
+          status: 'ready'
+        },
+        {
+          id: '3',
+          title: 'Character & Status',
+          slides: 'Unit02_Lesson03_Character_Status.html',
+          status: 'ready'
+        },
+        {
+          id: '4',
+          title: 'Group Mime Preparation',
+          slides: 'Unit02_Lesson04_Group_Mime_Prep.html',
+          status: 'ready'
+        },
+        {
+          id: '5',
+          title: 'Mime Performances & Intro to Melodrama',
+          slides: 'Unit02_Lesson05_Mime_Performances_Melodrama.html',
+          status: 'ready'
+        },
+        {
+          id: '6',
+          title: 'Melodrama Conventions',
+          slides: 'Unit02_Lesson06_Melodrama_Conventions.html',
+          status: 'ready'
+        },
+        {
+          id: '7',
+          title: 'Devising a Melodrama Scene',
+          slides: 'Unit02_Lesson07_Devising_Melodrama.html',
+          status: 'ready'
+        },
+        {
+          id: '8',
+          title: 'TP1 Assessment',
+          slides: 'Unit02_Lesson08_TP1_Assessment.html',
           status: 'ready'
         }
       ]
