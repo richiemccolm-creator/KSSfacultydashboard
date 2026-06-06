@@ -120,7 +120,44 @@ window.DRAMA_CURRICULUM = {
       colour: '#D4A800',
       gradEnd: '#FACC15',
       desc: 'Apply pitch, pace, tone and projection to portray character.',
-      lessons: []
+      lessons: [
+        {
+          id: '1',
+          title: 'What is Voice?',
+          slides: 'Unit03_Lesson01_What_is_Voice.html',
+          status: 'ready'
+        },
+        {
+          id: '2',
+          title: 'Pace and Pitch',
+          slides: 'Unit03_Lesson02_Pace_and_Pitch.html',
+          status: 'ready'
+        },
+        {
+          id: '3',
+          title: 'Volume and Projection',
+          slides: 'Unit03_Lesson03_Volume_and_Projection.html',
+          status: 'ready'
+        },
+        {
+          id: '4',
+          title: 'Intonation and Register',
+          slides: 'Unit03_Lesson04_Intonation_and_Register.html',
+          status: 'ready'
+        },
+        {
+          id: '5',
+          title: 'Vocal Character Performance',
+          slides: 'Unit03_Lesson05_Vocal_Character_Performance.html',
+          status: 'ready'
+        },
+        {
+          id: '6',
+          title: 'Voice and Mime Combined',
+          slides: 'Unit03_Lesson06_Voice_and_Mime_Combined.html',
+          status: 'ready'
+        }
+      ]
     },
     '04': {
       id: '04',

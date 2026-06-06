@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unit 03 · Lesson 2 · Pace and Pitch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600&display=swap" rel="stylesheet">
+<style>
+  :root{--accent:#2F9BE8;--accent-lt:#72C4F8;--navy:#1E2A3A;--navy-mid:#2E4263;--navy-dk:#111820;--white:#FFFFFF;--off-white:#F4F6F9;--slate:#C8D8EA;--grey:#6B7A8D;--grey-lt:#D4DBE5;}
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  html,body{width:100vw;height:100vh;overflow:hidden;background:var(--navy-dk);font-family:'Barlow',sans-serif}
+  .deck{width:100vw;height:100vh;position:relative}
+  .slide{position:absolute;inset:0;display:none;flex-direction:column}
+  .slide.active{display:flex;animation:fadeIn .3s ease}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+  .top-bar{height:56px;background:var(--navy-dk);display:flex;align-items:center;padding:0 28px;gap:14px;flex-shrink:0;border-bottom:3px solid var(--accent)}
+  .ad-badge{width:36px;height:36px;background:var(--accent);border-radius:7px;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:15px;color:var(--navy-dk);flex-shrink:0}
+  .bar-unit{font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:.1em;color:var(--white)}
+  .bar-sep{color:var(--accent);font-size:16px}.bar-lesson{font-size:13px;color:var(--grey);font-weight:500}
+  .bar-badge{margin-left:auto;padding:5px 14px;border-radius:20px;font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:.1em}
+  .b-donow{background:var(--accent);color:var(--navy-dk)}.b-li{background:var(--navy-mid);color:var(--accent-lt);border:1.5px solid var(--accent)}.b-main{background:#0F6E56;color:#E1F5EE}.b-dolast{background:#7B6FD4;color:#EDE9FB}
+  .content{flex:1;overflow:hidden;display:flex;flex-direction:column;position:relative}
+  .s-title{background:var(--navy);overflow:hidden}.s-title::before{content:'';position:absolute;top:-40%;left:-10%;width:60%;height:180%;background:radial-gradient(ellipse,rgba(47,155,232,.1) 0%,transparent 70%);pointer-events:none}
+  .title-inner{flex:1;padding:32px 52px 24px;display:flex;flex-direction:column;justify-content:space-between;position:relative;z-index:1}
+  .title-eyebrow{font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:.18em;color:var(--accent)}
+  .title-big{font-family:'Bebas Neue',sans-serif;font-size:clamp(64px,11vw,116px);color:var(--white);line-height:.92;letter-spacing:.03em}
+  .title-big span{color:var(--accent)}.title-sub{font-family:'Bebas Neue',sans-serif;font-size:clamp(18px,3vw,32px);color:var(--slate);letter-spacing:.08em;margin-top:8px}
+  .title-chips{display:flex;gap:12px;flex-wrap:wrap}
+  .title-chip{border:1.5px solid rgba(47,155,232,.35);border-radius:8px;padding:8px 18px;font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:.1em;color:var(--accent-lt)}
+  .s-donow{background:var(--accent)}
+  .donow-inner{flex:1;padding:28px 48px;display:flex;flex-direction:column;gap:18px}
+  .donow-heading{font-family:'Bebas Neue',sans-serif;font-size:clamp(52px,9vw,88px);color:var(--navy-dk);letter-spacing:.05em;line-height:.95}
+  .recall-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:9px}
+  .recall-card{background:var(--navy-dk);border-radius:11px;padding:14px 8px;display:flex;flex-direction:column;align-items:center;gap:5px;border-top:4px solid var(--accent)}
+  .recall-letter{font-family:'Bebas Neue',sans-serif;font-size:clamp(28px,4.5vw,48px);color:var(--accent);line-height:1}
+  .recall-word{font-family:'Bebas Neue',sans-serif;font-size:clamp(11px,1.4vw,14px);color:var(--white);letter-spacing:.06em;text-align:center}
+  .donow-discuss{background:var(--navy);border-radius:14px;padding:18px 26px}
+  .donow-discuss-label{font-family:'Bebas Neue',sans-serif;font-size:12px;letter-spacing:.14em;color:var(--accent);margin-bottom:10px}
+  .donow-q{font-size:clamp(13px,1.7vw,17px);color:var(--slate);font-weight:500;padding-left:18px;position:relative;line-height:1.4;margin-bottom:8px}
+  .donow-q::before{content:'→';position:absolute;left:0;color:var(--accent);font-weight:700}
+  .s-lisc{background:var(--off-white)}.lisc-inner{flex:1;padding:28px 48px;display:flex;flex-direction:column;gap:18px}
+  .lisc-heading{font-family:'Bebas Neue',sans-serif;font-size:clamp(36px,6vw,58px);color:var(--navy);letter-spacing:.05em;line-height:1}
+  .li-block{background:var(--navy);border-radius:14px;padding:20px 26px;border-left:8px solid var(--accent)}
+  .block-label{font-family:'Bebas Neue',sans-serif;font-size:12px;letter-spacing:.15em;color:var(--accent);margin-bottom:8px}
+  .block-text{font-size:clamp(14px,2vw,19px);color:var(--white);font-weight:600;line-height:1.45}
+  .sc-list{display:flex;flex-direction:column;gap:9px}
+  .sc-row{background:var(--white);border-radius:10px;padding:13px 18px;border-left:6px solid var(--accent);font-size:clamp(13px,1.7vw,17px);color:var(--navy);font-weight:600;line-height:1.4;display:flex;align-items:center;gap:12px}
+  .sc-check{width:24px;height:24px;min-width:24px;border-radius:50%;border:2.5px solid var(--accent);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--accent);font-weight:700}
+  .s-dark{background:var(--navy)}.activity-inner{flex:1;padding:24px 44px;display:flex;flex-direction:column;gap:16px;overflow:hidden}
+  .time-row{display:flex;align-items:flex-end;gap:14px}
+  .time-num{font-family:'Bebas Neue',sans-serif;font-size:clamp(40px,6.5vw,68px);color:var(--accent);line-height:1}
+  .time-label{font-size:13px;color:var(--grey);font-weight:500;margin-bottom:8px}
+  .activity-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(26px,4.5vw,48px);color:var(--white);letter-spacing:.05em;line-height:1;margin-left:4px}
+  .instructions{display:flex;flex-direction:column;gap:8px}
+  .instr-row{display:flex;align-items:flex-start;gap:14px;background:var(--navy-mid);border-radius:10px;padding:12px 16px}
+  .instr-num{font-family:'Bebas Neue',sans-serif;font-size:19px;color:var(--accent);line-height:1;min-width:20px;flex-shrink:0;margin-top:2px}
+  .instr-text{font-size:clamp(13px,1.7vw,17px);color:var(--white);font-weight:500;line-height:1.45}
+  .instr-text em{color:var(--accent-lt);font-style:italic}
+  .discuss-box{background:var(--accent);border-radius:12px;padding:15px 20px}
+  .discuss-label{font-family:'Bebas Neue',sans-serif;font-size:11px;letter-spacing:.14em;color:var(--navy-dk);margin-bottom:7px}
+  .discuss-q{font-size:clamp(14px,1.9vw,18px);color:var(--navy-dk);font-weight:700;line-height:1.4}
+  .info-box{background:var(--navy-mid);border-radius:12px;padding:14px 18px}
+  .info-text{font-size:clamp(13px,1.6vw,16px);color:var(--slate);font-style:italic;line-height:1.5}
+  .info-text strong{color:var(--accent-lt);font-style:normal}
+  /* Pace scale */
+  .pace-scale{display:flex;gap:0;border-radius:12px;overflow:hidden}
+  .pace-block{flex:1;padding:12px 6px;text-align:center;display:flex;flex-direction:column;gap:4px}
+  .pace-num{font-family:'Bebas Neue',sans-serif;font-size:clamp(18px,2.8vw,28px);color:var(--white);line-height:1}
+  .pace-desc{font-size:clamp(9px,1vw,11px);color:rgba(255,255,255,.6);line-height:1.3}
+  /* Pitch spectrum */
+  .pitch-spectrum{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .pitch-card{background:var(--navy-mid);border-radius:14px;padding:18px 22px}
+  .pitch-label{font-family:'Bebas Neue',sans-serif;font-size:clamp(18px,2.8vw,28px);letter-spacing:.06em;margin-bottom:8px;border-bottom:3px solid var(--accent);padding-bottom:8px}
+  .pitch-text{font-size:clamp(12px,1.5vw,15px);color:var(--slate);line-height:1.5;font-weight:500}
+  .pitch-examples{margin-top:8px;font-size:clamp(11px,1.3vw,13px);color:var(--accent-lt);font-style:italic;line-height:1.4}
+  /* Grid 3 */
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}
+  .card{background:var(--navy-mid);border-radius:12px;overflow:hidden;display:flex;flex-direction:column;transition:transform .2s}
+  .card:hover{transform:translateY(-3px)}
+  .card-head{background:var(--accent);padding:13px 17px;font-family:'Bebas Neue',sans-serif;font-size:clamp(14px,2vw,20px);color:var(--navy-dk);letter-spacing:.05em;line-height:1.2}
+  .card-body{padding:13px 17px;font-size:clamp(12px,1.4vw,14px);color:var(--slate);font-weight:500;line-height:1.5;flex:1}
+  /* DO LAST */
+  .s-dolast{background:#1A1040}.dolast-inner{flex:1;padding:28px 48px;display:flex;flex-direction:column;gap:18px}
+  .dolast-heading{font-family:'Bebas Neue',sans-serif;font-size:clamp(50px,9vw,86px);color:#7B6FD4;letter-spacing:.06em;line-height:.95}
+  .dolast-heading span{color:var(--white)}
+  .dolast-prompt{background:rgba(123,111,212,.15);border-radius:14px;border-left:6px solid #7B6FD4;padding:20px 26px}
+  .dolast-starter{font-family:'Bebas Neue',sans-serif;font-size:clamp(20px,3.2vw,34px);color:#BAB3F0;letter-spacing:.04em;margin-bottom:9px;line-height:1.2}
+  .dolast-text{font-size:clamp(13px,1.7vw,17px);color:var(--slate);font-weight:500;line-height:1.5}
+  .vocab-label{font-family:'Bebas Neue',sans-serif;font-size:12px;letter-spacing:.14em;color:#7B6FD4;margin-bottom:9px}
+  .vocab-chips{display:flex;flex-wrap:wrap;gap:8px}
+  .vocab-chip{background:rgba(123,111,212,.15);border:1.5px solid rgba(123,111,212,.4);border-radius:7px;padding:7px 16px;font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:.06em;color:#BAB3F0}
+  .next-lesson{background:var(--navy-mid);border-radius:11px;padding:13px 20px;display:flex;align-items:center;gap:12px}
+  .next-arrow{font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--accent)}
+  .next-text{font-size:clamp(12px,1.5vw,15px);color:var(--slate);font-weight:500;line-height:1.4}
+  .next-text strong{color:var(--accent-lt);font-weight:700}
+  .nav{position:fixed;bottom:0;left:0;right:0;height:48px;background:var(--navy-dk);border-top:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:space-between;padding:0 24px;z-index:200}
+  .nav-info{font-size:11px;color:var(--grey);letter-spacing:.04em;font-weight:500;min-width:200px}
+  .nav-dots{display:flex;gap:6px;align-items:center}
+  .dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.15);cursor:pointer;transition:background .2s,transform .2s}
+  .dot.active{transform:scale(1.4)}
+  .dot[data-type="donow"].active{background:var(--accent)}.dot[data-type="li"].active{background:var(--accent)}.dot[data-type="main"].active{background:#0F6E56}.dot[data-type="dolast"].active{background:#7B6FD4}.dot:not([data-type]).active{background:var(--accent)}
+  .nav-btns{display:flex;gap:7px;align-items:center;min-width:120px;justify-content:flex-end}
+  .nav-counter{font-family:'Bebas Neue',sans-serif;font-size:14px;color:var(--grey);letter-spacing:.08em;margin-right:4px}
+  .btn{width:32px;height:32px;border-radius:6px;border:1.5px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:var(--white);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;user-select:none}
+  .btn:hover:not(:disabled){background:rgba(47,155,232,.2);border-color:var(--accent)}.btn:disabled{opacity:.25;cursor:default}
+</style>
+</head>
+<body>
+<div class="deck">
+
+<div class="slide s-title active" id="s1">
+  <div class="top-bar"><div class="ad-badge">AD</div><span class="bar-unit">UNIT 03</span><span class="bar-sep">·</span><span class="bar-lesson">Voice</span><span class="bar-badge b-main">Lesson 2 of 6</span></div>
+  <div class="content s-title"><div class="title-inner">
+    <div class="title-eyebrow">S1 Drama · Knightswood Secondary School</div>
+    <div><div class="title-big">PACE &amp;<br><span>PITCH</span></div><div class="title-sub">Controlling speed and tone to create meaning</div></div>
+    <div class="title-chips"><div class="title-chip">Week 7</div><div class="title-chip">50 Minutes</div><div class="title-chip">Lesson 2 of 6</div></div>
+  </div></div>
+</div>
+
+<div class="slide" id="s2">
+  <div class="top-bar"><div class="ad-badge">AD</div><span class="bar-unit">DO NOW</span><span class="bar-sep">·</span><span class="bar-lesson">Recall P.P.V.P.I.R. with your partner — no looking</span><span class="bar-badge b-donow">0–5 min</span></div>
+  <div class="content s-donow"><div class="donow-inner">
+    <div class="donow-heading">DO<br>NOW</div>
+    <div class="recall-grid">
+      <div class="recall-card"><div class="recall-letter">P</div><div class="recall-word">PACE</div></div>
+      <div class="recall-card"><div class="recall-letter">P</div><div class="recall-word">PITCH</div></div>
+      <div class="recall-card"><div class="recall-letter">V</div><div class="recall-word">VOLUME</div></div>
+      <div class="recall-card"><div class="recall-letter">P</div><div class="recall-word">PROJECTION</div></div>
+      <div class="recall-card"><div class="recall-letter">I</div><div class="recall-word">INTONATION</div></div>
+      <div class="recall-card"><div class="recall-letter">R</div><div class="recall-word">REGISTER</div></div>
+    </div>
+    <div class="donow-discuss">
+      <div class="donow-discuss-label">DISCUSS WITH YOUR PARTNER</div>
+      <div class="donow-q">Without looking at the cards — can you give one example of how each P.P.V.P.I.R. element changes meaning? One example per element, six total.</div>
+      <div class="donow-q">Which element did you find hardest to control in Lesson 1 — and what specifically made it difficult?</div>
+      <div class="donow-q">Today we focus on pace and pitch specifically. Before we start — what do you already know about how these two work?</div>
+    </div>
+  </div></div>
+</div>
+
+<div class="slide" id="s3">
+  <div class="top-bar"><div class="ad-badge">AD</div><span class="bar-unit">LESSON 2</span><span class="bar-sep">·</span><span class="bar-lesson">What are we learning today?</span><span class="bar-badge b-li">LI &amp; SC</span></div>
+  <div class="content s-lisc"><div class="lisc-inner">
+    <div class="lisc-heading">TODAY'S LESSON</div>
+    <div class="li-block"><div class="block-label">LEARNING INTENTION</div><div class="block-text">Apply pace and pitch deliberately to create character, build tension and communicate emotion — without relying on the words alone.</div></div>
+    <div>
+      <div class="block-label" style="color:var(--navy);margin-bottom:10px;">SUCCESS CRITERIA — BY THE END OF TODAY I CAN...</div>
+      <div class="sc-list">
+        <div class="sc-row"><div class="sc-check">✓</div>Use fast and slow pace to create urgency or tension in a performance</div>
+        <div class="sc-row"><div class="sc-check">✓</div>Use high and low pitch to convey emotion and communicate status</div>
+        <div class="sc-row"><div class="sc-check">✓</div>Perform a short exchange where pace and pitch do all the dramatic work — with no physical movement</div>
+      </div>
+    </div>
+  </div></div>
+</div>
+
+<div class="slide" id="s4">
+  <div class="top-bar"><div class="ad-badge">AD</div><span class="bar-unit">ACTIVITY</span><span class="bar-sep">·</span><span class="bar-lesson">Pace Relay — same text, completely different meaning</span><span class="bar-badge b-main">8–20 min</span></div>
+  <div class="content s-dark"><div class="activity-inner">
+    <div class="time-row"><div><div class="time-num">8–20</div><div class="time-label">minutes</div></div><div class="activity-title">Pace Relay</div></div>
+    <div style="background:var(--navy-mid);border-radius:12px;padding:16px 22px;text-align:center;margin-bottom:4px;">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:clamp(14px,2vw,18px);color:var(--accent-lt);letter-spacing:.08em;margin-bottom:6px;">READ THIS TEXT</div>
+      <div style="font-size:clamp(15px,2vw,20px);color:var(--white);font-weight:600;line-height:1.6;font-style:italic;">"I need you to listen to me. This is important. Something has gone wrong — and we don't have much time."</div>
+    </div>
+    <div class="pace-scale">
+      <div class="pace-block" style="background:#0a1f3a;"><div class="pace-num">1</div><div class="pace-desc">Glacially slow. Every word lands.</div></div>
+      <div class="pace-block" style="background:#0e2440;"><div class="pace-num">2</div><div class="pace-desc">Very slow. Deliberate weight.</div></div>
+      <div class="pace-block" style="background:#122848;"><div class="pace-num">3</div><div class="pace-desc">Slow. Considered. In control.</div></div>
+      <div class="pace-block" style="background:#162d52;"><div class="pace-num">4</div><div class="pace-desc">Measured. Clear intent.</div></div>
+      <div class="pace-block" style="background:#1a325a;"><div class="pace-num" style="color:var(--accent);">5</div><div class="pace-desc">Neutral. Everyday speech.</div></div>
+      <div class="pace-block" style="background:#1e3864;"><div class="pace-num" style="color:var(--accent);">6</div><div class="pace-desc">Slightly hurried. Urgency building.</div></div>
+      <div class="pace-block" style="background:#233d6e;"><div class="pace-num" style="color:var(--accent-lt);">7</div><div class="pace-desc">Fast. Rising panic.</div></div>
+      <div class="pace-block" style="background:#284278;"><div class="pace-num" style="color:var(--accent-lt);">8</div><div class="pace-desc">Very fast. Barely controlled.</div></div>
+      <div class="pace-block" style="background:#2d4882;"><div class="pace-num" style="color:var(--accent-lt);">9</div><div class="pace-desc">Rushing. Fear taking over.</div></div>
+      <div class="pace-block" style="background:#324e8c;"><div class="pace-num" style="color:var(--accent-lt);">10</div><div class="pace-desc">Absolute maximum speed.</div></div>
+    </div>
+    <div class="instructions">
+      <div class="instr-row"><div class="instr-num">1</div><div class="instr-text">Read the text at pace 2. Then pace 5. Then pace 9. The <em>words stay identical</em> — only the pace changes.</div></div>
+      <div class="instr-row"><div class="instr-num">2</div><div class="instr-text">Audience: after each reading, name the <em>emotion you felt</em> as a listener — not what you think the speaker felt.</div></div>
+    </div>
+    <div class="discuss-box"><div class="discuss-label">DISCUSS</div><div class="discuss-q">Which pace made the text most dramatic — and why does slowing down sometimes feel more urgent than speeding up?</div></div>
+  </div></div>
+</div>
+
+<div class="slide" id="s5">
+  <div class="top-bar"><div class="ad-badge">AD</div><span class="bar-unit">ACTIVITY</span><span class="bar-sep">·</span><span class="bar-lesson">Pitch Spectrum — high vs low and what they communicate</span><span class="bar-badge b-main">20–32 min</span></div>
+  <div class="content s-dark"><div class="activity-inner">
+    <div class="time-row"><div><div class="time-num">20–32</div><div class="time-label">minutes</div></div><div class="activity-title">Pitch Spectrum</div></div>
+    <div class="pitch-spectrum">
+      <div class="pitch-card">
+        <div class="pitch-label" style="color:var(--accent-lt);">HIGH PITCH</div>
+        <div class="pitch-text">High pitch tends to communicate excitement, fear, youth, nervousness or a lack of control. It can make a character seem less powerful — or more emotionally exposed.</div>
+        <div class="pitch-examples">Examples: a frightened child, someone receiving shocking news, an excited announcement, a character losing control of a situation.</div>
+      </div>
+      <div class="pitch-card">
+        <div class="pitch-label" style="color:var(--accent-lt);">LOW PITCH</div>
+        <div class="pitch-text">Low pitch tends to communicate authority, age, calm, threat or gravitas. It makes a character seem more in control — or more dangerous. The audience leans in to hear it.</div>
+        <div class="pitch-examples">Examples: a villain making a threat, a leader giving a command, someone hiding enormous emotion, a character holding a secret.</div>
+      </div>
+    </div>
+    <div class="instructions">
+      <div class="instr-row"><div class="instr-num">1</div><div class="instr-text">Perform the same sentence from Lesson 1 — <em>first at your highest comfortable pitch, then at your lowest.</em></div></div>
+      <div class="instr-row"><div class="instr-num">2</div><div class="instr-text">Now link it to Unit 02 status work: does <em>high status always mean low pitch?</em> Test this with your partner and be ready to argue your answer.</div></div>
+    </div>
+    <div class="discuss-box"><div class="discuss-label">BIG QUESTION</div><div class="discuss-q">Can a high-pitched voice ever communicate high status — and if so, how?</div></div>
+  </div></div>
+</div>
+
+<div class="slide" id="s6">
+  <div class="top-bar"><div class="ad-badge">AD</div><span class="bar-unit">ACTIVITY</span><span class="bar-sep">·</span><span class="bar-lesson">Pairs — let pace and pitch do all the dramatic work</span><span class="bar-badge b-main">32–46 min</span></div>
+  <div class="content s-dark"><div class="activity-inner">
+    <div class="time-row"><div><div class="time-num">32–46</div><div class="time-label">minutes</div></div><div class="activity-title">Voice Only Scene</div></div>
+    <div style="font-size:clamp(13px,1.6vw,16px);color:var(--slate);margin-bottom:6px;">Choose one scenario. Perform a 30-second exchange — <em style="color:var(--accent-lt);">no movement at all.</em> Pace and pitch must do everything.</div>
+    <div class="grid-3">
+      <div class="card"><div class="card-head">The Phone Call</div><div class="card-body">One person delivers bad news. The other receives it. No words tell us what the news is — only the voice reveals the truth.</div></div>
+      <div class="card"><div class="card-head">The Interrogation</div><div class="card-body">One character has power. One does not. The power shifts halfway through. Show this entirely through how pace and pitch change.</div></div>
+      <div class="card"><div class="card-head">The Apology</div><div class="card-body">One character apologises. Do they mean it? The audience must decide — from the pace and pitch alone, not the words.</div></div>
+    </div>
+    <div class="instructions">
+      <div class="instr-row"><div class="instr-num">1</div><div class="instr-text">Plan your vocal choices <em>before</em> you perform — agree where pace speeds up, where pitch drops, where you pause.</div></div>
+      <div class="instr-row"><div class="instr-num">2</div><div class="instr-text">Audience: identify the <em>emotional shift</em> in the scene and name which P.P.V.P.I.R. element caused it.</div></div>
+    </div>
+  </div></div>
+</div>
+
+<div class="slide" id="s7">
+  <div class="top-bar"><div class="ad-badge">AD</div><span class="bar-unit">DO LAST</span><span class="bar-sep">·</span><span class="bar-lesson">Write in your drama journal before you leave</span><span class="bar-badge b-dolast">46–50 min</span></div>
+  <div class="content s-dolast"><div class="dolast-inner">
+    <div class="dolast-heading">DO<br><span>LAST</span></div>
+    <div class="dolast-prompt">
+      <div class="dolast-starter">"I used [pace / pitch] to show [emotion or status] in my scene today. The effect on the audience was… because…"</div>
+      <div class="dolast-text">Write this in your drama journal. Be specific — name the moment and describe what changed in your voice. Use at least two Drama vocabulary words.</div>
+    </div>
+    <div>
+      <div class="vocab-label">VOCABULARY FROM TODAY</div>
+      <div class="vocab-chips">
+        <div class="vocab-chip">pace</div>
+        <div class="vocab-chip">pitch</div>
+        <div class="vocab-chip">urgency</div>
+        <div class="vocab-chip">tension</div>
+        <div class="vocab-chip">status</div>
+        <div class="vocab-chip">tone</div>
+        <div class="vocab-chip">gravitas</div>
+      </div>
+    </div>
+    <div class="next-lesson">
+      <div class="next-arrow">→</div>
+      <div class="next-text"><strong>Next lesson:</strong> Volume and Projection — understanding why being heard is not the same as being loud, and how to reach the back of any room.</div>
+    </div>
+  </div></div>
+</div>
+
+</div>
+<div class="nav">
+  <div class="nav-info" id="nav-info">Lesson 2 · Pace and Pitch</div>
+  <div class="nav-dots" id="dots"></div>
+  <div class="nav-btns"><span class="nav-counter" id="counter">1 / 7</span><button class="btn" id="prev" onclick="go(-1)">&#8592;</button><button class="btn" id="next" onclick="go(1)">&#8594;</button></div>
+</div>
+<script>
+const slides=document.querySelectorAll('.slide'),total=slides.length;
+const dotsEl=document.getElementById('dots'),counter=document.getElementById('counter');
+const prevBtn=document.getElementById('prev'),nextBtn=document.getElementById('next'),navInfo=document.getElementById('nav-info');
+const dotTypes=['','donow','li','main','main','main','dolast'];
+const labels=['Lesson 2 · Pace and Pitch','Do Now · P.P.V.P.I.R. recall','Learning Intention & Success Criteria','Pace Relay · 8–20 min','Pitch Spectrum · 20–32 min','Voice Only Scene · 32–46 min','Do Last · Exit task'];
+let cur=0;
+slides.forEach((_,i)=>{const d=document.createElement('div');d.className='dot';if(dotTypes[i])d.setAttribute('data-type',dotTypes[i]);if(i===0)d.classList.add('active');d.title=labels[i];d.onclick=()=>goTo(i);dotsEl.appendChild(d);});
+function goTo(n){slides[cur].classList.remove('active');dotsEl.children[cur].classList.remove('active');cur=Math.max(0,Math.min(n,total-1));slides[cur].classList.add('active');dotsEl.children[cur].classList.add('active');counter.textContent=`${cur+1} / ${total}`;navInfo.textContent=labels[cur];prevBtn.disabled=cur===0;nextBtn.disabled=cur===total-1;}
+function go(dir){goTo(cur+dir);}
+document.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key===' '){e.preventDefault();go(1);}if(e.key==='ArrowLeft'){e.preventDefault();go(-1);}});
+prevBtn.disabled=true;
+</script>
+</body>
+</html>
