@@ -34,19 +34,19 @@ window.DRAMA_CURRICULUM = {
         {
           id: '1',
           title: 'Welcome to Drama',
-          slides: 'drama-u01-l01.html',
+          slides: 'Unit01_Lesson01_Welcome_to_Drama.html',
           status: 'ready'
         },
         {
           id: '2',
           title: 'Group Work & Trust',
-          slides: 'drama-u01-l02.html',
+          slides: 'Unit01_Lesson02_Group_Work_and_Trust.html',
           status: 'ready'
         },
         {
           id: '3',
           title: 'Freeze Frames',
-          slides: 'drama-u01-l03.html',
+          slides: 'Unit01_Lesson03_Freeze_Frames.html',
           status: 'ready'
         }
       ]
