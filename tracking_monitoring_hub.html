@@ -18,6 +18,7 @@
 <script src="allowlist-check.js"></script>
 <script src="auth-guard.js"></script>
 <script src="data-service.js"></script>
+<script src="tracking-hub-password.js"></script>
 <script src="staff-display-name.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -256,6 +257,18 @@ body.is-embedded .inline-nav{display:flex}
   .tracker-two-col{grid-template-columns:1fr}
   .tracker-scale{grid-template-columns:1fr 1fr}
 }
+body.tracking-hub-locked .content{visibility:hidden;pointer-events:none}
+.tracking-hub-password-gate{position:fixed;inset:0;z-index:9999;display:none;align-items:center;justify-content:center;padding:1.25rem;background:linear-gradient(135deg,#16243c,#1e2d4a)}
+.tracking-hub-password-card{background:#fff;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,.25);width:100%;max-width:400px;padding:2rem}
+.tracking-hub-password-card h2{font-size:1.15rem;font-weight:700;margin-bottom:.35rem;color:var(--text)}
+.tracking-hub-password-sub{font-size:.82rem;color:var(--text3);line-height:1.5;margin-bottom:1rem}
+.tracking-hub-password-form{display:flex;flex-direction:column;gap:.75rem}
+.tracking-hub-password-label{font-size:.7rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text3)}
+.tracking-hub-password-input{font-size:.9rem;padding:.65rem .9rem;border:1px solid var(--border);border-radius:8px}
+.tracking-hub-password-input:focus{outline:none;border-color:var(--accent-drama);box-shadow:0 0 0 3px rgba(74,127,212,.15)}
+.tracking-hub-password-btn{font-size:.88rem;font-weight:600;padding:.75rem 1.25rem;border-radius:8px;border:none;cursor:pointer;background:var(--navy);color:#fff}
+.tracking-hub-password-btn:disabled{opacity:.6;cursor:not-allowed}
+.tracking-hub-password-error{font-size:.8rem;color:#c53030;background:#fff5f5;padding:.6rem .9rem;border-radius:6px;border:1px solid #feb2b2}
 </style>
 </head>
 <body>
@@ -1770,12 +1783,20 @@ function init() {
   }
   // Ensure manual console invocation works even if inline handlers are blocked.
   window.loadFromCloud = loadFromCloud;
-  waitForAuthGuardReady(5000).then(function(){ loadFromCloud(); }).catch(function(){
-    // Auth can be slower on first session restore; try cloud load anyway.
-    toast('Auth still loading, retrying cloud load');
-    setTimeout(loadFromCloud, 250);
-  });
-  refreshTeacherDirectory();
+  function startHubAfterAccess() {
+    waitForAuthGuardReady(5000).then(function(){ loadFromCloud(); }).catch(function(){
+      toast('Auth still loading, retrying cloud load');
+      setTimeout(loadFromCloud, 250);
+    });
+    refreshTeacherDirectory();
+  }
+  if (typeof window.ensureTrackingHubAccess === 'function') {
+    window.ensureTrackingHubAccess(startHubAfterAccess).catch(function(err) {
+      toast((err && err.message) ? err.message : 'Could not verify hub access');
+    });
+  } else {
+    startHubAfterAccess();
+  }
 }
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init);

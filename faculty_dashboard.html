@@ -393,6 +393,24 @@ html,body{min-height:100%;margin:0;width:100%;box-sizing:border-box}
         <div class="sc" style="margin-bottom:1.5rem">
           <div class="sc-header">
             <div>
+              <div class="sc-title">Tracking Hub password</div>
+              <div class="sc-sub">Set a shared password staff must enter before opening Tracking &amp; Monitoring. Admins bypass this gate. Leave blank and save to remove the password.</div>
+            </div>
+          </div>
+          <div class="sc-body">
+            <p id="admin-tracking-hub-pw-status" style="font-size:.8rem;color:var(--text2);margin-bottom:.75rem">Checking status…</p>
+            <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:flex-end">
+              <div><label class="form-label" for="admin-tracking-hub-pw-new">New password</label><input type="password" id="admin-tracking-hub-pw-new" class="form-input" placeholder="At least 6 characters" style="min-width:220px" autocomplete="new-password"></div>
+              <div><label class="form-label" for="admin-tracking-hub-pw-confirm">Confirm</label><input type="password" id="admin-tracking-hub-pw-confirm" class="form-input" placeholder="Repeat password" style="min-width:220px" autocomplete="new-password"></div>
+              <button class="btn btn-primary" type="button" onclick="adminSaveTrackingHubPassword()">Save password</button>
+              <button class="btn btn-ghost" type="button" onclick="adminClearTrackingHubPassword()">Remove password</button>
+            </div>
+            <p id="admin-tracking-hub-pw-schema-warning" style="display:none;margin-top:.75rem;padding:.65rem .75rem;border:1px solid #fcd34d;border-radius:8px;background:#fffbeb;color:#92400e;font-size:.75rem"></p>
+          </div>
+        </div>
+        <div class="sc" style="margin-bottom:1.5rem">
+          <div class="sc-header">
+            <div>
               <div class="sc-title">Faculty Head tools</div>
               <div class="sc-sub">Opens in a new tab (same sign-in). These tools are not listed in the main Faculty Hub sidebar for all staff.</div>
             </div>
@@ -2155,8 +2173,81 @@ function adminRejectCalendarRequest(id) {
     renderAdminConsole();
   }).catch(function(err) { toast((err && err.message) || 'Reject failed'); });
 }
+function adminSetTrackingHubPasswordStatus(text, isWarning) {
+  var el = document.getElementById('admin-tracking-hub-pw-status');
+  if (!el) return;
+  el.textContent = text || '';
+  el.style.color = isWarning ? '#b45309' : 'var(--text2)';
+}
+function adminSetTrackingHubPasswordSchemaWarning(text) {
+  var el = document.getElementById('admin-tracking-hub-pw-schema-warning');
+  if (!el) return;
+  if (!text) {
+    el.style.display = 'none';
+    el.textContent = '';
+    return;
+  }
+  el.textContent = text;
+  el.style.display = 'block';
+}
+function adminLoadTrackingHubPasswordStatus() {
+  adminSetTrackingHubPasswordSchemaWarning('');
+  if (!window.__authGuardIsAdmin) {
+    adminSetTrackingHubPasswordStatus('Admin only.', true);
+    return;
+  }
+  if (!window.DataService || typeof window.DataService.getTrackingHubPasswordStatus !== 'function') {
+    adminSetTrackingHubPasswordStatus('Cloud password controls are unavailable on this page.', true);
+    return;
+  }
+  adminSetTrackingHubPasswordStatus('Checking status…');
+  DataService.getTrackingHubPasswordStatus().then(function(enabled) {
+    adminSetTrackingHubPasswordStatus(
+      enabled
+        ? 'A shared password is active. Staff must enter it to open Tracking & Monitoring.'
+        : 'No shared password is set. Anyone with hub access can open it after sign-in.'
+    );
+  }).catch(function(err) {
+    var msg = String((err && err.message) || err || '');
+    if (/function|rpc|does not exist|not found|42883|pgrst202/i.test(msg)) {
+      adminSetTrackingHubPasswordStatus('Password gate is not installed on this database yet.', true);
+      adminSetTrackingHubPasswordSchemaWarning('Run the tracking hub password migration in Supabase (supabase/migrations/20250607120000_tracking_hub_password.sql).');
+      return;
+    }
+    adminSetTrackingHubPasswordStatus('Could not load password status.', true);
+  });
+}
+function adminSaveTrackingHubPassword() {
+  if (!window.__authGuardIsAdmin || !window.DataService) { toast('Admin only'); return; }
+  var pw = (document.getElementById('admin-tracking-hub-pw-new') || {}).value || '';
+  var confirmPw = (document.getElementById('admin-tracking-hub-pw-confirm') || {}).value || '';
+  if (!pw) { toast('Enter a new password'); return; }
+  if (pw.length < 6) { toast('Password must be at least 6 characters'); return; }
+  if (pw !== confirmPw) { toast('Passwords do not match'); return; }
+  DataService.setTrackingHubPassword(pw).then(function() {
+    var n = document.getElementById('admin-tracking-hub-pw-new');
+    var c = document.getElementById('admin-tracking-hub-pw-confirm');
+    if (n) n.value = '';
+    if (c) c.value = '';
+    adminLoadTrackingHubPasswordStatus();
+    toast('Tracking Hub password saved');
+  }).catch(function(err) { toast(getErrMessage(err, 'Failed to save password')); });
+}
+function adminClearTrackingHubPassword() {
+  if (!window.__authGuardIsAdmin || !window.DataService) { toast('Admin only'); return; }
+  if (!confirm('Remove the Tracking Hub password? Staff will no longer be prompted.')) return;
+  DataService.setTrackingHubPassword('').then(function() {
+    var n = document.getElementById('admin-tracking-hub-pw-new');
+    var c = document.getElementById('admin-tracking-hub-pw-confirm');
+    if (n) n.value = '';
+    if (c) c.value = '';
+    adminLoadTrackingHubPasswordStatus();
+    toast('Tracking Hub password removed');
+  }).catch(function(err) { toast(getErrMessage(err, 'Failed to remove password')); });
+}
 function renderAdminConsole() {
   if (!canManageFacultyHub() || !window.DataService) return;
+  adminLoadTrackingHubPasswordStatus();
   adminAnnSetSchemaWarning('');
   if (typeof DataService.getAnnouncementsSchemaSupport === 'function') {
     DataService.getAnnouncementsSchemaSupport().then(function(info) {

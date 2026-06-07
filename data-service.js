@@ -1413,6 +1413,46 @@
           return r.data || {};
         });
       });
+    },
+
+    /** Whether admin has set a shared Tracking Hub password (RPC). */
+    getTrackingHubPasswordStatus: function() {
+      return new Promise(function(resolve, reject) {
+        if (!useSupabase()) { resolve(false); return; }
+        window.supabase.rpc('tracking_hub_password_is_enabled').then(function(r) {
+          if (r.error) { reject(r.error); return; }
+          resolve(!!r.data);
+        });
+      });
+    },
+
+    /** Verify shared Tracking Hub password for the current session. */
+    verifyTrackingHubPassword: function(password) {
+      return new Promise(function(resolve, reject) {
+        if (!useSupabase()) { resolve(true); return; }
+        window.supabase.rpc('verify_tracking_hub_password', {
+          p_password: password || ''
+        }).then(function(r) {
+          if (r.error) { reject(r.error); return; }
+          resolve(!!r.data);
+        });
+      });
+    },
+
+    /** Admin only: set or clear (empty string) the shared Tracking Hub password. */
+    setTrackingHubPassword: function(password) {
+      return ensureSessionForMutations().then(function() {
+        if (!useSupabase()) return Promise.reject(new Error('Supabase required'));
+        return window.supabase.rpc('set_tracking_hub_password', {
+          p_password: password == null ? '' : String(password)
+        }).then(function(r) {
+          if (r.error) throw r.error;
+          if (typeof window.clearTrackingHubUnlock === 'function') {
+            window.clearTrackingHubUnlock();
+          }
+          return true;
+        });
+      });
     }
   };
 })();
