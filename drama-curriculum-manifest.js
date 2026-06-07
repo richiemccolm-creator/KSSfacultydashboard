@@ -17,6 +17,7 @@
  * Template: drama-slides-unit01_1.html
  *
  * Senior Phase N5 Creative Industries (ci01–ci04): n5-ci-curriculum-manifest.js
+ * Senior Phase AH Drama key dates (ah01): ah-drama-curriculum-manifest.js
  * Slide files: drama-ci-s01.html … drama-ci-s61.html (100-minute doubles).
  */
 window.DRAMA_CURRICULUM = {
