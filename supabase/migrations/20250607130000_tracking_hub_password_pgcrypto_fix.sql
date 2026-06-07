@@ -1,49 +1,7 @@
--- Shared password gate for Tracking & Monitoring hub (admin-managed, server-verified).
+-- Fix: gen_salt/crypt require pgcrypto on Supabase (extensions schema).
+-- Run this if set_tracking_hub_password fails with "function gen_salt(unknown) does not exist".
 
--- Supabase installs pgcrypto in the extensions schema (Dashboard → Database → Extensions).
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
-
-CREATE TABLE IF NOT EXISTS public.faculty_settings (
-  key TEXT PRIMARY KEY,
-  value TEXT NOT NULL DEFAULT '',
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_by UUID REFERENCES auth.users(id) ON DELETE SET NULL
-);
-
-ALTER TABLE public.faculty_settings ENABLE ROW LEVEL SECURITY;
-
--- No direct client access; use RPCs only.
-REVOKE ALL ON public.faculty_settings FROM anon, authenticated;
-
-CREATE OR REPLACE FUNCTION public.is_admin_user()
-RETURNS boolean
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT EXISTS (
-    SELECT 1
-    FROM public.allowed_emails
-    WHERE email = (auth.jwt()->>'email')
-      AND COALESCE(is_admin, false) = true
-  );
-$$;
-
-CREATE OR REPLACE FUNCTION public.tracking_hub_password_is_enabled()
-RETURNS boolean
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT EXISTS (
-    SELECT 1
-    FROM public.faculty_settings
-    WHERE key = 'tracking_hub_password_hash'
-      AND length(trim(value)) > 0
-  );
-$$;
 
 CREATE OR REPLACE FUNCTION public.verify_tracking_hub_password(p_password text)
 RETURNS boolean
@@ -108,7 +66,3 @@ BEGIN
         updated_at = NOW();
 END;
 $$;
-
-GRANT EXECUTE ON FUNCTION public.tracking_hub_password_is_enabled() TO authenticated;
-GRANT EXECUTE ON FUNCTION public.verify_tracking_hub_password(text) TO authenticated;
-GRANT EXECUTE ON FUNCTION public.set_tracking_hub_password(text) TO authenticated;
