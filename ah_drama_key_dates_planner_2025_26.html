@@ -1,0 +1,241 @@
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font-sans, sans-serif); }
+  .planner { width: 100%; font-size: 11px; }
+  .title-bar { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px 8px; border-bottom: 1px solid var(--color-border-tertiary); }
+  .title-bar h2 { font-size: 15px; font-weight: 500; color: var(--color-text-primary); }
+  .title-bar .subtitle { font-size: 11px; color: var(--color-text-secondary); }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 8px 12px; border-bottom: 1px solid var(--color-border-tertiary); }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--color-text-secondary); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+  .grid-wrap { overflow-x: auto; }
+  .grid { display: grid; grid-template-columns: 52px repeat(31, 1fr); min-width: 700px; }
+  .header-row { display: contents; }
+  .month-label { grid-column: 1; display: flex; align-items: center; justify-content: flex-end; padding-right: 7px; font-weight: 500; font-size: 10px; color: var(--color-text-secondary); border-right: 1px solid var(--color-border-tertiary); border-bottom: 0.5px solid var(--color-border-tertiary); height: 34px; letter-spacing: 0.03em; text-transform: uppercase; }
+  .day-cell { height: 34px; border-right: 0.5px solid var(--color-border-tertiary); border-bottom: 0.5px solid var(--color-border-tertiary); position: relative; display: flex; align-items: flex-start; justify-content: flex-end; padding: 2px 3px; cursor: default; }
+  .day-num { font-size: 9px; color: var(--color-text-tertiary); line-height: 1; }
+  .day-cell.weekend { background: color-mix(in srgb, var(--color-background-secondary) 60%, transparent); }
+  .day-cell.inactive { background: color-mix(in srgb, var(--color-background-tertiary) 50%, transparent); }
+  .day-cell.hols { background: #E1F5EE; }
+  .day-cell.hols .day-num { color: #0F6E56; }
+  .day-cell.evt-perf { background: #EEEDFE; border-left: 2px solid #7F77DD; }
+  .day-cell.evt-assign { background: #FBEAF0; border-left: 2px solid #D4537E; }
+  .day-cell.evt-diss { background: #E6F1FB; border-left: 2px solid #378ADD; }
+  .day-cell.evt-internal { background: #FAEEDA; border-left: 2px solid #BA7517; }
+  .day-cell.evt-checkpoint { background: #EAF3DE; border-left: 2px solid #639922; }
+  .day-cell.evt-sqa { background: #FAECE7; border-left: 2px solid #D85A30; }
+  .day-cell .event-label { position: absolute; top: 0; left: 0; right: 0; bottom: 0; display: flex; align-items: center; padding: 0 3px 0 5px; font-size: 8.5px; font-weight: 500; line-height: 1.2; overflow: hidden; }
+  .day-cell.evt-perf .event-label { color: #3C3489; }
+  .day-cell.evt-assign .event-label { color: #72243E; }
+  .day-cell.evt-diss .event-label { color: #0C447C; }
+  .day-cell.evt-internal .event-label { color: #633806; }
+  .day-cell.evt-checkpoint .event-label { color: #27500A; }
+  .day-cell.evt-sqa .event-label { color: #712B13; }
+  .col-header { height: 20px; display: flex; align-items: center; justify-content: center; font-size: 9px; color: var(--color-text-tertiary); font-weight: 500; border-right: 0.5px solid var(--color-border-tertiary); border-bottom: 1px solid var(--color-border-tertiary); }
+  .col-header-blank { height: 20px; grid-column: 1; border-right: 1px solid var(--color-border-tertiary); border-bottom: 1px solid var(--color-border-tertiary); }
+  .tooltip { position: fixed; background: var(--color-background-primary); border: 0.5px solid var(--color-border-secondary); border-radius: 6px; padding: 6px 9px; font-size: 11px; color: var(--color-text-primary); pointer-events: none; opacity: 0; transition: opacity 0.1s; z-index: 999; max-width: 180px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+  .key-dates-list { padding: 10px 12px; border-top: 1px solid var(--color-border-tertiary); }
+  .key-dates-list h3 { font-size: 12px; font-weight: 500; color: var(--color-text-primary); margin-bottom: 8px; }
+  .kd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 20px; }
+  .kd-item { display: flex; align-items: flex-start; gap: 6px; font-size: 11px; color: var(--color-text-secondary); }
+  .kd-dot { width: 8px; height: 8px; border-radius: 2px; flex-shrink: 0; margin-top: 2px; }
+  .kd-item strong { color: var(--color-text-primary); font-weight: 500; }
+  @media (prefers-color-scheme: dark) {
+    .day-cell.hols { background: #04342C; }
+    .day-cell.hols .day-num { color: #5DCAA5; }
+    .day-cell.evt-perf { background: #26215C; border-left-color: #AFA9EC; }
+    .day-cell.evt-assign { background: #4B1528; border-left-color: #ED93B1; }
+    .day-cell.evt-diss { background: #042C53; border-left-color: #85B7EB; }
+    .day-cell.evt-internal { background: #412402; border-left-color: #EF9F27; }
+    .day-cell.evt-checkpoint { background: #173404; border-left-color: #97C459; }
+    .day-cell.evt-sqa { background: #4A1B0C; border-left-color: #F0997B; }
+    .day-cell.evt-perf .event-label { color: #CECBF6; }
+    .day-cell.evt-assign .event-label { color: #F4C0D1; }
+    .day-cell.evt-diss .event-label { color: #B5D4F4; }
+    .day-cell.evt-internal .event-label { color: #FAC775; }
+    .day-cell.evt-checkpoint .event-label { color: #C0DD97; }
+    .day-cell.evt-sqa .event-label { color: #F5C4B3; }
+  }
+</style>
+
+<h2 class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);">Advanced Higher Drama 2025-26 key dates wall planner, August to April</h2>
+
+<div class="planner" id="planner">
+  <div class="title-bar">
+    <div>
+      <h2>Advanced Higher Drama — Key Dates Planner 2025–26</h2>
+      <div class="subtitle">Session Aug 2025 → Easter Apr 2026 &nbsp;·&nbsp; Hover over highlighted dates for details</div>
+    </div>
+    <div style="font-size:11px;color:var(--color-text-secondary);">SQA Scotland</div>
+  </div>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#7F77DD;"></div>Practical performance</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#D4537E;"></div>Assignment deadline</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#378ADD;"></div>Dissertation deadline</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#BA7517;"></div>Internal checkpoint</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#639922;"></div>Teacher feedback</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#D85A30;"></div>SQA uplift / submission</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#1D9E75;"></div>School holidays</div>
+  </div>
+  <div class="grid-wrap">
+    <div class="grid" id="cal-grid"></div>
+  </div>
+  <div class="key-dates-list">
+    <h3>Key dates at a glance</h3>
+    <div class="kd-grid" id="kd-list"></div>
+  </div>
+</div>
+<div class="tooltip" id="tt"></div>
+
+<script>
+const MONTHS = ['Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar','Apr'];
+const MONTH_NUMS = [7,8,9,10,11,0,1,2,3];
+const YEARS =      [2025,2025,2025,2025,2025,2026,2026,2026,2026];
+const DAYS_IN = [31,30,31,30,31,31,28,31,30];
+
+const EVENTS = {
+  '2025-08-19': {type:'checkpoint', label:'Course intro', detail:'Course induction: intro to AH Drama components, SQA requirements & course overview'},
+  '2025-08-25': {type:'checkpoint', label:'Perf groups set', detail:'Practical performance groups confirmed. Begin devising/text selection.'},
+  '2025-09-08': {type:'internal', label:'Perf text agreed', detail:'Performance text / devising stimulus agreed with teacher. Begin rehearsals.'},
+  '2025-09-15': {type:'internal', label:'Assign Q released', detail:'SQA Assignment questions released. Begin choosing question & planning show to attend.'},
+  '2025-09-22': {type:'checkpoint', label:'Show attended', detail:'Recommended: attend professional production for Assignment analysis. Keep programme & notes.'},
+  '2025-10-06': {type:'internal', label:'Assign draft plan', detail:'Assignment: submit brief plan/focus to teacher (question choice + production choice).'},
+  '2025-10-13': {type:'checkpoint', label:'Diss topic agreed', detail:'Project-Dissertation: research topic agreed with teacher. Begin reading & source gathering.'},
+  '2025-10-17': {type:'hols', label:'', detail:'October mid-term break'},
+  '2025-10-18': {type:'hols', label:'', detail:'October mid-term break'},
+  '2025-10-19': {type:'hols', label:'', detail:'October mid-term break'},
+  '2025-10-20': {type:'hols', label:'', detail:'October mid-term break'},
+  '2025-10-21': {type:'hols', label:'', detail:'October mid-term break'},
+  '2025-11-03': {type:'internal', label:'Diss Activity A', detail:'Dissertation Activity A draft due: analysing theory and performance examples for chosen performance issue.'},
+  '2025-11-17': {type:'checkpoint', label:'Assign draft 1', detail:'Assignment first draft submitted to teacher for formative feedback.'},
+  '2025-12-01': {type:'internal', label:'Diss Activity B', detail:'Dissertation Activity B draft due: own creative response / practitioner study.'},
+  '2025-12-08': {type:'perf', label:'Perf run-through', detail:'First full performance run-through. Teacher observation & verbal feedback session.'},
+  '2025-12-22': {type:'hols', label:'', detail:'Christmas & New Year holidays'},
+  '2025-12-23': {type:'hols', label:'', detail:'Christmas & New Year holidays'},
+  '2025-12-24': {type:'hols', label:'', detail:'Christmas & New Year holidays'},
+  '2025-12-25': {type:'hols', label:'', detail:'Christmas & New Year holidays'},
+  '2025-12-26': {type:'hols', label:'', detail:'Christmas & New Year holidays'},
+  '2025-12-29': {type:'hols', label:'', detail:'Christmas & New Year holidays'},
+  '2025-12-30': {type:'hols', label:'', detail:'Christmas & New Year holidays'},
+  '2025-12-31': {type:'hols', label:'', detail:'Christmas & New Year holidays'},
+  '2026-01-01': {type:'hols', label:'', detail:'Christmas & New Year holidays'},
+  '2026-01-02': {type:'hols', label:'', detail:'Christmas & New Year holidays'},
+  '2026-01-05': {type:'checkpoint', label:'Return & review', detail:'Return from holidays. Review assignment & dissertation drafts. Identify gaps.'},
+  '2026-01-19': {type:'assign', label:'Assign final draft', detail:'Assignment: near-final draft submitted. Teacher gives final formative feedback before completion.'},
+  '2026-01-26': {type:'internal', label:'Diss draft final', detail:'Dissertation: near-final draft of all activities submitted. Teacher formative feedback.'},
+  '2026-02-09': {type:'perf', label:'Dress rehearsal', detail:'Full dress rehearsal. Recording/video evidence gathered for portfolio if needed.'},
+  '2026-02-16': {type:'hols', label:'', detail:'February mid-term break'},
+  '2026-02-17': {type:'hols', label:'', detail:'February mid-term break'},
+  '2026-02-18': {type:'hols', label:'', detail:'February mid-term break'},
+  '2026-02-19': {type:'hols', label:'', detail:'February mid-term break'},
+  '2026-02-20': {type:'hols', label:'', detail:'February mid-term break'},
+  '2026-02-23': {type:'perf', label:'PERF EXAM', detail:'⭐ PRACTICAL PERFORMANCE EXAM — externally assessed by SQA visiting examiner. All performance preparation complete.'},
+  '2026-03-02': {type:'assign', label:'ASSIGN COMPLETE', detail:'⭐ ASSIGNMENT COMPLETE — final version printed on SQA template, signed, and ready for submission. Flyleaf completed.'},
+  '2026-03-09': {type:'checkpoint', label:'Feedback session', detail:'Post-performance reflection. Review examiner feedback where available. Focus on dissertation.'},
+  '2026-03-16': {type:'diss', label:'DISS COMPLETE', detail:'⭐ DISSERTATION COMPLETE — all activities finalised, printed on SQA template, signed. Flyleaf completed.'},
+  '2026-03-23': {type:'sqa', label:'Assignment uplift', detail:'⭐ SQA ASSIGNMENT UPLIFT — physical copies collected by SQA courier. Ensure flyleaves attached.'},
+  '2026-04-06': {type:'hols', label:'', detail:'Easter holidays begin'},
+  '2026-04-07': {type:'hols', label:'', detail:'Easter holidays'},
+  '2026-04-08': {type:'hols', label:'', detail:'Easter holidays'},
+  '2026-04-09': {type:'hols', label:'', detail:'Easter holidays'},
+  '2026-04-10': {type:'sqa', label:'Diss uplift', detail:'⭐ SQA DISSERTATION UPLIFT — physical copies collected by SQA courier. Ensure flyleaves attached.'},
+};
+
+const TYPE_CLASS = {
+  perf: 'evt-perf', assign: 'evt-assign', diss: 'evt-diss',
+  internal: 'evt-internal', checkpoint: 'evt-checkpoint', sqa: 'evt-sqa', hols: 'hols'
+};
+
+const DAYS_HEADER = ['M','T','W','T','F','S','S'];
+
+const grid = document.getElementById('cal-grid');
+const tt = document.getElementById('tt');
+
+const blankHeader = document.createElement('div');
+blankHeader.className = 'col-header-blank';
+grid.appendChild(blankHeader);
+for(let i=0;i<31;i++){
+  const h = document.createElement('div');
+  h.className = 'col-header';
+  h.textContent = i+1;
+  grid.appendChild(h);
+}
+
+MONTHS.forEach((mName, mi) => {
+  const m = MONTH_NUMS[mi];
+  const y = YEARS[mi];
+  const days = DAYS_IN[mi];
+  const firstDay = new Date(y, m, 1).getDay();
+  const moLabel = document.createElement('div');
+  moLabel.className = 'month-label';
+  moLabel.textContent = mName;
+  grid.appendChild(moLabel);
+
+  for(let d=1;d<=31;d++){
+    const cell = document.createElement('div');
+    cell.className = 'day-cell';
+    if(d > days){
+      cell.classList.add('inactive');
+    } else {
+      const dow = new Date(y, m, d).getDay();
+      if(dow===0||dow===6) cell.classList.add('weekend');
+      const key = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      const ev = EVENTS[key];
+      if(ev){
+        if(ev.type==='hols'){
+          cell.classList.add('hols');
+        } else {
+          cell.classList.add(TYPE_CLASS[ev.type]);
+          if(ev.label){
+            const lbl = document.createElement('div');
+            lbl.className = 'event-label';
+            lbl.textContent = ev.label;
+            cell.appendChild(lbl);
+          }
+        }
+        cell.dataset.detail = ev.detail;
+        cell.dataset.date = key;
+      }
+      const dn = document.createElement('div');
+      dn.className = 'day-num';
+      dn.textContent = d;
+      cell.appendChild(dn);
+
+      cell.addEventListener('mouseenter', (e)=>{
+        if(cell.dataset.detail){
+          tt.textContent = cell.dataset.detail;
+          tt.style.opacity = '1';
+        }
+      });
+      cell.addEventListener('mousemove', (e)=>{
+        tt.style.left = (e.clientX+12)+'px';
+        tt.style.top = (e.clientY-10)+'px';
+      });
+      cell.addEventListener('mouseleave', ()=>{ tt.style.opacity='0'; });
+    }
+    grid.appendChild(cell);
+  }
+});
+
+const keyDates = [
+  {type:'perf', date:'w/e 23 Feb 2026', desc:'Practical Performance Exam'},
+  {type:'assign', date:'2 Mar 2026', desc:'Assignment complete & ready'},
+  {type:'diss', date:'16 Mar 2026', desc:'Dissertation complete & ready'},
+  {type:'sqa', date:'~23 Mar 2026', desc:'SQA Assignment uplift'},
+  {type:'sqa', date:'~10 Apr 2026', desc:'SQA Dissertation uplift'},
+  {type:'internal', date:'8 Sep 2025', desc:'Performance text agreed'},
+  {type:'internal', date:'15 Sep 2025', desc:'Assignment question released'},
+  {type:'assign', date:'17 Nov 2025', desc:'Assignment draft 1 to teacher'},
+  {type:'checkpoint', date:'13 Oct 2025', desc:'Dissertation topic agreed'},
+  {type:'diss', date:'16 Mar 2026', desc:'All dissertation activities final'},
+];
+const kdList = document.getElementById('kd-list');
+const COLORS = {perf:'#7F77DD',assign:'#D4537E',diss:'#378ADD',internal:'#BA7517',checkpoint:'#639922',sqa:'#D85A30'};
+keyDates.forEach(k=>{
+  const item = document.createElement('div');
+  item.className = 'kd-item';
+  item.innerHTML = `<div class="kd-dot" style="background:${COLORS[k.type]};"></div><div><strong>${k.date}</strong> — ${k.desc}</div>`;
+  kdList.appendChild(item);
+});
+</script>
