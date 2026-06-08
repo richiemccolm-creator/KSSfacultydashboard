@@ -38,6 +38,7 @@
   }
   // null = unknown, true = priority columns available, false = legacy schema.
   var announcementsPrioritySchemaKnown = null;
+  var announcementsFeaturedBannerSchemaKnown = null;
   function localTodayYMD() {
     var d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -55,7 +56,8 @@
         expires_at: a.expires_at,
         created_at: a.created_at,
         priority: a.priority || 'none',
-        highlight_priority: !!a.highlight_priority
+        highlight_priority: !!a.highlight_priority,
+        featured_banner: !!a.featured_banner
       };
     });
   }
@@ -63,6 +65,11 @@
     if (!err) return false;
     var msg = String(err.message || err.details || '');
     return err.code === '42703' || /priority|highlight_priority/i.test(msg);
+  }
+  function isAnnouncementsFeaturedBannerSchemaError(err) {
+    if (!err) return false;
+    var msg = String(err.message || err.details || '');
+    return err.code === '42703' || /featured_banner/i.test(msg);
   }
   function canUseAnnouncementsPriorityColumns() {
     if (announcementsPrioritySchemaKnown != null) {
@@ -87,6 +94,41 @@
         announcementsPrioritySchemaKnown = false;
         return false;
       });
+  }
+  function canUseAnnouncementsFeaturedBannerColumn() {
+    if (announcementsFeaturedBannerSchemaKnown != null) {
+      return Promise.resolve(announcementsFeaturedBannerSchemaKnown);
+    }
+    if (!useSupabase()) {
+      announcementsFeaturedBannerSchemaKnown = false;
+      return Promise.resolve(false);
+    }
+    return window.supabase.from('announcements')
+      .select('featured_banner')
+      .limit(1)
+      .then(function(r) {
+        if (r && r.error) {
+          announcementsFeaturedBannerSchemaKnown = !isAnnouncementsFeaturedBannerSchemaError(r.error);
+          return announcementsFeaturedBannerSchemaKnown;
+        }
+        announcementsFeaturedBannerSchemaKnown = true;
+        return true;
+      })
+      .catch(function() {
+        announcementsFeaturedBannerSchemaKnown = false;
+        return false;
+      });
+  }
+  function clearOtherFeaturedBanners(exceptId) {
+    if (!useSupabase()) return Promise.resolve();
+    return canUseAnnouncementsFeaturedBannerColumn().then(function(canUse) {
+      if (!canUse) return;
+      var q = window.supabase.from('announcements').update({ featured_banner: false }).eq('featured_banner', true);
+      if (exceptId) q = q.neq('id', exceptId);
+      return q.then(function(r) {
+        if (r && r.error) throw r.error;
+      });
+    });
   }
   function ensureSessionForMutations() {
     return getSessionWithRetry({ retries: 4, delayMs: 250 }).then(function(session) {
@@ -628,29 +670,47 @@
         if (!useSupabase()) { resolve([]); return; }
         getSessionWithRetry({ retries: 4, delayMs: 250 }).then(function(session) {
           if (!session) { resolve([]); return; }
-          canUseAnnouncementsPriorityColumns().then(function(canUsePriority) {
-            var fields = canUsePriority
-              ? 'id, title, body, expires_at, created_at, priority, highlight_priority'
-              : 'id, title, body, expires_at, created_at';
+          Promise.all([
+            canUseAnnouncementsPriorityColumns(),
+            canUseAnnouncementsFeaturedBannerColumn()
+          ]).then(function(flags) {
+            var canUsePriority = flags[0];
+            var canUseFeatured = flags[1];
+            var fields = ['id', 'title', 'body', 'expires_at', 'created_at'];
+            if (canUsePriority) fields.push('priority', 'highlight_priority');
+            if (canUseFeatured) fields.push('featured_banner');
             window.supabase.from('announcements')
-              .select(fields)
+              .select(fields.join(', '))
               .order('created_at', { ascending: false })
               .then(function(r) {
                 if (!r.error) {
                   resolve(mapAnnouncementsList(r.data || []));
                   return;
                 }
-                // Any select error can hide announcements; retry with legacy fields.
-                announcementsPrioritySchemaKnown = false;
+                if (canUseFeatured && isAnnouncementsFeaturedBannerSchemaError(r.error)) {
+                  announcementsFeaturedBannerSchemaKnown = false;
+                  canUseFeatured = false;
+                }
+                if (canUsePriority && isAnnouncementsPrioritySchemaError(r.error)) {
+                  announcementsPrioritySchemaKnown = false;
+                  canUsePriority = false;
+                }
+                var retryFields = ['id', 'title', 'body', 'expires_at', 'created_at'];
+                if (canUsePriority) retryFields.push('priority', 'highlight_priority');
+                if (canUseFeatured) retryFields.push('featured_banner');
                 window.supabase.from('announcements')
-                  .select('id, title, body, expires_at, created_at')
+                  .select(retryFields.join(', '))
                   .order('created_at', { ascending: false })
-                  .then(function(legacy) {
-                    if (legacy.error) { resolve([]); return; }
-                    var legacyRows = (legacy.data || []).map(function(a) {
-                      return Object.assign({}, a, { priority: 'none', highlight_priority: false });
+                  .then(function(retry) {
+                    if (retry.error) { resolve([]); return; }
+                    var rows = (retry.data || []).map(function(a) {
+                      return Object.assign({}, a, {
+                        priority: a.priority || 'none',
+                        highlight_priority: !!a.highlight_priority,
+                        featured_banner: !!a.featured_banner
+                      });
                     });
-                    resolve(mapAnnouncementsList(legacyRows));
+                    resolve(mapAnnouncementsList(rows));
                   });
               });
           });
@@ -664,28 +724,46 @@
       if (!useSupabase()) return Promise.reject(new Error('Supabase required'));
       var priority = String(obj.priority || 'none').toLowerCase();
       if (['none', 'low', 'medium', 'high'].indexOf(priority) === -1) priority = 'none';
+      var featuredBanner = !!obj.featured_banner;
       var baseRow = {
         title: (obj.title || '').trim(),
         body: (obj.body || '').trim() || null,
         expires_at: obj.expires_at || null
       };
       return ensureSessionForMutations().then(function() {
-        return canUseAnnouncementsPriorityColumns().then(function(canUsePriority) {
-          var row = canUsePriority
-            ? Object.assign({}, baseRow, {
-              priority: priority,
-              highlight_priority: !!obj.highlight_priority
-            })
-            : baseRow;
-          return window.supabase.from('announcements').insert(row).then(function(r) {
-            if (!r.error) { return; }
-            if (canUsePriority && isAnnouncementsPrioritySchemaError(r.error)) {
-              announcementsPrioritySchemaKnown = false;
-              return window.supabase.from('announcements').insert(baseRow).then(function(r2) {
-                if (r2.error) throw r2.error;
-              });
-            }
-            throw r.error;
+        return Promise.all([
+          canUseAnnouncementsPriorityColumns(),
+          canUseAnnouncementsFeaturedBannerColumn()
+        ]).then(function(flags) {
+          var canUsePriority = flags[0];
+          var canUseFeatured = flags[1];
+          var row = Object.assign({}, baseRow);
+          if (canUsePriority) {
+            row.priority = priority;
+            row.highlight_priority = !!obj.highlight_priority;
+          }
+          if (canUseFeatured) row.featured_banner = featuredBanner;
+          var prep = featuredBanner && canUseFeatured ? clearOtherFeaturedBanners(null) : Promise.resolve();
+          return prep.then(function() {
+            return window.supabase.from('announcements').insert(row).then(function(r) {
+              if (!r.error) { return; }
+              if (canUseFeatured && isAnnouncementsFeaturedBannerSchemaError(r.error)) {
+                announcementsFeaturedBannerSchemaKnown = false;
+                delete row.featured_banner;
+                return window.supabase.from('announcements').insert(row).then(function(rFb) {
+                  if (rFb.error) throw rFb.error;
+                });
+              }
+              if (canUsePriority && isAnnouncementsPrioritySchemaError(r.error)) {
+                announcementsPrioritySchemaKnown = false;
+                delete row.priority;
+                delete row.highlight_priority;
+                return window.supabase.from('announcements').insert(baseRow).then(function(r2) {
+                  if (r2.error) throw r2.error;
+                });
+              }
+              throw r.error;
+            });
           });
         });
       });
@@ -695,28 +773,46 @@
       if (!useSupabase()) return Promise.reject(new Error('Supabase required'));
       var priority = String(obj.priority || 'none').toLowerCase();
       if (['none', 'low', 'medium', 'high'].indexOf(priority) === -1) priority = 'none';
+      var featuredBanner = !!obj.featured_banner;
       var baseRow = {
         title: (obj.title || '').trim(),
         body: (obj.body || '').trim() || null,
         expires_at: obj.expires_at || null
       };
       return ensureSessionForMutations().then(function() {
-        return canUseAnnouncementsPriorityColumns().then(function(canUsePriority) {
-          var row = canUsePriority
-            ? Object.assign({}, baseRow, {
-              priority: priority,
-              highlight_priority: !!obj.highlight_priority
-            })
-            : baseRow;
-          return window.supabase.from('announcements').update(row).eq('id', id).then(function(r) {
-            if (!r.error) { return; }
-            if (canUsePriority && isAnnouncementsPrioritySchemaError(r.error)) {
-              announcementsPrioritySchemaKnown = false;
-              return window.supabase.from('announcements').update(baseRow).eq('id', id).then(function(r2) {
-                if (r2.error) throw r2.error;
-              });
-            }
-            throw r.error;
+        return Promise.all([
+          canUseAnnouncementsPriorityColumns(),
+          canUseAnnouncementsFeaturedBannerColumn()
+        ]).then(function(flags) {
+          var canUsePriority = flags[0];
+          var canUseFeatured = flags[1];
+          var row = Object.assign({}, baseRow);
+          if (canUsePriority) {
+            row.priority = priority;
+            row.highlight_priority = !!obj.highlight_priority;
+          }
+          if (canUseFeatured) row.featured_banner = featuredBanner;
+          var prep = featuredBanner && canUseFeatured ? clearOtherFeaturedBanners(id) : Promise.resolve();
+          return prep.then(function() {
+            return window.supabase.from('announcements').update(row).eq('id', id).then(function(r) {
+              if (!r.error) { return; }
+              if (canUseFeatured && isAnnouncementsFeaturedBannerSchemaError(r.error)) {
+                announcementsFeaturedBannerSchemaKnown = false;
+                delete row.featured_banner;
+                return window.supabase.from('announcements').update(row).eq('id', id).then(function(rFb) {
+                  if (rFb.error) throw rFb.error;
+                });
+              }
+              if (canUsePriority && isAnnouncementsPrioritySchemaError(r.error)) {
+                announcementsPrioritySchemaKnown = false;
+                delete row.priority;
+                delete row.highlight_priority;
+                return window.supabase.from('announcements').update(baseRow).eq('id', id).then(function(r2) {
+                  if (r2.error) throw r2.error;
+                });
+              }
+              throw r.error;
+            });
           });
         });
       });
@@ -732,9 +828,12 @@
     },
 
     getAnnouncementsSchemaSupport: function() {
-      if (!useSupabase()) return Promise.resolve({ priorityColumns: false });
-      return canUseAnnouncementsPriorityColumns().then(function(canUsePriority) {
-        return { priorityColumns: !!canUsePriority };
+      if (!useSupabase()) return Promise.resolve({ priorityColumns: false, featuredBannerColumn: false });
+      return Promise.all([
+        canUseAnnouncementsPriorityColumns(),
+        canUseAnnouncementsFeaturedBannerColumn()
+      ]).then(function(flags) {
+        return { priorityColumns: !!flags[0], featuredBannerColumn: !!flags[1] };
       });
     },
 

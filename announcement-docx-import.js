@@ -69,7 +69,8 @@
       body: norm(current.body) || null,
       expires_at: expires || null,
       priority: priority,
-      highlight_priority: normalizeBool(current.highlight_priority || current.highlight)
+      highlight_priority: normalizeBool(current.highlight_priority || current.highlight),
+      featured_banner: normalizeBool(current.featured_banner || current.banner || current.featured)
     });
   }
 
@@ -79,11 +80,11 @@
     var lines = String(rawText || '').split(/\n/).map(function(line) { return line.replace(/\t/g, ' ').trimRight(); });
     var current = null;
     var currentField = '';
-    var keyRe = /^(title|body|expires|expires_at|priority|highlight|highlight_priority)\s*:\s*(.*)$/i;
+    var keyRe = /^(title|body|expires|expires_at|priority|highlight|highlight_priority|featured_banner|banner|featured)\s*:\s*(.*)$/i;
     var sepRe = /^-{3,}\s*$/;
 
     function ensureCurrent() {
-      if (!current) current = { title: '', body: '', expires_at: '', priority: '', highlight_priority: '' };
+      if (!current) current = { title: '', body: '', expires_at: '', priority: '', highlight_priority: '', featured_banner: '' };
     }
 
     lines.forEach(function(line) {
@@ -111,6 +112,7 @@
         ensureCurrent();
         if (key === 'expires') key = 'expires_at';
         if (key === 'highlight') key = 'highlight_priority';
+        if (key === 'banner' || key === 'featured') key = 'featured_banner';
         current[key] = val;
         currentField = key;
         return;
@@ -140,6 +142,7 @@
     if (t.indexOf('expire') >= 0 || t.indexOf('date') >= 0) return 'expires_at';
     if (t.indexOf('priority') >= 0) return 'priority';
     if (t.indexOf('highlight') >= 0 || t.indexOf('shade') >= 0) return 'highlight_priority';
+    if (t.indexOf('banner') >= 0 || t.indexOf('featured') >= 0) return 'featured_banner';
     return '';
   }
 
@@ -174,7 +177,8 @@
         body: bestMap.body != null ? (cells[bestMap.body] || '') : '',
         expires_at: bestMap.expires_at != null ? (cells[bestMap.expires_at] || '') : '',
         priority: bestMap.priority != null ? (cells[bestMap.priority] || '') : '',
-        highlight_priority: bestMap.highlight_priority != null ? (cells[bestMap.highlight_priority] || '') : ''
+        highlight_priority: bestMap.highlight_priority != null ? (cells[bestMap.highlight_priority] || '') : '',
+        featured_banner: bestMap.featured_banner != null ? (cells[bestMap.featured_banner] || '') : ''
       }, out, warnings);
     });
     return { announcements: out, warnings: warnings };
