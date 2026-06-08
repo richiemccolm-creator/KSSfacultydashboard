@@ -541,10 +541,20 @@
     }
   }
 
+  function countFilteredPupils(rows) {
+    var keys = new Set();
+    (rows || []).forEach(function(r) { if (r.pupilKey) keys.add(r.pupilKey); });
+    return keys.size;
+  }
+
   function recalcFilteredState() {
     HUB.filteredRows = applyFilters(HUB.factRows, FILTER_STATE);
     var chip = $('th-filtered-count');
-    if (chip) chip.textContent = HUB.filteredRows.length + ' rows';
+    if (chip) {
+      var pupils = countFilteredPupils(HUB.filteredRows);
+      chip.textContent = pupils + ' pupil' + (pupils === 1 ? '' : 's');
+      chip.title = pupils + ' pupils · ' + HUB.filteredRows.length + ' score rows (pupil × subject × TP)';
+    }
     renderActiveFilterChips();
     HUB.dataQuality = computeDataQuality(HUB.filteredRows);
     updateDataQualityUi();
@@ -720,6 +730,7 @@
         '</div>' +
         '<div class="th-kpi-sub">' + k.artPupils + ' art · ' + k.dramaPupils + ' drama' +
           (k.dualPupils ? ' · ' + k.dualPupils + ' dual' : '') + '</div>' +
+        '<div class="th-kpi-hint">Click to open Classes</div>' +
       '</div>' +
       '<div class="th-kpi-card accent-risk th-kpi-clickable" data-kpi="at-risk" tabindex="0" role="button">' +
         '<div class="th-kpi-head"><span class="th-kpi-label risk">At risk</span><i class="ti ti-alert-triangle th-kpi-icon risk" aria-hidden="true"></i></div>' +
@@ -729,6 +740,7 @@
           '<span class="th-badge th-badge-med">' + k.medCount + ' med</span>' +
           (k.lowCount ? '<span class="th-badge th-badge-low">' + k.lowCount + ' low</span>' : '') +
         '</div>' +
+        '<div class="th-kpi-hint">Click to open At Risk</div>' +
       '</div>' +
       '<div class="th-kpi-card">' +
         '<div class="th-kpi-head"><span class="th-kpi-label">Average score</span><i class="ti ti-chart-bar th-kpi-icon" aria-hidden="true"></i></div>' +
@@ -1079,7 +1091,9 @@
     var authReady = !!global.__authReady;
     var canView = !authReady || !!global.__authGuardCanViewSchoolWideTracking || !!global.__authGuardIsAdmin;
     if (!canView) {
-      if (statusEl) statusEl.textContent = 'You do not have school-wide tracking permissions.';
+      if (statusEl) {
+        statusEl.innerHTML = '<span class="th-status-warn">No school-wide access</span> — ask an admin for tracking permissions';
+      }
       toast('No access to school-wide monitoring');
       return;
     }
@@ -1162,8 +1176,6 @@
       });
     });
 
-    var applyBtn = $('flt-apply-btn');
-    if (applyBtn) applyBtn.addEventListener('click', applyQuickFilters);
     var resetBtn = $('flt-reset-btn');
     if (resetBtn) resetBtn.addEventListener('click', resetFilters);
     var advApply = $('flt-adv-apply-btn');
@@ -1176,7 +1188,17 @@
 
     var search = $('flt-quick-search');
     if (search) {
-      search.addEventListener('keydown', function(ev) { if (ev.key === 'Enter') applyQuickFilters(); });
+      var searchTimer = null;
+      search.addEventListener('input', function() {
+        clearTimeout(searchTimer);
+        searchTimer = setTimeout(applyQuickFilters, 280);
+      });
+      search.addEventListener('keydown', function(ev) {
+        if (ev.key === 'Enter') {
+          clearTimeout(searchTimer);
+          applyQuickFilters();
+        }
+      });
     }
 
     var teacherSearch = $('th-teacher-search');
@@ -1261,6 +1283,7 @@
     if (global.TrackingHubSnapshot) global.TrackingHubSnapshot.init(HubApi);
     if (global.TrackingHubDigest) global.TrackingHubDigest.init(HubApi);
     if (global.TrackingHubParent) global.TrackingHubParent.init(HubApi);
+    if (global.TrackingHubUx) global.TrackingHubUx.init();
 
     function startHubAfterAccess() {
       waitForAuthGuardReady(5000).then(function() {

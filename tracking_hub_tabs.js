@@ -221,8 +221,10 @@
       }).join('');
       var expanded = EXPANDED_TEACHER === t.teacher;
 
-      html.push('<tr class="th-teacher-row' + (expanded ? ' is-expanded' : '') + '" data-teacher="' + TH.safeText(t.teacher) + '" tabindex="0" role="button" aria-expanded="' + (expanded ? 'true' : 'false') + '">' +
-        '<td><div class="th-teacher-cell"><span class="th-teacher-avatar ' + avatarClass + '">' + TH.safeText(TH.initials(t.teacher)) + '</span>' +
+      html.push('<tr class="th-teacher-row' + (expanded ? ' is-expanded' : '') + '" data-teacher="' + TH.safeText(t.teacher) + '" tabindex="0" role="button" aria-expanded="' + (expanded ? 'true' : 'false') + '" aria-label="Expand classes for ' + TH.safeText(t.teacher) + '">' +
+        '<td><div class="th-teacher-cell">' +
+        '<span class="th-expand-chevron" aria-hidden="true"><i class="ti ti-chevron-' + (expanded ? 'down' : 'right') + '"></i></span>' +
+        '<span class="th-teacher-avatar ' + avatarClass + '">' + TH.safeText(TH.initials(t.teacher)) + '</span>' +
         '<div><div style="font-weight:500">' + TH.safeText(t.teacher) + '</div></div></div></td>' +
         '<td>' + subChips + '</td>' +
         '<td style="text-align:center">' + t.classes + '</td>' +
@@ -350,7 +352,7 @@
       var tps = Object.keys(p.tpScores).sort(TH.tpSort);
       var flagHtml = global.TrackingHubNotes && global.TrackingHubNotes.hasOpenFlag(p.pupilKey, p.subject)
         ? ' <i class="ti ti-flag-filled th-flag-icon" title="Open hub flag" aria-hidden="true"></i>' : '';
-      return '<div class="th-at-risk-card sev-' + sev + '">' +
+      return '<div class="th-at-risk-card th-at-risk-clickable sev-' + sev + '" data-pupil="' + TH.safeText(p.pupilKey) + '" data-subject="' + TH.safeText(p.subject) + '" tabindex="0" role="button" aria-label="Open profile for ' + TH.safeText(p.name) + '">' +
         '<div class="th-attention-pupil">' +
           '<span class="th-avatar ' + (p.subject === 'art' ? 'art' : 'drama') + '">' + TH.safeText(TH.initials(p.name)) + '</span>' +
           '<div><div class="th-pupil-name">' + TH.safeText(p.name) + flagHtml + '</div>' +
@@ -574,11 +576,20 @@
 
     var atRiskGrid = $('at-risk-grid');
     if (atRiskGrid) {
+      function openAtRiskFromTarget(target) {
+        if (target.closest('a[href]')) return;
+        var card = target.closest('.th-at-risk-clickable');
+        if (!card) return;
+        global.TrackingHubDrawer.open(card.getAttribute('data-pupil'), card.getAttribute('data-subject'), card);
+      }
       atRiskGrid.addEventListener('click', function(ev) {
-        var btn = ev.target.closest('.th-open-profile');
-        if (!btn) return;
-        global.TrackingHubDrawer.open(btn.getAttribute('data-pupil'), btn.getAttribute('data-subject'), btn);
+        openAtRiskFromTarget(ev.target);
       });
+      if (global.TrackingHubA11y) {
+        global.TrackingHubA11y.makeKeyboardActivatable(atRiskGrid, '.th-at-risk-clickable', function(card) {
+          global.TrackingHubDrawer.open(card.getAttribute('data-pupil'), card.getAttribute('data-subject'), card);
+        });
+      }
     }
 
     var atRiskSort = $('at-risk-sort');
