@@ -14,6 +14,7 @@
 <script src="allowlist-check.js"></script>
 <script src="auth-guard.js"></script>
 <script src="triangulation-service.js"></script>
+<script src="class-visit-service.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -209,9 +210,36 @@ a.sidebar-item:hover{color:var(--white)}
 .btn-primary:hover{background:#16a34a}
 .btn svg{width:14px;height:14px;flex-shrink:0}
 
+/* SAVED VISITS */
+.saved-visits-panel{margin-top:1.5rem}
+.saved-visit-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:.85rem 0;border-bottom:1px solid var(--border);font-size:13px}
+.saved-visit-row:last-child{border-bottom:none}
+.saved-visit-meta{flex:1;min-width:0}
+.saved-visit-title{font-weight:600;color:var(--text)}
+.saved-visit-sub{font-size:12px;color:var(--text3);margin-top:2px}
+.saved-visit-actions{display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap}
+.btn-sm{padding:6px 10px;font-size:12px}
+.empty-saved{text-align:center;padding:1.5rem;color:var(--text3);font-size:13px}
+
+/* PRINT MODAL */
+.print-modal{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:none;align-items:center;justify-content:center;padding:1rem}
+.print-modal.open{display:flex}
+.print-modal-box{background:white;border-radius:8px;max-width:900px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 20px 50px rgba(0,0,0,.2)}
+.print-modal-header{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.25rem;border-bottom:1px solid var(--border);position:sticky;top:0;background:white;z-index:1}
+.print-modal-title{font-family:'Sora',sans-serif;font-size:1rem;font-weight:700}
+.print-modal-body{padding:1.25rem 1.5rem;font-size:13px;line-height:1.6}
+.print-section{margin-bottom:1.25rem}
+.print-section h3{font-size:14px;font-weight:700;margin-bottom:.5rem;color:var(--navy)}
+.print-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;margin-bottom:1rem;font-size:13px}
+.print-element{border:1px solid var(--border);border-radius:6px;padding:1rem;margin-bottom:.75rem}
+.print-element-title{font-weight:600;margin-bottom:.5rem}
+.print-feedback{margin-top:.35rem;color:var(--text2);white-space:pre-wrap}
+
 /* PRINT */
 @media print{
-  .sidebar,.topbar-meta,.progress-wrap,.actions-bar,.btn,.pod-chip,.rating-btn,.hgios-chips,.hgios-label,.role-helper{display:none!important}
+  .sidebar,.topbar-meta,.progress-wrap,.actions-bar,.btn,.pod-chip,.rating-btn,.hgios-chips,.hgios-label,.role-helper,.saved-visits-panel,.print-modal-header{display:none!important}
+  .print-modal{position:static;background:none;display:block!important;padding:0}
+  .print-modal-box{max-height:none;box-shadow:none;border-radius:0}
   body{background:white}
   .main{margin-left:0}
   .purpose-strip{margin:0;padding:16px 0}
@@ -694,7 +722,7 @@ a.sidebar-item:hover{color:var(--white)}
 
     <!-- ACTIONS -->
     <div class="actions-bar">
-      <div class="save-status"><strong id="saveStatus">Unsaved</strong> — auto-saves as you type</div>
+      <div class="save-status"><strong id="saveStatus">Unsaved</strong> — draft auto-saves on this device; <strong>Save Visit</strong> stores to the system for viewing and printing later</div>
       <div class="actions-right">
         <button class="btn btn-ghost" onclick="clearForm()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>Clear
@@ -705,19 +733,51 @@ a.sidebar-item:hover{color:var(--white)}
         <button class="btn btn-ghost" id="export-triangulation-btn" onclick="exportToTriangulation()" title="Save this observation to Triangulation of Evidence (admin only)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>Export to Triangulation
         </button>
-        <button class="btn btn-ghost" onclick="window.print()">
+        <button class="btn btn-ghost" onclick="viewCurrentVisit();setTimeout(function(){window.print()},300)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>Print / PDF
         </button>
-        <button class="btn btn-primary" onclick="saveForm()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>Save
+        <button class="btn btn-primary" onclick="archiveVisit()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>Save Visit
         </button>
+      </div>
+    </div>
+
+    <!-- SAVED VISITS -->
+    <div class="panel saved-visits-panel">
+      <div class="panel-header" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+        <div class="panel-title">Saved Visits</div>
+        <div class="field" style="margin:0;min-width:120px">
+          <label for="savedVisitsYear">School year</label>
+          <select id="savedVisitsYear" onchange="loadSavedVisits()" style="background:white;border:1px solid var(--border);border-radius:6px;padding:8px 10px;font-size:13px;width:100%"></select>
+        </div>
+      </div>
+      <div class="panel-body" id="savedVisitsList">
+        <div class="empty-saved">Loading saved visits…</div>
       </div>
     </div>
 
   </div>
 
+  <div class="print-modal" id="printModal" onclick="if(event.target===this)closePrintModal()">
+    <div class="print-modal-box">
+      <div class="print-modal-header">
+        <div class="print-modal-title" id="printModalTitle">Class Visit</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn btn-ghost btn-sm" onclick="window.print()">Print / PDF</button>
+          <button class="btn btn-ghost btn-sm" onclick="closePrintModal()">Close</button>
+        </div>
+      </div>
+      <div class="print-modal-body" id="printModalBody"></div>
+    </div>
+  </div>
+
 <script>
   const ratings = {};
+  const DRAFT_KEY = 'kss_obs_v2';
+  const ARCHIVE_KEY = 'kss_obs_archive';
+  const ELEMENT_LABELS = ['Planning','Welcome & Ethos','Learning Intention','Success Criteria','Differentiation','Digital Learning','Assessment (inc. Plenary)'];
+  let editingVisitId = null;
+  let savedVisitsCache = [];
 
   function insertChip(textareaId, word) {
     const ta = document.getElementById(textareaId);
@@ -787,35 +847,255 @@ a.sidebar-item:hover{color:var(--white)}
     return data;
   }
 
+  function getCurrentSchoolYear() {
+    return (window.getCurrentSchoolYear && window.getCurrentSchoolYear()) || '';
+  }
+
+  function initSavedVisitsYearSelect() {
+    const sel = document.getElementById('savedVisitsYear');
+    if (!sel) return;
+    const y = new Date().getFullYear();
+    let html = '';
+    for (let i = -1; i <= 2; i++) {
+      const sy = (y + i) + '-' + String(y + i + 1).slice(-2);
+      html += '<option value="' + sy + '"' + (i === 0 ? ' selected' : '') + '>' + sy + '</option>';
+    }
+    sel.innerHTML = html;
+  }
+
+  function applyRating(group, label) {
+    if (!label) return;
+    const parts = group.split('-');
+    const cardNum = parts[1];
+    const card = document.getElementById('card-' + cardNum);
+    if (!card) return;
+    const row = card.querySelector(parts[0] === 't' ? '.body-col:nth-child(2) .rating-row' : '.body-col:nth-child(3) .rating-row');
+    if (!row) return;
+    row.querySelectorAll('.rating-btn').forEach(b => {
+      b.classList.remove('r-str','r-dev','r-imp');
+      if (b.textContent.trim() === label) {
+        if (label === 'Strength') b.classList.add('r-str');
+        else if (label === 'Developing') b.classList.add('r-dev');
+        else if (label === 'Improve') b.classList.add('r-imp');
+      }
+    });
+    ratings[group] = label;
+  }
+
+  function populateForm(d) {
+    if (!d) return;
+    ['teacher','class','observer','date','focus','reflections','nextsteps'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = d[id] || '';
+    });
+    document.querySelectorAll('.pod-chip').forEach(c => {
+      c.classList.toggle('active', !!(d.pods && d.pods.includes(c.textContent.trim())));
+    });
+    Object.keys(ratings).forEach(k => delete ratings[k]);
+    if (d.ratings) Object.keys(d.ratings).forEach(k => applyRating(k, d.ratings[k]));
+    for (let i = 1; i <= 7; i++) {
+      const f = d.feedback && d.feedback[i] ? d.feedback[i] : {};
+      const tf = document.getElementById('tf-' + i);
+      const of = document.getElementById('of-' + i);
+      if (tf) tf.value = f.teacher || '';
+      if (of) of.value = f.observer || '';
+      updateStatus('card-' + i);
+    }
+    updateProgress();
+  }
+
   function saveForm() {
-    localStorage.setItem('kss_obs_v2', JSON.stringify(gatherData()));
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(gatherData()));
     const s = document.getElementById('saveStatus');
-    s.textContent = 'Saved at ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+    s.textContent = 'Draft saved at ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
     s.style.color = '#15803d';
-    setTimeout(() => { s.style.color=''; s.textContent='All changes saved'; }, 2500);
+    setTimeout(() => { s.style.color=''; s.textContent='Draft auto-saved as you type'; }, 2500);
   }
 
   function loadForm() {
-    const raw = localStorage.getItem('kss_obs_v2');
+    const raw = localStorage.getItem(DRAFT_KEY);
     if (!raw) return;
     try {
-      const d = JSON.parse(raw);
-      ['teacher','class','observer','date','focus','reflections','nextsteps'].forEach(id => { if (d[id]) document.getElementById(id).value = d[id]; });
-      if (d.pods) document.querySelectorAll('.pod-chip').forEach(c => { if (d.pods.includes(c.textContent.trim())) c.classList.add('active'); });
-      if (d.feedback) for (let i = 1; i <= 7; i++) {
-        const f = d.feedback[i];
-        if (f?.teacher) document.getElementById('tf-'+i).value = f.teacher;
-        if (f?.observer) document.getElementById('of-'+i).value = f.observer;
-        updateStatus('card-'+i);
-      }
-      document.getElementById('saveStatus').textContent = 'Restored from save';
+      populateForm(JSON.parse(raw));
+      document.getElementById('saveStatus').textContent = 'Draft restored';
     } catch(e) {}
+  }
+
+  function archiveVisit() {
+    if (!window.ClassVisitService) {
+      alert('Sign in to save visits to the system.');
+      return;
+    }
+    const d = gatherData();
+    if (!d.teacher && !d.date && !d.class) {
+      alert('Add at least a teacher, class, or date before saving this visit.');
+      return;
+    }
+    const s = document.getElementById('saveStatus');
+    s.textContent = 'Saving visit…';
+    ClassVisitService.saveVisit({
+      id: editingVisitId || undefined,
+      school_year: ClassVisitService.schoolYearFromDate(d.date),
+      data: d,
+      metadata: { source: 'class_visit_feedback' }
+    }).then(function(row) {
+      editingVisitId = row.id || editingVisitId;
+      saveForm();
+      return loadSavedVisits();
+    }).then(function() {
+      s.textContent = editingVisitId ? 'Visit updated in the system' : 'Visit saved to the system';
+      s.style.color = '#15803d';
+      setTimeout(() => { s.style.color=''; s.textContent='Draft auto-saves on this device; Save Visit stores to the system'; }, 3000);
+    }).catch(function() {
+      s.textContent = 'Could not save visit';
+      s.style.color = '#991b1b';
+      alert('Save failed. Check you are signed in and the class_visits database table has been created.');
+    });
+  }
+
+  function loadSavedVisits() {
+    const el = document.getElementById('savedVisitsList');
+    if (!window.ClassVisitService) {
+      el.innerHTML = '<div class="empty-saved">Sign in to view saved visits from the system.</div>';
+      return Promise.resolve();
+    }
+    el.innerHTML = '<div class="empty-saved">Loading saved visits…</div>';
+    const sy = document.getElementById('savedVisitsYear')?.value || getCurrentSchoolYear();
+    return ClassVisitService.getVisits(sy).then(function(rows) {
+      savedVisitsCache = rows || [];
+      renderSavedVisits();
+    }).catch(function() {
+      el.innerHTML = '<div class="empty-saved">Could not load saved visits. Run the class_visits migration in Supabase if this is a new setup.</div>';
+    });
+  }
+
+  function renderSavedVisits() {
+    const el = document.getElementById('savedVisitsList');
+    const archive = savedVisitsCache || [];
+    if (!archive.length) {
+      el.innerHTML = '<div class="empty-saved">No saved visits for this school year yet. Complete a visit and click <strong>Save Visit</strong> to store it in the system.</div>';
+      return;
+    }
+    el.innerHTML = archive.map(v => {
+      const d = v.data || {};
+      const title = (d.teacher || 'Unnamed teacher') + (d.class ? ' · ' + d.class : '');
+      const savedAt = v.updated_at || v.created_at;
+      const sub = (d.date || 'No date') + (d.observer ? ' · Observer: ' + d.observer : '') + (savedAt ? ' · Saved ' + new Date(savedAt).toLocaleString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '');
+      const safeId = String(v.id || '').replace(/'/g, "\\'");
+      return '<div class="saved-visit-row">' +
+        '<div class="saved-visit-meta"><div class="saved-visit-title">' + escHtml(title) + '</div><div class="saved-visit-sub">' + escHtml(sub) + '</div></div>' +
+        '<div class="saved-visit-actions">' +
+        '<button class="btn btn-ghost btn-sm" onclick="loadArchivedVisit(\'' + safeId + '\')">Load</button>' +
+        '<button class="btn btn-ghost btn-sm" onclick="viewSavedVisit(\'' + safeId + '\')">View</button>' +
+        '<button class="btn btn-ghost btn-sm" onclick="deleteArchivedVisit(\'' + safeId + '\')">Delete</button>' +
+        '</div></div>';
+    }).join('');
+  }
+
+  function escHtml(v) {
+    return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function loadArchivedVisit(id) {
+    const entry = savedVisitsCache.find(v => v.id === id);
+    if (!entry) return;
+    if (!confirm('Load this saved visit into the form? Unsaved draft changes will be replaced.')) return;
+    populateForm(entry.data);
+    editingVisitId = entry.id;
+    saveForm();
+    document.getElementById('saveStatus').textContent = 'Loaded saved visit — Save Visit will update this record';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function deleteArchivedVisit(id) {
+    if (!window.ClassVisitService) return;
+    if (!confirm('Delete this saved visit from the system? This cannot be undone.')) return;
+    ClassVisitService.deleteVisit(id).then(function() {
+      if (editingVisitId === id) editingVisitId = null;
+      return loadSavedVisits();
+    }).catch(function() {
+      alert('Delete failed. You can only delete visits you saved, unless you are an administrator.');
+    });
+  }
+
+  function buildVisitPrintHtml(d) {
+    let html = '<div class="print-meta">' +
+      '<div><strong>Teacher:</strong> ' + escHtml(d.teacher || '—') + '</div>' +
+      '<div><strong>Class:</strong> ' + escHtml(d.class || '—') + '</div>' +
+      '<div><strong>Observer:</strong> ' + escHtml(d.observer || '—') + '</div>' +
+      '<div><strong>Date:</strong> ' + escHtml(d.date || '—') + '</div>' +
+      '<div style="grid-column:1/-1"><strong>Focus:</strong> ' + escHtml(d.focus || '—') + '</div>';
+    if (d.pods && d.pods.length) html += '<div style="grid-column:1/-1"><strong>Pedagogy Pod Focus:</strong> ' + escHtml(d.pods.join(', ')) + '</div>';
+    html += '</div>';
+    ELEMENT_LABELS.forEach((label, i) => {
+      const n = i + 1;
+      const f = d.feedback && d.feedback[n] ? d.feedback[n] : {};
+      if (!f.teacher && !f.observer) return;
+      html += '<div class="print-element"><div class="print-element-title">' + n + '. ' + escHtml(label) + '</div>';
+      if (f.teacher) html += '<div class="print-feedback"><strong>Teacher</strong> [' + escHtml((d.ratings && d.ratings['t-' + n]) || '—') + ']: ' + escHtml(f.teacher) + '</div>';
+      if (f.observer) html += '<div class="print-feedback"><strong>Observer</strong> [' + escHtml((d.ratings && d.ratings['o-' + n]) || '—') + ']: ' + escHtml(f.observer) + '</div>';
+      html += '</div>';
+    });
+    if (d.reflections) html += '<div class="print-section"><h3>Observer Reflections</h3><div class="print-feedback">' + escHtml(d.reflections) + '</div></div>';
+    if (d.nextsteps) html += '<div class="print-section"><h3>Agreed Next Steps</h3><div class="print-feedback">' + escHtml(d.nextsteps) + '</div></div>';
+    return html;
+  }
+
+  function viewSavedVisit(id) {
+    const entry = savedVisitsCache.find(v => v.id === id);
+    if (!entry) return;
+    const d = entry.data || {};
+    document.getElementById('printModalTitle').textContent = 'Class Visit — ' + (d.teacher || 'Teacher') + (d.date ? ' (' + d.date + ')' : '');
+    document.getElementById('printModalBody').innerHTML = buildVisitPrintHtml(d);
+    document.getElementById('printModal').classList.add('open');
+  }
+
+  function viewCurrentVisit() {
+    const d = gatherData();
+    document.getElementById('printModalTitle').textContent = 'Class Visit — ' + (d.teacher || 'Teacher') + (d.date ? ' (' + d.date + ')' : '');
+    document.getElementById('printModalBody').innerHTML = buildVisitPrintHtml(d);
+    document.getElementById('printModal').classList.add('open');
+  }
+
+  function closePrintModal() {
+    document.getElementById('printModal').classList.remove('open');
   }
 
   function clearForm() {
     if (!confirm('Clear all data? This cannot be undone.')) return;
-    localStorage.removeItem('kss_obs_v2');
+    editingVisitId = null;
+    localStorage.removeItem(DRAFT_KEY);
     location.reload();
+  }
+
+  function migrateLocalArchiveToCloud() {
+    if (!window.ClassVisitService) return Promise.resolve();
+    let local = [];
+    try {
+      const raw = localStorage.getItem(ARCHIVE_KEY);
+      local = raw ? JSON.parse(raw) : [];
+    } catch (e) { return Promise.resolve(); }
+    if (!local.length) return Promise.resolve();
+    let chain = Promise.resolve();
+    local.forEach(function(entry) {
+      chain = chain.then(function() {
+        return ClassVisitService.saveVisit({
+          school_year: ClassVisitService.schoolYearFromDate(entry.data && entry.data.date),
+          data: entry.data || {},
+          metadata: { source: 'class_visit_feedback', migrated_from_local: true, local_saved_at: entry.savedAt || null }
+        });
+      });
+    });
+    return chain.then(function() {
+      localStorage.removeItem(ARCHIVE_KEY);
+    }).catch(function() { /* keep local copy if migration fails */ });
+  }
+
+  function initClassVisitApp() {
+    initSavedVisitsYearSelect();
+    migrateLocalArchiveToCloud().finally(function() {
+      loadSavedVisits();
+    });
   }
 
   function exportToTriangulation() {
@@ -877,6 +1157,8 @@ a.sidebar-item:hover{color:var(--white)}
   document.getElementById('date').valueAsDate = new Date();
   loadForm();
   updateProgress();
+  if (window.__authReady) initClassVisitApp();
+  else window.addEventListener('auth-guard-ready', initClassVisitApp);
 </script>
 </body>
 </html>

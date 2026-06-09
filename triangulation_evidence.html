@@ -74,6 +74,25 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .view-panel.active{display:block}
 .field{margin-bottom:1rem}
 .field textarea{width:100%;min-height:80px;padding:.5rem .75rem;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:.85rem}
+.obs-row{display:flex;align-items:center;justify-content:space-between;gap:.75rem;padding:.75rem 0;border-bottom:1px solid var(--border);font-size:.82rem}
+.obs-row:last-child{border-bottom:none}
+.obs-actions{display:flex;gap:.4rem;flex-shrink:0;flex-wrap:wrap}
+.detail-modal{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:none;align-items:center;justify-content:center;padding:1rem}
+.detail-modal.open{display:flex}
+.detail-modal-box{background:var(--card);border-radius:8px;max-width:900px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 20px 50px rgba(0,0,0,.2)}
+.detail-modal-header{display:flex;align-items:center;justify-content:space-between;padding:1rem 1.5rem;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--card);z-index:1}
+.detail-modal-title{font-family:'Sora',sans-serif;font-size:.95rem;font-weight:700}
+.detail-modal-body{padding:1.25rem 1.5rem;font-size:.82rem;line-height:1.6}
+.detail-meta{display:grid;grid-template-columns:1fr 1fr;gap:8px 16px;margin-bottom:1rem}
+.detail-element{border:1px solid var(--border);border-radius:6px;padding:.85rem 1rem;margin-bottom:.65rem}
+.detail-element-title{font-weight:600;margin-bottom:.35rem}
+.detail-feedback{margin-top:.25rem;color:var(--text2);white-space:pre-wrap}
+@media print{
+  .dash-sidebar,.hero,.sc-header,.nav-tabs,.btn,.obs-actions,.detail-modal-header{display:none!important}
+  .dash-main{margin-left:0;padding:0;max-width:none}
+  .detail-modal{position:static;background:none;display:block!important;padding:0}
+  .detail-modal-box{max-height:none;box-shadow:none}
+}
 </style>
 </head>
 <body style="display:flex">
@@ -190,6 +209,19 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 </div>
 
 <div class="toast" id="toast"></div>
+
+<div class="detail-modal" id="obs-detail-modal" onclick="if(event.target===this)closeObservationDetail()">
+  <div class="detail-modal-box">
+    <div class="detail-modal-header">
+      <div class="detail-modal-title" id="obs-detail-title">Observation</div>
+      <div style="display:flex;gap:.5rem">
+        <button class="btn btn-ghost" onclick="printObservationDetail()">Print / PDF</button>
+        <button class="btn btn-ghost" onclick="closeObservationDetail()">Close</button>
+      </div>
+    </div>
+    <div class="detail-modal-body" id="obs-detail-body"></div>
+  </div>
+</div>
 
 <script>
 var FOCUS_GROUP_THEMES = [
@@ -604,14 +636,78 @@ function renderFocusGroupList(list) {
   }).join('');
 }
 
+var OBS_ELEMENT_LABELS = ['Planning','Welcome & Ethos','Learning Intention','Success Criteria','Differentiation','Digital Learning','Assessment (inc. Plenary)'];
+
+function buildObservationDetailHtml(d) {
+  var html = '<div class="detail-meta">' +
+    '<div><strong>Teacher:</strong> ' + escHtml(d.teacher || '—') + '</div>' +
+    '<div><strong>Class:</strong> ' + escHtml(d.class || '—') + '</div>' +
+    '<div><strong>Observer:</strong> ' + escHtml(d.observer || '—') + '</div>' +
+    '<div><strong>Date:</strong> ' + escHtml(d.date || '—') + '</div>' +
+    '<div style="grid-column:1/-1"><strong>Focus:</strong> ' + escHtml(d.focus || '—') + '</div>';
+  if (d.pods && d.pods.length) html += '<div style="grid-column:1/-1"><strong>Pedagogy Pod Focus:</strong> ' + escHtml(d.pods.join(', ')) + '</div>';
+  html += '</div>';
+  OBS_ELEMENT_LABELS.forEach(function(label, i) {
+    var n = i + 1;
+    var f = d.feedback && d.feedback[n] ? d.feedback[n] : (d.feedback && d.feedback[String(n)] ? d.feedback[String(n)] : {});
+    if (!f.teacher && !f.observer) return;
+    html += '<div class="detail-element"><div class="detail-element-title">' + (i + 1) + '. ' + escHtml(label) + '</div>';
+    if (f.teacher) html += '<div class="detail-feedback"><strong>Teacher</strong> [' + escHtml((d.ratings && (d.ratings['t-' + n] || d.ratings['t-' + String(n)])) || '—') + ']: ' + escHtml(f.teacher) + '</div>';
+    if (f.observer) html += '<div class="detail-feedback"><strong>Observer</strong> [' + escHtml((d.ratings && (d.ratings['o-' + n] || d.ratings['o-' + String(n)])) || '—') + ']: ' + escHtml(f.observer) + '</div>';
+    html += '</div>';
+  });
+  if (d.reflections) html += '<div style="margin-bottom:1rem"><div class="form-label">Observer Reflections</div><div class="detail-feedback">' + escHtml(d.reflections) + '</div></div>';
+  if (d.nextsteps) html += '<div><div class="form-label">Agreed Next Steps</div><div class="detail-feedback">' + escHtml(d.nextsteps) + '</div></div>';
+  return html;
+}
+
 function renderObservationsList(list) {
   var el = document.getElementById('obs-list');
-  if (!list || !list.length) { el.innerHTML = 'No observations imported yet.'; return; }
+  window._observations = list || [];
+  if (!list || !list.length) {
+    el.innerHTML = '<div class="empty-s">No observations imported yet. Complete Class Visit Feedback and use "Export to Triangulation".</div>';
+    return;
+  }
   el.innerHTML = list.map(function(item) {
     var d = item.data || {};
-    return '<div style="padding:.75rem;border-bottom:1px solid var(--border);font-size:.82rem">' +
-      '<strong>' + (d.date || d.teacher || '—') + '</strong> · ' + (d.teacher || '') + ' · ' + (d.class || '') + '</div>';
+    var title = (d.date || 'No date') + ' · ' + (d.teacher || '—') + (d.class ? ' · ' + d.class : '');
+    var sub = (d.observer ? 'Observer: ' + d.observer : '') + (d.focus ? (d.observer ? ' · ' : '') + d.focus : '');
+    return '<div class="obs-row">' +
+      '<div style="min-width:0;flex:1">' +
+      '<div><strong>' + escHtml(title) + '</strong></div>' +
+      (sub ? '<div style="color:var(--text3);margin-top:.15rem">' + escHtml(sub) + '</div>' : '') +
+      '</div>' +
+      '<div class="obs-actions">' +
+      '<button class="btn btn-ghost" style="padding:.3rem .6rem;font-size:.72rem" onclick="viewObservation(\'' + String(item.id || '').replace(/'/g, "\\'") + '\')">View</button>' +
+      '<button class="btn btn-danger" style="padding:.3rem .6rem;font-size:.72rem" onclick="deleteObservation(\'' + String(item.id || '').replace(/'/g, "\\'") + '\')">Delete</button>' +
+      '</div></div>';
   }).join('');
+}
+
+function viewObservation(id) {
+  var item = (window._observations || []).find(function(o) { return o.id === id; });
+  if (!item) { toast('Observation not found'); return; }
+  var d = item.data || {};
+  document.getElementById('obs-detail-title').textContent = 'Observation — ' + (d.teacher || 'Teacher') + (d.date ? ' (' + d.date + ')' : '');
+  document.getElementById('obs-detail-body').innerHTML = buildObservationDetailHtml(d);
+  document.getElementById('obs-detail-modal').classList.add('open');
+}
+
+function closeObservationDetail() {
+  document.getElementById('obs-detail-modal').classList.remove('open');
+}
+
+function printObservationDetail() {
+  window.print();
+}
+
+function deleteObservation(id) {
+  if (!id || !confirm('Delete this observation? This cannot be undone.')) return;
+  TriangulationService.deleteEvidence(id).then(function() {
+    toast('Observation deleted');
+    closeObservationDetail();
+    loadAllEvidence();
+  }).catch(function() { toast('Delete failed'); });
 }
 
 function generateSynthesis() {
