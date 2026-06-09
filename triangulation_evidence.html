@@ -15,6 +15,7 @@
 <script src="triangulation-service.js"></script>
 <script src="synthesis-engine.js"></script>
 <script src="improvement-plan-synthesis-service.js"></script>
+<script src="synthesis-export.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -98,6 +99,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .priority-card{border:1px solid var(--border);border-radius:8px;padding:1rem;margin-bottom:.65rem;background:var(--card)}
 .priority-card.accepted{border-color:#86efac;background:#f0fdf4}
 .priority-card.dismissed{opacity:.55}
+.priority-card.triangulated{border-left:4px solid var(--accent);background:linear-gradient(135deg,#f0fdfa,#fff)}
+.tri-badge{display:inline-block;font-size:.62rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;background:#ccfbf1;color:#0f766e;padding:.2rem .5rem;border-radius:4px;margin-bottom:.35rem}
 .priority-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem;margin-bottom:.5rem}
 .priority-theme{font-size:.65rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
 .priority-sources{font-size:.7rem;color:var(--text3);margin-top:.2rem}
@@ -221,10 +224,15 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
           <div class="sc-sub">Triangulate survey, focus groups, exported observations, DIP tracker and DIP evaluation into priorities for the following year.</div>
         </div>
         <div class="synth-toolbar" id="synthesis-toolbar">
-          <button class="btn btn-ghost" onclick="regenerateSynthesisEvidence()">Regenerate evidence</button>
-          <button class="btn btn-primary" onclick="saveSynthesisPlan()">Save plan</button>
-          <button class="btn btn-ghost" onclick="applySynthesisToDip()">Apply to DIP Tracker</button>
-          <button class="btn btn-ghost" onclick="printSynthesisPlan()">Print / PDF</button>
+          <span id="synthesis-toolbar-edit" style="display:flex;gap:.5rem;flex-wrap:wrap">
+            <button class="btn btn-ghost" onclick="regenerateSynthesisEvidence()">Regenerate evidence</button>
+            <button class="btn btn-primary" onclick="saveSynthesisPlan()">Save plan</button>
+            <button class="btn btn-ghost" onclick="applySynthesisToDip()">Apply to DIP Tracker</button>
+          </span>
+          <span id="synthesis-toolbar-export" style="display:flex;gap:.5rem;flex-wrap:wrap">
+            <button class="btn btn-ghost" onclick="printSynthesisPlan()">Print / PDF</button>
+            <button class="btn btn-ghost" onclick="exportSynthesisWord()">Export Word</button>
+          </span>
         </div>
       </div>
       <div class="sc-body" id="synthesis-output">
@@ -800,8 +808,9 @@ function loadSynthesisWorkspace() {
 
 function updateSynthesisToolbar() {
   var tb = document.getElementById('synthesis-toolbar');
-  if (!tb) return;
-  tb.style.display = canManageTriangulation() ? 'flex' : 'none';
+  var edit = document.getElementById('synthesis-toolbar-edit');
+  if (tb) tb.style.display = 'flex';
+  if (edit) edit.style.display = canManageTriangulation() ? 'inline-flex' : 'none';
 }
 
 function renderSynthesisWorkspace() {
@@ -833,30 +842,52 @@ function renderSynthesisWorkspace() {
     html += '</div>';
   }
 
-  html += '<div class="synth-section"><div class="synth-section-title">Suggested priorities</div>';
   var suggestions = plan.suggested_priorities || [];
-  if (!suggestions.length) {
-    html += '<div class="empty-s" style="padding:1rem">No suggestions yet. Add survey, focus group, observation, DIP tracker or DIP evaluation data, then click Regenerate evidence.</div>';
-  } else {
-    suggestions.forEach(function(s) {
-      if (s.status === 'dismissed' && !canEdit) return;
-      var cls = 'priority-card' + (s.status === 'accepted' ? ' accepted' : '') + (s.status === 'dismissed' ? ' dismissed' : '');
-      html += '<div class="' + cls + '" data-sug-id="' + escHtml(s.id) + '">';
-      html += '<div class="priority-card-header"><div><div class="priority-theme">' + escHtml(s.themeLabel || s.theme) + '</div>';
-      html += '<div class="priority-sources">' + escHtml((s.sources || []).join(' · ')) + '</div></div></div>';
-      html += '<div class="priority-text">' + escHtml(s.text) + '</div>';
-      if (canEdit && s.status !== 'accepted' && s.status !== 'dismissed') {
-        html += '<div class="priority-actions-row">';
-        html += '<button class="btn btn-primary" onclick="acceptSynthesisSuggestion(\'' + String(s.id).replace(/'/g, "\\'") + '\')">Accept</button>';
-        html += '<button class="btn btn-ghost" onclick="dismissSynthesisSuggestion(\'' + String(s.id).replace(/'/g, "\\'") + '\')">Dismiss</button>';
-        html += '</div>';
-      } else if (s.status === 'accepted') {
-        html += '<div style="font-size:.72rem;color:#15803d;margin-top:.4rem;font-weight:600">Accepted</div>';
-      }
-      html += '</div>';
-    });
+  var triangulated = suggestions.filter(function(s) { return s.triangulated && s.status !== 'dismissed'; });
+  var other = suggestions.filter(function(s) { return !s.triangulated && s.status !== 'dismissed'; });
+  var dismissed = suggestions.filter(function(s) { return s.status === 'dismissed'; });
+
+  function renderSuggestionCard(s) {
+    var cls = 'priority-card' + (s.triangulated ? ' triangulated' : '') + (s.status === 'accepted' ? ' accepted' : '') + (s.status === 'dismissed' ? ' dismissed' : '');
+    var h = '<div class="' + cls + '" data-sug-id="' + escHtml(s.id) + '">';
+    h += '<div class="priority-card-header"><div>';
+    if (s.triangulated && s.status === 'pending') h += '<div class="tri-badge">Triangulated · ' + (s.sources || []).length + ' sources</div>';
+    h += '<div class="priority-theme">' + escHtml(s.themeLabel || s.theme) + '</div>';
+    h += '<div class="priority-sources">' + escHtml((s.sources || []).join(' · ')) + '</div></div></div>';
+    h += '<div class="priority-text">' + escHtml(s.text) + '</div>';
+    if (canEdit && s.status !== 'accepted' && s.status !== 'dismissed') {
+      h += '<div class="priority-actions-row">';
+      h += '<button class="btn btn-primary" onclick="acceptSynthesisSuggestion(\'' + String(s.id).replace(/'/g, "\\'") + '\')">Accept</button>';
+      h += '<button class="btn btn-ghost" onclick="dismissSynthesisSuggestion(\'' + String(s.id).replace(/'/g, "\\'") + '\')">Dismiss</button>';
+      h += '</div>';
+    } else if (s.status === 'accepted') {
+      h += '<div style="font-size:.72rem;color:#15803d;margin-top:.4rem;font-weight:600">Accepted</div>';
+    }
+    h += '</div>';
+    return h;
   }
-  html += '</div>';
+
+  if (!suggestions.length) {
+    html += '<div class="synth-section"><div class="synth-section-title">Suggested priorities</div>';
+    html += '<div class="empty-s" style="padding:1rem">No suggestions yet. Add survey, focus group, observation, DIP tracker or DIP evaluation data, then click Regenerate evidence.</div></div>';
+  } else {
+    if (triangulated.length) {
+      html += '<div class="synth-section"><div class="synth-section-title">Triangulated priorities</div>';
+      html += '<p style="font-size:.78rem;color:var(--text3);margin:-.35rem 0 .75rem">Same theme identified across multiple evidence sources — strongest candidates for improvement.</p>';
+      triangulated.forEach(function(s) { html += renderSuggestionCard(s); });
+      html += '</div>';
+    }
+    if (other.length) {
+      html += '<div class="synth-section"><div class="synth-section-title">Other suggested priorities</div>';
+      other.forEach(function(s) { html += renderSuggestionCard(s); });
+      html += '</div>';
+    }
+    if (dismissed.length && canEdit) {
+      html += '<div class="synth-section"><div class="synth-section-title">Dismissed</div>';
+      dismissed.forEach(function(s) { html += renderSuggestionCard(s); });
+      html += '</div>';
+    }
+  }
 
   html += '<div class="synth-section"><div class="synth-section-title">Faculty Head observations</div>';
   if (canEdit) {
@@ -994,17 +1025,18 @@ function syncPlanNarrative() {
 
 function regenerateSynthesisEvidence() {
   if (!canManageTriangulation()) return;
+  if (!confirm('Regenerate evidence from the latest data?\n\nYour accepted priorities, Faculty Head notes, plan narrative, and dismissed suggestions will be kept. New pending suggestions will be added.')) return;
+  syncManualNotes();
+  syncPlanNarrative();
   var sy = getSchoolYear();
   toast('Regenerating evidence…');
   SynthesisEngine.gatherEvidence(sy, { mergeSurveyData: mergeSurveyData }).then(function(evidence) {
-    var plan = getSynthesisPlan();
-    plan.evidence_snapshot = evidence;
-    plan.suggested_priorities = evidence.suggestedPriorities || [];
-    plan.strengths = evidence.strengths || [];
-    plan.plan_for_year = evidence.planForYear;
+    var merged = SynthesisEngine.mergeRegeneratedPlan(getSynthesisPlan(), evidence);
+    merged.school_year = sy;
+    window._synthesisState.plan = merged;
     window._synthesisState.evidence = evidence;
     renderSynthesisWorkspace();
-    toast('Evidence regenerated');
+    toast('Evidence regenerated — manual work preserved');
   }).catch(function() { toast('Could not regenerate evidence'); });
 }
 
@@ -1040,6 +1072,21 @@ function applySynthesisToDip() {
 
 function printSynthesisPlan() {
   window.print();
+}
+
+function exportSynthesisWord() {
+  if (canManageTriangulation()) {
+    syncManualNotes();
+    syncPlanNarrative();
+  }
+  if (!window.SynthesisExport) { toast('Export module not loaded'); return; }
+  var plan = getSynthesisPlan();
+  if (!(plan.accepted_priorities || []).length && !plan.manual_notes && !(plan.strengths || []).length) {
+    toast('Save a plan with accepted priorities first');
+    return;
+  }
+  SynthesisExport.downloadWord(plan);
+  toast('Word document downloaded');
 }
 
 function toast(msg) {
