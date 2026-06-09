@@ -111,11 +111,31 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .synth-input{width:100%;padding:.5rem .75rem;border:1px solid var(--border);border-radius:6px;font-size:.82rem;margin-bottom:.5rem}
 .accepted-priority-item{border:1px solid var(--border);border-radius:8px;padding:1rem;margin-bottom:.75rem;background:#fafafa}
 .synth-toolbar{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
+.evidence-panel{margin-bottom:1.25rem}
+.evidence-panel details{border:1px solid var(--border);border-radius:8px;margin-bottom:.5rem;background:#fafafa}
+.evidence-panel summary{padding:.7rem 1rem;cursor:pointer;font-weight:600;font-size:.82rem;list-style:none;display:flex;align-items:center;justify-content:space-between;gap:.5rem}
+.evidence-panel summary::-webkit-details-marker{display:none}
+.evidence-panel summary::after{content:'▾';color:var(--text3);font-size:.75rem}
+.evidence-panel details[open] summary::after{content:'▴'}
+.evidence-panel .evidence-body{padding:0 1rem 1rem;font-size:.8rem;color:var(--text2);line-height:1.55}
+.evidence-item{padding:.45rem 0;border-bottom:1px solid var(--border)}
+.evidence-item:last-child{border-bottom:none}
+.evidence-tag{display:inline-block;font-size:.62rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;background:#e2e8f0;color:#475569;padding:.15rem .45rem;border-radius:4px;margin-right:.35rem}
+.theme-summary-row{display:flex;flex-wrap:wrap;gap:.35rem .5rem;align-items:center;padding:.35rem 0}
+.print-synth-header{display:none}
 @media print{
-  .dash-sidebar,.hero,.sc:not(.synth-print-area),.nav-tabs,.btn,.obs-actions,.detail-modal-header,.synth-toolbar,.priority-actions-row{display:none!important}
+  .dash-sidebar,.hero,.sc:not(.synth-print-area),.nav-tabs,.btn,.obs-actions,.detail-modal,.detail-modal-header,.synth-toolbar,.priority-actions-row,.evidence-panel summary::after{display:none!important}
   .dash-main{margin-left:0;padding:0;max-width:none}
-  .detail-modal{position:static;background:none;display:block!important;padding:0}
-  .detail-modal-box{max-height:none;box-shadow:none}
+  .print-synth-header{display:block!important;margin-bottom:1.25rem;padding-bottom:.75rem;border-bottom:2px solid #1e2d4a}
+  .print-synth-header h1{font-family:'Sora',sans-serif;font-size:1.35rem;color:#1e2d4a;margin:0 0 .35rem}
+  .print-synth-header p{font-size:.8rem;color:#4a5568;margin:0}
+  .synth-section{page-break-inside:avoid;margin-bottom:1rem}
+  .synth-section.dismissed-section,.priority-card.dismissed{display:none!important}
+  .evidence-panel details{border:none;background:none;margin-bottom:.75rem}
+  .evidence-panel summary{display:none!important}
+  .evidence-panel .evidence-body{display:block!important;padding:0}
+  .synth-textarea,.synth-input{border:none;padding:0;min-height:auto;resize:none}
+  .accepted-priority-item{border:1px solid #cbd5e0;background:#fff}
 }
 </style>
 </head>
@@ -237,6 +257,25 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
       </div>
       <div class="sc-body" id="synthesis-output">
         <div class="empty-s">Open this tab to load the synthesis workspace.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="detail-modal" id="synth-edit-modal">
+  <div class="detail-modal-box" style="max-width:640px">
+    <div class="detail-modal-header">
+      <div class="detail-modal-title">Edit suggested priority</div>
+      <button class="btn btn-ghost" onclick="closeSynthesisEditModal()">Close</button>
+    </div>
+    <div class="detail-modal-body">
+      <label class="form-label">Priority text</label>
+      <textarea class="synth-textarea" id="synth-edit-text" style="min-height:120px;margin-bottom:1rem"></textarea>
+      <label class="form-label">Suggested actions (one per line)</label>
+      <textarea class="synth-textarea" id="synth-edit-actions" style="min-height:90px"></textarea>
+      <div style="display:flex;gap:.5rem;margin-top:1rem">
+        <button class="btn btn-primary" onclick="saveSynthesisEdit()">Save changes</button>
+        <button class="btn btn-ghost" onclick="closeSynthesisEditModal()">Cancel</button>
       </div>
     </div>
   </div>
@@ -790,6 +829,11 @@ function loadSynthesisWorkspace() {
       window._synthesisState.plan = saved;
       if (!saved.evidence_snapshot || !Object.keys(saved.evidence_snapshot).length) {
         saved.evidence_snapshot = evidence;
+      } else if (!saved.evidence_snapshot.sourceDetails) {
+        saved.evidence_snapshot = Object.assign({}, saved.evidence_snapshot, {
+          sourceDetails: evidence.sourceDetails,
+          themeBuckets: evidence.themeBuckets
+        });
       }
     } else {
       var plan = getSynthesisPlan();
@@ -834,6 +878,8 @@ function renderSynthesisWorkspace() {
   if (plan.dip_seed_applied) html += ' · <span style="color:#15803d">Applied to DIP ' + escHtml(plan.plan_for_year) + '</span>';
   html += '</div></div>';
 
+  html += renderEvidenceDrillDown(evidence, plan);
+
   if ((evidence.strengths || plan.strengths || []).length) {
     html += '<div class="synth-section"><div class="synth-section-title">Strengths to sustain</div>';
     (plan.strengths || evidence.strengths || []).forEach(function(s) {
@@ -852,16 +898,22 @@ function renderSynthesisWorkspace() {
     var h = '<div class="' + cls + '" data-sug-id="' + escHtml(s.id) + '">';
     h += '<div class="priority-card-header"><div>';
     if (s.triangulated && s.status === 'pending') h += '<div class="tri-badge">Triangulated · ' + (s.sources || []).length + ' sources</div>';
+    if (s.edited && s.status === 'pending') h += '<div style="font-size:.68rem;color:var(--text3);margin-bottom:.25rem">Edited by Faculty Head</div>';
     h += '<div class="priority-theme">' + escHtml(s.themeLabel || s.theme) + '</div>';
     h += '<div class="priority-sources">' + escHtml((s.sources || []).join(' · ')) + '</div></div></div>';
     h += '<div class="priority-text">' + escHtml(s.text) + '</div>';
     if (canEdit && s.status !== 'accepted' && s.status !== 'dismissed') {
       h += '<div class="priority-actions-row">';
       h += '<button class="btn btn-primary" onclick="acceptSynthesisSuggestion(\'' + String(s.id).replace(/'/g, "\\'") + '\')">Accept</button>';
+      h += '<button class="btn btn-ghost" onclick="editSynthesisSuggestion(\'' + String(s.id).replace(/'/g, "\\'") + '\')">Edit</button>';
       h += '<button class="btn btn-ghost" onclick="dismissSynthesisSuggestion(\'' + String(s.id).replace(/'/g, "\\'") + '\')">Dismiss</button>';
       h += '</div>';
     } else if (s.status === 'accepted') {
       h += '<div style="font-size:.72rem;color:#15803d;margin-top:.4rem;font-weight:600">Accepted</div>';
+    } else if (canEdit && s.status === 'dismissed') {
+      h += '<div class="priority-actions-row">';
+      h += '<button class="btn btn-ghost" onclick="restoreSynthesisSuggestion(\'' + String(s.id).replace(/'/g, "\\'") + '\')">Restore</button>';
+      h += '</div>';
     }
     h += '</div>';
     return h;
@@ -883,7 +935,7 @@ function renderSynthesisWorkspace() {
       html += '</div>';
     }
     if (dismissed.length && canEdit) {
-      html += '<div class="synth-section"><div class="synth-section-title">Dismissed</div>';
+      html += '<div class="synth-section dismissed-section"><div class="synth-section-title">Dismissed</div>';
       dismissed.forEach(function(s) { html += renderSuggestionCard(s); });
       html += '</div>';
     }
@@ -938,7 +990,130 @@ function renderSynthesisWorkspace() {
     html += '</div></div>';
   }
 
+  html = '<div class="print-synth-header"><h1>Faculty Improvement Plan</h1><p>Knightswood Secondary School · Expressive Arts Faculty · Evaluated ' + escHtml(plan.school_year || '') + ' · Plan for ' + escHtml(plan.plan_for_year || '') + '</p></div>' + html;
   out.innerHTML = html;
+}
+
+function renderEvidenceDrillDown(evidence, plan) {
+  var details = evidence.sourceDetails;
+  if (!details) return '';
+  var html = '<div class="synth-section evidence-panel"><div class="synth-section-title">Evidence behind the synthesis</div>';
+  html += '<p style="font-size:.78rem;color:var(--text3);margin:-.35rem 0 .75rem">Expand each source to review the quotes and stats that informed suggested priorities.</p>';
+
+  html += '<details><summary>Pupil surveys <span style="font-weight:400;color:var(--text3)">' + details.surveys.uploads + ' upload(s)';
+  if (details.surveys.responses) html += ' · ' + details.surveys.responses + ' responses';
+  html += '</span></summary><div class="evidence-body">';
+  if (!details.surveys.uploads) {
+    html += '<div class="evidence-item">No survey data uploaded for this year.</div>';
+  } else {
+    (details.surveys.strengths || []).forEach(function(s) {
+      html += '<div class="evidence-item"><span class="evidence-tag">Strength</span>' + escHtml(s.themeLabel) + ': ' + s.positivePct + '% positive (' + s.total + ' responses)</div>';
+    });
+    (details.surveys.development || []).forEach(function(d) {
+      html += '<div class="evidence-item"><span class="evidence-tag">Development</span>' + escHtml(d.themeLabel) + ': ' + d.negativePct + '% disagreed (' + d.total + ' responses)</div>';
+    });
+  }
+  html += '</div></details>';
+
+  html += '<details><summary>Focus groups <span style="font-weight:400;color:var(--text3)">' + (details.focusGroups || []).length + ' session(s)</span></summary><div class="evidence-body">';
+  if (!(details.focusGroups || []).length) {
+    html += '<div class="evidence-item">No focus group sessions recorded.</div>';
+  } else {
+    details.focusGroups.forEach(function(fg) {
+      html += '<div class="evidence-item"><strong>' + escHtml(fg.label) + '</strong>';
+      if (fg.improve) html += '<div style="margin-top:.25rem"><span class="evidence-tag">Improve</span>' + escHtml(fg.improve) + '</div>';
+      if (fg.enjoy) html += '<div style="margin-top:.25rem"><span class="evidence-tag">Enjoy</span>' + escHtml(fg.enjoy) + '</div>';
+      (fg.themes || []).forEach(function(t) {
+        html += '<div style="margin-top:.25rem">' + escHtml(t.label) + ': ' + escHtml(t.note) + '</div>';
+      });
+      html += '</div>';
+    });
+  }
+  html += '</div></details>';
+
+  html += '<details><summary>Exported observations <span style="font-weight:400;color:var(--text3)">' + (details.observations || []).length + ' visit(s)</span></summary><div class="evidence-body">';
+  if (!(details.observations || []).length) {
+    html += '<div class="evidence-item">No observations exported to triangulation for this year.</div>';
+  } else {
+    details.observations.forEach(function(o) {
+      html += '<div class="evidence-item"><strong>' + escHtml(o.teacher) + (o.class ? ' (' + escHtml(o.class) + ')' : '') + '</strong>';
+      if (o.date) html += ' <span style="color:var(--text3)">' + escHtml(o.date) + '</span>';
+      (o.improveNotes || []).forEach(function(n) {
+        html += '<div style="margin-top:.25rem"><span class="evidence-tag">' + escHtml(n.element) + '</span>' + escHtml(n.note) + (n.rating ? ' [' + escHtml(n.rating) + ']' : '') + '</div>';
+      });
+      if (o.nextSteps) html += '<div style="margin-top:.25rem"><span class="evidence-tag">Next steps</span>' + escHtml(o.nextSteps) + '</div>';
+      html += '</div>';
+    });
+  }
+  html += '</div></details>';
+
+  html += '<details><summary>DIP Mission Tracker <span style="font-weight:400;color:var(--text3)">' + (details.dipTracker.percent != null ? details.dipTracker.percent : '—') + '% complete</span></summary><div class="evidence-body">';
+  if (!(details.dipTracker.gaps || []).length) {
+    html += '<div class="evidence-item">No outstanding DIP tracker gaps flagged for this year.</div>';
+  } else {
+    details.dipTracker.gaps.forEach(function(g) {
+      html += '<div class="evidence-item"><strong>' + escHtml(g.mission) + '</strong>';
+      if (g.commitment) html += '<div style="margin-top:.2rem">' + escHtml(g.commitment) + '</div>';
+      if (g.note) html += '<div style="margin-top:.2rem;color:var(--text3)">' + escHtml(g.note) + '</div>';
+      html += '</div>';
+    });
+  }
+  html += '</div></details>';
+
+  if ((details.themeSummary || []).length) {
+    html += '<details><summary>Cross-source themes <span style="font-weight:400;color:var(--text3)">' + details.themeSummary.length + ' theme(s)</span></summary><div class="evidence-body">';
+    details.themeSummary.forEach(function(t) {
+      html += '<div class="theme-summary-row"><strong>' + escHtml(t.themeLabel) + '</strong>';
+      html += '<span style="color:var(--text3)">' + escHtml((t.sources || []).join(' · ')) + '</span>';
+      if (t.sources.length >= 2) html += '<span class="tri-badge" style="margin:0">Triangulated</span>';
+      html += '</div>';
+    });
+    html += '</div></details>';
+  }
+
+  html += '</div>';
+  return html;
+}
+
+window._synthesisEditId = null;
+
+function editSynthesisSuggestion(id) {
+  if (!canManageTriangulation()) return;
+  var plan = getSynthesisPlan();
+  var sug = (plan.suggested_priorities || []).find(function(s) { return s.id === id; });
+  if (!sug) return;
+  window._synthesisEditId = id;
+  document.getElementById('synth-edit-text').value = sug.text || '';
+  document.getElementById('synth-edit-actions').value = (sug.actions || []).join('\n');
+  document.getElementById('synth-edit-modal').classList.add('open');
+}
+
+function closeSynthesisEditModal() {
+  window._synthesisEditId = null;
+  var modal = document.getElementById('synth-edit-modal');
+  if (modal) modal.classList.remove('open');
+}
+
+function saveSynthesisEdit() {
+  if (!canManageTriangulation() || !window._synthesisEditId) return;
+  var plan = getSynthesisPlan();
+  var sug = (plan.suggested_priorities || []).find(function(s) { return s.id === window._synthesisEditId; });
+  if (!sug) return;
+  sug.text = document.getElementById('synth-edit-text').value.trim();
+  sug.actions = String(document.getElementById('synth-edit-actions').value || '').split('\n').map(function(s) { return s.trim(); }).filter(Boolean);
+  sug.edited = true;
+  closeSynthesisEditModal();
+  renderSynthesisWorkspace();
+  toast('Suggestion updated');
+}
+
+function restoreSynthesisSuggestion(id) {
+  if (!canManageTriangulation()) return;
+  var plan = getSynthesisPlan();
+  (plan.suggested_priorities || []).forEach(function(s) {
+    if (s.id === id) s.status = 'pending';
+  });
+  renderSynthesisWorkspace();
 }
 
 function acceptSynthesisSuggestion(id) {

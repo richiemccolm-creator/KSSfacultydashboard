@@ -364,10 +364,90 @@
     return list.slice(0, 12);
   }
 
+  function buildSourceDetails(ctx) {
+    ctx = ctx || {};
+    var surveys = ctx.surveys || [];
+    var respCount = 0;
+    surveys.forEach(function(s) {
+      var d = s.data || {};
+      respCount += ((d.overallRating || d.overall || []).length);
+    });
+    return {
+      surveys: {
+        uploads: surveys.length,
+        responses: respCount,
+        strengths: (ctx.surveyAnalysis && ctx.surveyAnalysis.strengths) || [],
+        development: (ctx.surveyAnalysis && ctx.surveyAnalysis.dev) || []
+      },
+      focusGroups: (ctx.focusGroups || []).map(function(fg) {
+        var d = fg.data || {};
+        var themes = [];
+        Object.keys(d.themes || {}).forEach(function(k) {
+          if (d.themes[k] && THEME_LABELS[k]) themes.push({ theme: k, label: THEME_LABELS[k], note: truncate(d.themes[k], 200) });
+        });
+        return {
+          label: (d.subject ? d.subject + ' ' : '') + (d.yearGroup || 'Focus group'),
+          improve: truncate(d.improve, 220),
+          enjoy: truncate(d.enjoyMost, 160),
+          themes: themes
+        };
+      }),
+      observations: (ctx.observations || []).map(function(obs) {
+        var d = obs.data || {};
+        var improveNotes = [];
+        var ratings = d.ratings || {};
+        var feedback = d.feedback || {};
+        Object.keys(OBS_ELEMENT_THEMES).forEach(function(n) {
+          var theme = OBS_ELEMENT_THEMES[n];
+          var f = feedback[n] || feedback[String(n)] || {};
+          var orating = ratings['o-' + n] || ratings['o-' + String(n)];
+          var ofb = (f.observer || '').trim();
+          if (orating === 'Improve' || (ofb && orating === 'Developing')) {
+            improveNotes.push({
+              element: OBS_ELEMENT_LABELS[parseInt(n, 10) - 1] || 'Element ' + n,
+              theme: THEME_LABELS[theme] || theme,
+              rating: orating || '',
+              note: truncate(ofb, 160)
+            });
+          }
+        });
+        return {
+          teacher: d.teacher || 'Teacher',
+          class: d.class || '',
+          date: d.date || d.visitDate || '',
+          nextSteps: truncate(d.nextsteps, 200),
+          improveNotes: improveNotes
+        };
+      }),
+      dipTracker: {
+        percent: ctx.trackerCompletion ? ctx.trackerCompletion.percent : 0,
+        filled: ctx.trackerCompletion ? ctx.trackerCompletion.filled : 0,
+        total: ctx.trackerCompletion ? ctx.trackerCompletion.total : 0,
+        gaps: (ctx.dipGaps || []).map(function(g) {
+          return {
+            mission: g.mission || '',
+            commitment: truncate(g.commitment, 120),
+            note: truncate(g.note, 200)
+          };
+        })
+      },
+      themeSummary: Object.keys(ctx.themeBuckets || buildThemeBuckets(ctx)).map(function(k) {
+        var b = (ctx.themeBuckets || buildThemeBuckets(ctx))[k];
+        return {
+          theme: b.theme,
+          themeLabel: b.themeLabel,
+          sources: b.sources.slice(),
+          snippetCount: b.snippets.length
+        };
+      }).filter(function(t) { return t.snippetCount > 0; })
+        .sort(function(a, b) { return b.sources.length - a.sources.length; })
+    };
+  }
+
   function mergeRegeneratedPlan(existingPlan, evidence) {
     existingPlan = existingPlan || {};
     var kept = (existingPlan.suggested_priorities || []).filter(function(s) {
-      return s.status === 'accepted' || s.status === 'dismissed';
+      return s.status === 'accepted' || s.status === 'dismissed' || (s.status === 'pending' && s.edited);
     });
     var dismissedThemes = {};
     kept.forEach(function(s) {
@@ -444,6 +524,8 @@
           dipEval: dipEval,
           dipGaps: dipGaps
         };
+        var themeBuckets = buildThemeBuckets(ctx);
+        ctx.themeBuckets = themeBuckets;
         return {
           schoolYear: schoolYear,
           planForYear: nextSchoolYear(schoolYear),
@@ -456,7 +538,8 @@
             dipEvalComplete: !!(dipEval && (dipEval['dip-eval-overall'] || dipEval['dip-eval-next']))
           },
           surveyAnalysis: surveyAnalysis,
-          themeBuckets: buildThemeBuckets(ctx),
+          themeBuckets: themeBuckets,
+          sourceDetails: buildSourceDetails(ctx),
           dipGaps: dipGaps,
           dipEval: dipEval ? {
             period: dipEval['dip-eval-period'] || '',

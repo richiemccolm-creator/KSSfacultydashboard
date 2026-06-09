@@ -47,6 +47,17 @@
     html += summary.dipEvalComplete ? ' · DIP self-evaluation recorded' : '';
     html += '</div>';
 
+    var sourceDetails = evidence.sourceDetails;
+    if (sourceDetails && (sourceDetails.themeSummary || []).length) {
+      html += '<h2>Cross-source themes</h2><div class="box"><ul>';
+      sourceDetails.themeSummary.forEach(function(t) {
+        html += '<li><strong>' + esc(t.themeLabel) + '</strong> — ' + esc((t.sources || []).join(', '));
+        if (t.sources.length >= 2) html += ' (triangulated)';
+        html += '</li>';
+      });
+      html += '</ul></div>';
+    }
+
     if ((plan.strengths || []).length) {
       html += '<h2>Strengths to sustain</h2>';
       (plan.strengths || []).forEach(function(s) {
