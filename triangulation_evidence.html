@@ -11,7 +11,10 @@
 <script src="allowlist-check.js"></script>
 <script src="auth-guard.js"></script>
 <script src="data-service.js"></script>
+<script src="dip-tracker-service.js"></script>
 <script src="triangulation-service.js"></script>
+<script src="synthesis-engine.js"></script>
+<script src="improvement-plan-synthesis-service.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -87,8 +90,26 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .detail-element{border:1px solid var(--border);border-radius:6px;padding:.85rem 1rem;margin-bottom:.65rem}
 .detail-element-title{font-weight:600;margin-bottom:.35rem}
 .detail-feedback{margin-top:.25rem;color:var(--text2);white-space:pre-wrap}
+.synth-banner{background:linear-gradient(135deg,#ecfdf5,#f0fdfa);border:1px solid #99f6e4;border-radius:8px;padding:1rem 1.25rem;margin-bottom:1rem;font-size:.82rem}
+.synth-banner.view-only{background:linear-gradient(135deg,#eff6ff,#f8fafc);border-color:#bfdbfe}
+.synth-stats{display:flex;flex-wrap:wrap;gap:.5rem 1rem;margin-top:.5rem;color:var(--text2)}
+.synth-section{margin-bottom:1.5rem}
+.synth-section-title{font-family:'Sora',sans-serif;font-size:.88rem;font-weight:700;margin-bottom:.65rem;color:var(--navy)}
+.priority-card{border:1px solid var(--border);border-radius:8px;padding:1rem;margin-bottom:.65rem;background:var(--card)}
+.priority-card.accepted{border-color:#86efac;background:#f0fdf4}
+.priority-card.dismissed{opacity:.55}
+.priority-card-header{display:flex;align-items:flex-start;justify-content:space-between;gap:.75rem;margin-bottom:.5rem}
+.priority-theme{font-size:.65rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.priority-sources{font-size:.7rem;color:var(--text3);margin-top:.2rem}
+.priority-text{font-size:.82rem;line-height:1.55;color:var(--text2)}
+.priority-actions-row{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.65rem}
+.priority-actions-row .btn{padding:.3rem .65rem;font-size:.7rem}
+.synth-textarea{width:100%;min-height:100px;padding:.75rem;border:1px solid var(--border);border-radius:6px;font-family:inherit;font-size:.82rem;line-height:1.55}
+.synth-input{width:100%;padding:.5rem .75rem;border:1px solid var(--border);border-radius:6px;font-size:.82rem;margin-bottom:.5rem}
+.accepted-priority-item{border:1px solid var(--border);border-radius:8px;padding:1rem;margin-bottom:.75rem;background:#fafafa}
+.synth-toolbar{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center}
 @media print{
-  .dash-sidebar,.hero,.sc-header,.nav-tabs,.btn,.obs-actions,.detail-modal-header{display:none!important}
+  .dash-sidebar,.hero,.sc:not(.synth-print-area),.nav-tabs,.btn,.obs-actions,.detail-modal-header,.synth-toolbar,.priority-actions-row{display:none!important}
   .dash-main{margin-left:0;padding:0;max-width:none}
   .detail-modal{position:static;background:none;display:block!important;padding:0}
   .detail-modal-box{max-height:none;box-shadow:none}
@@ -193,16 +214,21 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
   </div>
 
   <div id="view-synthesis" class="view-panel">
-    <div class="sc">
+    <div class="sc synth-print-area">
       <div class="sc-header">
         <div>
-          <div class="sc-title">Generate Synthesis</div>
-          <div class="sc-sub">Combine survey, focus groups, and observations into key priorities for the improvement plan.</div>
+          <div class="sc-title">Year-End Synthesis &amp; Improvement Plan</div>
+          <div class="sc-sub">Triangulate survey, focus groups, exported observations, DIP tracker and DIP evaluation into priorities for the following year.</div>
         </div>
-        <button class="btn btn-primary" onclick="generateSynthesis()">Generate Synthesis</button>
+        <div class="synth-toolbar" id="synthesis-toolbar">
+          <button class="btn btn-ghost" onclick="regenerateSynthesisEvidence()">Regenerate evidence</button>
+          <button class="btn btn-primary" onclick="saveSynthesisPlan()">Save plan</button>
+          <button class="btn btn-ghost" onclick="applySynthesisToDip()">Apply to DIP Tracker</button>
+          <button class="btn btn-ghost" onclick="printSynthesisPlan()">Print / PDF</button>
+        </div>
       </div>
-      <div class="sc-body">
-        <div id="synthesis-output"></div>
+      <div class="sc-body" id="synthesis-output">
+        <div class="empty-s">Open this tab to load the synthesis workspace.</div>
       </div>
     </div>
   </div>
@@ -315,6 +341,10 @@ function loadAllEvidence() {
     renderSurveyView(rows.filter(function(r) { return r.evidence_type === 'survey'; }));
     renderFocusGroupList(rows.filter(function(r) { return r.evidence_type === 'focus_group'; }));
     renderObservationsList(rows.filter(function(r) { return r.evidence_type === 'observation'; }));
+    applyManagerOnlyUi();
+    if (document.getElementById('view-synthesis') && document.getElementById('view-synthesis').classList.contains('active')) {
+      loadSynthesisWorkspace();
+    }
   }).catch(function() { toast('Could not load data'); });
 }
 
@@ -404,7 +434,7 @@ function renderSurveyView(surveys) {
       var resp = (s.data && (s.data.overallRating || s.data.overall) && (s.data.overallRating || s.data.overall).length) || 0;
       return '<div style="display:flex;align-items:center;justify-content:space-between;padding:.5rem 0;border-bottom:1px solid var(--border);font-size:.82rem">' +
         '<span>' + fn + (dt ? ' · ' + dt : '') + (resp ? ' · ' + resp + ' responses' : '') + '</span>' +
-        '<button class="btn btn-danger" style="padding:.25rem .5rem;font-size:.7rem" onclick="deleteSurveyItem(\'' + (s.id||'').replace(/'/g,"\\'") + '\')">Delete</button>' +
+        (canManageTriangulation() ? '<button class="btn btn-danger" style="padding:.25rem .5rem;font-size:.7rem" onclick="deleteSurveyItem(\'' + (s.id||'').replace(/'/g,"\\'") + '\')">Delete</button>' : '') +
         '</div>';
     }).join('');
   }
@@ -679,7 +709,7 @@ function renderObservationsList(list) {
       '</div>' +
       '<div class="obs-actions">' +
       '<button class="btn btn-ghost" style="padding:.3rem .6rem;font-size:.72rem" onclick="viewObservation(\'' + String(item.id || '').replace(/'/g, "\\'") + '\')">View</button>' +
-      '<button class="btn btn-danger" style="padding:.3rem .6rem;font-size:.72rem" onclick="deleteObservation(\'' + String(item.id || '').replace(/'/g, "\\'") + '\')">Delete</button>' +
+      (canManageTriangulation() ? '<button class="btn btn-danger" style="padding:.3rem .6rem;font-size:.72rem" onclick="deleteObservation(\'' + String(item.id || '').replace(/'/g, "\\'") + '\')">Delete</button>' : '') +
       '</div></div>';
   }).join('');
 }
@@ -710,54 +740,306 @@ function deleteObservation(id) {
   }).catch(function() { toast('Delete failed'); });
 }
 
+function canManageTriangulation() {
+  return !!(window.__authGuardCanManageSchool || window.__authGuardIsAdmin);
+}
+
+window._synthesisState = { plan: null, evidence: null };
+
+function getSynthesisPlan() {
+  if (!window._synthesisState.plan) {
+    window._synthesisState.plan = {
+      school_year: getSchoolYear(),
+      plan_for_year: SynthesisEngine.nextSchoolYear(getSchoolYear()),
+      evidence_snapshot: {},
+      suggested_priorities: [],
+      accepted_priorities: [],
+      strengths: [],
+      manual_notes: '',
+      next_year_plan: { narrative: '', priorities: [] },
+      dip_seed_applied: false
+    };
+  }
+  return window._synthesisState.plan;
+}
+
 function generateSynthesis() {
+  loadSynthesisWorkspace();
+}
+
+function loadSynthesisWorkspace() {
   var out = document.getElementById('synthesis-output');
-  out.innerHTML = '<p style="color:var(--text3)">Loading…</p>';
-  TriangulationService.getSynthesis(getSchoolYear()).then(function(syn) {
-    if (!syn.hasData) {
-      out.innerHTML = '<div class="empty-s">No data for this year. Add survey uploads, focus group sessions, and observations first.</div>';
-      return;
+  var sy = getSchoolYear();
+  out.innerHTML = '<div class="empty-s">Loading synthesis for ' + escHtml(sy) + '…</div>';
+  updateSynthesisToolbar();
+  var pEvidence = SynthesisEngine.gatherEvidence(sy, { mergeSurveyData: mergeSurveyData });
+  var pPlan = ImprovementPlanSynthesisService.load(sy).catch(function() { return null; });
+  Promise.all([pEvidence, pPlan]).then(function(results) {
+    var evidence = results[0];
+    var saved = results[1];
+    window._synthesisState.evidence = evidence;
+    if (saved) {
+      window._synthesisState.plan = saved;
+      if (!saved.evidence_snapshot || !Object.keys(saved.evidence_snapshot).length) {
+        saved.evidence_snapshot = evidence;
+      }
+    } else {
+      var plan = getSynthesisPlan();
+      plan.school_year = sy;
+      plan.plan_for_year = evidence.planForYear;
+      plan.evidence_snapshot = evidence;
+      plan.suggested_priorities = evidence.suggestedPriorities || [];
+      plan.strengths = evidence.strengths || [];
+      window._synthesisState.plan = plan;
     }
-    var priorities = [];
-    var survey = syn.survey || [];
-    var fg = syn.focus_group || [];
-    var obs = syn.observation || [];
-    if (survey.length) {
-      var allLikert = {};
-      survey.forEach(function(s) {
-        Object.keys(s.data && s.data.likert || {}).forEach(function(k) {
-          allLikert[k] = allLikert[k] || {};
-          Object.keys((s.data.likert[k]) || {}).forEach(function(v) {
-            allLikert[k][v] = (allLikert[k][v] || 0) + (s.data.likert[k][v] || 0);
-          });
-        });
-      });
-      var themeNames = { learningIntentions: 'Learning Intentions', successCriteria: 'Success Criteria', activeLearning: 'Active Learning', support: 'Support', feedback: 'Feedback', challenge: 'Challenge', digitalLearning: 'Digital Learning' };
-      Object.keys(allLikert).forEach(function(k) {
-        var dist = allLikert[k];
-        var total = Object.values(dist).reduce(function(a,b){return a+b},0);
-        if (total === 0) return;
-        var neg = (dist['Disagree'] || 0) + (dist['Strongly disagree'] || 0);
-        if (neg / total > 0.15) priorities.push({ theme: themeNames[k] || k, source: 'survey', note: (neg/total*100).toFixed(0) + '% disagreed' });
-      });
-    }
-    fg.forEach(function(f) {
-      var d = f.data || {};
-      if (d.improve) priorities.push({ theme: 'Focus group', source: 'focus_group', note: d.improve.substring(0, 120) + (d.improve.length > 120 ? '…' : '') });
+    renderSynthesisWorkspace();
+  }).catch(function(err) {
+    out.innerHTML = '<div class="empty-s" style="color:#991b1b">Could not load synthesis. Run migrations for improvement_plan_synthesis in Supabase.<br><span style="font-size:.75rem">' + escHtml((err && err.message) || '') + '</span></div>';
+  });
+}
+
+function updateSynthesisToolbar() {
+  var tb = document.getElementById('synthesis-toolbar');
+  if (!tb) return;
+  tb.style.display = canManageTriangulation() ? 'flex' : 'none';
+}
+
+function renderSynthesisWorkspace() {
+  var out = document.getElementById('synthesis-output');
+  var plan = getSynthesisPlan();
+  var evidence = plan.evidence_snapshot || window._synthesisState.evidence || {};
+  var summary = evidence.summary || {};
+  var canEdit = canManageTriangulation();
+  var html = '';
+  html += '<div class="synth-banner' + (canEdit ? '' : ' view-only') + '">';
+  html += canEdit
+    ? '<strong>Faculty Head / Admin workspace</strong> — review evidence, accept priorities, add notes, and build the plan for <strong>' + escHtml(plan.plan_for_year || SynthesisEngine.nextSchoolYear(plan.school_year)) + '</strong>.'
+    : '<strong>View only</strong> — this is the faculty year-end synthesis and improvement plan. Contact the Faculty Head to suggest changes.';
+  html += '<div class="synth-stats">';
+  html += '<span>' + (summary.surveyCount || 0) + ' survey upload(s)';
+  if (summary.surveyResponses) html += ' · ' + summary.surveyResponses + ' responses';
+  html += ' · ' + (summary.focusGroupCount || 0) + ' focus groups';
+  html += ' · ' + (summary.observationCount || 0) + ' exported observations';
+  html += ' · DIP tracker ' + (summary.dipTrackerPercent != null ? summary.dipTrackerPercent : '—') + '%';
+  html += summary.dipEvalComplete ? ' · DIP evaluation recorded' : ' · DIP evaluation not yet complete';
+  if (plan.dip_seed_applied) html += ' · <span style="color:#15803d">Applied to DIP ' + escHtml(plan.plan_for_year) + '</span>';
+  html += '</div></div>';
+
+  if ((evidence.strengths || plan.strengths || []).length) {
+    html += '<div class="synth-section"><div class="synth-section-title">Strengths to sustain</div>';
+    (plan.strengths || evidence.strengths || []).forEach(function(s) {
+      html += '<div class="strength-card">' + escHtml(s.text || s) + '</div>';
     });
-    obs.forEach(function(o) {
-      var d = o.data || {};
-      if (d.nextsteps) priorities.push({ theme: 'Observation', source: 'observation', note: (d.teacher || '') + ': ' + (d.nextsteps || '').substring(0, 80) + '…' });
+    html += '</div>';
+  }
+
+  html += '<div class="synth-section"><div class="synth-section-title">Suggested priorities</div>';
+  var suggestions = plan.suggested_priorities || [];
+  if (!suggestions.length) {
+    html += '<div class="empty-s" style="padding:1rem">No suggestions yet. Add survey, focus group, observation, DIP tracker or DIP evaluation data, then click Regenerate evidence.</div>';
+  } else {
+    suggestions.forEach(function(s) {
+      if (s.status === 'dismissed' && !canEdit) return;
+      var cls = 'priority-card' + (s.status === 'accepted' ? ' accepted' : '') + (s.status === 'dismissed' ? ' dismissed' : '');
+      html += '<div class="' + cls + '" data-sug-id="' + escHtml(s.id) + '">';
+      html += '<div class="priority-card-header"><div><div class="priority-theme">' + escHtml(s.themeLabel || s.theme) + '</div>';
+      html += '<div class="priority-sources">' + escHtml((s.sources || []).join(' · ')) + '</div></div></div>';
+      html += '<div class="priority-text">' + escHtml(s.text) + '</div>';
+      if (canEdit && s.status !== 'accepted' && s.status !== 'dismissed') {
+        html += '<div class="priority-actions-row">';
+        html += '<button class="btn btn-primary" onclick="acceptSynthesisSuggestion(\'' + String(s.id).replace(/'/g, "\\'") + '\')">Accept</button>';
+        html += '<button class="btn btn-ghost" onclick="dismissSynthesisSuggestion(\'' + String(s.id).replace(/'/g, "\\'") + '\')">Dismiss</button>';
+        html += '</div>';
+      } else if (s.status === 'accepted') {
+        html += '<div style="font-size:.72rem;color:#15803d;margin-top:.4rem;font-weight:600">Accepted</div>';
+      }
+      html += '</div>';
     });
-    var html = '<div class="sc" style="margin-top:1rem"><div class="sc-header"><div class="sc-title">Key Priorities (' + getSchoolYear() + ')</div></div><div class="sc-body">';
-    if (!priorities.length) html += '<p>Add more data to generate priorities.</p>';
-    else priorities.slice(0, 8).forEach(function(p, i) {
-      html += '<div style="margin-bottom:1rem;padding:1rem;background:var(--bg);border-radius:6px;border-left:4px solid var(--accent)">' +
-        '<strong>Priority ' + (i+1) + ': ' + p.theme + '</strong><br><span style="font-size:.82rem;color:var(--text2)">' + (p.source + ' — ' + p.note) + '</span></div>';
+  }
+  html += '</div>';
+
+  html += '<div class="synth-section"><div class="synth-section-title">Faculty Head observations</div>';
+  if (canEdit) {
+    html += '<textarea class="synth-textarea" id="synth-manual-notes" placeholder="Your observations as Faculty Head — professional dialogue, context, or priorities not captured in the data…" oninput="syncManualNotes()">' + escHtml(plan.manual_notes || '') + '</textarea>';
+  } else {
+    html += '<div class="priority-text" style="white-space:pre-wrap">' + (plan.manual_notes ? escHtml(plan.manual_notes) : '—') + '</div>';
+  }
+  html += '</div>';
+
+  html += '<div class="synth-section"><div class="synth-section-title">Plan for ' + escHtml(plan.plan_for_year || '') + '</div>';
+  if (canEdit) {
+    html += '<label class="form-label">Plan narrative (optional introduction)</label>';
+    html += '<textarea class="synth-textarea" id="synth-narrative" style="min-height:70px;margin-bottom:1rem" placeholder="Brief introduction for the faculty improvement plan…" oninput="syncPlanNarrative()">' + escHtml((plan.next_year_plan && plan.next_year_plan.narrative) || '') + '</textarea>';
+    html += '<button class="btn btn-ghost" style="margin-bottom:1rem" onclick="addManualAcceptedPriority()">+ Add priority manually</button>';
+  }
+  var accepted = plan.accepted_priorities || [];
+  if (!accepted.length) {
+    html += '<div class="empty-s" style="padding:1rem;text-align:left">No accepted priorities yet. Accept suggestions above or add manually.</div>';
+  } else {
+    accepted.forEach(function(p, i) {
+      html += '<div class="accepted-priority-item" data-acc-idx="' + i + '">';
+      html += '<div class="priority-theme">Priority ' + (i + 1) + ' — ' + escHtml(p.themeLabel || p.theme || 'Improvement') + '</div>';
+      if (canEdit) {
+        html += '<input class="synth-input" value="' + escHtml(p.title || p.themeLabel || '') + '" placeholder="Priority title" onchange="updateAcceptedField(' + i + ',\'title\',this.value)">';
+        html += '<textarea class="synth-textarea" style="min-height:70px" placeholder="Rationale" onchange="updateAcceptedField(' + i + ',\'text\',this.value)">' + escHtml(p.text || p.rationale || '') + '</textarea>';
+        html += '<textarea class="synth-textarea" style="min-height:60px;margin-top:.5rem" placeholder="Actions for next year (one per line)" onchange="updateAcceptedActions(' + i + ',this.value)">' + escHtml((p.actions || []).join('\n')) + '</textarea>';
+        html += '<button class="btn btn-danger" style="margin-top:.5rem;padding:.25rem .5rem;font-size:.7rem" onclick="removeAcceptedPriority(' + i + ')">Remove</button>';
+      } else {
+        html += '<div class="priority-text" style="margin:.35rem 0"><strong>' + escHtml(p.title || p.themeLabel || '') + '</strong></div>';
+        html += '<div class="priority-text">' + escHtml(p.text || p.rationale || '') + '</div>';
+        if (p.actions && p.actions.length) {
+          html += '<ul style="margin:.5rem 0 0 1rem;font-size:.82rem;color:var(--text2)">';
+          p.actions.forEach(function(a) { html += '<li>' + escHtml(a) + '</li>'; });
+          html += '</ul>';
+        }
+      }
+      html += '</div>';
     });
+  }
+  html += '</div>';
+
+  if (evidence.dipEval) {
+    html += '<div class="synth-section"><div class="synth-section-title">DIP self-evaluation snapshot</div>';
+    html += '<div class="dev-card" style="background:var(--bg);border-color:var(--border)">';
+    if (evidence.dipEval.period) html += '<div><strong>Period:</strong> ' + escHtml(evidence.dipEval.period) + '</div>';
+    if (evidence.dipEval.overall) html += '<div style="margin-top:.35rem"><strong>Overall:</strong> ' + escHtml(SynthesisEngine.truncate(evidence.dipEval.overall, 400)) + '</div>';
+    if (evidence.dipEval.next) html += '<div style="margin-top:.35rem"><strong>Next steps:</strong> ' + escHtml(SynthesisEngine.truncate(evidence.dipEval.next, 300)) + '</div>';
     html += '</div></div>';
-    out.innerHTML = html;
-  }).catch(function() { out.innerHTML = '<p style="color:#991b1b">Could not generate synthesis.</p>'; });
+  }
+
+  out.innerHTML = html;
+}
+
+function acceptSynthesisSuggestion(id) {
+  if (!canManageTriangulation()) return;
+  var plan = getSynthesisPlan();
+  var sug = (plan.suggested_priorities || []).find(function(s) { return s.id === id; });
+  if (!sug) return;
+  sug.status = 'accepted';
+  if (!(plan.accepted_priorities || []).some(function(p) { return p.id === id; })) {
+    plan.accepted_priorities = plan.accepted_priorities || [];
+    plan.accepted_priorities.push({
+      id: sug.id,
+      theme: sug.theme,
+      themeLabel: sug.themeLabel,
+      title: sug.themeLabel,
+      text: sug.text,
+      rationale: sug.text,
+      actions: sug.actions || [],
+      sources: sug.sources || []
+    });
+  }
+  renderSynthesisWorkspace();
+}
+
+function dismissSynthesisSuggestion(id) {
+  if (!canManageTriangulation()) return;
+  var plan = getSynthesisPlan();
+  (plan.suggested_priorities || []).forEach(function(s) {
+    if (s.id === id) s.status = 'dismissed';
+  });
+  renderSynthesisWorkspace();
+}
+
+function addManualAcceptedPriority() {
+  if (!canManageTriangulation()) return;
+  var plan = getSynthesisPlan();
+  plan.accepted_priorities = plan.accepted_priorities || [];
+  plan.accepted_priorities.push({
+    id: 'manual_' + Date.now(),
+    theme: 'general',
+    themeLabel: 'Faculty Head priority',
+    title: '',
+    text: '',
+    rationale: '',
+    actions: [],
+    sources: ['manual']
+  });
+  renderSynthesisWorkspace();
+}
+
+function updateAcceptedField(idx, field, value) {
+  var plan = getSynthesisPlan();
+  if (!plan.accepted_priorities || !plan.accepted_priorities[idx]) return;
+  plan.accepted_priorities[idx][field] = value;
+  if (field === 'text') plan.accepted_priorities[idx].rationale = value;
+}
+
+function updateAcceptedActions(idx, value) {
+  var plan = getSynthesisPlan();
+  if (!plan.accepted_priorities || !plan.accepted_priorities[idx]) return;
+  plan.accepted_priorities[idx].actions = String(value || '').split('\n').map(function(s) { return s.trim(); }).filter(Boolean);
+}
+
+function removeAcceptedPriority(idx) {
+  if (!canManageTriangulation()) return;
+  var plan = getSynthesisPlan();
+  if (!plan.accepted_priorities) return;
+  plan.accepted_priorities.splice(idx, 1);
+  renderSynthesisWorkspace();
+}
+
+function syncManualNotes() {
+  var el = document.getElementById('synth-manual-notes');
+  if (el) getSynthesisPlan().manual_notes = el.value;
+}
+
+function syncPlanNarrative() {
+  var el = document.getElementById('synth-narrative');
+  if (!el) return;
+  var plan = getSynthesisPlan();
+  if (!plan.next_year_plan) plan.next_year_plan = {};
+  plan.next_year_plan.narrative = el.value;
+}
+
+function regenerateSynthesisEvidence() {
+  if (!canManageTriangulation()) return;
+  var sy = getSchoolYear();
+  toast('Regenerating evidence…');
+  SynthesisEngine.gatherEvidence(sy, { mergeSurveyData: mergeSurveyData }).then(function(evidence) {
+    var plan = getSynthesisPlan();
+    plan.evidence_snapshot = evidence;
+    plan.suggested_priorities = evidence.suggestedPriorities || [];
+    plan.strengths = evidence.strengths || [];
+    plan.plan_for_year = evidence.planForYear;
+    window._synthesisState.evidence = evidence;
+    renderSynthesisWorkspace();
+    toast('Evidence regenerated');
+  }).catch(function() { toast('Could not regenerate evidence'); });
+}
+
+function saveSynthesisPlan() {
+  if (!canManageTriangulation()) return;
+  syncManualNotes();
+  syncPlanNarrative();
+  var plan = getSynthesisPlan();
+  plan.school_year = getSchoolYear();
+  ImprovementPlanSynthesisService.save(plan).then(function(saved) {
+    window._synthesisState.plan = saved;
+    toast('Plan saved');
+    renderSynthesisWorkspace();
+  }).catch(function() { toast('Save failed — check you are signed in as Faculty Head or Admin'); });
+}
+
+function applySynthesisToDip() {
+  if (!canManageTriangulation()) return;
+  var plan = getSynthesisPlan();
+  var accepted = plan.accepted_priorities || [];
+  if (!accepted.length) { toast('Accept or add priorities first'); return; }
+  if (!confirm('Add ' + accepted.length + ' accepted priorit' + (accepted.length === 1 ? 'y' : 'ies') + ' to the DIP Mission Tracker for ' + (plan.plan_for_year || '') + '? Existing tracker data will not be overwritten.')) return;
+  ImprovementPlanSynthesisService.applyToDipTracker(plan.school_year, accepted).then(function(res) {
+    plan.dip_seed_applied = true;
+    return ImprovementPlanSynthesisService.save(plan);
+  }).then(function() {
+    toast('Priorities applied to DIP Mission Tracker');
+    renderSynthesisWorkspace();
+  }).catch(function(err) {
+    toast('Apply failed: ' + ((err && err.message) || 'unknown error'));
+  });
+}
+
+function printSynthesisPlan() {
+  window.print();
 }
 
 function toast(msg) {
@@ -767,15 +1049,27 @@ function toast(msg) {
   setTimeout(function() { t.classList.remove('show'); }, 3000);
 }
 
+function applyManagerOnlyUi() {
+  var canManage = canManageTriangulation();
+  var fgSubmit = document.querySelector('#view-focus-group .btn-primary');
+  if (fgSubmit) fgSubmit.style.display = canManage ? 'inline-flex' : 'none';
+  var surveyUpload = document.querySelector('#view-survey .btn-primary');
+  if (surveyUpload) surveyUpload.style.display = canManage ? 'inline-flex' : 'none';
+  var obsLink = document.querySelector('#view-observations .btn-primary');
+  if (obsLink) obsLink.style.display = canManage ? 'inline-flex' : 'none';
+  updateSynthesisToolbar();
+}
+
 function initTriangulation() {
   setTimeout(function() {
-    if (!window.__authGuardIsAdmin) {
-      document.body.innerHTML = '<div style="padding:2rem;text-align:center"><h2>Admin only</h2><p>Triangulation of Evidence is restricted to administrators.</p><a href="faculty-hub.html">Back to Faculty Hub</a></div>';
-    } else {
-      initSchoolYearSelect();
-      renderFocusGroupForm();
-      loadAllEvidence();
+    if (!window.__authReady) {
+      document.body.innerHTML = '<div style="padding:2rem;text-align:center"><h2>Sign in required</h2><p>Sign in to Faculty Hub to access Triangulation of Evidence.</p><a href="faculty-hub.html">Back to Faculty Hub</a></div>';
+      return;
     }
+    initSchoolYearSelect();
+    renderFocusGroupForm();
+    applyManagerOnlyUi();
+    loadAllEvidence();
   }, 500);
 }
 initTriangulation();
