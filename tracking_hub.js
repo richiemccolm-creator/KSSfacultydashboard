@@ -701,6 +701,7 @@
     renderOverviewCharts(rows);
     renderOverviewAttention(rows);
     renderOverviewTeachers(rows);
+    if (global.TrackingHubInsights) global.TrackingHubInsights.render(rows);
   }
 
   function renderOverviewKpis(rows) {
@@ -1282,6 +1283,7 @@
     if (global.TrackingHubCommentary) global.TrackingHubCommentary.init();
     if (global.TrackingHubSnapshot) global.TrackingHubSnapshot.init(HubApi);
     if (global.TrackingHubDigest) global.TrackingHubDigest.init(HubApi);
+    if (global.TrackingHubInsights) global.TrackingHubInsights.init(HubApi);
     if (global.TrackingHubParent) global.TrackingHubParent.init(HubApi);
     if (global.TrackingHubUx) global.TrackingHubUx.init();
 

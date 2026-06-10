@@ -465,6 +465,166 @@
     return chart;
   }
 
+  /**
+   * Single-subject horizontal dimension bars with target line plugin.
+   */
+  function renderSubjectDimBars(canvas, dimLabels, avgs, accentColor, targetValue, instanceKey) {
+    if (!canvas || typeof Chart === 'undefined') return null;
+    var key = instanceKey || 'subjectDimBars';
+    destroy(key);
+    var target = typeof targetValue === 'number' ? targetValue : 3;
+    var bgColors = avgs.map(function(v) { return scoreColor(v); });
+    var ctx = canvas.getContext('2d');
+    var chart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: dimLabels,
+        datasets: [{
+          label: 'Average',
+          data: avgs,
+          backgroundColor: bgColors.map(function(c) { return c + 'cc'; }),
+          borderColor: bgColors,
+          borderWidth: 1,
+          borderRadius: 3,
+          barThickness: 14
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function(ctx) {
+                var v = ctx.parsed.x;
+                return v != null ? v.toFixed(2) + ' / 4' : '—';
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            min: 0,
+            max: 4,
+            ticks: { stepSize: 1, font: { size: 9 }, color: '#94a3b8' },
+            grid: { color: '#f1f4f9' }
+          },
+          y: {
+            ticks: { font: { size: 10, weight: '500' }, color: '#475569' },
+            grid: { display: false }
+          }
+        }
+      },
+      plugins: [{
+        id: 'targetLine_' + key,
+        afterDraw: function(ch) {
+          var xScale = ch.scales.x;
+          var area = ch.chartArea;
+          if (!xScale || !area) return;
+          var x = xScale.getPixelForValue(target);
+          var c2d = ch.ctx;
+          c2d.save();
+          c2d.strokeStyle = '#94a3b8';
+          c2d.setLineDash([4, 4]);
+          c2d.lineWidth = 1;
+          c2d.beginPath();
+          c2d.moveTo(x, area.top);
+          c2d.lineTo(x, area.bottom);
+          c2d.stroke();
+          c2d.restore();
+        }
+      }]
+    });
+    instances[key] = chart;
+    return chart;
+  }
+
+  /**
+   * Process vs attitude pupil split donut.
+   */
+  function renderProcessAttitudeDonut(canvas, segments, instanceKey) {
+    if (!canvas || typeof Chart === 'undefined') return null;
+    var key = instanceKey || 'processAttitudeDonut';
+    destroy(key);
+    var labels = segments.map(function(s) { return s.label; });
+    var data = segments.map(function(s) { return s.count; });
+    var colors = segments.map(function(s) { return s.color; });
+    var ctx = canvas.getContext('2d');
+    var chart = new Chart(ctx, {
+      type: 'doughnut',
+      data: {
+        labels: labels,
+        datasets: [{ data: data, backgroundColor: colors, borderWidth: 0, hoverOffset: 3 }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '55%',
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { boxWidth: 8, font: { size: 9 }, padding: 6 }
+          },
+          tooltip: {
+            callbacks: {
+              label: function(ctx) {
+                var total = ctx.dataset.data.reduce(function(a, b) { return a + b; }, 0);
+                var pct = total ? Math.round((ctx.parsed / total) * 100) : 0;
+                return ctx.label + ': ' + ctx.parsed + ' (' + pct + '%)';
+              }
+            }
+          }
+        }
+      }
+    });
+    instances[key] = chart;
+    return chart;
+  }
+
+  /**
+   * Multi-line TP trend for a dimension group (process or attitude).
+   */
+  function renderSubjectDimTrend(canvas, tpLabels, dimLabels, seriesByDim, instanceKey) {
+    if (!canvas || typeof Chart === 'undefined') return null;
+    var key = instanceKey || 'subjectDimTrend';
+    destroy(key);
+    var datasets = (seriesByDim || []).map(function(vals, i) {
+      return {
+        label: dimLabels[i] || ('Dim ' + (i + 1)),
+        data: vals,
+        borderColor: DIM_LINE_COLORS[i % DIM_LINE_COLORS.length],
+        backgroundColor: DIM_LINE_COLORS[i % DIM_LINE_COLORS.length],
+        pointRadius: 3,
+        borderWidth: 2,
+        tension: 0.25,
+        spanGaps: true
+      };
+    });
+    var ctx = canvas.getContext('2d');
+    var chart = new Chart(ctx, {
+      type: 'line',
+      data: { labels: tpLabels, datasets: datasets },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: {
+            position: 'bottom',
+            labels: { boxWidth: 8, font: { size: 9 }, padding: 4 }
+          }
+        },
+        scales: {
+          y: { min: 1, max: 4, ticks: { stepSize: 1, font: { size: 9 } }, grid: { color: '#f1f4f9' } },
+          x: { ticks: { font: { size: 9 } }, grid: { display: false } }
+        }
+      }
+    });
+    instances[key] = chart;
+    return chart;
+  }
+
   global.TrackingHubCharts = {
     destroy: destroy,
     destroyAll: destroyAll,
@@ -475,6 +635,9 @@
     renderRiskDonut: renderRiskDonut,
     renderProfileRadar: renderProfileRadar,
     renderPupilDimLines: renderPupilDimLines,
-    renderPupilTpLine: renderPupilTpLine
+    renderPupilTpLine: renderPupilTpLine,
+    renderSubjectDimBars: renderSubjectDimBars,
+    renderProcessAttitudeDonut: renderProcessAttitudeDonut,
+    renderSubjectDimTrend: renderSubjectDimTrend
   };
 })(window);

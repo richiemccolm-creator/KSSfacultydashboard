@@ -30,6 +30,9 @@
 <script src="teacher-tasks-home.js"></script>
 <script src="calendar-request-service.js"></script>
 <script src="quality-calendar-months.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="insight-data.js"></script>
+<script src="dip-insight-charts.js"></script>
 <link rel="preconnect" href="https://api.fontshare.com" crossorigin>
 <link href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700,800&display=swap" rel="stylesheet">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -618,6 +621,37 @@ a.sidebar-item:hover{color:var(--white)}
 .dip-overview-card{background:var(--white);border:1px solid var(--border);border-radius:6px;padding:1rem 1.1rem}
 .dip-overview-num{font-size:.6rem;font-weight:700;letter-spacing:.15em;text-transform:uppercase;color:#f59e0b;margin-bottom:.35rem}
 .dip-overview-text{font-size:.78rem;color:var(--text2);line-height:1.6}
+
+/* ── DIP INSIGHT DATA ── */
+.dip-insight-section{background:linear-gradient(135deg,#f8fafc 0%,#fff 50%,#fffbf0 100%);border:1px solid rgba(30,45,74,.1);border-radius:8px;padding:1.5rem;margin-bottom:1.5rem}
+.dip-insight-head{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1.25rem}
+.dip-insight-title{font-family:'Sora',sans-serif;font-size:1rem;font-weight:700;color:var(--text);display:flex;align-items:center;gap:.5rem}
+.dip-insight-title::before{content:'';display:inline-block;width:3px;height:18px;background:#1e2d4a;border-radius:2px}
+.dip-insight-sub{font-size:.72rem;color:var(--text3);margin-top:.35rem;max-width:36rem;line-height:1.6}
+.dip-insight-source{font-size:.62rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#64748b;background:#fff;border:1px solid var(--border);border-radius:20px;padding:.35rem .75rem;white-space:nowrap}
+.dip-insight-kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.65rem;margin-bottom:1.25rem}
+.dip-insight-kpi{background:#fff;border:1px solid var(--border);border-radius:8px;padding:1rem 1.1rem;border-top:3px solid #1e2d4a}
+.dip-insight-kpi-art{border-top-color:#c0622a}
+.dip-insight-kpi-drama{border-top-color:#4a7fd4}
+.dip-insight-kpi-photo{border-top-color:#8b5cf6}
+.dip-insight-kpi-value{font-family:'Sora',sans-serif;font-size:1.45rem;font-weight:800;color:var(--text);line-height:1.1}
+.dip-insight-kpi-label{font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-top:.4rem}
+.dip-insight-kpi-sub{font-size:.68rem;color:var(--text2);margin-top:.25rem;line-height:1.4}
+.dip-insight-tabs{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:1rem}
+.dip-insight-tab{font-size:.68rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;padding:.4rem .85rem;border-radius:20px;border:1px solid var(--border);background:#fff;color:var(--text2);cursor:pointer;transition:all .15s}
+.dip-insight-tab:hover{border-color:#1e2d4a;color:var(--text)}
+.dip-insight-tab.active{background:#1e2d4a;border-color:#1e2d4a;color:#fff}
+.dip-insight-charts{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem}
+@media(max-width:900px){.dip-insight-charts{grid-template-columns:1fr}}
+.dip-insight-chart-card{background:#fff;border:1px solid var(--border);border-radius:8px;padding:1rem 1.1rem}
+.dip-insight-chart-card.full{grid-column:1/-1}
+.dip-insight-chart-label{font-size:.62rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--text3);margin-bottom:.75rem}
+.dip-insight-chart-wrap{position:relative;height:240px}
+.dip-insight-chart-wrap.tall{height:280px}
+.dip-insight-callouts{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:.65rem;margin-top:.5rem}
+.dip-insight-callout{background:#fff;border:1px solid rgba(245,158,11,.25);border-left:3px solid #f59e0b;border-radius:6px;padding:.85rem 1rem}
+.dip-insight-callout-title{font-size:.68rem;font-weight:700;color:#92400e;margin-bottom:.35rem}
+.dip-insight-callout-text{font-size:.74rem;color:var(--text2);line-height:1.65}
 
 .dip-clpl{background:var(--white);border:1px solid var(--border);border-radius:8px;padding:1.5rem;margin-top:1.5rem}
 .dip-clpl-title{font-family:'Sora',sans-serif;font-size:.85rem;font-weight:700;color:var(--text);margin-bottom:.75rem;display:flex;align-items:center;gap:.5rem}
@@ -4741,6 +4775,44 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
           </div>
         </div>
 
+        <!-- INSIGHT / SQA ATTAINMENT DATA -->
+        <div id="dip-insight-section" class="dip-insight-section" onclick="event.stopPropagation()">
+          <div class="dip-insight-head">
+            <div>
+              <div class="dip-insight-title">Insight Data — SQA Results 2023–2025</div>
+              <div class="dip-insight-sub">Graded course attainment and establishment benchmarks from Scottish Insight (ASGC). Use this evidence alongside internal tracking when evaluating progress against the improvement plan.</div>
+            </div>
+            <span class="dip-insight-source">Insight · 2025 results</span>
+          </div>
+
+          <div id="dip-insight-kpis" class="dip-insight-kpis" aria-live="polite"></div>
+
+          <div class="dip-insight-tabs" role="tablist" aria-label="Filter insight charts by subject">
+            <button type="button" class="dip-insight-tab active" data-insight-tab="all" role="tab" aria-selected="true">All subjects</button>
+            <button type="button" class="dip-insight-tab" data-insight-tab="art" role="tab" aria-selected="false">Art &amp; Design</button>
+            <button type="button" class="dip-insight-tab" data-insight-tab="drama" role="tab" aria-selected="false">Drama</button>
+            <button type="button" class="dip-insight-tab" data-insight-tab="photo" role="tab" aria-selected="false">Photography</button>
+          </div>
+
+          <div class="dip-insight-charts">
+            <div class="dip-insight-chart-card">
+              <div class="dip-insight-chart-label">A–C trend — school vs national</div>
+              <div class="dip-insight-chart-wrap"><canvas id="dip-insight-trend-chart" aria-label="A to C attainment trend chart"></canvas></div>
+            </div>
+            <div class="dip-insight-chart-card">
+              <div class="dip-insight-chart-label">2025 benchmarks (% A–C)</div>
+              <div class="dip-insight-chart-wrap"><canvas id="dip-insight-benchmark-chart" aria-label="2025 benchmark comparison chart"></canvas></div>
+            </div>
+            <div class="dip-insight-chart-card full">
+              <div class="dip-insight-chart-label">2025 grade profile (stacked)</div>
+              <div class="dip-insight-chart-wrap tall"><canvas id="dip-insight-grade-chart" aria-label="2025 grade profile stacked chart"></canvas></div>
+            </div>
+          </div>
+
+          <div class="dip-insight-chart-label" style="margin-bottom:.5rem">What this means for our plan</div>
+          <div id="dip-insight-callouts" class="dip-insight-callouts"></div>
+        </div>
+
         <!-- SELF-EVALUATION FOR SELF-IMPROVEMENT -->
         <div id="dip-eval-section" class="dip-eval-section" onclick="event.stopPropagation()">
           <div class="dip-eval-title">Self-Evaluation for Self-Improvement</div>
@@ -4780,6 +4852,7 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
               Update Checkpoint
             </button>
+            <a class="dip-scroll-to-progress" onclick="document.getElementById('dip-insight-section')?.scrollIntoView({behavior:'smooth'})" title="Jump to Insight attainment data" style="margin-right:.75rem">Insight Data ↓</a>
             <a class="dip-scroll-to-progress" onclick="document.getElementById('dip-progress-section')?.scrollIntoView({behavior:'smooth'})" title="Jump to Progress Timeline">View Timeline ↓</a>
             <span style="font-size:.7rem;color:#b45309">Exports the full plan plus your self-evaluation comments and reflections as a printable document.</span>
           </div>
@@ -5477,7 +5550,7 @@ function showPanel(id){
   if(id==='academic-calendar'){calCurrentYear=calGetCurrentAcademicYear();calSyncAddEventFormChrome();calLoadEvents().then(function(){calRender();return calRefreshCalendarRequests();}).catch(function(){calRender();calRefreshCalendarRequests();});}
   if(id==='home') homeDashboardRender({ showLoading: !homeHasCompletedInitialLoad });
   if(id==='home-announcements-all') homeRenderAllAnnouncementsPanel();
-  if(id==='dip-main') dipRenderProgressTimeline();
+  if(id==='dip-main'){ dipRenderProgressTimeline(); if(typeof dipRenderInsightCharts==='function') dipRenderInsightCharts(); }
   if(id==='drama-moderation'||id==='ad-moderation'||id==='photo-moderation'){
     const s=id.replace('-moderation','');
     renderModerationCards(s);
