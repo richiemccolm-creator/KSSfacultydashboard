@@ -52,6 +52,26 @@
       });
     },
 
+    /** Most recent in-progress draft for the signed-in user (cross-device resume). */
+    getMyDraft: function() {
+      return new Promise(function(resolve, reject) {
+        if (!useSupabase()) { resolve(null); return; }
+        getSession().then(function(session) {
+          if (!session) { resolve(null); return; }
+          window.supabase.from('class_visits')
+            .select('id, school_year, saved_by, data, metadata, created_at, updated_at')
+            .eq('saved_by', session.user.id)
+            .eq('metadata->>status', 'draft')
+            .order('updated_at', { ascending: false })
+            .limit(1)
+            .then(function(r) {
+              if (r.error) { reject(r.error); return; }
+              resolve(r.data && r.data[0] ? r.data[0] : null);
+            });
+        }).catch(reject);
+      });
+    },
+
     saveVisit: function(payload) {
       return new Promise(function(resolve, reject) {
         if (!useSupabase()) { reject(new Error('Supabase required')); return; }
