@@ -118,8 +118,8 @@ a.sidebar-item:hover{color:var(--white)}
 .field-grid-2{display:grid;grid-template-columns:auto 1fr;gap:14px;margin-top:14px}
 .field{display:flex;flex-direction:column;gap:5px}
 .field label{font-size:.6rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text3)}
-.field input,.field textarea{background:white;border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Inter',sans-serif;font-size:14px;padding:10px 13px;transition:border-color .15s,box-shadow .15s;outline:none;width:100%}
-.field input:focus,.field textarea:focus{border-color:var(--accent-drama);box-shadow:0 0 0 3px rgba(74,127,212,.1)}
+.field input,.field textarea,.field select{background:white;border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:'Inter',sans-serif;font-size:14px;padding:10px 13px;transition:border-color .15s,box-shadow .15s;outline:none;width:100%}
+.field input:focus,.field textarea:focus,.field select:focus{border-color:var(--accent-drama);box-shadow:0 0 0 3px rgba(74,127,212,.1)}
 .field input::placeholder,.field textarea::placeholder{color:var(--text3)}
 .field textarea{resize:vertical;min-height:72px;line-height:1.55}
 
@@ -266,9 +266,9 @@ a.sidebar-item:hover{color:var(--white)}
       <a href="faculty-hub.html" class="btn btn-ghost">← Back to Faculty Hub</a>
     </div>
 
-    <div class="purpose-strip">
-      <div class="purpose-label">HGIOS 4 <em>Framework</em></div>
-      <div class="purpose-text">
+    <div class="purpose-strip" id="purposeStrip">
+      <div class="purpose-label" id="purposeLabel">HGIOS 4 <em>Framework</em></div>
+      <div class="purpose-text" id="purposeText">
         <p>Using <strong>How Good Is Our School? 4</strong> Quality Indicator 2.3 — Learning, Teaching and Assessment. This form supports staff and observers to reflect on classroom practice and record feedback using HGIOS 4 evaluative language.</p>
         <p style="margin-top:.5rem">Learning &amp; Teaching Observation — Session 25–26</p>
       </div>
@@ -278,7 +278,14 @@ a.sidebar-item:hover{color:var(--white)}
     <div class="panel">
       <div class="panel-header"><div class="panel-title">Visit Details</div></div>
       <div class="panel-body">
-        <div class="role-helper">Staff (the teacher observed) complete the <strong>Teacher Feedback</strong> column with their reflections. Observers (e.g. PT, HT, peer) complete the <strong>Observer Feedback</strong> column and can use the HGIOS 4 evaluative language chips below each field. Both columns can be completed during or after the feedback conversation.</div>
+        <div class="field" style="margin-bottom:1rem;max-width:360px">
+          <label for="formType">Observation Form</label>
+          <select id="formType" onchange="switchFormType(this.value)">
+            <option value="hgios4">HGIOS 4 — Learning &amp; Teaching</option>
+            <option value="routines">Knightswood Routines</option>
+          </select>
+        </div>
+        <div class="role-helper" id="roleHelper">Staff (the teacher observed) complete the <strong>Teacher Feedback</strong> column with their reflections. Observers (e.g. PT, HT, peer) complete the <strong>Observer Feedback</strong> column and can use the HGIOS 4 evaluative language chips below each field. Both columns can be completed during or after the feedback conversation.</div>
         <div class="field-grid-3">
           <div class="field"><label>Teacher</label><input type="text" id="teacher" placeholder="Teacher name" /></div>
           <div class="field"><label>Class</label><input type="text" id="class" placeholder="e.g. S3A Drama" /></div>
@@ -292,7 +299,7 @@ a.sidebar-item:hover{color:var(--white)}
     </div>
 
     <!-- PEDAGOGY POD -->
-    <div class="panel">
+    <div class="panel" id="podsPanel">
       <div class="panel-header"><div class="panel-title">Pedagogy Pod Focus</div></div>
       <div class="pod-grid">
         <div class="pod-chip" onclick="togglePod(this)">Collaborative Learning</div>
@@ -308,400 +315,15 @@ a.sidebar-item:hover{color:var(--white)}
 
     <!-- PROGRESS -->
     <div class="elements-header">
-      <span class="elements-title">Observation Elements</span>
+      <span class="elements-title" id="elementsTitle">Observation Elements</span>
       <div class="progress-wrap">
         <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
         <span class="progress-label" id="progressLabel">0/7</span>
       </div>
     </div>
 
-    <!-- CARD 1 -->
-    <div class="card" id="card-1">
-      <div class="card-header" onclick="toggleCard('card-1')">
-        <div class="card-num">1</div>
-        <div class="card-title-block">
-          <div class="card-title">Planning</div>
-          <div class="card-ref">QI 2.3 — Quality of Teaching; Planning, Tracking &amp; Monitoring</div>
-        </div>
-        <div class="card-right">
-          <div class="status-dot" id="dot-card-1"></div>
-          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-        </div>
-      </div>
-      <div class="card-body">
-        <div class="card-body-inner">
-          <div class="body-col indicators">
-            <div class="col-label">What this looks like</div>
-            <ul class="bullet-list">
-              <li class="key">Resources prepared and pitched appropriately</li>
-              <li>Seating plan evident</li>
-              <li>Staged Intervention triangle and CEM curve available for reference</li>
-              <li>Evidence of planned questioning using HOTS planning grid</li>
-              <li class="key">High expectations of all young people</li>
-            </ul>
-          </div>
-          <div class="body-col feedback-col">
-            <div class="col-label">Teacher Feedback</div>
-            <div class="rating-row">
-              <button class="rating-btn" onclick="setRating(this,'t-1')">Strength</button>
-              <button class="rating-btn" onclick="setRating(this,'t-1')">Developing</button>
-              <button class="rating-btn" onclick="setRating(this,'t-1')">Improve</button>
-            </div>
-            <textarea id="tf-1" placeholder="Teacher's reflections on planning…" oninput="updateStatus('card-1')"></textarea>
-          </div>
-          <div class="body-col feedback-col">
-            <div class="col-label">Observer Feedback</div>
-            <div class="rating-row">
-              <button class="rating-btn" onclick="setRating(this,'o-1')">Strength</button>
-              <button class="rating-btn" onclick="setRating(this,'o-1')">Developing</button>
-              <button class="rating-btn" onclick="setRating(this,'o-1')">Improve</button>
-            </div>
-            <div class="hgios-label">HGIOS 4 evaluative language — insert</div>
-            <div class="hgios-chips">
-              <span class="hgios-chip" onclick="insertChip('of-1', 'Almost all')">Almost all</span>
-              <span class="hgios-chip" onclick="insertChip('of-1', 'Most')">Most</span>
-              <span class="hgios-chip" onclick="insertChip('of-1', 'Many')">Many</span>
-              <span class="hgios-chip" onclick="insertChip('of-1', 'Some')">Some</span>
-              <span class="hgios-chip" onclick="insertChip('of-1', 'A few')">A few</span>
-            </div>
-            <textarea id="of-1" placeholder="Observer's notes on planning…" oninput="updateStatus('card-1')"></textarea>
-          </div>
-        </div>
-      </div>
-    </div>
+    <div id="elementsContainer"></div>
 
-    <!-- CARD 2 -->
-    <div class="card" id="card-2">
-      <div class="card-header" onclick="toggleCard('card-2')">
-        <div class="card-num">2</div>
-        <div class="card-title-block">
-          <div class="card-title">Welcome &amp; Ethos</div>
-          <div class="card-ref">QI 2.3 — Learning &amp; Engagement</div>
-        </div>
-        <div class="card-right">
-          <div class="status-dot" id="dot-card-2"></div>
-          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-        </div>
-      </div>
-      <div class="card-body">
-        <div class="card-body-inner">
-          <div class="body-col indicators">
-            <div class="col-label">What this looks like</div>
-            <ul class="bullet-list">
-              <li class="key">Positive relationships established with young people</li>
-              <li>Class welcomed at the door at the beginning of the lesson</li>
-              <li>PPR policy followed in relation to phones, bags and jackets</li>
-              <li class="key">Restorative approaches used to build respectful relationships</li>
-              <li>PPR flowchart followed to support behaviour management</li>
-              <li>Classroom organised, inc. materials being available for pupils</li>
-            </ul>
-          </div>
-          <div class="body-col feedback-col">
-            <div class="col-label">Teacher Feedback</div>
-            <div class="rating-row">
-              <button class="rating-btn" onclick="setRating(this,'t-2')">Strength</button>
-              <button class="rating-btn" onclick="setRating(this,'t-2')">Developing</button>
-              <button class="rating-btn" onclick="setRating(this,'t-2')">Improve</button>
-            </div>
-            <textarea id="tf-2" placeholder="Teacher's reflections on ethos…" oninput="updateStatus('card-2')"></textarea>
-          </div>
-          <div class="body-col feedback-col">
-            <div class="col-label">Observer Feedback</div>
-            <div class="rating-row">
-              <button class="rating-btn" onclick="setRating(this,'o-2')">Strength</button>
-              <button class="rating-btn" onclick="setRating(this,'o-2')">Developing</button>
-              <button class="rating-btn" onclick="setRating(this,'o-2')">Improve</button>
-            </div>
-            <div class="hgios-label">HGIOS 4 evaluative language — insert</div>
-            <div class="hgios-chips">
-              <span class="hgios-chip" onclick="insertChip('of-2', 'Almost all')">Almost all</span>
-              <span class="hgios-chip" onclick="insertChip('of-2', 'Most')">Most</span>
-              <span class="hgios-chip" onclick="insertChip('of-2', 'Many')">Many</span>
-              <span class="hgios-chip" onclick="insertChip('of-2', 'Some')">Some</span>
-              <span class="hgios-chip" onclick="insertChip('of-2', 'A few')">A few</span>
-            </div>
-            <textarea id="of-2" placeholder="Observer's notes on ethos…" oninput="updateStatus('card-2')"></textarea>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- CARD 3 -->
-    <div class="card" id="card-3">
-      <div class="card-header" onclick="toggleCard('card-3')">
-        <div class="card-num">3</div>
-        <div class="card-title-block">
-          <div class="card-title">Learning Intention</div>
-          <div class="card-ref">QI 2.3 — Quality of Teaching</div>
-        </div>
-        <div class="card-right">
-          <div class="status-dot" id="dot-card-3"></div>
-          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-        </div>
-      </div>
-      <div class="card-body">
-        <div class="card-body-inner">
-          <div class="body-col indicators">
-            <div class="col-label">What this looks like</div>
-            <ul class="bullet-list">
-              <li class="key">Makes purpose of learning clear</li>
-              <li>Expressed as 'To know, to understand or be able to'</li>
-              <li>Separated from learning context</li>
-              <li>Focused on skills and knowledge, not tasks</li>
-              <li class="key">Shared verbally and visually in pupil friendly language</li>
-              <li>Demonstrate an awareness of prior learning</li>
-              <li>Define the learning for a lesson or series of lessons</li>
-              <li class="key">Revisited during the learning process</li>
-            </ul>
-          </div>
-          <div class="body-col feedback-col">
-            <div class="col-label">Teacher Feedback</div>
-            <div class="rating-row">
-              <button class="rating-btn" onclick="setRating(this,'t-3')">Strength</button>
-              <button class="rating-btn" onclick="setRating(this,'t-3')">Developing</button>
-              <button class="rating-btn" onclick="setRating(this,'t-3')">Improve</button>
-            </div>
-            <textarea id="tf-3" placeholder="Teacher's reflections on LI…" oninput="updateStatus('card-3')"></textarea>
-          </div>
-          <div class="body-col feedback-col">
-            <div class="col-label">Observer Feedback</div>
-            <div class="rating-row">
-              <button class="rating-btn" onclick="setRating(this,'o-3')">Strength</button>
-              <button class="rating-btn" onclick="setRating(this,'o-3')">Developing</button>
-              <button class="rating-btn" onclick="setRating(this,'o-3')">Improve</button>
-            </div>
-            <div class="hgios-label">HGIOS 4 evaluative language — insert</div>
-            <div class="hgios-chips">
-              <span class="hgios-chip" onclick="insertChip('of-3', 'Almost all')">Almost all</span>
-              <span class="hgios-chip" onclick="insertChip('of-3', 'Most')">Most</span>
-              <span class="hgios-chip" onclick="insertChip('of-3', 'Many')">Many</span>
-              <span class="hgios-chip" onclick="insertChip('of-3', 'Some')">Some</span>
-              <span class="hgios-chip" onclick="insertChip('of-3', 'A few')">A few</span>
-            </div>
-            <textarea id="of-3" placeholder="Observer's notes on LI…" oninput="updateStatus('card-3')"></textarea>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- CARD 4 -->
-    <div class="card" id="card-4">
-      <div class="card-header" onclick="toggleCard('card-4')">
-        <div class="card-num">4</div>
-        <div class="card-title-block">
-          <div class="card-title">Success Criteria</div>
-          <div class="card-ref">QI 2.3 — Quality of Teaching</div>
-        </div>
-        <div class="card-right">
-          <div class="status-dot" id="dot-card-4"></div>
-          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-        </div>
-      </div>
-      <div class="card-body">
-        <div class="card-body-inner">
-          <div class="body-col indicators">
-            <div class="col-label">What this looks like</div>
-            <ul class="bullet-list">
-              <li class="key">Pupils actively involved in co-creation of success criteria</li>
-              <li>Expressed as 'I can' statements</li>
-              <li class="key">Makes clear what success looks like in a lesson or series of lessons</li>
-              <li class="key">Used to support feedback, self and peer assessment</li>
-            </ul>
-          </div>
-          <div class="body-col feedback-col">
-            <div class="col-label">Teacher Feedback</div>
-            <div class="rating-row">
-              <button class="rating-btn" onclick="setRating(this,'t-4')">Strength</button>
-              <button class="rating-btn" onclick="setRating(this,'t-4')">Developing</button>
-              <button class="rating-btn" onclick="setRating(this,'t-4')">Improve</button>
-            </div>
-            <textarea id="tf-4" placeholder="Teacher's reflections on SC…" oninput="updateStatus('card-4')"></textarea>
-          </div>
-          <div class="body-col feedback-col">
-            <div class="col-label">Observer Feedback</div>
-            <div class="rating-row">
-              <button class="rating-btn" onclick="setRating(this,'o-4')">Strength</button>
-              <button class="rating-btn" onclick="setRating(this,'o-4')">Developing</button>
-              <button class="rating-btn" onclick="setRating(this,'o-4')">Improve</button>
-            </div>
-            <div class="hgios-label">HGIOS 4 evaluative language — insert</div>
-            <div class="hgios-chips">
-              <span class="hgios-chip" onclick="insertChip('of-4', 'Almost all')">Almost all</span>
-              <span class="hgios-chip" onclick="insertChip('of-4', 'Most')">Most</span>
-              <span class="hgios-chip" onclick="insertChip('of-4', 'Many')">Many</span>
-              <span class="hgios-chip" onclick="insertChip('of-4', 'Some')">Some</span>
-              <span class="hgios-chip" onclick="insertChip('of-4', 'A few')">A few</span>
-            </div>
-            <textarea id="of-4" placeholder="Observer's notes on SC…" oninput="updateStatus('card-4')"></textarea>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- CARD 5 -->
-    <div class="card" id="card-5">
-      <div class="card-header" onclick="toggleCard('card-5')">
-        <div class="card-num">5</div>
-        <div class="card-title-block">
-          <div class="card-title">Differentiation</div>
-          <div class="card-ref">QI 2.3 — Quality of Teaching; Learning &amp; Engagement</div>
-        </div>
-        <div class="card-right">
-          <div class="status-dot" id="dot-card-5"></div>
-          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-        </div>
-      </div>
-      <div class="card-body">
-        <div class="card-body-inner">
-          <div class="body-col indicators">
-            <div class="col-label">What this looks like</div>
-            <ul class="bullet-list">
-              <li class="key">Clear presentation, including explanations and modelling of content</li>
-              <li>Teacher support provided throughout lesson</li>
-              <li class="key">Evidence of collaborative learning to allow young people to support each other</li>
-              <li>Scaffolds provided for learners</li>
-              <li class="key">Evidence of pupil choice within activities</li>
-              <li class="key">Additional challenge provided (e.g. increased difficulty or extension work)</li>
-            </ul>
-          </div>
-          <div class="body-col feedback-col">
-            <div class="col-label">Teacher Feedback</div>
-            <div class="rating-row">
-              <button class="rating-btn" onclick="setRating(this,'t-5')">Strength</button>
-              <button class="rating-btn" onclick="setRating(this,'t-5')">Developing</button>
-              <button class="rating-btn" onclick="setRating(this,'t-5')">Improve</button>
-            </div>
-            <textarea id="tf-5" placeholder="Teacher's reflections on differentiation…" oninput="updateStatus('card-5')"></textarea>
-          </div>
-          <div class="body-col feedback-col">
-            <div class="col-label">Observer Feedback</div>
-            <div class="rating-row">
-              <button class="rating-btn" onclick="setRating(this,'o-5')">Strength</button>
-              <button class="rating-btn" onclick="setRating(this,'o-5')">Developing</button>
-              <button class="rating-btn" onclick="setRating(this,'o-5')">Improve</button>
-            </div>
-            <div class="hgios-label">HGIOS 4 evaluative language — insert</div>
-            <div class="hgios-chips">
-              <span class="hgios-chip" onclick="insertChip('of-5', 'Almost all')">Almost all</span>
-              <span class="hgios-chip" onclick="insertChip('of-5', 'Most')">Most</span>
-              <span class="hgios-chip" onclick="insertChip('of-5', 'Many')">Many</span>
-              <span class="hgios-chip" onclick="insertChip('of-5', 'Some')">Some</span>
-              <span class="hgios-chip" onclick="insertChip('of-5', 'A few')">A few</span>
-            </div>
-            <textarea id="of-5" placeholder="Observer's notes on differentiation…" oninput="updateStatus('card-5')"></textarea>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- CARD 6 -->
-    <div class="card" id="card-6">
-      <div class="card-header" onclick="toggleCard('card-6')">
-        <div class="card-num">6</div>
-        <div class="card-title-block">
-          <div class="card-title">Digital Learning</div>
-          <div class="card-ref">QI 2.3 — Learning &amp; Engagement</div>
-        </div>
-        <div class="card-right">
-          <div class="status-dot" id="dot-card-6"></div>
-          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-        </div>
-      </div>
-      <div class="card-body">
-        <div class="card-body-inner">
-          <div class="body-col indicators">
-            <div class="col-label">What this looks like</div>
-            <ul class="bullet-list">
-              <li>iPads used to support learning</li>
-              <li class="key">Technology used to develop digital literacy skills</li>
-              <li>Digital resources used to support EAL young people</li>
-              <li class="key">Used to motivate young people</li>
-            </ul>
-          </div>
-          <div class="body-col feedback-col">
-            <div class="col-label">Teacher Feedback</div>
-            <div class="rating-row">
-              <button class="rating-btn" onclick="setRating(this,'t-6')">Strength</button>
-              <button class="rating-btn" onclick="setRating(this,'t-6')">Developing</button>
-              <button class="rating-btn" onclick="setRating(this,'t-6')">Improve</button>
-            </div>
-            <textarea id="tf-6" placeholder="Teacher's reflections on digital learning…" oninput="updateStatus('card-6')"></textarea>
-          </div>
-          <div class="body-col feedback-col">
-            <div class="col-label">Observer Feedback</div>
-            <div class="rating-row">
-              <button class="rating-btn" onclick="setRating(this,'o-6')">Strength</button>
-              <button class="rating-btn" onclick="setRating(this,'o-6')">Developing</button>
-              <button class="rating-btn" onclick="setRating(this,'o-6')">Improve</button>
-            </div>
-            <div class="hgios-label">HGIOS 4 evaluative language — insert</div>
-            <div class="hgios-chips">
-              <span class="hgios-chip" onclick="insertChip('of-6', 'Almost all')">Almost all</span>
-              <span class="hgios-chip" onclick="insertChip('of-6', 'Most')">Most</span>
-              <span class="hgios-chip" onclick="insertChip('of-6', 'Many')">Many</span>
-              <span class="hgios-chip" onclick="insertChip('of-6', 'Some')">Some</span>
-              <span class="hgios-chip" onclick="insertChip('of-6', 'A few')">A few</span>
-            </div>
-            <textarea id="of-6" placeholder="Observer's notes on digital learning…" oninput="updateStatus('card-6')"></textarea>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- CARD 7 -->
-    <div class="card" id="card-7">
-      <div class="card-header" onclick="toggleCard('card-7')">
-        <div class="card-num">7</div>
-        <div class="card-title-block">
-          <div class="card-title">Assessment (inc. Plenary)</div>
-          <div class="card-ref">QI 2.3 — Quality of Teaching; Effective use of Assessment</div>
-        </div>
-        <div class="card-right">
-          <div class="status-dot" id="dot-card-7"></div>
-          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-        </div>
-      </div>
-      <div class="card-body">
-        <div class="card-body-inner">
-          <div class="body-col indicators">
-            <div class="col-label">What this looks like</div>
-            <ul class="bullet-list">
-              <li class="key">Questioning is varied and makes young people think</li>
-              <li class="key">Feedback provided to move learning forward</li>
-              <li>Feedback is specific, clear and precise</li>
-              <li class="key">Self and peer assessment evident in lesson</li>
-              <li class="key">Success Criteria used as assessment tool</li>
-            </ul>
-          </div>
-          <div class="body-col feedback-col">
-            <div class="col-label">Teacher Feedback</div>
-            <div class="rating-row">
-              <button class="rating-btn" onclick="setRating(this,'t-7')">Strength</button>
-              <button class="rating-btn" onclick="setRating(this,'t-7')">Developing</button>
-              <button class="rating-btn" onclick="setRating(this,'t-7')">Improve</button>
-            </div>
-            <textarea id="tf-7" placeholder="Teacher's reflections on assessment…" oninput="updateStatus('card-7')"></textarea>
-          </div>
-          <div class="body-col feedback-col">
-            <div class="col-label">Observer Feedback</div>
-            <div class="rating-row">
-              <button class="rating-btn" onclick="setRating(this,'o-7')">Strength</button>
-              <button class="rating-btn" onclick="setRating(this,'o-7')">Developing</button>
-              <button class="rating-btn" onclick="setRating(this,'o-7')">Improve</button>
-            </div>
-            <div class="hgios-label">HGIOS 4 evaluative language — insert</div>
-            <div class="hgios-chips">
-              <span class="hgios-chip" onclick="insertChip('of-7', 'Almost all')">Almost all</span>
-              <span class="hgios-chip" onclick="insertChip('of-7', 'Most')">Most</span>
-              <span class="hgios-chip" onclick="insertChip('of-7', 'Many')">Many</span>
-              <span class="hgios-chip" onclick="insertChip('of-7', 'Some')">Some</span>
-              <span class="hgios-chip" onclick="insertChip('of-7', 'A few')">A few</span>
-            </div>
-            <textarea id="of-7" placeholder="Observer's notes on assessment…" oninput="updateStatus('card-7')"></textarea>
-          </div>
-        </div>
-      </div>
-    </div>
 
     <!-- REFLECTIONS -->
     <div class="panel">
@@ -773,11 +395,137 @@ a.sidebar-item:hover{color:var(--white)}
 
 <script>
   const ratings = {};
-  const DRAFT_KEY = 'kss_obs_v2';
+  const LEGACY_DRAFT_KEY = 'kss_obs_v2';
   const ARCHIVE_KEY = 'kss_obs_archive';
-  const ELEMENT_LABELS = ['Planning','Welcome & Ethos','Learning Intention','Success Criteria','Differentiation','Digital Learning','Assessment (inc. Plenary)'];
+  const HGIOS_CHIPS = ['Almost all', 'Most', 'Many', 'Some', 'A few'];
+
+  const FORM_TYPES = {
+    hgios4: {
+      label: 'HGIOS 4 — Learning & Teaching',
+      draftKey: 'kss_obs_v2_hgios4',
+      purposeLabel: 'HGIOS 4 <em>Framework</em>',
+      purposeHtml: '<p>Using <strong>How Good Is Our School? 4</strong> Quality Indicator 2.3 — Learning, Teaching and Assessment. This form supports staff and observers to reflect on classroom practice and record feedback using HGIOS 4 evaluative language.</p><p style="margin-top:.5rem">Learning &amp; Teaching Observation — Session 25–26</p>',
+      roleHelper: 'Staff (the teacher observed) complete the <strong>Teacher Feedback</strong> column with their reflections. Observers (e.g. PT, HT, peer) complete the <strong>Observer Feedback</strong> column and can use the HGIOS 4 evaluative language chips below each field. Both columns can be completed during or after the feedback conversation.',
+      defaultFocus: '',
+      elementsTitle: 'Observation Elements',
+      indicatorsLabel: 'What this looks like',
+      showPods: true,
+      showRatings: true,
+      showHgiosChips: true,
+      exportTitle: 'Using HGIOS 4 QI 2.3 — Learning, Teaching and Assessment',
+      elements: [
+        { title: 'Planning', ref: 'QI 2.3 — Quality of Teaching; Planning, Tracking & Monitoring', indicators: [
+          { text: 'Resources prepared and pitched appropriately', key: true },
+          { text: 'Seating plan evident' },
+          { text: 'Staged Intervention triangle and CEM curve available for reference' },
+          { text: 'Evidence of planned questioning using HOTS planning grid' },
+          { text: 'High expectations of all young people', key: true }
+        ]},
+        { title: 'Welcome & Ethos', ref: 'QI 2.3 — Learning & Engagement', indicators: [
+          { text: 'Positive relationships established with young people', key: true },
+          { text: 'Class welcomed at the door at the beginning of the lesson' },
+          { text: 'PPR policy followed in relation to phones, bags and jackets' },
+          { text: 'Restorative approaches used to build respectful relationships', key: true },
+          { text: 'PPR flowchart followed to support behaviour management' },
+          { text: 'Classroom organised, inc. materials being available for pupils' }
+        ]},
+        { title: 'Learning Intention', ref: 'QI 2.3 — Quality of Teaching', indicators: [
+          { text: 'Makes purpose of learning clear', key: true },
+          { text: "Expressed as 'To know, to understand or be able to'" },
+          { text: 'Separated from learning context' },
+          { text: 'Focused on skills and knowledge, not tasks' },
+          { text: 'Shared verbally and visually in pupil friendly language', key: true },
+          { text: 'Demonstrate an awareness of prior learning' },
+          { text: 'Define the learning for a lesson or series of lessons' },
+          { text: 'Revisited during the learning process', key: true }
+        ]},
+        { title: 'Success Criteria', ref: 'QI 2.3 — Quality of Teaching', indicators: [
+          { text: 'Pupils actively involved in co-creation of success criteria', key: true },
+          { text: "Expressed as 'I can' statements" },
+          { text: 'Makes clear what success looks like in a lesson or series of lessons', key: true },
+          { text: 'Used to support feedback, self and peer assessment', key: true }
+        ]},
+        { title: 'Differentiation', ref: 'QI 2.3 — Quality of Teaching; Learning & Engagement', indicators: [
+          { text: 'Clear presentation, including explanations and modelling of content', key: true },
+          { text: 'Teacher support provided throughout lesson' },
+          { text: 'Evidence of collaborative learning to allow young people to support each other', key: true },
+          { text: 'Scaffolds provided for learners' },
+          { text: 'Evidence of pupil choice within activities', key: true },
+          { text: 'Additional challenge provided (e.g. increased difficulty or extension work)', key: true }
+        ]},
+        { title: 'Digital Learning', ref: 'QI 2.3 — Learning & Engagement', indicators: [
+          { text: 'iPads used to support learning' },
+          { text: 'Technology used to develop digital literacy skills', key: true },
+          { text: 'Digital resources used to support EAL young people' },
+          { text: 'Used to motivate young people', key: true }
+        ]},
+        { title: 'Assessment (inc. Plenary)', ref: 'QI 2.3 — Quality of Teaching; Effective use of Assessment', indicators: [
+          { text: 'Questioning is varied and makes young people think', key: true },
+          { text: 'Feedback provided to move learning forward', key: true },
+          { text: 'Feedback is specific, clear and precise' },
+          { text: 'Self and peer assessment evident in lesson', key: true },
+          { text: 'Success Criteria used as assessment tool', key: true }
+        ]}
+      ]
+    },
+    routines: {
+      label: 'Knightswood Routines',
+      draftKey: 'kss_obs_v2_routines',
+      purposeLabel: 'Classroom <em>Routines</em>',
+      purposeHtml: '<p>This form supports staff and observers to reflect on <strong>classroom routines</strong> during a learning walk or observation. Use the indicators to guide discussion and record feedback in the Teacher and Observer columns.</p><p style="margin-top:.5rem">Knightswood Routines Observation — Session 25–26</p>',
+      roleHelper: 'Staff (the teacher observed) complete the <strong>Teacher Feedback</strong> column with their reflections. Observers complete the <strong>Observer Feedback</strong> column. Both columns can be completed during or after the feedback conversation.',
+      defaultFocus: 'Classroom Routines',
+      elementsTitle: 'Classroom Routines',
+      indicatorsLabel: 'Illustrations of what this could look like in a Knightswood lesson',
+      showPods: false,
+      showRatings: false,
+      showHgiosChips: false,
+      exportTitle: 'Knightswood Classroom Routines',
+      elements: [
+        { title: 'Entering the Classroom', indicators: [
+          { text: 'Young people welcomed at the door by the teacher' },
+          { text: 'A consistent seating plan is in place' },
+          { text: 'Young people place their bags, jackets and phones in an appropriate space' },
+          { text: 'iPads are placed on desk, closed until they are being used' }
+        ]},
+        { title: 'Do Now', indicators: [
+          { text: 'Available as pupils enter the classroom' },
+          { text: 'In the same place every day' },
+          { text: 'Reviews / previews prior learning' },
+          { text: 'Completed with minimal teacher instruction' }
+        ]},
+        { title: 'Learning Intention / Success Criteria', indicators: [
+          { text: 'Shared with the class, in pupil-friendly language' },
+          { text: 'Revisited during the lesson' },
+          { text: 'Used to support feedback throughout the lesson' }
+        ]},
+        { title: 'Active Learning & Engagement', indicators: [
+          { text: 'Young people participate in appropriate activities' },
+          { text: 'Young people are challenged to think about their learning' },
+          { text: 'There are opportunities for young people to collaborate with each other' }
+        ]},
+        { title: 'Do Last (Plenary)', indicators: [
+          { text: 'Linked to the success criteria' },
+          { text: 'Used to formatively assess learning' }
+        ]},
+        { title: 'Leaving the Classroom', indicators: [
+          { text: 'Young people remain at seats until the bell rings' },
+          { text: 'Bags, jackets and phones collected when instructed to do so by the teacher' },
+          { text: 'Phones remain in bags until bell rings' },
+          { text: 'Young people leave classroom in orderly manner' }
+        ]}
+      ]
+    }
+  };
+
+  let currentFormType = 'hgios4';
   let editingVisitId = null;
   let savedVisitsCache = [];
+
+  function getFormConfig(type) { return FORM_TYPES[type || currentFormType] || FORM_TYPES.hgios4; }
+  function getElementCount() { return getFormConfig().elements.length; }
+  function getElementLabels() { return getFormConfig().elements.map(e => e.title); }
+  function getDraftKey(type) { return getFormConfig(type).draftKey; }
 
   function insertChip(textareaId, word) {
     const ta = document.getElementById(textareaId);
@@ -797,6 +545,107 @@ a.sidebar-item:hover{color:var(--white)}
 
   function toggleCard(id) { document.getElementById(id).classList.toggle('open'); }
   function togglePod(el) { el.classList.toggle('active'); }
+
+  function updatePurposeStrip(type) {
+    const cfg = getFormConfig(type);
+    document.getElementById('purposeLabel').innerHTML = cfg.purposeLabel;
+    document.getElementById('purposeText').innerHTML = cfg.purposeHtml;
+    document.getElementById('roleHelper').innerHTML = cfg.roleHelper;
+    document.getElementById('elementsTitle').textContent = cfg.elementsTitle;
+    document.getElementById('podsPanel').style.display = cfg.showPods ? '' : 'none';
+  }
+
+  function renderElements(type) {
+    const cfg = getFormConfig(type);
+    const container = document.getElementById('elementsContainer');
+    container.innerHTML = cfg.elements.map(function(el, i) {
+      const n = i + 1;
+      const cardId = 'card-' + n;
+      const indicators = el.indicators.map(function(ind) {
+        return '<li' + (ind.key ? ' class="key"' : '') + '>' + escHtml(ind.text) + '</li>';
+      }).join('');
+      const refHtml = el.ref ? '<div class="card-ref">' + escHtml(el.ref) + '</div>' : '';
+      const teacherRatings = cfg.showRatings ? (
+        '<div class="rating-row">' +
+        '<button class="rating-btn" onclick="setRating(this,\'t-' + n + '\')">Strength</button>' +
+        '<button class="rating-btn" onclick="setRating(this,\'t-' + n + '\')">Developing</button>' +
+        '<button class="rating-btn" onclick="setRating(this,\'t-' + n + '\')">Improve</button>' +
+        '</div>'
+      ) : '';
+      const observerRatings = cfg.showRatings ? (
+        '<div class="rating-row">' +
+        '<button class="rating-btn" onclick="setRating(this,\'o-' + n + '\')">Strength</button>' +
+        '<button class="rating-btn" onclick="setRating(this,\'o-' + n + '\')">Developing</button>' +
+        '<button class="rating-btn" onclick="setRating(this,\'o-' + n + '\')">Improve</button>' +
+        '</div>'
+      ) : '';
+      const hgiosChips = cfg.showHgiosChips ? (
+        '<div class="hgios-label">HGIOS 4 evaluative language — insert</div>' +
+        '<div class="hgios-chips">' +
+        HGIOS_CHIPS.map(function(word) {
+          return '<span class="hgios-chip" onclick="insertChip(\'of-' + n + '\', \'' + word + '\')">' + word + '</span>';
+        }).join('') +
+        '</div>'
+      ) : '';
+      const topic = el.title.toLowerCase();
+      return '<div class="card" id="' + cardId + '">' +
+        '<div class="card-header" onclick="toggleCard(\'' + cardId + '\')">' +
+        '<div class="card-num">' + n + '</div>' +
+        '<div class="card-title-block"><div class="card-title">' + escHtml(el.title) + '</div>' + refHtml + '</div>' +
+        '<div class="card-right"><div class="status-dot" id="dot-' + cardId + '"></div>' +
+        '<svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg></div>' +
+        '</div>' +
+        '<div class="card-body"><div class="card-body-inner">' +
+        '<div class="body-col indicators"><div class="col-label">' + escHtml(cfg.indicatorsLabel) + '</div><ul class="bullet-list">' + indicators + '</ul></div>' +
+        '<div class="body-col feedback-col"><div class="col-label">Teacher Feedback</div>' + teacherRatings +
+        '<textarea id="tf-' + n + '" placeholder="Teacher\'s reflections on ' + escHtml(topic) + '…" oninput="updateStatus(\'' + cardId + '\')"></textarea></div>' +
+        '<div class="body-col feedback-col"><div class="col-label">Observer Feedback</div>' + observerRatings + hgiosChips +
+        '<textarea id="of-' + n + '" placeholder="Observer\'s notes on ' + escHtml(topic) + '…" oninput="updateStatus(\'' + cardId + '\')"></textarea></div>' +
+        '</div></div></div>';
+    }).join('');
+  }
+
+  function hasElementFeedback() {
+    const count = getElementCount();
+    for (let i = 1; i <= count; i++) {
+      if (document.getElementById('tf-' + i)?.value.trim() || document.getElementById('of-' + i)?.value.trim()) return true;
+      if (ratings['t-' + i] || ratings['o-' + i]) return true;
+    }
+    return false;
+  }
+
+  function applyFormType(type, opts) {
+    opts = opts || {};
+    currentFormType = type;
+    const sel = document.getElementById('formType');
+    if (sel && sel.value !== type) sel.value = type;
+    updatePurposeStrip(type);
+    renderElements(type);
+    if (!opts.skipFocusDefault && !document.getElementById('focus').value.trim()) {
+      document.getElementById('focus').value = getFormConfig(type).defaultFocus || '';
+    }
+    if (!opts.preserveRatings) Object.keys(ratings).forEach(function(k) { delete ratings[k]; });
+    updateProgress();
+  }
+
+  function switchFormType(newType) {
+    if (newType === currentFormType) return;
+    if (hasElementFeedback() && !confirm('Switching forms will clear element feedback for this form. Visit details and reflections are kept. Continue?')) {
+      document.getElementById('formType').value = currentFormType;
+      return;
+    }
+    const prevCfg = getFormConfig(currentFormType);
+    const newCfg = getFormConfig(newType);
+    saveForm();
+    applyFormType(newType);
+    const focusEl = document.getElementById('focus');
+    const focusVal = focusEl.value.trim();
+    if (!focusVal || focusVal === prevCfg.defaultFocus || focusVal === newCfg.defaultFocus) {
+      focusEl.value = newCfg.defaultFocus || '';
+    }
+    editingVisitId = null;
+    saveForm();
+  }
 
   function setRating(btn, group) {
     btn.closest('.rating-row').querySelectorAll('.rating-btn').forEach(b => b.classList.remove('r-str','r-dev','r-imp'));
@@ -823,16 +672,21 @@ a.sidebar-item:hover{color:var(--white)}
   }
 
   function updateProgress() {
+    const total = getElementCount();
     let complete = 0;
-    for (let i = 1; i <= 7; i++) {
+    for (let i = 1; i <= total; i++) {
       if (document.getElementById('tf-'+i)?.value.trim() && document.getElementById('of-'+i)?.value.trim()) complete++;
     }
-    document.getElementById('progressFill').style.width = (complete/7*100) + '%';
-    document.getElementById('progressLabel').textContent = complete + '/7';
+    const pct = total ? (complete / total * 100) : 0;
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressLabel').textContent = complete + '/' + total;
   }
 
   function gatherData() {
+    const cfg = getFormConfig();
+    const count = getElementCount();
     const data = {
+      formType: currentFormType,
       teacher: document.getElementById('teacher').value,
       class: document.getElementById('class').value,
       observer: document.getElementById('observer').value,
@@ -840,10 +694,16 @@ a.sidebar-item:hover{color:var(--white)}
       focus: document.getElementById('focus').value,
       reflections: document.getElementById('reflections').value,
       nextsteps: document.getElementById('nextsteps').value,
-      pods: [...document.querySelectorAll('.pod-chip.active')].map(p => p.textContent.trim()),
-      ratings: {...ratings}, feedback: {}
+      pods: cfg.showPods ? [...document.querySelectorAll('.pod-chip.active')].map(p => p.textContent.trim()) : [],
+      ratings: cfg.showRatings ? {...ratings} : {},
+      feedback: {}
     };
-    for (let i = 1; i <= 7; i++) data.feedback[i] = { teacher: document.getElementById('tf-'+i)?.value||'', observer: document.getElementById('of-'+i)?.value||'' };
+    for (let i = 1; i <= count; i++) {
+      data.feedback[i] = {
+        teacher: document.getElementById('tf-'+i)?.value || '',
+        observer: document.getElementById('of-'+i)?.value || ''
+      };
+    }
     return data;
   }
 
@@ -884,6 +744,8 @@ a.sidebar-item:hover{color:var(--white)}
 
   function populateForm(d) {
     if (!d) return;
+    const formType = d.formType && FORM_TYPES[d.formType] ? d.formType : 'hgios4';
+    applyFormType(formType, { preserveRatings: true, skipFocusDefault: true });
     ['teacher','class','observer','date','focus','reflections','nextsteps'].forEach(id => {
       const el = document.getElementById(id);
       if (el) el.value = d[id] || '';
@@ -893,7 +755,8 @@ a.sidebar-item:hover{color:var(--white)}
     });
     Object.keys(ratings).forEach(k => delete ratings[k]);
     if (d.ratings) Object.keys(d.ratings).forEach(k => applyRating(k, d.ratings[k]));
-    for (let i = 1; i <= 7; i++) {
+    const count = getElementCount();
+    for (let i = 1; i <= count; i++) {
       const f = d.feedback && d.feedback[i] ? d.feedback[i] : {};
       const tf = document.getElementById('tf-' + i);
       const of = document.getElementById('of-' + i);
@@ -905,7 +768,9 @@ a.sidebar-item:hover{color:var(--white)}
   }
 
   function saveForm() {
-    localStorage.setItem(DRAFT_KEY, JSON.stringify(gatherData()));
+    const payload = gatherData();
+    payload._savedAt = Date.now();
+    localStorage.setItem(getDraftKey(currentFormType), JSON.stringify(payload));
     const s = document.getElementById('saveStatus');
     s.textContent = 'Draft saved at ' + new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
     s.style.color = '#15803d';
@@ -913,11 +778,36 @@ a.sidebar-item:hover{color:var(--white)}
   }
 
   function loadForm() {
-    const raw = localStorage.getItem(DRAFT_KEY);
+    const legacy = localStorage.getItem(LEGACY_DRAFT_KEY);
+    if (legacy) {
+      try {
+        const parsed = JSON.parse(legacy);
+        parsed.formType = parsed.formType || 'hgios4';
+        localStorage.setItem(getDraftKey('hgios4'), legacy);
+        localStorage.removeItem(LEGACY_DRAFT_KEY);
+      } catch (e) { localStorage.removeItem(LEGACY_DRAFT_KEY); }
+    }
+    let raw = null;
+    let loadedType = currentFormType;
+    Object.keys(FORM_TYPES).forEach(function(type) {
+      const candidate = localStorage.getItem(getDraftKey(type));
+      if (!candidate) return;
+      try {
+        const parsed = JSON.parse(candidate);
+        if (!raw) { raw = candidate; loadedType = type; return; }
+        const existing = JSON.parse(raw);
+        const existingTs = existing._savedAt || 0;
+        const candidateTs = parsed._savedAt || 0;
+        if (candidateTs > existingTs) { raw = candidate; loadedType = type; }
+      } catch (e) {}
+    });
     if (!raw) return;
     try {
-      populateForm(JSON.parse(raw));
-      document.getElementById('saveStatus').textContent = 'Draft restored';
+      const parsed = JSON.parse(raw);
+      parsed._savedAt = parsed._savedAt || Date.now();
+      currentFormType = loadedType;
+      populateForm(parsed);
+      document.getElementById('saveStatus').textContent = 'Draft restored (' + getFormConfig().label + ')';
     } catch(e) {}
   }
 
@@ -937,13 +827,13 @@ a.sidebar-item:hover{color:var(--white)}
       id: editingVisitId || undefined,
       school_year: ClassVisitService.schoolYearFromDate(d.date),
       data: d,
-      metadata: { source: 'class_visit_feedback' }
+      metadata: { source: 'class_visit_feedback', form_type: d.formType }
     }).then(function(row) {
       editingVisitId = row.id || editingVisitId;
       saveForm();
       return loadSavedVisits();
     }).then(function() {
-      s.textContent = editingVisitId ? 'Visit updated in the system' : 'Visit saved to the system';
+      s.textContent = editingVisitId ? 'Visit updated in the system' : 'Visit saved to the system (' + getFormConfig().label + ')';
       s.style.color = '#15803d';
       setTimeout(() => { s.style.color=''; s.textContent='Draft auto-saves on this device; Save Visit stores to the system'; }, 3000);
     }).catch(function() {
@@ -978,9 +868,10 @@ a.sidebar-item:hover{color:var(--white)}
     }
     el.innerHTML = archive.map(v => {
       const d = v.data || {};
+      const formLabel = (d.formType && FORM_TYPES[d.formType]) ? FORM_TYPES[d.formType].label : FORM_TYPES.hgios4.label;
       const title = (d.teacher || 'Unnamed teacher') + (d.class ? ' · ' + d.class : '');
       const savedAt = v.updated_at || v.created_at;
-      const sub = (d.date || 'No date') + (d.observer ? ' · Observer: ' + d.observer : '') + (savedAt ? ' · Saved ' + new Date(savedAt).toLocaleString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '');
+      const sub = formLabel + ' · ' + (d.date || 'No date') + (d.observer ? ' · Observer: ' + d.observer : '') + (savedAt ? ' · Saved ' + new Date(savedAt).toLocaleString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '');
       const safeId = String(v.id || '').replace(/'/g, "\\'");
       return '<div class="saved-visit-row">' +
         '<div class="saved-visit-meta"><div class="saved-visit-title">' + escHtml(title) + '</div><div class="saved-visit-sub">' + escHtml(sub) + '</div></div>' +
@@ -1019,7 +910,11 @@ a.sidebar-item:hover{color:var(--white)}
   }
 
   function buildVisitPrintHtml(d) {
+    const formType = d.formType && FORM_TYPES[d.formType] ? d.formType : 'hgios4';
+    const cfg = getFormConfig(formType);
+    const labels = cfg.elements.map(function(e) { return e.title; });
     let html = '<div class="print-meta">' +
+      '<div><strong>Form:</strong> ' + escHtml(cfg.label) + '</div>' +
       '<div><strong>Teacher:</strong> ' + escHtml(d.teacher || '—') + '</div>' +
       '<div><strong>Class:</strong> ' + escHtml(d.class || '—') + '</div>' +
       '<div><strong>Observer:</strong> ' + escHtml(d.observer || '—') + '</div>' +
@@ -1027,13 +922,19 @@ a.sidebar-item:hover{color:var(--white)}
       '<div style="grid-column:1/-1"><strong>Focus:</strong> ' + escHtml(d.focus || '—') + '</div>';
     if (d.pods && d.pods.length) html += '<div style="grid-column:1/-1"><strong>Pedagogy Pod Focus:</strong> ' + escHtml(d.pods.join(', ')) + '</div>';
     html += '</div>';
-    ELEMENT_LABELS.forEach((label, i) => {
+    labels.forEach(function(label, i) {
       const n = i + 1;
       const f = d.feedback && d.feedback[n] ? d.feedback[n] : {};
       if (!f.teacher && !f.observer) return;
       html += '<div class="print-element"><div class="print-element-title">' + n + '. ' + escHtml(label) + '</div>';
-      if (f.teacher) html += '<div class="print-feedback"><strong>Teacher</strong> [' + escHtml((d.ratings && d.ratings['t-' + n]) || '—') + ']: ' + escHtml(f.teacher) + '</div>';
-      if (f.observer) html += '<div class="print-feedback"><strong>Observer</strong> [' + escHtml((d.ratings && d.ratings['o-' + n]) || '—') + ']: ' + escHtml(f.observer) + '</div>';
+      if (f.teacher) {
+        const tRating = cfg.showRatings ? ' [' + escHtml((d.ratings && d.ratings['t-' + n]) || '—') + ']' : '';
+        html += '<div class="print-feedback"><strong>Teacher</strong>' + tRating + ': ' + escHtml(f.teacher) + '</div>';
+      }
+      if (f.observer) {
+        const oRating = cfg.showRatings ? ' [' + escHtml((d.ratings && d.ratings['o-' + n]) || '—') + ']' : '';
+        html += '<div class="print-feedback"><strong>Observer</strong>' + oRating + ': ' + escHtml(f.observer) + '</div>';
+      }
       html += '</div>';
     });
     if (d.reflections) html += '<div class="print-section"><h3>Observer Reflections</h3><div class="print-feedback">' + escHtml(d.reflections) + '</div></div>';
@@ -1062,9 +963,9 @@ a.sidebar-item:hover{color:var(--white)}
   }
 
   function clearForm() {
-    if (!confirm('Clear all data? This cannot be undone.')) return;
+    if (!confirm('Clear all data for this form? This cannot be undone.')) return;
     editingVisitId = null;
-    localStorage.removeItem(DRAFT_KEY);
+    localStorage.removeItem(getDraftKey(currentFormType));
     location.reload();
   }
 
@@ -1106,6 +1007,7 @@ a.sidebar-item:hover{color:var(--white)}
       school_year: schoolYear,
       evidence_type: 'observation',
       data: {
+        formType: d.formType,
         teacher: d.teacher,
         class: d.class,
         observer: d.observer,
@@ -1117,7 +1019,7 @@ a.sidebar-item:hover{color:var(--white)}
         ratings: d.ratings,
         feedback: d.feedback
       },
-      metadata: { source: 'class_visit_feedback' }
+      metadata: { source: 'class_visit_feedback', form_type: d.formType }
     }).then(function() {
       const s = document.getElementById('saveStatus');
       s.textContent = 'Exported to Triangulation of Evidence';
@@ -1130,8 +1032,9 @@ a.sidebar-item:hover{color:var(--white)}
 
   function exportText() {
     const d = gatherData();
-    const labels = ['Planning','Welcome & Ethos','Learning Intention','Success Criteria','Differentiation','Digital Learning','Assessment (inc. Plenary)'];
-    let out = 'KNIGHTSWOOD SECONDARY SCHOOL\nClass Visit Feedback — Session 25-26\nUsing HGIOS 4 QI 2.3 — Learning, Teaching and Assessment\n' + '='.repeat(52) + '\n\n';
+    const cfg = getFormConfig();
+    const labels = getElementLabels();
+    let out = 'KNIGHTSWOOD SECONDARY SCHOOL\nClass Visit Feedback — Session 25-26\n' + cfg.exportTitle + '\n' + '='.repeat(52) + '\n\n';
     out += `Teacher: ${d.teacher}    Class: ${d.class}    Observer: ${d.observer}\nDate: ${d.date}    Focus: ${d.focus}\n`;
     if (d.pods.length) out += `\nPedagogy Pod Focus: ${d.pods.join(', ')}\n`;
     out += '\n';
@@ -1139,8 +1042,14 @@ a.sidebar-item:hover{color:var(--white)}
       const n = i+1; const f = d.feedback[n];
       if (f?.teacher || f?.observer) {
         out += `${n}. ${label}\n`;
-        if (f.teacher) out += `   Teacher [${d.ratings['t-'+n]||'–'}]: ${f.teacher}\n`;
-        if (f.observer) out += `   Observer [${d.ratings['o-'+n]||'–'}]: ${f.observer}\n`;
+        if (f.teacher) {
+          const tRating = cfg.showRatings ? ` [${d.ratings['t-'+n]||'–'}]` : '';
+          out += `   Teacher${tRating}: ${f.teacher}\n`;
+        }
+        if (f.observer) {
+          const oRating = cfg.showRatings ? ` [${d.ratings['o-'+n]||'–'}]` : '';
+          out += `   Observer${oRating}: ${f.observer}\n`;
+        }
         out += '\n';
       }
     });
@@ -1155,6 +1064,7 @@ a.sidebar-item:hover{color:var(--white)}
   let timer;
   document.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(saveForm, 2500); });
   document.getElementById('date').valueAsDate = new Date();
+  applyFormType('hgios4', { skipFocusDefault: true });
   loadForm();
   updateProgress();
   if (window.__authReady) initClassVisitApp();
