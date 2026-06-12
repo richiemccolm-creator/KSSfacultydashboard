@@ -30,6 +30,7 @@
 <script src="teacher-tasks-home.js"></script>
 <script src="calendar-request-service.js"></script>
 <script src="quality-calendar-months.js"></script>
+<script src="quality-calendar-reminders.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <script src="insight-data.js"></script>
 <script src="dip-insight-charts.js"></script>
@@ -2022,6 +2023,7 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
 .cal-request-status.approved{color:#166534}
 .cal-request-status.rejected{color:#b91c1c}
 .home-notif-item-icon.calendar-request{background:#ede9fe;color:#6d28d9}
+.home-notif-item-icon.quality{background:#ecfdf5;color:#0d9488}
 .btn-ghost{padding:.5rem 1rem;border-radius:6px;font-weight:500;cursor:pointer;font-size:.85rem;background:var(--bg,#f0f2f5);color:var(--text2,#4a5568);border:1px solid var(--border,#e2e8f0)}
 .btn-ghost:hover{border-color:var(--navy,#1e2d4a);color:var(--navy,#1e2d4a)}
 .cal-calendar{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-top:1.5rem}
@@ -8956,7 +8958,7 @@ function calRender(){calUpcoming();calBuildCalendar();}
 
 function homeQualityCalendarPlannerMonth(){
   var m=new Date().getMonth();
-  var map=['Jan','Feb','Mar','Apr','May','June','June','Sept','Sept','Oct','Nov','Dec'];
+  var map=['Jan','Feb','Mar','Apr','May','June','June','Aug','Sept','Oct','Nov','Dec'];
   return map[m];
 }
 function homeQualityCalendarSessionKey(){
@@ -8964,6 +8966,17 @@ function homeQualityCalendarSessionKey(){
   var y0=d.getMonth()>=7?d.getFullYear():d.getFullYear()-1;
   var y1=y0+1;
   return String(y0)+'\u2013'+String(y1).slice(-2);
+}
+function homeGetQualityReminders(today){
+  if(!window.QualityCalendarReminders||typeof QualityCalendarReminders.getForMonth!=='function') return [];
+  var month=homeQualityCalendarPlannerMonth();
+  var session=homeQualityCalendarSessionKey().replace('\u2013','-');
+  return QualityCalendarReminders.getForMonth(month, session, today||'');
+}
+function homeMergeAnnouncementsWithQualityReminders(announcements, today){
+  var real=(announcements||[]).filter(function(a){ return !a||!a._virtualQuality; });
+  var quality=homeGetQualityReminders(today);
+  return homeSortAnnouncements(real.concat(quality));
 }
 function homeQualityCalendarRenderMonth(monthLabel, esc){
   var content=document.getElementById('homeQualityCalendarContent');
@@ -9033,7 +9046,7 @@ function homeNotificationReadSet(reads){
   });
   return set;
 }
-function homeBuildNotificationItems(announcements, sharedEvents, reads, today, calendarNotifCtx){
+function homeBuildNotificationItems(announcements, sharedEvents, reads, today, calendarNotifCtx, qualityReminders){
   var readSet=homeNotificationReadSet(reads);
   var isFirstVisit=!(reads&&reads.length);
   var ctx=calendarNotifCtx||{};
@@ -9059,6 +9072,18 @@ function homeBuildNotificationItems(announcements, sharedEvents, reads, today, c
       subtitle:String(a.body||'').trim()||'New announcement',
       meta:homeFormatDateHuman(String(a.created_at||'').slice(0,10)),
       created_at:a.created_at
+    });
+  });
+  (qualityReminders||[]).forEach(function(q){
+    if(!q||!q.id) return;
+    if(readSet[homeNotificationKey('quality_reminder',q.id)]) return;
+    items.push({
+      item_type:'quality_reminder',
+      item_id:q.id,
+      title:q.title||'Quality Calendar reminder',
+      subtitle:String(q.body||'').trim()||'Action this month',
+      meta:(q._monthLabel?'This month · '+q._monthLabel:'Quality Calendar'),
+      created_at:q.created_at||today
     });
   });
   (sharedEvents||[]).forEach(function(ev){
@@ -9144,10 +9169,11 @@ function homeRenderNotificationBell(items){
   }
   list.innerHTML=homeNotificationUnreadItems.map(function(item){
     var isAnn=item.item_type==='announcement';
+    var isQuality=item.item_type==='quality_reminder';
     var isCalReq=item.item_type&&item.item_type.indexOf('calendar_request')===0;
-    var iconClass=isAnn?'announcement':(isCalReq?'calendar-request':'calendar');
-    var icon=isAnn?'ti-speakerphone':(isCalReq?'ti-calendar-check':'ti-calendar-event');
-    var typeLabel=isAnn?'Announcement':(isCalReq?'Calendar request':'Calendar date');
+    var iconClass=isAnn?'announcement':(isQuality?'quality':(isCalReq?'calendar-request':'calendar'));
+    var icon=isAnn?'ti-speakerphone':(isQuality?'ti-calendar-stats':(isCalReq?'ti-calendar-check':'ti-calendar-event'));
+    var typeLabel=isAnn?'Announcement':(isQuality?'Quality Calendar':(isCalReq?'Calendar request':'Calendar date'));
     var sub=String(item.subtitle||'').replace(/\s+/g,' ').trim();
     if(sub.length>90) sub=sub.slice(0,87)+'\u2026';
     return '<button type="button" class="home-notif-item" data-notif-type="'+homeEsc(item.item_type)+'" data-notif-id="'+homeEsc(item.item_id)+'">'+
@@ -9165,7 +9191,8 @@ function homeRenderNotificationBell(items){
       var itemId=String(row.getAttribute('data-notif-id')||'');
       if(!itemType||!itemId) return;
       homeMarkNotificationsRead([{ item_type:itemType, item_id:itemId }]).then(function(){
-        if(itemType==='calendar_event'||itemType.indexOf('calendar_request')===0) showPanel('academic-calendar');
+        if(itemType==='quality_reminder') showPanel('embed-quality-calendar');
+        else if(itemType==='calendar_event'||itemType.indexOf('calendar_request')===0) showPanel('academic-calendar');
         else showPanel('home-announcements-all');
       });
     });
@@ -9428,7 +9455,7 @@ function homeSortAnnouncements(list){
 function homeFindFeaturedAnnouncement(list){
   var sorted=homeSortAnnouncements(list||[]);
   for(var i=0;i<sorted.length;i++){
-    if(sorted[i]&&sorted[i].featured_banner) return sorted[i];
+    if(sorted[i]&&sorted[i].featured_banner&&!sorted[i]._virtualQuality) return sorted[i];
   }
   return null;
 }
@@ -9461,17 +9488,22 @@ function homeRenderSuperAnnouncement(announcements, today){
     '</div>';
 }
 function homeAnnouncementRowHtml(a, today){
-  var status=homeAnnouncementStatus(a,today);
+  var isQuality=!!(a&&a._virtualQuality);
+  var status=isQuality?'Action this month':homeAnnouncementStatus(a,today);
   var isPriority=String(a&&a.priority||'none').toLowerCase()==='high';
-  var bar=status==='New'?'#b91c1c':(status==='Reminder'?'#b45309':'#cbd5e0');
+  var bar=isQuality?'#0d9488':(status==='New'?'#b91c1c':(status==='Reminder'?'#b45309':'#cbd5e0'));
   if(isPriority) bar='#b91c1c';
   var shaded=!!(a&&a.highlight_priority)&&String(a.priority||'none').toLowerCase()!=='none';
   var rowBg=shaded?'background:#fef2f2;':'';
+  var metaLabel=isQuality
+    ? ('Quality Calendar · '+homeEsc(String(a._monthLabel||'This month')))
+    : (homeEsc(status)+' \u00b7 '+homeEsc(homeFormatDateHuman(String(a.created_at||'').slice(0,10))));
   return '<div style="padding:11px 14px;border-bottom:.5px solid #f1f4f9;display:flex;gap:10px;'+rowBg+'">'+
     '<div style="width:3px;align-self:stretch;background:'+bar+';border-radius:99px;flex-shrink:0;"></div>'+
     '<div style="flex:1;min-width:0;"><div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;flex-wrap:wrap;">'+
     (isPriority?'<span style="display:inline-flex;align-items:center;gap:3px;padding:1px 6px;border-radius:99px;background:#fee2e2;color:#b91c1c;font-size:9px;font-weight:600;"><i class="ti ti-alert-circle" style="font-size:10px;"></i>Priority</span>':'')+
-    '<span style="font-size:9px;color:#94a3b8;">'+homeEsc(status)+' \u00b7 '+homeEsc(homeFormatDateHuman(String(a.created_at||'').slice(0,10)))+'</span></div>'+
+    (isQuality?'<span style="display:inline-flex;align-items:center;gap:3px;padding:1px 6px;border-radius:99px;background:#ecfdf5;color:#0d9488;font-size:9px;font-weight:600;"><i class="ti ti-calendar-stats" style="font-size:10px;"></i>Quality Calendar</span>':'')+
+    '<span style="font-size:9px;color:#94a3b8;">'+metaLabel+'</span></div>'+
     '<div style="font-size:12px;font-weight:500;line-height:1.35;">'+homeEsc(a.title||'Untitled announcement')+'</div>'+
     '<div style="font-size:10px;color:#64748b;line-height:1.45;margin-top:3px;white-space:pre-wrap;">'+homeEsc(String(a.body||'No summary provided.'))+'</div></div>'+
   '</div>';
@@ -9525,7 +9557,7 @@ function homeRenderAllAnnouncementsPanel(announcements, today){
   if(countEl) countEl.textContent='Loading…';
   if(window.DataService&&typeof window.DataService.getAnnouncements==='function'){
     DataService.getAnnouncements().then(function(list){
-      render(list||[]);
+      render(homeMergeAnnouncementsWithQualityReminders(list||[], todayIso));
     }).catch(function(){
       if(el) el.innerHTML='<div style="font-size:10px;color:#64748b;padding:11px 14px;">Could not load announcements.</div>';
       if(countEl) countEl.textContent='Could not load announcements';
@@ -9729,13 +9761,17 @@ function homeApplyDashboardData(ctx){
   var today=ctx.today;
   var events=ctx.events;
   var timetableSlots=ctx.timetableSlots;
-  var announcements=ctx.announcements;
+  var announcementsRaw=ctx.announcements;
   var notificationReads=ctx.notificationReads;
   var trackingRows=ctx.trackingRows;
   var tasks=ctx.tasks;
   var taskState=ctx.taskState;
   var skipTracking=ctx.skipTracking===true;
   var calendarNotifCtx=ctx.calendarNotifCtx||{};
+
+  var realAnnouncements=(announcementsRaw||[]).filter(function(a){ return !a||!a._virtualQuality; });
+  var qualityReminders=homeGetQualityReminders(today);
+  var announcements=homeSortAnnouncements(realAnnouncements.concat(qualityReminders));
 
   var todayEvents=events.filter(function(e){ return String(e&&e.date||'').slice(0,10)===today; });
   var upcomingEvents=events
@@ -9744,9 +9780,9 @@ function homeApplyDashboardData(ctx){
   var sharedCalendarEvents=events.filter(function(e){
     return String(e&&e.source||'shared')==='shared';
   });
-  var notificationItems=homeBuildNotificationItems(announcements, sharedCalendarEvents, notificationReads, today, calendarNotifCtx);
+  var notificationItems=homeBuildNotificationItems(realAnnouncements, sharedCalendarEvents, notificationReads, today, calendarNotifCtx, qualityReminders);
   var unreadAnnouncementCount=notificationItems.filter(function(item){
-    return item.item_type==='announcement';
+    return item.item_type==='announcement'||item.item_type==='quality_reminder';
   }).length;
   var pendingCalCount=(calendarNotifCtx.pendingRequests||[]).length;
   var homeCalTile=document.getElementById('homeCalendarRequestsTile');

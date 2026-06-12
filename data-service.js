@@ -580,6 +580,7 @@
         var t = item.item_type;
         return (
           t === 'announcement' ||
+          t === 'quality_reminder' ||
           t === 'calendar_event' ||
           t === 'calendar_request_pending' ||
           t === 'calendar_request_approved' ||
