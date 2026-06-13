@@ -1236,14 +1236,7 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
       </div>
       <div class="form-group">
         <label class="form-label">Period</label>
-        <select id="applyToPeriod" class="form-select">
-          <option value="1">Period 1</option>
-          <option value="2">Period 2</option>
-          <option value="3">Period 3</option>
-          <option value="4">Period 4</option>
-          <option value="5">Period 5</option>
-          <option value="6">Period 6</option>
-        </select>
+        <select id="applyToPeriod" class="form-select"></select>
       </div>
     </div>
     <div class="modal-footer">
@@ -1335,7 +1328,7 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
         <label class="form-label">Copy to date & slot</label>
         <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
           <input type="date" id="copyToDate" class="form-input" style="width:140px">
-          <select id="copyToPeriod" class="form-select" style="width:100px"><option value="1">P1</option><option value="2">P2</option><option value="3">P3</option><option value="4">P4</option><option value="5">P5</option><option value="6">P6</option></select>
+          <select id="copyToPeriod" class="form-select" style="width:100px"></select>
           <button type="button" class="btn-primary" id="doCopy">Copy</button>
           <button type="button" class="btn-secondary" id="cancelCopy">Cancel</button>
         </div>
@@ -1364,6 +1357,29 @@ function slotKey(day, period) { return PS.slotKey(day, period); }
 
 function periodsForWeekday(dayName) {
   return PERIODS_BY_DAY[String(dayName || '').toLowerCase()] || 0;
+}
+
+function weekdayFromDateStr(dateStr) {
+  if (!dateStr) return '';
+  var parts = String(dateStr).split('-');
+  if (parts.length !== 3) return '';
+  var d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+  return ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'][d.getDay()];
+}
+
+function populatePeriodSelect(selectEl, dateStr, opts) {
+  if (!selectEl) return;
+  opts = opts || {};
+  var dayName = weekdayFromDateStr(dateStr);
+  var maxP = periodsForWeekday(dayName) || 7;
+  var prev = selectEl.value;
+  var html = '';
+  for (var p = 1; p <= maxP; p++) {
+    var label = opts.longLabels ? ('Period ' + p) : ('P' + p);
+    html += '<option value="' + p + '">' + label + '</option>';
+  }
+  selectEl.innerHTML = html;
+  if (prev && parseInt(prev, 10) <= maxP) selectEl.value = prev;
 }
 
 function renderPeriodTimes() {
@@ -2327,7 +2343,9 @@ function formatSchemeShortDate(iso) {
 
 function openApplyToTimetableModal(templateId) {
   applyToTimetableTemplateId = templateId;
-  document.getElementById('applyToDate').value = getDateStr(new Date());
+  var dateStr = getDateStr(new Date());
+  document.getElementById('applyToDate').value = dateStr;
+  populatePeriodSelect(document.getElementById('applyToPeriod'), dateStr, { longLabels: true });
   document.getElementById('applyToTimetableModal').classList.add('visible');
 }
 
@@ -3343,7 +3361,17 @@ document.getElementById('lessonDelete').addEventListener('click', function() {
 document.getElementById('lessonCopyTo').addEventListener('click', function() {
   document.getElementById('copyToForm').style.display = 'block';
   var d = document.getElementById('lessonDate').value;
-  document.getElementById('copyToDate').value = d || new Date().toISOString().slice(0, 10);
+  var dateStr = d || new Date().toISOString().slice(0, 10);
+  document.getElementById('copyToDate').value = dateStr;
+  populatePeriodSelect(document.getElementById('copyToPeriod'), dateStr);
+});
+
+document.getElementById('copyToDate').addEventListener('change', function() {
+  populatePeriodSelect(document.getElementById('copyToPeriod'), this.value);
+});
+
+document.getElementById('applyToDate').addEventListener('change', function() {
+  populatePeriodSelect(document.getElementById('applyToPeriod'), this.value, { longLabels: true });
 });
 
 document.getElementById('cancelCopy').addEventListener('click', function() {
@@ -3354,8 +3382,7 @@ document.getElementById('doCopy').addEventListener('click', function() {
   var toDate = document.getElementById('copyToDate').value;
   var toPeriod = parseInt(document.getElementById('copyToPeriod').value, 10);
   if (!toDate) { showToast('Select a date'); return; }
-  var d = new Date(toDate);
-  var dayName = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'][d.getDay()];
+  var dayName = weekdayFromDateStr(toDate);
   var toSlotKey = slotKey(dayName, toPeriod);
   var payload = collectLessonPayloadFromModal({ date: toDate, slotKey: toSlotKey });
   PS.upsertLesson(payload, null);
@@ -3924,8 +3951,7 @@ document.getElementById('applyToTimetableConfirm').addEventListener('click', fun
   var dateStr = document.getElementById('applyToDate').value;
   if (!dateStr) { showToast('Select a date'); return; }
   var period = parseInt(document.getElementById('applyToPeriod').value, 10);
-  var d = new Date(dateStr);
-  var dayName = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'][d.getDay()];
+  var dayName = weekdayFromDateStr(dateStr);
   var toSlotKey = slotKey(dayName, period);
   var payload = {
     date: dateStr,
