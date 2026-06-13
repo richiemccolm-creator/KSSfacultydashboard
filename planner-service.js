@@ -20,6 +20,22 @@
 
   function id() { return 'x' + Math.random().toString(36).substr(2, 9); }
 
+  function stripHtmlBasic(html) {
+    if (!html) return '';
+    return String(html)
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/p>/gi, '\n')
+      .replace(/<\/h[1-6]>/gi, '\n')
+      .replace(/<\/li>/gi, '\n')
+      .replace(/<[^>]+>/g, '')
+      .replace(/&nbsp;/g, ' ')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
+
   function resourcesArrayToString(arr) {
     if (!Array.isArray(arr) || !arr.length) return '';
     return arr.map(function(r) {
@@ -405,12 +421,22 @@
         return { text: (t && t.text) ? String(t.text) : '', done: false };
       }) : [];
       var resStr = resourcesArrayToString(resources);
+      var bodyHtml = String(template.body || '').trim();
+      var bodyPlain = bodyHtml ? stripHtmlBasic(bodyHtml) : '';
       var li = String(template.learningIntentions || template.objectives || '').trim();
       var sc = String(template.successCriteria || '').trim();
       var actParts = [template.activity, template.differentiation, template.effectiveQuestions, template.digitalTechnologies, template.notes]
         .filter(function(x) { return x && String(x).trim(); })
         .map(function(x) { return String(x).trim(); });
-      var activitiesStr = actParts.join('\n\n');
+      var activitiesStr = bodyPlain || actParts.join('\n\n');
+      if (!li && bodyPlain) {
+        var liMatch = bodyPlain.match(/Learning intentions?\s*\n+([^\n]+(?:\n(?!Success criteria|Activity|Differentiation|Notes)[^\n]+)*)/i);
+        if (liMatch) li = liMatch[1].trim();
+      }
+      if (!sc && bodyPlain) {
+        var scMatch = bodyPlain.match(/Success criteria\s*\n+([^\n]+(?:\n(?!Activity|Differentiation|Notes)[^\n]+)*)/i);
+        if (scMatch) sc = scMatch[1].trim();
+      }
       return {
         title: String((template.title || template.name || '').trim() || 'Untitled'),
         status: 'complete',
@@ -426,6 +452,7 @@
           title: template.title || '',
           subject: template.subject || '',
           unitKey: template.unitKey || '',
+          body: bodyHtml,
           objectives: template.objectives || '',
           learningIntentions: template.learningIntentions || '',
           successCriteria: template.successCriteria || '',
@@ -433,7 +460,7 @@
           differentiation: template.differentiation || '',
           effectiveQuestions: template.effectiveQuestions || '',
           digitalTechnologies: template.digitalTechnologies || '',
-          notes: template.notes || '',
+          notes: template.notes || bodyPlain,
           resources: resources,
           todos: todos
         }
