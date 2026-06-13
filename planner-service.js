@@ -36,6 +36,22 @@
       .trim();
   }
 
+  function formatAcademicYearLabel(startYear) {
+    var y = parseInt(startYear, 10);
+    if (isNaN(y)) return '';
+    return y + '–' + String((y + 1) % 100).padStart(2, '0');
+  }
+
+  function currentAcademicYearStartYear(forDate) {
+    var d = forDate ? new Date(forDate) : new Date();
+    var y = d.getFullYear();
+    return d.getMonth() >= 7 ? y : y - 1;
+  }
+
+  function nextAcademicYearStartYear(forDate) {
+    return currentAcademicYearStartYear(forDate) + 1;
+  }
+
   function resourcesArrayToString(arr) {
     if (!Array.isArray(arr) || !arr.length) return '';
     return arr.map(function(r) {
@@ -122,7 +138,8 @@
         (window.DataService && DataService.get ? DataService.get('lessonPlanTemplates') : Promise.resolve(null)),
         (window.DataService && DataService.get ? DataService.get('plannerSchemesOfWork') : Promise.resolve(null))
       ]).then(function(res) {
-        state.timetable = res[0] && res[0].slots ? res[0] : { slots: [] };
+        state.timetable = res[0] && (res[0].slots || res[0].academicYearLabel) ? res[0] : { slots: [] };
+        if (!state.timetable.slots) state.timetable.slots = [];
         state.lessons = res[1] && res[1].lessons ? res[1] : { lessons: [] };
         state.weekNotes = res[2] && typeof res[2] === 'object' ? res[2] : {};
         state.lessonPlanTemplates = res[3] && res[3].templates ? res[3] : { templates: [] };
@@ -138,7 +155,20 @@
 
     resetTimetableForNewYear: function() {
       if (!state.timetable) state.timetable = {};
+      state.timetable.academicYearLabel = formatAcademicYearLabel(nextAcademicYearStartYear());
       state.timetable.slots = [];
+      return this.saveTimetable();
+    },
+
+    getAcademicYearLabel: function(forDate) {
+      var stored = state.timetable && state.timetable.academicYearLabel;
+      if (stored && String(stored).trim()) return String(stored).trim();
+      return formatAcademicYearLabel(currentAcademicYearStartYear(forDate));
+    },
+
+    setAcademicYearLabel: function(label) {
+      if (!state.timetable) state.timetable = { slots: [] };
+      state.timetable.academicYearLabel = String(label || '').trim();
       return this.saveTimetable();
     },
 

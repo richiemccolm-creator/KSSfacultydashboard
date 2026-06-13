@@ -657,6 +657,8 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
   color:var(--muted);background:var(--off-white);
 }
 .meta-badge.teacher{background:#fdeade;border-color:rgba(232,66,10,.25);color:#7a1a00}
+.meta-badge.is-clickable{cursor:pointer;transition:border-color .12s,color .12s}
+.meta-badge.is-clickable:hover{border-color:var(--accent);color:var(--accent-drama)}
 .tabs-bar{background:var(--white);border-bottom:1px solid var(--border)}
 .tabs-inner{padding:0 2rem;display:flex;gap:0;overflow-x:auto;scrollbar-width:none}
 .tabs-inner::-webkit-scrollbar{display:none}
@@ -890,7 +892,7 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
   <div class="topbar-meta">
     <span class="meta-badge teacher" id="topbarTeacherName">R. McColm</span>
     <span class="meta-badge" id="topbarRoom">Drama Studio</span>
-    <span class="meta-badge">2025–26</span>
+    <span class="meta-badge is-clickable" id="topbarAcademicYear" title="Click to change academic year">2025–26</span>
   </div>
 </header>
 
@@ -1841,6 +1843,8 @@ function renderPlannerInsights() {
 function syncTopbarMeta() {
   var teacherEl = document.getElementById('topbarTeacherName');
   var roomEl = document.getElementById('topbarRoom');
+  var yearEl = document.getElementById('topbarAcademicYear');
+  if (yearEl && PS.getAcademicYearLabel) yearEl.textContent = PS.getAcademicYearLabel();
   var state = PS.getState ? PS.getState() : null;
   var slots = state && state.timetable && state.timetable.slots ? state.timetable.slots : [];
   var bestRoom = '';
@@ -3402,6 +3406,7 @@ function handleNewAcademicYear() {
   PS.resetTimetableForNewYear().then(function() {
     document.getElementById('timetableDisplaySection').style.display = 'none';
     document.getElementById('timetableEditSection').style.display = 'block';
+    syncTopbarMeta();
     renderTimetable();
     renderTimetableDisplay();
     renderWeekView();
@@ -3411,6 +3416,18 @@ function handleNewAcademicYear() {
 }
 document.getElementById('newAcademicYearBtn').addEventListener('click', handleNewAcademicYear);
 document.getElementById('newAcademicYearBtnEdit').addEventListener('click', handleNewAcademicYear);
+
+document.getElementById('topbarAcademicYear').addEventListener('click', function() {
+  var current = PS.getAcademicYearLabel ? PS.getAcademicYearLabel() : '2025–26';
+  var next = prompt('Academic year label (e.g. 2026–27)', current);
+  if (next === null) return;
+  var cleaned = String(next).trim();
+  if (!cleaned) return;
+  PS.setAcademicYearLabel(cleaned).then(function() {
+    syncTopbarMeta();
+    showToast('Academic year updated to ' + cleaned);
+  });
+});
 
 document.getElementById('weekPrev').addEventListener('click', function() {
   var start = PS.getCurrentWeekStart();
