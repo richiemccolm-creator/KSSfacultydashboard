@@ -2775,7 +2775,20 @@ function snapToWeekday(d) {
   var d2 = new Date(d);
   var day = d2.getDay();
   if (day === 0) d2.setDate(d2.getDate() + 1);
-  else if (day === 6) d2.setDate(d2.getDate() - 1);
+  else if (day === 6) d2.setDate(d2.getDate() + 2);
+  return d2;
+}
+
+/** Move by one or more school days, skipping weekends. */
+function shiftWeekday(d, delta) {
+  var d2 = new Date(d);
+  var step = delta > 0 ? 1 : -1;
+  var remaining = Math.abs(delta);
+  while (remaining > 0) {
+    d2.setDate(d2.getDate() + step);
+    var day = d2.getDay();
+    if (day !== 0 && day !== 6) remaining--;
+  }
   return d2;
 }
 
@@ -3631,17 +3644,13 @@ document.getElementById('dayViewToday').addEventListener('click', function() {
 });
 
 document.getElementById('dayPrev').addEventListener('click', function() {
-  var d = new Date(PS.getState().currentDayViewDate || new Date());
-  d.setDate(d.getDate() - 1);
-  d = snapToWeekday(d);
+  var d = shiftWeekday(new Date(PS.getState().currentDayViewDate || new Date()), -1);
   PS.setCurrentDayViewDate(d);
   renderDayView();
 });
 
 document.getElementById('dayNext').addEventListener('click', function() {
-  var d = new Date(PS.getState().currentDayViewDate || new Date());
-  d.setDate(d.getDate() + 1);
-  d = snapToWeekday(d);
+  var d = shiftWeekday(new Date(PS.getState().currentDayViewDate || new Date()), 1);
   PS.setCurrentDayViewDate(d);
   renderDayView();
 });
