@@ -2000,6 +2000,7 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
   transform:translateX(4px);box-shadow:0 4px 16px rgba(30,45,74,.12);
   border-color:var(--accent-drama);
 }
+.cal-event.cal-event-past{opacity:.75;background:var(--bg)}
 .cal-event-bar{
   width:4px;flex-shrink:0;min-height:100%;
 }
@@ -2855,7 +2856,7 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
           </div>
           <div class="section-card">
             <div class="section-card-header">
-              <div class="section-card-title">Upcoming Events</div>
+              <div id="calUpcomingTitle" class="section-card-title">Upcoming Events</div>
             </div>
             <div class="section-card-body">
               <div id="calUpcoming" class="cal-upcoming-list"></div>
@@ -9521,6 +9522,28 @@ function calEventOnOrAfterLocalToday(iso){
   const d=(iso||'').slice(0,10);
   return d.length===10&&d>=calLocalTodayISODate();
 }
+function calIsBrowseMode(){
+  return !(calSearchText||'').trim()&&!calFilterCategory;
+}
+function calEventInAcademicYear(iso,startYear){
+  const d=(iso||'').slice(0,10);
+  if(d.length!==10)return false;
+  const y=parseInt(d.slice(0,4),10),mo=parseInt(d.slice(5,7),10);
+  if(isNaN(y)||isNaN(mo))return false;
+  return mo>=8?y===startYear:y===startYear+1;
+}
+function calGetListEvents(limit){
+  const filtered=calGetFilteredEvents().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  if(calIsBrowseMode()){
+    return filtered.filter(e=>calEventOnOrAfterLocalToday(e.date)).slice(0,limit);
+  }
+  return filtered.filter(e=>calEventInAcademicYear(e.date,calCurrentYear));
+}
+function calUpdateListTitle(){
+  const titleEl=document.getElementById('calUpcomingTitle');
+  if(!titleEl)return;
+  titleEl.textContent=calIsBrowseMode()?'Upcoming Events':'Matching Events This Year';
+}
 function calParseLocalDateParts(ymd){
   const p=(ymd||'').slice(0,10).split('-');
   if(p.length<3)return null;
@@ -9548,7 +9571,7 @@ function calUpcoming(){
   const list=document.getElementById('calUpcoming');
   if(!list)return;
   list.innerHTML='';
-  const evList=calGetFilteredEvents().filter(e=>calEventOnOrAfterLocalToday(e.date)).sort((a,b)=>(a.date||'').localeCompare(b.date||'')).slice(0,10);
+  const evList=calGetListEvents(calIsBrowseMode()?10:999);
   window.__calUpcomingEvents=evList;
   if(evList.length===0){
     const empty=document.createElement('div');
@@ -9560,7 +9583,7 @@ function calUpcoming(){
   }
   evList.forEach(function(e,i){
     const canEdit=e.source==='personal'||e.source===undefined||(e.source==='shared'&&(!!window.__authGuardCanManageSchool||!!window.__authGuardIsAdmin||!!window.__authGuardIsFacultyHead));
-    const div=document.createElement('div');div.className='cal-event';
+    const div=document.createElement('div');div.className='cal-event'+(calEventOnOrAfterLocalToday(e.date)?'':' cal-event-past');
     const shortDate=e.date.slice(8)+'/'+e.date.slice(5,7);
     const formatted=calFormatDate(e.date);
     const meta=calDaysUntil(e.date);
@@ -9664,7 +9687,7 @@ function calBuildCalendar(){
     monthDiv.appendChild(days);cal.appendChild(monthDiv);
   });
 }
-function calRender(){calUpcoming();calBuildCalendar();}
+function calRender(){calUpdateListTitle();calUpcoming();calBuildCalendar();}
 
 function homeQualityCalendarPlannerMonth(){
   var m=new Date().getMonth();

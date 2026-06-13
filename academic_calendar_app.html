@@ -84,6 +84,8 @@ h1{font-size:28px;margin-bottom:6px}
 .event-actions .btn-del{color:#991b1b;border-color:#fca5a5}
 .event-actions .btn-del:hover{background:#fee2e2}
 .event-actions .btn-edit:hover{background:#e0f2fe;color:#0369a1}
+.event.event-past{opacity:.72;background:#f8fafc}
+.event.event-past .badge{opacity:.85}
 
 .form-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px}
 .form-desc-label{display:block;font-size:12px;font-weight:600;color:#64748b;margin:.25rem 0 .35rem}
@@ -172,12 +174,12 @@ button:hover{opacity:0.9}
 </div>
 
 <div class="card">
-<div class="section-title">Snapshot of Upcoming Dates</div>
+<div id="snapshotTitle" class="section-title">Snapshot of Upcoming Dates</div>
 <div id="snapshot" class="snapshot"></div>
 </div>
 
 <div class="card">
-<div class="section-title">Upcoming Events</div>
+<div id="upcomingTitle" class="section-title">Upcoming Events</div>
 <div id="upcoming" class="upcoming-list"></div>
 </div>
 
@@ -224,7 +226,11 @@ button:hover{opacity:0.9}
 <script>
 
 const storageKey="academicCalendarEvents";
-let currentYear=new Date().getFullYear();
+function getCurrentAcademicYear(){
+var d=new Date();
+return d.getMonth()>=7?d.getFullYear():d.getFullYear()-1;
+}
+let currentYear=getCurrentAcademicYear();
 let searchText='';
 let filterCategory='';
 let searchDebounce=null;
@@ -317,6 +323,23 @@ return n.getFullYear()+"-"+String(n.getMonth()+1).padStart(2,"0")+"-"+String(n.g
 function eventOnOrAfterLocalToday(iso){
 var d=(iso||"").slice(0,10);
 return d.length===10&&d>=localTodayISODate();
+}
+function isCalendarBrowseMode(){
+return !(searchText||"").trim()&&!filterCategory;
+}
+function eventInAcademicYear(iso,startYear){
+var d=(iso||"").slice(0,10);
+if(d.length!==10)return false;
+var y=parseInt(d.slice(0,4),10),mo=parseInt(d.slice(5,7),10);
+if(isNaN(y)||isNaN(mo))return false;
+return mo>=8?y===startYear:y===startYear+1;
+}
+function getListEvents(limit){
+var filtered=getFilteredEvents().sort(function(a,b){return (a.date||"").localeCompare(b.date||"");});
+if(isCalendarBrowseMode()){
+return filtered.filter(function(e){return eventOnOrAfterLocalToday(e.date);}).slice(0,limit);
+}
+return filtered.filter(function(e){return eventInAcademicYear(e.date,currentYear);});
 }
 
 var eventsCache=null;
@@ -539,14 +562,18 @@ cancelEdit();
 render();
 }
 
+function updateListTitles(){
+var browse=isCalendarBrowseMode();
+var snapEl=document.getElementById("snapshotTitle");
+var upEl=document.getElementById("upcomingTitle");
+if(snapEl)snapEl.textContent=browse?"Snapshot of Upcoming Dates":"Matching Dates This Year";
+if(upEl)upEl.textContent=browse?"Upcoming Events":"Matching Events This Year";
+}
+
 function snapshot(){
 const strip=document.getElementById("snapshot");
 strip.innerHTML="";
-getFilteredEvents()
-.filter(e=>eventOnOrAfterLocalToday(e.date))
-.sort((a,b)=>(a.date||"").localeCompare(b.date||""))
-.slice(0,8)
-.forEach(e=>{
+getListEvents(8).forEach(e=>{
 const div=document.createElement("div");
 div.className="snapshot-item";
 div.textContent=`${e.date} • ${e.title}`;
@@ -558,10 +585,7 @@ function upcoming(){
 const list=document.getElementById("upcoming");
 list.innerHTML="";
 const isAdmin=canManageSharedCalendar();
-const evList=getFilteredEvents()
-.filter(e=>eventOnOrAfterLocalToday(e.date))
-.sort((a,b)=>(a.date||"").localeCompare(b.date||""))
-.slice(0,10);
+const evList=getListEvents(isCalendarBrowseMode()?10:999);
 if(evList.length===0){
 const empty=document.createElement("div");
 empty.className="event";
@@ -573,7 +597,7 @@ return;
 evList.forEach(function(e,i){
 const canEdit=e.source==="personal"||e.source===undefined||(e.source==="shared"&&isAdmin);
 const div=document.createElement("div");
-div.className="event";
+div.className="event"+(eventOnOrAfterLocalToday(e.date)?"":" event-past");
 div.dataset.eventIdx=i;
 div.innerHTML='<span>'+escapeHtml(e.title)+' — '+escapeHtml(e.date)+'</span><span class="badge '+e.category+'">'+escapeHtml(catLabels[e.category]||e.category)+'</span>'+(canEdit?'<div class="event-actions"><button class="btn-edit" type="button" onclick="event.stopPropagation();editEventByIdx('+i+')">Edit</button><button class="btn-del" type="button" onclick="event.stopPropagation();deleteEventByIdx('+i+')">Delete</button></div>':'');
 div.addEventListener("click",function(ev){
@@ -707,6 +731,7 @@ cal.appendChild(monthDiv);
 }
 
 function render(){
+updateListTitles();
 snapshot();
 upcoming();
 buildCalendar();
