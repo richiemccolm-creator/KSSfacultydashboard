@@ -11,7 +11,7 @@
 
   function priorityPillHtml(priority) {
     var p = priority === 'high' || priority === 'low' ? priority : 'normal';
-    var label = p === 'high' ? 'High' : p === 'low' ? 'Low' : 'Normal';
+    var label = p === 'high' ? 'High' : p === 'low' ? 'Low' : 'Medium';
     return '<span class="home-task-priority ' + p + '">' + esc(label) + '</span>';
   }
   function addDays(iso, days) {
@@ -28,7 +28,7 @@
     return s.slice(8, 10) + '/' + s.slice(5, 7) + '/' + s.slice(0, 4);
   }
   function statusMeta(task, today) {
-    if (task && task.completed) {
+    if (task && (task.status === 'completed' || task.completed)) {
       return { cls: 'completed', label: 'Completed' };
     }
     var due = task && task.dueDate ? String(task.dueDate).slice(0, 10) : '';
@@ -46,7 +46,7 @@
         var st = TeacherTasksService.getState();
         var openTasks = TeacherTasksService.getHomePreviewTasks({ limit: 6 });
         var today = TeacherTasksService.todayISO();
-        var completedTasks = (st.tasks || []).filter(function(t) { return !!t.completed; })
+        var completedTasks = (st.tasks || []).filter(function(t) { return t.status === 'completed' || !!t.completed; })
           .sort(function(a, b) {
             var ad = String(a.dueDate || '');
             var bd = String(b.dueDate || '');
@@ -111,7 +111,6 @@
 
         var quick = document.createElement('div');
         quick.className = 'home-task-quick';
-        var firstBucket = st.buckets && st.buckets[0] ? st.buckets[0].id : null;
         quick.innerHTML =
           '<input type="text" class="home-task-quick-input" placeholder="Quick add task…" aria-label="Quick add task">' +
           '<button type="button" class="home-task-quick-btn">Add</button>';
@@ -119,8 +118,8 @@
         var btn = quick.querySelector('.home-task-quick-btn');
         function doQuickAdd() {
           var title = (input.value || '').trim();
-          if (!title || !firstBucket) return;
-          TeacherTasksService.addTask(firstBucket, { title: title }).then(function() {
+          if (!title) return;
+          TeacherTasksService.addTask('todo', { title: title }).then(function() {
             input.value = '';
             window.TeacherTasksHome.render();
           }).catch(function() {});

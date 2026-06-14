@@ -10347,7 +10347,7 @@ function homeRenderTasks(tasks, taskState){
   var quickEl=parts.quickEl;
   var displayTasks=(window.TeacherTasksService&&typeof window.TeacherTasksService.getHomePreviewTasks==='function')
     ? TeacherTasksService.getHomePreviewTasks({ limit:Infinity })
-    : (Array.isArray(tasks)?tasks:[]).filter(function(t){ return !t.completed; });
+    : (Array.isArray(tasks)?tasks:[]).filter(function(t){ return t.status!=='completed'&&!t.completed; });
   scrollEl.innerHTML='';
   if(!displayTasks.length){
     scrollEl.innerHTML='<div style="font-size:10px;color:#64748b;">No tasks currently assigned.</div>';
@@ -10381,19 +10381,18 @@ function homeRenderTasks(tasks, taskState){
       });
     });
   }
-  var buckets=taskState&&Array.isArray(taskState.buckets)?taskState.buckets:[];
-  var firstBucket=buckets[0]&&buckets[0].id?buckets[0].id:null;
+  var canQuickAdd=window.TeacherTasksService&&typeof window.TeacherTasksService.addTask==='function';
   quickEl.innerHTML='<input type="text" class="staff-home-task-quick-input" placeholder="Quick add task..." aria-label="Quick add task"><button type="button" class="staff-home-task-quick-btn">Add</button>';
   var input=quickEl.querySelector('.staff-home-task-quick-input');
   var btn=quickEl.querySelector('.staff-home-task-quick-btn');
-  if(!firstBucket || !window.TeacherTasksService || typeof window.TeacherTasksService.addTask!=='function'){
+  if(!canQuickAdd){
     btn.disabled=true;
   }
   function submitQuickTask(){
     var title=String(input.value||'').trim();
-    if(!title || !firstBucket || !window.TeacherTasksService || typeof window.TeacherTasksService.addTask!=='function') return;
+    if(!title || !canQuickAdd) return;
     btn.disabled=true;
-    TeacherTasksService.addTask(firstBucket,{title:title}).then(function(){
+    TeacherTasksService.addTask('todo',{title:title}).then(function(){
       input.value='';
       homeDashboardRender({ showLoading: false });
     }).catch(function(){
@@ -10470,7 +10469,7 @@ function homeApplyDashboardData(ctx){
     }
   }
   var tasksDue=tasks.filter(function(t){
-    return !t.completed && t.dueDate && String(t.dueDate).slice(0,10)<=today;
+    return t.status!=='completed'&&!t.completed && t.dueDate && String(t.dueDate).slice(0,10)<=today;
   });
   var classesToTrack=skipTracking?null:trackingRows.filter(function(r){ return r.status!=='Complete'; });
 
@@ -10500,7 +10499,7 @@ function homeApplyDashboardData(ctx){
   homeRenderUpcomingEvents(upcomingEvents);
   homeRenderQualityFocus();
   homeRenderWeekAhead(events, today);
-  homeRenderTasks(tasks.filter(function(t){ return !t.completed; }), taskState);
+  homeRenderTasks(tasks.filter(function(t){ return t.status!=='completed'&&!t.completed; }), taskState);
 }
 function homeLoadGreeting(){
   var nameEl=document.getElementById('homeGreetingName');
