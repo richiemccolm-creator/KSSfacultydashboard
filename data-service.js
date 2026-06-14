@@ -8,7 +8,7 @@
     'drama-v3', 'art-v2', 'academicCalendarEvents', 'bge_drama_reports_v1',
     'bge_art_reports_v1', 'bge_drama_tracker_export_v1', 'bge_art_tracker_export_v1',
     'dipSelfEvaluation', 'moderation-data',
-    'plannerTimetable', 'plannerLessons', 'plannerWeekNotes', 'lessonPlanTemplates', 'plannerSchemesOfWork',
+    'plannerTimetable', 'plannerLessons', 'plannerWeekNotes', 'plannerDaySlotNotes', 'plannerDayNotes', 'lessonPlanTemplates', 'plannerSchemesOfWork',
     'clplProgress', 'teacherTasksV1'
   ];
 
@@ -362,6 +362,8 @@
           'plannerTimetable': all['plannerTimetable'],
           'plannerLessons': all['plannerLessons'],
           'plannerWeekNotes': all['plannerWeekNotes'],
+          'plannerDaySlotNotes': all['plannerDaySlotNotes'],
+          'plannerDayNotes': all['plannerDayNotes'],
           'lessonPlanTemplates': all['lessonPlanTemplates'],
           'plannerSchemesOfWork': all['plannerSchemesOfWork'],
           'clplProgress': all['clplProgress'],
@@ -415,7 +417,7 @@
         window.supabase.auth.getSession().then(function(_a) {
           var session = _a.data.session;
           if (!session) { reject(new Error('Not authenticated')); return; }
-          var adminDataTypes = ['drama-v3', 'art-v2', 'moderation-data', 'plannerTimetable', 'plannerLessons', 'plannerWeekNotes'];
+          var adminDataTypes = ['drama-v3', 'art-v2', 'moderation-data', 'plannerTimetable', 'plannerLessons', 'plannerWeekNotes', 'plannerDaySlotNotes', 'plannerDayNotes'];
           window.supabase.from('pupil_data')
             .select('user_id, data_type, data')
             .in('data_type', adminDataTypes)
@@ -467,7 +469,7 @@
             window.supabase.from('profiles').select('id, email, display_name'),
             window.supabase.from('pupil_data')
               .select('user_id, data_type, data')
-              .in('data_type', ['drama-v3', 'art-v2', 'moderation-data', 'plannerTimetable', 'plannerLessons', 'plannerWeekNotes'])
+              .in('data_type', ['drama-v3', 'art-v2', 'moderation-data', 'plannerTimetable', 'plannerLessons', 'plannerWeekNotes', 'plannerDaySlotNotes', 'plannerDayNotes'])
           ]).then(function(results) {
             if (results[1].error) {
               reject(results[1].error);
@@ -489,7 +491,7 @@
                 drama: null,
                 art: null,
                 moderation: null,
-                planner: { timetable: null, lessons: null, weekNotes: null }
+                planner: { timetable: null, lessons: null, weekNotes: null, daySlotNotes: null, dayNotes: null }
               };
             });
             rows.forEach(function(r) {
@@ -501,7 +503,7 @@
                   drama: null,
                   art: null,
                   moderation: null,
-                  planner: { timetable: null, lessons: null, weekNotes: null }
+                  planner: { timetable: null, lessons: null, weekNotes: null, daySlotNotes: null, dayNotes: null }
                 };
               }
               var u = byUser[r.user_id];
@@ -511,6 +513,8 @@
               else if (r.data_type === 'plannerTimetable') u.planner.timetable = r.data;
               else if (r.data_type === 'plannerLessons') u.planner.lessons = r.data;
               else if (r.data_type === 'plannerWeekNotes') u.planner.weekNotes = r.data;
+              else if (r.data_type === 'plannerDaySlotNotes') u.planner.daySlotNotes = r.data;
+              else if (r.data_type === 'plannerDayNotes') u.planner.dayNotes = r.data;
             });
             resolve(Object.values(byUser).sort(function(a, b) { return (a.teacherName || '').localeCompare(b.teacherName || ''); }));
           }).catch(reject);

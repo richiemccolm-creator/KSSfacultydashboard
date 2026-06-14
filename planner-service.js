@@ -9,6 +9,8 @@
     timetable: { slots: [] },
     lessons: { lessons: [] },
     weekNotes: {},
+    daySlotNotes: {},
+    dayNotes: {},
     lessonPlanTemplates: { templates: [] },
     schemesOfWork: { units: [] },
     currentWeekStart: null,
@@ -135,6 +137,8 @@
         (window.DataService && DataService.get ? DataService.get('plannerTimetable') : Promise.resolve(null)),
         (window.DataService && DataService.get ? DataService.get('plannerLessons') : Promise.resolve(null)),
         (window.DataService && DataService.get ? DataService.get('plannerWeekNotes') : Promise.resolve(null)),
+        (window.DataService && DataService.get ? DataService.get('plannerDaySlotNotes') : Promise.resolve(null)),
+        (window.DataService && DataService.get ? DataService.get('plannerDayNotes') : Promise.resolve(null)),
         (window.DataService && DataService.get ? DataService.get('lessonPlanTemplates') : Promise.resolve(null)),
         (window.DataService && DataService.get ? DataService.get('plannerSchemesOfWork') : Promise.resolve(null))
       ]).then(function(res) {
@@ -142,8 +146,10 @@
         if (!state.timetable.slots) state.timetable.slots = [];
         state.lessons = res[1] && res[1].lessons ? res[1] : { lessons: [] };
         state.weekNotes = res[2] && typeof res[2] === 'object' ? res[2] : {};
-        state.lessonPlanTemplates = res[3] && res[3].templates ? res[3] : { templates: [] };
-        state.schemesOfWork = res[4] && res[4].units ? res[4] : { units: [] };
+        state.daySlotNotes = res[3] && typeof res[3] === 'object' ? res[3] : {};
+        state.dayNotes = res[4] && typeof res[4] === 'object' ? res[4] : {};
+        state.lessonPlanTemplates = res[5] && res[5].templates ? res[5] : { templates: [] };
+        state.schemesOfWork = res[6] && res[6].units ? res[6] : { units: [] };
         normalizeSchemesOfWorkBlob(state.schemesOfWork);
         return self.getState();
       });
@@ -185,6 +191,31 @@
     },
     saveWeekNotes: function() {
       return window.DataService ? DataService.set('plannerWeekNotes', state.weekNotes) : Promise.resolve();
+    },
+
+    daySlotNoteKey: function(dateStr, slotKey) {
+      return (dateStr || '') + '|' + (slotKey || '');
+    },
+    getDaySlotNote: function(dateStr, slotKey) {
+      return (state.daySlotNotes || {})[this.daySlotNoteKey(dateStr, slotKey)] || '';
+    },
+    setDaySlotNote: function(dateStr, slotKey, text) {
+      if (!state.daySlotNotes) state.daySlotNotes = {};
+      state.daySlotNotes[this.daySlotNoteKey(dateStr, slotKey)] = text || '';
+    },
+    saveDaySlotNotes: function() {
+      return window.DataService ? DataService.set('plannerDaySlotNotes', state.daySlotNotes) : Promise.resolve();
+    },
+
+    getDayNote: function(dateStr) {
+      return (state.dayNotes || {})[dateStr || ''] || '';
+    },
+    setDayNote: function(dateStr, text) {
+      if (!state.dayNotes) state.dayNotes = {};
+      state.dayNotes[dateStr || ''] = text || '';
+    },
+    saveDayNotes: function() {
+      return window.DataService ? DataService.set('plannerDayNotes', state.dayNotes) : Promise.resolve();
     },
 
     getState: function() { return state; },
