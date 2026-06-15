@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tracking &amp; Monitoring — Faculty Hub</title>
+  <link rel="icon" type="image/png" href="faculty-hub-logo.png">
+  <script src="app-version.js"></script>
+  <script>if (window.ensureAppVersionInUrl) window.ensureAppVersionInUrl();</script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://api.fontshare.com/v2/css?f[]=general-sans@500,600,700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.44.0/dist/tabler-icons.min.css">
+  <link rel="stylesheet" href="design-tokens.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --tml-navy: #0f1a30;
+      --tml-navy-mid: #1e3a5f;
+      --tml-blue: #2563eb;
+      --tml-blue-deep: #1d4ed8;
+      --tml-teal: #0d9488;
+      --tml-teal-deep: #0f766e;
+      --tml-ink: #0f172a;
+      --tml-muted: #64748b;
+      --tml-surface: #ffffff;
+      --tml-glow-blue: rgba(37, 99, 235, 0.12);
+      --tml-glow-teal: rgba(13, 148, 136, 0.12);
+    }
+
+    body {
+      font-family: "General Sans", "Inter", system-ui, sans-serif;
+      color: var(--tml-ink);
+      min-height: 100vh;
+      line-height: 1.5;
+      overflow-x: hidden;
+      background: #f0f4fa;
+    }
+
+    .tml-page {
+      position: relative;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Animated background layer ── */
+    .tml-bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      pointer-events: none;
+      overflow: hidden;
+      background:
+        radial-gradient(ellipse 80% 60% at 15% 20%, var(--tml-glow-blue), transparent 55%),
+        radial-gradient(ellipse 70% 55% at 88% 75%, var(--tml-glow-teal), transparent 50%),
+        linear-gradient(165deg, #f8fafc 0%, #eef2f8 45%, #f4f7fb 100%);
+    }
+
+    .tml-bg-grid {
+      position: absolute;
+      inset: 0;
+      opacity: 0.35;
+      background-image: radial-gradient(circle, #94a3b8 1px, transparent 1px);
+      background-size: 28px 28px;
+      mask-image: radial-gradient(ellipse 90% 80% at 50% 40%, black 20%, transparent 75%);
+    }
+
+    .tml-bg-svg {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .tml-wave-line {
+      fill: none;
+      stroke-width: 1.2;
+      stroke-linecap: round;
+      opacity: 0.45;
+    }
+    .tml-wave-line--1 { stroke: #93c5fd; animation: tml-drift 28s ease-in-out infinite; }
+    .tml-wave-line--2 { stroke: #5eead4; animation: tml-drift 34s ease-in-out infinite reverse; }
+    .tml-wave-line--3 { stroke: #c4b5fd; animation: tml-drift 40s ease-in-out infinite; animation-delay: -8s; }
+
+    @keyframes tml-drift {
+      0%, 100% { transform: translateX(0) translateY(0); opacity: 0.35; }
+      50% { transform: translateX(12px) translateY(-6px); opacity: 0.55; }
+    }
+
+    .tml-bg-chart {
+      position: absolute;
+      opacity: 0.2;
+    }
+    .tml-bg-chart--left { left: 4%; bottom: 18%; animation: tml-float 6s ease-in-out infinite; }
+    .tml-bg-chart--right { right: 6%; top: 22%; animation: tml-float 7s ease-in-out infinite reverse; }
+
+    @keyframes tml-float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+
+    .tml-bar {
+      animation: tml-bar-pulse 3s ease-in-out infinite;
+    }
+    .tml-bar:nth-child(2) { animation-delay: 0.4s; }
+    .tml-bar:nth-child(3) { animation-delay: 0.8s; }
+    .tml-bar:nth-child(4) { animation-delay: 1.2s; }
+    .tml-bar:nth-child(5) { animation-delay: 1.6s; }
+
+    @keyframes tml-bar-pulse {
+      0%, 100% { opacity: 0.5; }
+      50% { opacity: 0.85; }
+    }
+
+    .tml-top-bar {
+      position: relative;
+      z-index: 2;
+      height: 6px;
+      background: linear-gradient(90deg, var(--tml-navy) 0%, var(--tml-navy-mid) 50%, var(--tml-navy) 100%);
+    }
+
+    .tml-wrap {
+      position: relative;
+      z-index: 1;
+      flex: 1;
+      max-width: 1040px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem 2.5rem;
+      width: 100%;
+    }
+
+    .tml-standalone-bar {
+      margin-bottom: 1rem;
+    }
+    .tml-standalone-bar a {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--tml-blue-deep);
+      text-decoration: none;
+      padding: 0.35rem 0.65rem;
+      border-radius: 999px;
+      background: rgba(255,255,255,.7);
+      border: 1px solid rgba(148,163,184,.25);
+      backdrop-filter: blur(6px);
+    }
+    .tml-standalone-bar a:hover { background: #fff; }
+
+    .tml-hero {
+      text-align: center;
+      margin-bottom: 2.25rem;
+    }
+    .tml-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.38rem 0.9rem;
+      border-radius: 999px;
+      background: rgba(255,255,255,.85);
+      border: 1px solid rgba(148,163,184,.3);
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--tml-muted);
+      margin-bottom: 1.1rem;
+      box-shadow: 0 2px 12px rgba(15,23,42,.04);
+    }
+    .tml-badge-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--tml-blue), var(--tml-teal));
+      animation: tml-pulse-dot 2.5s ease-in-out infinite;
+    }
+    @keyframes tml-pulse-dot {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.2); opacity: 0.7; }
+    }
+
+    .tml-hero h1 {
+      font-size: clamp(1.65rem, 4vw, 2.35rem);
+      font-weight: 700;
+      color: var(--tml-navy);
+      line-height: 1.2;
+      margin-bottom: 0.65rem;
+      letter-spacing: -0.02em;
+    }
+    .tml-hero h1 em {
+      font-style: normal;
+      background: linear-gradient(120deg, var(--tml-blue-deep) 0%, var(--tml-teal) 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .tml-hero p {
+      font-size: 0.95rem;
+      color: var(--tml-muted);
+      max-width: 34rem;
+      margin: 0 auto;
+      line-height: 1.6;
+    }
+
+    .tml-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.35rem;
+    }
+    @media (max-width: 800px) {
+      .tml-grid { grid-template-columns: 1fr; }
+      .tml-wrap { padding: 1.25rem 1rem 2rem; }
+    }
+
+    .tml-card {
+      background: var(--tml-surface);
+      border-radius: 16px;
+      box-shadow:
+        0 4px 6px rgba(15,23,42,.04),
+        0 18px 40px rgba(15,23,42,.08);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      border: 1px solid rgba(255,255,255,.8);
+      transition: transform 0.25s ease, box-shadow 0.25s ease;
+    }
+    .tml-card:hover {
+      transform: translateY(-4px);
+      box-shadow:
+        0 8px 12px rgba(15,23,42,.06),
+        0 24px 48px rgba(15,23,42,.12);
+    }
+
+    .tml-card-banner {
+      padding: 1.35rem 1.4rem 1.5rem;
+      color: #fff;
+      position: relative;
+      overflow: hidden;
+    }
+    .tml-card-banner::after {
+      content: '';
+      position: absolute;
+      right: -20%;
+      top: -40%;
+      width: 55%;
+      height: 180%;
+      background: rgba(255,255,255,.08);
+      border-radius: 50%;
+      pointer-events: none;
+    }
+    .tml-card--bge .tml-card-banner {
+      background: linear-gradient(135deg, #1e40af 0%, #2563eb 55%, #3b82f6 100%);
+    }
+    .tml-card--senior .tml-card-banner {
+      background: linear-gradient(135deg, #0f766e 0%, #0d9488 55%, #14b8a6 100%);
+    }
+
+    .tml-card-banner-inner {
+      display: flex;
+      gap: 1rem;
+      align-items: flex-start;
+      position: relative;
+      z-index: 1;
+    }
+    .tml-card-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.95);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      flex-shrink: 0;
+      box-shadow: 0 4px 14px rgba(0,0,0,.15);
+    }
+    .tml-card--bge .tml-card-icon { color: var(--tml-blue-deep); }
+    .tml-card--senior .tml-card-icon { color: var(--tml-teal-deep); }
+
+    .tml-card-banner h2 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 0.1rem;
+    }
+    .tml-card-banner .tml-sub {
+      font-size: 0.78rem;
+      opacity: 0.88;
+      font-weight: 500;
+    }
+    .tml-card-banner .tml-desc {
+      font-size: 0.82rem;
+      margin-top: 0.55rem;
+      opacity: 0.92;
+      line-height: 1.45;
+      max-width: 95%;
+    }
+
+    .tml-card-body {
+      padding: 1.25rem 1.4rem 1.4rem;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .tml-mini-chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 5px;
+      height: 36px;
+      margin-bottom: 1rem;
+      padding: 0.5rem 0.65rem;
+      background: #f8fafc;
+      border-radius: 10px;
+      border: 1px solid #e2e8f0;
+    }
+    .tml-mini-bar {
+      flex: 1;
+      border-radius: 3px 3px 0 0;
+      min-height: 4px;
+      transition: height 0.3s ease;
+    }
+    .tml-card--bge .tml-mini-bar { background: linear-gradient(180deg, #60a5fa, #2563eb); }
+    .tml-card--senior .tml-mini-bar { background: linear-gradient(180deg, #5eead4, #0d9488); }
+
+    .tml-features {
+      list-style: none;
+      flex: 1;
+    }
+    .tml-features li {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.55rem;
+      font-size: 0.84rem;
+      color: #334155;
+      padding: 0.38rem 0;
+      line-height: 1.4;
+    }
+    .tml-check {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 0.65rem;
+      color: #fff;
+      margin-top: 1px;
+    }
+    .tml-card--bge .tml-check { background: var(--tml-blue); }
+    .tml-card--senior .tml-check { background: var(--tml-teal); }
+
+    .tml-open {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.45rem;
+      width: 100%;
+      margin-top: 1.15rem;
+      padding: 0.72rem 1.2rem;
+      border: none;
+      border-radius: 10px;
+      font: inherit;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      color: #fff;
+      transition: transform 0.15s, box-shadow 0.15s, filter 0.15s;
+      box-shadow: 0 4px 14px rgba(0,0,0,.12);
+    }
+    .tml-open:hover {
+      transform: translateY(-1px);
+      filter: brightness(1.05);
+      box-shadow: 0 6px 20px rgba(0,0,0,.18);
+    }
+    .tml-open--bge { background: linear-gradient(135deg, #1d4ed8, #2563eb); }
+    .tml-open--senior { background: linear-gradient(135deg, #0f766e, #0d9488); }
+
+    .tml-footer {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+      padding: 1.5rem 1rem 1.75rem;
+      margin-top: auto;
+    }
+    .tml-footer-trust {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--tml-muted);
+      letter-spacing: 0.02em;
+    }
+    .tml-footer-trust i { color: #94a3b8; font-size: 0.9rem; }
+    .tml-footer-wave {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 48px;
+      background: linear-gradient(180deg, transparent, rgba(15,26,48,.04));
+      pointer-events: none;
+    }
+    .tml-footer-bar {
+      height: 5px;
+      background: linear-gradient(90deg, var(--tml-navy) 0%, #1e3a5f 50%, var(--tml-navy) 100%);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .tml-wave-line, .tml-bg-chart, .tml-bar, .tml-badge-dot { animation: none; }
+      .tml-card:hover { transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="tml-page">
+    <div class="tml-bg" aria-hidden="true">
+      <div class="tml-bg-grid"></div>
+      <svg class="tml-bg-svg" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid slice">
+        <path class="tml-wave-line tml-wave-line--1" d="M-50,420 Q200,380 400,400 T800,380 T1250,420" />
+        <path class="tml-wave-line tml-wave-line--2" d="M-80,520 Q250,480 500,510 T950,490 T1280,530" />
+        <path class="tml-wave-line tml-wave-line--3" d="M0,280 Q300,240 600,270 T1100,250" />
+        <path class="tml-wave-line tml-wave-line--1" stroke-width="0.8" opacity="0.25"
+          d="M100,180 Q350,220 550,190 T900,210 T1200,175" />
+      </svg>
+      <svg class="tml-bg-chart tml-bg-chart--left" width="120" height="80" viewBox="0 0 120 80" aria-hidden="true">
+        <rect class="tml-bar" x="8" y="45" width="14" height="28" rx="2" fill="#93c5fd"/>
+        <rect class="tml-bar" x="30" y="32" width="14" height="41" rx="2" fill="#60a5fa"/>
+        <rect class="tml-bar" x="52" y="22" width="14" height="51" rx="2" fill="#3b82f6"/>
+        <rect class="tml-bar" x="74" y="38" width="14" height="35" rx="2" fill="#2563eb"/>
+        <rect class="tml-bar" x="96" y="12" width="14" height="61" rx="2" fill="#1d4ed8"/>
+      </svg>
+      <svg class="tml-bg-chart tml-bg-chart--right" width="100" height="100" viewBox="0 0 100 100" aria-hidden="true">
+        <circle cx="50" cy="50" r="38" fill="none" stroke="#99f6e4" stroke-width="8" stroke-dasharray="60 180" opacity="0.6"/>
+        <circle cx="50" cy="50" r="38" fill="none" stroke="#0d9488" stroke-width="8" stroke-dasharray="120 120" transform="rotate(-90 50 50)" opacity="0.35"/>
+      </svg>
+    </div>
+
+    <div class="tml-top-bar" aria-hidden="true"></div>
+
+    <div class="tml-wrap">
+      <div class="tml-standalone-bar" id="tml-standalone-bar" hidden>
+        <a href="faculty-hub.html"><i class="ti ti-arrow-left" aria-hidden="true"></i> Faculty Hub</a>
+      </div>
+
+      <header class="tml-hero">
+        <div class="tml-badge"><span class="tml-badge-dot"></span> KSS · Expressive Arts Faculty</div>
+        <h1>Welcome to the<br><em>Tracking &amp; Monitoring Hub</em></h1>
+        <p>Choose the platform that matches your phase. BGE monitoring for S1–S3 insight, or Senior Phase tracking for qualification courses.</p>
+      </header>
+
+      <div class="tml-grid">
+        <article class="tml-card tml-card--bge">
+          <div class="tml-card-banner">
+            <div class="tml-card-banner-inner">
+              <div class="tml-card-icon" aria-hidden="true"><i class="ti ti-chart-bar"></i></div>
+              <div>
+                <h2>BGE Phase</h2>
+                <div class="tml-sub">Broad General Education · S1–S3</div>
+                <p class="tml-desc">Faculty-wide monitoring of Art &amp; Drama progress — at-risk pupils, class comparisons, and cloud-synced tracker data.</p>
+              </div>
+            </div>
+          </div>
+          <div class="tml-card-body">
+            <div class="tml-mini-chart" aria-hidden="true" data-chart="bge">
+              <div class="tml-mini-bar" style="height:45%"></div>
+              <div class="tml-mini-bar" style="height:70%"></div>
+              <div class="tml-mini-bar" style="height:55%"></div>
+              <div class="tml-mini-bar" style="height:85%"></div>
+              <div class="tml-mini-bar" style="height:60%"></div>
+              <div class="tml-mini-bar" style="height:75%"></div>
+            </div>
+            <ul class="tml-features">
+              <li><span class="tml-check"><i class="ti ti-check" aria-hidden="true"></i></span> Overview, at-risk &amp; pupil list views</li>
+              <li><span class="tml-check"><i class="ti ti-check" aria-hidden="true"></i></span> Art &amp; Drama scores from cloud trackers</li>
+              <li><span class="tml-check"><i class="ti ti-check" aria-hidden="true"></i></span> Charts, exports &amp; faculty monitoring</li>
+              <li><span class="tml-check"><i class="ti ti-check" aria-hidden="true"></i></span> Aligned to whole-school TP1–TP6 cycle</li>
+            </ul>
+            <a class="tml-open tml-open--bge" id="tml-open-bge" href="tracking_monitoring_hub.html">
+              Enter BGE Phase <i class="ti ti-arrow-right" aria-hidden="true"></i>
+            </a>
+          </div>
+        </article>
+
+        <article class="tml-card tml-card--senior">
+          <div class="tml-card-banner">
+            <div class="tml-card-banner-inner">
+              <div class="tml-card-icon" aria-hidden="true"><i class="ti ti-chart-pie"></i></div>
+              <div>
+                <h2>Senior Phase</h2>
+                <div class="tml-sub">Qualification courses · S4–S6</div>
+                <p class="tml-desc">Class tracking sheets for N5/N4, Higher, AH &amp; NPA — teachers enter data; Faculty Head sets up cohorts and monitors risk.</p>
+              </div>
+            </div>
+          </div>
+          <div class="tml-card-body">
+            <div class="tml-mini-chart" aria-hidden="true" data-chart="senior">
+              <div class="tml-mini-bar" style="height:65%"></div>
+              <div class="tml-mini-bar" style="height:40%"></div>
+              <div class="tml-mini-bar" style="height:80%"></div>
+              <div class="tml-mini-bar" style="height:55%"></div>
+              <div class="tml-mini-bar" style="height:90%"></div>
+              <div class="tml-mini-bar" style="height:48%"></div>
+            </div>
+            <ul class="tml-features">
+              <li><span class="tml-check"><i class="ti ti-check" aria-hidden="true"></i></span> Enter tracking by class sheet</li>
+              <li><span class="tml-check"><i class="ti ti-check" aria-hidden="true"></i></span> Prelims, evidence bank &amp; prior qualifications</li>
+              <li><span class="tml-check"><i class="ti ti-check" aria-hidden="true"></i></span> Teacher flags &amp; Faculty Head dashboard</li>
+              <li><span class="tml-check"><i class="ti ti-check" aria-hidden="true"></i></span> Setup: assign teachers to senior classes</li>
+            </ul>
+            <a class="tml-open tml-open--senior" id="tml-open-senior" href="dev/senior-phase-tracking/index.html">
+              Enter Senior Phase <i class="ti ti-arrow-right" aria-hidden="true"></i>
+            </a>
+          </div>
+        </article>
+      </div>
+    </div>
+
+    <footer class="tml-footer">
+      <div class="tml-footer-wave" aria-hidden="true"></div>
+      <div class="tml-footer-trust">
+        <i class="ti ti-shield-check" aria-hidden="true"></i>
+        Monitoring · Tracking · Actionable insight
+      </div>
+    </footer>
+    <div class="tml-footer-bar" aria-hidden="true"></div>
+  </div>
+
+  <script>
+    (function() {
+      var params = new URLSearchParams(window.location.search);
+      var isEmbed = params.get('embed') === '1';
+      if (isEmbed) document.body.classList.add('is-embedded');
+      else document.getElementById('tml-standalone-bar').hidden = false;
+
+      function hrefWithParams(base) {
+        var q = isEmbed ? 'embed=1&from=landing' : 'from=landing';
+        return base + (base.indexOf('?') >= 0 ? '&' : '?') + q;
+      }
+
+      document.getElementById('tml-open-bge').href = hrefWithParams('tracking_monitoring_hub.html');
+      document.getElementById('tml-open-senior').href = hrefWithParams('dev/senior-phase-tracking/index.html');
+
+      /* Subtle live animation on card mini-charts */
+      if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        document.querySelectorAll('[data-chart]').forEach(function(chart) {
+          var bars = chart.querySelectorAll('.tml-mini-bar');
+          setInterval(function() {
+            bars.forEach(function(bar) {
+              var h = 35 + Math.random() * 55;
+              bar.style.height = h + '%';
+            });
+          }, 2200);
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

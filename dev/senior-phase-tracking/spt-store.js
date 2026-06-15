@@ -24,13 +24,219 @@
     return db;
   }
 
+  function mergeCoursesFromConfig(db) {
+    if (!global.SptConfig) return false;
+    var ts = new Date().toISOString();
+    var changed = false;
+    db.courses = db.courses || [];
+    db.assessment_points = db.assessment_points || [];
+    global.SptConfig.COURSE_DEFS.forEach(function(def) {
+      var id = 'c-' + def.slug;
+      if (db.courses.some(function(c) { return c.slug === def.slug || c.id === id; })) return;
+      db.courses.push({
+        id: id,
+        slug: def.slug,
+        course_name: def.course_name,
+        subject_area: def.subject_area,
+        scqf_level: def.scqf_level,
+        course_type: def.course_type,
+        has_prelim: def.has_prelim,
+        supports_level_change: def.supports_level_change,
+        default_assessment_model: def.default_assessment_model,
+        active_status: true,
+        created_at: ts,
+        updated_at: ts
+      });
+      var tpl = global.SptConfig.ASSESSMENT_TEMPLATES[def.default_assessment_model] || [];
+      tpl.forEach(function(a, i) {
+        db.assessment_points.push({
+          id: 'ap-' + def.slug + '-' + i,
+          course_id: id,
+          assessment_name: a.assessment_name,
+          assessment_type: a.assessment_type,
+          assessment_window: a.assessment_window,
+          max_score: a.assessment_type === 'Prelim' ? 100 : null,
+          weighting: null,
+          is_required: a.is_required,
+          display_order: i + 1,
+          created_at: ts,
+          updated_at: ts
+        });
+      });
+      changed = true;
+    });
+    return changed;
+  }
+
+  function seedNpaPhotoIfMissing(db) {
+    if (db.courses && !db.courses.some(function(c) { return c.slug === 'npa-photo'; })) return false;
+    var ts = new Date().toISOString();
+    var changed = false;
+    function ensureClass() {
+      db.classes = db.classes || [];
+      if (db.classes.some(function(cl) { return cl.id === 'cl-npa-a'; })) return;
+      db.classes.push({
+        id: 'cl-npa-a', course_id: 'c-npa-photo', class_name: 'NPA Photo L5 A',
+        teacher_id: 't-douglas', academic_year: '2025-26', created_at: ts, updated_at: ts
+      });
+      changed = true;
+    }
+    function ensurePupil(id, first, surname, year, cand, enId) {
+      db.pupils = db.pupils || [];
+      if (!db.pupils.some(function(p) { return p.id === id; })) {
+        db.pupils.push({
+          id: id, first_name: first, surname: surname, preferred_name: first,
+          year_group: year, candidate_number: cand, class_group: 'NPA Photo A',
+          teacher_id: 't-douglas', active_status: true, notes: '', created_at: ts, updated_at: ts
+        });
+        changed = true;
+      }
+      db.enrolments = db.enrolments || [];
+      if (!db.enrolments.some(function(e) { return e.id === enId; })) {
+        db.enrolments.push({
+          id: enId, pupil_id: id, course_id: 'c-npa-photo', class_id: 'cl-npa-a',
+          teacher_id: 't-douglas', current_level: 'Level 5', target_grade: 'Pass',
+          latest_working_grade: 'Pass', final_estimate: 'Pass', risk_status: 'Green',
+          risk_manual_override: false, risk_override_reason: '', has_open_flag: false,
+          active_status: true, start_date: '2025-08-15', end_date: null, created_at: ts, updated_at: ts
+        });
+        if (global.SptEvidence) global.SptEvidence.seedForEnrolment(db, enId);
+        changed = true;
+      }
+    }
+    ensureClass();
+    ensurePupil('p-graham', 'Mia', 'Graham', 'S3', '2410001', 'e-mia-npa');
+    ensurePupil('p-murray', 'Callum', 'Murray', 'S4', '2410002', 'e-callum-npa');
+    return changed;
+  }
+
+  function patchNpaPhotoCourse(db) {
+    var changed = false;
+    (db.courses || []).forEach(function(c) {
+      if (c.slug !== 'npa-photo') return;
+      if (c.scqf_level !== 'Level 4/5') { c.scqf_level = 'Level 4/5'; changed = true; }
+      if (!c.group_award_l4) { c.group_award_l4 = 'GR4L 44'; changed = true; }
+      if (!c.group_award_l5) { c.group_award_l5 = 'GR4M 45'; changed = true; }
+      if (!c.supports_level_change) { c.supports_level_change = true; changed = true; }
+    });
+    var cl = (db.classes || []).find(function(x) { return x.id === 'cl-npa-a'; });
+    if (cl && cl.class_name === 'NPA Photo A') {
+      cl.class_name = 'NPA Photo L5 A';
+      changed = true;
+    }
+    return changed;
+  }
+
+  function syncNpaPhotoEvidence(db) {
+    if (!global.SptEvidence) return false;
+    var changed = false;
+    (db.enrolments || []).forEach(function(en) {
+      if (en.course_id !== 'c-npa-photo' || en.active_status === false) return;
+      var before = (db.evidence_bank || []).filter(function(e) { return e.enrolment_id === en.id; })
+        .map(function(e) { return e.unit_code; }).sort().join(',');
+      global.SptEvidence.syncEnrolment(db, en.id);
+      var after = (db.evidence_bank || []).filter(function(e) { return e.enrolment_id === en.id; })
+        .map(function(e) { return e.unit_code; }).sort().join(',');
+      if (before !== after) changed = true;
+    });
+    return changed;
+  }
+
+  function shouldUseSeed() {
+    return !!(global.SptConfig && global.SptConfig.useSeedData &&
+      global.SptSeed && typeof global.SptSeed.build === 'function');
+  }
+
+  function buildEmpty() {
+    var ts = new Date().toISOString();
+    var db = {
+      version: 0,
+      dev_role: 'faculty_head',
+      simulated_teacher_id: null,
+      hub_mode: true,
+      teachers: [],
+      classes: [],
+      pupils: [],
+      enrolments: [],
+      school_tracking_points: [],
+      pupil_tracking_data: [],
+      assessment_points: [],
+      pupil_assessment_results: [],
+      evidence_bank: [],
+      level_changes: [],
+      interventions: [],
+      prior_attainment: [],
+      enrolment_baselines: [],
+      attendance_records: [],
+      teacher_concerns: [],
+      prelim_components: [],
+      prelim_marks: [],
+      import_batches: [],
+      audit_log: [],
+      created_at: ts,
+      updated_at: ts
+    };
+    (global.SptConfig.TRACKING_POINT_NAMES || []).forEach(function(tp) {
+      db.school_tracking_points.push({
+        id: uid('tp'),
+        tracking_point_name: tp.tracking_point_name,
+        tracking_point_date: tp.tracking_point_date,
+        academic_year: tp.academic_year,
+        created_at: ts,
+        updated_at: ts
+      });
+    });
+    mergeCoursesFromConfig(db);
+    return db;
+  }
+
   function migrate(db) {
     if (!db) return null;
     if (db.version >= VER) return db;
+    db.enrolment_baselines = db.enrolment_baselines || [];
+    (db.level_changes || []).forEach(function(lc) {
+      if (!lc.change_type) lc.change_type = 'level';
+    });
+    (db.enrolment_baselines || []).forEach(function(b) {
+      if (b.s3_exam_mark == null && b.s3_exam_grade && global.SptBaseline) {
+        var g = b.s3_exam_grade;
+        if (g === 'A') b.s3_exam_mark = 75;
+        else if (g === 'B') b.s3_exam_mark = 65;
+        else if (g === 'C') b.s3_exam_mark = 55;
+        else if (g === 'D') b.s3_exam_mark = 45;
+        else if (g === 'F') b.s3_exam_mark = 35;
+      }
+      if (b.s3_exam_mark != null && !b.s3_exam_grade && global.SptBaseline) {
+        b.s3_exam_grade = global.SptBaseline.bandFromMark(b.s3_exam_mark);
+      }
+    });
+    if (global.SptEvidence && global.SptEvidence.syncAll) {
+      global.SptEvidence.syncAll(db);
+    }
     if (global.SptPrelim && global.SptPrelim.syncComponentsFromConfig) {
       global.SptPrelim.syncComponentsFromConfig(db);
-      if (global.SptRisk) global.SptRisk.recalculateAll(db);
     }
+    mergeCoursesFromConfig(db);
+    if (shouldUseSeed()) {
+      seedNpaPhotoIfMissing(db);
+      linkEnrolmentsToClasses(db);
+      seedAhArtBIfMissing(db);
+      if (global.SptSeedRoster && global.SptSeedRoster.mergeIntoDb) {
+        global.SptSeedRoster.mergeIntoDb(db);
+      }
+      patchNpaPhotoCourse(db);
+      syncNpaPhotoEvidence(db);
+    } else {
+      patchNpaPhotoCourse(db);
+    }
+    (db.prior_attainment || []).forEach(function(p) {
+      if (p.pathway_status === 'Completed') p.pathway_status = 'Completed previous level';
+      if (p.pathway_status === 'First time') p.pathway_status = 'First time in subject';
+      if (p.pathway_status === 'Crashed / withdrew') {
+        p.pathway_status = p.result_grade ? 'Completed previous level' : 'Crashing subject';
+      }
+    });
+    if (global.SptRisk) global.SptRisk.recalculateAll(db);
     db.version = VER;
     return db;
   }
@@ -40,21 +246,36 @@
     if (db) {
       var verBefore = db.version;
       db = migrate(db);
-      if (db && db.version !== verBefore) save(db);
+      if (db && db.version !== verBefore) {
+        if (global.SptRisk) global.SptRisk.recalculateAll(db);
+        save(db);
+      }
     }
-    if (!db || !db.enrolments) {
-      db = global.SptSeed.build();
+    if (!db) {
+      db = shouldUseSeed() ? global.SptSeed.build() : buildEmpty();
       if (global.SptPrelim) global.SptPrelim.buildComponentsFromConfig(db);
       if (global.SptRisk) global.SptRisk.recalculateAll(db);
       save(db);
     }
     db.classes = db.classes || [];
     db.prior_attainment = db.prior_attainment || [];
+    db.enrolment_baselines = db.enrolment_baselines || [];
     db.attendance_records = db.attendance_records || [];
     db.teacher_concerns = db.teacher_concerns || [];
     db.prelim_components = db.prelim_components || [];
     db.prelim_marks = db.prelim_marks || [];
-    if (!db.prelim_components.length && global.SptPrelim) {
+    var cohortPatched = false;
+    if (shouldUseSeed()) {
+      cohortPatched = linkEnrolmentsToClasses(db) || seedAhArtBIfMissing(db) ||
+        (global.SptSeedRoster && global.SptSeedRoster.mergeIntoDb(db)) ||
+        patchNpaPhotoCourse(db) || syncNpaPhotoEvidence(db);
+    } else {
+      cohortPatched = mergeCoursesFromConfig(db) || patchNpaPhotoCourse(db);
+    }
+    if (cohortPatched) {
+      if (global.SptRisk) global.SptRisk.recalculateAll(db);
+      save(db);
+    } else if (!db.prelim_components.length && global.SptPrelim) {
       global.SptPrelim.buildComponentsFromConfig(db);
       save(db);
     } else if (db.version < VER && global.SptPrelim) {
@@ -70,6 +291,7 @@
   function reset() {
     localStorage.removeItem(KEY);
     localStorage.removeItem('spt-dev-v1');
+    localStorage.removeItem('spt-dev-v2');
     return ensure();
   }
 
@@ -100,7 +322,9 @@
   function setDevRole(roleId) {
     var db = ensure();
     db.dev_role = roleId;
-    if (roleId === 'class_teacher' && !db.simulated_teacher_id) db.simulated_teacher_id = 't-anderson';
+    if (roleId === 'class_teacher' && !db.simulated_teacher_id) {
+      db.simulated_teacher_id = (db.teachers[0] && db.teachers[0].id) || null;
+    }
     return save(db);
   }
 
@@ -160,8 +384,30 @@
     });
   }
 
+  function trackingRecordFor(db, enrolmentId, trackingPointId) {
+    return (db.pupil_tracking_data || []).find(function(t) {
+      return t.enrolment_id === enrolmentId && t.tracking_point_id === trackingPointId;
+    }) || null;
+  }
+
+  function trackingDataForEnrolment(db, enrolmentId) {
+    var tps = trackingPoints(db);
+    return tps.map(function(tp) {
+      return { tracking_point: tp, record: trackingRecordFor(db, enrolmentId, tp.id) };
+    });
+  }
+
+  function trackingScoreValue(record, field) {
+    if (!record || record[field] == null || record[field] === '') return '';
+    return parseInt(record[field], 10);
+  }
+
   function priorForPupil(db, pupilId) {
     return (db.prior_attainment || []).filter(function(p) { return p.pupil_id === pupilId; });
+  }
+
+  function baselineForEnrolment(db, enrolmentId) {
+    return global.SptBaseline ? global.SptBaseline.baselineForEnrolment(db, enrolmentId) : null;
   }
 
   function getEnrichedRows(db) {
@@ -174,27 +420,31 @@
         var tb = byId(db.school_tracking_points, b.tracking_point_id);
         return (tb && tb.tracking_point_date || '').localeCompare(ta && ta.tracking_point_date || '');
       })[0];
-      var prelimAp = (db.assessment_points || []).find(function(ap) {
+      var usesExam = global.SptEvidence && global.SptEvidence.usesExamRoute(course, en);
+      var usesEvBank = global.SptEvidence && global.SptEvidence.usesEvidenceBank(course, en);
+      var prelimAp = usesExam ? (db.assessment_points || []).find(function(ap) {
         return ap.course_id === en.course_id && ap.assessment_type === 'Prelim';
-      });
+      }) : null;
       var prelimSummary = prelimAp && global.SptPrelim ? global.SptPrelim.computeSummary(db, en.id, prelimAp.id) : null;
       var prelimDisplay = prelimSummary ? (prelimSummary.percentage + '% ' + prelimSummary.grade_band) : null;
       if (!prelimDisplay && prelimAp) {
         var res = resultForAssessment(db, en.id, prelimAp.id);
         prelimDisplay = res ? (res.grade || res.score) : null;
       }
-      var evidence = (db.evidence_bank || []).filter(function(ev) { return ev.enrolment_id === en.id; });
-      var missingEv = evidence.filter(function(ev) {
-        return ev.evidence_status === 'Missing' || ev.evidence_status === 'Not Started';
-      }).length;
-      var lc = (db.level_changes || []).find(function(l) {
-        return l.enrolment_id === en.id && l.current_status !== 'Completed' && l.current_status !== 'Not Proceeding';
-      });
+      var evidence = usesEvBank && global.SptEvidence ? global.SptEvidence.evidenceForEnrolment(db, en.id) : [];
+      var missingEv = usesEvBank && global.SptEvidence ? global.SptEvidence.missingCount(db, en.id) : 0;
+      var unitsBanked = usesEvBank && global.SptEvidence ? global.SptEvidence.bankedCount(db, en.id) : 0;
+      var lc = global.SptLevelChange
+        ? global.SptLevelChange.activeForEnrolment(db, en.id)
+        : (db.level_changes || []).find(function(l) {
+          return l.enrolment_id === en.id && l.current_status !== 'Completed' && l.current_status !== 'Not Proceeding';
+        });
       var ints = (db.interventions || []).filter(function(i) {
         return i.enrolment_id === en.id && i.intervention_status !== 'Completed';
       });
       var openFlags = global.SptConcerns ? global.SptConcerns.openFlags(db, en.id) : [];
       var att = attendanceForEnrolment(db, en.id);
+      var tracking = trackingDataForEnrolment(db, en.id);
       var worstAtt = att.reduce(function(min, a) {
         var s = a.record && a.record.attendance_score;
         if (s == null) return min;
@@ -203,7 +453,14 @@
       var prior = priorForPupil(db, en.pupil_id).filter(function(p) {
         return p.subject_area === course.subject_area;
       });
-      var crashed = prior.some(function(p) { return p.pathway_status === 'Crashed / withdrew'; });
+      var priorMain = global.SptBaseline ? global.SptBaseline.priorForCourse(db, en.pupil_id, course) : (prior[0] || null);
+      var crashing = global.SptBaseline
+        ? global.SptBaseline.isCrashingSubject(db, en, course) : false;
+      var priorDisp = global.SptBaseline
+        ? global.SptBaseline.priorDisplay(priorMain, crashing)
+        : { grade: '—', pathway: '—', crashing_subject: false };
+      var baseline = global.SptBaseline && global.SptBaseline.showsS3Baseline(course, en)
+        ? baselineForEnrolment(db, en.id) : null;
       return {
         enrolment: en,
         pupil: pupil,
@@ -214,15 +471,26 @@
         latest_tracking_point_name: latestTp ? (byId(db.school_tracking_points, latestTp.tracking_point_id) || {}).tracking_point_name : '—',
         prelim_result: prelimDisplay,
         prelim_summary: prelimSummary,
+        uses_exam_route: usesExam,
+        uses_evidence_bank: usesEvBank,
+        evidence_rows: evidence,
         evidence_missing_count: missingEv,
+        units_banked: unitsBanked,
+        units_total: evidence.length,
         level_change: lc || null,
         active_interventions: ints,
         open_flags: openFlags,
         open_flag_count: openFlags.length,
         attendance: att,
+        tracking_data: tracking,
         worst_attendance: worstAtt,
         prior_attainment: prior,
-        prior_crashed: crashed
+        prior_main: priorMain,
+        prior_display: priorDisp,
+        crashing_subject: crashing,
+        s3_baseline: baseline,
+        shows_s3_baseline: global.SptBaseline ? global.SptBaseline.showsS3Baseline(course, en) : false,
+        shows_prior_entry: global.SptBaseline ? global.SptBaseline.showsPriorEntry(course) : false
       };
     });
   }
@@ -279,6 +547,29 @@
     return db;
   }
 
+  function upsertTrackingScore(db, enrolmentId, trackingPointId, field, value) {
+    if (field !== 'effort' && field !== 'behaviour') return db;
+    var existing = trackingRecordFor(db, enrolmentId, trackingPointId);
+    var score = value === '' || value == null ? null : parseInt(value, 10);
+    if (existing) {
+      var patch = {};
+      patch[field] = score;
+      updateRecord(db, 'pupil_tracking_data', existing.id, patch, 'tracking_update');
+    } else {
+      var row = {
+        enrolment_id: enrolmentId,
+        tracking_point_id: trackingPointId,
+        effort: field === 'effort' ? score : null,
+        behaviour: field === 'behaviour' ? score : null,
+        imported_from_school_tracking: false,
+        import_batch_id: null
+      };
+      insertRecord(db, 'pupil_tracking_data', row, 'tracking_insert');
+    }
+    if (global.SptRisk) global.SptRisk.recalculateEnrolment(db, enrolmentId);
+    return db;
+  }
+
   function assessmentPointsForCourse(db, courseId) {
     return (db.assessment_points || [])
       .filter(function(ap) { return ap.course_id === courseId; })
@@ -313,6 +604,16 @@
     return row;
   }
 
+  function upsertBaseline(db, enrolmentId, patch) {
+    if (!global.SptBaseline) return null;
+    return global.SptBaseline.upsertBaseline(db, enrolmentId, patch);
+  }
+
+  function upsertPriorForCourse(db, enrolmentId, patch) {
+    if (!global.SptBaseline) return null;
+    return global.SptBaseline.upsertPriorForCourse(db, enrolmentId, patch);
+  }
+
   function createEnrolment(db, pupilId, courseId, classId, teacherId, level) {
     var en = insertRecord(db, 'enrolments', {
       pupil_id: pupilId,
@@ -331,7 +632,239 @@
       start_date: new Date().toISOString().slice(0, 10),
       end_date: null
     }, 'enrolment_create');
+    var course = byId(db.courses, courseId);
+    if (global.SptBaseline && global.SptBaseline.showsS3Baseline(course, en)) {
+      global.SptBaseline.upsertBaseline(db, en.id, { source: 'manual' });
+    }
+    if (global.SptEvidence) global.SptEvidence.syncEnrolment(db, en.id);
+    if (global.SptRisk) global.SptRisk.recalculateEnrolment(db, en.id);
     return en;
+  }
+
+  function defaultLevelForCourse(course) {
+    if (!course) return 'National 5';
+    if (course.course_type === 'Advanced Higher') return 'Advanced Higher';
+    if (course.course_type === 'Higher') return 'Higher';
+    if (course.course_type === 'NPA Combined') return 'Level 6';
+    if (course.course_type === 'NPA Award' && course.slug === 'npa-photo') return 'Level 5';
+    if (course.course_type === 'NPA Award') return 'Level 5';
+    if (course.course_type === 'N5/N4 Combined') return 'National 5';
+    return 'National 5';
+  }
+
+  function levelsForCourse(course) {
+    if (!course) return ['National 5'];
+    if (course.course_type === 'Advanced Higher') return ['Advanced Higher'];
+    if (course.course_type === 'Higher') return ['Higher'];
+    if (course.course_type === 'N5/N4 Combined') return ['National 5', 'National 4', 'National 3'];
+    if (course.course_type === 'NPA Combined') return ['Level 6', 'Level 5'];
+    if (course.slug === 'npa-photo') return ['Level 5', 'Level 4'];
+    if (course.course_type === 'NPA Award') return ['Level 5'];
+    return ['National 5'];
+  }
+
+  function classesForCourse(db, courseId) {
+    return (db.classes || []).filter(function(cl) { return cl.course_id === courseId; });
+  }
+
+  function teachersForCourse(db, courseId) {
+    var ids = {};
+    classesForCourse(db, courseId).forEach(function(cl) { ids[cl.teacher_id] = true; });
+    var list = (db.teachers || []).filter(function(t) {
+      return t.active_status !== false && ids[t.id];
+    });
+    if (list.length) return list;
+    return (db.teachers || []).filter(function(t) { return t.active_status !== false; });
+  }
+
+  function findEnrolment(db, pupilId, courseId) {
+    return (db.enrolments || []).find(function(e) {
+      return e.pupil_id === pupilId && e.course_id === courseId;
+    });
+  }
+
+  function hasActiveEnrolment(db, pupilId, courseId) {
+    var en = findEnrolment(db, pupilId, courseId);
+    return en && en.active_status !== false;
+  }
+
+  function createPupil(db, fields) {
+    return insertRecord(db, 'pupils', {
+      first_name: fields.first_name,
+      surname: fields.surname,
+      preferred_name: fields.preferred_name || fields.first_name,
+      year_group: fields.year_group || 'S5',
+      candidate_number: fields.candidate_number || '',
+      class_group: fields.class_group || '',
+      teacher_id: fields.teacher_id || null,
+      active_status: true,
+      notes: fields.notes || ''
+    }, 'pupil_add');
+  }
+
+  function deactivateEnrolment(db, enrolmentId) {
+    return updateRecord(db, 'enrolments', enrolmentId, {
+      active_status: false,
+      end_date: new Date().toISOString().slice(0, 10)
+    }, 'enrolment_deactivate');
+  }
+
+  function addPupilToCourse(db, opts) {
+    var courseId = opts.courseId;
+    var teacherId = opts.teacherId;
+    var classId = opts.classId || null;
+    var level = opts.level || defaultLevelForCourse(byId(db.courses, courseId));
+    var pupilId = opts.pupilId;
+    if (!pupilId) {
+      if (!opts.first_name || !opts.surname) return { error: 'Name required' };
+      pupilId = createPupil(db, opts).id;
+    }
+    if (hasActiveEnrolment(db, pupilId, courseId)) return { error: 'Pupil is already on this course' };
+    var existing = findEnrolment(db, pupilId, courseId);
+    if (existing) {
+      updateRecord(db, 'enrolments', existing.id, {
+        active_status: true,
+        teacher_id: teacherId,
+        class_id: classId,
+        current_level: level,
+        end_date: null,
+        start_date: new Date().toISOString().slice(0, 10)
+      }, 'enrolment_reactivate');
+      if (global.SptEvidence) global.SptEvidence.syncEnrolment(db, existing.id);
+      if (global.SptRisk) global.SptRisk.recalculateEnrolment(db, existing.id);
+      return { enrolment: byId(db.enrolments, existing.id) };
+    }
+    return { enrolment: createEnrolment(db, pupilId, courseId, classId, teacherId, level) };
+  }
+
+  function updateEnrolmentTeacher(db, enrolmentId, teacherId, classId) {
+    var patch = { teacher_id: teacherId };
+    if (classId !== undefined) patch.class_id = classId || null;
+    return updateRecord(db, 'enrolments', enrolmentId, patch, 'enrolment_teacher_update');
+  }
+
+  function canViewClass(db, cl) {
+    if (!cl) return false;
+    var role = getRole(db);
+    if (role.viewAll) return true;
+    return cl.teacher_id === db.simulated_teacher_id;
+  }
+
+  function enrolmentCountForClass(db, classId) {
+    return filterEnrolments(db, db.enrolments || []).filter(function(e) {
+      return e.class_id === classId;
+    }).length;
+  }
+
+  function trackingEntriesForUser(db) {
+    var role = getRole(db);
+    var entries = [];
+    (db.classes || []).forEach(function(cl) {
+      if (!canViewClass(db, cl)) return;
+      var count = enrolmentCountForClass(db, cl.id);
+      if (!role.viewAll && count === 0) return;
+      var course = byId(db.courses, cl.course_id);
+      entries.push({
+        type: 'class',
+        classId: cl.id,
+        courseId: cl.course_id,
+        className: cl.class_name,
+        courseName: course ? course.course_name : '—',
+        teacherName: teacherName(db, cl.teacher_id),
+        subjectArea: course ? (course.subject_area || 'Other') : 'Other',
+        count: count
+      });
+    });
+    var unassignedByCourse = {};
+    filterEnrolments(db, db.enrolments || []).forEach(function(e) {
+      if (e.class_id) return;
+      unassignedByCourse[e.course_id] = (unassignedByCourse[e.course_id] || 0) + 1;
+    });
+    Object.keys(unassignedByCourse).forEach(function(courseId) {
+      var course = byId(db.courses, courseId);
+      entries.push({
+        type: 'unassigned',
+        classId: null,
+        courseId: courseId,
+        className: 'Unassigned pupils',
+        courseName: course ? course.course_name : '—',
+        teacherName: '',
+        subjectArea: course ? (course.subject_area || 'Other') : 'Other',
+        count: unassignedByCourse[courseId]
+      });
+    });
+    return entries;
+  }
+
+  function updateClassTeacher(db, classId, teacherId) {
+    var cl = byId(db.classes, classId);
+    if (!cl) return null;
+    updateRecord(db, 'classes', classId, { teacher_id: teacherId }, 'class_teacher_update');
+    (db.enrolments || []).forEach(function(en) {
+      if (en.class_id === classId && en.active_status !== false && en.teacher_id !== teacherId) {
+        updateRecord(db, 'enrolments', en.id, { teacher_id: teacherId }, 'class_teacher_sync');
+      }
+    });
+    return byId(db.classes, classId);
+  }
+
+  function linkEnrolmentsToClasses(db) {
+    var map = {
+      'e-chloe-aa': 'cl-aa-a',
+      'e-connor-nd': 'cl-nd-b',
+      'e-sophie-na': 'cl-na-c',
+      'e-isla-hp': 'cl-hp-a',
+      'e-lewis-fs': 'cl-fs-a',
+      'e-aiden-ci': 'cl-ci-b',
+      'e-maya-ahd': 'cl-ahd-a',
+      'e-noah-hd2': 'cl-hd-b',
+      'e-mia-npa': 'cl-npa-a',
+      'e-callum-npa': 'cl-npa-a'
+    };
+    var changed = false;
+    (db.enrolments || []).forEach(function(en) {
+      var clId = map[en.id];
+      if (clId && !en.class_id) {
+        en.class_id = clId;
+        changed = true;
+      }
+    });
+    return changed;
+  }
+
+  function seedAhArtBIfMissing(db) {
+    var ts = new Date().toISOString();
+    var changed = false;
+    db.classes = db.classes || [];
+    if (!db.classes.some(function(cl) { return cl.id === 'cl-aa-b'; })) {
+      db.classes.push({
+        id: 'cl-aa-b', course_id: 'c-ah-art', class_name: 'AH Art B',
+        teacher_id: 't-douglas', academic_year: '2025-26', created_at: ts, updated_at: ts
+      });
+      changed = true;
+    }
+    db.pupils = db.pupils || [];
+    if (!db.pupils.some(function(p) { return p.id === 'p-balfour'; })) {
+      db.pupils.push({
+        id: 'p-balfour', first_name: 'Erin', surname: 'Balfour', preferred_name: 'Erin',
+        year_group: 'S6', candidate_number: '2411001', class_group: 'AH Art B',
+        teacher_id: 't-douglas', active_status: true, notes: '', created_at: ts, updated_at: ts
+      });
+      changed = true;
+    }
+    db.enrolments = db.enrolments || [];
+    if (!db.enrolments.some(function(e) { return e.id === 'e-erin-aab'; })) {
+      db.enrolments.push({
+        id: 'e-erin-aab', pupil_id: 'p-balfour', course_id: 'c-ah-art', class_id: 'cl-aa-b',
+        teacher_id: 't-douglas', current_level: 'Advanced Higher', target_grade: 'B',
+        latest_working_grade: 'B', final_estimate: 'B', risk_status: 'Green',
+        risk_manual_override: false, risk_override_reason: '', has_open_flag: false,
+        active_status: true, start_date: '2025-08-15', end_date: null, created_at: ts, updated_at: ts
+      });
+      if (global.SptEvidence) global.SptEvidence.seedForEnrolment(db, 'e-erin-aab');
+      changed = true;
+    }
+    return changed;
   }
 
   global.SptStore = {
@@ -345,6 +878,7 @@
     setDevRole: setDevRole,
     setSimulatedTeacher: setSimulatedTeacher,
     canViewEnrolment: canViewEnrolment,
+    canViewClass: canViewClass,
     filterEnrolments: filterEnrolments,
     byId: byId,
     pupilName: pupilName,
@@ -353,16 +887,36 @@
     className: className,
     trackingPoints: trackingPoints,
     attendanceForEnrolment: attendanceForEnrolment,
+    trackingRecordFor: trackingRecordFor,
+    trackingDataForEnrolment: trackingDataForEnrolment,
+    trackingScoreValue: trackingScoreValue,
     priorForPupil: priorForPupil,
+    baselineForEnrolment: baselineForEnrolment,
+    upsertBaseline: upsertBaseline,
+    upsertPriorForCourse: upsertPriorForCourse,
     getEnrichedRows: getEnrichedRows,
     getSortedRows: getSortedRows,
     updateRecord: updateRecord,
     insertRecord: insertRecord,
     deleteRecord: deleteRecord,
     upsertAttendance: upsertAttendance,
+    upsertTrackingScore: upsertTrackingScore,
     assessmentPointsForCourse: assessmentPointsForCourse,
     resultForAssessment: resultForAssessment,
     upsertAssessmentResult: upsertAssessmentResult,
-    createEnrolment: createEnrolment
+    createEnrolment: createEnrolment,
+    defaultLevelForCourse: defaultLevelForCourse,
+    levelsForCourse: levelsForCourse,
+    classesForCourse: classesForCourse,
+    teachersForCourse: teachersForCourse,
+    findEnrolment: findEnrolment,
+    hasActiveEnrolment: hasActiveEnrolment,
+    createPupil: createPupil,
+    deactivateEnrolment: deactivateEnrolment,
+    addPupilToCourse: addPupilToCourse,
+    updateEnrolmentTeacher: updateEnrolmentTeacher,
+    updateClassTeacher: updateClassTeacher,
+    enrolmentCountForClass: enrolmentCountForClass,
+    trackingEntriesForUser: trackingEntriesForUser
   };
 })(typeof window !== 'undefined' ? window : global);

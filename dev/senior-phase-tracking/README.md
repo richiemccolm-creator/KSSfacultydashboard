@@ -12,6 +12,14 @@ npx serve . -l 4173
 
 Use a local server so CSS and CSV import work correctly.
 
+## New in v4
+
+- **S3 entry baseline** — S3 exam, effort, behaviour, HL, progress, CfE level for N5 pupils (admin editable, teachers read-only)
+- **Prior entry columns** — prior exam grade and pathway (incl. Crashed / withdrew) for Higher/AH courses
+- **Evidence Bank scoped** — N3/N4 pupils, Creative Industries, Film & Screen only; official SQA unit codes
+- **Course grid** — level-aware columns: S3 baseline, unit evidence, or exam/prelim per pupil
+- **Setup → baseline** tab for Faculty Head bulk entry
+
 ## New in v2
 
 - **Setup / Cohort** — add teachers, classes, pupils, enrolments, prior exam results

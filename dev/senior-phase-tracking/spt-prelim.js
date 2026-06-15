@@ -21,7 +21,7 @@
     });
   }
 
-  function computeSummary(db, enrolmentId, assessmentPointId) {
+  function computeSummary(db, enrolmentId, assessmentPointId, overrides) {
     var comps = (db.prelim_components || []).filter(function(pc) {
       return pc.assessment_point_id === assessmentPointId;
     });
@@ -35,9 +35,12 @@
       });
       var max = pc.max_marks || 0;
       totalMax += max;
-      if (mark && mark.raw_mark != null && mark.raw_mark !== '') {
+      var rawVal = overrides && Object.prototype.hasOwnProperty.call(overrides, pc.id)
+        ? overrides[pc.id]
+        : (mark && mark.raw_mark != null ? mark.raw_mark : null);
+      if (rawVal != null && rawVal !== '') {
         hasAny = true;
-        var raw = parseFloat(mark.raw_mark);
+        var raw = parseFloat(rawVal);
         if (!isNaN(raw)) weighted += (raw / max) * (pc.weighting || 100);
       }
     });

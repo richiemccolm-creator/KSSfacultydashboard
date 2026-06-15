@@ -6,16 +6,74 @@
 
   var state = {
     route: 'dashboard',
-    setupTab: 'teachers',
+    setupTab: 'profile',
     courseId: null,
+    classId: null,
+    unassignedOnly: false,
     reportId: null,
     filters: {},
+    setupTeacherId: null,
     importStep: 1,
     importPreview: null,
     importMapping: null,
     importRaw: null,
-    modal: null
+    modal: null,
+    navCollapsed: false
   };
+
+  function loadNavCollapsed() {
+    try { return localStorage.getItem('spt-nav-collapsed') === '1'; } catch (e) { return false; }
+  }
+
+  function setNavCollapsed(collapsed) {
+    state.navCollapsed = !!collapsed;
+    try { localStorage.setItem('spt-nav-collapsed', state.navCollapsed ? '1' : '0'); } catch (e) {}
+    syncLayoutClasses();
+    updateNavToggleUi();
+  }
+
+  function syncLayoutClasses() {
+    document.body.classList.toggle('nav-collapsed', state.navCollapsed);
+    document.body.classList.toggle('tracking-focus', state.route === 'course');
+    document.body.classList.toggle('dashboard-compact', state.route === 'dashboard');
+  }
+
+  function updateNavToggleUi() {
+    var btn = document.getElementById('nav-toggle');
+    var label = document.getElementById('nav-toggle-label');
+    var inline = document.getElementById('nav-toggle-inline');
+    if (btn) {
+      btn.setAttribute('aria-pressed', state.navCollapsed ? 'true' : 'false');
+      btn.title = state.navCollapsed ? 'Show navigation (N)' : 'Hide navigation (N)';
+    }
+    if (label) label.textContent = state.navCollapsed ? 'Show menu' : 'Hide menu';
+    if (inline) {
+      inline.textContent = state.navCollapsed ? 'Show menu' : 'Hide menu';
+      inline.title = state.navCollapsed ? 'Show navigation (N)' : 'Hide navigation (N)';
+    }
+  }
+
+  function initLayoutControls() {
+    state.navCollapsed = loadNavCollapsed();
+    syncLayoutClasses();
+    updateNavToggleUi();
+    document.addEventListener('click', function(e) {
+      var toggle = e.target.closest('#nav-toggle, #nav-toggle-inline');
+      if (toggle) {
+        e.preventDefault();
+        setNavCollapsed(!state.navCollapsed);
+        return;
+      }
+      if (e.target.closest('#nav-edge-open')) {
+        e.preventDefault();
+        setNavCollapsed(false);
+      }
+    });
+    document.addEventListener('keydown', function(e) {
+      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT')) return;
+      if (e.key === 'n' || e.key === 'N') setNavCollapsed(!state.navCollapsed);
+    });
+  }
 
   function esc(s) {
     var d = document.createElement('div');
@@ -28,13 +86,15 @@
     return '<span class="badge ' + cls + '">' + esc(status) + '</span>';
   }
 
-  function sheetPanel(title, meta, hint, tableInner) {
+  function sheetPanel(title, meta, hint, tableInner, toolbarExtra) {
     return '<div class="sheet-panel">' +
       '<div class="sheet-toolbar">' +
       '<div class="sheet-toolbar-left"><h2>' + esc(title) + '</h2>' +
       (meta ? '<span>' + esc(meta) + '</span>' : '') + '</div>' +
-      (hint ? '<div class="sheet-toolbar-right"><span class="sheet-hint">' + esc(hint) + '</span></div>' : '') +
-      '</div><div class="sheet-grid-wrap">' + tableInner + '</div></div>';
+      '<div class="sheet-toolbar-right">' +
+      (toolbarExtra || '') +
+      (hint ? '<span class="sheet-hint">' + esc(hint) + '</span>' : '') +
+      '</div></div><div class="sheet-grid-wrap">' + tableInner + '</div></div>';
   }
 
   function db() { return SptStore.ensure(); }
@@ -67,7 +127,15 @@
   function setRoute(route, params) {
     params = params || {};
     state.route = route;
-    state.courseId = params.courseId || null;
+    if (route === 'course') {
+      state.courseId = params.courseId || null;
+      state.classId = params.classId || null;
+      state.unassignedOnly = !!params.unassignedOnly;
+    } else {
+      state.courseId = null;
+      state.classId = null;
+      state.unassignedOnly = false;
+    }
     state.reportId = params.reportId || null;
     if (route === 'import') { state.importStep = 1; state.importPreview = null; }
     document.querySelectorAll('.nav-btn').forEach(function(btn) {
@@ -88,6 +156,62 @@
       '<button type="button" class="linkish" data-route="alerts">View alerts</button></div>';
   }
 
+  function gettingStartedHtml(d) {
+    if (SptConfig.useSeedData || (d.enrolments || []).length) return '';
+    if (!role().canSetup) {
+      return '<div class="getting-started getting-started--readonly">' +
+        '<h2>No tracking data yet</h2>' +
+        '<p>Your faculty head will set up teachers, classes, and pupil enrolments. You will then see your classes on <button type="button" class="linkish" data-route="courses">Enter tracking</button>.</p>' +
+        '</div>';
+    }
+    var step = !(d.teachers || []).length ? 1 : !(d.classes || []).length ? 2 : 3;
+    return '<div class="getting-started">' +
+      '<div class="getting-started-badge">Blank workbook</div>' +
+      '<h2>Set up Senior Phase tracking</h2>' +
+      '<p>Add your faculty team, create senior phase classes, and enrol pupils. Course templates are ready — you start with zero pupils.</p>' +
+      '<ol class="getting-started-steps">' +
+      '<li class="' + (step === 1 ? 'is-current' : (step > 1 ? 'is-done' : '')) + '"><strong>Add teachers</strong> — staff who teach senior phase courses</li>' +
+      '<li class="' + (step === 2 ? 'is-current' : (step > 2 ? 'is-done' : '')) + '"><strong>Create classes</strong> — link each teacher to a course and class name</li>' +
+      '<li class="' + (step === 3 ? 'is-current' : '') + '"><strong>Enrol pupils</strong> — add pupils to each class, then enter tracking</li>' +
+      '</ol>' +
+      '<button type="button" class="btn" data-route="setup">Open setup</button></div>';
+  }
+
+  function maybeBootstrapRoute() {
+    if (SptConfig.useSeedData) return;
+    var d = db();
+    if (state.route !== 'dashboard') return;
+    if (!(d.teachers || []).length && role().canSetup) {
+      state.route = 'setup';
+      document.querySelectorAll('.nav-btn').forEach(function(btn) {
+        btn.classList.toggle('active', btn.getAttribute('data-route') === 'setup');
+      });
+    }
+  }
+
+  function entryGuideHtml(variant) {
+    var r = role();
+    if (!r.canEdit && !r.canEditBaseline) {
+      return '<div class="entry-guide entry-guide-readonly"><strong>Read-only view</strong> — tracking data is entered by class teachers on <button type="button" class="linkish" data-route="courses">Enter tracking</button> course sheets.</div>';
+    }
+    if (variant === 'dashboard') {
+      return '';
+    }
+    if (variant === 'courses-list') {
+      var admin = r.canEditBaseline ? ' · bulk S3 baseline in Setup' : '';
+      return '<div class="entry-guide entry-guide-inline">Open your <strong>class sheet</strong> to record attendance, effort, behaviour, S3 baseline, prelims, evidence &amp; flags' + admin + '</div>';
+    }
+    if (variant === 'course') {
+      var bits = 'Attendance · effort · behaviour · S3 exam &amp; baseline (N5 &amp; N4) · prior exam &amp; pathway (H/AH) · level change · withdraw · prelims · evidence · flags';
+      bits += ' · <strong>Add pupil</strong> / <strong>Remove</strong> for roster';
+      return '<div class="entry-guide entry-guide-inline">' + bits + '</div>';
+    }
+    if (variant === 'evidence') {
+      return '<div class="entry-guide entry-guide-inline"><strong>Unit evidence</strong> — same as course sheet, pupil-by-pupil · also editable on <button type="button" class="linkish" data-route="courses">Enter tracking</button></div>';
+    }
+    return '';
+  }
+
   function applyFilters(rows) {
     var f = state.filters;
     return rows.filter(function(r) {
@@ -101,13 +225,96 @@
     });
   }
 
-  function filtersHtml(d, extra) {
+  function getEvidenceBankRows(d) {
+    return (d.enrolments || []).filter(function(en) {
+      if (en.active_status === false) return false;
+      if (!SptStore.canViewEnrolment(d, en)) return false;
+      var course = SptStore.byId(d.courses, en.course_id);
+      return SptEvidence.usesEvidenceBank(course, en);
+    }).map(function(en) {
+      return {
+        enrolment: en,
+        pupil: SptStore.byId(d.pupils, en.pupil_id),
+        course: SptStore.byId(d.courses, en.course_id),
+        evidence_rows: SptEvidence.evidenceForEnrolment(d, en.id)
+      };
+    }).sort(function(a, b) {
+      return SptStore.pupilName(d, a.enrolment.pupil_id).localeCompare(SptStore.pupilName(d, b.enrolment.pupil_id));
+    });
+  }
+
+  function applyEvidenceEnrolmentFilters(rows) {
+    var f = state.filters;
+    return rows.filter(function(row) {
+      if (f.course && row.course.id !== f.course) return false;
+      if (f.teacher && row.enrolment.teacher_id !== f.teacher) return false;
+      if (f.year && (!row.pupil || row.pupil.year_group !== f.year)) return false;
+      if (f.risk && row.enrolment.risk_status !== f.risk) return false;
+      if (f.evidenceStatus && !row.evidence_rows.some(function(ev) { return ev.evidence_status === f.evidenceStatus; })) return false;
+      if (f.evidence === 'missing' && !row.evidence_rows.some(function(ev) {
+        var s = ev.evidence_status;
+        return s === 'Missing' || s === 'Not Started' || s === 'Needs Rework';
+      })) return false;
+      return true;
+    });
+  }
+
+  function dashboardRowsForTeacherFilter(rows) {
+    var f = state.filters;
+    return rows.filter(function(r) {
+      if (f.course && r.course.id !== f.course) return false;
+      if (f.year && r.pupil.year_group !== f.year) return false;
+      if (f.risk && r.enrolment.risk_status !== f.risk) return false;
+      if (f.flagged === 'yes' && !r.open_flag_count) return false;
+      if (f.evidence === 'missing' && !r.evidence_missing_count) return false;
+      return true;
+    });
+  }
+
+  function evidenceRowsForTeacherFilter(rows) {
+    var f = state.filters;
+    return rows.filter(function(row) {
+      if (f.course && row.course.id !== f.course) return false;
+      if (f.year && (!row.pupil || row.pupil.year_group !== f.year)) return false;
+      if (f.risk && row.enrolment.risk_status !== f.risk) return false;
+      if (f.evidenceStatus && !row.evidence_rows.some(function(ev) {
+        return ev.evidence_status === f.evidenceStatus;
+      })) return false;
+      if (f.evidence === 'missing' && !row.evidence_rows.some(function(ev) {
+        var s = ev.evidence_status;
+        return s === 'Missing' || s === 'Not Started' || s === 'Needs Rework';
+      })) return false;
+      return true;
+    });
+  }
+
+  function teachersForFilterBar(d, rows) {
+    var ids = {};
+    rows.forEach(function(r) {
+      var tid = r.enrolment && r.enrolment.teacher_id;
+      if (tid) ids[tid] = true;
+    });
+    return (d.teachers || []).filter(function(t) { return ids[t.id]; }).sort(function(a, b) {
+      var an = (a.surname || '') + ', ' + (a.first_name || '');
+      var bn = (b.surname || '') + ', ' + (b.first_name || '');
+      return an.localeCompare(bn);
+    });
+  }
+
+  function sanitizeTeacherFilter(teacherList) {
+    if (state.filters.teacher && !teacherList.some(function(t) { return t.id === state.filters.teacher; })) {
+      delete state.filters.teacher;
+    }
+  }
+
+  function filtersHtml(d, extra, teachers) {
+    var teacherList = teachers || d.teachers || [];
     return '<div class="filters-bar">' +
       '<div class="filter-field"><label>Course</label><select data-filter="course"><option value="">All</option>' +
       d.courses.map(function(c) { return '<option value="' + c.id + '">' + esc(c.course_name) + '</option>'; }).join('') +
       '</select></div>' +
       '<div class="filter-field"><label>Teacher</label><select data-filter="teacher"><option value="">All</option>' +
-      d.teachers.map(function(t) { return '<option value="' + t.id + '">' + esc(t.first_name + ' ' + t.surname) + '</option>'; }).join('') +
+      teacherList.map(function(t) { return '<option value="' + t.id + '">' + esc(t.first_name + ' ' + t.surname) + '</option>'; }).join('') +
       '</select></div>' +
       '<div class="filter-field"><label>Year</label><select data-filter="year"><option value="">All</option>' +
       ['S4','S5','S6'].map(function(y) { return '<option value="' + y + '">' + y + '</option>'; }).join('') +
@@ -117,52 +324,378 @@
       '</select></div>' + (extra || '') + '</div>';
   }
 
+  function canEditBaseline() {
+    return role().canEditBaseline;
+  }
+
+  function canManageEnrolment(en) {
+    if (!role().canEdit) return false;
+    if (role().viewAll) return true;
+    return en.teacher_id === db().simulated_teacher_id;
+  }
+
+  function courseShowsTeacherColumn(d, courseId, enrolments) {
+    if (role().viewAll && role().canEdit) return true;
+    var teacherIds = {};
+    enrolments.forEach(function(r) { teacherIds[r.enrolment.teacher_id] = true; });
+    return Object.keys(teacherIds).length > 1 || SptStore.classesForCourse(d, courseId).length > 1;
+  }
+
+  function levelCellHtml(r, course) {
+    var en = r.enrolment;
+    var lc = r.level_change;
+    var d = db();
+    var applied = (d.level_changes || []).filter(function(l) {
+      return l.enrolment_id === en.id && l.change_type === 'level' && l.current_status === 'Completed';
+    }).sort(function(a, b) {
+      return (b.date_completed || '').localeCompare(a.date_completed || '');
+    })[0];
+    var html = '<td class="cell-level">';
+    if (lc && SptLevelChange.isPending(lc)) {
+      if (lc.change_type === 'withdrawal') {
+        html += '<span class="level-current">' + esc(en.current_level) + '</span> ' + badge('Withdrawal pending');
+      } else {
+        html += '<span class="level-current">' + esc(en.current_level) + '</span>';
+        html += ' <span class="level-arrow">→</span> <span class="level-pending">' + esc(lc.recommended_level) + '</span>';
+        html += ' ' + badge(lc.current_status);
+      }
+    } else {
+      html += '<span class="level-current">' + esc(en.current_level) + '</span>';
+      if (applied && applied.original_level !== en.current_level) {
+        html += ' <span class="level-applied" title="Changed from ' + esc(applied.original_level) +
+          (applied.date_completed ? ' on ' + applied.date_completed : '') + '">✓ changed</span>';
+      }
+    }
+    return html + '</td>';
+  }
+
+  function cellNa() { return '<td class="cell-na">—</td>'; }
+
+  function tpBandClass(i) {
+    return 'tp-col tp-col-' + ((i % 3) + 1);
+  }
+
+  function tpStartClass(i) {
+    return i > 0 ? ' tp-start' : '';
+  }
+
+  function tpColAttrs(i, extra) {
+    var cls = tpBandClass(i) + tpStartClass(i);
+    if (extra) cls += ' ' + extra;
+    return ' class="' + cls + '"';
+  }
+
+  function formatTpShortDate(dateStr) {
+    if (!dateStr) return '';
+    var parts = dateStr.split('-');
+    if (parts.length < 3) return dateStr;
+    var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months[parseInt(parts[1], 10) - 1] + ' \'' + parts[0].slice(2);
+  }
+
+  function trackingScoreClass(val) {
+    if (val === '' || val == null) return 'score-empty';
+    var n = parseInt(val, 10);
+    return (SptConfig.TRACKING_SCORE_CLASS[n] || 'score-empty');
+  }
+
+  function trackingScoreLabel(val) {
+    var n = parseInt(val, 10);
+    return SptConfig.ATTENDANCE_LABELS[n] || '';
+  }
+
+  function scorePillHtml(val) {
+    if (val === '' || val == null) return '—';
+    var cls = trackingScoreClass(val);
+    var lbl = trackingScoreLabel(val);
+    return '<span class="score-pill ' + cls + '"' + (lbl ? ' title="' + esc(lbl) + '"' : '') + '>' + esc(val) + '</span>';
+  }
+
+  function scoreSelectHtml(val, dataAttr) {
+    var cls = 'inline-select score-select ' + trackingScoreClass(val);
+    var opts = '<option value="">—</option>' + [1, 2, 3, 4].map(function(n) {
+      var lbl = trackingScoreLabel(n);
+      return '<option value="' + n + '"' + (val === n ? ' selected' : '') + (lbl ? ' title="' + lbl + '"' : '') + '>' + n + '</option>';
+    }).join('');
+    return '<select class="' + cls + '" ' + dataAttr + '>' + opts + '</select>';
+  }
+
+  function applyScoreSelectColor(el) {
+    el.classList.remove('score-1', 'score-2', 'score-3', 'score-4', 'score-empty');
+    el.classList.add(trackingScoreClass(el.value));
+  }
+
+  function bindScoreSelectColors(root) {
+    root.querySelectorAll('.score-select').forEach(function(el) {
+      applyScoreSelectColor(el);
+      el.addEventListener('change', function() { applyScoreSelectColor(el); });
+    });
+  }
+
+  function captureGridScroll() {
+    return Array.prototype.map.call(document.querySelectorAll('.sheet-grid-wrap'), function(el) {
+      return { left: el.scrollLeft, top: el.scrollTop };
+    });
+  }
+
+  function restoreGridScroll(positions) {
+    if (!positions || !positions.length) return;
+    requestAnimationFrame(function() {
+      var wraps = document.querySelectorAll('.sheet-grid-wrap');
+      positions.forEach(function(pos, i) {
+        if (!wraps[i]) return;
+        wraps[i].scrollLeft = pos.left;
+        wraps[i].scrollTop = pos.top;
+      });
+    });
+  }
+
+  function prelimResultHtml(summary, fallbackText) {
+    if (summary) {
+      return esc(summary.percentage) + '% ' + (summary.grade_band ? gradeBandHtml(summary.grade_band) : '');
+    }
+    if (fallbackText) return esc(fallbackText);
+    return '—';
+  }
+
+  function prelimAssessmentForEnrolment(d, enrolmentId) {
+    var en = SptStore.byId(d.enrolments, enrolmentId);
+    if (!en) return null;
+    return (d.assessment_points || []).find(function(ap) {
+      return ap.course_id === en.course_id && ap.assessment_type === 'Prelim';
+    }) || null;
+  }
+
+  function prelimOverridesFromRow(row) {
+    var overrides = {};
+    if (!row) return overrides;
+    row.querySelectorAll('[data-prelim-mark]').forEach(function(inp) {
+      var parts = inp.getAttribute('data-prelim-mark').split('|');
+      overrides[parts[1]] = inp.value;
+    });
+    return overrides;
+  }
+
+  function updatePrelimResultCell(enrolmentId, overrides) {
+    var d = db();
+    var prelimAp = prelimAssessmentForEnrolment(d, enrolmentId);
+    if (!prelimAp) return;
+    var cell = document.querySelector('[data-prelim-result-for="' + enrolmentId + '"]');
+    if (!cell) return;
+    var summary = SptPrelim.computeSummary(d, enrolmentId, prelimAp.id, overrides);
+    cell.innerHTML = prelimResultHtml(summary);
+  }
+
+  function updateEnrolmentRiskCell(enrolmentId) {
+    var en = SptStore.byId(db().enrolments, enrolmentId);
+    if (!en) return;
+    var anchor = document.querySelector('td.col-pupil[data-enrolment="' + enrolmentId + '"]');
+    var row = anchor ? anchor.closest('tr') : document.querySelector('tr[data-enrolment="' + enrolmentId + '"]');
+    if (!row) return;
+    var riskTd = row.querySelector('.cell-risk');
+    if (riskTd) riskTd.innerHTML = badge(en.risk_status);
+  }
+
+  function trackingAttCell(enId, tpId, val, canEdit, tpIndex) {
+    if (canEdit) {
+      return '<td' + tpColAttrs(tpIndex, '') + '>' +
+        scoreSelectHtml(val, 'data-att="' + enId + '|' + tpId + '"') + '</td>';
+    }
+    return '<td' + tpColAttrs(tpIndex, 'cell-num') + '>' + scorePillHtml(val) + '</td>';
+  }
+
+  function trackingScoreCell(enId, tpId, field, record, canEdit, tpIndex) {
+    var val = SptStore.trackingScoreValue(record, field);
+    var cls = tpBandClass(tpIndex);
+    if (!canEdit) return '<td class="' + cls + ' cell-num">' + scorePillHtml(val) + '</td>';
+    return '<td class="' + cls + '">' +
+      scoreSelectHtml(val, 'data-tracking="' + enId + '|' + tpId + '|' + field + '"') + '</td>';
+  }
+
+  function canEditBaselineField(field) {
+    return canEditBaseline() || role().canEdit;
+  }
+
+  function gradeBandHtml(grade) {
+    if (!grade) return '';
+    return '<span class="grade-band grade-band-' + esc(String(grade).toLowerCase()) + '">' + esc(grade) + '</span>';
+  }
+
+  function s3ExamDisplayHtml(b) {
+    if (!b) return '—';
+    var mark = b.s3_exam_mark;
+    var band = b.s3_exam_grade || (mark != null ? SptBaseline.bandFromMark(mark) : '');
+    if (mark != null && mark !== '') {
+      return esc(mark) + '% ' + (band ? gradeBandHtml(band) : '');
+    }
+    return band ? gradeBandHtml(band) : '—';
+  }
+
+  function baselineFieldCell(r, field, type) {
+    var b = r.s3_baseline;
+    var enId = r.enrolment.id;
+    if (!r.shows_s3_baseline) return cellNa();
+    if (type === 's3_exam') {
+      var canEditS3 = canEditBaselineField('s3_exam_mark');
+      if (!canEditS3) return '<td class="cell-entry cell-s3-exam">' + s3ExamDisplayHtml(b) + '</td>';
+      var mark = b && b.s3_exam_mark != null ? b.s3_exam_mark : '';
+      var band = b && b.s3_exam_grade ? b.s3_exam_grade : (mark !== '' ? SptBaseline.bandFromMark(mark) : '');
+      return '<td class="cell-entry cell-s3-exam">' +
+        '<input type="number" class="s3-exam-mark" min="0" max="100" step="1" data-baseline="' + enId + '|s3_exam_mark" ' +
+        'value="' + (mark !== '' ? mark : '') + '" placeholder="%" title="Enter percentage mark">' +
+        '<span class="s3-exam-band" data-s3-band-for="' + enId + '">' + (band ? gradeBandHtml(band) : '') + '</span></td>';
+    }
+    var canEdit = canEditBaselineField(field);
+    if (!canEdit) {
+      var v = b ? b[field] : null;
+      if (type === 'score') return '<td class="cell-num">' + scorePillHtml(v != null && v !== '' ? v : '') + '</td>';
+      return '<td class="cell-num">' + esc(v != null && v !== '' ? v : '—') + '</td>';
+    }
+    if (type === 'score') {
+      return '<td>' + SptBaseline.scoreSelect(field, enId, b ? b[field] : null, canEdit) + '</td>';
+    }
+    if (type === 'cfe') {
+      var opts = '<option value="">—</option>' + SptConfig.CFE_LEVELS.map(function(l) {
+        return '<option value="' + l + '"' + (b && b.cfe_level === l ? ' selected' : '') + '>' + l + '</option>';
+      }).join('');
+      return '<td><select class="inline-select inline-select-sm" data-baseline="' + enId + '|cfe_level">' + opts + '</select></td>';
+    }
+    if (type === 'progress') {
+      return '<td><input type="number" class="prelim-inline" min="1" max="4" step="0.1" data-baseline="' + enId + '|progress" value="' +
+        (b && b.progress != null ? b.progress : '') + '" placeholder="—"></td>';
+    }
+    return '<td><input type="text" class="inline-input-sm" data-baseline="' + enId + '|' + field + '" value="' +
+      esc(b && b[field] ? b[field] : '') + '" placeholder="—"></td>';
+  }
+
+  function priorEntryCells(r, canEdit) {
+    if (!r.shows_prior_entry) return cellNa() + cellNa();
+    var enId = r.enrolment.id;
+    var prior = r.prior_main;
+    var grade = prior && prior.result_grade ? prior.result_grade : '';
+    var pathway = prior && prior.pathway_status ? prior.pathway_status : '';
+    var crashing = r.crashing_subject;
+    var crashCls = crashing ? ' cell-crashing-subject' : '';
+    if (!canEdit) {
+      var pd = r.prior_display;
+      return '<td class="cell-grade' + crashCls + '">' + esc(pd.grade) + '</td>' +
+        '<td class="cell-prior-pathway' + crashCls + '">' +
+        (crashing ? badge('Crashing subject') : badge(pd.pathway)) + '</td>';
+    }
+    var gradeTitle = crashing ? ' title="No prior qualification at the expected level for this course"' : '';
+    var gradeCell = '<td class="cell-grade' + crashCls + '">' +
+      '<input type="text" class="inline-input-sm prior-grade-input" data-prior="' + enId + '|result_grade" ' +
+      'value="' + esc(grade) + '" placeholder="Grade"' + gradeTitle + '></td>';
+    var pathwayOpts = '<option value="">—</option>' + SptConfig.STATUS.pathway.map(function(s) {
+      return '<option value="' + esc(s) + '"' + (pathway === s ? ' selected' : '') + '>' + esc(s) + '</option>';
+    }).join('');
+    var crashBadge = '';
+    if (crashing) {
+      crashBadge = '<span class="crash-tag">' + badge('Crashing subject') +
+        '<button type="button" class="crash-dismiss" data-dismiss-crashing="' + enId + '" ' +
+        'title="Remove crashing flag (admin override)">×</button></span> ';
+    }
+    var pathwayCell = '<td class="cell-prior-pathway' + crashCls + '">' + crashBadge +
+      '<select class="inline-select inline-select-sm" data-prior="' + enId + '|pathway_status">' +
+      pathwayOpts + '</select></td>';
+    return gradeCell + pathwayCell;
+  }
+
+  function evidenceUnitCell(r, unitCode, canEdit) {
+    if (!r.uses_evidence_bank) return cellNa();
+    var ev = r.evidence_rows.find(function(x) { return x.unit_code === unitCode; });
+    return '<td>' + SptEvidence.statusCellHtml(ev, canEdit && role().canEdit) + '</td>';
+  }
+
+  function courseGridMeta(course, enrolments) {
+    var evUnits = [];
+    enrolments.forEach(function(r) {
+      if (!r.uses_evidence_bank) return;
+      SptEvidence.getUnitTemplate(r.course, r.enrolment).forEach(function(u) {
+        if (!evUnits.some(function(x) { return x.unit_code === u.unit_code; })) evUnits.push(u);
+      });
+    });
+    return {
+      hasS3: enrolments.some(function(r) { return r.shows_s3_baseline; }),
+      hasPrior: enrolments.some(function(r) { return r.shows_prior_entry; }),
+      evUnits: evUnits,
+      hasExamPupils: enrolments.some(function(r) { return r.uses_exam_route; }),
+      hasEvPupils: enrolments.some(function(r) { return r.uses_evidence_bank; }),
+      mixedClass: enrolments.some(function(r) { return r.shows_s3_baseline; }) &&
+        enrolments.some(function(r) { return r.uses_evidence_bank; })
+    };
+  }
+
   function summaryCards(rows) {
     var openFlags = rows.filter(function(r) { return r.open_flag_count > 0; }).length;
+    var missingEv = rows.filter(function(r) { return r.uses_evidence_bank && r.evidence_missing_count > 0; }).length;
     return [
       { lbl: 'Pupils', val: rows.length, cls: '' },
       { lbl: 'Teacher flags', val: openFlags, cls: openFlags ? 'red' : '' },
       { lbl: 'On track', val: rows.filter(function(r) { return r.enrolment.risk_status === 'Green'; }).length, cls: 'green' },
       { lbl: 'Amber', val: rows.filter(function(r) { return r.enrolment.risk_status === 'Amber'; }).length, cls: 'amber' },
       { lbl: 'Red', val: rows.filter(function(r) { return r.enrolment.risk_status === 'Red'; }).length, cls: 'red' },
-      { lbl: 'Missing evidence', val: rows.filter(function(r) { return r.evidence_missing_count > 0; }).length, cls: 'amber' },
-      { lbl: 'Prior crash', val: rows.filter(function(r) { return r.prior_crashed; }).length, cls: 'amber' }
+      { lbl: 'Missing evidence', val: missingEv, cls: missingEv ? 'amber' : '' },
+      { lbl: 'Crashing subject', val: rows.filter(function(r) { return r.crashing_subject; }).length, cls: 'amber' }
     ];
   }
 
   function renderDashboard() {
     var d = db();
-    var rows = applyFilters(SptConcerns.sortByUrgency(SptStore.getEnrichedRows(d), d));
-    var tps = SptStore.trackingPoints(d);
-    var html = alertStripHtml() + '<div class="page-head"><h1>Senior Phase Dashboard</h1><p>Flagged pupils appear first. Click a row for full profile.</p></div>';
-    html += '<div class="summary-row">' + summaryCards(rows).map(function(c) {
+    var allRows = SptConcerns.sortByUrgency(SptStore.getEnrichedRows(d), d);
+    var filterTeachers = teachersForFilterBar(d, dashboardRowsForTeacherFilter(allRows));
+    sanitizeTeacherFilter(filterTeachers);
+    var rows = applyFilters(allRows);
+    var html = gettingStartedHtml(d) + alertStripHtml() + '<div class="dashboard-wrap">';
+    html += '<div class="dashboard-head">' +
+      '<div class="page-head page-head-compact"><h1>Senior Phase Dashboard</h1>' +
+      '<p class="page-sub">Flagged pupils first · overview only — enter data on ' +
+      '<button type="button" class="linkish" data-route="courses">Enter tracking</button></p></div>';
+    html += '<div class="summary-row summary-row-compact">' + summaryCards(rows).map(function(c) {
       return '<div class="summary-card ' + c.cls + '"><div class="val">' + c.val + '</div><div class="lbl">' + esc(c.lbl) + '</div></div>';
-    }).join('') + '</div>';
-    html += filtersHtml(d, '<div class="filter-field"><label>Flagged</label><select data-filter="flagged"><option value="">All</option><option value="yes">Open flags only</option></select></div>');
+    }).join('') + '</div></div>';
+    html += filtersHtml(d,
+      '<div class="filter-field"><label>Flagged</label><select data-filter="flagged"><option value="">All</option><option value="yes">Open flags only</option></select></div>',
+      filterTeachers);
     var bodyRows = '';
+    if (!rows.length) {
+      bodyRows = '<tr><td colspan="14" class="empty">No pupils enrolled yet — open <button type="button" class="linkish" data-route="setup">Setup</button> to add teachers, classes, and pupils.</td></tr>';
+    }
     rows.forEach(function(r) {
       var attCells = r.attendance.map(function(a) {
         var v = a.record ? a.record.attendance_score : '';
-        return '<td class="cell-num">' + (v ? esc(v) : '—') + '</td>';
+        return '<td class="cell-num">' + scorePillHtml(v) + '</td>';
       }).join('');
+      var entryCell = '—';
+      if (r.shows_s3_baseline && r.s3_baseline) {
+        entryCell = 'S3 ' + SptBaseline.formatS3ExamDisplay(r.s3_baseline) + ' · CfE ' + (r.s3_baseline.cfe_level || '—');
+      } else if (r.shows_prior_entry) {
+        entryCell = (r.prior_display.grade || '—') + ' · ' +
+          (r.crashing_subject ? 'Crashing subject' : (r.prior_display.pathway || '—'));
+      } else if (r.uses_evidence_bank) {
+        entryCell = r.units_banked + '/' + r.units_total + ' units';
+      }
       bodyRows += '<tr class="' + (r.open_flag_count ? 'row-flagged' : '') + '" data-enrolment="' + r.enrolment.id + '">' +
         '<td class="col-pupil">' + esc(SptStore.pupilName(d, r.pupil.id)) + '</td>' +
         '<td class="cell-num">' + esc(r.pupil.year_group) + '</td>' +
         '<td>' + esc(r.course.course_name) + '</td>' +
+        '<td>' + esc(r.enrolment.current_level) + '</td>' +
         '<td>' + esc(r.class_name) + '</td>' +
         '<td>' + esc(r.teacher_name) + '</td>' +
+        '<td class="cell-entry">' + esc(entryCell) + '</td>' +
         '<td>' + (r.open_flag_count ? badge('Open') : '—') + '</td>' +
         attCells +
-        '<td class="cell-grade">' + esc(r.prelim_result || '—') + '</td>' +
-        '<td class="cell-grade">' + esc(r.enrolment.latest_working_grade || '—') + '</td>' +
-        '<td>' + badge(r.enrolment.risk_status) + '</td>' +
-        '<td>' + (r.prior_crashed ? badge('Crashed / withdrew') : '—') + '</td></tr>';
+        '<td class="cell-grade">' + esc(r.uses_exam_route ? (r.prelim_result || '—') : '—') + '</td>' +
+        '<td class="cell-grade">' + esc(r.uses_exam_route ? (r.enrolment.latest_working_grade || '—') : (r.uses_evidence_bank ? r.units_banked + '/' + r.units_total : '—')) + '</td>' +
+        '<td>' + badge(r.enrolment.risk_status) + '</td></tr>';
     });
-    var tbl = '<table class="data-table"><thead><tr>' +
-      '<th class="col-pupil">Pupil</th><th>Year</th><th>Course</th><th>Class</th><th>Teacher</th><th>Flag</th>' +
-      '<th>Att TP1</th><th>Att TP2</th><th>Att TP3</th><th>Prelim</th><th>Working</th><th>Risk</th><th>Prior</th></tr></thead><tbody>' +
+    var tbl = '<table class="data-table data-table-compact"><thead><tr>' +
+      '<th class="col-pupil">Pupil</th><th>Yr</th><th>Course</th><th>Level</th><th>Class</th><th>Teacher</th>' +
+      '<th>Entry</th><th>Flag</th>' +
+      '<th>TP1</th><th>TP2</th><th>TP3</th><th>Prelim</th><th>Working</th><th>Risk</th></tr></thead><tbody>' +
       bodyRows + '</tbody></table>';
-    html += sheetPanel('Pupil register', rows.length + ' rows', 'Click a row for profile · Flagged pupils at top', tbl);
+    html += sheetPanel('Pupil register', rows.length + ' pupils', '', tbl);
+    html += '</div>';
     return html;
   }
 
@@ -194,17 +727,96 @@
     return html;
   }
 
+  function renderTeacherProfileSetup(d) {
+    var teachers = d.teachers || [];
+    if (!state.setupTeacherId && teachers.length) state.setupTeacherId = teachers[0].id;
+    var selected = state.setupTeacherId ? SptStore.byId(teachers, state.setupTeacherId) : null;
+    var teacherClasses = selected
+      ? (d.classes || []).filter(function(cl) { return cl.teacher_id === selected.id; })
+      : [];
+    var html = '<div class="card"><div class="card-head"><h2>Teacher classes</h2></div><div class="card-body">' +
+      '<p class="sheet-hint" style="margin-bottom:1rem">Select a teacher, create their senior phase classes, and enrol pupils. ' +
+      'Teachers then see these classes on <strong>Enter tracking</strong>.</p>' +
+      '<div class="setup-teacher-picker">' +
+      '<label for="setup-teacher-select">Teacher</label>' +
+      '<select id="setup-teacher-select" data-setup-teacher>' +
+      teachers.map(function(t) {
+        return '<option value="' + t.id + '"' + (selected && selected.id === t.id ? ' selected' : '') + '>' +
+          esc(t.first_name + ' ' + t.surname) + '</option>';
+      }).join('') +
+      '</select></div>';
+
+    if (!selected) {
+      html += '<div class="empty" style="margin-top:1rem">Add a teacher first.</div></div></div>';
+      return html;
+    }
+
+    html += '<div class="setup-teacher-banner">' +
+      '<div class="setup-teacher-banner-main">' +
+      '<div class="setup-teacher-avatar">' + esc((selected.first_name || '?')[0] + (selected.surname || '?')[0]) + '</div>' +
+      '<div><div class="setup-teacher-name">' + esc(selected.first_name + ' ' + selected.surname) + '</div>' +
+      '<div class="setup-teacher-meta">' + esc(selected.email || 'No email') + ' · ' +
+      teacherClasses.length + ' class' + (teacherClasses.length !== 1 ? 'es' : '') + '</div></div></div></div>';
+
+    html += '<form id="form-add-class-profile" class="form-grid setup-class-form">' +
+      '<input type="hidden" name="teacher_id" value="' + esc(selected.id) + '">' +
+      '<div><label>Course</label><select name="course_id">' + d.courses.map(function(c) {
+        return '<option value="' + c.id + '">' + esc(c.course_name) + '</option>';
+      }).join('') + '</select></div>' +
+      '<div><label>Class name</label><input name="class_name" required placeholder="e.g. H Drama A"></div>' +
+      '<div class="form-span"><button type="submit" class="btn btn-sm">Add class for this teacher</button></div></form>';
+
+    if (!teacherClasses.length) {
+      html += '<div class="empty" style="margin-top:1rem">No classes yet — add one above.</div>';
+    } else {
+      html += '<table class="data-table" style="margin-top:1rem"><thead><tr>' +
+        '<th>Class</th><th>Course</th><th>Pupils</th><th></th></tr></thead><tbody>' +
+        teacherClasses.map(function(cl) {
+          var count = SptStore.enrolmentCountForClass(d, cl.id);
+          return '<tr><td>' + esc(cl.class_name) + '</td><td>' + esc(SptStore.courseName(d, cl.course_id)) + '</td>' +
+            '<td>' + count + '</td>' +
+            '<td><button type="button" class="btn btn-sm btn-secondary" data-open-class-sheet="' +
+            esc(cl.course_id) + '|' + esc(cl.id) + '">Open sheet</button></td></tr>';
+        }).join('') +
+        '</tbody></table>';
+
+      html += '<div class="setup-enrol-block">' +
+        '<h3>Enrol pupil on this teacher\'s class</h3>' +
+        '<form id="form-enrol-profile" class="form-grid">' +
+        '<div><label>Pupil</label><select name="pupil_id">' + d.pupils.map(function(p) {
+          return '<option value="' + p.id + '">' + esc(SptStore.pupilName(d, p.id) + ' (' + p.year_group + ')') + '</option>';
+        }).join('') + '</select></div>' +
+        '<div><label>Class</label><select name="class_id">' + teacherClasses.map(function(cl) {
+          return '<option value="' + cl.id + '" data-course="' + cl.course_id + '" data-teacher="' + cl.teacher_id + '">' +
+            esc(cl.class_name + ' — ' + SptStore.courseName(d, cl.course_id)) + '</option>';
+        }).join('') + '</select></div>' +
+        '<div><label>Current level</label><select name="current_level">' +
+        '<option>National 5</option><option>National 4</option><option>National 3</option>' +
+        '<option>Higher</option><option>Advanced Higher</option><option>Level 6</option><option>Level 5</option></select></div>' +
+        '<div class="form-span"><button type="submit" class="btn btn-sm">Enrol pupil</button></div></form></div>';
+    }
+
+    html += '</div></div>';
+    return html;
+  }
+
   function renderSetup() {
     if (!role().canSetup) return '<div class="empty">Setup is only available for Faculty Head / Admin.</div>';
     var d = db();
     var tab = state.setupTab;
-    var html = '<div class="page-head"><h1>Setup / Cohort</h1><p>Add teachers, classes, pupils, and enrolments (local dev data).</p></div>';
+    var html = gettingStartedHtml(d) + '<div class="page-head"><h1>Setup / Cohort</h1>' +
+      '<p>Set up teachers and classes so class teachers can enter tracking data on their class sheets.</p></div>';
     html += '<div class="setup-tabs">' +
-      ['teachers','classes','pupils','enrolments','prior'].map(function(t) {
-        return '<button type="button" class="setup-tab' + (tab === t ? ' active' : '') + '" data-setup-tab="' + t + '">' + t + '</button>';
+      [{ id: 'profile', label: 'Teacher classes' }, { id: 'teachers', label: 'Teachers' },
+        { id: 'pupils', label: 'Pupils' }, { id: 'enrolments', label: 'Enrolments' },
+        { id: 'baseline', label: 'Baseline' }, { id: 'prior', label: 'Prior' }].map(function(t) {
+        return '<button type="button" class="setup-tab' + (tab === t.id ? ' active' : '') +
+          '" data-setup-tab="' + t.id + '">' + t.label + '</button>';
       }).join('') + '</div>';
 
-    if (tab === 'teachers') {
+    if (tab === 'profile') {
+      html += renderTeacherProfileSetup(d);
+    } else if (tab === 'teachers') {
       html += '<div class="sheet-panel"><div class="sheet-toolbar"><div class="sheet-toolbar-left"><h2>Teachers</h2></div></div><div class="sheet-body">' +
         '<form id="form-add-teacher" class="form-grid" style="max-width:400px;margin-bottom:1rem">' +
         '<div><label>First name</label><input name="first_name" required></div>' +
@@ -214,22 +826,6 @@
         '<div class="sheet-grid-wrap"><table class="data-table"><thead><tr><th class="col-pupil">Name</th><th>Email</th></tr></thead><tbody>' +
         d.teachers.map(function(t) {
           return '<tr><td class="col-pupil">' + esc(t.first_name + ' ' + t.surname) + '</td><td>' + esc(t.email) + '</td></tr>';
-        }).join('') + '</tbody></table></div></div>';
-    } else if (tab === 'classes') {
-      html += '<div class="card"><div class="card-head"><h2>Classes</h2></div><div class="card-body">' +
-        '<form id="form-add-class" class="form-grid" style="max-width:480px;margin-bottom:1rem">' +
-        '<div><label>Course</label><select name="course_id">' + d.courses.map(function(c) {
-          return '<option value="' + c.id + '">' + esc(c.course_name) + '</option>';
-        }).join('') + '</select></div>' +
-        '<div><label>Class name</label><input name="class_name" required placeholder="e.g. H Drama A"></div>' +
-        '<div><label>Teacher</label><select name="teacher_id">' + d.teachers.map(function(t) {
-          return '<option value="' + t.id + '">' + esc(t.first_name + ' ' + t.surname) + '</option>';
-        }).join('') + '</select></div>' +
-        '<button type="submit" class="btn btn-sm">Add class</button></form>' +
-        '<table class="data-table"><thead><tr><th>Class</th><th>Course</th><th>Teacher</th></tr></thead><tbody>' +
-        (d.classes || []).map(function(cl) {
-          return '<tr><td>' + esc(cl.class_name) + '</td><td>' + esc(SptStore.courseName(d, cl.course_id)) + '</td>' +
-            '<td>' + esc(SptStore.teacherName(d, cl.teacher_id)) + '</td></tr>';
         }).join('') + '</tbody></table></div></div>';
     } else if (tab === 'pupils') {
       html += '<div class="card"><div class="card-head"><h2>Pupils</h2></div><div class="card-body">' +
@@ -253,13 +849,41 @@
           return '<option value="' + cl.id + '" data-course="' + cl.course_id + '" data-teacher="' + cl.teacher_id + '">' +
             esc(cl.class_name + ' (' + SptStore.courseName(d, cl.course_id) + ')') + '</option>';
         }).join('') + '</select></div>' +
-        '<div><label>Current level</label><input name="current_level" value="National 5"></div>' +
+        '<div><label>Current level</label><select name="current_level">' +
+        '<option>National 5</option><option>National 4</option><option>National 3</option>' +
+        '<option>Higher</option><option>Advanced Higher</option><option>Level 6</option><option>Level 5</option></select></div>' +
         '<button type="submit" class="btn btn-sm">Enrol pupil</button></form>' +
         '<table class="data-table"><thead><tr><th>Pupil</th><th>Course</th><th>Class</th><th>Teacher</th></tr></thead><tbody>' +
         d.enrolments.filter(function(e) { return e.active_status !== false; }).map(function(en) {
           return '<tr><td>' + esc(SptStore.pupilName(d, en.pupil_id)) + '</td><td>' + esc(SptStore.courseName(d, en.course_id)) + '</td>' +
             '<td>' + esc(en.class_id ? SptStore.className(d, en.class_id) : '—') + '</td>' +
             '<td>' + esc(SptStore.teacherName(d, en.teacher_id)) + '</td></tr>';
+        }).join('') + '</tbody></table></div></div>';
+    } else if (tab === 'baseline') {
+      html += '<div class="card"><div class="card-head"><h2>S3 entry baseline (N5 &amp; N4 pupils)</h2></div><div class="card-body">' +
+        '<p class="sheet-hint" style="margin-bottom:1rem">Frozen S3 snapshot for N5/N4 combined courses. Enter on course sheets or here in bulk.</p>' +
+        '<form id="form-add-baseline" class="form-grid" style="max-width:640px;margin-bottom:1rem">' +
+        '<div><label>Enrolment</label><select name="enrolment_id">' +
+        SptStore.getEnrichedRows(d).filter(function(r) { return r.shows_s3_baseline; }).map(function(r) {
+          return '<option value="' + r.enrolment.id + '">' + esc(SptStore.pupilName(d, r.pupil.id) + ' — ' + r.course.course_name) + '</option>';
+        }).join('') + '</select></div>' +
+        '<div><label>S3 exam mark (%)</label><input name="s3_exam_mark" type="number" min="0" max="100" placeholder="e.g. 68 — band auto-calculated"></div>' +
+        '<div><label>Effort (1–4)</label><input name="effort" type="number" min="1" max="4"></div>' +
+        '<div><label>Behaviour (1–4)</label><input name="behaviour" type="number" min="1" max="4"></div>' +
+        '<div><label>Home learning (1–4)</label><input name="homelearning" type="number" min="1" max="4"></div>' +
+        '<div><label>Progress (avg)</label><input name="progress" type="number" min="1" max="4" step="0.1"></div>' +
+        '<div><label>CfE level</label><select name="cfe_level"><option value="">—</option>' +
+        SptConfig.CFE_LEVELS.map(function(l) { return '<option>' + l + '</option>'; }).join('') + '</select></div>' +
+        '<div><label>Notes</label><textarea name="notes"></textarea></div>' +
+        '<button type="submit" class="btn btn-sm">Save baseline</button></form>' +
+        '<table class="data-table"><thead><tr><th>Pupil</th><th>Course</th><th>S3 exam</th><th>Eff</th><th>Beh</th><th>HL</th><th>Prog</th><th>CfE</th></tr></thead><tbody>' +
+        (d.enrolment_baselines || []).map(function(b) {
+          var en = SptStore.byId(d.enrolments, b.enrolment_id);
+          if (!en) return '';
+          return '<tr><td>' + esc(SptStore.pupilName(d, en.pupil_id)) + '</td><td>' + esc(SptStore.courseName(d, en.course_id)) + '</td>' +
+            '<td>' + esc(SptBaseline.formatS3ExamDisplay(b)) + '</td><td>' + esc(b.effort != null ? b.effort : '—') + '</td>' +
+            '<td>' + esc(b.behaviour != null ? b.behaviour : '—') + '</td><td>' + esc(b.homelearning != null ? b.homelearning : '—') + '</td>' +
+            '<td>' + esc(b.progress != null ? b.progress : '—') + '</td><td>' + esc(b.cfe_level || '—') + '</td></tr>';
         }).join('') + '</tbody></table></div></div>';
     } else if (tab === 'prior') {
       html += '<div class="card"><div class="card-head"><h2>Prior attainment / exam history</h2></div><div class="card-body">' +
@@ -288,82 +912,455 @@
 
   function renderCoursesList() {
     var d = db();
-    var html = alertStripHtml() + '<div class="page-head"><h1>Course Tracking</h1></div><div class="report-grid">';
-    d.courses.forEach(function(c) {
-      var count = SptStore.filterEnrolments(d, d.enrolments).filter(function(e) { return e.course_id === c.id; }).length;
-      html += '<div class="report-tile" data-course="' + c.id + '"><h3>' + esc(c.course_name) + '</h3><p>' + count + ' pupils</p></div>';
+    var r = role();
+    var html = alertStripHtml() + '<div class="page-head page-head-compact"><h1>Enter tracking data</h1>' +
+      '<p class="page-sub">Open your class sheet — colours match subject area.</p></div>' +
+      entryGuideHtml('courses-list');
+    var entries = SptStore.trackingEntriesForUser(d);
+    if (!entries.length) {
+      html += '<div class="empty">No classes with pupils assigned' +
+        (r.viewAll ? ' — add classes in Setup' : ' — ask your faculty head to assign you to a class') + '.</div>';
+      return html;
+    }
+    var bySubject = {};
+    entries.forEach(function(entry) {
+      var area = entry.subjectArea || 'Other';
+      if (!bySubject[area]) bySubject[area] = [];
+      bySubject[area].push(entry);
     });
-    return html + '</div>';
+    var order = SptConfig.SUBJECT_ORDER.concat(Object.keys(bySubject).filter(function(a) {
+      return SptConfig.SUBJECT_ORDER.indexOf(a) < 0;
+    }));
+    order.forEach(function(area) {
+      var items = bySubject[area];
+      if (!items || !items.length) return;
+      var slug = SptConfig.subjectTileClass(area);
+      html += '<div class="course-subject-group course-subject-group--' + slug + '">' +
+        '<div class="course-subject-head"><span class="course-subject-label">' + esc(area) + '</span></div>' +
+        '<div class="course-tile-grid">';
+      items.slice().sort(function(a, b) {
+        return (a.className || '').localeCompare(b.className || '');
+      }).forEach(function(entry) {
+        var title = entry.type === 'class' ?
+          entry.className + ' (' + entry.teacherName + ')' :
+          entry.courseName + ' — unassigned';
+        var sub = entry.type === 'class' ?
+          esc(entry.teacherName) + ' · ' + esc(entry.courseName) :
+          esc(entry.courseName) + ' · pupils without a class';
+        html += '<div class="course-tile course-tile--' + slug + '" data-class-sheet data-course="' + entry.courseId + '"' +
+          (entry.classId ? ' data-class="' + entry.classId + '"' : ' data-unassigned="1"') +
+          ' title="Open ' + esc(title) + '">' +
+          '<div class="course-tile-row">' +
+          '<span class="course-tile-name">' + esc(entry.className) + '</span>' +
+          '<span class="course-tile-count">' + entry.count + '</span>' +
+          '</div><div class="course-tile-sub">' + sub + '</div></div>';
+      });
+      html += '</div></div>';
+    });
+    return html;
   }
 
   function renderCoursePage(courseId) {
     var d = db();
     var course = SptStore.byId(d.courses, courseId);
     if (!course) return '<div class="empty">Course not found</div>';
+    var sheetClass = state.classId ? SptStore.byId(d.classes, state.classId) : null;
     var aps = SptStore.assessmentPointsForCourse(d, courseId);
     var prelimAp = aps.find(function(ap) { return ap.assessment_type === 'Prelim'; });
     var prelimComps = prelimAp ? SptPrelim.componentsForCourse(d, courseId) : [];
     var enrolments = SptConcerns.sortByUrgency(
       SptStore.getEnrichedRows(d).filter(function(r) { return r.enrolment.course_id === courseId; }), d);
+    if (state.classId) {
+      enrolments = enrolments.filter(function(r) { return r.enrolment.class_id === state.classId; });
+    } else if (state.unassignedOnly) {
+      enrolments = enrolments.filter(function(r) { return !r.enrolment.class_id; });
+    }
+    var meta = courseGridMeta(course, enrolments);
     var tps = SptStore.trackingPoints(d);
-    var html = alertStripHtml() + '<div class="page-head"><h1>' + esc(course.course_name) + '</h1></div>' +
-      '<p style="margin-bottom:.75rem"><button type="button" class="btn btn-secondary btn-sm" data-route="courses">Back</button></p>';
-    var head = '<th class="col-pupil">Pupil</th><th>Flag</th>';
-    tps.forEach(function(tp, i) { head += '<th>Att TP' + (i + 1) + '</th>'; });
-    prelimComps.forEach(function(pc) {
-      head += '<th class="col-prelim" title="' + esc(pc.component_name) + ' (' + pc.weighting + '%)">' +
-        esc(SptPrelim.columnLabel(pc)) + '<span class="th-sub">/' + pc.max_marks + '</span></th>';
+    var canEdit = role().canEdit;
+    var canBaseline = canEditBaseline();
+    var showTeachers = !state.classId && courseShowsTeacherColumn(d, courseId, enrolments);
+    var courseTeachers = SptStore.teachersForCourse(d, courseId);
+    var sheetTitle = sheetClass ? sheetClass.class_name :
+      (state.unassignedOnly ? course.course_name + ' — unassigned' : course.course_name);
+    var sheetSubtitle = sheetClass ? SptStore.teacherName(d, sheetClass.teacher_id) + ' · ' + course.course_name :
+      (state.unassignedOnly ? 'Pupils not linked to a class' : '');
+    var groupAwardTag = '';
+    if (course.slug === 'npa-photo') {
+      var hasL4 = enrolments.some(function(r) {
+        return SptEvidence.isNpaPhotoLevel4(r.enrolment.current_level);
+      });
+      var hasL5 = enrolments.some(function(r) {
+        return !SptEvidence.isNpaPhotoLevel4(r.enrolment.current_level);
+      });
+      if (hasL4 && hasL5) {
+        groupAwardTag = (course.group_award_l4 || 'GR4L 44') + ' / ' + (course.group_award_l5 || 'GR4M 45');
+      } else if (hasL4) {
+        groupAwardTag = course.group_award_l4 || 'GR4L 44';
+      } else {
+        groupAwardTag = course.group_award_l5 || 'GR4M 45';
+      }
+    }
+    var html = alertStripHtml();
+    html += '<div class="course-focus-wrap">';
+    html += '<div class="course-topbar">' +
+      '<div class="course-topbar-left">' +
+      '<button type="button" class="btn btn-secondary btn-sm" data-route="courses">← Classes</button>' +
+      '<h1>' + esc(sheetTitle) + '</h1>' +
+      (sheetSubtitle ? '<span class="course-topbar-meta">' + esc(sheetSubtitle) + '</span>' : '') +
+      '<span class="course-topbar-meta">' + enrolments.length + ' pupils</span>' +
+      (meta.mixedClass ? '<span class="course-topbar-tag">N5 + N4</span>' : '') +
+      (groupAwardTag ? '<span class="course-topbar-tag">' + esc(groupAwardTag) + '</span>' : '') +
+      '</div>' +
+      '<div class="course-topbar-right">' +
+      (canEdit ? '<button type="button" class="btn btn-sm" data-add-pupil-course="' + courseId + '">+ Add pupil</button>' : '') +
+      '<button type="button" class="btn btn-secondary btn-sm layout-toggle-inline" id="nav-toggle-inline" title="Toggle navigation (N)">' +
+      (state.navCollapsed ? 'Show menu' : 'Hide menu') + '</button>' +
+      '</div></div>';
+
+    var headGroup = '<tr class="head-group">';
+    headGroup += '<th class="col-pupil" rowspan="2">Pupil</th><th rowspan="2">Level</th>';
+    if (showTeachers) headGroup += '<th rowspan="2">Teacher</th>';
+    if (meta.hasS3) {
+      headGroup += '<th class="col-entry" rowspan="2" title="S3 exam % — grade band updates automatically">S3 Exam<span class="th-sub">% · band</span></th>' +
+        '<th rowspan="2">Eff</th><th rowspan="2">Beh</th><th rowspan="2">HL</th><th rowspan="2">Prog</th><th rowspan="2">CfE</th>';
+    }
+    if (meta.hasPrior) headGroup += '<th rowspan="2">Prior exam</th><th rowspan="2">Pathway</th>';
+    meta.evUnits.forEach(function(u) {
+      headGroup += '<th rowspan="2" title="' + esc(u.unit_name) + '">' + esc(u.short_label) + '</th>';
     });
-    if (prelimAp) head += '<th>Prelim %</th>';
-    aps.filter(function(ap) { return ap.assessment_type !== 'Prelim'; }).slice(0, 4).forEach(function(ap) {
-      head += '<th>' + esc(ap.assessment_name.length > 14 ? ap.assessment_name.slice(0, 12) + '…' : ap.assessment_name) + '</th>';
+    headGroup += '<th rowspan="2">Flag</th>';
+    tps.forEach(function(tp, i) {
+      var date = formatTpShortDate(tp.tracking_point_date);
+      headGroup += '<th colspan="3" class="tp-group-head ' + tpBandClass(i) + tpStartClass(i) + '">TP' + (i + 1) +
+        (date ? '<span class="tp-date">' + esc(date) + '</span>' : '') + '</th>';
     });
-    head += '<th>Risk</th><th>Actions</th>';
+    if (meta.hasExamPupils && prelimComps.length) {
+      prelimComps.forEach(function(pc) {
+        headGroup += '<th class="col-prelim" rowspan="2" title="' + esc(pc.component_name) + ' (' + pc.weighting + '%)">' +
+          esc(SptPrelim.columnLabel(pc)) + '<span class="th-sub">/' + pc.max_marks + '</span></th>';
+      });
+      if (prelimAp) headGroup += '<th rowspan="2" title="Weighted total — grade band updates automatically">Prelim %<span class="th-sub">% · band</span></th>';
+    }
+    if (meta.hasExamPupils) {
+      aps.filter(function(ap) { return ap.assessment_type !== 'Prelim'; }).slice(0, 3).forEach(function(ap) {
+        headGroup += '<th rowspan="2">' + esc(ap.assessment_name.length > 12 ? ap.assessment_name.slice(0, 10) + '…' : ap.assessment_name) + '</th>';
+      });
+    }
+    if (meta.hasEvPupils && !meta.hasExamPupils) headGroup += '<th rowspan="2">Units</th>';
+    headGroup += '<th rowspan="2">Risk</th><th rowspan="2">Actions</th></tr>';
+
+    var headSub = '<tr class="head-sub">';
+    tps.forEach(function(tp, i) {
+      headSub += '<th' + tpColAttrs(i, '') + '>Att</th>';
+      headSub += '<th class="' + tpBandClass(i) + '">Eff</th>';
+      headSub += '<th class="' + tpBandClass(i) + '">Beh</th>';
+    });
+    headSub += '</tr>';
+    var head = headGroup + headSub;
+
     var courseBody = '';
     enrolments.forEach(function(r) {
       var en = r.enrolment;
-      courseBody += '<tr class="' + (r.open_flag_count ? 'row-flagged' : '') + '">' +
-        '<td class="col-pupil" data-enrolment="' + en.id + '">' + esc(SptStore.pupilName(d, r.pupil.id)) + '</td>' +
-        '<td>' + (r.open_flag_count ? badge('Open') : '—') + '</td>';
-      tps.forEach(function(tp) {
+      courseBody += '<tr class="' +
+        (r.open_flag_count ? 'row-flagged ' : '') +
+        (r.crashing_subject ? 'row-crashing-subject' : '') + '">' +
+        '<td class="col-pupil" data-enrolment="' + en.id + '">' + esc(SptStore.pupilName(d, r.pupil.id)) + '</td>';
+      courseBody += levelCellHtml(r, course);
+      if (showTeachers) {
+        if (role().viewAll && canEdit) {
+          courseBody += '<td><select class="inline-select" data-enrolment-teacher="' + en.id + '">' +
+            courseTeachers.map(function(t) {
+              return '<option value="' + t.id + '"' + (en.teacher_id === t.id ? ' selected' : '') + '>' +
+                esc(t.first_name + ' ' + t.surname) + '</option>';
+            }).join('') + '</select></td>';
+        } else {
+          courseBody += '<td>' + esc(r.teacher_name) + '</td>';
+        }
+      }
+      if (meta.hasS3) {
+        courseBody += baselineFieldCell(r, 's3_exam', 's3_exam');
+        courseBody += baselineFieldCell(r, 'effort', 'score');
+        courseBody += baselineFieldCell(r, 'behaviour', 'score');
+        courseBody += baselineFieldCell(r, 'homelearning', 'score');
+        courseBody += baselineFieldCell(r, 'progress', 'progress');
+        courseBody += baselineFieldCell(r, 'cfe_level', 'cfe');
+      }
+      if (meta.hasPrior) courseBody += priorEntryCells(r, canEdit);
+      meta.evUnits.forEach(function(u) {
+        courseBody += evidenceUnitCell(r, u.unit_code, canEdit);
+      });
+      courseBody += '<td>' + (r.open_flag_count ? badge('Open') : '—') + '</td>';
+      tps.forEach(function(tp, i) {
         var rec = (d.attendance_records || []).find(function(a) {
           return a.enrolment_id === en.id && a.tracking_point_id === tp.id;
         });
         var val = rec ? rec.attendance_score : '';
-        if (role().canEdit) {
-          courseBody += '<td><select class="inline-select" data-att="' + en.id + '|' + tp.id + '">' +
-            '<option value="">—</option>' + [1,2,3,4].map(function(n) {
-              return '<option value="' + n + '"' + (val === n ? ' selected' : '') + '>' + n + '</option>';
-            }).join('') + '</select></td>';
-        } else courseBody += '<td class="cell-num">' + esc(val || '—') + '</td>';
+        courseBody += trackingAttCell(en.id, tp.id, val, canEdit, i);
+        var tr = SptStore.trackingRecordFor(d, en.id, tp.id);
+        courseBody += trackingScoreCell(en.id, tp.id, 'effort', tr, canEdit, i);
+        courseBody += trackingScoreCell(en.id, tp.id, 'behaviour', tr, canEdit, i);
       });
-      prelimComps.forEach(function(pc) {
-        var markRec = (d.prelim_marks || []).find(function(m) {
-          return m.enrolment_id === en.id && m.prelim_component_id === pc.id;
-        });
-        var raw = markRec && markRec.raw_mark != null ? markRec.raw_mark : '';
-        if (role().canEdit) {
-          courseBody += '<td class="cell-prelim"><input type="number" class="prelim-inline" min="0" max="' + pc.max_marks + '" step="0.5" ' +
-            'data-prelim-mark="' + en.id + '|' + pc.id + '" value="' + (raw !== '' ? raw : '') + '" placeholder="—" title="' + esc(pc.component_name) + '"></td>';
+      if (meta.hasExamPupils && prelimComps.length) {
+        if (r.uses_exam_route) {
+          prelimComps.forEach(function(pc) {
+            var markRec = (d.prelim_marks || []).find(function(m) {
+              return m.enrolment_id === en.id && m.prelim_component_id === pc.id;
+            });
+            var raw = markRec && markRec.raw_mark != null ? markRec.raw_mark : '';
+            if (canEdit) {
+              courseBody += '<td class="cell-prelim"><input type="number" class="prelim-inline" min="0" max="' + pc.max_marks + '" step="0.5" ' +
+                'data-prelim-mark="' + en.id + '|' + pc.id + '" value="' + (raw !== '' ? raw : '') + '" placeholder="—"></td>';
+            } else {
+              courseBody += '<td class="cell-num">' + esc(raw !== '' ? raw + '/' + pc.max_marks : '—') + '</td>';
+            }
+          });
+          if (prelimAp) {
+            courseBody += '<td class="cell-grade cell-prelim-result" data-prelim-result-for="' + en.id + '">' +
+              prelimResultHtml(r.prelim_summary, r.prelim_result) + '</td>';
+          }
         } else {
-          courseBody += '<td class="cell-num">' + esc(raw !== '' ? raw + '/' + pc.max_marks : '—') + '</td>';
+          courseBody += prelimComps.map(function() { return cellNa(); }).join('');
+          if (prelimAp) courseBody += cellNa();
         }
-      });
-      if (prelimAp) {
-        courseBody += '<td class="cell-grade">' + esc(r.prelim_result || '—') + '</td>';
       }
-      aps.filter(function(ap) { return ap.assessment_type !== 'Prelim'; }).slice(0, 4).forEach(function(ap) {
-        var res = SptStore.resultForAssessment(d, en.id, ap.id);
-        courseBody += '<td>' + badge(res ? res.completion_status : 'Not Started') + '</td>';
-      });
-      courseBody += '<td>' + badge(en.risk_status) + '</td><td>';
-      if (role().canFlag) courseBody += '<button type="button" class="btn btn-sm" data-flag="' + en.id + '">Flag</button>';
+      if (meta.hasExamPupils) {
+        var examAps = aps.filter(function(ap) { return ap.assessment_type !== 'Prelim'; }).slice(0, 3);
+        if (r.uses_exam_route) {
+          examAps.forEach(function(ap) {
+            var res = SptStore.resultForAssessment(d, en.id, ap.id);
+            courseBody += '<td>' + badge(res ? res.completion_status : 'Not Started') + '</td>';
+          });
+        } else {
+          courseBody += examAps.map(function() { return cellNa(); }).join('');
+        }
+      }
+      if (meta.hasEvPupils && !meta.hasExamPupils) {
+        courseBody += '<td class="cell-num">' + esc(r.uses_evidence_bank ? r.units_banked + '/' + r.units_total : '—') + '</td>';
+      }
+      courseBody += '<td class="cell-risk">' + badge(en.risk_status) + '</td><td class="cell-actions">';
+      if (role().canFlag) courseBody += '<button type="button" class="btn btn-sm" data-flag="' + en.id + '">Flag</button> ';
+      var pendingLc = SptLevelChange.activeForEnrolment(d, en.id);
+      if (canEdit && course.supports_level_change && !pendingLc) {
+        courseBody += '<button type="button" class="btn btn-secondary btn-sm" data-level-change="' + en.id + '">Change level</button> ';
+      }
+      if (canEdit && canManageEnrolment(en) && !pendingLc) {
+        courseBody += '<button type="button" class="btn btn-secondary btn-sm" data-withdraw-course="' + en.id + '">Withdraw</button> ';
+      }
+      if (pendingLc && canEdit) {
+        courseBody += '<button type="button" class="btn btn-secondary btn-sm" data-route="level-changes">View request</button> ';
+      }
+      if (canManageEnrolment(en) && !pendingLc) {
+        courseBody += '<button type="button" class="btn btn-secondary btn-sm" data-remove-enrolment="' + en.id + '">Remove</button>';
+      }
       courseBody += '</td></tr>';
     });
-    var sheetHint = 'Edit attendance (1–4)';
-    if (prelimComps.length) sheetHint += ' · enter raw prelim marks per component';
-    html += sheetPanel(course.course_name, enrolments.length + ' pupils', sheetHint, '<table class="data-table"><thead><tr>' + head + '</tr></thead><tbody>' + courseBody + '</tbody></table>');
+
+    var sheetHint = '1 red · 2 amber · 3 yellow · 4 green';
+    if (meta.hasEvPupils) sheetHint += ' · evidence';
+    if (prelimComps.length) sheetHint += ' · prelims';
+    if (role().canFlag) sheetHint += ' · flag concerns';
+    html += sheetPanel('Tracking grid', enrolments.length + ' rows', sheetHint,
+      '<table class="data-table course-grid"><thead>' + head + '</thead><tbody>' + courseBody + '</tbody></table>');
+    html += '</div>';
     return html;
+  }
+
+  function showAddPupilToCourseModal(courseId) {
+    var d = db();
+    var course = SptStore.byId(d.courses, courseId);
+    if (!course || !role().canEdit) return;
+    var r = role();
+    var teachers = SptStore.teachersForCourse(d, courseId);
+    var classes = SptStore.classesForCourse(d, courseId);
+    var levels = SptStore.levelsForCourse(course);
+    var defaultTeacher = r.viewAll ? (teachers[0] && teachers[0].id) : d.simulated_teacher_id;
+    if (!defaultTeacher && teachers.length) defaultTeacher = teachers[0].id;
+    var defaultClassId = state.classId || null;
+    if (defaultClassId) {
+      var sheetClass = SptStore.byId(d.classes, defaultClassId);
+      if (sheetClass && sheetClass.teacher_id) defaultTeacher = sheetClass.teacher_id;
+    }
+    var enrolledIds = {};
+    (d.enrolments || []).filter(function(e) {
+      return e.course_id === courseId && e.active_status !== false;
+    }).forEach(function(e) { enrolledIds[e.pupil_id] = true; });
+    var availablePupils = (d.pupils || []).filter(function(p) {
+      return p.active_status !== false && !enrolledIds[p.id];
+    }).sort(function(a, b) {
+      return SptStore.pupilName(d, a.id).localeCompare(SptStore.pupilName(d, b.id));
+    });
+    var teacherOpts = teachers.map(function(t) {
+      return '<option value="' + t.id + '"' + (t.id === defaultTeacher ? ' selected' : '') + '>' +
+        esc(t.first_name + ' ' + t.surname) + '</option>';
+    }).join('');
+    var classOpts = '<option value="">— No class —</option>' + classes.map(function(cl) {
+      return '<option value="' + cl.id + '"' + (cl.id === defaultClassId ? ' selected' : '') +
+        ' data-teacher="' + cl.teacher_id + '">' + esc(cl.class_name) + '</option>';
+    }).join('');
+    var levelOpts = levels.map(function(l, i) {
+      return '<option' + (i === 0 ? ' selected' : '') + '>' + esc(l) + '</option>';
+    }).join('');
+    var pupilOpts = availablePupils.length ?
+      availablePupils.map(function(p) {
+        return '<option value="' + p.id + '">' + esc(SptStore.pupilName(d, p.id) + ' (' + p.year_group + ')') + '</option>';
+      }).join('') :
+      '<option value="" disabled>No unenrolled pupils</option>';
+
+    openModal('Add pupil to ' + course.course_name,
+      '<form id="add-pupil-course-form" class="form-grid">' +
+      '<p class="modal-note">Add a new arrival or enrol an existing pupil on this course. Assign them to the correct teacher.</p>' +
+      '<div class="form-span pupil-mode-row">' +
+      '<label><input type="radio" name="pupil_mode" value="new" checked> New pupil — type name</label> ' +
+      '<label><input type="radio" name="pupil_mode" value="existing"> Existing pupil</label></div>' +
+      '<div id="add-pupil-new-fields">' +
+      '<div><label>First name</label><input name="first_name" required autocomplete="given-name"></div>' +
+      '<div><label>Surname</label><input name="surname" required autocomplete="family-name"></div>' +
+      '<div><label>Year group</label><select name="year_group"><option>S4</option><option selected>S5</option><option>S6</option></select></div>' +
+      '<div><label>Candidate no. (optional)</label><input name="candidate_number" placeholder="e.g. 2409999"></div></div>' +
+      '<div id="add-pupil-existing-fields" hidden>' +
+      '<div><label>Pupil</label><select name="pupil_id"><option value="">— Select pupil —</option>' + pupilOpts + '</select></div></div>' +
+      '<div><label>Teacher</label><select name="teacher_id"' + (!r.viewAll ? ' disabled' : '') + '>' + teacherOpts + '</select>' +
+      (!r.viewAll ? '<input type="hidden" name="teacher_id" value="' + esc(defaultTeacher || '') + '">' : '') + '</div>' +
+      '<div><label>Class (optional)</label><select name="class_id"' +
+      (defaultClassId && !r.viewAll ? ' disabled' : '') + '>' + classOpts + '</select>' +
+      (defaultClassId && !r.viewAll ? '<input type="hidden" name="class_id" value="' + esc(defaultClassId) + '">' : '') + '</div>' +
+      '<div><label>Course level</label><select name="current_level">' + levelOpts + '</select></div></form>',
+      '<button type="button" class="btn btn-secondary" id="modal-cancel">Cancel</button>' +
+      '<button type="button" class="btn" id="add-pupil-submit">Add to course</button>');
+
+    var form = document.getElementById('add-pupil-course-form');
+    var newFields = document.getElementById('add-pupil-new-fields');
+    var existingFields = document.getElementById('add-pupil-existing-fields');
+    form.querySelectorAll('[name=pupil_mode]').forEach(function(radio) {
+      radio.addEventListener('change', function() {
+        var isNew = form.pupil_mode.value === 'new';
+        newFields.hidden = !isNew;
+        existingFields.hidden = isNew;
+        form.first_name.required = isNew;
+        form.surname.required = isNew;
+      });
+    });
+    form.class_id.addEventListener('change', function() {
+      var opt = form.class_id.options[form.class_id.selectedIndex];
+      var tid = opt && opt.getAttribute('data-teacher');
+      if (tid && form.teacher_id) form.teacher_id.value = tid;
+    });
+
+    document.getElementById('add-pupil-submit').onclick = function() {
+      var fd = new FormData(form);
+      var mode = fd.get('pupil_mode');
+      var teacherId = fd.get('teacher_id');
+      if (!teacherId) { alert('Select a teacher'); return; }
+      var opts = {
+        courseId: courseId,
+        teacherId: teacherId,
+        classId: fd.get('class_id') || null,
+        level: fd.get('current_level')
+      };
+      if (mode === 'existing') {
+        if (!fd.get('pupil_id')) { alert('Select a pupil'); return; }
+        opts.pupilId = fd.get('pupil_id');
+      } else {
+        opts.first_name = (fd.get('first_name') || '').trim();
+        opts.surname = (fd.get('surname') || '').trim();
+        opts.year_group = fd.get('year_group');
+        opts.candidate_number = (fd.get('candidate_number') || '').trim();
+        if (!opts.first_name || !opts.surname) { alert('Enter first and surname'); return; }
+      }
+      var result = SptStore.addPupilToCourse(db(), opts);
+      if (result.error) { alert(result.error); return; }
+      closeModal();
+      setRoute('course', {
+        courseId: courseId,
+        classId: state.classId,
+        unassignedOnly: state.unassignedOnly
+      });
+    };
+    document.getElementById('modal-cancel').onclick = closeModal;
+  }
+
+  function confirmRemoveEnrolment(enrolmentId) {
+    var d = db();
+    var en = SptStore.byId(d.enrolments, enrolmentId);
+    if (!en || !canManageEnrolment(en)) return;
+    var name = SptStore.pupilName(d, en.pupil_id);
+    var course = SptStore.courseName(d, en.course_id);
+    if (!confirm('Remove ' + name + ' from ' + course + '?\n\nThey will disappear from tracking but their history is kept.')) return;
+    SptStore.deactivateEnrolment(d, enrolmentId);
+    render();
+  }
+
+  function showLevelChangeModal(enrolmentId) {
+    var d = db();
+    var en = SptStore.byId(d.enrolments, enrolmentId);
+    if (!en || !role().canEdit) return;
+    var course = SptStore.byId(d.courses, en.course_id);
+    if (!course || !course.supports_level_change) return;
+    if (SptLevelChange.activeForEnrolment(d, enrolmentId)) {
+      alert('A level change or withdrawal is already pending for this pupil.');
+      return;
+    }
+    var targets = SptLevelChange.targetLevels(course, en.current_level);
+    if (!targets.length) { alert('No alternative levels available.'); return; }
+    var levelOpts = targets.map(function(l) {
+      return '<option value="' + esc(l) + '">' + esc(l) + '</option>';
+    }).join('');
+    openModal('Request level change',
+      '<form id="level-change-form" class="form-grid">' +
+      '<p class="modal-note">Creates a request in <strong>Level Changes</strong>. Tracking updates after Faculty Head confirms.</p>' +
+      '<div><label>Current level</label><input value="' + esc(en.current_level) + '" disabled></div>' +
+      '<div><label>Recommended level</label><select name="recommended_level" required>' + levelOpts + '</select></div>' +
+      '<div><label>Reason</label><textarea name="reason_for_recommendation" required placeholder="Why is this level change recommended?"></textarea></div>' +
+      '<div><label>Evidence summary</label><textarea name="evidence_summary" placeholder="Unit evidence, prelim, attendance…"></textarea></div>' +
+      '<div><label><input type="checkbox" name="pupil_discussed" value="yes"> Pupil has been discussed with</label></div></form>',
+      '<button type="button" class="btn btn-secondary" id="modal-cancel">Cancel</button>' +
+      '<button type="button" class="btn" id="level-change-submit">Submit request</button>');
+    document.getElementById('level-change-submit').onclick = function() {
+      var f = document.getElementById('level-change-form');
+      var fd = new FormData(f);
+      var result = SptLevelChange.requestLevelChange(db(), enrolmentId, {
+        recommended_level: fd.get('recommended_level'),
+        reason_for_recommendation: (fd.get('reason_for_recommendation') || '').trim(),
+        evidence_summary: (fd.get('evidence_summary') || '').trim(),
+        pupil_discussed: !!fd.get('pupil_discussed')
+      });
+      if (result.error) { alert(result.error); return; }
+      closeModal();
+      setRoute('level-changes');
+    };
+    document.getElementById('modal-cancel').onclick = closeModal;
+  }
+
+  function showWithdrawModal(enrolmentId) {
+    var d = db();
+    var en = SptStore.byId(d.enrolments, enrolmentId);
+    if (!en || !canManageEnrolment(en)) return;
+    if (SptLevelChange.activeForEnrolment(d, enrolmentId)) {
+      alert('A level change or withdrawal is already pending for this pupil.');
+      return;
+    }
+    openModal('Request withdrawal from course',
+      '<form id="withdraw-form" class="form-grid">' +
+      '<p class="modal-note">Creates a withdrawal request in <strong>Level Changes</strong>. Pupil stays on the sheet until Faculty Head confirms.</p>' +
+      '<div><label>Course</label><input value="' + esc(SptStore.courseName(d, en.course_id)) + '" disabled></div>' +
+      '<div><label>Current level</label><input value="' + esc(en.current_level) + '" disabled></div>' +
+      '<div><label>Reason for withdrawal</label><textarea name="reason_for_recommendation" required placeholder="Why is the pupil withdrawing?"></textarea></div>' +
+      '<div><label><input type="checkbox" name="pupil_discussed" value="yes"> Pupil / parent discussed</label></div></form>',
+      '<button type="button" class="btn btn-secondary" id="modal-cancel">Cancel</button>' +
+      '<button type="button" class="btn" id="withdraw-submit">Submit withdrawal</button>');
+    document.getElementById('withdraw-submit').onclick = function() {
+      var f = document.getElementById('withdraw-form');
+      var fd = new FormData(f);
+      var result = SptLevelChange.requestWithdrawal(db(), enrolmentId, {
+        reason_for_recommendation: (fd.get('reason_for_recommendation') || '').trim(),
+        pupil_discussed: !!fd.get('pupil_discussed')
+      });
+      if (result.error) { alert(result.error); return; }
+      closeModal();
+      setRoute('level-changes');
+    };
+    document.getElementById('modal-cancel').onclick = closeModal;
   }
 
   function showFlagModal(enrolmentId) {
@@ -371,8 +1368,12 @@
       return '<option value="' + c + '">' + c + '</option>';
     }).join('');
     openModal('Flag concern for Faculty Head',
+      '<p class="modal-note modal-note-warn">For attainment and classroom concerns only. ' +
+      '<strong>Do not include sensitive or personal information</strong> — e.g. medical details, ' +
+      'safeguarding, or child protection matters.</p>' +
       '<form id="flag-form" class="form-grid"><div><label>Category</label><select name="category">' + cats + '</select></div>' +
-      '<div><label>Comment</label><textarea name="comment" required placeholder="What should the Faculty Head know?"></textarea></div></form>',
+      '<div><label>Comment</label><textarea name="comment" required ' +
+      'placeholder="Brief concern for the Faculty Head (no sensitive information)"></textarea></div></form>',
       '<button type="button" class="btn btn-secondary" id="modal-cancel">Cancel</button>' +
       '<button type="button" class="btn" id="flag-submit">Submit flag</button>');
     document.getElementById('flag-submit').onclick = function() {
@@ -467,17 +1468,52 @@
     document.getElementById('drawer-title').textContent = SptStore.pupilName(d, pupil.id);
     document.getElementById('drawer-sub').textContent = course.course_name + ' · ' + en.current_level;
     var body = '';
-    if (r && r.prior_attainment.length) {
+    if (r.shows_s3_baseline && r.s3_baseline) {
+      var b = r.s3_baseline;
+      body += '<div class="profile-section"><h3>S3 entry baseline</h3><dl class="profile-grid">' +
+        '<dt>S3 exam</dt><dd>' + s3ExamDisplayHtml(b) + '</dd>' +
+        '<dt>Effort</dt><dd>' + esc(b.effort != null ? b.effort : '—') + '</dd>' +
+        '<dt>Behaviour</dt><dd>' + esc(b.behaviour != null ? b.behaviour : '—') + '</dd>' +
+        '<dt>Home learning</dt><dd>' + esc(b.homelearning != null ? b.homelearning : '—') + '</dd>' +
+        '<dt>Progress</dt><dd>' + esc(b.progress != null ? b.progress : '—') + '</dd>' +
+        '<dt>CfE level</dt><dd>' + esc(b.cfe_level || '—') + '</dd></dl></div>';
+    }
+    if (r.shows_prior_entry && r.prior_main) {
+      body += '<div class="profile-section"><h3>Prior attainment</h3><dl class="profile-grid">' +
+        '<dt>Grade</dt><dd>' + esc(r.prior_display.grade) + '</dd>' +
+        '<dt>Pathway</dt><dd>' + badge(r.prior_display.pathway) + '</dd></dl></div>';
+    } else if (r.prior_attainment.length) {
       body += '<div class="profile-section"><h3>Prior attainment</h3><ul class="profile-list">';
       r.prior_attainment.forEach(function(p) {
         body += '<li>' + esc(p.qualification_year) + ' ' + esc(p.qualification_level) + ': ' + esc(p.result_grade) + ' ' + badge(p.pathway_status) + '</li>';
       });
       body += '</ul></div>';
     }
-    body += '<div class="profile-section"><h3>Attendance (1–4)</h3><ul class="profile-list">';
-    r.attendance.forEach(function(a, i) {
-      var lbl = SptConfig.ATTENDANCE_LABELS[a.record && a.record.attendance_score] || '—';
-      body += '<li>TP' + (i + 1) + ': ' + (a.record ? a.record.attendance_score + ' — ' + lbl : '—') + '</li>';
+    if (r.uses_evidence_bank && r.evidence_rows.length) {
+      body += '<div class="profile-section"><h3>Unit evidence</h3><ul class="profile-list">';
+      r.evidence_rows.forEach(function(ev) {
+        body += '<li><strong>' + esc(ev.unit_code || '') + '</strong> ' + esc(ev.unit_or_component) + ' — ' + badge(ev.evidence_status) + '</li>';
+      });
+      body += '</ul></div>';
+    }
+    if (r.level_change && SptLevelChange.isPending(r.level_change)) {
+      var plc = r.level_change;
+      body += '<div class="profile-section"><h3>Pending ' + (plc.change_type === 'withdrawal' ? 'withdrawal' : 'level change') + '</h3>';
+      if (plc.change_type === 'withdrawal') {
+        body += '<p>Withdrawal requested — ' + badge(plc.current_status) + '</p>';
+      } else {
+        body += '<p>' + esc(plc.original_level) + ' → <strong>' + esc(plc.recommended_level) + '</strong> ' + badge(plc.current_status) + '</p>';
+      }
+      if (plc.reason_for_recommendation) body += '<p class="cell-hint">' + esc(plc.reason_for_recommendation) + '</p>';
+      body += '<button type="button" class="btn btn-secondary btn-sm" id="drawer-level-changes">View in Level Changes</button></div>';
+    }
+    body += '<div class="profile-section"><h3>Tracking periods (1–4)</h3><ul class="profile-list">';
+    r.tracking_data.forEach(function(t, i) {
+      var att = r.attendance[i];
+      var attLbl = att && att.record ? att.record.attendance_score : '—';
+      var eff = t.record ? SptStore.trackingScoreValue(t.record, 'effort') : '';
+      var beh = t.record ? SptStore.trackingScoreValue(t.record, 'behaviour') : '';
+      body += '<li>TP' + (i + 1) + ': Att ' + attLbl + ' · Eff ' + (eff !== '' ? eff : '—') + ' · Beh ' + (beh !== '' ? beh : '—') + '</li>';
     });
     body += '</ul></div>';
     if (r.open_flags.length) {
@@ -501,6 +1537,8 @@
     document.getElementById('pupil-drawer').classList.add('open');
     var df = document.getElementById('drawer-flag');
     if (df) df.onclick = function() { showFlagModal(en.id); };
+    var dlc = document.getElementById('drawer-level-changes');
+    if (dlc) dlc.onclick = function() { closeDrawer(); setRoute('level-changes'); };
   }
 
   function closeDrawer() {
@@ -510,42 +1548,99 @@
 
   function renderEvidence() {
     var d = db();
-    var list = (d.evidence_bank || []).filter(function(ev) {
-      var en = SptStore.byId(d.enrolments, ev.enrolment_id);
-      return en && SptStore.canViewEnrolment(d, en);
-    });
-    var html = '<div class="page-head"><h1>Evidence Bank</h1></div>' + filtersHtml(d);
+    var allRows = getEvidenceBankRows(d);
+    var filterTeachers = teachersForFilterBar(d, evidenceRowsForTeacherFilter(allRows));
+    sanitizeTeacherFilter(filterTeachers);
+    var rows = applyEvidenceEnrolmentFilters(allRows);
+    var canEdit = role().canEdit;
+    var maxUnits = rows.reduce(function(m, r) { return Math.max(m, r.evidence_rows.length); }, 0);
+    var html = '<div class="page-head"><h1>Evidence Bank</h1>' +
+      '<p class="page-sub">N3/N4 pupils, Creative Industries, and Film &amp; Screen — unit evidence statuses.</p></div>' +
+      entryGuideHtml('evidence') +
+      filtersHtml(d,
+        '<div class="filter-field"><label>Status</label><select data-filter="evidenceStatus"><option value="">All</option>' +
+        SptConfig.STATUS.evidence.map(function(s) { return '<option value="' + s + '">' + s + '</option>'; }).join('') +
+        '</select></div>' +
+        '<div class="filter-field"><label>Evidence</label><select data-filter="evidence"><option value="">All</option>' +
+        '<option value="missing">Missing only</option></select></div>',
+        filterTeachers);
+    var head = '<th class="col-pupil">Pupil</th><th>Course</th>';
+    for (var i = 0; i < maxUnits; i++) {
+      head += '<th class="cell-num">Unit code</th><th>Status</th>';
+    }
     var evRows = '';
-    list.forEach(function(ev) {
-      var en = SptStore.byId(d.enrolments, ev.enrolment_id);
-      evRows += '<tr data-enrolment="' + en.id + '"><td class="col-pupil">' + esc(SptStore.pupilName(d, en.pupil_id)) + '</td>' +
-        '<td>' + esc(SptStore.courseName(d, en.course_id)) + '</td><td>' + esc(ev.unit_or_component) + '</td>' +
-        '<td>' + (role().canEdit ?
-          '<select class="inline-select" data-evidence="' + ev.id + '">' + SptConfig.STATUS.evidence.map(function(s) {
-            return '<option' + (ev.evidence_status === s ? ' selected' : '') + '>' + s + '</option>';
-          }).join('') + '</select>' : badge(ev.evidence_status)) + '</td></tr>';
+    rows.forEach(function(row) {
+      var en = row.enrolment;
+      evRows += '<tr data-enrolment="' + en.id + '">' +
+        '<td class="col-pupil">' + esc(SptStore.pupilName(d, en.pupil_id)) + '</td>' +
+        '<td>' + esc(row.course.course_name) + '</td>';
+      row.evidence_rows.forEach(function(ev) {
+        evRows += '<td class="cell-num">' + esc(ev.unit_code || '—') + '</td>' +
+          '<td>' + SptEvidence.statusCellHtml(ev, canEdit) + '</td>';
+      });
+      for (var j = row.evidence_rows.length; j < maxUnits; j++) {
+        evRows += cellNa() + cellNa();
+      }
+      evRows += '</tr>';
     });
-    html += sheetPanel('Evidence register', list.length + ' items', 'Click row for pupil profile', '<table class="data-table"><thead><tr>' +
-      '<th class="col-pupil">Pupil</th><th>Course</th><th>Unit</th><th>Status</th></tr></thead><tbody>' + evRows + '</tbody></table>');
+    var unitCount = rows.reduce(function(n, r) { return n + r.evidence_rows.length; }, 0);
+    html += sheetPanel('Evidence register', rows.length + ' pupils · ' + unitCount + ' units', 'Click row for pupil profile',
+      '<table class="data-table evidence-grid"><thead><tr>' + head + '</tr></thead><tbody>' + evRows + '</tbody></table>');
     return html;
   }
 
   function renderLevelChanges() {
     var d = db();
-    var courseIds = d.courses.filter(function(c) { return c.supports_level_change; }).map(function(c) { return c.id; });
+    var r = role();
     var list = (d.level_changes || []).filter(function(lc) {
       var en = SptStore.byId(d.enrolments, lc.enrolment_id);
-      return en && courseIds.indexOf(en.course_id) >= 0 && SptStore.canViewEnrolment(d, en);
+      if (!en || !SptStore.canViewEnrolment(d, en)) return false;
+      if (en.active_status === false && lc.current_status === 'Completed') return false;
+      if (lc.change_type === 'withdrawal') return true;
+      var course = SptStore.byId(d.courses, en.course_id);
+      return course && course.supports_level_change;
+    }).sort(function(a, b) {
+      var pendingA = SptLevelChange.isPending(a) ? 0 : 1;
+      var pendingB = SptLevelChange.isPending(b) ? 0 : 1;
+      if (pendingA !== pendingB) return pendingA - pendingB;
+      return (b.updated_at || '').localeCompare(a.updated_at || '');
     });
-    var html = '<div class="page-head"><h1>Level Change Tracker</h1></div><div class="card"><div class="table-wrap"><table class="data-table">';
-    html += '<thead><tr><th>Pupil</th><th>From</th><th>To</th><th>Status</th><th>SQA confirmed</th></tr></thead><tbody>';
+    var pending = list.filter(function(lc) { return SptLevelChange.isPending(lc); }).length;
+    var html = '<div class="page-head"><h1>Level Changes &amp; Withdrawals</h1>' +
+      '<p class="page-sub">Requests from course sheets — confirm here to update tracking.</p></div>' +
+      '<div class="entry-guide entry-guide-inline">Teachers request via <strong>Change level</strong> or <strong>Withdraw</strong> on the course sheet · Faculty Head <strong>confirms</strong> to apply</div>';
+    var rows = '';
     list.forEach(function(lc) {
       var en = SptStore.byId(d.enrolments, lc.enrolment_id);
-      html += '<tr data-enrolment="' + en.id + '"><td>' + esc(SptStore.pupilName(d, en.pupil_id)) + '</td>' +
-        '<td>' + esc(lc.original_level) + '</td><td>' + esc(lc.recommended_level) + '</td>' +
-        '<td>' + badge(lc.current_status) + '</td><td>' + (lc.confirmed_on_sqa_system ? 'Yes' : 'No') + '</td></tr>';
+      var typeLabel = lc.change_type === 'withdrawal' ? 'Withdrawal' : 'Level change';
+      var toCell = lc.change_type === 'withdrawal' ? 'Withdraw from course' : esc(lc.recommended_level);
+      rows += '<tr data-level-change="' + lc.id + '">' +
+        '<td class="col-pupil">' + esc(SptStore.pupilName(d, en.pupil_id)) + '</td>' +
+        '<td>' + esc(SptStore.courseName(d, en.course_id)) + '</td>' +
+        '<td>' + esc(typeLabel) + '</td>' +
+        '<td>' + esc(lc.original_level) + '</td>' +
+        '<td>' + toCell + '</td>' +
+        '<td>' + badge(lc.current_status) + '</td>' +
+        '<td class="cell-actions">';
+      if (r.canApproveLevelChange && SptLevelChange.isPending(lc)) {
+        if (lc.current_status === 'Under Review') {
+          rows += '<button type="button" class="btn btn-secondary btn-sm" data-level-approve="' + lc.id + '">Approve</button> ';
+        }
+        rows += '<button type="button" class="btn btn-sm" data-level-confirm="' + lc.id + '">Confirm &amp; apply</button> ';
+        rows += '<button type="button" class="btn btn-secondary btn-sm" data-level-reject="' + lc.id + '">Reject</button>';
+      } else if (lc.current_status === 'Completed') {
+        rows += '<span class="cell-hint">' + (lc.confirmed_on_sqa_system ? 'Applied to tracking' : '—') + '</span>';
+      } else {
+        rows += '—';
+      }
+      rows += '</td></tr>';
     });
-    return html + '</tbody></table></div></div>';
+    if (!rows) rows = '<tr><td colspan="7" class="empty">No level change or withdrawal requests.</td></tr>';
+    html += sheetPanel('Requests', pending + ' pending · ' + list.length + ' total', 'Confirm applies level or removes pupil from course',
+      '<table class="data-table"><thead><tr>' +
+      '<th class="col-pupil">Pupil</th><th>Course</th><th>Type</th><th>From</th><th>To</th><th>Status</th><th>Actions</th>' +
+      '</tr></thead><tbody>' + rows + '</tbody></table>');
+    return html;
   }
 
   function renderInterventions() {
@@ -626,8 +1721,25 @@
         openDrawer(el.getAttribute('data-enrolment'));
       });
     });
+    root.querySelectorAll('[data-class-sheet]').forEach(function(el) {
+      el.addEventListener('click', function() {
+        setRoute('course', {
+          courseId: el.getAttribute('data-course'),
+          classId: el.getAttribute('data-class') || null,
+          unassignedOnly: el.hasAttribute('data-unassigned')
+        });
+      });
+    });
     root.querySelectorAll('[data-course]').forEach(function(el) {
+      if (el.hasAttribute('data-class-sheet')) return;
       el.addEventListener('click', function() { setRoute('course', { courseId: el.getAttribute('data-course') }); });
+    });
+    root.querySelectorAll('[data-class-teacher]').forEach(function(el) {
+      el.addEventListener('change', function() {
+        if (!role().canSetup) return;
+        SptStore.updateClassTeacher(db(), el.getAttribute('data-class-teacher'), el.value);
+        render();
+      });
     });
     root.querySelectorAll('[data-report]').forEach(function(el) {
       el.addEventListener('click', function() { state.reportId = el.getAttribute('data-report'); render(); });
@@ -635,12 +1747,74 @@
     root.querySelectorAll('[data-flag]').forEach(function(el) {
       el.addEventListener('click', function(e) { e.stopPropagation(); showFlagModal(el.getAttribute('data-flag')); });
     });
+    root.querySelectorAll('[data-add-pupil-course]').forEach(function(el) {
+      el.addEventListener('click', function() { showAddPupilToCourseModal(el.getAttribute('data-add-pupil-course')); });
+    });
+    root.querySelectorAll('[data-remove-enrolment]').forEach(function(el) {
+      el.addEventListener('click', function(e) {
+        e.stopPropagation();
+        confirmRemoveEnrolment(el.getAttribute('data-remove-enrolment'));
+      });
+    });
+    root.querySelectorAll('[data-level-change]').forEach(function(el) {
+      el.addEventListener('click', function(e) {
+        e.stopPropagation();
+        showLevelChangeModal(el.getAttribute('data-level-change'));
+      });
+    });
+    root.querySelectorAll('[data-withdraw-course]').forEach(function(el) {
+      el.addEventListener('click', function(e) {
+        e.stopPropagation();
+        showWithdrawModal(el.getAttribute('data-withdraw-course'));
+      });
+    });
+    root.querySelectorAll('[data-level-approve]').forEach(function(el) {
+      el.addEventListener('click', function() {
+        SptLevelChange.approveChange(db(), el.getAttribute('data-level-approve'));
+        render();
+      });
+    });
+    root.querySelectorAll('[data-level-confirm]').forEach(function(el) {
+      el.addEventListener('click', function() {
+        var lcId = el.getAttribute('data-level-confirm');
+        var lc = SptStore.byId(db().level_changes, lcId);
+        var en = lc ? SptStore.byId(db().enrolments, lc.enrolment_id) : null;
+        var msg = lc && lc.change_type === 'withdrawal' ?
+          'Confirm withdrawal? Pupil will be removed from the course tracking sheet.' :
+          'Confirm level change? Tracking will update to the new level.';
+        if (!confirm(msg)) return;
+        var result = SptLevelChange.confirmAndApply(db(), lcId);
+        if (result.error) { alert(result.error); return; }
+        if (en) setRoute('course', { courseId: en.course_id, classId: en.class_id || null });
+        else render();
+      });
+    });
+    root.querySelectorAll('[data-level-reject]').forEach(function(el) {
+      el.addEventListener('click', function() {
+        var notes = prompt('Reason for rejecting this request (optional):') || '';
+        SptLevelChange.rejectChange(db(), el.getAttribute('data-level-reject'), notes);
+        render();
+      });
+    });
+    root.querySelectorAll('[data-enrolment-teacher]').forEach(function(el) {
+      el.addEventListener('change', function(e) {
+        e.stopPropagation();
+        SptStore.updateEnrolmentTeacher(db(), el.getAttribute('data-enrolment-teacher'), el.value);
+        render();
+      });
+    });
     root.querySelectorAll('[data-prelim-mark]').forEach(function(el) {
+      el.addEventListener('input', function() {
+        var p = el.getAttribute('data-prelim-mark').split('|');
+        var row = el.closest('tr');
+        updatePrelimResultCell(p[0], prelimOverridesFromRow(row));
+      });
       el.addEventListener('change', function(e) {
         e.stopPropagation();
         var p = el.getAttribute('data-prelim-mark').split('|');
         SptPrelim.saveMark(db(), p[0], p[1], el.value);
-        render();
+        updatePrelimResultCell(p[0]);
+        updateEnrolmentRiskCell(p[0]);
       });
     });
     root.querySelectorAll('[data-resolve-flag]').forEach(function(el) {
@@ -653,14 +1827,94 @@
       el.addEventListener('change', function() {
         var p = el.getAttribute('data-att').split('|');
         SptStore.upsertAttendance(db(), p[0], p[1], el.value);
-        render();
+        applyScoreSelectColor(el);
+        updateEnrolmentRiskCell(p[0]);
+      });
+    });
+    root.querySelectorAll('[data-tracking]').forEach(function(el) {
+      el.addEventListener('change', function() {
+        var p = el.getAttribute('data-tracking').split('|');
+        SptStore.upsertTrackingScore(db(), p[0], p[1], p[2], el.value);
+        applyScoreSelectColor(el);
+        updateEnrolmentRiskCell(p[0]);
       });
     });
     root.querySelectorAll('[data-evidence]').forEach(function(el) {
       el.addEventListener('change', function() {
         SptStore.updateRecord(db(), 'evidence_bank', el.getAttribute('data-evidence'), { evidence_status: el.value }, 'evidence_update');
-        render();
+        var row = el.closest('tr');
+        if (!row) return;
+        var pupilTd = row.querySelector('.col-pupil[data-enrolment]');
+        var enId = pupilTd ? pupilTd.getAttribute('data-enrolment') : row.getAttribute('data-enrolment');
+        if (enId) updateEnrolmentRiskCell(enId);
       });
+    });
+    root.querySelectorAll('.s3-exam-mark').forEach(function(el) {
+      el.addEventListener('input', function() {
+        var p = el.getAttribute('data-baseline').split('|');
+        var band = SptBaseline.bandFromMark(el.value);
+        var bandEl = document.querySelector('[data-s3-band-for="' + p[0] + '"]');
+        if (bandEl) bandEl.innerHTML = band ? gradeBandHtml(band) : '';
+      });
+    });
+    root.querySelectorAll('[data-baseline]').forEach(function(el) {
+      el.addEventListener('change', function() {
+        var p = el.getAttribute('data-baseline').split('|');
+        var field = p[1];
+        if (!canEditBaselineField(field)) return;
+        var val = el.value;
+        var patch = {};
+        if (field === 's3_exam_mark') {
+          var band = SptBaseline.bandFromMark(val);
+          patch.s3_exam_mark = val === '' ? null : parseFloat(val);
+          patch.s3_exam_grade = band;
+          SptStore.upsertBaseline(db(), p[0], patch);
+          var bandEl = document.querySelector('[data-s3-band-for="' + p[0] + '"]');
+          if (bandEl) bandEl.innerHTML = band ? gradeBandHtml(band) : '';
+          return;
+        }
+        if (field === 'effort' || field === 'behaviour' || field === 'homelearning') {
+          patch[field] = val === '' ? null : parseInt(val, 10);
+        } else if (field === 'progress') {
+          patch[field] = val === '' ? null : parseFloat(val);
+        } else {
+          patch[field] = val;
+        }
+        SptStore.upsertBaseline(db(), p[0], patch);
+        if (field === 'effort' || field === 'behaviour' || field === 'homelearning') {
+          applyScoreSelectColor(el);
+        }
+      });
+    });
+    root.querySelectorAll('[data-baseline]').forEach(function(el) {
+      if (el.tagName === 'INPUT') {
+        el.addEventListener('blur', function() { el.dispatchEvent(new Event('change')); });
+      }
+    });
+    root.querySelectorAll('[data-dismiss-crashing]').forEach(function(el) {
+      el.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!role().canEdit) return;
+        var enId = el.getAttribute('data-dismiss-crashing');
+        SptStore.upsertPriorForCourse(db(), enId, { crashing_dismissed: true });
+        if (state.route === 'course') render();
+      });
+    });
+    root.querySelectorAll('[data-prior]').forEach(function(el) {
+      function savePrior() {
+        if (!role().canEdit) return;
+        var p = el.getAttribute('data-prior').split('|');
+        var patch = {};
+        patch[p[1]] = el.value;
+        SptStore.upsertPriorForCourse(db(), p[0], patch);
+        updateEnrolmentRiskCell(p[0]);
+        if (state.route === 'course') render();
+      }
+      el.addEventListener('change', savePrior);
+      if (el.tagName === 'INPUT') {
+        el.addEventListener('blur', savePrior);
+      }
     });
     root.querySelectorAll('[data-setup-tab]').forEach(function(el) {
       el.addEventListener('click', function() {
@@ -668,7 +1922,20 @@
         render();
       });
     });
+    root.querySelectorAll('[data-setup-teacher]').forEach(function(el) {
+      el.addEventListener('change', function() {
+        state.setupTeacherId = el.value || null;
+        render();
+      });
+    });
+    root.querySelectorAll('[data-open-class-sheet]').forEach(function(el) {
+      el.addEventListener('click', function() {
+        var parts = el.getAttribute('data-open-class-sheet').split('|');
+        setRoute('course', { courseId: parts[0], classId: parts[1] || null });
+      });
+    });
     bindFilters(root);
+    bindScoreSelectColors(root);
 
     var ft = document.getElementById('form-add-teacher');
     if (ft) ft.onsubmit = function(e) {
@@ -680,7 +1947,7 @@
       }, 'teacher_add');
       render();
     };
-    var fc = document.getElementById('form-add-class');
+    var fc = document.getElementById('form-add-class-profile');
     if (fc) fc.onsubmit = function(e) {
       e.preventDefault();
       var fd = new FormData(fc);
@@ -688,6 +1955,17 @@
         course_id: fd.get('course_id'), class_name: fd.get('class_name'),
         teacher_id: fd.get('teacher_id'), academic_year: '2025-26'
       }, 'class_add');
+      render();
+    };
+    var fep = document.getElementById('form-enrol-profile');
+    if (fep) fep.onsubmit = function(e) {
+      e.preventDefault();
+      var fd = new FormData(fep);
+      var clOpt = fep.querySelector('[name=class_id] option:checked');
+      var courseId = clOpt && clOpt.getAttribute('data-course');
+      var teacherId = clOpt && clOpt.getAttribute('data-teacher');
+      if (!courseId) { alert('Select a class'); return; }
+      SptStore.createEnrolment(db(), fd.get('pupil_id'), courseId, fd.get('class_id'), teacherId, fd.get('current_level'));
       render();
     };
     var fp = document.getElementById('form-add-pupil');
@@ -710,6 +1988,24 @@
       var teacherId = clOpt && clOpt.getAttribute('data-teacher');
       if (!courseId) { alert('Select a class'); return; }
       SptStore.createEnrolment(db(), fd.get('pupil_id'), courseId, fd.get('class_id'), teacherId, fd.get('current_level'));
+      render();
+    };
+    var fbl = document.getElementById('form-add-baseline');
+    if (fbl) fbl.onsubmit = function(e) {
+      e.preventDefault();
+      var fd = new FormData(fbl);
+      var mark = fd.get('s3_exam_mark');
+      SptStore.upsertBaseline(db(), fd.get('enrolment_id'), {
+        s3_exam_mark: mark ? parseFloat(mark) : null,
+        s3_exam_grade: mark ? SptBaseline.bandFromMark(mark) : '',
+        effort: fd.get('effort') ? parseInt(fd.get('effort'), 10) : null,
+        behaviour: fd.get('behaviour') ? parseInt(fd.get('behaviour'), 10) : null,
+        homelearning: fd.get('homelearning') ? parseInt(fd.get('homelearning'), 10) : null,
+        progress: fd.get('progress') ? parseFloat(fd.get('progress')) : null,
+        cfe_level: fd.get('cfe_level'),
+        notes: fd.get('notes'),
+        locked_at: new Date().toISOString().slice(0, 10)
+      });
       render();
     };
     var fpr = document.getElementById('form-add-prior');
@@ -765,6 +2061,7 @@
   }
 
   function render() {
+    var scrollPos = captureGridScroll();
     var html = '';
     switch (state.route) {
       case 'dashboard': html = renderDashboard(); break;
@@ -780,7 +2077,10 @@
       default: html = renderDashboard();
     }
     document.getElementById('app-main').innerHTML = html;
+    syncLayoutClasses();
+    updateNavToggleUi();
     bindMainEvents(document.getElementById('app-main'));
+    restoreGridScroll(scrollPos);
   }
 
   document.querySelectorAll('.nav-btn').forEach(function(btn) {
@@ -795,32 +2095,71 @@
   document.getElementById('modal-close').addEventListener('click', closeModal);
   document.getElementById('modal-backdrop').addEventListener('click', closeModal);
   document.getElementById('btn-reset-data').addEventListener('click', function() {
-    if (confirm('Reset all development data?')) { SptStore.reset(); render(); updateNavBadge(); }
+    var msg = SptConfig.useSeedData
+      ? 'Reset all development sample data?'
+      : 'Clear all teachers, classes, pupils, and tracking data? Course templates will remain.';
+    if (confirm(msg)) { SptStore.reset(); render(); updateNavBadge(); }
   });
 
   function initRoleControls() {
     var d = db();
     var roleSel = document.getElementById('dev-role');
     var teacherSel = document.getElementById('dev-teacher');
+    var devNote = document.getElementById('dev-banner-note');
+    if (devNote && SptConfig.useSeedData) {
+      devNote.textContent = 'Development preview with sample pupils — add ?dev_seed=1 to URL. Data stored locally in your browser.';
+    }
+    if (!SptConfig.useSeedData) document.body.classList.add('spt-hub-mode');
+    else document.body.classList.add('spt-dev-seed');
     roleSel.value = d.dev_role || 'faculty_head';
-    teacherSel.innerHTML = d.teachers.map(function(t) {
-      return '<option value="' + t.id + '">' + esc(t.first_name + ' ' + t.surname) + '</option>';
-    }).join('');
-    teacherSel.value = d.simulated_teacher_id || 't-anderson';
-    teacherSel.disabled = roleSel.value !== 'class_teacher';
+    var teachers = d.teachers || [];
+    if (!teachers.length) {
+      teacherSel.innerHTML = '<option value="">No teachers yet</option>';
+      teacherSel.disabled = true;
+    } else {
+      teacherSel.innerHTML = teachers.map(function(t) {
+        return '<option value="' + t.id + '">' + esc(t.first_name + ' ' + t.surname) + '</option>';
+      }).join('');
+      teacherSel.value = d.simulated_teacher_id || teachers[0].id;
+      teacherSel.disabled = roleSel.value !== 'class_teacher';
+    }
     roleSel.onchange = function() {
       SptStore.setDevRole(roleSel.value);
-      teacherSel.disabled = roleSel.value !== 'class_teacher';
+      initRoleControls();
       document.getElementById('nav-setup').style.display = SptStore.getRole(db()).canSetup ? '' : 'none';
       render();
       updateNavBadge();
     };
-    teacherSel.onchange = function() { SptStore.setSimulatedTeacher(teacherSel.value); render(); };
+    teacherSel.onchange = function() {
+      if (!teacherSel.value) return;
+      SptStore.setSimulatedTeacher(teacherSel.value);
+      render();
+    };
     document.getElementById('nav-setup').style.display = role().canSetup ? '' : 'none';
   }
 
+  function initHubEmbed() {
+    var params = new URLSearchParams(window.location.search);
+    var isEmbed = params.get('embed') === '1';
+    var fromLanding = params.get('from') === 'landing';
+    if (isEmbed) document.body.classList.add('hub-embed');
+    if (fromLanding) document.body.classList.add('suite-from-landing');
+    if (isEmbed || fromLanding) {
+      var bar = document.getElementById('hub-back-bar');
+      var link = document.getElementById('hub-back-link');
+      if (bar) bar.classList.remove('is-hidden');
+      if (link) {
+        var q = isEmbed ? '?embed=1' : '';
+        link.href = '../../tracking_monitoring_landing.html' + q;
+      }
+    }
+  }
+
   SptStore.ensure();
+  initHubEmbed();
+  initLayoutControls();
   initRoleControls();
+  maybeBootstrapRoute();
   render();
   updateNavBadge();
 })();

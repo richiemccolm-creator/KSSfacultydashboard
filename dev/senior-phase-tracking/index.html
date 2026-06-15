@@ -3,19 +3,51 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Senior Phase Tracking System — Development Preview</title>
+  <title>Senior Phase Tracking — Faculty Hub</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../tracking-suite-theme.css">
   <link rel="stylesheet" href="spt-styles.css">
+  <script src="spt-config.js"></script>
 </head>
-<body>
-  <header class="dev-banner" role="banner">
+<body class="th-suite th-suite--senior">
+  <script>
+    (function() {
+      if (window.SptConfig && !window.SptConfig.useSeedData) {
+        document.body.classList.add('spt-hub-mode');
+      } else {
+        document.body.classList.add('spt-dev-seed');
+      }
+    })();
+  </script>
+  <div class="ts-top-bar ts-top-bar--teal" id="spt-top-bar" aria-hidden="true"></div>
+  <div class="ts-page-bg" aria-hidden="true"></div>
+
+  <header class="spt-hub-chrome is-hidden" id="spt-hub-chrome">
+    <span class="ts-phase-badge ts-phase-badge--senior">Senior Phase</span>
+    <span class="spt-hub-chrome-title">Senior Phase Tracking</span>
+    <span class="spt-hub-chrome-sub">Qualification courses · S4–S6</span>
+  </header>
+
+  <div class="hub-back-bar is-hidden" id="hub-back-bar">
+    <a href="../../tracking_monitoring_landing.html" id="hub-back-link">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+      Tracking home
+    </a>
+  </div>
+  <header class="dev-banner" id="dev-banner" role="banner">
     <div>
-      <strong>Senior Phase Tracking System</strong>
-      <p>Development preview — not connected to live Faculty Hub. Data stored locally in your browser.</p>
+      <strong>Senior Phase Tracking</strong>
+      <p id="dev-banner-note">Start with an empty workbook — add teachers and classes in Setup. Data is stored in your browser until cloud sync is connected.</p>
     </div>
     <div class="dev-banner-controls">
+      <button type="button" class="layout-toggle" id="nav-toggle" aria-pressed="false" title="Toggle navigation (N)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18M15 9l-3 3 3 3"/></svg>
+        <span id="nav-toggle-label">Hide menu</span>
+      </button>
       <label for="dev-role">View as</label>
       <select id="dev-role" aria-label="Simulated role">
         <option value="faculty_head">Faculty Head / Admin</option>
@@ -27,11 +59,15 @@
     </div>
   </header>
 
-  <div class="app-shell">
-    <aside class="sidebar" aria-label="Development navigation">
+  <div class="app-shell" id="app-shell">
+    <button type="button" class="nav-edge-tab" id="nav-edge-open" aria-label="Show navigation" title="Show menu (N)">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>
+    </button>
+    <aside class="sidebar" id="sidebar" aria-label="Development navigation">
       <div class="sidebar-brand">
-        <div class="sidebar-brand-title">Senior Phase</div>
-        <div class="sidebar-brand-sub">Faculty tracking workbook</div>
+        <span class="ts-phase-badge ts-phase-badge--senior" style="margin-bottom:0.5rem">Senior Phase</span>
+        <div class="sidebar-brand-title">Tracking workbook</div>
+        <div class="sidebar-brand-sub">N5 · Higher · AH · NPA</div>
       </div>
       <div class="sidebar-title">Navigate</div>
       <button type="button" class="nav-btn active" data-route="dashboard">
@@ -48,7 +84,7 @@
       </button>
       <button type="button" class="nav-btn" data-route="courses">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19h16M6 17V7M10 17V4M14 17v-6M18 17V9"/></svg>
-        Courses
+        Enter tracking
       </button>
       <button type="button" class="nav-btn" data-route="evidence">
         <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></svg>
@@ -71,7 +107,7 @@
         Reports
       </button>
       <div class="sidebar-footer">
-        <button type="button" class="btn-reset" id="btn-reset-data">Reset development data</button>
+        <button type="button" class="btn-reset" id="btn-reset-data">Clear all data</button>
       </div>
     </aside>
     <main class="main" id="app-main" role="main"></main>
@@ -99,14 +135,24 @@
     <div class="modal-foot" id="modal-foot"></div>
   </div>
 
-  <script src="spt-config.js"></script>
-  <script src="spt-seed.js"></script>
+  <script src="spt-evidence.js"></script>
+  <script src="spt-baseline.js"></script>
+  <script>
+    (function() {
+      if (!window.SptConfig || !window.SptConfig.useSeedData) return;
+      ['spt-seed-roster.js', 'spt-seed.js'].forEach(function(src) {
+        document.write('<script src="' + src + '"><\/script>');
+      });
+    })();
+  </script>
   <script src="spt-risk.js"></script>
   <script src="spt-prelim.js"></script>
   <script src="spt-concerns.js"></script>
+  <script src="spt-level-change.js"></script>
   <script src="spt-store.js"></script>
   <script src="spt-import.js"></script>
   <script src="spt-reports.js"></script>
   <script src="spt-app.js"></script>
+  <div class="ts-bottom-bar ts-bottom-bar--teal" aria-hidden="true"></div>
 </body>
 </html>

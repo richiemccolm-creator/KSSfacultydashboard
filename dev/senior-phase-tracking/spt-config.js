@@ -4,8 +4,18 @@
 (function(global) {
   'use strict';
 
-  var STORAGE_KEY = 'spt-dev-v2';
-  var DATA_VERSION = 3;
+  var useSeedData = (function() {
+    try {
+      return new URLSearchParams(window.location.search).get('dev_seed') === '1';
+    } catch (e) {
+      return false;
+    }
+  })();
+
+  var STORAGE_KEY = useSeedData ? 'spt-dev-v2' : 'spt-hub-v1';
+  var DATA_VERSION = 10;
+
+  var CFE_LEVELS = ['Second', 'Third', 'Fourth'];
 
   var STATUS = {
     risk: ['Green', 'Amber', 'Red'],
@@ -17,7 +27,7 @@
     intervention: ['Planned', 'Active', 'Reviewed', 'Completed', 'Escalated'],
     impact: ['No Impact', 'Some Impact', 'Good Impact', 'Not Yet Known'],
     flag: ['Open', 'Resolved'],
-    pathway: ['Completed', 'Crashed / withdrew', 'Deferred', 'First time', 'No prior entry']
+    pathway: ['Completed previous level', 'Crashing subject', 'Deferred', 'First time in subject', 'No prior entry', 'Not crashing (override)']
   };
 
   var CONCERN_CATEGORIES = [
@@ -31,6 +41,13 @@
     4: 'Good'
   };
 
+  var TRACKING_SCORE_CLASS = {
+    1: 'score-1',
+    2: 'score-2',
+    3: 'score-3',
+    4: 'score-4'
+  };
+
   var BADGE_CLASS = {
     Green: 'badge-green', Amber: 'badge-amber', Red: 'badge-red', Grey: 'badge-grey',
     Open: 'badge-red', Resolved: 'badge-green',
@@ -41,7 +58,11 @@
     Planned: 'badge-grey', Active: 'badge-amber', Reviewed: 'badge-amber', Escalated: 'badge-red',
     'Under Review': 'badge-amber', Recommended: 'badge-amber', Approved: 'badge-green',
     Completed: 'badge-green', 'Not Proceeding': 'badge-grey',
-    'Crashed / withdrew': 'badge-red'
+    'Completed previous level': 'badge-green',
+    'Crashing subject': 'badge-amber',
+    'First time in subject': 'badge-amber',
+    'First time': 'badge-amber',
+    'Not crashing (override)': 'badge-green'
   };
 
   var GRADE_RANK = {
@@ -53,17 +74,17 @@
     faculty_head: {
       id: 'faculty_head', label: 'Faculty Head / Admin',
       canImport: true, canApproveLevelChange: true, viewAll: true, canEdit: true,
-      canSetup: true, canResolveFlags: true, canFlag: true
+      canSetup: true, canEditBaseline: true, canResolveFlags: true, canFlag: true
     },
     class_teacher: {
       id: 'class_teacher', label: 'Class Teacher',
       canImport: false, canApproveLevelChange: false, viewAll: false, canEdit: true,
-      canSetup: false, canResolveFlags: false, canFlag: true
+      canSetup: false, canEditBaseline: false, canResolveFlags: false, canFlag: true
     },
     read_only: {
       id: 'read_only', label: 'Read Only / SLT',
       canImport: false, canApproveLevelChange: false, viewAll: true, canEdit: false,
-      canSetup: false, canResolveFlags: false, canFlag: false
+      canSetup: false, canEditBaseline: false, canResolveFlags: false, canFlag: false
     }
   };
 
@@ -73,6 +94,7 @@
     { slug: 'ah-drama', course_name: 'Advanced Higher Drama', subject_area: 'Drama', scqf_level: 'Level 7', course_type: 'Advanced Higher', has_prelim: false, supports_level_change: false, default_assessment_model: 'ah-drama' },
     { slug: 'n5n4-art', course_name: 'N5/N4 Art', subject_area: 'Art', scqf_level: 'Level 5/4', course_type: 'N5/N4 Combined', has_prelim: true, supports_level_change: true, default_assessment_model: 'n5n4-art' },
     { slug: 'higher-photo', course_name: 'Higher Photography', subject_area: 'Photography', scqf_level: 'Level 6', course_type: 'Higher', has_prelim: true, supports_level_change: false, default_assessment_model: 'higher-photo' },
+    { slug: 'npa-photo', course_name: 'NPA Photography', subject_area: 'Photography', scqf_level: 'Level 4/5', course_type: 'NPA Award', has_prelim: false, supports_level_change: true, default_assessment_model: 'npa-photo', group_award_l4: 'GR4L 44', group_award_l5: 'GR4M 45' },
     { slug: 'ah-art', course_name: 'Advanced Higher Art', subject_area: 'Art', scqf_level: 'Level 7', course_type: 'Advanced Higher', has_prelim: false, supports_level_change: false, default_assessment_model: 'ah-art' },
     { slug: 'l6l5-film', course_name: 'Level 6/5 Film and Screen', subject_area: 'Film and Screen', scqf_level: 'Level 6/5', course_type: 'NPA Combined', has_prelim: false, supports_level_change: true, default_assessment_model: 'l6l5-film' },
     { slug: 'creative-industries', course_name: 'Creative Industries', subject_area: 'Creative Industries', scqf_level: 'Level 5', course_type: 'Skills for Work', has_prelim: false, supports_level_change: false, default_assessment_model: 'creative-industries' }
@@ -80,8 +102,6 @@
 
   var ASSESSMENT_TEMPLATES = {
     'n5n4-drama': [
-      { assessment_name: 'Drama Skills Unit Evidence', assessment_type: 'Unit Evidence', assessment_window: 'Year', is_required: true },
-      { assessment_name: 'Production Skills Unit Evidence', assessment_type: 'Unit Evidence', assessment_window: 'Year', is_required: true },
       { assessment_name: 'Practical Performance / Production Role', assessment_type: 'Performance', assessment_window: 'Year', is_required: true },
       { assessment_name: 'Preparation for Performance', assessment_type: 'Performance', assessment_window: 'Year', is_required: true },
       { assessment_name: 'Question Paper Prelim', assessment_type: 'Prelim', assessment_window: 'January', is_required: true },
@@ -107,7 +127,6 @@
       { assessment_name: 'Expressive Folio Progress', assessment_type: 'Folio', assessment_window: 'Year', is_required: true },
       { assessment_name: 'Design Folio Progress', assessment_type: 'Folio', assessment_window: 'Year', is_required: true },
       { assessment_name: 'Written Paper Prelim', assessment_type: 'Prelim', assessment_window: 'January', is_required: true },
-      { assessment_name: 'Unit Evidence Banked', assessment_type: 'Unit Evidence', assessment_window: 'Year', is_required: true },
       { assessment_name: 'Final Folio Progress', assessment_type: 'Folio', assessment_window: 'Spring', is_required: true },
       { assessment_name: 'Final Estimate', assessment_type: 'Portfolio', assessment_window: 'Final', is_required: true }
     ],
@@ -120,6 +139,7 @@
       { assessment_name: 'Evaluation', assessment_type: 'Evaluation', assessment_window: 'Spring', is_required: true },
       { assessment_name: 'Final Estimate', assessment_type: 'Portfolio', assessment_window: 'Final', is_required: true }
     ],
+    'npa-photo': [],
     'ah-art': [
       { assessment_name: 'Expressive or Design Portfolio Progress', assessment_type: 'Portfolio', assessment_window: 'Year', is_required: true },
       { assessment_name: 'Research and Investigation', assessment_type: 'Research', assessment_window: 'Year', is_required: true },
@@ -129,23 +149,8 @@
       { assessment_name: 'Final Estimate', assessment_type: 'Portfolio', assessment_window: 'Final', is_required: true },
       { assessment_name: 'Overall Award Risk', assessment_type: 'Portfolio', assessment_window: 'Final', is_required: true }
     ],
-    'l6l5-film': [
-      { assessment_name: 'Unit 1 Evidence', assessment_type: 'Unit Evidence', assessment_window: 'Year', is_required: true },
-      { assessment_name: 'Unit 2 Evidence', assessment_type: 'Unit Evidence', assessment_window: 'Year', is_required: true },
-      { assessment_name: 'Planning Evidence', assessment_type: 'Unit Evidence', assessment_window: 'Year', is_required: true },
-      { assessment_name: 'Practical Production Evidence', assessment_type: 'Production', assessment_window: 'Year', is_required: true },
-      { assessment_name: 'Editing / Post-Production Evidence', assessment_type: 'Production', assessment_window: 'Year', is_required: true },
-      { assessment_name: 'Evaluation Evidence', assessment_type: 'Evaluation', assessment_window: 'Year', is_required: true },
-      { assessment_name: 'Final Award Risk', assessment_type: 'Portfolio', assessment_window: 'Final', is_required: true }
-    ],
-    'creative-industries': [
-      { assessment_name: 'Unit Evidence', assessment_type: 'Unit Evidence', assessment_window: 'Year', is_required: true },
-      { assessment_name: 'Skills Development', assessment_type: 'Unit Evidence', assessment_window: 'Year', is_required: true },
-      { assessment_name: 'Creative Project Progress', assessment_type: 'Project', assessment_window: 'Year', is_required: true },
-      { assessment_name: 'Planning Evidence', assessment_type: 'Unit Evidence', assessment_window: 'Year', is_required: true },
-      { assessment_name: 'Evaluation Evidence', assessment_type: 'Evaluation', assessment_window: 'Year', is_required: true },
-      { assessment_name: 'Final Award Risk', assessment_type: 'Portfolio', assessment_window: 'Final', is_required: true }
-    ]
+    'l6l5-film': [],
+    'creative-industries': []
   };
 
   /**
@@ -190,17 +195,37 @@
     return 'F';
   }
 
+  var SUBJECT_TILE_CLASS = {
+    'Drama': 'drama',
+    'Art': 'art',
+    'Photography': 'photo',
+    'Film and Screen': 'film',
+    'Creative Industries': 'creative'
+  };
+
+  var SUBJECT_ORDER = ['Drama', 'Art', 'Photography', 'Film and Screen', 'Creative Industries'];
+
+  function subjectTileClass(subjectArea) {
+    return SUBJECT_TILE_CLASS[subjectArea] || 'default';
+  }
+
   global.SptConfig = {
     STORAGE_KEY: STORAGE_KEY,
     DATA_VERSION: DATA_VERSION,
+    useSeedData: useSeedData,
+    isHubMode: function() { return !useSeedData; },
     STATUS: STATUS,
     CONCERN_CATEGORIES: CONCERN_CATEGORIES,
     ATTENDANCE_LABELS: ATTENDANCE_LABELS,
+    TRACKING_SCORE_CLASS: TRACKING_SCORE_CLASS,
     BADGE_CLASS: BADGE_CLASS,
     GRADE_RANK: GRADE_RANK,
     gradeRank: gradeRank,
     percentageToGrade: percentageToGrade,
+    subjectTileClass: subjectTileClass,
+    SUBJECT_ORDER: SUBJECT_ORDER,
     ROLES: ROLES,
+    CFE_LEVELS: CFE_LEVELS,
     COURSE_DEFS: COURSE_DEFS,
     ASSESSMENT_TEMPLATES: ASSESSMENT_TEMPLATES,
     PRELIM_COMPONENT_TEMPLATES: PRELIM_COMPONENT_TEMPLATES,

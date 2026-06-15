@@ -10,7 +10,7 @@
 const NAV = [
   { group: "Dashboards", items: [
     { id:"overview",   label:"Overview",              href:"faculty-hub.html",                icon:"home" },
-    { id:"tracking",   label:"Tracking & Monitoring", href:"tracking_monitoring_hub.html",    icon:"chart" },
+    { id:"tracking",   label:"Tracking & Monitoring", href:"tracking_monitoring_landing.html", icon:"chart" },
   ]},
   { group: "Trackers", items: [
     { id:"art",        label:"Art Tracker",   href:"art-tracker.html",   icon:"palette", accent:"art" },

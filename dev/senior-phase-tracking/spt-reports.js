@@ -55,13 +55,17 @@
 
   function missingEvidence(db) {
     return (db.evidence_bank || []).filter(function(ev) {
-      return ev.evidence_status === 'Missing' || ev.evidence_status === 'Not Started' || ev.evidence_status === 'Needs Rework';
+      if (ev.evidence_status !== 'Missing' && ev.evidence_status !== 'Not Started' && ev.evidence_status !== 'Needs Rework') return false;
+      var en = global.SptStore.byId(db.enrolments, ev.enrolment_id);
+      if (!en) return false;
+      var course = global.SptStore.byId(db.courses, en.course_id);
+      return global.SptEvidence && global.SptEvidence.usesEvidenceBank(course, en);
     }).map(function(ev) {
       var en = global.SptStore.byId(db.enrolments, ev.enrolment_id);
       return {
         pupil: global.SptStore.pupilName(db, en.pupil_id),
         course: global.SptStore.courseName(db, en.course_id),
-        unit_component: ev.unit_or_component,
+        unit_component: (ev.unit_code ? ev.unit_code + ' — ' : '') + ev.unit_or_component,
         teacher: global.SptStore.teacherName(db, en.teacher_id),
         evidence_status: ev.evidence_status,
         notes: ev.notes

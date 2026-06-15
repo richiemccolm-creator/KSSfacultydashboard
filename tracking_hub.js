@@ -1270,6 +1270,15 @@
       if (params.get('embed') === '1' || params.get('embed') === 'true') {
         document.body.classList.add('is-embedded');
       }
+      if (params.get('from') === 'landing' || params.get('embed') === '1') {
+        var back = $('th-hub-back');
+        var link = $('th-hub-back-link');
+        if (back) back.classList.remove('is-hidden');
+        if (link) {
+          var q = params.get('embed') === '1' ? '?embed=1' : '';
+          link.href = 'tracking_monitoring_landing.html' + q;
+        }
+      }
     } catch (e) { /* ignore */ }
 
     bindEvents();
