@@ -13,12 +13,14 @@
     reportId: null,
     filters: {},
     setupTeacherId: null,
+    setupClassId: null,
     hubStaff: [],
     hubStaffStatus: 'idle',
     hubStaffError: null,
     hubStaffDiagnostics: null,
     currentHubUser: null,
     hubStaffMessage: null,
+    setupMessage: null,
     importStep: 1,
     importSource: null,
     importPreview: null,
@@ -904,6 +906,229 @@
     });
   }
 
+  function parsePupilLine(raw) {
+    var line = String(raw || '').trim();
+    if (!line || line.charAt(0) === '#') return null;
+    var year = '';
+    var scn = '';
+    var namePart = line;
+    var yearMatch = namePart.match(/\b(S[456])\b/i);
+    if (yearMatch) {
+      year = yearMatch[1].toUpperCase();
+      namePart = namePart.replace(/\bS[456]\b/i, '').trim();
+    }
+    var scnMatch = namePart.match(/\b(\d{6,9})\b/);
+    if (scnMatch) {
+      scn = scnMatch[1];
+      namePart = namePart.replace(scn, '').trim();
+    }
+    if (namePart.indexOf('\t') >= 0) {
+      var cols = namePart.split('\t').map(function(c) { return c.trim(); }).filter(Boolean);
+      if (cols.length >= 2 && /^\d+$/.test(cols[cols.length - 1])) {
+        scn = scn || cols.pop();
+        namePart = cols.join(' ');
+      }
+    }
+    var first = '';
+    var surname = '';
+    if (namePart.indexOf(',') >= 0) {
+      var commaParts = namePart.split(',');
+      surname = commaParts[0].trim();
+      first = commaParts.slice(1).join(',').trim();
+    } else {
+      var bits = namePart.split(/\s+/).filter(Boolean);
+      if (!bits.length) return null;
+      if (bits.length === 1) {
+        first = bits[0];
+        surname = '';
+      } else {
+        first = bits[0];
+        surname = bits.slice(1).join(' ');
+      }
+    }
+    if (!first && !surname) return null;
+    return {
+      first_name: first || 'Pupil',
+      surname: surname || '',
+      year_group: year || 'S5',
+      candidate_number: scn
+    };
+  }
+
+  function parsePupilLines(text) {
+    return String(text || '').split(/\r?\n/).map(parsePupilLine).filter(Boolean);
+  }
+
+  function findOrCreatePupil(d, parsed) {
+    var existing = null;
+    if (parsed.candidate_number) {
+      existing = (d.pupils || []).find(function(p) { return p.candidate_number === parsed.candidate_number; });
+    }
+    if (!existing) {
+      var fn = parsed.first_name.toLowerCase();
+      var sn = parsed.surname.toLowerCase();
+      existing = (d.pupils || []).find(function(p) {
+        return p.first_name.toLowerCase() === fn && p.surname.toLowerCase() === sn;
+      });
+    }
+    if (existing) return existing;
+    return SptStore.createPupil(d, parsed);
+  }
+
+  function bulkEnrolPupilsInClass(classId, level, parsedRows) {
+    var d = db();
+    var cl = SptStore.byId(d.classes, classId);
+    if (!cl) return { error: 'Class not found', enrolled: 0, created: 0, skipped: 0 };
+    if (!parsedRows.length) return { error: 'No names found — paste one pupil per line.', enrolled: 0, created: 0, skipped: 0 };
+    var enrolled = 0;
+    var created = 0;
+    var skipped = 0;
+    var errors = [];
+    parsedRows.forEach(function(parsed, i) {
+      var beforeCount = (d.pupils || []).length;
+      var pupil = findOrCreatePupil(d, parsed);
+      if ((d.pupils || []).length > beforeCount) created++;
+      var result = SptStore.addPupilToCourse(d, {
+        pupilId: pupil.id,
+        courseId: cl.course_id,
+        classId: cl.id,
+        teacherId: cl.teacher_id,
+        level: level
+      });
+      if (result.error) {
+        if (result.error === 'Pupil is already on this course') skipped++;
+        else errors.push((parsed.first_name + ' ' + parsed.surname).trim() + ': ' + result.error);
+      } else {
+        enrolled++;
+      }
+    });
+    return { enrolled: enrolled, created: created, skipped: skipped, errors: errors };
+  }
+
+  function copyClassRoster(fromClassId, toClassId, level) {
+    var d = db();
+    if (!fromClassId || !toClassId) return { error: 'Select both classes.', copied: 0, skipped: 0 };
+    if (fromClassId === toClassId) return { error: 'Choose a different target class.', copied: 0, skipped: 0 };
+    var toCl = SptStore.byId(d.classes, toClassId);
+    if (!toCl) return { error: 'Target class not found.', copied: 0, skipped: 0 };
+    var source = (d.enrolments || []).filter(function(e) {
+      return e.class_id === fromClassId && e.active_status !== false;
+    });
+    if (!source.length) return { error: 'Source class has no pupils to copy.', copied: 0, skipped: 0 };
+    var copied = 0;
+    var skipped = 0;
+    source.forEach(function(en) {
+      var pupil = SptStore.byId(d.pupils, en.pupil_id);
+      if (!pupil) return;
+      var result = SptStore.addPupilToCourse(d, {
+        pupilId: pupil.id,
+        courseId: toCl.course_id,
+        classId: toCl.id,
+        teacherId: toCl.teacher_id,
+        level: level || en.current_level
+      });
+      if (result.error) {
+        if (result.error === 'Pupil is already on this course') skipped++;
+      } else {
+        copied++;
+      }
+    });
+    return { copied: copied, skipped: skipped, errors: [] };
+  }
+
+  function levelOptionsHtml(selected) {
+    var levels = ['National 5', 'National 4', 'National 3', 'Higher', 'Advanced Higher', 'Level 6', 'Level 5'];
+    return levels.map(function(l) {
+      return '<option' + (selected === l ? ' selected' : '') + '>' + l + '</option>';
+    }).join('');
+  }
+
+  function defaultLevelForClass(d, cl) {
+    if (!cl) return 'Higher';
+    var course = SptStore.byId(d.courses, cl.course_id);
+    return course ? SptStore.defaultLevelForCourse(course) : 'Higher';
+  }
+
+  function enrolmentsForClass(d, classId) {
+    return (d.enrolments || []).filter(function(e) {
+      return e.class_id === classId && e.active_status !== false;
+    });
+  }
+
+  function renderClassEnrolPanel(d, activeClass) {
+    var classId = activeClass.id;
+    var levelDefault = defaultLevelForClass(d, activeClass);
+    var roster = enrolmentsForClass(d, classId);
+    var html = '<div class="setup-enrol-block setup-class-focus" id="setup-class-panel">' +
+      '<div class="setup-class-focus-head">' +
+      '<h3>Class roster — ' + esc(activeClass.class_name) + '</h3>' +
+      '<p class="sheet-hint">' + esc(SptStore.courseName(d, activeClass.course_id)) + ' · ' +
+      roster.length + ' pupil' + (roster.length !== 1 ? 's' : '') + ' enrolled</p>' +
+      '<button type="button" class="btn btn-secondary btn-sm" data-setup-class-clear>Choose a different class</button>' +
+      '</div>';
+    if (state.setupMessage) {
+      html += '<p class="hub-staff-status">' + esc(state.setupMessage) + '</p>';
+    }
+    if (roster.length) {
+      html += '<div class="setup-class-roster"><table class="data-table"><thead><tr>' +
+        '<th class="col-pupil">Pupil</th><th>Year</th><th>Level</th></tr></thead><tbody>' +
+        roster.map(function(en) {
+          var p = SptStore.byId(d.pupils, en.pupil_id);
+          return '<tr><td class="col-pupil">' + esc(p ? SptStore.pupilName(d, p.id) : '—') + '</td>' +
+            '<td>' + esc(p ? p.year_group : '—') + '</td>' +
+            '<td>' + esc(en.current_level || '—') + '</td></tr>';
+        }).join('') +
+        '</tbody></table></div>';
+    } else {
+      html += '<p class="sheet-hint">No pupils yet — add one below or paste a list.</p>';
+    }
+
+    html += '<form id="form-enrol-profile" class="form-grid setup-enrol-form">' +
+      '<input type="hidden" name="class_id" value="' + esc(classId) + '">' +
+      '<div><label>Pupil</label><select name="pupil_id">' +
+      ((d.pupils || []).length
+        ? (d.pupils || []).map(function(p) {
+          return '<option value="' + p.id + '">' + esc(SptStore.pupilName(d, p.id) + ' (' + p.year_group + ')') + '</option>';
+        }).join('')
+        : '<option value="">— Paste names below first —</option>') +
+      '</select></div>' +
+      '<div><label>Current level</label><select name="current_level">' + levelOptionsHtml(levelDefault) + '</select></div>' +
+      '<div class="form-span"><button type="submit" class="btn btn-sm">Add one pupil to this class</button></div></form>' +
+
+      '<div class="setup-bulk-panel">' +
+      '<h4>Paste multiple names</h4>' +
+      '<p class="sheet-hint">One pupil per line — e.g. <code>Jamie Smith</code>, <code>Smith, Jamie</code>, <code>Alex Brown S5</code>.</p>' +
+      '<form id="form-bulk-enrol-profile" class="form-grid">' +
+      '<input type="hidden" name="class_id" value="' + esc(classId) + '">' +
+      '<div class="form-span"><label>Pupil names</label>' +
+      '<textarea name="pupil_lines" rows="8" placeholder="Jamie Smith&#10;Alex Brown S5&#10;Taylor Reid, Sam"></textarea></div>' +
+      '<div><label>Current level</label><select name="current_level">' + levelOptionsHtml(levelDefault) + '</select></div>' +
+      '<div class="form-span"><button type="submit" class="btn btn-sm">Add pasted pupils to this class</button></div></form></div>';
+
+    if ((d.classes || []).some(function(cl) {
+      return cl.id !== classId && SptStore.enrolmentCountForClass(d, cl.id) > 0;
+    })) {
+      html += '<div class="setup-bulk-panel">' +
+        '<h4>Copy roster from another class</h4>' +
+        '<p class="sheet-hint">Copy pupils from another class into <strong>' + esc(activeClass.class_name) + '</strong>.</p>' +
+        '<form id="form-copy-roster" class="form-grid">' +
+        '<input type="hidden" name="to_class_id" value="' + esc(classId) + '">' +
+        '<div><label>Copy from</label><select name="from_class_id">' +
+        (d.classes || []).filter(function(cl) {
+          return cl.id !== classId && SptStore.enrolmentCountForClass(d, cl.id) > 0;
+        }).map(function(cl) {
+          var teacher = SptStore.teacherName(d, cl.teacher_id);
+          return '<option value="' + cl.id + '">' + esc(cl.class_name + ' · ' + SptStore.courseName(d, cl.course_id) +
+            ' (' + SptStore.enrolmentCountForClass(d, cl.id) + ' pupils) · ' + teacher) + '</option>';
+        }).join('') + '</select></div>' +
+        '<div><label>Current level</label><select name="current_level">' + levelOptionsHtml(levelDefault) + '</select></div>' +
+        '<div class="form-span"><button type="submit" class="btn btn-sm btn-secondary">Copy pupils into this class</button></div></form></div>';
+    }
+
+    html += '</div>';
+    return html;
+  }
+
   function renderTeacherProfileSetup(d) {
     var teachers = d.teachers || [];
     if (!state.setupTeacherId && teachers.length) state.setupTeacherId = teachers[0].id;
@@ -911,6 +1136,12 @@
     var teacherClasses = selected
       ? (d.classes || []).filter(function(cl) { return cl.teacher_id === selected.id; })
       : [];
+    var activeClass = null;
+    if (state.setupClassId && selected) {
+      var candidate = SptStore.byId(d.classes, state.setupClassId);
+      if (candidate && candidate.teacher_id === selected.id) activeClass = candidate;
+      else state.setupClassId = null;
+    }
     var html = '<div class="card"><div class="card-head"><h2>Teacher classes</h2></div><div class="card-body">' +
       '<p class="sheet-hint">Select a teacher, create their senior phase classes, and enrol pupils. ' +
       'Use <strong>Set up my classes</strong> if you teach senior phase yourself.</p>' +
@@ -952,31 +1183,29 @@
     if (!teacherClasses.length) {
       html += '<div class="empty">No classes yet — add one above.</div>';
     } else {
-      html += '<table class="data-table"><thead><tr>' +
+      html += '<p class="sheet-hint">Click <strong>Add pupils</strong> on a class to update its roster — add one pupil or paste many names at once.</p>' +
+        '<table class="data-table setup-class-table"><thead><tr>' +
         '<th>Class</th><th>Course</th><th>Pupils</th><th></th></tr></thead><tbody>' +
         teacherClasses.map(function(cl) {
           var count = SptStore.enrolmentCountForClass(d, cl.id);
-          return '<tr><td>' + esc(cl.class_name) + '</td><td>' + esc(SptStore.courseName(d, cl.course_id)) + '</td>' +
+          var isActive = activeClass && activeClass.id === cl.id;
+          return '<tr class="setup-class-row' + (isActive ? ' is-selected' : '') + '">' +
+            '<td>' + esc(cl.class_name) + '</td>' +
+            '<td>' + esc(SptStore.courseName(d, cl.course_id)) + '</td>' +
             '<td>' + count + '</td>' +
-            '<td><button type="button" class="btn btn-sm btn-secondary" data-open-class-sheet="' +
+            '<td class="setup-class-actions">' +
+            '<button type="button" class="btn btn-sm' + (isActive ? '' : ' btn-secondary') + '" data-setup-class="' +
+            esc(cl.id) + '">' + (isActive ? 'Managing' : 'Add pupils') + '</button> ' +
+            '<button type="button" class="btn btn-sm btn-secondary" data-open-class-sheet="' +
             esc(cl.course_id) + '|' + esc(cl.id) + '">Open sheet</button></td></tr>';
         }).join('') +
         '</tbody></table>';
 
-      html += '<div class="setup-enrol-block">' +
-        '<h3>Enrol pupil on this teacher\'s class</h3>' +
-        '<form id="form-enrol-profile" class="form-grid">' +
-        '<div><label>Pupil</label><select name="pupil_id">' + d.pupils.map(function(p) {
-          return '<option value="' + p.id + '">' + esc(SptStore.pupilName(d, p.id) + ' (' + p.year_group + ')') + '</option>';
-        }).join('') + '</select></div>' +
-        '<div><label>Class</label><select name="class_id">' + teacherClasses.map(function(cl) {
-          return '<option value="' + cl.id + '" data-course="' + cl.course_id + '" data-teacher="' + cl.teacher_id + '">' +
-            esc(cl.class_name + ' — ' + SptStore.courseName(d, cl.course_id)) + '</option>';
-        }).join('') + '</select></div>' +
-        '<div><label>Current level</label><select name="current_level">' +
-        '<option>National 5</option><option>National 4</option><option>National 3</option>' +
-        '<option>Higher</option><option>Advanced Higher</option><option>Level 6</option><option>Level 5</option></select></div>' +
-        '<div class="form-span"><button type="submit" class="btn btn-sm">Enrol pupil</button></div></form></div>';
+      if (activeClass) {
+        html += renderClassEnrolPanel(d, activeClass);
+      } else {
+        html += '<div class="setup-class-pick-hint empty">Select a class above to add or update pupils.</div>';
+      }
     }
 
     html += '</div></div>';
@@ -2169,6 +2398,24 @@
     root.querySelectorAll('[data-setup-teacher]').forEach(function(el) {
       el.addEventListener('change', function() {
         state.setupTeacherId = el.value || null;
+        state.setupClassId = null;
+        state.setupMessage = null;
+        render();
+      });
+    });
+    root.querySelectorAll('[data-setup-class]').forEach(function(el) {
+      el.addEventListener('click', function() {
+        state.setupClassId = el.getAttribute('data-setup-class');
+        state.setupMessage = null;
+        render();
+        var panel = document.getElementById('setup-class-panel');
+        if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
+    root.querySelectorAll('[data-setup-class-clear]').forEach(function(el) {
+      el.addEventListener('click', function() {
+        state.setupClassId = null;
+        state.setupMessage = null;
         render();
       });
     });
@@ -2210,21 +2457,60 @@
     if (fc) fc.onsubmit = function(e) {
       e.preventDefault();
       var fd = new FormData(fc);
+      var className = String(fd.get('class_name') || '').trim();
+      var teacherId = fd.get('teacher_id');
       SptStore.insertRecord(db(), 'classes', {
-        course_id: fd.get('course_id'), class_name: fd.get('class_name'),
-        teacher_id: fd.get('teacher_id'), academic_year: '2025-26'
+        course_id: fd.get('course_id'), class_name: className,
+        teacher_id: teacherId, academic_year: '2025-26'
       }, 'class_add');
+      var newCl = (db().classes || []).find(function(c) {
+        return c.teacher_id === teacherId && c.class_name === className;
+      });
+      if (newCl) {
+        state.setupClassId = newCl.id;
+        state.setupMessage = 'Class created — add pupils below.';
+      }
       render();
     };
     var fep = document.getElementById('form-enrol-profile');
     if (fep) fep.onsubmit = function(e) {
       e.preventDefault();
       var fd = new FormData(fep);
-      var clOpt = fep.querySelector('[name=class_id] option:checked');
-      var courseId = clOpt && clOpt.getAttribute('data-course');
-      var teacherId = clOpt && clOpt.getAttribute('data-teacher');
-      if (!courseId) { alert('Select a class'); return; }
-      SptStore.createEnrolment(db(), fd.get('pupil_id'), courseId, fd.get('class_id'), teacherId, fd.get('current_level'));
+      var classId = fd.get('class_id');
+      var cl = SptStore.byId(db().classes, classId);
+      if (!cl) { alert('Class not found'); return; }
+      if (!fd.get('pupil_id')) { state.setupMessage = 'Add pupils via paste below, or add pupils on the Pupils tab first.'; render(); return; }
+      SptStore.createEnrolment(db(), fd.get('pupil_id'), cl.course_id, classId, cl.teacher_id, fd.get('current_level'));
+      state.setupMessage = 'Added pupil to ' + cl.class_name + '.';
+      render();
+    };
+    var fbep = document.getElementById('form-bulk-enrol-profile');
+    if (fbep) fbep.onsubmit = function(e) {
+      e.preventDefault();
+      var fd = new FormData(fbep);
+      var parsed = parsePupilLines(fd.get('pupil_lines'));
+      var result = bulkEnrolPupilsInClass(fd.get('class_id'), fd.get('current_level'), parsed);
+      if (result.error && !result.enrolled) {
+        state.setupMessage = result.error;
+      } else {
+        state.setupMessage = 'Added ' + result.enrolled + ' pupil' + (result.enrolled !== 1 ? 's' : '') +
+          (result.created ? ' (' + result.created + ' new)' : '') +
+          (result.skipped ? ', ' + result.skipped + ' already on course' : '') + '.';
+        if (result.errors.length) state.setupMessage += ' Issues: ' + result.errors.slice(0, 2).join('; ');
+      }
+      render();
+    };
+    var fcr = document.getElementById('form-copy-roster');
+    if (fcr) fcr.onsubmit = function(e) {
+      e.preventDefault();
+      var fd = new FormData(fcr);
+      var result = copyClassRoster(fd.get('from_class_id'), fd.get('to_class_id'), fd.get('current_level'));
+      if (result.error && !result.copied) {
+        state.setupMessage = result.error;
+      } else {
+        state.setupMessage = 'Copied ' + result.copied + ' pupil' + (result.copied !== 1 ? 's' : '') +
+          (result.skipped ? ' (' + result.skipped + ' already on target course)' : '') + '.';
+      }
       render();
     };
     var fp = document.getElementById('form-add-pupil');
