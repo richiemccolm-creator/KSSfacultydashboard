@@ -1552,7 +1552,7 @@ a.subject-card-link{text-decoration:none;cursor:pointer}
 .home-super-ann-icon .ti{font-family:"tabler-icons" !important;line-height:1}
 .home-super-ann--high .home-super-ann-icon{background:rgba(185,28,28,.12);color:#b91c1c}
 .home-super-ann--default .home-super-ann-icon{background:rgba(180,83,9,.12);color:#b45309}
-.home-super-ann-body{flex:1;min-width:0}
+.home-super-ann-body{flex:1;min-width:0;padding-right:clamp(72px,18vw,110px)}
 .home-super-ann-eyebrow{
   display:flex;align-items:center;gap:6px;flex-wrap:wrap;
   font-size:9px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;margin-bottom:5px;
@@ -1562,6 +1562,42 @@ a.subject-card-link{text-decoration:none;cursor:pointer}
 .home-super-ann-title{font-size:14px;font-weight:600;line-height:1.35;margin-bottom:4px;color:#0b1220}
 .home-super-ann-text{font-size:11px;line-height:1.5;color:#475569;white-space:pre-wrap}
 .home-super-ann-meta{font-size:9px;color:#94a3b8;margin-top:6px}
+.home-ann-update-pill{
+  position:absolute;top:10px;right:12px;z-index:1;
+  display:inline-flex;align-items:center;gap:4px;
+  padding:3px 8px;border-radius:99px;
+  font-size:9px;font-weight:600;letter-spacing:.02em;line-height:1;
+  white-space:nowrap;
+}
+.home-super-ann--high .home-ann-update-pill{background:rgba(185,28,28,.14);color:#b91c1c}
+.home-super-ann--default .home-ann-update-pill{background:rgba(180,83,9,.14);color:#b45309}
+.home-ann-update-pill--new{background:#fee2e2 !important;color:#b91c1c !important}
+.home-super-ann--attention{animation:homeAnnAttentionPulse 4s ease-in-out infinite}
+.home-super-ann--high.home-super-ann--attention{animation-name:homeAnnAttentionPulseHigh}
+@keyframes homeAnnAttentionPulse{
+  0%,100%{box-shadow:0 0 0 0 transparent}
+  50%{box-shadow:0 2px 12px rgba(180,83,9,.14),0 0 0 1px rgba(180,83,9,.1)}
+}
+@keyframes homeAnnAttentionPulseHigh{
+  0%,100%{box-shadow:0 0 0 0 transparent}
+  50%{box-shadow:0 2px 12px rgba(185,28,28,.14),0 0 0 1px rgba(185,28,28,.1)}
+}
+.home-ann-card{position:relative;transition:box-shadow .3s ease}
+.home-ann-card--attention{animation:homeAnnCardPulse 5s ease-in-out infinite}
+@keyframes homeAnnCardPulse{
+  0%,100%{box-shadow:0 0 0 0 transparent}
+  50%{box-shadow:0 2px 10px rgba(47,100,191,.08),inset 3px 0 0 rgba(47,100,191,.35)}
+}
+.home-ann-head-pill{
+  display:inline-flex;align-items:center;gap:3px;
+  padding:2px 7px;border-radius:99px;
+  font-size:9px;font-weight:600;line-height:1.2;
+  background:#eff6ff;color:#2f64bf;
+}
+.home-ann-head-pill--new{background:#fee2e2;color:#b91c1c}
+@media(prefers-reduced-motion:reduce){
+  .home-super-ann--attention,.home-ann-card--attention{animation:none}
+}
 @media(max-width:1100px){
   .home-core-grid{grid-template-columns:1fr 1fr !important}
   .home-core-grid > div:first-child{grid-column:1 / -1}
@@ -2638,13 +2674,16 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
             <section id="homeSuperAnnouncement" class="home-super-ann" hidden aria-live="polite"></section>
 
             <section class="home-top-priority" style="display:grid;grid-template-columns:1.4fr 1fr;gap:10px;margin-bottom:14px;">
-              <div style="background:#fff;border:.5px solid #e2e8f0;border-radius:10px;overflow:hidden;">
+              <div id="homeAnnouncementsCard" class="home-ann-card" style="background:#fff;border:.5px solid #e2e8f0;border-radius:10px;overflow:hidden;">
                 <div style="display:flex;justify-content:space-between;align-items:center;padding:11px 14px;border-bottom:.5px solid #e2e8f0;">
                   <div style="display:flex;align-items:center;gap:8px;">
                     <i class="ti ti-speakerphone" style="font-size:14px;color:#475569;"></i>
                     <span style="font-size:12px;font-weight:500;">Announcements</span>
                   </div>
-                  <a href="#" onclick="event.preventDefault();showPanel('home-announcements-all');return false;" style="font-size:10px;color:#2f64bf;text-decoration:none;display:inline-flex;align-items:center;gap:3px;">View all <i class="ti ti-arrow-right" style="font-size:11px;"></i></a>
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <span id="homeAnnouncementsUpdatePill" class="home-ann-head-pill" hidden></span>
+                    <a href="#" onclick="event.preventDefault();showPanel('home-announcements-all');return false;" style="font-size:10px;color:#2f64bf;text-decoration:none;display:inline-flex;align-items:center;gap:3px;">View all <i class="ti ti-arrow-right" style="font-size:11px;"></i></a>
+                  </div>
                 </div>
                 <div id="homeAnnouncements"></div>
               </div>
@@ -10043,6 +10082,31 @@ function homeAnnouncementStatus(a, today){
   if(priority==='low') return 'Reminder';
   return 'Update';
 }
+function homeAnnouncementDateIso(a){
+  return String((a&&a.updated_at)||(a&&a.created_at)||'').slice(0,10);
+}
+function homeIsRecentAnnouncement(a, today, withinDays){
+  withinDays=typeof withinDays==='number'?withinDays:7;
+  var d=homeAnnouncementDateIso(a);
+  if(!d||!today) return false;
+  var t0=new Date(today+'T00:00:00');
+  var t1=new Date(d+'T00:00:00');
+  if(Number.isNaN(t0.getTime())||Number.isNaN(t1.getTime())) return false;
+  var diff=Math.round((t0.getTime()-t1.getTime())/86400000);
+  return diff>=0&&diff<=withinDays;
+}
+function homeAnnouncementUpdatePillText(a, today){
+  var d=homeAnnouncementDateIso(a);
+  if(!d) return 'Recently updated';
+  if(d===today) return 'New today';
+  var t0=new Date(today+'T00:00:00');
+  var t1=new Date(d+'T00:00:00');
+  if(Number.isNaN(t0.getTime())||Number.isNaN(t1.getTime())) return 'Updated '+homeFormatDateHuman(d);
+  var diff=Math.round((t0.getTime()-t1.getTime())/86400000);
+  if(diff===1) return 'Updated yesterday';
+  if(diff>1&&diff<=7) return 'Updated '+diff+' days ago';
+  return 'Updated '+homeFormatDateHuman(d);
+}
 function homeExtractTrackingClasses(dataBlob, subjectLabel){
   var out=[];
   var data=(dataBlob&&typeof dataBlob==='object')?dataBlob:{};
@@ -10127,7 +10191,9 @@ function homeSortAnnouncements(list){
     var aHigh=String(a&&a.priority||'none').toLowerCase()==='high'?1:0;
     var bHigh=String(b&&b.priority||'none').toLowerCase()==='high'?1:0;
     if(aHigh!==bHigh) return bHigh-aHigh;
-    return String(b&&b.created_at||'').localeCompare(String(a&&a.created_at||''));
+    var aDate=String((a&&a.updated_at)||(a&&a.created_at)||'');
+    var bDate=String((b&&b.updated_at)||(b&&b.created_at)||'');
+    return bDate.localeCompare(aDate);
   });
 }
 function homeFindFeaturedAnnouncement(list){
@@ -10154,9 +10220,13 @@ function homeRenderSuperAnnouncement(announcements, today){
   var metaParts=[];
   if(featured.created_at) metaParts.push('Posted '+homeFormatDateHuman(String(featured.created_at).slice(0,10)));
   if(featured.expires_at) metaParts.push('Expires '+homeFormatDateHuman(String(featured.expires_at).slice(0,10)));
+  var pillText=homeAnnouncementUpdatePillText(featured, today);
+  var isNewToday=homeAnnouncementDateIso(featured)===today;
+  var isRecent=homeIsRecentAnnouncement(featured, today);
   el.hidden=false;
-  el.className='home-super-ann '+toneClass;
+  el.className='home-super-ann '+toneClass+(isRecent?' home-super-ann--attention':'');
   el.innerHTML=
+    '<span class="home-ann-update-pill'+(isNewToday?' home-ann-update-pill--new':'')+'"><i class="ti ti-bell" style="font-size:10px;"></i>'+homeEsc(pillText)+'</span>'+
     '<div class="home-super-ann-icon" aria-hidden="true"><i class="ti '+icon+'"></i></div>'+
     '<div class="home-super-ann-body">'+
       '<div class="home-super-ann-eyebrow"><span>Important announcement</span></div>'+
@@ -10164,6 +10234,26 @@ function homeRenderSuperAnnouncement(announcements, today){
       (bodyText?'<div class="home-super-ann-text">'+homeEsc(bodyText)+'</div>':'')+
       (metaParts.length?'<div class="home-super-ann-meta">'+homeEsc(metaParts.join(' · '))+'</div>':'')+
     '</div>';
+}
+function homeUpdateAnnouncementsCardChrome(announcements, today){
+  var card=document.getElementById('homeAnnouncementsCard');
+  var pill=document.getElementById('homeAnnouncementsUpdatePill');
+  var list=Array.isArray(announcements)?announcements:[];
+  if(!list.length){
+    if(card) card.classList.remove('home-ann-card--attention');
+    if(pill){ pill.hidden=true; pill.textContent=''; pill.className='home-ann-head-pill'; }
+    return;
+  }
+  var latest=list[0];
+  var pillText=homeAnnouncementUpdatePillText(latest, today);
+  var isNewToday=homeAnnouncementDateIso(latest)===today;
+  var isRecent=homeIsRecentAnnouncement(latest, today);
+  if(card) card.classList.toggle('home-ann-card--attention', isRecent);
+  if(pill){
+    pill.hidden=false;
+    pill.className='home-ann-head-pill'+(isNewToday?' home-ann-head-pill--new':'');
+    pill.innerHTML='<i class="ti ti-bell" style="font-size:10px;"></i> '+homeEsc(pillText);
+  }
 }
 function homeAnnouncementRowHtml(a, today){
   var status=homeAnnouncementStatus(a,today);
@@ -10196,6 +10286,7 @@ function homeRenderAnnouncements(announcements, today){
   var cardList=(announcements||[]).filter(function(a){
     return !featured || a.id!==featured.id;
   });
+  homeUpdateAnnouncementsCardChrome(announcements, today);
   homeRenderAnnouncementsList(document.getElementById('homeAnnouncements'), cardList, today, 5);
 }
 function homeUpdateAnnouncementsManageLink(){

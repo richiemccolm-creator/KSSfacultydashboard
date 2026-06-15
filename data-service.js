@@ -39,6 +39,7 @@
   // null = unknown, true = priority columns available, false = legacy schema.
   var announcementsPrioritySchemaKnown = null;
   var announcementsFeaturedBannerSchemaKnown = null;
+  var announcementsUpdatedAtSchemaKnown = null;
   function localTodayYMD() {
     var d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -55,6 +56,7 @@
         body: a.body,
         expires_at: a.expires_at,
         created_at: a.created_at,
+        updated_at: a.updated_at || a.created_at,
         priority: a.priority || 'none',
         highlight_priority: !!a.highlight_priority,
         featured_banner: !!a.featured_banner
@@ -70,6 +72,11 @@
     if (!err) return false;
     var msg = String(err.message || err.details || '');
     return err.code === '42703' || /featured_banner/i.test(msg);
+  }
+  function isAnnouncementsUpdatedAtSchemaError(err) {
+    if (!err) return false;
+    var msg = String(err.message || err.details || '');
+    return err.code === '42703' || /updated_at/i.test(msg);
   }
   function canUseAnnouncementsPriorityColumns() {
     if (announcementsPrioritySchemaKnown != null) {
@@ -681,7 +688,7 @@
           ]).then(function(flags) {
             var canUsePriority = flags[0];
             var canUseFeatured = flags[1];
-            var fields = ['id', 'title', 'body', 'expires_at', 'created_at'];
+            var fields = ['id', 'title', 'body', 'expires_at', 'created_at', 'updated_at'];
             if (canUsePriority) fields.push('priority', 'highlight_priority');
             if (canUseFeatured) fields.push('featured_banner');
             window.supabase.from('announcements')
@@ -692,6 +699,9 @@
                   resolve(mapAnnouncementsList(r.data || []));
                   return;
                 }
+                if (isAnnouncementsUpdatedAtSchemaError(r.error)) {
+                  announcementsUpdatedAtSchemaKnown = false;
+                }
                 if (canUseFeatured && isAnnouncementsFeaturedBannerSchemaError(r.error)) {
                   announcementsFeaturedBannerSchemaKnown = false;
                   canUseFeatured = false;
@@ -701,6 +711,7 @@
                   canUsePriority = false;
                 }
                 var retryFields = ['id', 'title', 'body', 'expires_at', 'created_at'];
+                if (announcementsUpdatedAtSchemaKnown !== false) retryFields.push('updated_at');
                 if (canUsePriority) retryFields.push('priority', 'highlight_priority');
                 if (canUseFeatured) retryFields.push('featured_banner');
                 window.supabase.from('announcements')
