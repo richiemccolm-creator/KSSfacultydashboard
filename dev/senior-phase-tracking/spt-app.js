@@ -660,13 +660,20 @@
     ];
   }
 
+  function dashboardEmptyMessage() {
+    if (!role().canSetup) {
+      return 'No tracking data yet. Your faculty head will set up teachers, classes, and enrolments.';
+    }
+    return 'No pupils enrolled yet — open <button type="button" class="linkish" data-route="setup">Setup</button> to add teachers, classes, and pupils.';
+  }
+
   function renderDashboard() {
     var d = db();
     var allRows = SptConcerns.sortByUrgency(SptStore.getEnrichedRows(d), d);
     var filterTeachers = teachersForFilterBar(d, dashboardRowsForTeacherFilter(allRows));
     sanitizeTeacherFilter(filterTeachers);
     var rows = applyFilters(allRows);
-    var html = gettingStartedHtml(d) + alertStripHtml() + '<div class="dashboard-wrap">';
+    var html = alertStripHtml() + '<div class="dashboard-wrap">';
     html += '<div class="dashboard-head">' +
       '<div class="page-head page-head-compact"><h1>Senior Phase Dashboard</h1>' +
       '<p class="page-sub">Flagged pupils first · overview only — enter data on ' +
@@ -679,7 +686,7 @@
       filterTeachers);
     var bodyRows = '';
     if (!rows.length) {
-      bodyRows = '<tr><td colspan="14" class="empty">No pupils enrolled yet — open <button type="button" class="linkish" data-route="setup">Setup</button> to add teachers, classes, and pupils.</td></tr>';
+      bodyRows = '<tr><td colspan="14" class="empty">' + dashboardEmptyMessage() + '</td></tr>';
     }
     rows.forEach(function(r) {
       var attCells = r.attendance.map(function(a) {
@@ -2738,14 +2745,19 @@
     if (!devNote) return;
     if (status === 'loading') {
       devNote.textContent = 'Loading workbook from Faculty Hub cloud…';
+      devNote.hidden = false;
     } else if (status === 'syncing') {
       devNote.textContent = 'Saving to Faculty Hub cloud…';
+      devNote.hidden = false;
     } else if (status === 'synced') {
-      devNote.textContent = 'Synced with Faculty Hub — setup and tracking appear on all your devices when signed in.';
+      devNote.textContent = '';
+      devNote.hidden = true;
     } else if (status === 'offline') {
       devNote.textContent = message || 'Sign in to Faculty Hub to sync this workbook across devices.';
+      devNote.hidden = false;
     } else if (status === 'error') {
       devNote.textContent = 'Cloud sync issue: ' + (message || 'try refreshing the page.');
+      devNote.hidden = false;
     }
   }
 
@@ -2760,6 +2772,10 @@
     var devNote = document.getElementById('dev-banner-note');
     if (devNote && SptConfig.useSeedData) {
       devNote.textContent = 'Development preview with sample pupils — add ?dev_seed=1 to URL. Data stored locally in your browser.';
+      devNote.hidden = false;
+    } else if (devNote) {
+      devNote.textContent = '';
+      devNote.hidden = true;
     }
     if (!SptConfig.useSeedData) document.body.classList.add('spt-hub-mode');
     else document.body.classList.add('spt-dev-seed');
@@ -2797,10 +2813,9 @@
     if (isEmbed) document.body.classList.add('hub-embed');
     if (fromLanding) document.body.classList.add('suite-from-landing');
     if (isEmbed || fromLanding) {
-      var bar = document.getElementById('hub-back-bar');
       var link = document.getElementById('hub-back-link');
-      if (bar) bar.classList.remove('is-hidden');
       if (link) {
+        link.classList.remove('is-hidden');
         var q = isEmbed ? '?embed=1' : '';
         link.href = '../../tracking_monitoring_landing.html' + q;
       }
