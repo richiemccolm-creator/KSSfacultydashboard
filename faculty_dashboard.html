@@ -1771,6 +1771,14 @@ function showStaffDetail(userId) {
     });
   }
 }
+function refreshTeacherNameInDashboardCache(userId, teacherName) {
+  if (!userId) return;
+  ['drama', 'art'].forEach(function(subj) {
+    (D[subj] || []).forEach(function(entry) {
+      if (entry.userId === userId) entry.teacherName = teacherName;
+    });
+  });
+}
 function saveStaffDisplayName(userId) {
   var input = document.getElementById('staff-display-name-input');
   var status = document.getElementById('staff-display-name-status');
@@ -1789,11 +1797,17 @@ function saveStaffDisplayName(userId) {
       s.display_name = saved;
       s.teacherName = saved || s.email || 'Unknown';
     }
+    refreshTeacherNameInDashboardCache(userId, saved || (s && s.email) || 'Unknown');
     if (status) { status.textContent = 'Saved.'; status.className = 'staff-dn-status ok'; }
     if (typeof toast === 'function') toast('Display name updated');
     var nameEl = document.getElementById('staff-detail-display-name');
     if (nameEl) nameEl.textContent = saved || (s && s.email) || 'Unknown';
     renderStaffList();
+    try {
+      window.dispatchEvent(new CustomEvent('staffdisplaynameupdated', {
+        detail: { userId: userId, displayName: saved, email: s && s.email }
+      }));
+    } catch (e) {}
   }).catch(function(e) {
     if (status) {
       status.textContent = (e && e.message) || 'Could not save.';

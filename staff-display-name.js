@@ -136,7 +136,9 @@
           setStatus(statusEl, 'Saved.', 'ok');
           notify('Display name saved');
           try {
-            window.dispatchEvent(new CustomEvent('staffdisplaynameupdated'));
+            window.dispatchEvent(new CustomEvent('staffdisplaynameupdated', {
+              detail: { userId: session.user.id, displayName: trimmed }
+            }));
           } catch (e) {}
         })
         .catch(function(e) {

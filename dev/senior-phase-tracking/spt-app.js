@@ -817,6 +817,9 @@
         d.hub_current_user_id = payload.currentUser.teacher_id;
         SptStore.save(d);
       }
+      if (state.hubStaff.length) {
+        SptHubStaff.syncStaffRows(db(), state.hubStaff);
+      }
       render();
     }).catch(function(err) {
       state.hubStaffStatus = 'error';
@@ -2827,6 +2830,9 @@
   initLayoutControls();
   initRoleControls();
   loadHubStaffState();
+  window.addEventListener('staffdisplaynameupdated', function() {
+    loadHubStaffState();
+  });
   maybeBootstrapRoute();
   render();
   updateNavBadge();

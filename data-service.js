@@ -169,6 +169,13 @@
     return Number(match[1]);
   }
 
+  function staffDisplayNameFromProfile(profile) {
+    if (!profile) return 'Unknown';
+    var dn = profile.display_name != null ? String(profile.display_name).trim() : '';
+    var email = profile.email != null ? String(profile.email).trim() : '';
+    return dn || email || 'Unknown';
+  }
+
   window.DataService = {
     isUsingCloud: function() {
       return useSupabase();
@@ -414,11 +421,58 @@
       });
     },
 
+    /** Trimmed display name from profiles row; falls back to email. */
+    staffDisplayNameFromProfile: function(profile) {
+      return staffDisplayNameFromProfile(profile);
+    },
+
+    /** Map of user id → { id, email, display_name, teacherName } from live profiles. */
+    getStaffProfileMap: function() {
+      return new Promise(function(resolve, reject) {
+        if (!useSupabase()) { resolve({}); return; }
+        getSessionWithRetry().then(function(session) {
+          if (!session) { reject(new Error('Not authenticated')); return; }
+          window.supabase.from('profiles')
+            .select('id, email, display_name')
+            .then(function(r) {
+              if (r.error) { reject(r.error); return; }
+              var map = {};
+              (r.data || []).forEach(function(p) {
+                map[p.id] = {
+                  id: p.id,
+                  email: p.email || '',
+                  display_name: p.display_name || '',
+                  teacherName: staffDisplayNameFromProfile(p)
+                };
+              });
+              resolve(map);
+            })
+            .catch(reject);
+        });
+      });
+    },
+
+    /** Re-apply current profiles.display_name onto monitoring rows (by user_id). */
+    applyStaffNamesToMonitoringRows: function(rows) {
+      var self = this;
+      return this.getStaffProfileMap().then(function(map) {
+        return (rows || []).map(function(row) {
+          var p = map[row.user_id];
+          if (!p) return row;
+          return Object.assign({}, row, {
+            email: p.email || row.email,
+            teacherName: p.teacherName
+          });
+        });
+      });
+    },
+
     /**
      * Monitoring hub + admin dashboard: returns tracker/planner payloads with teacher metadata.
      * Access is enforced by Supabase RLS policies.
      */
     getAllForMonitoring: function() {
+      var self = this;
       return new Promise(function(resolve, reject) {
         if (!useSupabase()) { resolve([]); return; }
         window.supabase.auth.getSession().then(function(_a) {
@@ -430,32 +484,28 @@
             .in('data_type', adminDataTypes)
             .then(function(r1) {
               if (r1.error) { reject(r1.error); return; }
-              window.supabase.from('profiles')
-            .select('id, email, display_name')
-            .then(function(r2) {
-              var profiles = {};
-              if (!r2.error && r2.data) r2.data.forEach(function(p) { profiles[p.id] = p; });
-              var out = (r1.data || []).map(function(row) {
-                var p = profiles[row.user_id] || {};
-                return {
-                  user_id: row.user_id,
-                  email: p.email,
-                  teacherName: p.display_name || p.email || 'Unknown',
-                  data_type: row.data_type,
-                  data: row.data
-                };
-              });
-              if (!r1.error && (r1.data || []).length > 0) {
-                window.supabase.from('audit_log').insert({
-                  actor_id: session.user.id,
-                  actor_email: session.user.email,
-                  action: 'monitoring_viewed_all_pupil_data',
-                  target_type: 'pupil_data'
-                }).then(function() {});
-              }
-              resolve(out);
+              self.getStaffProfileMap().then(function(profiles) {
+                var out = (r1.data || []).map(function(row) {
+                  var p = profiles[row.user_id];
+                  return {
+                    user_id: row.user_id,
+                    email: (p && p.email) || '',
+                    teacherName: (p && p.teacherName) || 'Unknown',
+                    data_type: row.data_type,
+                    data: row.data
+                  };
+                });
+                if (!r1.error && (r1.data || []).length > 0) {
+                  window.supabase.from('audit_log').insert({
+                    actor_id: session.user.id,
+                    actor_email: session.user.email,
+                    action: 'monitoring_viewed_all_pupil_data',
+                    target_type: 'pupil_data'
+                  }).then(function() {});
+                }
+                resolve(out);
+              }).catch(reject);
             });
-          });
         });
       });
     },
@@ -494,7 +544,7 @@
               byUser[id] = {
                 user_id: id,
                 display_name: p.display_name || '',
-                teacherName: p.display_name || p.email || 'Unknown',
+                teacherName: staffDisplayNameFromProfile(p),
                 email: p.email || '',
                 drama: null,
                 art: null,

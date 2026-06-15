@@ -12,6 +12,8 @@
     filteredRows: [],
     filterOptions: {},
     teacherDirectory: [],
+    profileMap: {},
+    rawCloudRows: [],
     lastSync: null,
     roleScoped: false,
     currentUserEmail: '',
@@ -1060,7 +1062,31 @@
       .then(function(rows) {
         if (rows) return rows;
         throw new Error('No cloud rows returned from: ' + tried.join(', '));
+      })
+      .then(function(rows) {
+        if (!global.DataService || typeof global.DataService.applyStaffNamesToMonitoringRows !== 'function') {
+          return rows || [];
+        }
+        return global.DataService.applyStaffNamesToMonitoringRows(rows || []);
       });
+  }
+
+  function reloadNormalizedCloudRows(rows) {
+    HUB.rawCloudRows = rows || [];
+    normalizeCloudRows(HUB.rawCloudRows);
+    hydrateFilterControls();
+    if (global.TrackingHubPrefs) global.TrackingHubPrefs.applyPendingUrlState();
+    else recalcFilteredState();
+    renderAllViews();
+    refreshTeacherDirectory();
+  }
+
+  function handleStaffDisplayNameUpdated() {
+    if (!HUB.rawCloudRows || !HUB.rawCloudRows.length) return;
+    if (!global.DataService || typeof global.DataService.applyStaffNamesToMonitoringRows !== 'function') return;
+    global.DataService.applyStaffNamesToMonitoringRows(HUB.rawCloudRows).then(function(rows) {
+      reloadNormalizedCloudRows(rows);
+    }).catch(function() { /* ignore */ });
   }
 
   function refreshTeacherDirectory() {
@@ -1109,10 +1135,7 @@
     if (refreshBtn) refreshBtn.disabled = true;
     if (statusEl) statusEl.textContent = 'Loading cloud data…';
     fetchCloudRowsWithFallback().then(function(rows) {
-      normalizeCloudRows(rows || []);
-      hydrateFilterControls();
-      if (global.TrackingHubPrefs) global.TrackingHubPrefs.applyPendingUrlState();
-      else recalcFilteredState();
+      reloadNormalizedCloudRows(rows || []);
       var notesLoad = global.TrackingHubNotes
         ? global.TrackingHubNotes.loadAll().then(function() { renderAllViews(); })
         : Promise.resolve();
@@ -1283,6 +1306,7 @@
 
     bindEvents();
     global.loadFromCloud = loadFromCloud;
+    global.addEventListener('staffdisplaynameupdated', handleStaffDisplayNameUpdated);
 
     if (global.TrackingHubTabs) global.TrackingHubTabs.init(HubApi);
     if (global.TrackingHubDrawer) global.TrackingHubDrawer.init(HubApi);

@@ -133,16 +133,18 @@
         return DataService.getForUser(params.userId, dataType).then(function(data) {
           if (data && state) Object.assign(state, data);
           window.__trackerReadonly.active = true;
-          if (!params.teacherName && window.DataService.getProfileByUserId) {
-            return DataService.getProfileByUserId(params.userId).then(function(profile) {
-              if (profile) {
-                window.__trackerReadonly.teacherName =
-                  profile.display_name || profile.email || params.teacherName || 'Staff member';
-              }
-              return true;
-            }).catch(function() { return true; });
-          }
-          return true;
+          var profileP = window.DataService.getProfileByUserId
+            ? DataService.getProfileByUserId(params.userId)
+            : Promise.resolve(null);
+          return profileP.then(function(profile) {
+            if (profile) {
+              var dn = profile.display_name != null ? String(profile.display_name).trim() : '';
+              window.__trackerReadonly.teacherName = dn || profile.email || params.teacherName || 'Staff member';
+            } else if (!window.__trackerReadonly.teacherName) {
+              window.__trackerReadonly.teacherName = params.teacherName || 'Staff member';
+            }
+            return true;
+          }).catch(function() { return true; });
         }).catch(function() {
           showDenied('Could not load this teacher\'s tracker data.', params.returnTo);
           return false;
