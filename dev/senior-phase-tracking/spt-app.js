@@ -13,6 +13,12 @@
     reportId: null,
     filters: {},
     setupTeacherId: null,
+    hubStaff: [],
+    hubStaffStatus: 'idle',
+    hubStaffError: null,
+    hubStaffDiagnostics: null,
+    currentHubUser: null,
+    hubStaffMessage: null,
     importStep: 1,
     importPreview: null,
     importMapping: null,
@@ -170,7 +176,7 @@
       '<h2>Set up Senior Phase tracking</h2>' +
       '<p>Add your faculty team, create senior phase classes, and enrol pupils. Course templates are ready — you start with zero pupils.</p>' +
       '<ol class="getting-started-steps">' +
-      '<li class="' + (step === 1 ? 'is-current' : (step > 1 ? 'is-done' : '')) + '"><strong>Add teachers</strong> — staff who teach senior phase courses</li>' +
+      '<li class="' + (step === 1 ? 'is-current' : (step > 1 ? 'is-done' : '')) + '"><strong>Import teachers</strong> — sync staff signed up for the Faculty Hub</li>' +
       '<li class="' + (step === 2 ? 'is-current' : (step > 2 ? 'is-done' : '')) + '"><strong>Create classes</strong> — link each teacher to a course and class name</li>' +
       '<li class="' + (step === 3 ? 'is-current' : '') + '"><strong>Enrol pupils</strong> — add pupils to each class, then enter tracking</li>' +
       '</ol>' +
@@ -727,6 +733,137 @@
     return html;
   }
 
+  function hubStaffStatusText() {
+    if (state.hubStaffMessage) return state.hubStaffMessage;
+    if (state.hubStaffStatus === 'loading') return 'Loading Faculty Hub staff…';
+    if (state.hubStaffStatus === 'offline') {
+      return 'Open while signed in to Faculty Hub to import staff, or add teachers manually below.';
+    }
+    if (state.hubStaffStatus === 'error') {
+      return 'Could not load hub staff: ' + (state.hubStaffError || 'unknown error');
+    }
+    var imported = (db().teachers || []).filter(function(t) { return t.hub_user_id || t.source === 'hub'; }).length;
+    var total = state.hubStaff.length;
+    if (!total) return 'No hub staff returned — check you are signed in, or add teachers manually.';
+    return total + ' staff on Faculty Hub · ' + imported + ' linked in Senior Phase tracking';
+  }
+
+  function renderHubStaffPanel(d) {
+    var rows = state.hubStaff || [];
+    var html = '<div class="hub-staff-panel">' +
+      '<div class="hub-staff-head">' +
+      '<h3>Faculty Hub staff</h3>' +
+      '<p class="sheet-hint">Pull in teachers who have signed up for the hub. You can set up classes for any imported teacher, including yourself.</p>' +
+      '<div class="hub-staff-actions">' +
+      '<button type="button" class="btn btn-sm" id="btn-sync-hub-teachers"' +
+      (state.hubStaffStatus === 'loading' ? ' disabled' : '') + '>Sync from Hub</button>' +
+      '<button type="button" class="btn btn-secondary btn-sm" id="btn-add-me-teacher">Add me as a teacher</button>' +
+      '</div>' +
+      '<p class="hub-staff-status">' + esc(hubStaffStatusText()) + '</p>' +
+      '</div>';
+    if (rows.length) {
+      html += '<div class="sheet-grid-wrap"><table class="data-table hub-staff-table"><thead><tr>' +
+        '<th class="col-pupil">Hub staff</th><th>Email</th><th>Status</th><th></th></tr></thead><tbody>';
+      rows.forEach(function(row) {
+        var linked = global.SptHubStaff && SptHubStaff.findLocalTeacher(d, row);
+        html += '<tr><td class="col-pupil">' + esc(row.display_name || row.email || 'Unknown') + '</td>' +
+          '<td>' + esc(row.email || '—') + '</td>' +
+          '<td>' + (linked ? badge('Complete') : badge('Not Started')) + '</td>' +
+          '<td>' + (linked ? '—' : '<button type="button" class="btn btn-sm btn-secondary" data-import-hub-teacher="' +
+            esc(row.teacher_id) + '">Import</button>') + '</td></tr>';
+      });
+      html += '</tbody></table></div>';
+    }
+    html += '</div>';
+    return html;
+  }
+
+  function loadHubStaffState() {
+    if (!global.SptHubStaff) {
+      state.hubStaffStatus = 'offline';
+      return;
+    }
+    state.hubStaffStatus = 'loading';
+    state.hubStaffMessage = null;
+    SptHubStaff.loadHubStaff().then(function(payload) {
+      state.hubStaff = payload.rows || [];
+      state.hubStaffStatus = payload.status || 'ready';
+      state.hubStaffError = payload.error || null;
+      state.hubStaffDiagnostics = payload.diagnostics || null;
+      state.currentHubUser = payload.currentUser || null;
+      if (payload.currentUser) {
+        var d = db();
+        d.hub_current_user_id = payload.currentUser.teacher_id;
+        SptStore.save(d);
+      }
+      if (state.route === 'setup') render();
+    });
+  }
+
+  function syncHubTeachers(messagePrefix) {
+    if (!global.SptHubStaff) return;
+    state.hubStaffStatus = 'loading';
+    state.hubStaffMessage = null;
+    render();
+    SptHubStaff.loadHubStaff().then(function(payload) {
+      state.hubStaff = payload.rows || [];
+      state.hubStaffStatus = payload.status || 'ready';
+      state.hubStaffError = payload.error || null;
+      state.currentHubUser = payload.currentUser || state.currentHubUser;
+      if (!state.hubStaff.length) {
+        state.hubStaffMessage = state.hubStaffError || 'No hub staff found to import.';
+        render();
+        return;
+      }
+      var result = SptHubStaff.syncStaffRows(db(), state.hubStaff);
+      state.hubStaffMessage = (messagePrefix || 'Synced from Faculty Hub:') + ' ' +
+        result.added + ' added, ' + result.updated + ' updated.';
+      render();
+      initRoleControls();
+    });
+  }
+
+  function addMeAsTeacher(andSelect) {
+    if (!global.SptHubStaff) return;
+    state.hubStaffStatus = 'loading';
+    render();
+    SptHubStaff.loadCurrentHubUser().then(function(user) {
+      state.hubStaffStatus = user ? 'ready' : 'offline';
+      if (!user) {
+        state.hubStaffMessage = 'Sign in to Faculty Hub to add yourself as a teacher.';
+        render();
+        return;
+      }
+      state.currentHubUser = user;
+      var d = db();
+      d.hub_current_user_id = user.teacher_id;
+      var teacher = SptHubStaff.ensureHubTeacher(d, user);
+      if (andSelect !== false && teacher) state.setupTeacherId = teacher.id;
+      state.hubStaffMessage = 'Added you as ' + (user.display_name || user.email) + '.';
+      render();
+      initRoleControls();
+    });
+  }
+
+  function importHubTeacherById(hubUserId) {
+    if (!global.SptHubStaff) return;
+    var row = (state.hubStaff || []).find(function(r) { return r.teacher_id === hubUserId; });
+    if (!row) return;
+    SptHubStaff.ensureHubTeacher(db(), row);
+    state.hubStaffMessage = 'Imported ' + (row.display_name || row.email) + '.';
+    render();
+    initRoleControls();
+  }
+
+  function setupMyClasses() {
+    addMeAsTeacher(true);
+    state.setupTab = 'profile';
+    state.route = 'setup';
+    document.querySelectorAll('.nav-btn').forEach(function(btn) {
+      btn.classList.toggle('active', btn.getAttribute('data-route') === 'setup');
+    });
+  }
+
   function renderTeacherProfileSetup(d) {
     var teachers = d.teachers || [];
     if (!state.setupTeacherId && teachers.length) state.setupTeacherId = teachers[0].id;
@@ -735,19 +872,24 @@
       ? (d.classes || []).filter(function(cl) { return cl.teacher_id === selected.id; })
       : [];
     var html = '<div class="card"><div class="card-head"><h2>Teacher classes</h2></div><div class="card-body">' +
-      '<p class="sheet-hint" style="margin-bottom:1rem">Select a teacher, create their senior phase classes, and enrol pupils. ' +
-      'Teachers then see these classes on <strong>Enter tracking</strong>.</p>' +
+      '<p class="sheet-hint">Select a teacher, create their senior phase classes, and enrol pupils. ' +
+      'Use <strong>Set up my classes</strong> if you teach senior phase yourself.</p>' +
+      '<div class="setup-quick-actions">' +
+      '<button type="button" class="btn btn-sm" id="btn-sync-hub-teachers-inline">Sync hub staff</button>' +
+      '<button type="button" class="btn btn-secondary btn-sm" id="btn-setup-my-classes">Set up my classes</button>' +
+      '</div>' +
       '<div class="setup-teacher-picker">' +
       '<label for="setup-teacher-select">Teacher</label>' +
       '<select id="setup-teacher-select" data-setup-teacher>' +
+      (teachers.length ? '' : '<option value="">— Import teachers first —</option>') +
       teachers.map(function(t) {
         return '<option value="' + t.id + '"' + (selected && selected.id === t.id ? ' selected' : '') + '>' +
-          esc(t.first_name + ' ' + t.surname) + '</option>';
+          esc(t.first_name + ' ' + t.surname) + (t.hub_user_id ? '' : ' (manual)') + '</option>';
       }).join('') +
       '</select></div>';
 
     if (!selected) {
-      html += '<div class="empty" style="margin-top:1rem">Add a teacher first.</div></div></div>';
+      html += '<div class="empty">Sync staff from the Faculty Hub on the <strong>Teachers</strong> tab, or click <strong>Set up my classes</strong> to add yourself.</div></div></div>';
       return html;
     }
 
@@ -767,9 +909,9 @@
       '<div class="form-span"><button type="submit" class="btn btn-sm">Add class for this teacher</button></div></form>';
 
     if (!teacherClasses.length) {
-      html += '<div class="empty" style="margin-top:1rem">No classes yet — add one above.</div>';
+      html += '<div class="empty">No classes yet — add one above.</div>';
     } else {
-      html += '<table class="data-table" style="margin-top:1rem"><thead><tr>' +
+      html += '<table class="data-table"><thead><tr>' +
         '<th>Class</th><th>Course</th><th>Pupils</th><th></th></tr></thead><tbody>' +
         teacherClasses.map(function(cl) {
           var count = SptStore.enrolmentCountForClass(d, cl.id);
@@ -817,16 +959,22 @@
     if (tab === 'profile') {
       html += renderTeacherProfileSetup(d);
     } else if (tab === 'teachers') {
-      html += '<div class="sheet-panel"><div class="sheet-toolbar"><div class="sheet-toolbar-left"><h2>Teachers</h2></div></div><div class="sheet-body">' +
-        '<form id="form-add-teacher" class="form-grid" style="max-width:400px;margin-bottom:1rem">' +
+      html += renderHubStaffPanel(d);
+      html += '<div class="sheet-panel"><div class="sheet-toolbar"><div class="sheet-toolbar-left"><h2>Tracking teachers</h2></div></div><div class="sheet-body">' +
+        '<p class="sheet-hint">Imported hub staff appear automatically after sync. Add anyone else manually if needed.</p>' +
+        '<form id="form-add-teacher" class="form-grid setup-manual-teacher" style="max-width:400px;margin-bottom:1rem">' +
         '<div><label>First name</label><input name="first_name" required></div>' +
         '<div><label>Surname</label><input name="surname" required></div>' +
         '<div><label>Email</label><input name="email" type="email"></div>' +
-        '<button type="submit" class="btn btn-sm">Add teacher</button></form></div>' +
-        '<div class="sheet-grid-wrap"><table class="data-table"><thead><tr><th class="col-pupil">Name</th><th>Email</th></tr></thead><tbody>' +
-        d.teachers.map(function(t) {
-          return '<tr><td class="col-pupil">' + esc(t.first_name + ' ' + t.surname) + '</td><td>' + esc(t.email) + '</td></tr>';
-        }).join('') + '</tbody></table></div></div>';
+        '<button type="submit" class="btn btn-sm btn-secondary">Add manually</button></form></div>' +
+        '<div class="sheet-grid-wrap"><table class="data-table"><thead><tr>' +
+        '<th class="col-pupil">Name</th><th>Email</th><th>Source</th></tr></thead><tbody>' +
+        (d.teachers || []).map(function(t) {
+          return '<tr><td class="col-pupil">' + esc(t.first_name + ' ' + t.surname) + '</td><td>' + esc(t.email) + '</td>' +
+            '<td>' + esc((t.hub_user_id || t.source === 'hub') ? 'Faculty Hub' : 'Manual') + '</td></tr>';
+        }).join('') +
+        ((d.teachers || []).length ? '' : '<tr><td colspan="3" class="empty">No teachers yet — sync from the hub above.</td></tr>') +
+        '</tbody></table></div></div>';
     } else if (tab === 'pupils') {
       html += '<div class="card"><div class="card-head"><h2>Pupils</h2></div><div class="card-body">' +
         '<form id="form-add-pupil" class="form-grid" style="max-width:480px;margin-bottom:1rem">' +
@@ -861,7 +1009,7 @@
         }).join('') + '</tbody></table></div></div>';
     } else if (tab === 'baseline') {
       html += '<div class="card"><div class="card-head"><h2>S3 entry baseline (N5 &amp; N4 pupils)</h2></div><div class="card-body">' +
-        '<p class="sheet-hint" style="margin-bottom:1rem">Frozen S3 snapshot for N5/N4 combined courses. Enter on course sheets or here in bulk.</p>' +
+        '<p class="sheet-hint">Frozen S3 snapshot for N5/N4 combined courses. Enter on course sheets or here in bulk.</p>' +
         '<form id="form-add-baseline" class="form-grid" style="max-width:640px;margin-bottom:1rem">' +
         '<div><label>Enrolment</label><select name="enrolment_id">' +
         SptStore.getEnrichedRows(d).filter(function(r) { return r.shows_s3_baseline; }).map(function(r) {
@@ -1937,14 +2085,29 @@
     bindFilters(root);
     bindScoreSelectColors(root);
 
+    root.querySelectorAll('[data-import-hub-teacher]').forEach(function(el) {
+      el.addEventListener('click', function() {
+        importHubTeacherById(el.getAttribute('data-import-hub-teacher'));
+      });
+    });
+    var syncHub = document.getElementById('btn-sync-hub-teachers');
+    if (syncHub) syncHub.addEventListener('click', function() { syncHubTeachers('Synced from Faculty Hub:'); });
+    var syncHubInline = document.getElementById('btn-sync-hub-teachers-inline');
+    if (syncHubInline) syncHubInline.addEventListener('click', function() { syncHubTeachers('Synced from Faculty Hub:'); });
+    var addMe = document.getElementById('btn-add-me-teacher');
+    if (addMe) addMe.addEventListener('click', function() { addMeAsTeacher(false); });
+    var setupMine = document.getElementById('btn-setup-my-classes');
+    if (setupMine) setupMine.addEventListener('click', function() { setupMyClasses(); });
+
     var ft = document.getElementById('form-add-teacher');
     if (ft) ft.onsubmit = function(e) {
       e.preventDefault();
       var fd = new FormData(ft);
       SptStore.insertRecord(db(), 'teachers', {
         first_name: fd.get('first_name'), surname: fd.get('surname'), email: fd.get('email'),
-        role: 'Class Teacher', active_status: true
+        role: 'Class Teacher', active_status: true, source: 'manual'
       }, 'teacher_add');
+      state.hubStaffMessage = 'Added ' + fd.get('first_name') + ' ' + fd.get('surname') + ' manually.';
       render();
     };
     var fc = document.getElementById('form-add-class-profile');
@@ -2159,6 +2322,7 @@
   initHubEmbed();
   initLayoutControls();
   initRoleControls();
+  loadHubStaffState();
   maybeBootstrapRoute();
   render();
   updateNavBadge();
