@@ -2732,6 +2732,27 @@
     if (confirm(msg)) { SptStore.reset(); render(); updateNavBadge(); }
   });
 
+  function updateSyncBanner(status, message) {
+    if (SptConfig.useSeedData) return;
+    var devNote = document.getElementById('dev-banner-note');
+    if (!devNote) return;
+    if (status === 'loading') {
+      devNote.textContent = 'Loading workbook from Faculty Hub cloud…';
+    } else if (status === 'syncing') {
+      devNote.textContent = 'Saving to Faculty Hub cloud…';
+    } else if (status === 'synced') {
+      devNote.textContent = 'Synced with Faculty Hub — setup and tracking appear on all your devices when signed in.';
+    } else if (status === 'offline') {
+      devNote.textContent = message || 'Sign in to Faculty Hub to sync this workbook across devices.';
+    } else if (status === 'error') {
+      devNote.textContent = 'Cloud sync issue: ' + (message || 'try refreshing the page.');
+    }
+  }
+
+  window.SptSyncOnStatus = function(status, message) {
+    updateSyncBanner(status, message);
+  };
+
   function initRoleControls() {
     var d = db();
     var roleSel = document.getElementById('dev-role');
@@ -2794,4 +2815,15 @@
   maybeBootstrapRoute();
   render();
   updateNavBadge();
+
+  if (!SptConfig.useSeedData && window.SptSync) {
+    SptSync.hydrate(function(status, message, changed) {
+      updateSyncBanner(status, message);
+      if (changed) {
+        initRoleControls();
+        render();
+        updateNavBadge();
+      }
+    });
+  }
 })();

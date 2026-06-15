@@ -17,10 +17,24 @@
     }
   }
 
-  function save(db) {
+  function save(db, options) {
+    options = options || {};
     db.version = VER;
     db.updated_at = new Date().toISOString();
     localStorage.setItem(KEY, JSON.stringify(db));
+    if (!options.localOnly && !global.SptConfig.useSeedData && global.SptSync) {
+      global.SptSync.schedulePush(db);
+    }
+    return db;
+  }
+
+  function importCloudSnapshot(data) {
+    var db = data ? migrate(JSON.parse(JSON.stringify(data))) : buildEmpty();
+    if (!db) db = buildEmpty();
+    db.version = VER;
+    db.updated_at = db.updated_at || new Date().toISOString();
+    localStorage.setItem(KEY, JSON.stringify(db));
+    if (global.SptRisk) global.SptRisk.recalculateAll(db);
     return db;
   }
 
@@ -292,7 +306,11 @@
     localStorage.removeItem(KEY);
     localStorage.removeItem('spt-dev-v1');
     localStorage.removeItem('spt-dev-v2');
-    return ensure();
+    var db = ensure();
+    if (!global.SptConfig.useSeedData && global.SptSync) {
+      global.SptSync.flushPush(db);
+    }
+    return db;
   }
 
   function uid(p) {
@@ -870,6 +888,7 @@
   global.SptStore = {
     load: load,
     save: save,
+    importCloudSnapshot: importCloudSnapshot,
     ensure: ensure,
     reset: reset,
     uid: uid,
