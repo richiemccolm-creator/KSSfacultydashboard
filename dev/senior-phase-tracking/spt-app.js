@@ -20,7 +20,12 @@
     currentHubUser: null,
     hubStaffMessage: null,
     importStep: 1,
+    importSource: null,
     importPreview: null,
+    templatePreview: null,
+    templateRows: null,
+    importFilename: null,
+    importMessage: null,
     importMapping: null,
     importRaw: null,
     modal: null,
@@ -143,7 +148,14 @@
       state.unassignedOnly = false;
     }
     state.reportId = params.reportId || null;
-    if (route === 'import') { state.importStep = 1; state.importPreview = null; }
+    if (route === 'import') {
+      state.importStep = 1;
+      state.importSource = null;
+      state.importPreview = null;
+      state.templatePreview = null;
+      state.templateRows = null;
+      state.importFilename = null;
+    }
     document.querySelectorAll('.nav-btn').forEach(function(btn) {
       var r = btn.getAttribute('data-route');
       btn.classList.toggle('active', r === route || (route === 'course' && r === 'courses'));
@@ -1838,12 +1850,67 @@
   }
 
   function renderImport() {
-    var html = '<div class="page-head"><h1>Import School Tracking</h1></div>';
+    var html = '<div class="page-head"><h1>Import School Tracking</h1>' +
+      '<p>Download an Excel workbook (one sheet per subject), enter data offline, then upload. ' +
+      'Re-upload the same file each tracking period — new rows are added and existing rows update.</p></div>';
+
+    if (state.importMessage) {
+      html += '<div class="card" style="padding:1rem;margin-bottom:1rem"><p class="hub-staff-status">' +
+        esc(state.importMessage) + '</p></div>';
+    }
+
     if (state.importStep === 1) {
-      html += '<div class="card" style="padding:1rem"><input type="file" id="import-file" accept=".csv"> ' +
-        '<button type="button" class="btn btn-sm" id="import-load-sample">Load sample CSV</button></div>';
-    } else if (state.importStep === 3 && state.importPreview) {
-      html += '<button type="button" class="btn" id="import-commit">Import matched rows</button>';
+      html += '<div class="card"><div class="card-head"><h2>Excel workbook</h2></div><div class="card-body">' +
+        '<p class="sheet-hint">Sheets: Instructions, Drama, Art, Photography, Film and Screen, Creative Industries. ' +
+        'One row per pupil × course × tracking point.</p>' +
+        '<div class="setup-quick-actions" style="margin-bottom:1rem">' +
+        '<button type="button" class="btn btn-sm" id="template-download-blank">Download blank template</button>' +
+        '<button type="button" class="btn btn-secondary btn-sm" id="template-download-filled">Download with current data</button>' +
+        '</div>' +
+        '<p class="sheet-hint" style="margin-top:1rem"><strong>Upload completed workbook</strong> (.xlsx)</p>' +
+        '<input type="file" id="import-workbook-file" accept=".xlsx,.xls" style="margin-top:0.35rem">' +
+        '</div></div>';
+
+      html += '<div class="card" style="margin-top:1rem"><div class="card-head"><h2>CSV (existing enrolments only)</h2></div>' +
+        '<div class="card-body"><p class="sheet-hint">Updates tracking for pupils already enrolled — does not create classes or pupils.</p>' +
+        '<input type="file" id="import-file" accept=".csv"> ' +
+        '<button type="button" class="btn btn-sm btn-secondary" id="import-load-sample">Load sample CSV</button></div></div>';
+      return html;
+    }
+
+    if (state.importStep === 2 && state.templatePreview) {
+      var prev = state.templatePreview;
+      var previewRows = prev.items.slice(0, 40).map(function(item) {
+        var r = item.row;
+        return '<tr class="' + (item.status === 'error' ? 'row-flagged' : '') + '">' +
+          '<td>' + esc(r._sheet) + '</td>' +
+          '<td class="col-pupil">' + esc((r.pupil_first || '') + ' ' + (r.pupil_surname || '')) + '</td>' +
+          '<td>' + esc(r.course) + '</td>' +
+          '<td>' + esc(r.tracking_point) + '</td>' +
+          '<td>' + badge(item.status === 'ready' ? 'Green' : item.status === 'warn' ? 'Amber' : 'Missing') + '</td>' +
+          '<td>' + esc(item.note || '—') + '</td></tr>';
+      }).join('');
+      html += '<div class="card"><div class="card-body">' +
+        '<p><strong>' + prev.total + ' rows</strong> from ' + esc(state.importFilename || 'workbook') + ' — ' +
+        prev.ready + ' ready, ' + prev.warn + ' warnings, ' + prev.error + ' errors</p>' +
+        '<div class="setup-quick-actions" style="margin-bottom:1rem">' +
+        '<button type="button" class="btn" id="template-commit">Import workbook</button>' +
+        '<button type="button" class="btn btn-secondary" id="import-cancel">Cancel</button></div>' +
+        sheetPanel('Preview', 'First ' + Math.min(40, prev.items.length) + ' rows', '',
+          '<table class="data-table"><thead><tr>' +
+          '<th>Sheet</th><th class="col-pupil">Pupil</th><th>Course</th><th>Tracking point</th><th>Status</th><th>Note</th>' +
+          '</tr></thead><tbody>' + (previewRows || '<tr><td colspan="6" class="empty">No rows found</td></tr>') +
+          '</tbody></table>') +
+        '</div></div>';
+      return html;
+    }
+
+    if (state.importStep === 3 && state.importPreview) {
+      var matched = state.importPreview.filter(function(p) { return p.match.status === 'matched'; }).length;
+      html += '<div class="card" style="padding:1rem"><p>' + matched + ' of ' + state.importPreview.length +
+        ' CSV rows matched existing enrolments.</p>' +
+        '<button type="button" class="btn" id="import-commit">Import matched rows</button> ' +
+        '<button type="button" class="btn btn-secondary" id="import-cancel">Cancel</button></div>';
     }
     return html;
   }
@@ -2221,7 +2288,9 @@
         state.importRaw = SptImport.parseCsvText(reader.result);
         state.importMapping = SptImport.mapColumns(state.importRaw.headers);
         state.importPreview = SptImport.buildPreview(db(), state.importRaw.rows, state.importMapping);
+        state.importSource = 'csv';
         state.importStep = 3;
+        state.importMessage = null;
         render();
       };
       reader.readAsText(file);
@@ -2232,17 +2301,101 @@
         state.importRaw = SptImport.parseCsvText(text);
         state.importMapping = SptImport.mapColumns(state.importRaw.headers);
         state.importPreview = SptImport.buildPreview(db(), state.importRaw.rows, state.importMapping);
+        state.importSource = 'csv';
         state.importStep = 3;
+        state.importMessage = null;
         render();
       });
+    });
+    var importCancel = root.querySelector('#import-cancel');
+    if (importCancel) importCancel.addEventListener('click', function() {
+      state.importStep = 1;
+      state.importSource = null;
+      state.importPreview = null;
+      state.templatePreview = null;
+      state.templateRows = null;
+      state.importFilename = null;
+      render();
+    });
+    var templateBlank = root.querySelector('#template-download-blank');
+    if (templateBlank) templateBlank.addEventListener('click', function() {
+      if (!window.SptTemplate || !SptTemplate.hasXlsx()) {
+        alert('Excel library not loaded — refresh the page.');
+        return;
+      }
+      var res = SptTemplate.downloadWorkbook(db(), { filled: false });
+      if (res.error) alert(res.error);
+    });
+    var templateFilled = root.querySelector('#template-download-filled');
+    if (templateFilled) templateFilled.addEventListener('click', function() {
+      if (!window.SptTemplate || !SptTemplate.hasXlsx()) {
+        alert('Excel library not loaded — refresh the page.');
+        return;
+      }
+      var res = SptTemplate.downloadWorkbook(db(), { filled: true });
+      if (res.error) alert(res.error);
+    });
+    var workbookFile = root.querySelector('#import-workbook-file');
+    if (workbookFile) workbookFile.addEventListener('change', function() {
+      var file = workbookFile.files[0];
+      if (!file) return;
+      if (!window.SptTemplate || !SptTemplate.hasXlsx()) {
+        alert('Excel library not loaded — refresh the page.');
+        return;
+      }
+      var reader = new FileReader();
+      reader.onload = function() {
+        var parsed = SptTemplate.parseWorkbook(reader.result);
+        if (parsed.error) {
+          state.importMessage = parsed.error;
+          render();
+          return;
+        }
+        if (!parsed.rows.length) {
+          state.importMessage = 'No data rows found in workbook — check each subject sheet has pupil rows.';
+          render();
+          return;
+        }
+        state.importFilename = file.name;
+        state.templatePreview = SptTemplate.buildImportPreview(db(), parsed.rows);
+        state.templateRows = parsed.rows;
+        state.importSource = 'workbook';
+        state.importStep = 2;
+        state.importMessage = null;
+        render();
+      };
+      reader.readAsArrayBuffer(file);
+    });
+    var templateCommit = root.querySelector('#template-commit');
+    if (templateCommit) templateCommit.addEventListener('click', function() {
+      if (!role().canImport) { alert('Faculty Head only'); return; }
+      if (!window.SptTemplate || !state.templateRows || !state.templateRows.length) return;
+      var stats = SptTemplate.commitWorkbookImport(db(), state.templateRows, {
+        filename: state.importFilename || 'workbook.xlsx'
+      });
+      state.importStep = 1;
+      state.importSource = null;
+      state.templatePreview = null;
+      state.templateRows = null;
+      state.importFilename = null;
+      state.importMessage = 'Imported ' + stats.processed + ' rows (' + stats.tracking + ' tracking updates)' +
+        (stats.skipped ? ', ' + stats.skipped + ' skipped' : '') + '.';
+      if (stats.errors.length) {
+        state.importMessage += ' First issue: ' + stats.errors[0];
+      }
+      render();
+      updateNavBadge();
     });
     var commit = root.querySelector('#import-commit');
     if (commit) commit.addEventListener('click', function() {
       if (!role().canImport) { alert('Faculty Head only'); return; }
       var res = SptImport.commitImport(db(), state.importPreview, { includeAll: true });
-      alert('Imported ' + res.imported + ' rows');
       state.importStep = 1;
+      state.importSource = null;
+      state.importPreview = null;
+      state.importMessage = 'Imported ' + res.imported + ' CSV rows.';
       render();
+      updateNavBadge();
     });
     var exportBtn = root.querySelector('#export-csv');
     if (exportBtn) exportBtn.addEventListener('click', function() {
