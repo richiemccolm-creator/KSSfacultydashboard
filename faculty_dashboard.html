@@ -80,6 +80,12 @@ h3,h4,h5,h6{font-weight:600}
 .staff-planner-summary,.staff-moderation-list{font-size:.82rem;color:var(--text2);line-height:1.6}
 .staff-moderation-item{padding:.5rem .75rem;margin-bottom:.35rem;background:var(--bg);border-radius:6px;border-left:3px solid var(--border)}
 .staff-empty{color:var(--text3);font-style:italic}
+.staff-dn-row{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-top:.65rem}
+.staff-dn-input{flex:1;min-width:180px;font-size:.85rem;padding:.5rem .75rem;border:1px solid var(--border);border-radius:6px;background:var(--card-bg,#fff);color:var(--text)}
+.staff-dn-input:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 2px rgba(30,45,74,.12)}
+.staff-dn-status{font-size:.72rem;margin-top:.45rem;min-height:1.1em;color:var(--text3)}
+.staff-dn-status.ok{color:var(--success,#16a34a)}
+.staff-dn-status.err{color:#b91c1c}
 
 .stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:1rem}
 .stat-card{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:1rem;text-align:center}
@@ -367,7 +373,7 @@ html,body{min-height:100%;margin:0;width:100%;box-sizing:border-box}
       <div class="sc-header">
         <div>
           <div class="sc-title">Staff</div>
-          <div class="sc-sub">View planner, moderation, and tracker data for each staff member. Open a staff member’s Drama or Art tracker in read-only mode — the same layout they use.</div>
+          <div class="sc-sub">View planner, moderation, and tracker data for each staff member. Set display names here when staff still show as their email. Open a staff member’s Drama or Art tracker in read-only mode — the same layout they use.</div>
         </div>
         <button class="btn btn-primary" id="staff-refresh-btn" onclick="loadStaffList()">Refresh</button>
       </div>
@@ -1699,7 +1705,13 @@ function showStaffDetail(userId) {
   document.getElementById('staff-detail-container').style.display = 'block';
   var body = document.getElementById('staff-detail-body');
   var esc = function(x) { return (x||'').toString().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
-  var html = '<div class="profile-card"><div class="profile-head"><div><div class="profile-name">' + esc(s.teacherName) + '</div><div class="profile-meta">' + esc(s.email) + '</div></div></div></div>';
+  var dnValue = (s.display_name != null && String(s.display_name).trim()) ? String(s.display_name).trim() : '';
+  var html = '<div class="profile-card"><div class="profile-head"><div><div class="profile-name" id="staff-detail-display-name">' + esc(s.teacherName) + '</div><div class="profile-meta">' + esc(s.email) + '</div></div></div></div>';
+  html += '<div class="staff-detail-section"><h3>Display name</h3>';
+  html += '<p class="staff-planner-summary" style="margin:0 0 .5rem">Shown on staff lists, class management, cloud imports, and Learning&nbsp;&amp;&nbsp;Teaching. Sign-in email does not change.</p>';
+  html += '<div class="staff-dn-row"><input type="text" id="staff-display-name-input" class="staff-dn-input" maxlength="120" placeholder="e.g. Jane Smith" value="' + esc(dnValue) + '" autocomplete="off" />';
+  html += '<button type="button" class="btn btn-primary" id="staff-display-name-save" data-user-id="' + esc(userId) + '" onclick="saveStaffDisplayName(this.getAttribute(\'data-user-id\'))">Save name</button></div>';
+  html += '<p class="staff-dn-status" id="staff-display-name-status" aria-live="polite"></p></div>';
   html += '<div class="staff-detail-section"><h3>Planner</h3><div class="staff-planner-summary">';
   var t = s.planner?.timetable;
   var slots = (t && t.slots) ? t.slots : [];
@@ -1752,6 +1764,44 @@ function showStaffDetail(userId) {
   }
   html += '</div></div>';
   body.innerHTML = html;
+  var dnInput = document.getElementById('staff-display-name-input');
+  if (dnInput) {
+    dnInput.addEventListener('keydown', function(ev) {
+      if (ev.key === 'Enter') saveStaffDisplayName(userId);
+    });
+  }
+}
+function saveStaffDisplayName(userId) {
+  var input = document.getElementById('staff-display-name-input');
+  var status = document.getElementById('staff-display-name-status');
+  var btn = document.getElementById('staff-display-name-save');
+  var name = (input && input.value || '').trim();
+  if (status) { status.textContent = ''; status.className = 'staff-dn-status'; }
+  if (!window.DataService || typeof DataService.updateStaffDisplayNameForAdmin !== 'function') {
+    if (status) { status.textContent = 'Cloud not available.'; status.className = 'staff-dn-status err'; }
+    return;
+  }
+  if (btn) btn.disabled = true;
+  DataService.updateStaffDisplayNameForAdmin(userId, name || null).then(function(row) {
+    var s = staffListCache.find(function(x) { return x.user_id === userId; });
+    var saved = (row && row.display_name && String(row.display_name).trim()) || '';
+    if (s) {
+      s.display_name = saved;
+      s.teacherName = saved || s.email || 'Unknown';
+    }
+    if (status) { status.textContent = 'Saved.'; status.className = 'staff-dn-status ok'; }
+    if (typeof toast === 'function') toast('Display name updated');
+    var nameEl = document.getElementById('staff-detail-display-name');
+    if (nameEl) nameEl.textContent = saved || (s && s.email) || 'Unknown';
+    renderStaffList();
+  }).catch(function(e) {
+    if (status) {
+      status.textContent = (e && e.message) || 'Could not save.';
+      status.className = 'staff-dn-status err';
+    }
+  }).then(function() {
+    if (btn) btn.disabled = false;
+  });
 }
 
 var adminSharedEvents = [];

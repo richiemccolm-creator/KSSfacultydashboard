@@ -493,6 +493,7 @@
               var p = profiles[id];
               byUser[id] = {
                 user_id: id,
+                display_name: p.display_name || '',
                 teacherName: p.display_name || p.email || 'Unknown',
                 email: p.email || '',
                 drama: null,
@@ -525,6 +526,30 @@
             });
             resolve(Object.values(byUser).sort(function(a, b) { return (a.teacherName || '').localeCompare(b.teacherName || ''); }));
           }).catch(reject);
+        });
+      });
+    },
+
+    /** Admin / faculty head: set another user's profiles.display_name */
+    updateStaffDisplayNameForAdmin: function(userId, displayName) {
+      return new Promise(function(resolve, reject) {
+        if (!useSupabase()) { reject(new Error('Cloud not configured')); return; }
+        var id = String(userId || '').trim();
+        if (!id) { reject(new Error('Missing user id')); return; }
+        var trimmed = displayName == null ? '' : String(displayName).trim();
+        getSessionWithRetry().then(function(session) {
+          if (!session) { reject(new Error('Not authenticated')); return; }
+          window.supabase.from('profiles')
+            .update({ display_name: trimmed || null })
+            .eq('id', id)
+            .select('id, email, display_name')
+            .maybeSingle()
+            .then(function(r) {
+              if (r.error) { reject(r.error); return; }
+              if (!r.data) { reject(new Error('Profile not found or not permitted')); return; }
+              resolve(r.data);
+            })
+            .catch(reject);
         });
       });
     },
