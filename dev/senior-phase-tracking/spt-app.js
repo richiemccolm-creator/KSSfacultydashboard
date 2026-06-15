@@ -765,7 +765,7 @@
       html += '<div class="sheet-grid-wrap"><table class="data-table hub-staff-table"><thead><tr>' +
         '<th class="col-pupil">Hub staff</th><th>Email</th><th>Status</th><th></th></tr></thead><tbody>';
       rows.forEach(function(row) {
-        var linked = global.SptHubStaff && SptHubStaff.findLocalTeacher(d, row);
+        var linked = window.SptHubStaff && SptHubStaff.findLocalTeacher(d, row);
         html += '<tr><td class="col-pupil">' + esc(row.display_name || row.email || 'Unknown') + '</td>' +
           '<td>' + esc(row.email || '—') + '</td>' +
           '<td>' + (linked ? badge('Complete') : badge('Not Started')) + '</td>' +
@@ -779,7 +779,7 @@
   }
 
   function loadHubStaffState() {
-    if (!global.SptHubStaff) {
+    if (!window.SptHubStaff) {
       state.hubStaffStatus = 'offline';
       return;
     }
@@ -796,12 +796,20 @@
         d.hub_current_user_id = payload.currentUser.teacher_id;
         SptStore.save(d);
       }
-      if (state.route === 'setup') render();
+      render();
+    }).catch(function(err) {
+      state.hubStaffStatus = 'error';
+      state.hubStaffError = err && err.message ? err.message : String(err);
+      render();
     });
   }
 
   function syncHubTeachers(messagePrefix) {
-    if (!global.SptHubStaff) return;
+    if (!window.SptHubStaff) {
+      state.hubStaffMessage = 'Hub staff module not loaded — refresh the page.';
+      render();
+      return;
+    }
     state.hubStaffStatus = 'loading';
     state.hubStaffMessage = null;
     render();
@@ -820,11 +828,19 @@
         result.added + ' added, ' + result.updated + ' updated.';
       render();
       initRoleControls();
+    }).catch(function(err) {
+      state.hubStaffStatus = 'error';
+      state.hubStaffMessage = 'Sync failed: ' + (err && err.message ? err.message : String(err));
+      render();
     });
   }
 
   function addMeAsTeacher(andSelect) {
-    if (!global.SptHubStaff) return;
+    if (!window.SptHubStaff) {
+      state.hubStaffMessage = 'Hub staff module not loaded — refresh the page.';
+      render();
+      return;
+    }
     state.hubStaffStatus = 'loading';
     render();
     SptHubStaff.loadCurrentHubUser().then(function(user) {
@@ -842,13 +858,25 @@
       state.hubStaffMessage = 'Added you as ' + (user.display_name || user.email) + '.';
       render();
       initRoleControls();
+    }).catch(function(err) {
+      state.hubStaffStatus = 'error';
+      state.hubStaffMessage = 'Could not add you: ' + (err && err.message ? err.message : String(err));
+      render();
     });
   }
 
   function importHubTeacherById(hubUserId) {
-    if (!global.SptHubStaff) return;
+    if (!window.SptHubStaff) {
+      state.hubStaffMessage = 'Hub staff module not loaded — refresh the page.';
+      render();
+      return;
+    }
     var row = (state.hubStaff || []).find(function(r) { return r.teacher_id === hubUserId; });
-    if (!row) return;
+    if (!row) {
+      state.hubStaffMessage = 'Could not find that staff member — try Sync from Hub first.';
+      render();
+      return;
+    }
     SptHubStaff.ensureHubTeacher(db(), row);
     state.hubStaffMessage = 'Imported ' + (row.display_name || row.email) + '.';
     render();
@@ -878,6 +906,7 @@
       '<button type="button" class="btn btn-sm" id="btn-sync-hub-teachers-inline">Sync hub staff</button>' +
       '<button type="button" class="btn btn-secondary btn-sm" id="btn-setup-my-classes">Set up my classes</button>' +
       '</div>' +
+      '<p class="hub-staff-status">' + esc(hubStaffStatusText()) + '</p>' +
       '<div class="setup-teacher-picker">' +
       '<label for="setup-teacher-select">Teacher</label>' +
       '<select id="setup-teacher-select" data-setup-teacher>' +
