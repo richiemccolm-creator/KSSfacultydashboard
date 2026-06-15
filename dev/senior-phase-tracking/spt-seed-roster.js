@@ -50,7 +50,7 @@
       course_id: 'c-' + courseSlug,
       class_name: name,
       teacher_id: teacherId,
-      academic_year: '2025-26',
+      academic_year: global.SptConfig.currentAcademicYear(),
       created_at: ts,
       updated_at: ts
     };

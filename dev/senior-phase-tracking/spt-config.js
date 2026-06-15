@@ -13,7 +13,7 @@
   })();
 
   var STORAGE_KEY = useSeedData ? 'spt-dev-v2' : 'spt-hub-v1';
-  var DATA_VERSION = 10;
+  var DATA_VERSION = 11;
 
   var CFE_LEVELS = ['Second', 'Third', 'Fourth'];
 
@@ -176,10 +176,14 @@
   };
 
   var TRACKING_POINT_NAMES = [
-    { tracking_point_name: 'Tracking Point 1', tracking_point_date: '2025-10-15', academic_year: '2025-26' },
-    { tracking_point_name: 'Tracking Point 2', tracking_point_date: '2025-12-10', academic_year: '2025-26' },
-    { tracking_point_name: 'Tracking Point 3', tracking_point_date: '2026-02-20', academic_year: '2025-26' }
+    { tracking_point_name: 'Tracking Point 1', tracking_point_date: '2026-10-15', academic_year: '2026-27' },
+    { tracking_point_name: 'Tracking Point 2', tracking_point_date: '2026-12-10', academic_year: '2026-27' },
+    { tracking_point_name: 'Tracking Point 3', tracking_point_date: '2027-02-20', academic_year: '2026-27' }
   ];
+
+  function currentAcademicYear() {
+    return (TRACKING_POINT_NAMES[0] && TRACKING_POINT_NAMES[0].academic_year) || '2026-27';
+  }
 
   function gradeRank(g) {
     if (!g) return -1;
@@ -229,6 +233,7 @@
     COURSE_DEFS: COURSE_DEFS,
     ASSESSMENT_TEMPLATES: ASSESSMENT_TEMPLATES,
     PRELIM_COMPONENT_TEMPLATES: PRELIM_COMPONENT_TEMPLATES,
-    TRACKING_POINT_NAMES: TRACKING_POINT_NAMES
+    TRACKING_POINT_NAMES: TRACKING_POINT_NAMES,
+    currentAcademicYear: currentAcademicYear
   };
 })(typeof window !== 'undefined' ? window : global);

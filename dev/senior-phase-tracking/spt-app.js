@@ -2471,7 +2471,7 @@
       var teacherId = fd.get('teacher_id');
       SptStore.insertRecord(db(), 'classes', {
         course_id: fd.get('course_id'), class_name: className,
-        teacher_id: teacherId, academic_year: '2025-26'
+        teacher_id: teacherId, academic_year: SptConfig.currentAcademicYear()
       }, 'class_add');
       var newCl = (db().classes || []).find(function(c) {
         return c.teacher_id === teacherId && c.class_name === className;

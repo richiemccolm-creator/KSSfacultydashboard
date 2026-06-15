@@ -46,12 +46,12 @@
   function defaultAcademicYear(db) {
     var tps = (db && db.school_tracking_points) || [];
     if (tps[0] && tps[0].academic_year) return tps[0].academic_year;
-    return '2025-26';
+    return global.SptConfig.currentAcademicYear();
   }
 
   function exampleRow(courseName) {
     return [
-      '2025-26', courseName || '', 'Class A',
+      global.SptConfig.currentAcademicYear(), courseName || '', 'Class A',
       'Teacher', 'Name', 'teacher@school.gla.ac.uk',
       'Pupil', 'Example', 'S5', '2410001',
       'Higher', 'B', 'Tracking Point 1',

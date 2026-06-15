@@ -91,7 +91,7 @@
       if (db.classes.some(function(cl) { return cl.id === 'cl-npa-a'; })) return;
       db.classes.push({
         id: 'cl-npa-a', course_id: 'c-npa-photo', class_name: 'NPA Photo L5 A',
-        teacher_id: 't-douglas', academic_year: '2025-26', created_at: ts, updated_at: ts
+        teacher_id: 't-douglas', academic_year: global.SptConfig.currentAcademicYear(), created_at: ts, updated_at: ts
       });
       changed = true;
     }
@@ -204,6 +204,39 @@
     return db;
   }
 
+  function syncTrackingPointsFromConfig(db) {
+    if (!global.SptConfig || !global.SptConfig.TRACKING_POINT_NAMES) return false;
+    var config = global.SptConfig.TRACKING_POINT_NAMES;
+    db.school_tracking_points = db.school_tracking_points || [];
+    var ts = new Date().toISOString();
+    var changed = false;
+    config.forEach(function(cfg, i) {
+      var existing = db.school_tracking_points.find(function(tp) {
+        return tp.tracking_point_name === cfg.tracking_point_name;
+      }) || db.school_tracking_points[i];
+      if (existing) {
+        if (existing.tracking_point_date !== cfg.tracking_point_date ||
+            existing.academic_year !== cfg.academic_year) {
+          existing.tracking_point_date = cfg.tracking_point_date;
+          existing.academic_year = cfg.academic_year;
+          existing.updated_at = ts;
+          changed = true;
+        }
+      } else {
+        db.school_tracking_points.push({
+          id: uid('tp'),
+          tracking_point_name: cfg.tracking_point_name,
+          tracking_point_date: cfg.tracking_point_date,
+          academic_year: cfg.academic_year,
+          created_at: ts,
+          updated_at: ts
+        });
+        changed = true;
+      }
+    });
+    return changed;
+  }
+
   function migrate(db) {
     if (!db) return null;
     if (db.version >= VER) return db;
@@ -230,6 +263,7 @@
     if (global.SptPrelim && global.SptPrelim.syncComponentsFromConfig) {
       global.SptPrelim.syncComponentsFromConfig(db);
     }
+    syncTrackingPointsFromConfig(db);
     mergeCoursesFromConfig(db);
     if (shouldUseSeed()) {
       seedNpaPhotoIfMissing(db);
@@ -285,6 +319,9 @@
         patchNpaPhotoCourse(db) || syncNpaPhotoEvidence(db);
     } else {
       cohortPatched = mergeCoursesFromConfig(db) || patchNpaPhotoCourse(db);
+    }
+    if (syncTrackingPointsFromConfig(db)) {
+      cohortPatched = true;
     }
     if (cohortPatched) {
       if (global.SptRisk) global.SptRisk.recalculateAll(db);
@@ -857,7 +894,7 @@
     if (!db.classes.some(function(cl) { return cl.id === 'cl-aa-b'; })) {
       db.classes.push({
         id: 'cl-aa-b', course_id: 'c-ah-art', class_name: 'AH Art B',
-        teacher_id: 't-douglas', academic_year: '2025-26', created_at: ts, updated_at: ts
+        teacher_id: 't-douglas', academic_year: global.SptConfig.currentAcademicYear(), created_at: ts, updated_at: ts
       });
       changed = true;
     }
