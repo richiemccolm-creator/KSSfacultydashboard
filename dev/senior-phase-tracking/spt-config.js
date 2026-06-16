@@ -17,8 +17,10 @@
 
   var CFE_LEVELS = ['Second', 'Third', 'Fourth'];
 
+  var SENIOR_YEAR_GROUPS = ['S4', 'S5', 'S6', 'S5/6'];
+
   var STATUS = {
-    risk: ['Green', 'Amber', 'Red'],
+    risk: ['Grey', 'Green', 'Amber', 'Red'],
     completion: ['Not Started', 'In Progress', 'Complete', 'Missing', 'Not Applicable'],
     concern: ['Green', 'Amber', 'Red', 'Grey'],
     evidence: ['Not Started', 'In Progress', 'Banked', 'Needs Rework', 'Missing'],
@@ -230,6 +232,7 @@
     SUBJECT_ORDER: SUBJECT_ORDER,
     ROLES: ROLES,
     CFE_LEVELS: CFE_LEVELS,
+    SENIOR_YEAR_GROUPS: SENIOR_YEAR_GROUPS,
     COURSE_DEFS: COURSE_DEFS,
     ASSESSMENT_TEMPLATES: ASSESSMENT_TEMPLATES,
     PRELIM_COMPONENT_TEMPLATES: PRELIM_COMPONENT_TEMPLATES,

@@ -34,7 +34,7 @@
       var missing = (db.pupil_assessment_results || []).filter(function(ar) {
         var ap = global.SptStore.byId(db.assessment_points, ar.assessment_point_id);
         return ar.enrolment_id === r.enrolment.id && ap && ap.is_required &&
-          (ar.completion_status === 'Missing' || ar.completion_status === 'Not Started');
+          ar.completion_status === 'Missing';
       });
       var int = r.active_interventions[0];
       return {
@@ -55,11 +55,12 @@
 
   function missingEvidence(db) {
     return (db.evidence_bank || []).filter(function(ev) {
-      if (ev.evidence_status !== 'Missing' && ev.evidence_status !== 'Not Started' && ev.evidence_status !== 'Needs Rework') return false;
+      if (ev.evidence_status !== 'Missing' && ev.evidence_status !== 'Needs Rework') return false;
       var en = global.SptStore.byId(db.enrolments, ev.enrolment_id);
       if (!en) return false;
       var course = global.SptStore.byId(db.courses, en.course_id);
-      return global.SptEvidence && global.SptEvidence.usesEvidenceBank(course, en);
+      if (!global.SptEvidence || !global.SptEvidence.usesEvidenceBank(course, en)) return false;
+      return global.SptRisk && global.SptRisk.hasTrackingData(db, ev.enrolment_id, en, course);
     }).map(function(ev) {
       var en = global.SptStore.byId(db.enrolments, ev.enrolment_id);
       return {

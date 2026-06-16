@@ -337,7 +337,7 @@
       teacherList.map(function(t) { return '<option value="' + t.id + '">' + esc(t.first_name + ' ' + t.surname) + '</option>'; }).join('') +
       '</select></div>' +
       '<div class="filter-field"><label>Year</label><select data-filter="year"><option value="">All</option>' +
-      ['S4','S5','S6'].map(function(y) { return '<option value="' + y + '">' + y + '</option>'; }).join('') +
+      SptConfig.SENIOR_YEAR_GROUPS.map(function(y) { return '<option value="' + y + '">' + y + '</option>'; }).join('') +
       '</select></div>' +
       '<div class="filter-field"><label>Risk</label><select data-filter="risk"><option value="">All</option>' +
       SptConfig.STATUS.risk.map(function(s) { return '<option value="' + s + '">' + s + '</option>'; }).join('') +
@@ -443,6 +443,124 @@
   function applyScoreSelectColor(el) {
     el.classList.remove('score-1', 'score-2', 'score-3', 'score-4', 'score-empty');
     el.classList.add(trackingScoreClass(el.value));
+  }
+
+  function sheetEnrolmentIdsFromButton(btn) {
+    var raw = btn.getAttribute('data-tp-enrolments') || '';
+    return raw.split(',').map(function(id) { return id.trim(); }).filter(Boolean);
+  }
+
+  function updateTpScoreSelects(enrolmentId, tpId, score) {
+    var attSel = document.querySelector('[data-att="' + enrolmentId + '|' + tpId + '"]');
+    if (attSel) {
+      attSel.value = String(score);
+      applyScoreSelectColor(attSel);
+    }
+    ['effort', 'behaviour'].forEach(function(field) {
+      var sel = document.querySelector('[data-tracking="' + enrolmentId + '|' + tpId + '|' + field + '"]');
+      if (sel) {
+        sel.value = String(score);
+        applyScoreSelectColor(sel);
+      }
+    });
+  }
+
+  function applyDefaultTpScores(tpId, enrolmentIds) {
+    if (!role().canEdit || !enrolmentIds.length) return;
+    var d = db();
+    var score = 4;
+    enrolmentIds.forEach(function(enId) {
+      SptStore.upsertAttendance(d, enId, tpId, score);
+      SptStore.upsertTrackingScore(d, enId, tpId, 'effort', score);
+      SptStore.upsertTrackingScore(d, enId, tpId, 'behaviour', score);
+      updateTpScoreSelects(enId, tpId, score);
+      updateEnrolmentRiskCell(enId);
+    });
+  }
+
+  function updateS3BaselineInputs(enrolmentId) {
+    var b = SptBaseline.baselineForEnrolment(db(), enrolmentId);
+    if (!b) return;
+    ['effort', 'behaviour', 'homelearning'].forEach(function(field) {
+      var sel = document.querySelector('[data-baseline="' + enrolmentId + '|' + field + '"]');
+      if (sel && b[field] != null && b[field] !== '') {
+        sel.value = String(b[field]);
+        applyScoreSelectColor(sel);
+      }
+    });
+    var prog = document.querySelector('[data-baseline="' + enrolmentId + '|progress"]');
+    if (prog && b.progress != null && b.progress !== '') prog.value = String(b.progress);
+    var cfe = document.querySelector('[data-baseline="' + enrolmentId + '|cfe_level"]');
+    if (cfe && b.cfe_level) cfe.value = b.cfe_level;
+  }
+
+  function applyDefaultS3BaselineScores(enrolmentIds) {
+    if (!enrolmentIds.length || !canEditBaselineField('effort')) return;
+    var d = db();
+    var patch = {
+      effort: 4,
+      behaviour: 4,
+      homelearning: 4,
+      progress: 4,
+      cfe_level: 'Fourth'
+    };
+    enrolmentIds.forEach(function(enId) {
+      SptStore.upsertBaseline(d, enId, patch);
+      updateS3BaselineInputs(enId);
+      updateEnrolmentRiskCell(enId);
+    });
+  }
+
+  function showDefaultS3BaselineModal(enrolmentIds) {
+    if (!enrolmentIds.length || !canEditBaselineField('effort')) return;
+    var count = enrolmentIds.length;
+    openModal('Default S3 baseline scores',
+      '<div class="modal-note tp-default-modal">' +
+      '<p>This will set S3 entry baseline scores for all <strong>' + count + '</strong> National course pupil' +
+      (count !== 1 ? 's' : '') + ' on this sheet:</p>' +
+      '<ul>' +
+      '<li><strong>Effort</strong>, <strong>Behaviour</strong>, <strong>Home learning</strong>, and <strong>Progress</strong> → <strong>4 (Good)</strong></li>' +
+      '<li><strong>CfE level</strong> → <strong>Fourth</strong> (the expected strong entry level for senior phase)</li>' +
+      '</ul>' +
+      '<p><strong>What this means:</strong></p>' +
+      '<ul>' +
+      '<li>Score <strong>4</strong> = good / no concern for each category</li>' +
+      '<li>Existing Eff, Beh, HL, Prog, and CfE values will be <strong>replaced</strong></li>' +
+      '<li><strong>S3 exam %</strong> is not changed — enter exam marks separately</li>' +
+      '<li>After applying, adjust individual pupils who need lower scores or a different CfE level</li>' +
+      '</ul></div>',
+      '<button type="button" class="btn btn-secondary" id="modal-cancel">Cancel</button>' +
+      '<button type="button" class="btn" id="s3-baseline-default-confirm">Apply default 4</button>');
+    document.getElementById('s3-baseline-default-confirm').onclick = function() {
+      applyDefaultS3BaselineScores(enrolmentIds);
+      closeModal();
+    };
+    document.getElementById('modal-cancel').onclick = closeModal;
+  }
+
+  function showDefaultTpModal(tpId, tpLabel, tpDate, enrolmentIds) {
+    if (!role().canEdit || !enrolmentIds.length) return;
+    var count = enrolmentIds.length;
+    var dateNote = tpDate ? ' (' + formatTpShortDate(tpDate) + ')' : '';
+    openModal('Default scores — ' + tpLabel + dateNote,
+      '<div class="modal-note tp-default-modal">' +
+      '<p>This will set <strong>Attendance</strong>, <strong>Effort</strong>, and <strong>Behaviour</strong> to ' +
+      '<strong>4 (Good)</strong> for all <strong>' + count + '</strong> pupil' + (count !== 1 ? 's' : '') +
+      ' on this class sheet.</p>' +
+      '<p><strong>What this means:</strong></p>' +
+      '<ul>' +
+      '<li>Score <strong>4</strong> = good / no concern (attendance acceptable, effort good, behaviour good)</li>' +
+      '<li>Any existing Att, Eff, or Beh scores for this tracking period will be <strong>replaced</strong></li>' +
+      '<li>After applying, change individual pupils who need a lower score (1–3)</li>' +
+      '<li>Risk status will update based on the scores entered — all 4s typically show as on track (Green)</li>' +
+      '</ul></div>',
+      '<button type="button" class="btn btn-secondary" id="modal-cancel">Cancel</button>' +
+      '<button type="button" class="btn" id="tp-default-confirm">Apply default 4</button>');
+    document.getElementById('tp-default-confirm').onclick = function() {
+      applyDefaultTpScores(tpId, enrolmentIds);
+      closeModal();
+    };
+    document.getElementById('modal-cancel').onclick = closeModal;
   }
 
   function bindScoreSelectColors(root) {
@@ -652,6 +770,7 @@
     return [
       { lbl: 'Pupils', val: rows.length, cls: '' },
       { lbl: 'Teacher flags', val: openFlags, cls: openFlags ? 'red' : '' },
+      { lbl: 'Not started', val: rows.filter(function(r) { return r.enrolment.risk_status === 'Grey'; }).length, cls: '' },
       { lbl: 'On track', val: rows.filter(function(r) { return r.enrolment.risk_status === 'Green'; }).length, cls: 'green' },
       { lbl: 'Amber', val: rows.filter(function(r) { return r.enrolment.risk_status === 'Amber'; }).length, cls: 'amber' },
       { lbl: 'Red', val: rows.filter(function(r) { return r.enrolment.risk_status === 'Red'; }).length, cls: 'red' },
@@ -916,16 +1035,22 @@
     });
   }
 
-  function parsePupilLine(raw) {
+  function parsePupilLine(raw, defaultYear) {
     var line = String(raw || '').trim();
     if (!line || line.charAt(0) === '#') return null;
     var year = '';
     var scn = '';
     var namePart = line;
-    var yearMatch = namePart.match(/\b(S[456])\b/i);
-    if (yearMatch) {
-      year = yearMatch[1].toUpperCase();
-      namePart = namePart.replace(/\bS[456]\b/i, '').trim();
+    var mixedMatch = namePart.match(/\b(S5\s*\/\s*6|S5\/6)\b/i);
+    if (mixedMatch) {
+      year = 'S5/6';
+      namePart = namePart.replace(mixedMatch[0], '').trim();
+    } else {
+      var yearMatch = namePart.match(/\b(S[456])\b/i);
+      if (yearMatch) {
+        year = yearMatch[1].toUpperCase();
+        namePart = namePart.replace(/\bS[456]\b/i, '').trim();
+      }
     }
     var scnMatch = namePart.match(/\b(\d{6,9})\b/);
     if (scnMatch) {
@@ -960,13 +1085,15 @@
     return {
       first_name: first || 'Pupil',
       surname: surname || '',
-      year_group: year || 'S5',
+      year_group: year || defaultYear || 'S5/6',
       candidate_number: scn
     };
   }
 
-  function parsePupilLines(text) {
-    return String(text || '').split(/\r?\n/).map(parsePupilLine).filter(Boolean);
+  function parsePupilLines(text, defaultYear) {
+    return String(text || '').split(/\r?\n/).map(function(line) {
+      return parsePupilLine(line, defaultYear);
+    }).filter(Boolean);
   }
 
   function findOrCreatePupil(d, parsed) {
@@ -981,7 +1108,12 @@
         return p.first_name.toLowerCase() === fn && p.surname.toLowerCase() === sn;
       });
     }
-    if (existing) return existing;
+    if (existing) {
+      if (parsed.year_group && existing.year_group !== parsed.year_group) {
+        SptStore.updateRecord(d, 'pupils', existing.id, { year_group: parsed.year_group }, 'pupil_year_update');
+      }
+      return existing;
+    }
     return SptStore.createPupil(d, parsed);
   }
 
@@ -1053,6 +1185,24 @@
     }).join('');
   }
 
+  function defaultYearGroupForCourse(course) {
+    if (!course) return 'S5/6';
+    if (course.course_type === 'N5/N4 Combined') return 'S4';
+    return 'S5/6';
+  }
+
+  function defaultYearGroupForClass(d, cl) {
+    if (!cl) return 'S5/6';
+    if (cl.year_group && SptConfig.SENIOR_YEAR_GROUPS.indexOf(cl.year_group) >= 0) return cl.year_group;
+    return defaultYearGroupForCourse(SptStore.byId(d.courses, cl.course_id));
+  }
+
+  function yearGroupOptionsHtml(selected) {
+    return SptConfig.SENIOR_YEAR_GROUPS.map(function(y) {
+      return '<option value="' + esc(y) + '"' + (selected === y ? ' selected' : '') + '>' + esc(y) + '</option>';
+    }).join('');
+  }
+
   function defaultLevelForClass(d, cl) {
     if (!cl) return 'Higher';
     var course = SptStore.byId(d.courses, cl.course_id);
@@ -1068,13 +1218,17 @@
   function renderClassEnrolPanel(d, activeClass) {
     var classId = activeClass.id;
     var levelDefault = defaultLevelForClass(d, activeClass);
+    var yearDefault = defaultYearGroupForClass(d, activeClass);
     var roster = enrolmentsForClass(d, classId);
     var html = '<div class="setup-enrol-block setup-class-focus" id="setup-class-panel">' +
       '<div class="setup-class-focus-head">' +
       '<h3>Class roster — ' + esc(activeClass.class_name) + '</h3>' +
       '<p class="sheet-hint">' + esc(SptStore.courseName(d, activeClass.course_id)) + ' · ' +
-      roster.length + ' pupil' + (roster.length !== 1 ? 's' : '') + ' enrolled</p>' +
+      roster.length + ' pupil' + (roster.length !== 1 ? 's' : '') + ' enrolled · Default year: ' +
+      '<select class="inline-select inline-select-sm" data-class-year="' + esc(classId) + '" title="Default year for new pupils">' +
+      yearGroupOptionsHtml(yearDefault) + '</select></p>' +
       '<button type="button" class="btn btn-secondary btn-sm" data-setup-class-clear>Choose a different class</button>' +
+      '<button type="button" class="btn btn-secondary btn-sm" data-delete-class="' + esc(classId) + '">Delete class</button>' +
       '</div>';
     if (state.setupMessage) {
       html += '<p class="hub-staff-status">' + esc(state.setupMessage) + '</p>';
@@ -1085,7 +1239,8 @@
         roster.map(function(en) {
           var p = SptStore.byId(d.pupils, en.pupil_id);
           return '<tr><td class="col-pupil">' + esc(p ? SptStore.pupilName(d, p.id) : '—') + '</td>' +
-            '<td>' + esc(p ? p.year_group : '—') + '</td>' +
+            '<td>' + (p ? '<select class="inline-select inline-select-sm" data-pupil-year="' + p.id + '">' +
+              yearGroupOptionsHtml(p.year_group) + '</select>' : '—') + '</td>' +
             '<td>' + esc(en.current_level || '—') + '</td></tr>';
         }).join('') +
         '</tbody></table></div>';
@@ -1102,16 +1257,19 @@
         }).join('')
         : '<option value="">— Paste names below first —</option>') +
       '</select></div>' +
+      '<div><label>Year group</label><select name="year_group">' + yearGroupOptionsHtml(yearDefault) + '</select></div>' +
       '<div><label>Current level</label><select name="current_level">' + levelOptionsHtml(levelDefault) + '</select></div>' +
       '<div class="form-span"><button type="submit" class="btn btn-sm">Add one pupil to this class</button></div></form>' +
 
       '<div class="setup-bulk-panel">' +
       '<h4>Paste multiple names</h4>' +
-      '<p class="sheet-hint">One pupil per line — e.g. <code>Jamie Smith</code>, <code>Smith, Jamie</code>, <code>Alex Brown S5</code>.</p>' +
+      '<p class="sheet-hint">One pupil per line — e.g. <code>Jamie Smith</code>, <code>Smith, Jamie</code>, <code>Alex Brown S5</code>, <code>Taylor Reid S5/6</code>. ' +
+      'Year in the name overrides the default below.</p>' +
       '<form id="form-bulk-enrol-profile" class="form-grid">' +
       '<input type="hidden" name="class_id" value="' + esc(classId) + '">' +
       '<div class="form-span"><label>Pupil names</label>' +
-      '<textarea name="pupil_lines" rows="8" placeholder="Jamie Smith&#10;Alex Brown S5&#10;Taylor Reid, Sam"></textarea></div>' +
+      '<textarea name="pupil_lines" rows="8" placeholder="Jamie Smith&#10;Alex Brown S5&#10;Taylor Reid, Sam S4"></textarea></div>' +
+      '<div><label>Default year group</label><select name="year_group">' + yearGroupOptionsHtml(yearDefault) + '</select></div>' +
       '<div><label>Current level</label><select name="current_level">' + levelOptionsHtml(levelDefault) + '</select></div>' +
       '<div class="form-span"><button type="submit" class="btn btn-sm">Add pasted pupils to this class</button></div></form></div>';
 
@@ -1184,10 +1342,13 @@
 
     html += '<form id="form-add-class-profile" class="form-grid setup-class-form">' +
       '<input type="hidden" name="teacher_id" value="' + esc(selected.id) + '">' +
-      '<div><label>Course</label><select name="course_id">' + d.courses.map(function(c) {
-        return '<option value="' + c.id + '">' + esc(c.course_name) + '</option>';
+      '<div><label>Course</label><select name="course_id" id="setup-class-course">' + d.courses.map(function(c, i) {
+        return '<option value="' + c.id + '"' + (i === 0 ? ' selected' : '') + '>' + esc(c.course_name) + '</option>';
       }).join('') + '</select></div>' +
       '<div><label>Class name</label><input name="class_name" required placeholder="e.g. H Drama A"></div>' +
+      '<div><label>Default year group</label><select name="year_group" id="setup-class-year-group">' +
+      yearGroupOptionsHtml(defaultYearGroupForCourse(d.courses[0])) + '</select></div>' +
+      '<p class="sheet-hint form-span">New pupils added to this class use this year group unless you specify S4, S5, S6, or S5/6 in their name when pasting.</p>' +
       '<div class="form-span"><button type="submit" class="btn btn-sm">Add class for this teacher</button></div></form>';
 
     if (!teacherClasses.length) {
@@ -1195,19 +1356,22 @@
     } else {
       html += '<p class="sheet-hint">Click <strong>Add pupils</strong> on a class to update its roster — add one pupil or paste many names at once.</p>' +
         '<table class="data-table setup-class-table"><thead><tr>' +
-        '<th>Class</th><th>Course</th><th>Pupils</th><th></th></tr></thead><tbody>' +
+        '<th>Class</th><th>Course</th><th>Year</th><th>Pupils</th><th></th></tr></thead><tbody>' +
         teacherClasses.map(function(cl) {
           var count = SptStore.enrolmentCountForClass(d, cl.id);
           var isActive = activeClass && activeClass.id === cl.id;
           return '<tr class="setup-class-row' + (isActive ? ' is-selected' : '') + '">' +
             '<td>' + esc(cl.class_name) + '</td>' +
             '<td>' + esc(SptStore.courseName(d, cl.course_id)) + '</td>' +
+            '<td>' + esc(defaultYearGroupForClass(d, cl)) + '</td>' +
             '<td>' + count + '</td>' +
             '<td class="setup-class-actions">' +
             '<button type="button" class="btn btn-sm' + (isActive ? '' : ' btn-secondary') + '" data-setup-class="' +
             esc(cl.id) + '">' + (isActive ? 'Managing' : 'Add pupils') + '</button> ' +
             '<button type="button" class="btn btn-sm btn-secondary" data-open-class-sheet="' +
-            esc(cl.course_id) + '|' + esc(cl.id) + '">Open sheet</button></td></tr>';
+            esc(cl.course_id) + '|' + esc(cl.id) + '">Open sheet</button> ' +
+            '<button type="button" class="btn btn-sm btn-secondary" data-delete-class="' +
+            esc(cl.id) + '">Delete</button></td></tr>';
         }).join('') +
         '</tbody></table>';
 
@@ -1260,7 +1424,7 @@
         '<form id="form-add-pupil" class="form-grid" style="max-width:480px;margin-bottom:1rem">' +
         '<div><label>First name</label><input name="first_name" required></div>' +
         '<div><label>Surname</label><input name="surname" required></div>' +
-        '<div><label>Year group</label><select name="year_group"><option>S4</option><option>S5</option><option>S6</option></select></div>' +
+        '<div><label>Year group</label><select name="year_group">' + yearGroupOptionsHtml('S5/6') + '</select></div>' +
         '<div><label>Candidate number</label><input name="candidate_number"></div>' +
         '<button type="submit" class="btn btn-sm">Add pupil</button></form>' +
         '<table class="data-table"><thead><tr><th>Name</th><th>Year</th><th>SCN</th></tr></thead><tbody>' +
@@ -1407,6 +1571,9 @@
     var tps = SptStore.trackingPoints(d);
     var canEdit = role().canEdit;
     var canBaseline = canEditBaseline();
+    var sheetEnrolmentIds = enrolments.map(function(r) { return r.enrolment.id; }).join(',');
+    var s3BaselineEnrolmentIds = enrolments.filter(function(r) { return r.shows_s3_baseline; })
+      .map(function(r) { return r.enrolment.id; }).join(',');
     var showTeachers = !state.classId && courseShowsTeacherColumn(d, courseId, enrolments);
     var courseTeachers = SptStore.teachersForCourse(d, courseId);
     var sheetTitle = sheetClass ? sheetClass.class_name :
@@ -1451,7 +1618,10 @@
     if (showTeachers) headGroup += '<th rowspan="2">Teacher</th>';
     if (meta.hasS3) {
       headGroup += '<th class="col-entry" rowspan="2" title="S3 exam % — grade band updates automatically">S3 Exam<span class="th-sub">% · band</span></th>' +
-        '<th rowspan="2">Eff</th><th rowspan="2">Beh</th><th rowspan="2">HL</th><th rowspan="2">Prog</th><th rowspan="2">CfE</th>';
+        '<th colspan="5" class="s3-baseline-head">S3 baseline' +
+        (canEdit && s3BaselineEnrolmentIds ? '<button type="button" class="btn-tp-default" data-s3-baseline-default="1" data-tp-enrolments="' +
+          esc(s3BaselineEnrolmentIds) + '" title="Set Eff, Beh, HL, Prog to 4 and CfE to Fourth">Default 4</button>' : '') +
+        '</th>';
     }
     if (meta.hasPrior) headGroup += '<th rowspan="2">Prior exam</th><th rowspan="2">Pathway</th>';
     meta.evUnits.forEach(function(u) {
@@ -1460,8 +1630,13 @@
     headGroup += '<th rowspan="2">Flag</th>';
     tps.forEach(function(tp, i) {
       var date = formatTpShortDate(tp.tracking_point_date);
-      headGroup += '<th colspan="3" class="tp-group-head ' + tpBandClass(i) + tpStartClass(i) + '">TP' + (i + 1) +
-        (date ? '<span class="tp-date">' + esc(date) + '</span>' : '') + '</th>';
+      headGroup += '<th colspan="3" class="tp-group-head ' + tpBandClass(i) + tpStartClass(i) + '">' +
+        'TP' + (i + 1) +
+        (date ? '<span class="tp-date">' + esc(date) + '</span>' : '') +
+        (canEdit && sheetEnrolmentIds ? '<button type="button" class="btn-tp-default" data-tp-default="' + esc(tp.id) +
+          '" data-tp-label="TP' + (i + 1) + '" data-tp-date="' + esc(tp.tracking_point_date || '') +
+          '" data-tp-enrolments="' + esc(sheetEnrolmentIds) + '" title="Set all pupils to 4 (Good) for Att, Eff, and Beh">Default 4</button>' : '') +
+        '</th>';
     });
     if (meta.hasExamPupils && prelimComps.length) {
       prelimComps.forEach(function(pc) {
@@ -1479,6 +1654,9 @@
     headGroup += '<th rowspan="2">Risk</th><th rowspan="2">Actions</th></tr>';
 
     var headSub = '<tr class="head-sub">';
+    if (meta.hasS3) {
+      headSub += '<th>Eff</th><th>Beh</th><th>HL</th><th>Prog</th><th>CfE</th>';
+    }
     tps.forEach(function(tp, i) {
       headSub += '<th' + tpColAttrs(i, '') + '>Att</th>';
       headSub += '<th class="' + tpBandClass(i) + '">Eff</th>';
@@ -1644,7 +1822,7 @@
       '<div id="add-pupil-new-fields">' +
       '<div><label>First name</label><input name="first_name" required autocomplete="given-name"></div>' +
       '<div><label>Surname</label><input name="surname" required autocomplete="family-name"></div>' +
-      '<div><label>Year group</label><select name="year_group"><option>S4</option><option selected>S5</option><option>S6</option></select></div>' +
+      '<div><label>Year group</label><select name="year_group">' + yearGroupOptionsHtml('S5/6') + '</select></div>' +
       '<div><label>Candidate no. (optional)</label><input name="candidate_number" placeholder="e.g. 2409999"></div></div>' +
       '<div id="add-pupil-existing-fields" hidden>' +
       '<div><label>Pupil</label><select name="pupil_id"><option value="">— Select pupil —</option>' + pupilOpts + '</select></div></div>' +
@@ -1716,6 +1894,35 @@
     var course = SptStore.courseName(d, en.course_id);
     if (!confirm('Remove ' + name + ' from ' + course + '?\n\nThey will disappear from tracking but their history is kept.')) return;
     SptStore.deactivateEnrolment(d, enrolmentId);
+    render();
+  }
+
+  function confirmDeleteClass(classId) {
+    if (!role().canSetup) return;
+    var d = db();
+    var cl = SptStore.byId(d.classes, classId);
+    if (!cl) return;
+    var count = SptStore.enrolmentCountForClass(d, classId);
+    var msg = 'Delete class "' + cl.class_name + '"?';
+    if (count) {
+      msg += '\n\n' + count + ' enrolled pupil' + (count !== 1 ? 's' : '') +
+        ' will become unassigned on the course sheet (they stay on the course).';
+    } else {
+      msg += '\n\nThis cannot be undone.';
+    }
+    if (!confirm(msg)) return;
+    var result = SptStore.deleteClass(d, classId);
+    if (result.error) {
+      alert(result.error);
+      return;
+    }
+    if (state.setupClassId === classId) state.setupClassId = null;
+    if (state.classId === classId) {
+      state.classId = null;
+      if (state.route === 'course') state.route = 'courses';
+    }
+    state.setupMessage = 'Deleted class "' + result.className + '"' +
+      (result.unassigned ? ' — ' + result.unassigned + ' pupil' + (result.unassigned !== 1 ? 's' : '') + ' unassigned' : '') + '.';
     render();
   }
 
@@ -2314,6 +2521,24 @@
         updateEnrolmentRiskCell(p[0]);
       });
     });
+    root.querySelectorAll('[data-tp-default]').forEach(function(el) {
+      el.addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (!role().canEdit) return;
+        showDefaultTpModal(
+          el.getAttribute('data-tp-default'),
+          el.getAttribute('data-tp-label') || 'Tracking period',
+          el.getAttribute('data-tp-date') || '',
+          sheetEnrolmentIdsFromButton(el)
+        );
+      });
+    });
+    root.querySelectorAll('[data-s3-baseline-default]').forEach(function(el) {
+      el.addEventListener('click', function(e) {
+        e.stopPropagation();
+        showDefaultS3BaselineModal(sheetEnrolmentIdsFromButton(el));
+      });
+    });
     root.querySelectorAll('[data-tracking]').forEach(function(el) {
       el.addEventListener('change', function() {
         var p = el.getAttribute('data-tracking').split('|');
@@ -2429,6 +2654,27 @@
         render();
       });
     });
+    root.querySelectorAll('[data-pupil-year]').forEach(function(el) {
+      el.addEventListener('change', function() {
+        if (!role().canSetup) return;
+        SptStore.updateRecord(db(), 'pupils', el.getAttribute('data-pupil-year'), { year_group: el.value }, 'pupil_year_update');
+      });
+    });
+    root.querySelectorAll('[data-class-year]').forEach(function(el) {
+      el.addEventListener('change', function() {
+        if (!role().canSetup) return;
+        SptStore.updateRecord(db(), 'classes', el.getAttribute('data-class-year'), { year_group: el.value }, 'class_year_update');
+        var bulkYear = document.querySelector('#form-bulk-enrol-profile [name=year_group]');
+        var singleYear = document.querySelector('#form-enrol-profile [name=year_group]');
+        if (bulkYear) bulkYear.value = el.value;
+        if (singleYear) singleYear.value = el.value;
+      });
+    });
+    root.querySelectorAll('[data-delete-class]').forEach(function(el) {
+      el.addEventListener('click', function() {
+        confirmDeleteClass(el.getAttribute('data-delete-class'));
+      });
+    });
     root.querySelectorAll('[data-open-class-sheet]').forEach(function(el) {
       el.addEventListener('click', function() {
         var parts = el.getAttribute('data-open-class-sheet').split('|');
@@ -2469,9 +2715,11 @@
       var fd = new FormData(fc);
       var className = String(fd.get('class_name') || '').trim();
       var teacherId = fd.get('teacher_id');
+      var course = SptStore.byId(db().courses, fd.get('course_id'));
       SptStore.insertRecord(db(), 'classes', {
         course_id: fd.get('course_id'), class_name: className,
-        teacher_id: teacherId, academic_year: SptConfig.currentAcademicYear()
+        teacher_id: teacherId, academic_year: SptConfig.currentAcademicYear(),
+        year_group: fd.get('year_group') || defaultYearGroupForCourse(course)
       }, 'class_add');
       var newCl = (db().classes || []).find(function(c) {
         return c.teacher_id === teacherId && c.class_name === className;
@@ -2482,6 +2730,14 @@
       }
       render();
     };
+    var setupCourse = document.getElementById('setup-class-course');
+    var setupYear = document.getElementById('setup-class-year-group');
+    if (setupCourse && setupYear) {
+      setupCourse.addEventListener('change', function() {
+        var course = SptStore.byId(db().courses, setupCourse.value);
+        setupYear.value = defaultYearGroupForCourse(course);
+      });
+    }
     var fep = document.getElementById('form-enrol-profile');
     if (fep) fep.onsubmit = function(e) {
       e.preventDefault();
@@ -2490,15 +2746,29 @@
       var cl = SptStore.byId(db().classes, classId);
       if (!cl) { alert('Class not found'); return; }
       if (!fd.get('pupil_id')) { state.setupMessage = 'Add pupils via paste below, or add pupils on the Pupils tab first.'; render(); return; }
+      if (fd.get('year_group')) {
+        SptStore.updateRecord(db(), 'pupils', fd.get('pupil_id'), { year_group: fd.get('year_group') }, 'pupil_year_update');
+      }
       SptStore.createEnrolment(db(), fd.get('pupil_id'), cl.course_id, classId, cl.teacher_id, fd.get('current_level'));
       state.setupMessage = 'Added pupil to ' + cl.class_name + '.';
       render();
     };
+    if (fep) {
+      var pupilSelect = fep.querySelector('[name=pupil_id]');
+      var yearSelect = fep.querySelector('[name=year_group]');
+      if (pupilSelect && yearSelect) {
+        pupilSelect.addEventListener('change', function() {
+          var p = SptStore.byId(db().pupils, pupilSelect.value);
+          if (p && p.year_group) yearSelect.value = p.year_group;
+        });
+      }
+    }
     var fbep = document.getElementById('form-bulk-enrol-profile');
     if (fbep) fbep.onsubmit = function(e) {
       e.preventDefault();
       var fd = new FormData(fbep);
-      var parsed = parsePupilLines(fd.get('pupil_lines'));
+      var defaultYear = fd.get('year_group');
+      var parsed = parsePupilLines(fd.get('pupil_lines'), defaultYear);
       var result = bulkEnrolPupilsInClass(fd.get('class_id'), fd.get('current_level'), parsed);
       if (result.error && !result.enrolled) {
         state.setupMessage = result.error;

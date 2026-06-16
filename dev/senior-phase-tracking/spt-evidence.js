@@ -106,8 +106,9 @@
     var en = global.SptStore.byId(db.enrolments, enrolmentId);
     var course = en ? global.SptStore.byId(db.courses, en.course_id) : null;
     if (!en || !course || !usesEvidenceBank(course, en)) return 0;
+    if (!global.SptRisk || !global.SptRisk.hasTrackingData(db, enrolmentId, en, course)) return 0;
     return evidenceForEnrolment(db, enrolmentId).filter(function(ev) {
-      return ev.evidence_status === 'Missing' || ev.evidence_status === 'Not Started';
+      return ev.evidence_status === 'Missing' || ev.evidence_status === 'Needs Rework';
     }).length;
   }
 

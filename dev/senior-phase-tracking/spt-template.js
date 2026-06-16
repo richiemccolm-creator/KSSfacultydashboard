@@ -287,7 +287,7 @@
     return global.SptStore.createPupil(db, {
       first_name: row.pupil_first,
       surname: row.pupil_surname,
-      year_group: row.year_group || 'S5',
+      year_group: row.year_group || 'S5/6',
       candidate_number: row.candidate_number || '',
       class_group: row.class_name || '',
       teacher_id: teacherId || null

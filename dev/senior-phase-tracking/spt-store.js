@@ -679,7 +679,7 @@
       target_grade: '',
       latest_working_grade: '',
       final_estimate: '',
-      risk_status: 'Green',
+      risk_status: 'Grey',
       risk_manual_override: false,
       risk_override_reason: '',
       has_open_flag: false,
@@ -748,7 +748,7 @@
       first_name: fields.first_name,
       surname: fields.surname,
       preferred_name: fields.preferred_name || fields.first_name,
-      year_group: fields.year_group || 'S5',
+      year_group: fields.year_group || 'S5/6',
       candidate_number: fields.candidate_number || '',
       class_group: fields.class_group || '',
       teacher_id: fields.teacher_id || null,
@@ -863,6 +863,28 @@
     return byId(db.classes, classId);
   }
 
+  function deleteClass(db, classId) {
+    var cl = byId(db.classes, classId);
+    if (!cl) return { error: 'Class not found' };
+    var unassigned = 0;
+    (db.enrolments || []).forEach(function(en) {
+      if (en.class_id !== classId) return;
+      unassigned++;
+      updateRecord(db, 'enrolments', en.id, { class_id: null }, 'enrolment_class_unassign');
+    });
+    var prev = Object.assign({}, cl);
+    deleteRecord(db, 'classes', classId);
+    audit(db, {
+      action_type: 'class_delete',
+      table_name: 'classes',
+      record_id: classId,
+      previous_value: prev,
+      new_value: null
+    });
+    save(db);
+    return { className: cl.class_name, unassigned: unassigned };
+  }
+
   function linkEnrolmentsToClasses(db) {
     var map = {
       'e-chloe-aa': 'cl-aa-a',
@@ -972,6 +994,7 @@
     addPupilToCourse: addPupilToCourse,
     updateEnrolmentTeacher: updateEnrolmentTeacher,
     updateClassTeacher: updateClassTeacher,
+    deleteClass: deleteClass,
     enrolmentCountForClass: enrolmentCountForClass,
     trackingEntriesForUser: trackingEntriesForUser
   };

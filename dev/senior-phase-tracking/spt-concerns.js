@@ -76,7 +76,7 @@
       var aF = openFlags(db, a.enrolment.id).length > 0;
       var bF = openFlags(db, b.enrolment.id).length > 0;
       if (aF !== bF) return aF ? -1 : 1;
-      var ro = { Red: 0, Amber: 1, Green: 2 };
+      var ro = { Red: 0, Amber: 1, Green: 2, Grey: 3 };
       return (ro[a.enrolment.risk_status] || 3) - (ro[b.enrolment.risk_status] || 3);
     });
   }
