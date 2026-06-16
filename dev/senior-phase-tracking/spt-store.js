@@ -28,11 +28,12 @@
     return db;
   }
 
-  function importCloudSnapshot(data) {
+  function importCloudSnapshot(data, options) {
+    options = options || {};
     var db = data ? migrate(JSON.parse(JSON.stringify(data))) : buildEmpty();
     if (!db) db = buildEmpty();
     db.version = VER;
-    db.updated_at = db.updated_at || new Date().toISOString();
+    db.updated_at = options.cloudUpdatedAt || db.updated_at || new Date().toISOString();
     localStorage.setItem(KEY, JSON.stringify(db));
     if (global.SptRisk) global.SptRisk.recalculateAll(db);
     return db;

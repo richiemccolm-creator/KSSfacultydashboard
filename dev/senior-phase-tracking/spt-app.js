@@ -3023,8 +3023,13 @@
       devNote.textContent = 'Saving to Faculty Hub cloud…';
       devNote.hidden = false;
     } else if (status === 'synced') {
-      devNote.textContent = '';
-      devNote.hidden = true;
+      if (message) {
+        devNote.textContent = message;
+        devNote.hidden = false;
+      } else {
+        devNote.textContent = '';
+        devNote.hidden = true;
+      }
     } else if (status === 'offline') {
       devNote.textContent = message || 'Sign in to Faculty Hub to sync this workbook across devices.';
       devNote.hidden = false;
@@ -3046,9 +3051,6 @@
     if (devNote && SptConfig.useSeedData) {
       devNote.textContent = 'Development preview with sample pupils — add ?dev_seed=1 to URL. Data stored locally in your browser.';
       devNote.hidden = false;
-    } else if (devNote) {
-      devNote.textContent = '';
-      devNote.hidden = true;
     }
     if (!SptConfig.useSeedData) document.body.classList.add('spt-hub-mode');
     else document.body.classList.add('spt-dev-seed');
@@ -3099,22 +3101,31 @@
   initHubEmbed();
   initLayoutControls();
   initRoleControls();
-  loadHubStaffState();
-  window.addEventListener('staffdisplaynameupdated', function() {
-    loadHubStaffState();
-  });
   maybeBootstrapRoute();
   render();
   updateNavBadge();
 
+  window.addEventListener('staffdisplaynameupdated', function() {
+    if (SptConfig.useSeedData || !window.SptSync) {
+      loadHubStaffState();
+      return;
+    }
+    SptSync.whenHydrated(loadHubStaffState);
+  });
+
+  function afterCloudHydrate(status, message, changed) {
+    if (changed) {
+      initRoleControls();
+      render();
+      updateNavBadge();
+    }
+    updateSyncBanner(status, message);
+    loadHubStaffState();
+  }
+
   if (!SptConfig.useSeedData && window.SptSync) {
-    SptSync.hydrate(function(status, message, changed) {
-      updateSyncBanner(status, message);
-      if (changed) {
-        initRoleControls();
-        render();
-        updateNavBadge();
-      }
-    });
+    SptSync.hydrate(afterCloudHydrate);
+  } else {
+    loadHubStaffState();
   }
 })();
