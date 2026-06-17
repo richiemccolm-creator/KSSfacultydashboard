@@ -222,7 +222,7 @@
       return '<div class="entry-guide entry-guide-inline">Open your <strong>class sheet</strong> to record attendance, effort, behaviour, S3 baseline, prelims, evidence &amp; flags' + admin + '</div>';
     }
     if (variant === 'course') {
-      var bits = 'Attendance · effort · behaviour · S3 exam &amp; baseline (N5 &amp; N4) · prior exam &amp; pathway (H/AH) · level change · withdraw · prelims · evidence · flags';
+      var bits = 'Attendance · effort · behaviour · S3 exam (mark → % → grade) · prior exam &amp; pathway (H/AH) · level change · withdraw · prelims · evidence · flags';
       bits += ' · <strong>Add pupil</strong> / <strong>Remove</strong> for roster';
       return '<div class="entry-guide entry-guide-inline">' + bits + '</div>';
     }
@@ -526,7 +526,7 @@
       '<ul>' +
       '<li>Score <strong>4</strong> = good / no concern for each category</li>' +
       '<li>Existing Eff, Beh, HL, Prog, and CfE values will be <strong>replaced</strong></li>' +
-      '<li><strong>S3 exam %</strong> is not changed — enter exam marks separately</li>' +
+      '<li><strong>S3 exam mark</strong> is not changed — enter exam marks separately in the Mark column</li>' +
       '<li>After applying, adjust individual pupils who need lower scores or a different CfE level</li>' +
       '</ul></div>',
       '<button type="button" class="btn btn-secondary" id="modal-cancel">Cancel</button>' +
@@ -588,9 +588,19 @@
     });
   }
 
+  function prelimPctHtml(summary) {
+    if (!summary) return '—';
+    return esc(summary.percentage) + '%';
+  }
+
+  function prelimGradeHtml(summary) {
+    if (!summary || !summary.grade_band) return '—';
+    return gradeBandHtml(summary.grade_band);
+  }
+
   function prelimResultHtml(summary, fallbackText) {
     if (summary) {
-      return esc(summary.percentage) + '% ' + (summary.grade_band ? gradeBandHtml(summary.grade_band) : '');
+      return prelimPctHtml(summary) + ' ' + prelimGradeHtml(summary);
     }
     if (fallbackText) return esc(fallbackText);
     return '—';
@@ -618,10 +628,101 @@
     var d = db();
     var prelimAp = prelimAssessmentForEnrolment(d, enrolmentId);
     if (!prelimAp) return;
-    var cell = document.querySelector('[data-prelim-result-for="' + enrolmentId + '"]');
-    if (!cell) return;
     var summary = SptPrelim.computeSummary(d, enrolmentId, prelimAp.id, overrides);
-    cell.innerHTML = prelimResultHtml(summary);
+    var pctCell = document.querySelector('[data-prelim-pct-for="' + enrolmentId + '"]');
+    var gradeCell = document.querySelector('[data-prelim-grade-for="' + enrolmentId + '"]');
+    if (pctCell) pctCell.innerHTML = prelimPctHtml(summary);
+    if (gradeCell) gradeCell.innerHTML = prelimGradeHtml(summary);
+    var legacyCell = document.querySelector('[data-prelim-result-for="' + enrolmentId + '"]');
+    if (legacyCell) legacyCell.innerHTML = prelimResultHtml(summary);
+  }
+
+  function updateS3ExamDerivedCells(enrolmentId, course) {
+    var d = db();
+    var b = SptBaseline.baselineForEnrolment(d, enrolmentId);
+    var result = SptBaseline.s3ExamResult(b, course);
+    var pctEl = document.querySelector('[data-s3-pct-for="' + enrolmentId + '"]');
+    var gradeEl = document.querySelector('[data-s3-grade-for="' + enrolmentId + '"]');
+    if (pctEl) pctEl.textContent = result ? result.percentage + '%' : '—';
+    if (gradeEl) gradeEl.innerHTML = result && result.grade ? gradeBandHtml(result.grade) : '—';
+  }
+
+  function updateAllS3ExamDerivedCells(courseId) {
+    var d = db();
+    var course = SptStore.byId(d.courses, courseId);
+    document.querySelectorAll('[data-s3-raw]').forEach(function(el) {
+      var p = el.getAttribute('data-s3-raw').split('|');
+      if (p[0]) updateS3ExamDerivedCells(p[0], course);
+    });
+  }
+
+  function updateAllPrelimDerivedCells(courseId) {
+    var d = db();
+    document.querySelectorAll('[data-prelim-mark]').forEach(function(el) {
+      var p = el.getAttribute('data-prelim-mark').split('|');
+      var row = el.closest('tr');
+      updatePrelimResultCell(p[0], prelimOverridesFromRow(row));
+    });
+  }
+
+  function examMarkSetupHtml(course, prelimComps, meta) {
+    if (!course) return '';
+    var canEditSheet = role().canEdit;
+    var rows = '';
+    if (meta.hasS3) {
+      var s3 = SptExamMark.s3ExamMarks(course);
+      rows += examSetupRow({
+        label: 'S3 exam',
+        paper: s3.paper_marks,
+        scaled: s3.scaled_marks,
+        weight: '—',
+        canEdit: canEditSheet,
+        s3CourseId: course.id
+      });
+    }
+    (prelimComps || []).forEach(function(pc) {
+      var m = SptExamMark.componentMarks(pc);
+      rows += examSetupRow({
+        label: SptPrelim.columnLabel(pc),
+        paper: m.paper_marks,
+        scaled: m.scaled_marks,
+        weight: m.weighting + '%',
+        canEdit: canEditSheet,
+        componentId: pc.id
+      });
+    });
+    if (!rows) return '';
+    return '<div class="exam-setup-panel">' +
+      '<div class="exam-setup-head"><strong>Mark setup for this class</strong>' +
+      '<span class="exam-setup-note">Paper total is what pupils are marked out of. ' +
+      '<strong>Scaled to</strong> adjusts how marks count (e.g. N5 Drama written 60 → 40). ' +
+      'Lower the paper total if pupils did not complete the full paper (e.g. essay section not done).</span></div>' +
+      '<table class="exam-setup-table"><thead><tr><th>Component</th><th>Paper total</th><th>Scaled to</th><th>Weight</th></tr></thead><tbody>' +
+      rows + '</tbody></table></div>';
+  }
+
+  function examSetupRow(opts) {
+    var label = opts.label;
+    var paper = opts.paper;
+    var scaled = opts.scaled;
+    var weight = opts.weight;
+    if (!opts.canEdit) {
+      return '<tr><td>' + esc(label) + '</td><td>' + esc(paper) + '</td><td>' + esc(scaled) + '</td><td>' + esc(weight) + '</td></tr>';
+    }
+    if (opts.componentId) {
+      return '<tr><td>' + esc(label) + '</td>' +
+        '<td><input type="number" class="exam-config-input" min="1" max="500" step="1" ' +
+        'data-component-config="' + opts.componentId + '|paper_marks" value="' + paper + '"></td>' +
+        '<td><input type="number" class="exam-config-input" min="1" max="500" step="1" ' +
+        'data-component-config="' + opts.componentId + '|scaled_marks" value="' + scaled + '"></td>' +
+        '<td>' + esc(weight) + '</td></tr>';
+    }
+    return '<tr><td>' + esc(label) + '</td>' +
+      '<td><input type="number" class="exam-config-input" min="1" max="500" step="1" ' +
+      'data-s3-exam-config="' + opts.s3CourseId + '|paper_marks" value="' + paper + '"></td>' +
+      '<td><input type="number" class="exam-config-input" min="1" max="500" step="1" ' +
+      'data-s3-exam-config="' + opts.s3CourseId + '|scaled_marks" value="' + scaled + '"></td>' +
+      '<td>' + esc(weight) + '</td></tr>';
   }
 
   function updateEnrolmentRiskCell(enrolmentId) {
@@ -659,30 +760,44 @@
     return '<span class="grade-band grade-band-' + esc(String(grade).toLowerCase()) + '">' + esc(grade) + '</span>';
   }
 
-  function s3ExamDisplayHtml(b) {
+  function s3ExamDisplayHtml(b, course) {
     if (!b) return '—';
-    var mark = b.s3_exam_mark;
-    var band = b.s3_exam_grade || (mark != null ? SptBaseline.bandFromMark(mark) : '');
-    if (mark != null && mark !== '') {
-      return esc(mark) + '% ' + (band ? gradeBandHtml(band) : '');
+    return esc(SptBaseline.formatS3ExamDisplay(b, course));
+  }
+
+  function s3ExamCells(r, course) {
+    var b = r.s3_baseline;
+    var enId = r.enrolment.id;
+    if (!r.shows_s3_baseline) return cellNa() + cellNa() + cellNa();
+    var cfg = SptExamMark.s3ExamMarks(course);
+    var result = SptBaseline.s3ExamResult(b, course);
+    var raw = b && b.s3_exam_raw != null ? b.s3_exam_raw : '';
+    var canEditS3 = canEditBaselineField('s3_exam_raw');
+    if (!canEditS3) {
+      var rawDisp = raw !== '' ? (raw + '/' + cfg.paper_marks) : '—';
+      if (raw !== '' && cfg.paper_marks !== cfg.scaled_marks) rawDisp += ' → ' + cfg.scaled_marks;
+      return '<td class="cell-num cell-exam-mark">' + esc(rawDisp) + '</td>' +
+        '<td class="cell-num cell-exam-pct">' + esc(result ? result.percentage + '%' : '—') + '</td>' +
+        '<td class="cell-grade cell-exam-grade">' + (result && result.grade ? gradeBandHtml(result.grade) : '—') + '</td>';
     }
-    return band ? gradeBandHtml(band) : '—';
+    var maxAttr = ' max="' + cfg.paper_marks + '"';
+    var placeholder = '/' + cfg.paper_marks;
+    return '<td class="cell-prelim cell-exam-mark">' +
+      '<input type="number" class="prelim-inline s3-exam-raw" min="0"' + maxAttr + ' step="0.5" ' +
+      'data-s3-raw="' + enId + '|raw" data-baseline="' + enId + '|s3_exam_raw" ' +
+      'value="' + (raw !== '' ? raw : '') + '" placeholder="' + esc(placeholder) + '" ' +
+      'title="Raw mark out of ' + cfg.paper_marks + (cfg.paper_marks !== cfg.scaled_marks ? ' (scaled to ' + cfg.scaled_marks + ')' : '') + '"></td>' +
+      '<td class="cell-num cell-exam-pct" data-s3-pct-for="' + enId + '">' +
+      esc(result ? result.percentage + '%' : '—') + '</td>' +
+      '<td class="cell-grade cell-exam-grade" data-s3-grade-for="' + enId + '">' +
+      (result && result.grade ? gradeBandHtml(result.grade) : '—') + '</td>';
   }
 
   function baselineFieldCell(r, field, type) {
     var b = r.s3_baseline;
     var enId = r.enrolment.id;
     if (!r.shows_s3_baseline) return cellNa();
-    if (type === 's3_exam') {
-      var canEditS3 = canEditBaselineField('s3_exam_mark');
-      if (!canEditS3) return '<td class="cell-entry cell-s3-exam">' + s3ExamDisplayHtml(b) + '</td>';
-      var mark = b && b.s3_exam_mark != null ? b.s3_exam_mark : '';
-      var band = b && b.s3_exam_grade ? b.s3_exam_grade : (mark !== '' ? SptBaseline.bandFromMark(mark) : '');
-      return '<td class="cell-entry cell-s3-exam">' +
-        '<input type="number" class="s3-exam-mark" min="0" max="100" step="1" data-baseline="' + enId + '|s3_exam_mark" ' +
-        'value="' + (mark !== '' ? mark : '') + '" placeholder="%" title="Enter percentage mark">' +
-        '<span class="s3-exam-band" data-s3-band-for="' + enId + '">' + (band ? gradeBandHtml(band) : '') + '</span></td>';
-    }
+    if (type === 's3_exam') return '';
     var canEdit = canEditBaselineField(field);
     if (!canEdit) {
       var v = b ? b[field] : null;
@@ -814,7 +929,7 @@
       }).join('');
       var entryCell = '—';
       if (r.shows_s3_baseline && r.s3_baseline) {
-        entryCell = 'S3 ' + SptBaseline.formatS3ExamDisplay(r.s3_baseline) + ' · CfE ' + (r.s3_baseline.cfe_level || '—');
+        entryCell = 'S3 ' + SptBaseline.formatS3ExamDisplay(r.s3_baseline, r.course) + ' · CfE ' + (r.s3_baseline.cfe_level || '—');
       } else if (r.shows_prior_entry) {
         entryCell = (r.prior_display.grade || '—') + ' · ' +
           (r.crashing_subject ? 'Crashing subject' : (r.prior_display.pathway || '—'));
@@ -1459,7 +1574,7 @@
         SptStore.getEnrichedRows(d).filter(function(r) { return r.shows_s3_baseline; }).map(function(r) {
           return '<option value="' + r.enrolment.id + '">' + esc(SptStore.pupilName(d, r.pupil.id) + ' — ' + r.course.course_name) + '</option>';
         }).join('') + '</select></div>' +
-        '<div><label>S3 exam mark (%)</label><input name="s3_exam_mark" type="number" min="0" max="100" placeholder="e.g. 68 — band auto-calculated"></div>' +
+        '<div><label>S3 exam mark (raw)</label><input name="s3_exam_raw" type="number" min="0" placeholder="Raw mark — % and grade auto-calculated"></div>' +
         '<div><label>Effort (1–4)</label><input name="effort" type="number" min="1" max="4"></div>' +
         '<div><label>Behaviour (1–4)</label><input name="behaviour" type="number" min="1" max="4"></div>' +
         '<div><label>Home learning (1–4)</label><input name="homelearning" type="number" min="1" max="4"></div>' +
@@ -1468,12 +1583,17 @@
         SptConfig.CFE_LEVELS.map(function(l) { return '<option>' + l + '</option>'; }).join('') + '</select></div>' +
         '<div><label>Notes</label><textarea name="notes"></textarea></div>' +
         '<button type="submit" class="btn btn-sm">Save baseline</button></form>' +
-        '<table class="data-table"><thead><tr><th>Pupil</th><th>Course</th><th>S3 exam</th><th>Eff</th><th>Beh</th><th>HL</th><th>Prog</th><th>CfE</th></tr></thead><tbody>' +
+        '<table class="data-table"><thead><tr><th>Pupil</th><th>Course</th><th>Mark</th><th>%</th><th>Grade</th><th>Eff</th><th>Beh</th><th>HL</th><th>Prog</th><th>CfE</th></tr></thead><tbody>' +
         (d.enrolment_baselines || []).map(function(b) {
           var en = SptStore.byId(d.enrolments, b.enrolment_id);
           if (!en) return '';
+          var course = SptStore.byId(d.courses, en.course_id);
+          var result = SptBaseline.s3ExamResult(b, course);
           return '<tr><td>' + esc(SptStore.pupilName(d, en.pupil_id)) + '</td><td>' + esc(SptStore.courseName(d, en.course_id)) + '</td>' +
-            '<td>' + esc(SptBaseline.formatS3ExamDisplay(b)) + '</td><td>' + esc(b.effort != null ? b.effort : '—') + '</td>' +
+            '<td>' + esc(b.s3_exam_raw != null ? b.s3_exam_raw : '—') + '</td>' +
+            '<td>' + esc(result ? result.percentage + '%' : '—') + '</td>' +
+            '<td>' + esc(result ? result.grade : '—') + '</td>' +
+            '<td>' + esc(b.effort != null ? b.effort : '—') + '</td>' +
             '<td>' + esc(b.behaviour != null ? b.behaviour : '—') + '</td><td>' + esc(b.homelearning != null ? b.homelearning : '—') + '</td>' +
             '<td>' + esc(b.progress != null ? b.progress : '—') + '</td><td>' + esc(b.cfe_level || '—') + '</td></tr>';
         }).join('') + '</tbody></table></div></div>';
@@ -1617,7 +1737,12 @@
     headGroup += '<th class="col-pupil" rowspan="2">Pupil</th><th rowspan="2">Level</th>';
     if (showTeachers) headGroup += '<th rowspan="2">Teacher</th>';
     if (meta.hasS3) {
-      headGroup += '<th class="col-entry" rowspan="2" title="S3 exam % — grade band updates automatically">S3 Exam<span class="th-sub">% · band</span></th>' +
+      var s3Cfg = SptExamMark.s3ExamMarks(course);
+      var s3Scale = s3Cfg.paper_marks === s3Cfg.scaled_marks
+        ? ('/' + s3Cfg.paper_marks)
+        : ('/' + s3Cfg.paper_marks + ' → ' + s3Cfg.scaled_marks);
+      headGroup += '<th colspan="3" class="s3-exam-head" title="Enter raw mark — % and grade calculated automatically">S3 Exam' +
+        '<span class="th-sub">' + esc(s3Scale) + '</span></th>' +
         '<th colspan="5" class="s3-baseline-head">S3 baseline' +
         (canEdit && s3BaselineEnrolmentIds ? '<button type="button" class="btn-tp-default" data-s3-baseline-default="1" data-tp-enrolments="' +
           esc(s3BaselineEnrolmentIds) + '" title="Set Eff, Beh, HL, Prog to 4 and CfE to Fourth">Default 4</button>' : '') +
@@ -1641,9 +1766,12 @@
     if (meta.hasExamPupils && prelimComps.length) {
       prelimComps.forEach(function(pc) {
         headGroup += '<th class="col-prelim" rowspan="2" title="' + esc(pc.component_name) + ' (' + pc.weighting + '%)">' +
-          esc(SptPrelim.columnLabel(pc)) + '<span class="th-sub">/' + pc.max_marks + '</span></th>';
+          esc(SptPrelim.columnLabel(pc)) + '<span class="th-sub">' + esc(SptExamMark.componentScaleLabel(pc)) + '</span></th>';
       });
-      if (prelimAp) headGroup += '<th rowspan="2" title="Weighted total — grade band updates automatically">Prelim %<span class="th-sub">% · band</span></th>';
+      if (prelimAp) {
+        headGroup += '<th rowspan="2" title="Weighted prelim percentage">Prelim %</th>' +
+          '<th rowspan="2" title="Grade band from prelim %">Prelim grade</th>';
+      }
     }
     if (meta.hasExamPupils) {
       aps.filter(function(ap) { return ap.assessment_type !== 'Prelim'; }).slice(0, 3).forEach(function(ap) {
@@ -1655,6 +1783,7 @@
 
     var headSub = '<tr class="head-sub">';
     if (meta.hasS3) {
+      headSub += '<th>Mark</th><th>%</th><th>Grade</th>';
       headSub += '<th>Eff</th><th>Beh</th><th>HL</th><th>Prog</th><th>CfE</th>';
     }
     tps.forEach(function(tp, i) {
@@ -1685,7 +1814,7 @@
         }
       }
       if (meta.hasS3) {
-        courseBody += baselineFieldCell(r, 's3_exam', 's3_exam');
+        courseBody += s3ExamCells(r, course);
         courseBody += baselineFieldCell(r, 'effort', 'score');
         courseBody += baselineFieldCell(r, 'behaviour', 'score');
         courseBody += baselineFieldCell(r, 'homelearning', 'score');
@@ -1714,20 +1843,23 @@
               return m.enrolment_id === en.id && m.prelim_component_id === pc.id;
             });
             var raw = markRec && markRec.raw_mark != null ? markRec.raw_mark : '';
+            var paperMax = SptExamMark.componentMarks(pc).paper_marks;
             if (canEdit) {
-              courseBody += '<td class="cell-prelim"><input type="number" class="prelim-inline" min="0" max="' + pc.max_marks + '" step="0.5" ' +
+              courseBody += '<td class="cell-prelim"><input type="number" class="prelim-inline" min="0" max="' + paperMax + '" step="0.5" ' +
                 'data-prelim-mark="' + en.id + '|' + pc.id + '" value="' + (raw !== '' ? raw : '') + '" placeholder="—"></td>';
             } else {
-              courseBody += '<td class="cell-num">' + esc(raw !== '' ? raw + '/' + pc.max_marks : '—') + '</td>';
+              courseBody += '<td class="cell-num">' + esc(raw !== '' ? raw + SptExamMark.componentScaleLabel(pc) : '—') + '</td>';
             }
           });
           if (prelimAp) {
-            courseBody += '<td class="cell-grade cell-prelim-result" data-prelim-result-for="' + en.id + '">' +
-              prelimResultHtml(r.prelim_summary, r.prelim_result) + '</td>';
+            courseBody += '<td class="cell-num cell-prelim-pct" data-prelim-pct-for="' + en.id + '">' +
+              prelimPctHtml(r.prelim_summary) + '</td>';
+            courseBody += '<td class="cell-grade cell-prelim-grade" data-prelim-grade-for="' + en.id + '">' +
+              prelimGradeHtml(r.prelim_summary) + '</td>';
           }
         } else {
           courseBody += prelimComps.map(function() { return cellNa(); }).join('');
-          if (prelimAp) courseBody += cellNa();
+          if (prelimAp) courseBody += cellNa() + cellNa();
         }
       }
       if (meta.hasExamPupils) {
@@ -1766,6 +1898,7 @@
     if (meta.hasEvPupils) sheetHint += ' · evidence';
     if (prelimComps.length) sheetHint += ' · prelims';
     if (role().canFlag) sheetHint += ' · flag concerns';
+    html += examMarkSetupHtml(course, prelimComps, meta);
     html += sheetPanel('Tracking grid', enrolments.length + ' rows', sheetHint,
       '<table class="data-table course-grid"><thead>' + head + '</thead><tbody>' + courseBody + '</tbody></table>');
     html += '</div>';
@@ -2031,14 +2164,16 @@
       var m = (d.prelim_marks || []).find(function(x) {
         return x.enrolment_id === enrolmentId && x.prelim_component_id === pc.id;
       });
-      return '<div class="prelim-row"><span>' + esc(pc.component_name) + ' / ' + pc.max_marks + '</span>' +
-        '<input type="number" min="0" max="' + pc.max_marks + '" data-pc="' + pc.id + '" value="' + (m && m.raw_mark != null ? m.raw_mark : '') + '">' +
+      var paperMax = SptExamMark.componentMarks(pc).paper_marks;
+      return '<div class="prelim-row"><span>' + esc(pc.component_name) + ' ' + esc(SptExamMark.componentScaleLabel(pc)) + '</span>' +
+        '<input type="number" min="0" max="' + paperMax + '" data-pc="' + pc.id + '" value="' + (m && m.raw_mark != null ? m.raw_mark : '') + '">' +
         '<span>' + pc.weighting + '%</span></div>';
     }).join('');
     var sum = SptPrelim.computeSummary(d, enrolmentId, assessmentPointId);
     openModal('Prelim marks',
       '<div class="prelim-grid">' + rows + '</div>' +
-      (sum ? '<p style="margin-top:.75rem;font-size:.88rem"><strong>Total: ' + sum.percentage + '% (' + sum.grade_band + ')</strong></p>' : ''),
+      (sum ? '<p style="margin-top:.75rem;font-size:.88rem"><strong>' +
+        prelimPctHtml(sum) + ' · ' + prelimGradeHtml(sum) + '</strong></p>' : ''),
       '<button type="button" class="btn btn-secondary" id="modal-cancel">Cancel</button>' +
       '<button type="button" class="btn" id="prelim-save">Save marks</button>');
     document.getElementById('prelim-save').onclick = function() {
@@ -2106,7 +2241,7 @@
     if (r.shows_s3_baseline && r.s3_baseline) {
       var b = r.s3_baseline;
       body += '<div class="profile-section"><h3>S3 entry baseline</h3><dl class="profile-grid">' +
-        '<dt>S3 exam</dt><dd>' + s3ExamDisplayHtml(b) + '</dd>' +
+        '<dt>S3 exam</dt><dd>' + s3ExamDisplayHtml(b, course) + '</dd>' +
         '<dt>Effort</dt><dd>' + esc(b.effort != null ? b.effort : '—') + '</dd>' +
         '<dt>Behaviour</dt><dd>' + esc(b.behaviour != null ? b.behaviour : '—') + '</dd>' +
         '<dt>Home learning</dt><dd>' + esc(b.homelearning != null ? b.homelearning : '—') + '</dd>' +
@@ -2557,12 +2692,39 @@
         if (enId) updateEnrolmentRiskCell(enId);
       });
     });
-    root.querySelectorAll('.s3-exam-mark').forEach(function(el) {
+    root.querySelectorAll('.s3-exam-raw').forEach(function(el) {
       el.addEventListener('input', function() {
-        var p = el.getAttribute('data-baseline').split('|');
-        var band = SptBaseline.bandFromMark(el.value);
-        var bandEl = document.querySelector('[data-s3-band-for="' + p[0] + '"]');
-        if (bandEl) bandEl.innerHTML = band ? gradeBandHtml(band) : '';
+        var p = el.getAttribute('data-s3-raw').split('|');
+        var courseId = state.courseId;
+        var course = SptStore.byId(db().courses, courseId);
+        var result = SptExamMark.computeS3Result(
+          el.value === '' ? null : parseFloat(el.value),
+          course
+        );
+        var pctEl = document.querySelector('[data-s3-pct-for="' + p[0] + '"]');
+        var gradeEl = document.querySelector('[data-s3-grade-for="' + p[0] + '"]');
+        if (pctEl) pctEl.textContent = result ? result.percentage + '%' : '—';
+        if (gradeEl) gradeEl.innerHTML = result && result.grade ? gradeBandHtml(result.grade) : '—';
+      });
+    });
+    root.querySelectorAll('[data-s3-exam-config]').forEach(function(el) {
+      el.addEventListener('change', function() {
+        var parts = el.getAttribute('data-s3-exam-config').split('|');
+        var patch = {};
+        patch[parts[1]] = parseFloat(el.value) || 100;
+        SptExamMark.updateS3ExamMarks(db(), parts[0], patch);
+        SptStore.save(db());
+        if (state.route === 'course' && state.courseId === parts[0]) render();
+      });
+    });
+    root.querySelectorAll('[data-component-config]').forEach(function(el) {
+      el.addEventListener('change', function() {
+        var parts = el.getAttribute('data-component-config').split('|');
+        var patch = {};
+        patch[parts[1]] = parseFloat(el.value) || 100;
+        SptPrelim.updateComponentConfig(db(), parts[0], patch);
+        SptStore.save(db());
+        if (state.route === 'course') render();
       });
     });
     root.querySelectorAll('[data-baseline]').forEach(function(el) {
@@ -2572,13 +2734,19 @@
         if (!canEditBaselineField(field)) return;
         var val = el.value;
         var patch = {};
+        if (field === 's3_exam_raw') {
+          var course = SptStore.byId(db().courses, state.courseId);
+          SptBaseline.applyS3ExamRaw(db(), p[0], val, course);
+          SptStore.save(db());
+          updateS3ExamDerivedCells(p[0], course);
+          return;
+        }
         if (field === 's3_exam_mark') {
           var band = SptBaseline.bandFromMark(val);
+          patch.s3_exam_raw = val === '' ? null : parseFloat(val);
           patch.s3_exam_mark = val === '' ? null : parseFloat(val);
           patch.s3_exam_grade = band;
           SptStore.upsertBaseline(db(), p[0], patch);
-          var bandEl = document.querySelector('[data-s3-band-for="' + p[0] + '"]');
-          if (bandEl) bandEl.innerHTML = band ? gradeBandHtml(band) : '';
           return;
         }
         if (field === 'effort' || field === 'behaviour' || field === 'homelearning') {
@@ -2819,10 +2987,12 @@
     if (fbl) fbl.onsubmit = function(e) {
       e.preventDefault();
       var fd = new FormData(fbl);
-      var mark = fd.get('s3_exam_mark');
-      SptStore.upsertBaseline(db(), fd.get('enrolment_id'), {
-        s3_exam_mark: mark ? parseFloat(mark) : null,
-        s3_exam_grade: mark ? SptBaseline.bandFromMark(mark) : '',
+      var raw = fd.get('s3_exam_raw');
+      var enId = fd.get('enrolment_id');
+      var en = SptStore.byId(db().enrolments, enId);
+      var course = en ? SptStore.byId(db().courses, en.course_id) : null;
+      SptBaseline.applyS3ExamRaw(db(), enId, raw, course);
+      SptStore.upsertBaseline(db(), enId, {
         effort: fd.get('effort') ? parseInt(fd.get('effort'), 10) : null,
         behaviour: fd.get('behaviour') ? parseInt(fd.get('behaviour'), 10) : null,
         homelearning: fd.get('homelearning') ? parseInt(fd.get('homelearning'), 10) : null,

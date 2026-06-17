@@ -26,26 +26,25 @@
       return pc.assessment_point_id === assessmentPointId;
     });
     if (!comps.length) return null;
-    var totalMax = 0;
-    var weighted = 0;
+    var rawById = {};
     var hasAny = false;
     comps.forEach(function(pc) {
       var mark = (db.prelim_marks || []).find(function(m) {
         return m.enrolment_id === enrolmentId && m.prelim_component_id === pc.id;
       });
-      var max = pc.max_marks || 0;
-      totalMax += max;
       var rawVal = overrides && Object.prototype.hasOwnProperty.call(overrides, pc.id)
         ? overrides[pc.id]
         : (mark && mark.raw_mark != null ? mark.raw_mark : null);
       if (rawVal != null && rawVal !== '') {
         hasAny = true;
-        var raw = parseFloat(rawVal);
-        if (!isNaN(raw)) weighted += (raw / max) * (pc.weighting || 100);
+        rawById[pc.id] = rawVal;
       }
     });
     if (!hasAny) return null;
-    var pct = Math.round(weighted * 10) / 10;
+    var pct = global.SptExamMark
+      ? global.SptExamMark.prelimPercentage(rawById, comps)
+      : null;
+    if (pct == null) return null;
     return {
       percentage: pct,
       grade_band: C.percentageToGrade(pct),
@@ -53,9 +52,92 @@
         var m = (db.prelim_marks || []).find(function(x) {
           return x.enrolment_id === enrolmentId && x.prelim_component_id === pc.id;
         });
-        return (m && m.raw_mark != null ? m.raw_mark : '—') + '/' + pc.max_marks;
+        var label = global.SptExamMark ? global.SptExamMark.componentScaleLabel(pc) : ('/' + pc.max_marks);
+        return (m && m.raw_mark != null ? m.raw_mark : '—') + label;
       }).join(', ')
     };
+  }
+
+  function updateComponentConfig(db, componentId, patch) {
+    var allowed = { paper_marks: true, scaled_marks: true };
+    var update = { updated_at: new Date().toISOString() };
+    Object.keys(patch || {}).forEach(function(key) {
+      if (!allowed[key]) return;
+      var n = parseFloat(patch[key]);
+      if (!isNaN(n) && n > 0) update[key] = n;
+    });
+    if (!Object.keys(patch || {}).some(function(key) { return allowed[key]; })) return null;
+    if (update.paper_marks != null) update.max_marks = update.paper_marks;
+    global.SptStore.updateRecord(db, 'prelim_components', componentId, update, 'prelim_component_config');
+    return global.SptStore.byId(db.prelim_components, componentId);
+  }
+
+  function templateFromEntry(t) {
+    var paper = t.paper_marks != null ? t.paper_marks : t.max_marks;
+    var scaled = t.scaled_marks != null ? t.scaled_marks : paper;
+    return {
+      component_name: t.component_name,
+      short_label: t.short_label || t.component_name,
+      paper_marks: paper,
+      scaled_marks: scaled,
+      max_marks: paper,
+      weighting: t.weighting
+    };
+  }
+
+  function templateSignature(tpl) {
+    return tpl.map(function(t) {
+      var e = templateFromEntry(t);
+      return [e.component_name, e.paper_marks, e.scaled_marks, e.weighting, e.short_label || ''].join(':');
+    }).join('|');
+  }
+
+  function existingSignature(components) {
+    return components.slice().sort(function(a, b) { return a.display_order - b.display_order; }).map(function(pc) {
+      var paper = pc.paper_marks != null ? pc.paper_marks : pc.max_marks;
+      var scaled = pc.scaled_marks != null ? pc.scaled_marks : paper;
+      return [pc.component_name, paper, scaled, pc.weighting, pc.short_label || ''].join(':');
+    }).join('|');
+  }
+
+  function pushComponentsFromTemplate(db, course, prelimAp, tpl) {
+    var now = new Date().toISOString();
+    tpl.forEach(function(t, i) {
+      var e = templateFromEntry(t);
+      db.prelim_components.push({
+        id: 'pc-' + course.slug + '-' + i,
+        course_id: course.id,
+        assessment_point_id: prelimAp.id,
+        component_name: e.component_name,
+        short_label: e.short_label,
+        paper_marks: e.paper_marks,
+        scaled_marks: e.scaled_marks,
+        max_marks: e.paper_marks,
+        weighting: e.weighting,
+        display_order: i + 1,
+        created_at: now,
+        updated_at: now
+      });
+    });
+  }
+
+  function patchComponentScales(db) {
+    var changed = false;
+    (db.prelim_components || []).forEach(function(pc) {
+      if (pc.paper_marks == null && pc.max_marks != null) {
+        pc.paper_marks = pc.max_marks;
+        changed = true;
+      }
+      if (pc.scaled_marks == null) {
+        pc.scaled_marks = pc.paper_marks != null ? pc.paper_marks : pc.max_marks;
+        changed = true;
+      }
+      if (pc.paper_marks != null && pc.max_marks !== pc.paper_marks) {
+        pc.max_marks = pc.paper_marks;
+        changed = true;
+      }
+    });
+    return changed;
   }
 
   function saveMark(db, enrolmentId, componentId, rawMark) {
@@ -87,36 +169,6 @@
     }
     global.SptRisk.recalculateEnrolment(db, enrolmentId);
     global.SptStore.save(db);
-  }
-
-  function templateSignature(tpl) {
-    return tpl.map(function(t) {
-      return [t.component_name, t.max_marks, t.weighting, t.short_label || ''].join(':');
-    }).join('|');
-  }
-
-  function existingSignature(components) {
-    return components.slice().sort(function(a, b) { return a.display_order - b.display_order; }).map(function(pc) {
-      return [pc.component_name, pc.max_marks, pc.weighting, pc.short_label || ''].join(':');
-    }).join('|');
-  }
-
-  function pushComponentsFromTemplate(db, course, prelimAp, tpl) {
-    var now = new Date().toISOString();
-    tpl.forEach(function(t, i) {
-      db.prelim_components.push({
-        id: 'pc-' + course.slug + '-' + i,
-        course_id: course.id,
-        assessment_point_id: prelimAp.id,
-        component_name: t.component_name,
-        short_label: t.short_label || t.component_name,
-        max_marks: t.max_marks,
-        weighting: t.weighting,
-        display_order: i + 1,
-        created_at: now,
-        updated_at: now
-      });
-    });
   }
 
   function buildComponentsFromConfig(db) {
@@ -194,6 +246,8 @@
     saveMark: saveMark,
     buildComponentsFromConfig: buildComponentsFromConfig,
     syncComponentsFromConfig: syncComponentsFromConfig,
+    updateComponentConfig: updateComponentConfig,
+    patchComponentScales: patchComponentScales,
     columnLabel: columnLabel
   };
 })(typeof window !== 'undefined' ? window : global);

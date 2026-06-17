@@ -13,7 +13,7 @@
   })();
 
   var STORAGE_KEY = useSeedData ? 'spt-dev-v2' : 'spt-hub-v1';
-  var DATA_VERSION = 11;
+  var DATA_VERSION = 13;
 
   var CFE_LEVELS = ['Second', 'Third', 'Fourth'];
 
@@ -159,21 +159,31 @@
    * Prelim component templates per course slug.
    * short_label: column header on course grid; weighting must sum to 100 per course.
    */
+  /** Default exam totals and scaling per course slug (S3 exam + prelim). */
+  var EXAM_DEFAULTS_BY_COURSE = {
+    'n5n4-drama': { s3_paper_marks: 60, s3_scaled_marks: 40 },
+    'n5n4-art': { s3_paper_marks: 60, s3_scaled_marks: 60 }
+  };
+
+  var EXAM_DEFAULTS = {
+    s3: { paper_marks: 100, scaled_marks: 100 }
+  };
+
   var PRELIM_COMPONENT_TEMPLATES = {
     'higher-drama': [
-      { component_name: 'Written paper (Sections 1 & 2)', short_label: 'Written', max_marks: 50, weighting: 50 },
-      { component_name: 'Practical performance', short_label: 'Practical', max_marks: 50, weighting: 50 }
+      { component_name: 'Written paper (Sections 1 & 2)', short_label: 'Written', paper_marks: 50, scaled_marks: 50, weighting: 50 },
+      { component_name: 'Practical performance', short_label: 'Practical', paper_marks: 50, scaled_marks: 50, weighting: 50 }
     ],
     'n5n4-drama': [
-      { component_name: 'Question paper', short_label: 'Written', max_marks: 40, weighting: 70 },
-      { component_name: 'Practical performance', short_label: 'Practical', max_marks: 30, weighting: 30 }
+      { component_name: 'Question paper', short_label: 'Written', paper_marks: 60, scaled_marks: 40, weighting: 70 },
+      { component_name: 'Practical performance', short_label: 'Practical', paper_marks: 60, scaled_marks: 60, weighting: 30 }
     ],
     'n5n4-art': [
-      { component_name: 'Written paper', short_label: 'Written', max_marks: 60, weighting: 100 }
+      { component_name: 'Written paper', short_label: 'Written', paper_marks: 60, scaled_marks: 60, weighting: 100 }
     ],
     'higher-photo': [
-      { component_name: 'Question paper', short_label: 'Written', max_marks: 40, weighting: 50 },
-      { component_name: 'Project / portfolio', short_label: 'Project', max_marks: 100, weighting: 50 }
+      { component_name: 'Question paper', short_label: 'Written', paper_marks: 40, scaled_marks: 40, weighting: 50 },
+      { component_name: 'Project / portfolio', short_label: 'Project', paper_marks: 100, scaled_marks: 100, weighting: 50 }
     ]
   };
 
@@ -235,6 +245,8 @@
     SENIOR_YEAR_GROUPS: SENIOR_YEAR_GROUPS,
     COURSE_DEFS: COURSE_DEFS,
     ASSESSMENT_TEMPLATES: ASSESSMENT_TEMPLATES,
+    EXAM_DEFAULTS: EXAM_DEFAULTS,
+    EXAM_DEFAULTS_BY_COURSE: EXAM_DEFAULTS_BY_COURSE,
     PRELIM_COMPONENT_TEMPLATES: PRELIM_COMPONENT_TEMPLATES,
     TRACKING_POINT_NAMES: TRACKING_POINT_NAMES,
     currentAcademicYear: currentAcademicYear

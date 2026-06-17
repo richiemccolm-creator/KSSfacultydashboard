@@ -12,6 +12,12 @@ npx serve . -l 4173
 
 Use a local server so CSS and CSV import work correctly.
 
+## New in v5
+
+- **Mark setup panel** — at the top of each class sheet: set **Paper total** and **Scaled to** per component (Written, Practical, S3 exam)
+- **N5 Drama defaults** — Written 60 → 40 (70%), Practical /60 (30%); staff can adjust e.g. if essay section was not completed
+- **Exam mark entry** — enter raw marks per pupil; **%** and **grade (A–F)** columns update automatically
+
 ## New in v4
 
 - **S3 entry baseline** — S3 exam, effort, behaviour, HL, progress, CfE level for N5 pupils (admin editable, teachers read-only)

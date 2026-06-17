@@ -24,6 +24,7 @@
   function emptyBaseline(enrolmentId) {
     return {
       enrolment_id: enrolmentId,
+      s3_exam_raw: null,
       s3_exam_mark: null,
       s3_exam_grade: '',
       effort: null,
@@ -48,14 +49,43 @@
     return global.SptConfig.percentageToGrade(Math.min(n, 100));
   }
 
-  function formatS3ExamDisplay(baseline) {
-    if (!baseline) return '—';
-    var mark = baseline.s3_exam_mark;
-    var band = baseline.s3_exam_grade || (mark != null ? bandFromMark(mark) : '');
-    if (mark != null && mark !== '') {
-      return mark + '%' + (band ? ' ' + band : '');
+  function s3ExamResult(baseline, course) {
+    if (!baseline) return null;
+    var raw = baseline.s3_exam_raw != null ? baseline.s3_exam_raw : baseline.s3_exam_mark;
+    if (raw == null && baseline.s3_exam_mark == null) return null;
+    if (global.SptExamMark) {
+      return global.SptExamMark.computeS3Result(raw, course);
     }
-    return band || '—';
+    var pct = baseline.s3_exam_mark;
+    return pct != null ? { percentage: pct, grade: bandFromMark(pct) } : null;
+  }
+
+  function applyS3ExamRaw(db, enrolmentId, rawVal, course) {
+    var raw = rawVal === '' || rawVal == null ? null : parseFloat(rawVal);
+    if (raw != null && isNaN(raw)) raw = null;
+    var result = raw != null && global.SptExamMark
+      ? global.SptExamMark.computeS3Result(raw, course)
+      : null;
+    return upsertBaseline(db, enrolmentId, {
+      s3_exam_raw: raw,
+      s3_exam_mark: result ? result.percentage : null,
+      s3_exam_grade: result ? result.grade : ''
+    });
+  }
+
+  function formatS3ExamDisplay(baseline, course) {
+    if (!baseline) return '—';
+    var result = s3ExamResult(baseline, course);
+    if (!result) {
+      var band = baseline.s3_exam_grade;
+      return band ? band : '—';
+    }
+    var raw = baseline.s3_exam_raw != null ? baseline.s3_exam_raw : '';
+    var marks = global.SptExamMark ? global.SptExamMark.s3ExamMarks(course) : { paper_marks: 100, scaled_marks: 100 };
+    var markPart = raw !== '' ? raw + '/' + marks.paper_marks : '';
+    if (raw !== '' && marks.paper_marks !== marks.scaled_marks) markPart += ' → ' + marks.scaled_marks;
+    if (markPart) markPart += ' · ';
+    return markPart + result.percentage + '% ' + (result.grade || '');
   }
 
   function upsertBaseline(db, enrolmentId, patch) {
@@ -228,6 +258,8 @@
     emptyPrior: emptyPrior,
     upsertPriorForCourse: upsertPriorForCourse,
     scoreSelect: scoreSelect,
+    applyS3ExamRaw: applyS3ExamRaw,
+    s3ExamResult: s3ExamResult,
     bandFromMark: bandFromMark,
     formatS3ExamDisplay: formatS3ExamDisplay
   };

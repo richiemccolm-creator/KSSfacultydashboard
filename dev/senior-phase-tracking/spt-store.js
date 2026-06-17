@@ -39,6 +39,38 @@
     return db;
   }
 
+  function examDefaultsForSlug(slug) {
+    var byCourse = (global.SptConfig && global.SptConfig.EXAM_DEFAULTS_BY_COURSE) || {};
+    return byCourse[slug] || {};
+  }
+
+  function applyExamDefaultsToCourse(course) {
+    var defs = examDefaultsForSlug(course.slug || course.default_assessment_model || '');
+    if (course.s3_exam_paper_marks == null) {
+      if (defs.s3_paper_marks != null) course.s3_exam_paper_marks = defs.s3_paper_marks;
+      else if (defs.s3_max_marks != null) course.s3_exam_paper_marks = defs.s3_max_marks;
+    }
+    if (course.s3_exam_scaled_marks == null) {
+      if (defs.s3_scaled_marks != null) course.s3_exam_scaled_marks = defs.s3_scaled_marks;
+      else if (course.s3_exam_paper_marks != null) course.s3_exam_scaled_marks = course.s3_exam_paper_marks;
+    }
+    if (course.s3_exam_paper_marks != null) course.s3_max_marks = course.s3_exam_paper_marks;
+    return course;
+  }
+
+  function patchCourseExamDefaults(db) {
+    var changed = false;
+    (db.courses || []).forEach(function(course) {
+      var before = JSON.stringify({
+        p: course.s3_exam_paper_marks, s: course.s3_exam_scaled_marks
+      });
+      applyExamDefaultsToCourse(course);
+      if (JSON.stringify({ p: course.s3_exam_paper_marks, s: course.s3_exam_scaled_marks }) !== before) changed = true;
+    });
+    if (global.SptPrelim && global.SptPrelim.patchComponentScales(db)) changed = true;
+    return changed;
+  }
+
   function mergeCoursesFromConfig(db) {
     if (!global.SptConfig) return false;
     var ts = new Date().toISOString();
@@ -48,7 +80,7 @@
     global.SptConfig.COURSE_DEFS.forEach(function(def) {
       var id = 'c-' + def.slug;
       if (db.courses.some(function(c) { return c.slug === def.slug || c.id === id; })) return;
-      db.courses.push({
+      db.courses.push(applyExamDefaultsToCourse({
         id: id,
         slug: def.slug,
         course_name: def.course_name,
@@ -61,7 +93,7 @@
         active_status: true,
         created_at: ts,
         updated_at: ts
-      });
+      }));
       var tpl = global.SptConfig.ASSESSMENT_TEMPLATES[def.default_assessment_model] || [];
       tpl.forEach(function(a, i) {
         db.assessment_points.push({
@@ -246,6 +278,9 @@
       if (!lc.change_type) lc.change_type = 'level';
     });
     (db.enrolment_baselines || []).forEach(function(b) {
+      if (b.s3_exam_raw == null && b.s3_exam_mark != null) {
+        b.s3_exam_raw = b.s3_exam_mark;
+      }
       if (b.s3_exam_mark == null && b.s3_exam_grade && global.SptBaseline) {
         var g = b.s3_exam_grade;
         if (g === 'A') b.s3_exam_mark = 75;
@@ -266,6 +301,7 @@
     }
     syncTrackingPointsFromConfig(db);
     mergeCoursesFromConfig(db);
+    patchCourseExamDefaults(db);
     if (shouldUseSeed()) {
       seedNpaPhotoIfMissing(db);
       linkEnrolmentsToClasses(db);
@@ -319,7 +355,7 @@
         (global.SptSeedRoster && global.SptSeedRoster.mergeIntoDb(db)) ||
         patchNpaPhotoCourse(db) || syncNpaPhotoEvidence(db);
     } else {
-      cohortPatched = mergeCoursesFromConfig(db) || patchNpaPhotoCourse(db);
+      cohortPatched = mergeCoursesFromConfig(db) || patchNpaPhotoCourse(db) || patchCourseExamDefaults(db);
     }
     if (syncTrackingPointsFromConfig(db)) {
       cohortPatched = true;
