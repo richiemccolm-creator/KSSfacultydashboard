@@ -99,7 +99,7 @@
     return '<span class="badge ' + cls + '">' + esc(status) + '</span>';
   }
 
-  function sheetPanel(title, meta, hint, tableInner, toolbarExtra) {
+  function sheetPanel(title, meta, hint, tableInner, toolbarExtra, aboveGrid) {
     return '<div class="sheet-panel">' +
       '<div class="sheet-toolbar">' +
       '<div class="sheet-toolbar-left"><h2>' + esc(title) + '</h2>' +
@@ -107,7 +107,9 @@
       '<div class="sheet-toolbar-right">' +
       (toolbarExtra || '') +
       (hint ? '<span class="sheet-hint">' + esc(hint) + '</span>' : '') +
-      '</div></div><div class="sheet-grid-wrap">' + tableInner + '</div></div>';
+      '</div></div>' +
+      (aboveGrid || '') +
+      '<div class="sheet-grid-wrap">' + tableInner + '</div></div>';
   }
 
   function db() { return SptStore.ensure(); }
@@ -571,16 +573,27 @@
   }
 
   function captureGridScroll() {
-    return Array.prototype.map.call(document.querySelectorAll('.sheet-grid-wrap'), function(el) {
-      return { left: el.scrollLeft, top: el.scrollTop };
-    });
+    var main = document.getElementById('app-main');
+    return {
+      main: main ? { left: main.scrollLeft, top: main.scrollTop } : null,
+      wraps: Array.prototype.map.call(document.querySelectorAll('.sheet-grid-wrap'), function(el) {
+        return { left: el.scrollLeft, top: el.scrollTop };
+      })
+    };
   }
 
   function restoreGridScroll(positions) {
-    if (!positions || !positions.length) return;
+    if (!positions) return;
     requestAnimationFrame(function() {
+      if (positions.main) {
+        var main = document.getElementById('app-main');
+        if (main) {
+          main.scrollLeft = positions.main.left;
+          main.scrollTop = positions.main.top;
+        }
+      }
       var wraps = document.querySelectorAll('.sheet-grid-wrap');
-      positions.forEach(function(pos, i) {
+      (positions.wraps || []).forEach(function(pos, i) {
         if (!wraps[i]) return;
         wraps[i].scrollLeft = pos.left;
         wraps[i].scrollTop = pos.top;
@@ -665,6 +678,29 @@
     });
   }
 
+  function examSetupIsOpen(courseId) {
+    try {
+      return localStorage.getItem('spt-exam-setup-' + courseId) === '1';
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function examSetupSummaryLine(course, prelimComps, meta) {
+    var bits = [];
+    if (meta.hasS3) {
+      var s3 = SptExamMark.s3ExamMarks(course);
+      bits.push('S3 ' + s3.paper_marks + (s3.paper_marks !== s3.scaled_marks ? '→' + s3.scaled_marks : ''));
+    }
+    (prelimComps || []).forEach(function(pc) {
+      var m = SptExamMark.componentMarks(pc);
+      var label = SptPrelim.columnLabel(pc);
+      bits.push(label + ' ' + m.paper_marks + (m.paper_marks !== m.scaled_marks ? '→' + m.scaled_marks : '') +
+        ' (' + m.weighting + '%)');
+    });
+    return bits.join(' · ');
+  }
+
   function examMarkSetupHtml(course, prelimComps, meta) {
     if (!course) return '';
     var canEditSheet = role().canEdit;
@@ -675,7 +711,7 @@
         label: 'S3 exam',
         paper: s3.paper_marks,
         scaled: s3.scaled_marks,
-        weight: '—',
+        weight: '',
         canEdit: canEditSheet,
         s3CourseId: course.id
       });
@@ -692,37 +728,45 @@
       });
     });
     if (!rows) return '';
-    return '<div class="exam-setup-panel">' +
-      '<div class="exam-setup-head"><strong>Mark setup for this class</strong>' +
-      '<span class="exam-setup-note">Paper total is what pupils are marked out of. ' +
-      '<strong>Scaled to</strong> adjusts how marks count (e.g. N5 Drama written 60 → 40). ' +
-      'Lower the paper total if pupils did not complete the full paper (e.g. essay section not done).</span></div>' +
-      '<table class="exam-setup-table"><thead><tr><th>Component</th><th>Paper total</th><th>Scaled to</th><th>Weight</th></tr></thead><tbody>' +
-      rows + '</tbody></table></div>';
+    var isOpen = examSetupIsOpen(course.id);
+    var summary = examSetupSummaryLine(course, prelimComps, meta);
+    return '<div class="exam-setup-panel' + (isOpen ? ' is-open' : ' is-collapsed') + '" data-exam-setup-panel data-exam-setup-course="' + course.id + '">' +
+      '<button type="button" class="exam-setup-toggle" data-exam-setup-toggle aria-expanded="' + (isOpen ? 'true' : 'false') + '">' +
+      '<span class="exam-setup-toggle-title">Mark setup</span>' +
+      '<span class="exam-setup-summary">' + esc(summary) + '</span>' +
+      '<span class="exam-setup-chevron" aria-hidden="true"></span></button>' +
+      '<div class="exam-setup-body"' + (isOpen ? '' : ' hidden') + '>' +
+      '<p class="exam-setup-hint">Paper = marks available; Scaled = how it counts. Lower paper if the full exam was not sat.</p>' +
+      '<div class="exam-setup-rows">' + rows + '</div></div></div>';
   }
 
   function examSetupRow(opts) {
-    var label = opts.label;
-    var paper = opts.paper;
-    var scaled = opts.scaled;
-    var weight = opts.weight;
+    var weightCell = opts.weight
+      ? '<span class="exam-setup-wt">' + esc(opts.weight) + '</span>'
+      : '';
     if (!opts.canEdit) {
-      return '<tr><td>' + esc(label) + '</td><td>' + esc(paper) + '</td><td>' + esc(scaled) + '</td><td>' + esc(weight) + '</td></tr>';
+      return '<div class="exam-setup-row">' +
+        '<span class="exam-setup-name">' + esc(opts.label) + '</span>' +
+        '<span class="exam-setup-val">Paper ' + esc(opts.paper) + '</span>' +
+        '<span class="exam-setup-val">Scaled ' + esc(opts.scaled) + '</span>' +
+        weightCell + '</div>';
     }
     if (opts.componentId) {
-      return '<tr><td>' + esc(label) + '</td>' +
-        '<td><input type="number" class="exam-config-input" min="1" max="500" step="1" ' +
-        'data-component-config="' + opts.componentId + '|paper_marks" value="' + paper + '"></td>' +
-        '<td><input type="number" class="exam-config-input" min="1" max="500" step="1" ' +
-        'data-component-config="' + opts.componentId + '|scaled_marks" value="' + scaled + '"></td>' +
-        '<td>' + esc(weight) + '</td></tr>';
+      return '<div class="exam-setup-row">' +
+        '<span class="exam-setup-name">' + esc(opts.label) + '</span>' +
+        '<label class="exam-setup-field">Paper<input type="number" class="exam-config-input" min="1" max="500" step="1" ' +
+        'data-component-config="' + opts.componentId + '|paper_marks" value="' + opts.paper + '"></label>' +
+        '<label class="exam-setup-field">Scaled<input type="number" class="exam-config-input" min="1" max="500" step="1" ' +
+        'data-component-config="' + opts.componentId + '|scaled_marks" value="' + opts.scaled + '"></label>' +
+        weightCell + '</div>';
     }
-    return '<tr><td>' + esc(label) + '</td>' +
-      '<td><input type="number" class="exam-config-input" min="1" max="500" step="1" ' +
-      'data-s3-exam-config="' + opts.s3CourseId + '|paper_marks" value="' + paper + '"></td>' +
-      '<td><input type="number" class="exam-config-input" min="1" max="500" step="1" ' +
-      'data-s3-exam-config="' + opts.s3CourseId + '|scaled_marks" value="' + scaled + '"></td>' +
-      '<td>' + esc(weight) + '</td></tr>';
+    return '<div class="exam-setup-row">' +
+      '<span class="exam-setup-name">' + esc(opts.label) + '</span>' +
+      '<label class="exam-setup-field">Paper<input type="number" class="exam-config-input" min="1" max="500" step="1" ' +
+      'data-s3-exam-config="' + opts.s3CourseId + '|paper_marks" value="' + opts.paper + '"></label>' +
+      '<label class="exam-setup-field">Scaled<input type="number" class="exam-config-input" min="1" max="500" step="1" ' +
+      'data-s3-exam-config="' + opts.s3CourseId + '|scaled_marks" value="' + opts.scaled + '"></label>' +
+      weightCell + '</div>';
   }
 
   function updateEnrolmentRiskCell(enrolmentId) {
@@ -1898,9 +1942,10 @@
     if (meta.hasEvPupils) sheetHint += ' · evidence';
     if (prelimComps.length) sheetHint += ' · prelims';
     if (role().canFlag) sheetHint += ' · flag concerns';
-    html += examMarkSetupHtml(course, prelimComps, meta);
     html += sheetPanel('Tracking grid', enrolments.length + ' rows', sheetHint,
-      '<table class="data-table course-grid"><thead>' + head + '</thead><tbody>' + courseBody + '</tbody></table>');
+      '<table class="data-table course-grid"><thead>' + head + '</thead><tbody>' + courseBody + '</tbody></table>',
+      '',
+      examMarkSetupHtml(course, prelimComps, meta));
     html += '</div>';
     return html;
   }
@@ -2705,6 +2750,21 @@
         var gradeEl = document.querySelector('[data-s3-grade-for="' + p[0] + '"]');
         if (pctEl) pctEl.textContent = result ? result.percentage + '%' : '—';
         if (gradeEl) gradeEl.innerHTML = result && result.grade ? gradeBandHtml(result.grade) : '—';
+      });
+    });
+    root.querySelectorAll('[data-exam-setup-toggle]').forEach(function(el) {
+      el.addEventListener('click', function() {
+        var panel = el.closest('[data-exam-setup-panel]');
+        if (!panel) return;
+        var courseId = panel.getAttribute('data-exam-setup-course');
+        var open = panel.classList.toggle('is-open');
+        panel.classList.toggle('is-collapsed', !open);
+        var body = panel.querySelector('.exam-setup-body');
+        if (body) body.hidden = !open;
+        el.setAttribute('aria-expanded', open ? 'true' : 'false');
+        try {
+          localStorage.setItem('spt-exam-setup-' + courseId, open ? '1' : '0');
+        } catch (e) { /* ignore */ }
       });
     });
     root.querySelectorAll('[data-s3-exam-config]').forEach(function(el) {
