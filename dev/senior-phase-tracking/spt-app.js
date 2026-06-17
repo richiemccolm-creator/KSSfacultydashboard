@@ -483,15 +483,13 @@
   function updateS3BaselineInputs(enrolmentId) {
     var b = SptBaseline.baselineForEnrolment(db(), enrolmentId);
     if (!b) return;
-    ['effort', 'behaviour', 'homelearning'].forEach(function(field) {
+    ['effort', 'behaviour', 'homelearning', 'progress'].forEach(function(field) {
       var sel = document.querySelector('[data-baseline="' + enrolmentId + '|' + field + '"]');
       if (sel && b[field] != null && b[field] !== '') {
         sel.value = String(b[field]);
         applyScoreSelectColor(sel);
       }
     });
-    var prog = document.querySelector('[data-baseline="' + enrolmentId + '|progress"]');
-    if (prog && b.progress != null && b.progress !== '') prog.value = String(b.progress);
     var cfe = document.querySelector('[data-baseline="' + enrolmentId + '|cfe_level"]');
     if (cfe && b.cfe_level) cfe.value = b.cfe_level;
   }
@@ -856,10 +854,6 @@
         return '<option value="' + l + '"' + (b && b.cfe_level === l ? ' selected' : '') + '>' + l + '</option>';
       }).join('');
       return '<td><select class="inline-select inline-select-sm" data-baseline="' + enId + '|cfe_level">' + opts + '</select></td>';
-    }
-    if (type === 'progress') {
-      return '<td><input type="number" class="prelim-inline" min="1" max="4" step="0.1" data-baseline="' + enId + '|progress" value="' +
-        (b && b.progress != null ? b.progress : '') + '" placeholder="—"></td>';
     }
     return '<td><input type="text" class="inline-input-sm" data-baseline="' + enId + '|' + field + '" value="' +
       esc(b && b[field] ? b[field] : '') + '" placeholder="—"></td>';
@@ -1622,7 +1616,7 @@
         '<div><label>Effort (1–4)</label><input name="effort" type="number" min="1" max="4"></div>' +
         '<div><label>Behaviour (1–4)</label><input name="behaviour" type="number" min="1" max="4"></div>' +
         '<div><label>Home learning (1–4)</label><input name="homelearning" type="number" min="1" max="4"></div>' +
-        '<div><label>Progress (avg)</label><input name="progress" type="number" min="1" max="4" step="0.1"></div>' +
+        '<div><label>Progress (1–4)</label><input name="progress" type="number" min="1" max="4" step="1"></div>' +
         '<div><label>CfE level</label><select name="cfe_level"><option value="">—</option>' +
         SptConfig.CFE_LEVELS.map(function(l) { return '<option>' + l + '</option>'; }).join('') + '</select></div>' +
         '<div><label>Notes</label><textarea name="notes"></textarea></div>' +
@@ -1862,7 +1856,7 @@
         courseBody += baselineFieldCell(r, 'effort', 'score');
         courseBody += baselineFieldCell(r, 'behaviour', 'score');
         courseBody += baselineFieldCell(r, 'homelearning', 'score');
-        courseBody += baselineFieldCell(r, 'progress', 'progress');
+        courseBody += baselineFieldCell(r, 'progress', 'score');
         courseBody += baselineFieldCell(r, 'cfe_level', 'cfe');
       }
       if (meta.hasPrior) courseBody += priorEntryCells(r, canEdit);
@@ -2290,7 +2284,7 @@
         '<dt>Effort</dt><dd>' + esc(b.effort != null ? b.effort : '—') + '</dd>' +
         '<dt>Behaviour</dt><dd>' + esc(b.behaviour != null ? b.behaviour : '—') + '</dd>' +
         '<dt>Home learning</dt><dd>' + esc(b.homelearning != null ? b.homelearning : '—') + '</dd>' +
-        '<dt>Progress</dt><dd>' + esc(b.progress != null ? b.progress : '—') + '</dd>' +
+        '<dt>Progress</dt><dd>' + scorePillHtml(b.progress != null && b.progress !== '' ? b.progress : '') + '</dd>' +
         '<dt>CfE level</dt><dd>' + esc(b.cfe_level || '—') + '</dd></dl></div>';
     }
     if (r.shows_prior_entry && r.prior_main) {
@@ -2809,15 +2803,13 @@
           SptStore.upsertBaseline(db(), p[0], patch);
           return;
         }
-        if (field === 'effort' || field === 'behaviour' || field === 'homelearning') {
+        if (field === 'effort' || field === 'behaviour' || field === 'homelearning' || field === 'progress') {
           patch[field] = val === '' ? null : parseInt(val, 10);
-        } else if (field === 'progress') {
-          patch[field] = val === '' ? null : parseFloat(val);
         } else {
           patch[field] = val;
         }
         SptStore.upsertBaseline(db(), p[0], patch);
-        if (field === 'effort' || field === 'behaviour' || field === 'homelearning') {
+        if (field === 'effort' || field === 'behaviour' || field === 'homelearning' || field === 'progress') {
           applyScoreSelectColor(el);
         }
       });
@@ -3056,7 +3048,7 @@
         effort: fd.get('effort') ? parseInt(fd.get('effort'), 10) : null,
         behaviour: fd.get('behaviour') ? parseInt(fd.get('behaviour'), 10) : null,
         homelearning: fd.get('homelearning') ? parseInt(fd.get('homelearning'), 10) : null,
-        progress: fd.get('progress') ? parseFloat(fd.get('progress')) : null,
+        progress: fd.get('progress') ? parseInt(fd.get('progress'), 10) : null,
         cfe_level: fd.get('cfe_level'),
         notes: fd.get('notes'),
         locked_at: new Date().toISOString().slice(0, 10)
