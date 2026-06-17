@@ -602,7 +602,7 @@
     var nextYg = ClassManagementTracker.nextYearGroup(row.yearGroup);
     if (desc) {
       desc.textContent = 'Promote “' + row.className + '” from ' + row.yearGroup.toUpperCase() +
-        ' to ' + (nextYg || '').toUpperCase() + ' for a teacher. Prior-year scores can be stored as a snapshot on each pupil profile.';
+        ' to ' + (nextYg || '').toUpperCase() + ' for a teacher. The source class will be archived and prior-year scores attached as a read-only snapshot on each pupil in the new year.';
     }
     fillTeacherSelect('cm-promote-to', null);
     var toSel = $('cm-promote-to');
@@ -666,6 +666,7 @@
     var toYg = ($('cm-promote-to-yg') && $('cm-promote-to-yg').value) || ClassManagementTracker.nextYearGroup(row.yearGroup);
     var toCls = ($('cm-promote-cls') && $('cm-promote-cls').value.trim()) || '';
     var snapshot = $('cm-promote-snapshot') && $('cm-promote-snapshot').checked;
+    var archiveSource = $('cm-promote-archive') && $('cm-promote-archive').checked;
     var year = ($('cm-promote-year-roster') && $('cm-promote-year-roster').value) || state.academicYear;
     if (!toYg) { toast('Invalid promote target year', 'error'); return; }
     var btn = $('cm-promote-confirm');
@@ -679,9 +680,10 @@
       toYearGroup: toYg,
       toClassName: toCls,
       includeSnapshot: snapshot,
+      archiveSource: archiveSource,
       academicYearLabel: year
     }).then(function(res) {
-      toast('Promoted ' + res.pupilCount + ' pupils to ' + res.toClassName + ' (' + res.toYearGroup.toUpperCase() + ')', 'success');
+      toast('Promoted ' + res.pupilCount + ' pupils to ' + res.toClassName + ' (' + res.toYearGroup.toUpperCase() + ')' + (archiveSource ? ' — source class archived' : ''), 'success');
       closeModal('cm-promote-modal');
       loadTrackerClasses();
     }).catch(function(err) {

@@ -14,6 +14,7 @@
 <script src="allowlist-check.js"></script>
 <script src="auth-guard.js"></script>
 <script src="data-service.js"></script>
+<script src="tracker-promote-archive.js"></script>
 <script src="tracker-readonly-view.js"></script>
 <script src="report-builder-bridge.js"></script>
 <script src="curriculum-units.js"></script>
@@ -805,11 +806,12 @@ let S={
   pupils:{s1:{},s2:{},s3:{}},
   scores:{s1:{},s2:{},s3:{}},
   profiles:{s1:{},s2:{},s3:{}},
+  archived:{s1:{},s2:{},s3:{}},
   curTP:{s1:'tp1',s2:'tp1',s3:'tp1'},
   curCls:{s1:'all',s2:'all',s3:'all'},
   defaultsOn:{}, // {s1:{tp1:false,tp2:false,...}, s2:{...}, s3:{...}} — per-unit default settings toggle
 };
-function load(){return (window.DataService?DataService.get('drama-v3'):Promise.resolve(null)).then(function(d){if(d)Object.assign(S,d);}).catch(function(){});}
+function load(){return (window.DataService?DataService.get('drama-v3'):Promise.resolve(null)).then(function(d){if(d)Object.assign(S,d);ensureTrackerShape();}).catch(function(){});}
 function save(){if(window.TrackerReadonlyView&&TrackerReadonlyView.isActive())return Promise.resolve();if(window.DataService){return DataService.set('drama-v3',S).catch(function(){toast('Save failed — sign in to save to cloud');});}else{try{localStorage.setItem('drama-v3',JSON.stringify(S));}catch(e){}return Promise.resolve();}}
 function roBlock(){return window.TrackerReadonlyView&&TrackerReadonlyView.block();}
 function autoSave(){save().then(function(){toast(window.DataService&&window.DataService.isUsingCloud&&window.DataService.isUsingCloud()?'Saved to cloud':'Saved');}).catch(function(){toast('Save failed — sign in to save to cloud');});}
@@ -828,6 +830,7 @@ function yearLevelToTrackerGroup(level){
 function ensureTrackerShape(){
   S.pupils=S.pupils||{s1:{},s2:{},s3:{}};
   ['s1','s2','s3'].forEach(yg=>{if(!S.pupils[yg]||typeof S.pupils[yg]!=='object')S.pupils[yg]={};});
+  if(window.TrackerPromoteArchive)TrackerPromoteArchive.ensureArchivedShape(S);
 }
 function syncAssignedDramaClasses(){
   if(!window.DataService||!DataService.listMyAssignedClassesForTracker)return Promise.resolve();
@@ -945,7 +948,55 @@ function renderSetup(yg){
       ${classes.length===0?`<div class="sc"><div class="sc-body"><div class="empty-s"><div class="empty-icon"><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>No classes yet — add one above.</div></div></div>`:''}
       ${classes.map(c=>classCard(yg,c)).join('')}
     </div>
+    ${renderArchivedSection(yg)}
   `;
+}
+function renderArchivedSection(yg){
+  ensureTrackerShape();
+  const archived=(window.TrackerPromoteArchive?TrackerPromoteArchive.archivedClassNames(S,yg):[]);
+  if(!archived.length)return '';
+  return `<details class="archived-section" style="margin-top:1.5rem">
+    <summary style="cursor:pointer;font-weight:600;font-size:.85rem;color:var(--text2);padding:.35rem 0">Archived classes (${archived.length}) — promoted or retired, data preserved</summary>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(295px,1fr));gap:.95rem;margin-top:.75rem">
+      ${archived.map(c=>archivedClassCard(yg,c)).join('')}
+    </div>
+  </details>`;
+}
+function archivedClassCard(yg,cls){
+  const entry=(S.archived&&S.archived[yg]&&S.archived[yg][cls])||{};
+  const pupils=entry.pupils||[];
+  const promoted=entry.promotedTo;
+  const date=entry.archivedAt?new Date(entry.archivedAt).toLocaleDateString():'';
+  const promotedLbl=promoted?`Promoted to ${String(promoted.yearGroup||'').toUpperCase()} — ${promoted.className||''}`:'Archived';
+  return `<div class="sc" style="border-style:dashed;opacity:.94" data-arch-cls="${escAttr(cls)}">
+    <div class="sc-header">
+      <div><div class="sc-title">${cls}</div><div class="sc-sub">${pupils.length} pupil${pupils.length!==1?'s':''} · ${promotedLbl}${date?` · ${date}`:''}</div></div>
+      <div style="display:flex;gap:.32rem;flex-wrap:wrap">
+        <button class="btn btn-ghost" style="font-size:.61rem;padding:.26rem .58rem" onclick="viewArchivedClass('${yg}',this.closest('.sc').dataset.archCls)">View</button>
+        <button class="btn btn-danger" style="font-size:.61rem;padding:.26rem .58rem" onclick="deleteArchivedClass('${yg}',this.closest('.sc').dataset.archCls)">Delete</button>
+      </div>
+    </div>
+    <div class="sc-body"><p style="font-size:.72rem;color:var(--text3);margin:0">Read-only archive. Prior-year scores also appear on promoted pupils' profiles in the new year group.</p></div>
+  </div>`;
+}
+function viewArchivedClass(yg,cls){
+  if(!cls)return;
+  const entry=(S.archived&&S.archived[yg]&&S.archived[yg][cls])||{};
+  const pupils=entry.pupils||[];
+  const promoted=entry.promotedTo;
+  const scored=pupils.filter(p=>entry.scores&&entry.scores[p.id]&&Object.keys(entry.scores[p.id]).length).length;
+  const list=pupils.map((p,i)=>`<div style="font-size:.78rem;padding:.2rem 0">${String(i+1).padStart(2,'0')} ${p.name}</div>`).join('')||'<p style="font-size:.78rem;color:var(--text3)">No pupils recorded.</p>';
+  const promotedNote=promoted?`<p style="font-size:.78rem;color:var(--text2);margin:0 0 .75rem">Active tracking continues in <strong>${String(promoted.yearGroup||'').toUpperCase()} — ${promoted.className||''}</strong>. Open pupil profiles there to see this year's snapshot alongside new scores.</p>`:'';
+  showModal(`Archived: ${cls}`,`${promotedNote}<p style="font-size:.78rem;color:var(--text2);margin:0 0 .6rem">${pupils.length} pupils · ${scored} with tracking data</p><div style="max-height:220px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:.5rem .75rem">${list}</div>`,'Close',()=>true,false);
+}
+function deleteArchivedClass(yg,cls){
+  if(roBlock())return;
+  if(!cls||!window.TrackerPromoteArchive)return;
+  const pupils=((S.archived&&S.archived[yg]&&S.archived[yg][cls]&&S.archived[yg][cls].pupils)||[]).length;
+  showModal(`Delete archived "${cls}"?`,`This permanently removes ${pupils} archived pupil${pupils!==1?'s':''} and all stored ${yg.toUpperCase()} scores for this class. Cannot be undone.`,'Delete',()=>{
+    TrackerPromoteArchive.deleteArchivedClass(S,yg,cls);
+    save();renderSetup(yg);toast('Archived class deleted');
+  });
 }
 function classCard(yg,cls){
   const pupils=S.pupils[yg][cls]||[];
@@ -955,7 +1006,7 @@ function classCard(yg,cls){
       <div style="display:flex;gap:.32rem;flex-wrap:wrap">
         <button class="btn btn-ghost" style="font-size:.61rem;padding:.26rem .58rem" onclick="bulkAdd('${yg}','${cls}')">Bulk Add</button>
         <button class="btn btn-ghost" style="font-size:.61rem;padding:.26rem .58rem" onclick="renameClass('${yg}',this.closest('.sc').dataset.cls)" title="Rename class">Rename</button>
-        ${yg!=='s3'?`<button class="btn btn-ghost" style="font-size:.61rem;padding:.26rem .58rem" onclick="promoteClass('${yg}',this.closest('.sc').dataset.cls)" title="Copy class and pupils to ${yg==='s1'?'S2':'S3'}">Promote</button>`:''}
+        ${yg!=='s3'?`<button class="btn btn-ghost" style="font-size:.61rem;padding:.26rem .58rem" onclick="promoteClass('${yg}',this.closest('.sc').dataset.cls)" title="Promote to ${yg==='s1'?'S2':'S3'} and archive this class">Promote</button>`:''}
         <button class="btn btn-ghost" style="font-size:.61rem;padding:.26rem .58rem" onclick="exportForHandover('${yg}',this.closest('.sc').dataset.cls)" title="Download for another teacher">Export</button>
         <button class="btn btn-danger" style="font-size:.61rem;padding:.26rem .58rem" onclick="delClass('${yg}','${cls}')">Delete</button>
       </div>
@@ -1037,19 +1088,20 @@ function suggestPromotedClassName(cls,yg,nextYg){
 }
 function promoteClass(yg,cls){
   if(roBlock())return;
-  if(!cls)return;
+  if(!cls||!window.TrackerPromoteArchive)return;
   const nextYg=yg==='s1'?'s2':yg==='s2'?'s3':null;
   if(!nextYg){toast('S3 is the highest year group');return;}
   const pupils=S.pupils[yg][cls]||[];
   if(!pupils.length){toast('No pupils to promote');return;}
   const defaultTarget=suggestPromotedClassName(cls,yg,nextYg);
-  showModal(`Promote "${cls}" to ${nextYg.toUpperCase()}?`,`${pupils.length} pupils will be copied to ${nextYg.toUpperCase()}. Their ${yg.toUpperCase()} data stays in ${yg.toUpperCase()} for reference. You can continue tracking them in the new year with fresh TP columns.<br><br><label class="form-label">Class name in ${nextYg.toUpperCase()}</label><input class="form-input" id="promote-cls-inp" value="${escAttr(defaultTarget)}" />`,'Promote',()=>{
+  showModal(`Promote "${cls}" to ${nextYg.toUpperCase()}?`,`${pupils.length} pupils will move to ${nextYg.toUpperCase()} with fresh TP columns. Their ${yg.toUpperCase()} scores are saved as a read-only snapshot on each pupil's profile in ${nextYg.toUpperCase()}, and the ${yg.toUpperCase()} class will be archived (hidden from active lists but preserved below).<br><br><label class="form-label">Class name in ${nextYg.toUpperCase()}</label><input class="form-input" id="promote-cls-inp" value="${escAttr(defaultTarget)}" />`,'Promote',()=>{
     const inp=document.getElementById('promote-cls-inp');const targetCls=(inp?.value||'').trim();
     if(!targetCls){toast('Enter a class name');return false;}
     if(S.pupils[nextYg][targetCls]){toast(`"${targetCls}" already exists in ${nextYg.toUpperCase()}`);return false;}
-    const newPupils=pupils.map(p=>({id:uid(),name:p.name}));
-    S.pupils[nextYg][targetCls]=newPupils;
-    save();renderSetup(yg);nav('setup-'+nextYg);toast(`Promoted to ${nextYg.toUpperCase()} as "${targetCls}"`);
+    try{
+      TrackerPromoteArchive.promoteClass(S,{fromYearGroup:yg,className:cls,toYearGroup:nextYg,toClassName:targetCls,uid:uid,includeSnapshot:true,archiveSource:true});
+    }catch(e){toast(e.message||'Promote failed');return false;}
+    save();renderSetup(yg);nav('setup-'+nextYg);toast(`Promoted to ${nextYg.toUpperCase()} as "${targetCls}" — ${yg.toUpperCase()} class archived`);
   },false);
   setTimeout(()=>{const inp=document.getElementById('promote-cls-inp');if(inp){inp.focus();inp.select();}},50);
 }

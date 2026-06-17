@@ -20,6 +20,7 @@ window.ClassManagementTracker = (function() {
       pupils: { s1: {}, s2: {}, s3: {} },
       scores: { s1: {}, s2: {}, s3: {} },
       profiles: { s1: {}, s2: {}, s3: {} },
+      archived: { s1: {}, s2: {}, s3: {} },
       curTP: { s1: 'tp1', s2: 'tp1', s3: 'tp1' },
       curCls: { s1: 'all', s2: 'all', s3: 'all' },
       defaultsOn: {}
@@ -36,6 +37,7 @@ window.ClassManagementTracker = (function() {
       if (!S.scores[yg] || typeof S.scores[yg] !== 'object') S.scores[yg] = {};
       if (!S.profiles[yg] || typeof S.profiles[yg] !== 'object') S.profiles[yg] = {};
     });
+    if (window.TrackerPromoteArchive) TrackerPromoteArchive.ensureArchivedShape(S);
     return S;
   }
 
@@ -329,6 +331,7 @@ window.ClassManagementTracker = (function() {
     var toYg = opts.toYearGroup || nextYearGroup(fromYg);
     var toCls = opts.toClassName;
     var includeSnapshot = opts.includeSnapshot !== false;
+    var archiveSource = opts.archiveSource !== false;
     var academicYear = opts.academicYearLabel;
 
     if (!toYg) throw new Error('Cannot promote above S3');
@@ -339,10 +342,15 @@ window.ClassManagementTracker = (function() {
       }
       var handover = extractHandover(fromS, subject, fromYg, cls);
 
-      return loadTrackerState(toId, subject).then(function(toS) {
-        var defaultName = toCls || suggestPromotedClassName(cls, fromYg, toYg, toS);
-        var result = promoteHandoverToState(toS, handover, toYg, defaultName, includeSnapshot);
-        return saveTrackerState(toId, subject, result.state).then(function() {
+      function archiveSourceClass(state, result) {
+        if (!archiveSource || !window.TrackerPromoteArchive) return state;
+        return TrackerPromoteArchive.archiveClassFromHandover(state, fromYg, cls, handover, {
+          promotedTo: { yearGroup: result.toYearGroup, className: result.toClassName }
+        });
+      }
+
+      function afterPromote(result, saves) {
+        return Promise.all(saves).then(function() {
           if (!academicYear) return result;
           return syncRosterClass({
             teacherId: toId,
@@ -353,6 +361,22 @@ window.ClassManagementTracker = (function() {
             classCode: opts.classCode
           }).then(function() { return result; });
         });
+      }
+
+      if (fromId === toId) {
+        var defaultName = toCls || suggestPromotedClassName(cls, fromYg, toYg, fromS);
+        var sameResult = promoteHandoverToState(fromS, handover, toYg, defaultName, includeSnapshot);
+        archiveSourceClass(sameResult.state, sameResult);
+        return afterPromote(sameResult, [saveTrackerState(fromId, subject, sameResult.state)]);
+      }
+
+      return loadTrackerState(toId, subject).then(function(toS) {
+        var defaultName = toCls || suggestPromotedClassName(cls, fromYg, toYg, toS);
+        var result = promoteHandoverToState(toS, handover, toYg, defaultName, includeSnapshot);
+        var saves = [saveTrackerState(toId, subject, result.state)];
+        fromS = archiveSourceClass(fromS, result);
+        if (archiveSource) saves.push(saveTrackerState(fromId, subject, fromS));
+        return afterPromote(result, saves);
       });
     });
   }
