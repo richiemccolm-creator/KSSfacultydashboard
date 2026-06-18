@@ -744,6 +744,12 @@
     return 'National 5';
   }
 
+  function defaultYearGroupForCourse(course) {
+    if (!course) return 'S5/6';
+    if (course.course_type === 'N5/N4 Combined') return 'S4';
+    return 'S5/6';
+  }
+
   function levelsForCourse(course) {
     if (!course) return ['National 5'];
     if (course.course_type === 'Advanced Higher') return ['Advanced Higher'];
@@ -900,6 +906,69 @@
     return byId(db.classes, classId);
   }
 
+  function updateClass(db, classId, patch) {
+    var cl = byId(db.classes, classId);
+    if (!cl) return { error: 'Class not found' };
+
+    var className = patch.class_name != null ? String(patch.class_name).trim() : cl.class_name;
+    if (!className) return { error: 'Class name is required' };
+
+    var courseId = patch.course_id != null ? patch.course_id : cl.course_id;
+    var yearGroup = patch.year_group != null ? patch.year_group : cl.year_group;
+    var teacherId = patch.teacher_id != null ? patch.teacher_id : cl.teacher_id;
+
+    var dup = (db.classes || []).find(function(c) {
+      return c.id !== classId && c.teacher_id === teacherId &&
+        String(c.class_name || '').trim().toLowerCase() === className.toLowerCase();
+    });
+    if (dup) return { error: 'This teacher already has a class named "' + dup.class_name + '"' };
+
+    var course = byId(db.courses, courseId);
+    if (!course) return { error: 'Course not found' };
+
+    var courseChanged = courseId !== cl.course_id;
+    var teacherChanged = teacherId !== cl.teacher_id;
+    var enrolments = (db.enrolments || []).filter(function(e) {
+      return e.class_id === classId && e.active_status !== false;
+    });
+
+    if (courseChanged && enrolments.length) {
+      var conflicts = [];
+      enrolments.forEach(function(en) {
+        var existing = findEnrolment(db, en.pupil_id, courseId);
+        if (existing && existing.active_status !== false && existing.id !== en.id) {
+          conflicts.push(en.pupil_id);
+        }
+      });
+      if (conflicts.length) {
+        var names = conflicts.map(function(pid) { return pupilName(db, pid); }).join(', ');
+        return {
+          error: 'Cannot change course — these pupils are already enrolled on ' + courseName(db, courseId) + ': ' + names
+        };
+      }
+    }
+
+    updateRecord(db, 'classes', classId, {
+      class_name: className,
+      course_id: courseId,
+      year_group: yearGroup || defaultYearGroupForCourse(course),
+      teacher_id: teacherId
+    }, 'class_update');
+
+    if (courseChanged || teacherChanged) {
+      enrolments.forEach(function(en) {
+        var enPatch = {};
+        if (courseChanged) enPatch.course_id = courseId;
+        if (teacherChanged) enPatch.teacher_id = teacherId;
+        updateRecord(db, 'enrolments', en.id, enPatch, 'class_update_sync');
+        if (courseChanged && global.SptEvidence) global.SptEvidence.syncEnrolment(db, en.id);
+        if (global.SptRisk) global.SptRisk.recalculateEnrolment(db, en.id);
+      });
+    }
+
+    return { class: byId(db.classes, classId), courseChanged: courseChanged };
+  }
+
   function deleteClass(db, classId) {
     var cl = byId(db.classes, classId);
     if (!cl) return { error: 'Class not found' };
@@ -1031,6 +1100,7 @@
     addPupilToCourse: addPupilToCourse,
     updateEnrolmentTeacher: updateEnrolmentTeacher,
     updateClassTeacher: updateClassTeacher,
+    updateClass: updateClass,
     deleteClass: deleteClass,
     enrolmentCountForClass: enrolmentCountForClass,
     trackingEntriesForUser: trackingEntriesForUser

@@ -1381,6 +1381,7 @@
       '<select class="inline-select inline-select-sm" data-class-year="' + esc(classId) + '" title="Default year for new pupils">' +
       yearGroupOptionsHtml(yearDefault) + '</select></p>' +
       '<button type="button" class="btn btn-secondary btn-sm" data-setup-class-clear>Choose a different class</button>' +
+      '<button type="button" class="btn btn-secondary btn-sm" data-edit-class="' + esc(classId) + '">Edit class</button>' +
       '<button type="button" class="btn btn-secondary btn-sm" data-delete-class="' + esc(classId) + '">Delete class</button>' +
       '</div>';
     if (state.setupMessage) {
@@ -1523,6 +1524,8 @@
             esc(cl.id) + '">' + (isActive ? 'Managing' : 'Add pupils') + '</button> ' +
             '<button type="button" class="btn btn-sm btn-secondary" data-open-class-sheet="' +
             esc(cl.course_id) + '|' + esc(cl.id) + '">Open sheet</button> ' +
+            '<button type="button" class="btn btn-sm btn-secondary" data-edit-class="' +
+            esc(cl.id) + '">Edit</button> ' +
             '<button type="button" class="btn btn-sm btn-secondary" data-delete-class="' +
             esc(cl.id) + '">Delete</button></td></tr>';
         }).join('') +
@@ -2096,6 +2099,58 @@
     state.setupMessage = 'Deleted class "' + result.className + '"' +
       (result.unassigned ? ' — ' + result.unassigned + ' pupil' + (result.unassigned !== 1 ? 's' : '') + ' unassigned' : '') + '.';
     render();
+  }
+
+  function showEditClassModal(classId) {
+    if (!role().canSetup) return;
+    var d = db();
+    var cl = SptStore.byId(d.classes, classId);
+    if (!cl) return;
+    var enrolCount = SptStore.enrolmentCountForClass(d, classId);
+    var yearDefault = defaultYearGroupForClass(d, cl);
+    var courseOpts = d.courses.map(function(c) {
+      return '<option value="' + c.id + '"' + (cl.course_id === c.id ? ' selected' : '') + '>' + esc(c.course_name) + '</option>';
+    }).join('');
+    var note = enrolCount
+      ? '<p class="modal-note">Changing the course moves ' + enrolCount + ' enrolled pupil' +
+        (enrolCount !== 1 ? 's' : '') + ' to the new course sheet. Any tracking entered on the old course will no longer appear.</p>'
+      : '';
+    openModal('Edit class',
+      '<form id="edit-class-form" class="form-grid">' + note +
+      '<div><label>Course</label><select name="course_id" id="edit-class-course" required>' + courseOpts + '</select></div>' +
+      '<div><label>Class name</label><input name="class_name" required value="' + esc(cl.class_name) + '"></div>' +
+      '<div><label>Default year group</label><select name="year_group" id="edit-class-year-group">' +
+      yearGroupOptionsHtml(yearDefault) + '</select></div></form>',
+      '<button type="button" class="btn btn-secondary" id="modal-cancel">Cancel</button>' +
+      '<button type="button" class="btn" id="edit-class-submit">Save changes</button>');
+    var courseSel = document.getElementById('edit-class-course');
+    var yearSel = document.getElementById('edit-class-year-group');
+    if (courseSel && yearSel) {
+      courseSel.addEventListener('change', function() {
+        var course = SptStore.byId(db().courses, courseSel.value);
+        yearSel.value = defaultYearGroupForCourse(course);
+      });
+    }
+    document.getElementById('edit-class-submit').onclick = function() {
+      var f = document.getElementById('edit-class-form');
+      var fd = new FormData(f);
+      var result = SptStore.updateClass(db(), classId, {
+        course_id: fd.get('course_id'),
+        class_name: fd.get('class_name'),
+        year_group: fd.get('year_group')
+      });
+      if (result.error) { alert(result.error); return; }
+      closeModal();
+      if (result.courseChanged) {
+        if (state.route === 'course' && state.classId === classId) {
+          state.courseId = result.class.course_id;
+        }
+      }
+      state.setupMessage = 'Updated class "' + result.class.class_name + '" (' +
+        SptStore.courseName(db(), result.class.course_id) + ').';
+      render();
+    };
+    document.getElementById('modal-cancel').onclick = closeModal;
   }
 
   function showLevelChangeModal(enrolmentId) {
@@ -2893,6 +2948,11 @@
     root.querySelectorAll('[data-delete-class]').forEach(function(el) {
       el.addEventListener('click', function() {
         confirmDeleteClass(el.getAttribute('data-delete-class'));
+      });
+    });
+    root.querySelectorAll('[data-edit-class]').forEach(function(el) {
+      el.addEventListener('click', function() {
+        showEditClassModal(el.getAttribute('data-edit-class'));
       });
     });
     root.querySelectorAll('[data-open-class-sheet]').forEach(function(el) {
