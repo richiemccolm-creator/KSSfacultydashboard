@@ -13,7 +13,9 @@
   })();
 
   var STORAGE_KEY = useSeedData ? 'spt-dev-v2' : 'spt-hub-v1';
-  var DATA_VERSION = 13;
+  var DATA_VERSION = 14;
+
+  var AH_ART_PORTFOLIO_ROUTES = ['Expressive', 'Design'];
 
   var CFE_LEVELS = ['Second', 'Third', 'Fourth'];
 
@@ -243,6 +245,7 @@
     ROLES: ROLES,
     CFE_LEVELS: CFE_LEVELS,
     SENIOR_YEAR_GROUPS: SENIOR_YEAR_GROUPS,
+    AH_ART_PORTFOLIO_ROUTES: AH_ART_PORTFOLIO_ROUTES,
     COURSE_DEFS: COURSE_DEFS,
     ASSESSMENT_TEMPLATES: ASSESSMENT_TEMPLATES,
     EXAM_DEFAULTS: EXAM_DEFAULTS,

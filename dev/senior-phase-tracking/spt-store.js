@@ -878,6 +878,12 @@
     return updateRecord(db, 'enrolments', enrolmentId, patch, 'enrolment_teacher_update');
   }
 
+  function updateEnrolmentArtRoute(db, enrolmentId, route) {
+    var valid = [''].concat(global.SptConfig.AH_ART_PORTFOLIO_ROUTES || ['Expressive', 'Design']);
+    if (valid.indexOf(route) < 0) route = '';
+    return updateRecord(db, 'enrolments', enrolmentId, { art_portfolio_route: route }, 'enrolment_art_route');
+  }
+
   function canViewClass(db, cl) {
     if (!cl) return false;
     var role = getRole(db);
@@ -1138,6 +1144,7 @@
     deactivateUnassignedForCourse: deactivateUnassignedForCourse,
     addPupilToCourse: addPupilToCourse,
     updateEnrolmentTeacher: updateEnrolmentTeacher,
+    updateEnrolmentArtRoute: updateEnrolmentArtRoute,
     updateClassTeacher: updateClassTeacher,
     updateClass: updateClass,
     deleteClass: deleteClass,

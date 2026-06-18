@@ -365,6 +365,33 @@
     return Object.keys(teacherIds).length > 1 || SptStore.classesForCourse(d, courseId).length > 1;
   }
 
+  function ahArtRouteSelectHtml(en, canEdit) {
+    var route = en.art_portfolio_route || '';
+    var routes = SptConfig.AH_ART_PORTFOLIO_ROUTES || ['Expressive', 'Design'];
+    if (!canEdit) {
+      if (!route) return '';
+      return '<span class="art-route-tag">' + esc(route) + '</span>';
+    }
+    var opts = '<option value="">Route…</option>' + routes.map(function(r) {
+      return '<option value="' + esc(r) + '"' + (route === r ? ' selected' : '') + '>' + esc(r) + '</option>';
+    }).join('');
+    return '<select class="inline-select inline-select-sm art-route-select" data-art-route="' + en.id + '" ' +
+      'title="Expressive or Design portfolio route">' + opts + '</select>';
+  }
+
+  function pupilNameCellHtml(r, course, canEdit) {
+    var en = r.enrolment;
+    var name = esc(SptStore.pupilName(db(), r.pupil.id));
+    if (course.slug !== 'ah-art') {
+      return '<td class="col-pupil" data-enrolment="' + en.id + '">' + name + '</td>';
+    }
+    return '<td class="col-pupil col-pupil-art" data-enrolment="' + en.id + '">' +
+      '<div class="pupil-cell-inner">' +
+      '<span class="pupil-name">' + name + '</span>' +
+      ahArtRouteSelectHtml(en, canEdit) +
+      '</div></td>';
+  }
+
   function levelCellHtml(r, course) {
     var en = r.enrolment;
     var lc = r.level_change;
@@ -1803,7 +1830,9 @@
     }
 
     var headGroup = '<tr class="head-group">';
-    headGroup += '<th class="col-pupil" rowspan="2">Pupil</th><th rowspan="2">Level</th>';
+    headGroup += '<th class="col-pupil' + (course.slug === 'ah-art' ? ' col-pupil-art' : '') + '" rowspan="2">Pupil' +
+      (course.slug === 'ah-art' ? '<span class="th-sub">Expressive / Design</span>' : '') +
+      '</th><th rowspan="2">Level</th>';
     if (showTeachers) headGroup += '<th rowspan="2">Teacher</th>';
     if (meta.hasS3) {
       var s3Cfg = SptExamMark.s3ExamMarks(course);
@@ -1869,7 +1898,7 @@
       courseBody += '<tr class="' +
         (r.open_flag_count ? 'row-flagged ' : '') +
         (r.crashing_subject ? 'row-crashing-subject' : '') + '">' +
-        '<td class="col-pupil" data-enrolment="' + en.id + '">' + esc(SptStore.pupilName(d, r.pupil.id)) + '</td>';
+        pupilNameCellHtml(r, course, canEdit);
       courseBody += levelCellHtml(r, course);
       if (showTeachers) {
         if (role().viewAll && canEdit) {
@@ -2400,6 +2429,10 @@
         '<dt>Progress</dt><dd>' + scorePillHtml(b.progress != null && b.progress !== '' ? b.progress : '') + '</dd>' +
         '<dt>CfE level</dt><dd>' + esc(b.cfe_level || '—') + '</dd></dl></div>';
     }
+    if (course.slug === 'ah-art') {
+      body += '<div class="profile-section"><h3>Portfolio route</h3><dl class="profile-grid">' +
+        '<dt>Route</dt><dd>' + esc(en.art_portfolio_route || '—') + '</dd></dl></div>';
+    }
     if (r.shows_prior_entry && r.prior_main) {
       body += '<div class="profile-section"><h3>Prior attainment</h3><dl class="profile-grid">' +
         '<dt>Grade</dt><dd>' + esc(r.prior_display.grade) + '</dd>' +
@@ -2785,6 +2818,12 @@
         e.stopPropagation();
         SptStore.updateEnrolmentTeacher(db(), el.getAttribute('data-enrolment-teacher'), el.value);
         render();
+      });
+    });
+    root.querySelectorAll('[data-art-route]').forEach(function(el) {
+      el.addEventListener('change', function(e) {
+        e.stopPropagation();
+        SptStore.updateEnrolmentArtRoute(db(), el.getAttribute('data-art-route'), el.value);
       });
     });
     root.querySelectorAll('[data-prelim-mark]').forEach(function(el) {
