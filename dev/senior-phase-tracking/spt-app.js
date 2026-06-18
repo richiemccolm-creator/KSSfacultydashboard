@@ -625,7 +625,16 @@
         wraps[i].scrollLeft = pos.left;
         wraps[i].scrollTop = pos.top;
       });
+      syncCourseGridHeaderSticky();
     });
+  }
+
+  function syncCourseGridHeaderSticky() {
+    var row = document.querySelector('table.course-grid thead tr.head-group');
+    if (!row) return;
+    var wrap = row.closest('.sheet-grid-wrap');
+    if (!wrap) return;
+    wrap.style.setProperty('--course-grid-head-row1-h', row.getBoundingClientRect().height + 'px');
   }
 
   function prelimPctHtml(summary) {
