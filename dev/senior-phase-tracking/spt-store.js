@@ -278,6 +278,15 @@
     db.enrolment_baselines = db.enrolment_baselines || [];
     db.intervention_trail = db.intervention_trail || [];
     db.concern_feedback = db.concern_feedback || [];
+    (db.teacher_concerns || []).forEach(function(f) {
+      if (f.status === 'Resolved' && f.intervention_id && f.resolved_at && !f.action_taken_at) {
+        f.status = 'Ongoing';
+        f.action_taken_at = f.resolved_at;
+        f.action_taken_by = f.resolved_by || 'faculty_head';
+        f.resolved_at = null;
+        f.resolved_by = null;
+      }
+    });
     (db.level_changes || []).forEach(function(lc) {
       if (!lc.change_type) lc.change_type = 'level';
     });
@@ -323,6 +332,11 @@
       if (p.pathway_status === 'First time') p.pathway_status = 'First time in subject';
       if (p.pathway_status === 'Crashed / withdrew') {
         p.pathway_status = p.result_grade ? 'Completed previous level' : 'Crashing subject';
+      }
+    });
+    (db.enrolments || []).forEach(function(en) {
+      if (global.SptConcerns && global.SptConcerns.syncEnrolmentFlag) {
+        global.SptConcerns.syncEnrolmentFlag(db, en.id);
       }
     });
     if (global.SptRisk) global.SptRisk.recalculateAll(db);
@@ -541,6 +555,7 @@
         return i.enrolment_id === en.id && i.intervention_status !== 'Completed';
       });
       var openFlags = global.SptConcerns ? global.SptConcerns.openFlags(db, en.id) : [];
+      var activeFlags = global.SptConcerns ? global.SptConcerns.activeFlags(db, en.id) : [];
       var att = attendanceForEnrolment(db, en.id);
       var tracking = trackingDataForEnrolment(db, en.id);
       var worstAtt = att.reduce(function(min, a) {
@@ -577,8 +592,9 @@
         units_total: evidence.length,
         level_change: lc || null,
         active_interventions: ints,
-        open_flags: openFlags,
-        open_flag_count: openFlags.length,
+        open_flags: activeFlags,
+        open_flag_count: activeFlags.length,
+        pending_alert_count: openFlags.length,
         attendance: att,
         tracking_data: tracking,
         worst_attendance: worstAtt,

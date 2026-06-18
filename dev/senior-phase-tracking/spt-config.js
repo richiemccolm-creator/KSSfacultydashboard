@@ -13,7 +13,7 @@
   })();
 
   var STORAGE_KEY = useSeedData ? 'spt-dev-v2' : 'spt-hub-v1';
-  var DATA_VERSION = 16;
+  var DATA_VERSION = 17;
 
   var AH_ART_PORTFOLIO_ROUTES = ['Expressive', 'Design'];
 
@@ -30,7 +30,7 @@
     levelChange: ['Not Started', 'Under Review', 'Recommended', 'Approved', 'Completed', 'Not Proceeding'],
     intervention: ['Planned', 'Active', 'Reviewed', 'Completed', 'Escalated'],
     impact: ['No Impact', 'Some Impact', 'Good Impact', 'Not Yet Known'],
-    flag: ['Open', 'Resolved'],
+    flag: ['Open', 'Ongoing', 'Resolved'],
     pathway: ['Completed previous level', 'Crashing subject', 'Deferred', 'First time in subject', 'No prior entry', 'Not crashing (override)']
   };
 
@@ -54,7 +54,7 @@
 
   var BADGE_CLASS = {
     Green: 'badge-green', Amber: 'badge-amber', Red: 'badge-red', Grey: 'badge-grey',
-    Open: 'badge-red', Resolved: 'badge-green',
+    Open: 'badge-red', Ongoing: 'badge-amber', Resolved: 'badge-green',
     'Not Started': 'badge-grey', 'In Progress': 'badge-amber', Complete: 'badge-green',
     Missing: 'badge-red', 'Not Applicable': 'badge-grey',
     Banked: 'badge-green', 'Needs Rework': 'badge-amber',

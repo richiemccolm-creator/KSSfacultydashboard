@@ -132,6 +132,12 @@
     state.modal = null;
   }
 
+  function concernBadgeHtml(flags) {
+    if (!flags || !flags.length) return '—';
+    var status = SptConcerns.primaryConcernStatus(flags);
+    return status ? badge(status) : '—';
+  }
+
   function updateNavBadge() {
     var d = db();
     var r = role();
@@ -986,11 +992,13 @@
   }
 
   function summaryCards(rows) {
-    var openFlags = rows.filter(function(r) { return r.open_flag_count > 0; }).length;
+    var openFlags = rows.filter(function(r) { return r.pending_alert_count > 0; }).length;
+    var activeConcerns = rows.filter(function(r) { return r.open_flag_count > 0; }).length;
     var missingEv = rows.filter(function(r) { return r.uses_evidence_bank && r.evidence_missing_count > 0; }).length;
     return [
       { lbl: 'Pupils', val: rows.length, cls: '' },
-      { lbl: 'Teacher flags', val: openFlags, cls: openFlags ? 'red' : '' },
+      { lbl: 'Teacher flags', val: activeConcerns, cls: activeConcerns ? 'red' : '' },
+      { lbl: 'Awaiting action', val: openFlags, cls: openFlags ? 'amber' : '' },
       { lbl: 'Not started', val: rows.filter(function(r) { return r.enrolment.risk_status === 'Grey'; }).length, cls: '' },
       { lbl: 'On track', val: rows.filter(function(r) { return r.enrolment.risk_status === 'Green'; }).length, cls: 'green' },
       { lbl: 'Amber', val: rows.filter(function(r) { return r.enrolment.risk_status === 'Amber'; }).length, cls: 'amber' },
@@ -1050,7 +1058,7 @@
         '<td>' + esc(r.class_name) + '</td>' +
         '<td>' + esc(r.teacher_name) + '</td>' +
         '<td class="cell-entry">' + esc(entryCell) + '</td>' +
-        '<td>' + (r.open_flag_count ? badge('Open') : '—') + '</td>' +
+        '<td>' + concernBadgeHtml(r.open_flags) + '</td>' +
         attCells +
         '<td class="cell-grade">' + esc(r.uses_exam_route ? (r.prelim_result || '—') : '—') + '</td>' +
         '<td class="cell-grade">' + esc(r.uses_exam_route ? (r.enrolment.latest_working_grade || '—') : (r.uses_evidence_bank ? r.units_banked + '/' + r.units_total : '—')) + '</td>' +
@@ -1073,7 +1081,7 @@
       var en = SptStore.byId(d.enrolments, f.enrolment_id);
       return en && SptStore.canViewEnrolment(d, en);
     }).sort(function(a, b) { return (b.created_at || '').localeCompare(a.created_at || ''); });
-    var html = alertStripHtml() + '<div class="page-head"><h1>Teacher concern alerts</h1><p>Record what action you have taken on each flag. Your note starts the intervention trail for that pupil.</p></div>';
+    var html = alertStripHtml() + '<div class="page-head"><h1>Teacher concern alerts</h1><p>Record what action you have taken on each new flag. The pupil stays flagged as <strong>Ongoing</strong> on tracking until you close the concern from the intervention trail.</p></div>';
     var alertRows = '';
     flags.forEach(function(f) {
       var en = SptStore.byId(d.enrolments, f.enrolment_id);
@@ -2015,7 +2023,7 @@
       meta.evUnits.forEach(function(u) {
         courseBody += evidenceUnitCell(r, u.unit_code, canEdit);
       });
-      courseBody += '<td>' + (r.open_flag_count ? badge('Open') : '—') + '</td>';
+      courseBody += '<td>' + concernBadgeHtml(r.open_flags) + '</td>';
       tps.forEach(function(tp, i) {
         var rec = (d.attendance_records || []).find(function(a) {
           return a.enrolment_id === en.id && a.tracking_point_id === tp.id;
@@ -2551,7 +2559,8 @@
       '<p>Review ' + esc(intervention.review_date || '—') + ' · ' + badge(intervention.intervention_status) + '</p></div>';
     if (linkedFlag) {
       body += '<div class="profile-section"><h3>Original concern</h3><p>' +
-        '<strong>' + esc(linkedFlag.category) + '</strong> — ' + esc(linkedFlag.comment) + '</p></div>';
+        '<strong>' + esc(linkedFlag.category) + '</strong> — ' + esc(linkedFlag.comment) + ' ' +
+        badge(linkedFlag.status) + '</p></div>';
     }
     body += '<div class="profile-section"><h3>Support trail</h3>' + interventionTrailHtml(d, interventionId) + '</div>';
     if (canAdd) {
@@ -2563,9 +2572,23 @@
           'e.g. Spoke with pupil — will attend supported study this week') +
         '"></textarea></div></form>';
     }
-    openModal('Intervention trail', body,
-      '<button type="button" class="btn btn-secondary" id="modal-cancel">Close</button>' +
-      (canAdd ? '<button type="button" class="btn" id="trail-submit">Add to trail</button>' : ''));
+    if (role().canResolveFlags && intervention.intervention_status !== 'Completed') {
+      body += '<form id="close-concern-form" class="form-grid concern-close-form">' +
+        '<div class="form-span-all"><label>Close concern</label>' +
+        '<p class="cell-hint">Removes the pupil from the flagged concern list on tracking when support is complete.</p></div>' +
+        '<div><label>Outcome</label><select name="closure_outcome">' +
+        '<option value="resolved">Resolved — concern addressed</option>' +
+        '<option value="no_further_action">No further action required</option>' +
+        '</select></div>' +
+        '<div class="form-span-all"><label>Closing note (optional)</label>' +
+        '<textarea name="closure_note" rows="2" placeholder="e.g. Pupil back on track following supported study"></textarea></div></form>';
+    }
+    var foot = '<button type="button" class="btn btn-secondary" id="modal-cancel">Close</button>';
+    if (canAdd) foot += '<button type="button" class="btn" id="trail-submit">Add to trail</button>';
+    if (role().canResolveFlags && intervention.intervention_status !== 'Completed') {
+      foot += '<button type="button" class="btn btn-secondary" id="close-concern-submit">Close concern</button>';
+    }
+    openModal('Intervention trail', body, foot);
     if (canAdd) {
       document.getElementById('trail-submit').onclick = function() {
         var note = (document.querySelector('#trail-form [name="follow_up_note"]').value || '').trim();
@@ -2574,6 +2597,21 @@
           return;
         }
         SptInterventions.addTrailEntry(db(), interventionId, { note: note, source: 'follow_up' });
+        closeModal();
+        render();
+        updateNavBadge();
+      };
+    }
+    var closeBtn = document.getElementById('close-concern-submit');
+    if (closeBtn) {
+      closeBtn.onclick = function() {
+        var form = document.getElementById('close-concern-form');
+        if (!form) return;
+        if (!confirm('Close this concern and remove the pupil from the flagged concern list?')) return;
+        SptInterventions.completeIntervention(db(), interventionId, {
+          closure_outcome: form.closure_outcome.value,
+          closure_note: form.closure_note.value
+        });
         closeModal();
         render();
         updateNavBadge();
@@ -2656,9 +2694,9 @@
     });
     body += '</ul></div>';
     if (r.open_flags.length) {
-      body += '<div class="profile-section"><h3>Open teacher flags</h3><ul class="profile-list">';
+      body += '<div class="profile-section"><h3>Active concerns</h3><ul class="profile-list">';
       r.open_flags.forEach(function(f) {
-        body += '<li><strong>' + esc(f.category) + '</strong>: ' + esc(f.comment) + '</li>';
+        body += '<li><strong>' + esc(f.category) + '</strong> ' + badge(f.status) + ': ' + esc(f.comment) + '</li>';
       });
       body += '</ul></div>';
     }
@@ -2826,12 +2864,14 @@
           '<span class="cell-hint">No actions yet</span>') + '</td>' +
         '<td>' + esc(i.review_date || '—') + '</td>' +
         '<td>' + badge(i.intervention_status) + '</td>' +
-        '<td><button type="button" class="btn btn-secondary btn-sm" data-intervention-trail="' + i.id + '">View trail</button></td></tr>';
+        '<td>' + (role().canResolveFlags && i.intervention_status !== 'Completed' ?
+          '<button type="button" class="btn btn-secondary btn-sm" data-close-intervention="' + i.id + '">Close concern</button> ' : '') +
+        '<button type="button" class="btn btn-secondary btn-sm" data-intervention-trail="' + i.id + '">View trail</button></td></tr>';
     });
     if (!rows) rows = '<tr><td colspan="6" class="empty">No interventions recorded yet. Actions taken on alerts will appear here.</td></tr>';
     html += sheetPanel('Interventions', list.length + ' pupils', 'Click a row or View trail to see the full support history',
       '<table class="data-table intervention-table"><thead><tr>' +
-      '<th class="col-pupil">Pupil</th><th>Intervention</th><th>Latest action</th><th>Review</th><th>Status</th><th></th>' +
+      '<th class="col-pupil">Pupil</th><th>Intervention</th><th>Latest action</th><th>Review</th><th>Status</th><th>Actions</th>' +
       '</tr></thead><tbody>' + rows + '</tbody></table>');
     return html;
   }
@@ -3067,6 +3107,12 @@
     root.querySelectorAll('[data-resolve-flag]').forEach(function(el) {
       el.addEventListener('click', function() { showActionModal(el.getAttribute('data-resolve-flag')); });
     });
+    root.querySelectorAll('[data-close-intervention]').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        showInterventionModal(btn.getAttribute('data-close-intervention'));
+      });
+    });
     root.querySelectorAll('button[data-intervention-trail]').forEach(function(btn) {
       btn.addEventListener('click', function(e) {
         e.stopPropagation();
@@ -3202,6 +3248,7 @@
           SptBaseline.applyS3ExamRaw(db(), p[0], val, course);
           SptStore.save(db());
           updateS3ExamDerivedCells(p[0], course);
+          updateEnrolmentRiskCell(p[0]);
           return;
         }
         if (field === 's3_exam_mark') {
@@ -3210,6 +3257,7 @@
           patch.s3_exam_mark = val === '' ? null : parseFloat(val);
           patch.s3_exam_grade = band;
           SptStore.upsertBaseline(db(), p[0], patch);
+          updateEnrolmentRiskCell(p[0]);
           return;
         }
         if (field === 'effort' || field === 'behaviour' || field === 'homelearning' || field === 'progress') {
@@ -3218,6 +3266,7 @@
           patch[field] = val;
         }
         SptStore.upsertBaseline(db(), p[0], patch);
+        updateEnrolmentRiskCell(p[0]);
         if (field === 'effort' || field === 'behaviour' || field === 'homelearning' || field === 'progress') {
           applyScoreSelectColor(el);
         }

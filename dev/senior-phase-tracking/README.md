@@ -29,8 +29,10 @@ Use a local server so CSS and CSV import work correctly.
 ## New in v2
 
 - **Setup / Cohort** — add teachers, classes, pupils, enrolments, prior exam results
-- **Alerts** — open teacher concern flags; **Take action** to document your response and start an intervention trail (the teacher who raised the flag is notified)
+- **Alerts** — open teacher concern flags; **Take action** moves the flag to **Ongoing** (pupil stays flagged on tracking) and starts the intervention trail
 - **Concern updates** — feedback loop for teachers and faculty head; see new actions on flags and add follow-up notes
+- **Close concern** — faculty head marks **Resolved** or **No further action required** from the intervention trail to remove the flag from tracking
+- **S3 baseline risk** — risk colour activates from S3 entry baseline on N5/N4 course sheets (exam, effort, behaviour, CfE level)
 - **Intervention trail** — chronological record of support actions; add follow-up notes from the Interventions page or pupil profile
 - **Teacher flags** — staff flag with comment; flagged pupils sort to top; Faculty Head records action on each alert
 - **Attendance** — score 1–4 per tracking period (3 TPs per year) on course pages

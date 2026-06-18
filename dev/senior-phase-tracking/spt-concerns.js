@@ -1,13 +1,25 @@
 /**
- * Teacher concern flags and Faculty Head resolution.
+ * Teacher concern flags, faculty head actions, and concern closure.
  */
 (function(global) {
   'use strict';
 
-  function openFlags(db, enrolmentId) {
+  var ACTIVE_STATUSES = ['Open', 'Ongoing'];
+
+  function flagsForEnrolment(db, enrolmentId, statuses) {
     return (db.teacher_concerns || []).filter(function(f) {
-      return f.enrolment_id === enrolmentId && f.status === 'Open';
+      if (f.enrolment_id !== enrolmentId) return false;
+      if (!statuses) return true;
+      return statuses.indexOf(f.status) >= 0;
     });
+  }
+
+  function openFlags(db, enrolmentId) {
+    return flagsForEnrolment(db, enrolmentId, ['Open']);
+  }
+
+  function activeFlags(db, enrolmentId) {
+    return flagsForEnrolment(db, enrolmentId, ACTIVE_STATUSES);
   }
 
   function openFlagCount(db) {
@@ -15,6 +27,25 @@
       var en = global.SptStore.byId(db.enrolments, f.enrolment_id);
       return f.status === 'Open' && en && global.SptStore.canViewEnrolment(db, en);
     }).length;
+  }
+
+  function activeFlagCount(db, enrolmentId) {
+    return activeFlags(db, enrolmentId).length;
+  }
+
+  function syncEnrolmentFlag(db, enrolmentId) {
+    var active = activeFlagCount(db, enrolmentId) > 0;
+    var en = global.SptStore.byId(db.enrolments, enrolmentId);
+    if (!en || en.has_open_flag === active) return en;
+    return global.SptStore.updateRecord(db, 'enrolments', enrolmentId, {
+      has_open_flag: active
+    }, active ? 'concern_flag_set' : 'concern_flags_cleared');
+  }
+
+  function primaryConcernStatus(flags) {
+    if (!flags || !flags.length) return null;
+    if (flags.some(function(f) { return f.status === 'Open'; })) return 'Open';
+    return 'Ongoing';
   }
 
   function raiseFlag(db, enrolmentId, payload) {
@@ -29,15 +60,18 @@
       status: 'Open',
       is_urgent: true,
       intervention_id: null,
+      action_taken_at: null,
+      action_taken_by: null,
       resolved_at: null,
       resolved_by: null,
-      resolution_note: ''
+      resolution_note: '',
+      closure_outcome: ''
     }, 'concern_raised');
-    global.SptStore.updateRecord(db, 'enrolments', enrolmentId, { has_open_flag: true }, 'concern_flag_set');
+    syncEnrolmentFlag(db, enrolmentId);
     return flag;
   }
 
-  function resolveFlag(db, flagId, payload) {
+  function actionFlag(db, flagId, payload) {
     var flag = global.SptStore.byId(db.teacher_concerns, flagId);
     if (!flag || flag.status !== 'Open') return null;
     var interventionId = payload.intervention_id;
@@ -66,34 +100,57 @@
       });
     }
     global.SptStore.updateRecord(db, 'teacher_concerns', flagId, {
-      status: 'Resolved',
+      status: 'Ongoing',
       intervention_id: interventionId,
+      action_taken_at: new Date().toISOString(),
+      action_taken_by: 'faculty_head',
+      resolution_note: actionNote
+    }, 'concern_action_taken');
+    syncEnrolmentFlag(db, flag.enrolment_id);
+    return flag;
+  }
+
+  function closeFlag(db, flagId, payload) {
+    payload = payload || {};
+    var flag = global.SptStore.byId(db.teacher_concerns, flagId);
+    if (!flag || flag.status === 'Resolved') return null;
+    var note = (payload.closure_note || '').trim();
+    global.SptStore.updateRecord(db, 'teacher_concerns', flagId, {
+      status: 'Resolved',
       resolved_at: new Date().toISOString(),
       resolved_by: 'faculty_head',
-      resolution_note: actionNote
-    }, 'concern_resolved');
-    var stillOpen = openFlags(db, flag.enrolment_id).length;
-    if (!stillOpen) {
-      global.SptStore.updateRecord(db, 'enrolments', flag.enrolment_id, { has_open_flag: false }, 'concern_flags_cleared');
-    }
+      closure_outcome: payload.closure_outcome || 'resolved',
+      resolution_note: note || flag.resolution_note || ''
+    }, 'concern_closed');
+    syncEnrolmentFlag(db, flag.enrolment_id);
     return flag;
   }
 
   function sortByUrgency(rows, db) {
     return rows.slice().sort(function(a, b) {
-      var aF = openFlags(db, a.enrolment.id).length > 0;
-      var bF = openFlags(db, b.enrolment.id).length > 0;
+      var aF = activeFlags(db, a.enrolment.id).length > 0;
+      var bF = activeFlags(db, b.enrolment.id).length > 0;
       if (aF !== bF) return aF ? -1 : 1;
+      var aOpen = openFlags(db, a.enrolment.id).length > 0;
+      var bOpen = openFlags(db, b.enrolment.id).length > 0;
+      if (aOpen !== bOpen) return aOpen ? -1 : 1;
       var ro = { Red: 0, Amber: 1, Green: 2, Grey: 3 };
       return (ro[a.enrolment.risk_status] || 3) - (ro[b.enrolment.risk_status] || 3);
     });
   }
 
   global.SptConcerns = {
+    ACTIVE_STATUSES: ACTIVE_STATUSES,
     openFlags: openFlags,
+    activeFlags: activeFlags,
     openFlagCount: openFlagCount,
+    activeFlagCount: activeFlagCount,
+    primaryConcernStatus: primaryConcernStatus,
+    syncEnrolmentFlag: syncEnrolmentFlag,
     raiseFlag: raiseFlag,
-    resolveFlag: resolveFlag,
+    actionFlag: actionFlag,
+    resolveFlag: actionFlag,
+    closeFlag: closeFlag,
     sortByUrgency: sortByUrgency
   };
 })(typeof window !== 'undefined' ? window : global);

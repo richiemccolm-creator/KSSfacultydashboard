@@ -246,7 +246,7 @@
     });
 
     var teacherConcerns = [
-      { id: 'flag-jamie-1', enrolment_id: 'e-jamie-hd', raised_by_teacher_id: 't-anderson', category: 'Prelim', comment: 'Prelim marks well below target — parents should be aware.', status: 'Resolved', is_urgent: true, intervention_id: 'int-jamie-1', resolved_at: '2026-01-26T09:00:00.000Z', resolved_by: 'faculty_head', resolution_note: 'Emailed pastoral care and SLT about prelim results.', created_at: ts, updated_at: ts },
+      { id: 'flag-jamie-1', enrolment_id: 'e-jamie-hd', raised_by_teacher_id: 't-anderson', category: 'Prelim', comment: 'Prelim marks well below target — parents should be aware.', status: 'Ongoing', is_urgent: true, intervention_id: 'int-jamie-1', action_taken_at: '2026-01-26T09:00:00.000Z', action_taken_by: 'faculty_head', resolved_at: null, resolved_by: null, resolution_note: 'Emailed pastoral care and SLT about prelim results.', closure_outcome: '', created_at: ts, updated_at: ts },
       { id: 'flag-ryan-1', enrolment_id: 'e-ryan-nd', raised_by_teacher_id: 't-bruce', category: 'Award risk', comment: 'Considering N4 — needs FH discussion.', status: 'Open', is_urgent: true, intervention_id: null, resolved_at: null, resolved_by: null, resolution_note: '', created_at: ts, updated_at: ts },
       { id: 'flag-quinn-1', enrolment_id: 'e-quinn-hd', raised_by_teacher_id: 't-bruce', category: 'Behaviour', comment: 'Repeated disruption in practical rehearsals.', status: 'Open', is_urgent: false, intervention_id: null, resolved_at: null, resolved_by: null, resolution_note: '', created_at: ts, updated_at: ts },
       { id: 'flag-peter-1', enrolment_id: 'e-peter-hp', raised_by_teacher_id: 't-douglas', category: 'Evidence', comment: 'No project images submitted for moderation check.', status: 'Open', is_urgent: true, intervention_id: null, resolved_at: null, resolved_by: null, resolution_note: '', created_at: ts, updated_at: ts },
@@ -301,7 +301,7 @@
 
     enrolments.forEach(function(en) {
       en.has_open_flag = teacherConcerns.some(function(f) {
-        return f.enrolment_id === en.id && f.status === 'Open';
+        return f.enrolment_id === en.id && (f.status === 'Open' || f.status === 'Ongoing');
       });
     });
 

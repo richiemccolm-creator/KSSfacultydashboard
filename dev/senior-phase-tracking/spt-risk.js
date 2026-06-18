@@ -22,8 +22,21 @@
     return String(val || '').trim().length > 0;
   }
 
+  function hasBaselineData(db, enrolmentId, course, en) {
+    if (!global.SptBaseline || !global.SptBaseline.showsS3Baseline(course, en)) return false;
+    var baseline = global.SptBaseline.baselineForEnrolment(db, enrolmentId);
+    if (!baseline) return false;
+    if (baseline.s3_exam_raw != null || baseline.s3_exam_mark != null || hasText(baseline.s3_exam_grade)) return true;
+    if (hasScore(baseline.effort) || hasScore(baseline.behaviour) ||
+        hasScore(baseline.homelearning) || hasScore(baseline.progress)) return true;
+    if (hasText(baseline.cfe_level)) return true;
+    return false;
+  }
+
   function hasTrackingData(db, enrolmentId, en, course) {
     if (!en) return false;
+
+    if (hasBaselineData(db, enrolmentId, course, en)) return true;
 
     var att = (db.attendance_records || []).filter(function(a) { return a.enrolment_id === enrolmentId; });
     if (att.some(function(a) { return hasScore(a.attendance_score); })) return true;
@@ -68,6 +81,39 @@
     var reasons = [];
     var red = false;
     var amber = false;
+
+    if (global.SptBaseline && global.SptBaseline.showsS3Baseline(course, en)) {
+      var baseline = global.SptBaseline.baselineForEnrolment(db, enrolmentId);
+      if (baseline) {
+        var examResult = global.SptBaseline.s3ExamResult(baseline, course);
+        var examGrade = (examResult && examResult.grade) || baseline.s3_exam_grade || '';
+        var examPct = examResult ? examResult.percentage : baseline.s3_exam_mark;
+        if (examGrade === 'F' || examGrade === 'NP') {
+          red = true;
+          reasons.push('S3 exam result below pass (baseline)');
+        } else if (examGrade === 'D' || examGrade === 'E') {
+          amber = true;
+          reasons.push('S3 exam result weak (baseline)');
+        }
+        if (examPct != null && !isNaN(examPct)) {
+          if (examPct < 40) { red = true; reasons.push('S3 exam under 40% (baseline)'); }
+          else if (examPct < 50) { amber = true; reasons.push('S3 exam under 50% (baseline)'); }
+        }
+        ['effort', 'behaviour', 'homelearning', 'progress'].forEach(function(field) {
+          var s = baseline[field] != null && baseline[field] !== '' ? parseInt(baseline[field], 10) : null;
+          var label = field === 'homelearning' ? 'Home learning' : field.charAt(0).toUpperCase() + field.slice(1);
+          if (s === 1) { red = true; reasons.push(label + ' serious concern (S3 baseline)'); }
+          else if (s === 2) { amber = true; reasons.push(label + ' some concern (S3 baseline)'); }
+        });
+        if (baseline.cfe_level === 'Second') {
+          amber = true;
+          reasons.push('S3 CfE level below Fourth (baseline)');
+        } else if (baseline.cfe_level === 'Third') {
+          amber = true;
+          reasons.push('S3 CfE level Third (baseline)');
+        }
+      }
+    }
 
     if (usesExam) {
       var target = en.target_grade;
@@ -140,9 +186,17 @@
       });
     });
 
-    if (global.SptConcerns && global.SptConcerns.openFlags(db, enrolmentId).length) {
-      amber = true;
-      reasons.push('Open teacher concern flag');
+    if (global.SptConcerns) {
+      var openConcern = global.SptConcerns.openFlags(db, enrolmentId).length;
+      var ongoingConcern = global.SptConcerns.activeFlags(db, enrolmentId)
+        .filter(function(f) { return f.status === 'Ongoing'; }).length;
+      if (openConcern) {
+        amber = true;
+        reasons.push('Open teacher concern flag');
+      } else if (ongoingConcern) {
+        amber = true;
+        reasons.push('Concern under intervention');
+      }
     }
 
     var status = 'Green';

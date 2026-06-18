@@ -58,7 +58,36 @@
 
   function sourceLabel(source) {
     if (source === 'alert_action') return 'Initial action';
+    if (source === 'closure') return 'Concern closed';
     return 'Follow-up';
+  }
+
+  function completeIntervention(db, interventionId, payload) {
+    payload = payload || {};
+    var intervention = global.SptStore.byId(db.interventions, interventionId);
+    if (!intervention || intervention.intervention_status === 'Completed') return null;
+    var closureNote = (payload.closure_note || '').trim();
+    var outcomeLabels = {
+      resolved: 'Resolved — concern addressed',
+      no_further_action: 'No further action required'
+    };
+    var outcome = payload.closure_outcome || 'resolved';
+    var trailNote = closureNote || outcomeLabels[outcome] || 'Concern closed';
+    addTrailEntry(db, interventionId, { note: trailNote, source: 'closure' });
+    global.SptStore.updateRecord(db, 'interventions', interventionId, {
+      intervention_status: 'Completed',
+      outcome_notes: trailNote,
+      impact_rating: payload.impact_rating || intervention.impact_rating
+    }, 'intervention_completed');
+    (db.teacher_concerns || []).forEach(function(f) {
+      if (f.intervention_id === interventionId && f.status !== 'Resolved' && global.SptConcerns) {
+        global.SptConcerns.closeFlag(db, f.id, {
+          closure_note: trailNote,
+          closure_outcome: outcome
+        });
+      }
+    });
+    return intervention;
   }
 
   global.SptInterventions = {
@@ -67,6 +96,7 @@
     latestTrailEntry: latestTrailEntry,
     canAddTrail: canAddTrail,
     addTrailEntry: addTrailEntry,
+    completeIntervention: completeIntervention,
     sourceLabel: sourceLabel
   };
 })(typeof window !== 'undefined' ? window : global);
