@@ -230,6 +230,12 @@
 
     var enrolmentBaselines = global.SptSeedRoster.buildBaselines(enrolments, ts);
 
+    function seedWgScore(en, tpi) {
+      if (en.risk_status === 'Red') return tpi === 2 ? 7 : 6;
+      if (en.risk_status === 'Amber') return 5;
+      return 4;
+    }
+
     var attendanceRecords = [];
     enrolments.forEach(function(en, idx) {
       trackingPoints.forEach(function(tp, tpi) {
@@ -237,7 +243,7 @@
           id: uid('att'),
           enrolment_id: en.id,
           tracking_point_id: tp.id,
-          attendance_score: en.risk_status === 'Red' ? (tpi === 2 ? 1 : 2) : en.risk_status === 'Amber' ? 2 : 4,
+          attendance_score: seedWgScore(en, tpi),
           teacher_comment: '',
           created_at: ts,
           updated_at: ts

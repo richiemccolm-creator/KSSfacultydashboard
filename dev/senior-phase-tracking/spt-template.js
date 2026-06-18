@@ -10,7 +10,7 @@
     'Teacher First Name', 'Teacher Surname', 'Teacher Email',
     'Pupil First Name', 'Pupil Surname', 'Year Group', 'Candidate Number',
     'Current Level', 'Target Grade', 'Tracking Point',
-    'Effort', 'Behaviour', 'Home Learning', 'Working Grade', 'Attendance',
+    'Effort', 'Behaviour', 'Home Learning', 'Working Grade', 'WG',
     'Teacher Comment', 'Concern'
   ];
 
@@ -19,7 +19,7 @@
     'teacher_first', 'teacher_surname', 'teacher_email',
     'pupil_first', 'pupil_surname', 'year_group', 'candidate_number',
     'current_level', 'target_grade', 'tracking_point',
-    'effort', 'behaviour', 'home_learning', 'working_grade', 'attendance',
+    'effort', 'behaviour', 'home_learning', 'working_grade', 'wg',
     'teacher_comment', 'concern'
   ];
 
@@ -55,7 +55,7 @@
       'Teacher', 'Name', 'teacher@school.gla.ac.uk',
       'Pupil', 'Example', 'S5', '2410001',
       'Higher', 'B', 'Tracking Point 1',
-      '3', '3', '3', 'B', '3', '', ''
+      '3', '3', '3', 'B', '4', '', ''
     ];
   }
 
@@ -81,7 +81,10 @@
       lines.push(['— ' + area + ': ' + coursesForSubject(area).map(function(c) { return c.course_name; }).join(', ')]);
     });
     lines.push(['']);
-    lines.push(['Scores: Effort, Behaviour, Home Learning, Attendance = 1–4. Concern = Open to flag (optional).']);
+    lines.push(['Scores: Effort, Behaviour, Home Learning = 1–4. WG (working grade) = 1–8 per tracking period.']);
+    lines.push(['WG scale: 1=A1, 2=A2, 3=B1, 4=B2, 5=C1, 6=C2, 7=D, 8=No Award.']);
+    lines.push(['Internally assessed courses (Creative Industries, Film and Screen): 6=Pass, 7=Borderline Fail, 8=Not going to achieve.']);
+    lines.push(['Concern = Open to flag (optional).']);
     lines.push(['Academic year for this workbook: ' + year]);
     return lines;
   }
@@ -177,6 +180,10 @@
       }
       if (idx >= 0) colMap[key] = idx;
     });
+    if (colMap.wg == null) {
+      var attIdx = headerRow.indexOf(norm('Attendance'));
+      if (attIdx >= 0) colMap.wg = attIdx;
+    }
     var out = [];
     aoa.slice(1).forEach(function(cells, i) {
       var row = { _sheet: sheetName, _line: i + 2 };
@@ -352,8 +359,9 @@
         tracking_point_id: tpId
       }, payload), 'template_tracking');
     }
-    if (row.attendance !== '') {
-      global.SptStore.upsertAttendance(db, enrolmentId, tpId, row.attendance);
+    var wgVal = row.wg !== '' ? row.wg : (row.attendance || '');
+    if (wgVal !== '') {
+      global.SptStore.upsertAttendance(db, enrolmentId, tpId, wgVal);
     }
   }
 

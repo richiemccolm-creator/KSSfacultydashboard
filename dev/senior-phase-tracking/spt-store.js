@@ -278,6 +278,13 @@
     db.enrolment_baselines = db.enrolment_baselines || [];
     db.intervention_trail = db.intervention_trail || [];
     db.concern_feedback = db.concern_feedback || [];
+    if (db.version < 18) {
+      (db.attendance_records || []).forEach(function(a) {
+        if (a.attendance_score != null && global.SptWorkingGrade) {
+          a.attendance_score = global.SptWorkingGrade.migrateLegacyScore(a.attendance_score);
+        }
+      });
+    }
     (db.teacher_concerns || []).forEach(function(f) {
       if (f.status === 'Resolved' && f.intervention_id && f.resolved_at && !f.action_taken_at) {
         f.status = 'Ongoing';
@@ -558,10 +565,10 @@
       var activeFlags = global.SptConcerns ? global.SptConcerns.activeFlags(db, en.id) : [];
       var att = attendanceForEnrolment(db, en.id);
       var tracking = trackingDataForEnrolment(db, en.id);
-      var worstAtt = att.reduce(function(min, a) {
+      var worstWg = att.reduce(function(worst, a) {
         var s = a.record && a.record.attendance_score;
-        if (s == null) return min;
-        return min === null || s < min ? s : min;
+        if (s == null) return worst;
+        return worst === null || s > worst ? s : worst;
       }, null);
       var prior = priorForPupil(db, en.pupil_id).filter(function(p) {
         return p.subject_area === course.subject_area;
@@ -597,7 +604,7 @@
         pending_alert_count: openFlags.length,
         attendance: att,
         tracking_data: tracking,
-        worst_attendance: worstAtt,
+        worst_wg: worstWg,
         prior_attainment: prior,
         prior_main: priorMain,
         prior_display: priorDisp,
@@ -644,18 +651,20 @@
   }
 
   function upsertAttendance(db, enrolmentId, trackingPointId, score) {
+    var parsed = score === '' || score == null ? null : parseInt(score, 10);
+    if (parsed != null && (parsed < 1 || parsed > 8)) return db;
     var existing = (db.attendance_records || []).find(function(a) {
       return a.enrolment_id === enrolmentId && a.tracking_point_id === trackingPointId;
     });
     if (existing) {
-      updateRecord(db, 'attendance_records', existing.id, { attendance_score: parseInt(score, 10) }, 'attendance_update');
+      updateRecord(db, 'attendance_records', existing.id, { attendance_score: parsed }, 'wg_update');
     } else {
       insertRecord(db, 'attendance_records', {
         enrolment_id: enrolmentId,
         tracking_point_id: trackingPointId,
-        attendance_score: parseInt(score, 10),
+        attendance_score: parsed,
         teacher_comment: ''
-      }, 'attendance_insert');
+      }, 'wg_insert');
     }
     if (global.SptRisk) global.SptRisk.recalculateEnrolment(db, enrolmentId);
     return db;
@@ -665,6 +674,7 @@
     if (field !== 'effort' && field !== 'behaviour') return db;
     var existing = trackingRecordFor(db, enrolmentId, trackingPointId);
     var score = value === '' || value == null ? null : parseInt(value, 10);
+    if (score != null && (score < 1 || score > 4)) return db;
     if (existing) {
       var patch = {};
       patch[field] = score;

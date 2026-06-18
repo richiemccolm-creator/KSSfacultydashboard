@@ -173,8 +173,11 @@
 
     var attRecords = (db.attendance_records || []).filter(function(a) { return a.enrolment_id === enrolmentId; });
     attRecords.forEach(function(a) {
-      if (a.attendance_score === 1) { red = true; reasons.push('Attendance serious concern (TP)'); }
-      else if (a.attendance_score === 2) { amber = true; reasons.push('Attendance some concern (TP)'); }
+      if (!global.SptWorkingGrade || a.attendance_score == null) return;
+      var wgRisk = global.SptWorkingGrade.assessRisk(a.attendance_score, course);
+      if (!wgRisk) return;
+      if (wgRisk.level === 'red') { red = true; reasons.push(wgRisk.reason); }
+      else if (wgRisk.level === 'amber') { amber = true; reasons.push(wgRisk.reason); }
     });
 
     var trackingRecords = (db.pupil_tracking_data || []).filter(function(t) { return t.enrolment_id === enrolmentId; });

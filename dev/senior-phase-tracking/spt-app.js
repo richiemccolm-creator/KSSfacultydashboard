@@ -259,10 +259,10 @@
     }
     if (variant === 'courses-list') {
       var admin = r.canEditBaseline ? ' · bulk S3 baseline in Setup' : '';
-      return '<div class="entry-guide entry-guide-inline">Open your <strong>class sheet</strong> to record attendance, effort, behaviour, S3 baseline, prelims, evidence &amp; flags' + admin + '</div>';
+      return '<div class="entry-guide entry-guide-inline">Open your <strong>class sheet</strong> to record working grade (WG), effort, behaviour, S3 baseline, prelims, evidence &amp; flags' + admin + '</div>';
     }
     if (variant === 'course') {
-      var bits = 'Attendance · effort · behaviour · S3 exam (mark → % → grade) · prior exam &amp; pathway (H/AH) · level change · withdraw · prelims · evidence · flags';
+      var bits = 'WG (working grade) · effort · behaviour · S3 exam (mark → % → grade) · prior exam &amp; pathway (H/AH) · level change · withdraw · prelims · evidence · flags';
       bits += ' · <strong>Add pupil</strong> / <strong>Remove</strong> for roster';
       return '<div class="entry-guide entry-guide-inline">' + bits + '</div>';
     }
@@ -491,6 +491,37 @@
     return SptConfig.ATTENDANCE_LABELS[n] || '';
   }
 
+  function wgCourseFromEl(el) {
+    var courseId = el && el.getAttribute('data-wg-course');
+    return courseId ? SptStore.byId(db().courses, courseId) : null;
+  }
+
+  function wgPillHtml(val, course) {
+    if (val === '' || val == null) return '—';
+    var lbl = SptWorkingGrade.label(val, course);
+    var cls = SptWorkingGrade.scoreClass(val, course);
+    var disp = lbl || String(val);
+    return '<span class="score-pill ' + cls + '"' +
+      (lbl ? ' title="' + esc(SptWorkingGrade.optionText(val, course)) + '"' : '') + '>' + esc(disp) + '</span>';
+  }
+
+  function wgSelectHtml(val, course, dataAttr) {
+    var cls = 'inline-select score-select wg-select ' + SptWorkingGrade.scoreClass(val, course);
+    var opts = '<option value="">—</option>' + SptWorkingGrade.SCALE.map(function(n) {
+      var selected = val === n || parseInt(val, 10) === n;
+      return '<option value="' + n + '"' + (selected ? ' selected' : '') + '>' +
+        esc(SptWorkingGrade.optionText(n, course)) + '</option>';
+    }).join('');
+    var courseAttr = course && course.id ? ' data-wg-course="' + esc(course.id) + '"' : '';
+    return '<select class="' + cls + '" ' + dataAttr + courseAttr + '>' + opts + '</select>';
+  }
+
+  function applyWgSelectColor(el) {
+    var course = wgCourseFromEl(el);
+    el.classList.remove('wg-1', 'wg-2', 'wg-3', 'wg-4', 'wg-5', 'wg-6', 'wg-7', 'wg-8', 'wg-good', 'wg-empty');
+    el.classList.add(SptWorkingGrade.scoreClass(el.value, course));
+  }
+
   function scorePillHtml(val) {
     if (val === '' || val == null) return '—';
     var cls = trackingScoreClass(val);
@@ -518,11 +549,6 @@
   }
 
   function updateTpScoreSelects(enrolmentId, tpId, score) {
-    var attSel = document.querySelector('[data-att="' + enrolmentId + '|' + tpId + '"]');
-    if (attSel) {
-      attSel.value = String(score);
-      applyScoreSelectColor(attSel);
-    }
     ['effort', 'behaviour'].forEach(function(field) {
       var sel = document.querySelector('[data-tracking="' + enrolmentId + '|' + tpId + '|' + field + '"]');
       if (sel) {
@@ -537,7 +563,6 @@
     var d = db();
     var score = 4;
     enrolmentIds.forEach(function(enId) {
-      SptStore.upsertAttendance(d, enId, tpId, score);
       SptStore.upsertTrackingScore(d, enId, tpId, 'effort', score);
       SptStore.upsertTrackingScore(d, enId, tpId, 'behaviour', score);
       updateTpScoreSelects(enId, tpId, score);
@@ -609,15 +634,15 @@
     var dateNote = tpDate ? ' (' + formatTpShortDate(tpDate) + ')' : '';
     openModal('Default scores — ' + tpLabel + dateNote,
       '<div class="modal-note tp-default-modal">' +
-      '<p>This will set <strong>Attendance</strong>, <strong>Effort</strong>, and <strong>Behaviour</strong> to ' +
+      '<p>This will set <strong>Effort</strong> and <strong>Behaviour</strong> to ' +
       '<strong>4 (Good)</strong> for all <strong>' + count + '</strong> pupil' + (count !== 1 ? 's' : '') +
       ' on this class sheet.</p>' +
       '<p><strong>What this means:</strong></p>' +
       '<ul>' +
-      '<li>Score <strong>4</strong> = good / no concern (attendance acceptable, effort good, behaviour good)</li>' +
-      '<li>Any existing Att, Eff, or Beh scores for this tracking period will be <strong>replaced</strong></li>' +
+      '<li>Score <strong>4</strong> = good / no concern for effort and behaviour</li>' +
+      '<li><strong>WG (working grade)</strong> is not changed — enter the grade the pupil is working at (1–8) separately</li>' +
+      '<li>Any existing Eff or Beh scores for this tracking period will be <strong>replaced</strong></li>' +
       '<li>After applying, change individual pupils who need a lower score (1–3)</li>' +
-      '<li>Risk status will update based on the scores entered — all 4s typically show as on track (Green)</li>' +
       '</ul></div>',
       '<button type="button" class="btn btn-secondary" id="modal-cancel">Cancel</button>' +
       '<button type="button" class="btn" id="tp-default-confirm">Apply default 4</button>');
@@ -851,12 +876,12 @@
     if (riskTd) riskTd.innerHTML = badge(en.risk_status);
   }
 
-  function trackingAttCell(enId, tpId, val, canEdit, tpIndex) {
+  function trackingWgCell(enId, tpId, val, canEdit, tpIndex, course) {
     if (canEdit) {
       return '<td' + tpColAttrs(tpIndex, '') + '>' +
-        scoreSelectHtml(val, 'data-att="' + enId + '|' + tpId + '"') + '</td>';
+        wgSelectHtml(val, course, 'data-att="' + enId + '|' + tpId + '"') + '</td>';
     }
-    return '<td' + tpColAttrs(tpIndex, 'cell-num') + '>' + scorePillHtml(val) + '</td>';
+    return '<td' + tpColAttrs(tpIndex, 'cell-num') + '>' + wgPillHtml(val, course) + '</td>';
   }
 
   function trackingScoreCell(enId, tpId, field, record, canEdit, tpIndex) {
@@ -1037,9 +1062,9 @@
       bodyRows = '<tr><td colspan="14" class="empty">' + dashboardEmptyMessage() + '</td></tr>';
     }
     rows.forEach(function(r) {
-      var attCells = r.attendance.map(function(a) {
+      var wgCells = r.attendance.map(function(a) {
         var v = a.record ? a.record.attendance_score : '';
-        return '<td class="cell-num">' + scorePillHtml(v) + '</td>';
+        return '<td class="cell-num">' + wgPillHtml(v, r.course) + '</td>';
       }).join('');
       var entryCell = '—';
       if (r.shows_s3_baseline && r.s3_baseline) {
@@ -1059,7 +1084,7 @@
         '<td>' + esc(r.teacher_name) + '</td>' +
         '<td class="cell-entry">' + esc(entryCell) + '</td>' +
         '<td>' + concernBadgeHtml(r.open_flags) + '</td>' +
-        attCells +
+        wgCells +
         '<td class="cell-grade">' + esc(r.uses_exam_route ? (r.prelim_result || '—') : '—') + '</td>' +
         '<td class="cell-grade">' + esc(r.uses_exam_route ? (r.enrolment.latest_working_grade || '—') : (r.uses_evidence_bank ? r.units_banked + '/' + r.units_total : '—')) + '</td>' +
         '<td>' + badge(r.enrolment.risk_status) + '</td></tr>';
@@ -1067,7 +1092,7 @@
     var tbl = '<table class="data-table data-table-compact"><thead><tr>' +
       '<th class="col-pupil">Pupil</th><th>Yr</th><th>Course</th><th>Level</th><th>Class</th><th>Teacher</th>' +
       '<th>Entry</th><th>Flag</th>' +
-      '<th>TP1</th><th>TP2</th><th>TP3</th><th>Prelim</th><th>Working</th><th>Risk</th></tr></thead><tbody>' +
+      '<th>WG1</th><th>WG2</th><th>WG3</th><th>Prelim</th><th>Working</th><th>Risk</th></tr></thead><tbody>' +
       bodyRows + '</tbody></table>';
     html += sheetPanel('Pupil register', rows.length + ' pupils', '', tbl);
     html += '</div>';
@@ -1991,7 +2016,7 @@
         (date ? '<span class="tp-date">' + esc(date) + '</span>' : '') +
         (canEdit && sheetEnrolmentIds ? '<button type="button" class="btn-tp-default" data-tp-default="' + esc(tp.id) +
           '" data-tp-label="TP' + (i + 1) + '" data-tp-date="' + esc(tp.tracking_point_date || '') +
-          '" data-tp-enrolments="' + esc(sheetEnrolmentIds) + '" title="Set all pupils to 4 (Good) for Att, Eff, and Beh">Default 4</button>' : '') +
+          '" data-tp-enrolments="' + esc(sheetEnrolmentIds) + '" title="Set all pupils to 4 (Good) for Eff and Beh">Default Eff/Beh</button>' : '') +
         '</th>';
     });
     if (meta.hasExamPupils && prelimComps.length) {
@@ -2018,7 +2043,7 @@
       headSub += '<th>Eff</th><th>Beh</th><th>HL</th><th>Prog</th><th>CfE</th>';
     }
     tps.forEach(function(tp, i) {
-      headSub += '<th' + tpColAttrs(i, '') + '>Att</th>';
+      headSub += '<th' + tpColAttrs(i, '') + ' title="Working grade">WG</th>';
       headSub += '<th class="' + tpBandClass(i) + '">Eff</th>';
       headSub += '<th class="' + tpBandClass(i) + '">Beh</th>';
     });
@@ -2062,7 +2087,7 @@
           return a.enrolment_id === en.id && a.tracking_point_id === tp.id;
         });
         var val = rec ? rec.attendance_score : '';
-        courseBody += trackingAttCell(en.id, tp.id, val, canEdit, i);
+        courseBody += trackingWgCell(en.id, tp.id, val, canEdit, i, course);
         var tr = SptStore.trackingRecordFor(d, en.id, tp.id);
         courseBody += trackingScoreCell(en.id, tp.id, 'effort', tr, canEdit, i);
         courseBody += trackingScoreCell(en.id, tp.id, 'behaviour', tr, canEdit, i);
@@ -2718,13 +2743,14 @@
       if (plc.reason_for_recommendation) body += '<p class="cell-hint">' + esc(plc.reason_for_recommendation) + '</p>';
       body += '<button type="button" class="btn btn-secondary btn-sm" id="drawer-level-changes">View in Level Changes</button></div>';
     }
-    body += '<div class="profile-section"><h3>Tracking periods (1–4)</h3><ul class="profile-list">';
+    body += '<div class="profile-section"><h3>Tracking periods</h3><ul class="profile-list">';
     r.tracking_data.forEach(function(t, i) {
       var att = r.attendance[i];
-      var attLbl = att && att.record ? att.record.attendance_score : '—';
+      var wgScore = att && att.record ? att.record.attendance_score : null;
+      var wgLbl = wgScore != null ? (SptWorkingGrade.label(wgScore, r.course) || wgScore) : '—';
       var eff = t.record ? SptStore.trackingScoreValue(t.record, 'effort') : '';
       var beh = t.record ? SptStore.trackingScoreValue(t.record, 'behaviour') : '';
-      body += '<li>TP' + (i + 1) + ': Att ' + attLbl + ' · Eff ' + (eff !== '' ? eff : '—') + ' · Beh ' + (beh !== '' ? beh : '—') + '</li>';
+      body += '<li>TP' + (i + 1) + ': WG ' + esc(String(wgLbl)) + ' · Eff ' + (eff !== '' ? eff : '—') + ' · Beh ' + (beh !== '' ? beh : '—') + '</li>';
     });
     body += '</ul></div>';
     if (r.open_flags.length) {
@@ -3177,10 +3203,11 @@
       el.addEventListener('click', function() { openDrawer(el.getAttribute('data-view-enrolment')); });
     });
     root.querySelectorAll('[data-att]').forEach(function(el) {
+      applyWgSelectColor(el);
       el.addEventListener('change', function() {
         var p = el.getAttribute('data-att').split('|');
         SptStore.upsertAttendance(db(), p[0], p[1], el.value);
-        applyScoreSelectColor(el);
+        applyWgSelectColor(el);
         updateEnrolmentRiskCell(p[0]);
       });
     });
