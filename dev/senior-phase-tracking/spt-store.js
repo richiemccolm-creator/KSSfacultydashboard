@@ -807,6 +807,22 @@
     }, 'enrolment_deactivate');
   }
 
+  function unassignedEnrolmentsForCourse(db, courseId) {
+    return filterEnrolments(db, db.enrolments || []).filter(function(e) {
+      return e.course_id === courseId && !e.class_id;
+    });
+  }
+
+  function deactivateUnassignedForCourse(db, courseId) {
+    var removed = 0;
+    unassignedEnrolmentsForCourse(db, courseId).forEach(function(en) {
+      deactivateEnrolment(db, en.id);
+      removed++;
+    });
+    if (removed) save(db);
+    return { removed: removed };
+  }
+
   function addPupilToCourse(db, opts) {
     var courseId = opts.courseId;
     var teacherId = opts.teacherId;
@@ -1097,6 +1113,8 @@
     hasActiveEnrolment: hasActiveEnrolment,
     createPupil: createPupil,
     deactivateEnrolment: deactivateEnrolment,
+    unassignedEnrolmentsForCourse: unassignedEnrolmentsForCourse,
+    deactivateUnassignedForCourse: deactivateUnassignedForCourse,
     addPupilToCourse: addPupilToCourse,
     updateEnrolmentTeacher: updateEnrolmentTeacher,
     updateClassTeacher: updateClassTeacher,

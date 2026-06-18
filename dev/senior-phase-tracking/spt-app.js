@@ -1601,11 +1601,18 @@
         '<option>National 5</option><option>National 4</option><option>National 3</option>' +
         '<option>Higher</option><option>Advanced Higher</option><option>Level 6</option><option>Level 5</option></select></div>' +
         '<button type="submit" class="btn btn-sm">Enrol pupil</button></form>' +
-        '<table class="data-table"><thead><tr><th>Pupil</th><th>Course</th><th>Class</th><th>Teacher</th></tr></thead><tbody>' +
+        '<p class="sheet-hint">Pupils without a class appear as <strong>Unassigned pupils</strong> on Enter tracking. Open that tile to manage them, or remove them here.</p>' +
+        '<table class="data-table"><thead><tr><th>Pupil</th><th>Course</th><th>Class</th><th>Teacher</th><th></th></tr></thead><tbody>' +
         d.enrolments.filter(function(e) { return e.active_status !== false; }).map(function(en) {
-          return '<tr><td>' + esc(SptStore.pupilName(d, en.pupil_id)) + '</td><td>' + esc(SptStore.courseName(d, en.course_id)) + '</td>' +
-            '<td>' + esc(en.class_id ? SptStore.className(d, en.class_id) : '—') + '</td>' +
-            '<td>' + esc(SptStore.teacherName(d, en.teacher_id)) + '</td></tr>';
+          var unassigned = !en.class_id;
+          return '<tr class="' + (unassigned ? 'row-unassigned' : '') + '">' +
+            '<td>' + esc(SptStore.pupilName(d, en.pupil_id)) + '</td>' +
+            '<td>' + esc(SptStore.courseName(d, en.course_id)) + '</td>' +
+            '<td>' + (unassigned ? badge('Unassigned') : esc(SptStore.className(d, en.class_id))) + '</td>' +
+            '<td>' + esc(SptStore.teacherName(d, en.teacher_id)) + '</td>' +
+            '<td>' + (canManageEnrolment(en) ?
+              '<button type="button" class="btn btn-secondary btn-sm" data-remove-enrolment="' + en.id + '">Remove</button>' : '—') +
+            '</td></tr>';
         }).join('') + '</tbody></table></div></div>';
     } else if (tab === 'baseline') {
       html += '<div class="card"><div class="card-head"><h2>S3 entry baseline (N5 &amp; N4 pupils)</h2></div><div class="card-body">' +
@@ -1699,8 +1706,9 @@
           entry.courseName + ' — unassigned';
         var sub = entry.type === 'class' ?
           esc(entry.teacherName) + ' · ' + esc(entry.courseName) :
-          esc(entry.courseName) + ' · pupils without a class';
-        html += '<div class="course-tile course-tile--' + slug + '" data-class-sheet data-course="' + entry.courseId + '"' +
+          esc(entry.courseName) + ' · click to manage';
+        html += '<div class="course-tile course-tile--' + slug +
+          (entry.type === 'unassigned' ? ' course-tile--unassigned' : '') + '" data-class-sheet data-course="' + entry.courseId + '"' +
           (entry.classId ? ' data-class="' + entry.classId + '"' : ' data-unassigned="1"') +
           ' title="Open ' + esc(title) + '">' +
           '<div class="course-tile-row">' +
@@ -1769,10 +1777,20 @@
       (groupAwardTag ? '<span class="course-topbar-tag">' + esc(groupAwardTag) + '</span>' : '') +
       '</div>' +
       '<div class="course-topbar-right">' +
+      (state.unassignedOnly && canEdit && enrolments.length ?
+        '<button type="button" class="btn btn-secondary btn-sm" data-remove-all-unassigned="' + courseId + '">Remove all unassigned</button>' : '') +
       (canEdit ? '<button type="button" class="btn btn-sm" data-add-pupil-course="' + courseId + '">+ Add pupil</button>' : '') +
       '<button type="button" class="btn btn-secondary btn-sm layout-toggle-inline" id="nav-toggle-inline" title="Toggle navigation (N)">' +
       (state.navCollapsed ? 'Show menu' : 'Hide menu') + '</button>' +
       '</div></div>';
+    if (state.unassignedOnly) {
+      html += '<div class="unassigned-banner">' +
+        '<strong>Unassigned pupils</strong> — enrolled on this course but not linked to a class. ' +
+        (canEdit ?
+          'Use <strong>Remove</strong> on each row, or <strong>Remove all unassigned</strong> to clear and start again. Assign pupils to a class in Setup.' :
+          'Switch <strong>View as</strong> to Faculty Head / Admin to remove pupils.') +
+        '</div>';
+    }
 
     var headGroup = '<tr class="head-group">';
     headGroup += '<th class="col-pupil" rowspan="2">Pupil</th><th rowspan="2">Level</th>';
@@ -2070,6 +2088,19 @@
     if (!confirm('Remove ' + name + ' from ' + course + '?\n\nThey will disappear from tracking but their history is kept.')) return;
     SptStore.deactivateEnrolment(d, enrolmentId);
     render();
+  }
+
+  function confirmRemoveAllUnassigned(courseId) {
+    if (!role().canEdit) return;
+    var d = db();
+    var unassigned = SptStore.unassignedEnrolmentsForCourse(d, courseId);
+    if (!unassigned.length) return;
+    var course = SptStore.courseName(d, courseId);
+    if (!confirm('Remove all ' + unassigned.length + ' unassigned pupil' + (unassigned.length !== 1 ? 's' : '') +
+        ' from ' + course + '?\n\nThey will disappear from tracking but their history is kept.')) return;
+    SptStore.deactivateUnassignedForCourse(d, courseId);
+    if (state.unassignedOnly) setRoute('courses');
+    else render();
   }
 
   function confirmDeleteClass(classId) {
@@ -2673,6 +2704,11 @@
       el.addEventListener('click', function(e) {
         e.stopPropagation();
         confirmRemoveEnrolment(el.getAttribute('data-remove-enrolment'));
+      });
+    });
+    root.querySelectorAll('[data-remove-all-unassigned]').forEach(function(el) {
+      el.addEventListener('click', function() {
+        confirmRemoveAllUnassigned(el.getAttribute('data-remove-all-unassigned'));
       });
     });
     root.querySelectorAll('[data-level-change]').forEach(function(el) {
