@@ -21,6 +21,7 @@
     currentHubUser: null,
     hubStaffMessage: null,
     setupMessage: null,
+    coursesMessage: null,
     importStep: 1,
     importSource: null,
     importPreview: null,
@@ -146,6 +147,7 @@
       state.courseId = params.courseId || null;
       state.classId = params.classId || null;
       state.unassignedOnly = !!params.unassignedOnly;
+      state.coursesMessage = null;
     } else {
       state.courseId = null;
       state.classId = null;
@@ -1676,6 +1678,9 @@
     var html = alertStripHtml() + '<div class="page-head page-head-compact"><h1>Enter tracking data</h1>' +
       '<p class="page-sub">Open your class sheet — colours match subject area.</p></div>' +
       entryGuideHtml('courses-list');
+    if (state.coursesMessage) {
+      html += '<p class="hub-staff-status">' + esc(state.coursesMessage) + '</p>';
+    }
     var entries = SptStore.trackingEntriesForUser(d);
     if (!entries.length) {
       html += '<div class="empty">No classes with pupils assigned' +
@@ -1785,10 +1790,15 @@
       '</div></div>';
     if (state.unassignedOnly) {
       html += '<div class="unassigned-banner">' +
+        '<div class="unassigned-banner-text">' +
         '<strong>Unassigned pupils</strong> — enrolled on this course but not linked to a class. ' +
         (canEdit ?
-          'Use <strong>Remove</strong> on each row, or <strong>Remove all unassigned</strong> to clear and start again. Assign pupils to a class in Setup.' :
+          'Remove pupils here, or assign them to a class in Setup.' :
           'Switch <strong>View as</strong> to Faculty Head / Admin to remove pupils.') +
+        '</div>' +
+        (canEdit && enrolments.length ?
+          '<button type="button" class="btn btn-secondary btn-sm" data-remove-all-unassigned="' + courseId + '">Remove all ' +
+          enrolments.length + ' unassigned</button>' : '') +
         '</div>';
     }
 
@@ -2090,17 +2100,34 @@
     render();
   }
 
-  function confirmRemoveAllUnassigned(courseId) {
-    if (!role().canEdit) return;
+  function showRemoveAllUnassignedModal(courseId) {
+    if (!role().canEdit) {
+      alert('Switch View as to Faculty Head / Admin to remove pupils.');
+      return;
+    }
     var d = db();
     var unassigned = SptStore.unassignedEnrolmentsForCourse(d, courseId);
-    if (!unassigned.length) return;
+    if (!unassigned.length) {
+      alert('No unassigned pupils to remove on this course.');
+      return;
+    }
     var course = SptStore.courseName(d, courseId);
-    if (!confirm('Remove all ' + unassigned.length + ' unassigned pupil' + (unassigned.length !== 1 ? 's' : '') +
-        ' from ' + course + '?\n\nThey will disappear from tracking but their history is kept.')) return;
-    SptStore.deactivateUnassignedForCourse(d, courseId);
-    if (state.unassignedOnly) setRoute('courses');
-    else render();
+    var count = unassigned.length;
+    openModal('Remove all unassigned pupils',
+      '<p>Remove <strong>' + count + '</strong> unassigned pupil' + (count !== 1 ? 's' : '') +
+        ' from <strong>' + esc(course) + '</strong>?</p>' +
+      '<p class="modal-note">They will disappear from tracking but their enrolment history is kept.</p>',
+      '<button type="button" class="btn btn-secondary" id="modal-cancel">Cancel</button>' +
+      '<button type="button" class="btn" id="modal-remove-all-unassigned">Remove all</button>');
+    document.getElementById('modal-cancel').onclick = closeModal;
+    document.getElementById('modal-remove-all-unassigned').onclick = function() {
+      var result = SptStore.deactivateUnassignedForCourse(db(), courseId);
+      closeModal();
+      state.coursesMessage = 'Removed ' + result.removed + ' unassigned pupil' +
+        (result.removed !== 1 ? 's' : '') + ' from ' + course + '.';
+      if (state.unassignedOnly) setRoute('courses');
+      else render();
+    };
   }
 
   function confirmDeleteClass(classId) {
@@ -2707,8 +2734,10 @@
       });
     });
     root.querySelectorAll('[data-remove-all-unassigned]').forEach(function(el) {
-      el.addEventListener('click', function() {
-        confirmRemoveAllUnassigned(el.getAttribute('data-remove-all-unassigned'));
+      el.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        showRemoveAllUnassignedModal(el.getAttribute('data-remove-all-unassigned'));
       });
     });
     root.querySelectorAll('[data-level-change]').forEach(function(el) {

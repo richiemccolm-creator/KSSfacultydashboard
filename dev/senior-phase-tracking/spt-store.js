@@ -814,13 +814,34 @@
   }
 
   function deactivateUnassignedForCourse(db, courseId) {
-    var removed = 0;
-    unassignedEnrolmentsForCourse(db, courseId).forEach(function(en) {
-      deactivateEnrolment(db, en.id);
-      removed++;
+    var list = unassignedEnrolmentsForCourse(db, courseId);
+    if (!list.length) return { removed: 0 };
+    var endDate = new Date().toISOString().slice(0, 10);
+    var now = new Date().toISOString();
+    list.forEach(function(en) {
+      var arr = db.enrolments || [];
+      var idx = arr.findIndex(function(e) { return e.id === en.id; });
+      if (idx < 0) return;
+      var prev = Object.assign({}, arr[idx]);
+      arr[idx] = Object.assign({}, arr[idx], {
+        active_status: false,
+        end_date: endDate,
+        updated_at: now
+      });
+      audit(db, {
+        action_type: 'enrolment_deactivate',
+        table_name: 'enrolments',
+        record_id: en.id,
+        previous_value: prev,
+        new_value: arr[idx]
+      });
+      if (global.SptRisk) global.SptRisk.recalculateEnrolment(db, en.id);
     });
-    if (removed) save(db);
-    return { removed: removed };
+    save(db);
+    if (!global.SptConfig.useSeedData && global.SptSync && global.SptSync.flushPush) {
+      global.SptSync.flushPush(db);
+    }
+    return { removed: list.length };
   }
 
   function addPupilToCourse(db, opts) {
