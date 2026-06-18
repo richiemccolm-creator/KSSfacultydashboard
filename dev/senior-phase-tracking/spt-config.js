@@ -13,7 +13,7 @@
   })();
 
   var STORAGE_KEY = useSeedData ? 'spt-dev-v2' : 'spt-hub-v1';
-  var DATA_VERSION = 14;
+  var DATA_VERSION = 16;
 
   var AH_ART_PORTFOLIO_ROUTES = ['Expressive', 'Design'];
 
@@ -78,17 +78,20 @@
     faculty_head: {
       id: 'faculty_head', label: 'Faculty Head / Admin',
       canImport: true, canApproveLevelChange: true, viewAll: true, canEdit: true,
-      canSetup: true, canEditBaseline: true, canResolveFlags: true, canFlag: true
+      canSetup: true, canEditBaseline: true, canResolveFlags: true, canFlag: true,
+      canAddInterventionNote: true
     },
     class_teacher: {
       id: 'class_teacher', label: 'Class Teacher',
       canImport: false, canApproveLevelChange: false, viewAll: false, canEdit: true,
-      canSetup: false, canEditBaseline: false, canResolveFlags: false, canFlag: true
+      canSetup: false, canEditBaseline: false, canResolveFlags: false, canFlag: true,
+      canAddInterventionNote: true
     },
     read_only: {
       id: 'read_only', label: 'Read Only / SLT',
       canImport: false, canApproveLevelChange: false, viewAll: true, canEdit: false,
-      canSetup: false, canEditBaseline: false, canResolveFlags: false, canFlag: false
+      canSetup: false, canEditBaseline: false, canResolveFlags: false, canFlag: false,
+      canAddInterventionNote: false
     }
   };
 

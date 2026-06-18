@@ -212,6 +212,8 @@
       evidence_bank: [],
       level_changes: [],
       interventions: [],
+      intervention_trail: [],
+      concern_feedback: [],
       prior_attainment: [],
       enrolment_baselines: [],
       attendance_records: [],
@@ -274,6 +276,8 @@
     if (!db) return null;
     if (db.version >= VER) return db;
     db.enrolment_baselines = db.enrolment_baselines || [];
+    db.intervention_trail = db.intervention_trail || [];
+    db.concern_feedback = db.concern_feedback || [];
     (db.level_changes || []).forEach(function(lc) {
       if (!lc.change_type) lc.change_type = 'level';
     });
@@ -347,6 +351,8 @@
     db.enrolment_baselines = db.enrolment_baselines || [];
     db.attendance_records = db.attendance_records || [];
     db.teacher_concerns = db.teacher_concerns || [];
+    db.intervention_trail = db.intervention_trail || [];
+    db.concern_feedback = db.concern_feedback || [];
     db.prelim_components = db.prelim_components || [];
     db.prelim_marks = db.prelim_marks || [];
     var cohortPatched = false;

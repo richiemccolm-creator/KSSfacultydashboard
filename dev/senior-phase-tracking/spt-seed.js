@@ -246,7 +246,7 @@
     });
 
     var teacherConcerns = [
-      { id: 'flag-jamie-1', enrolment_id: 'e-jamie-hd', raised_by_teacher_id: 't-anderson', category: 'Prelim', comment: 'Prelim marks well below target — parents should be aware.', status: 'Open', is_urgent: true, intervention_id: null, resolved_at: null, resolved_by: null, resolution_note: '', created_at: ts, updated_at: ts },
+      { id: 'flag-jamie-1', enrolment_id: 'e-jamie-hd', raised_by_teacher_id: 't-anderson', category: 'Prelim', comment: 'Prelim marks well below target — parents should be aware.', status: 'Resolved', is_urgent: true, intervention_id: 'int-jamie-1', resolved_at: '2026-01-26T09:00:00.000Z', resolved_by: 'faculty_head', resolution_note: 'Emailed pastoral care and SLT about prelim results.', created_at: ts, updated_at: ts },
       { id: 'flag-ryan-1', enrolment_id: 'e-ryan-nd', raised_by_teacher_id: 't-bruce', category: 'Award risk', comment: 'Considering N4 — needs FH discussion.', status: 'Open', is_urgent: true, intervention_id: null, resolved_at: null, resolved_by: null, resolution_note: '', created_at: ts, updated_at: ts },
       { id: 'flag-quinn-1', enrolment_id: 'e-quinn-hd', raised_by_teacher_id: 't-bruce', category: 'Behaviour', comment: 'Repeated disruption in practical rehearsals.', status: 'Open', is_urgent: false, intervention_id: null, resolved_at: null, resolved_by: null, resolution_note: '', created_at: ts, updated_at: ts },
       { id: 'flag-peter-1', enrolment_id: 'e-peter-hp', raised_by_teacher_id: 't-douglas', category: 'Evidence', comment: 'No project images submitted for moderation check.', status: 'Open', is_urgent: true, intervention_id: null, resolved_at: null, resolved_by: null, resolution_note: '', created_at: ts, updated_at: ts },
@@ -289,6 +289,22 @@
       { id: uid('int'), enrolment_id: 'e-aiden-ci', concern_area: 'Unit evidence', intervention_description: '1:1 project planning meetings', intervention_start_date: '2026-02-05', review_date: '2026-03-01', responsible_teacher_id: 't-douglas', intervention_status: 'Planned', outcome_notes: '', impact_rating: 'Not Yet Known', created_at: ts, updated_at: ts }
     ];
 
+    var interventionTrail = [
+      { id: 'it-jamie-1', intervention_id: 'int-jamie-1', note: 'Emailed pastoral care and SLT about prelim results.', author_role: 'faculty_head', author_teacher_id: null, author_label: 'Faculty Head / Admin', source: 'alert_action', concern_id: 'flag-jamie-1', created_at: '2026-01-26T09:00:00.000Z', updated_at: '2026-01-26T09:00:00.000Z' },
+      { id: 'it-jamie-2', intervention_id: 'int-jamie-1', note: 'Weekly clinic started — Jamie attended first session.', author_role: 'class_teacher', author_teacher_id: 't-anderson', author_label: 'Mrs Anderson', source: 'follow_up', concern_id: null, created_at: '2026-02-03T14:30:00.000Z', updated_at: '2026-02-03T14:30:00.000Z' }
+    ];
+
+    var concernFeedback = [
+      { id: uid('fb'), recipient_teacher_id: 't-anderson', recipient_role: null, flag_id: 'flag-jamie-1', intervention_id: 'int-jamie-1', trail_entry_id: 'it-jamie-1', enrolment_id: 'e-jamie-hd', author_label: 'Faculty Head / Admin', note_preview: 'Emailed pastoral care and SLT about prelim results.', read_at: null, created_at: '2026-01-26T09:05:00.000Z', updated_at: '2026-01-26T09:05:00.000Z' },
+      { id: uid('fb'), recipient_teacher_id: null, recipient_role: 'faculty_head', flag_id: 'flag-jamie-1', intervention_id: 'int-jamie-1', trail_entry_id: 'it-jamie-2', enrolment_id: 'e-jamie-hd', author_label: 'Mrs Anderson', note_preview: 'Weekly clinic started — Jamie attended first session.', read_at: null, created_at: '2026-02-03T14:35:00.000Z', updated_at: '2026-02-03T14:35:00.000Z' }
+    ];
+
+    enrolments.forEach(function(en) {
+      en.has_open_flag = teacherConcerns.some(function(f) {
+        return f.enrolment_id === en.id && f.status === 'Open';
+      });
+    });
+
     var db = {
       version: C.DATA_VERSION,
       seeded_at: ts,
@@ -306,6 +322,8 @@
       evidence_bank: evidenceBank,
       level_changes: levelChanges,
       interventions: interventions,
+      intervention_trail: interventionTrail,
+      concern_feedback: concernFeedback,
       prior_attainment: priorAttainment,
       enrolment_baselines: enrolmentBaselines,
       attendance_records: attendanceRecords,

@@ -133,11 +133,27 @@
   }
 
   function updateNavBadge() {
-    var n = SptConcerns.openFlagCount(db());
-    var btn = document.getElementById('nav-alerts');
-    if (!btn) return;
-    var base = 'Alerts';
-    btn.textContent = n ? base + ' (' + n + ')' : base;
+    var d = db();
+    var r = role();
+    var alertBtn = document.getElementById('nav-alerts');
+    if (alertBtn) {
+      var openFlags = r.canResolveFlags ? SptConcerns.openFlagCount(d) : 0;
+      alertBtn.textContent = openFlags ? 'Alerts (' + openFlags + ')' : 'Alerts';
+    }
+    var feedbackBtn = document.getElementById('nav-feedback');
+    if (feedbackBtn) {
+      var unread = SptFeedback.unreadCount(d);
+      feedbackBtn.textContent = unread ? 'Concern updates (' + unread + ')' : 'Concern updates';
+    }
+    syncNavVisibility();
+  }
+
+  function syncNavVisibility() {
+    var r = role();
+    var alertNav = document.getElementById('nav-alerts');
+    var feedbackNav = document.getElementById('nav-feedback');
+    if (alertNav) alertNav.style.display = r.canResolveFlags ? '' : 'none';
+    if (feedbackNav) feedbackNav.style.display = (r.canFlag || r.canResolveFlags) ? '' : 'none';
   }
 
   function setRoute(route, params) {
@@ -174,10 +190,24 @@
   }
 
   function alertStripHtml() {
-    var n = SptConcerns.openFlagCount(db());
-    if (!n || !role().viewAll) return '';
-    return '<div class="alert-strip"><strong>' + n + ' open teacher concern' + (n !== 1 ? 's' : '') + ' require your attention</strong>' +
-      '<button type="button" class="linkish" data-route="alerts">View alerts</button></div>';
+    var d = db();
+    var r = role();
+    var html = '';
+    if (r.canResolveFlags) {
+      var n = SptConcerns.openFlagCount(d);
+      if (n) {
+        html += '<div class="alert-strip"><strong>' + n + ' open teacher concern' + (n !== 1 ? 's' : '') + ' require your attention</strong>' +
+          '<button type="button" class="linkish" data-route="alerts">View alerts</button></div>';
+      }
+    }
+    if (r.canFlag || r.canResolveFlags) {
+      var unread = SptFeedback.unreadCount(d);
+      if (unread) {
+        html += '<div class="alert-strip alert-strip-feedback"><strong>' + unread + ' concern update' + (unread !== 1 ? 's' : '') + ' — new actions on pupils you are supporting</strong>' +
+          '<button type="button" class="linkish" data-route="feedback">View updates</button></div>';
+      }
+    }
+    return html;
   }
 
   function gettingStartedHtml(d) {
@@ -1043,7 +1073,7 @@
       var en = SptStore.byId(d.enrolments, f.enrolment_id);
       return en && SptStore.canViewEnrolment(d, en);
     }).sort(function(a, b) { return (b.created_at || '').localeCompare(a.created_at || ''); });
-    var html = alertStripHtml() + '<div class="page-head"><h1>Teacher concern alerts</h1><p>Resolve each flag by linking or creating an intervention.</p></div>';
+    var html = alertStripHtml() + '<div class="page-head"><h1>Teacher concern alerts</h1><p>Record what action you have taken on each flag. Your note starts the intervention trail for that pupil.</p></div>';
     var alertRows = '';
     flags.forEach(function(f) {
       var en = SptStore.byId(d.enrolments, f.enrolment_id);
@@ -1053,14 +1083,67 @@
         '<td>' + esc(f.category) + '</td><td>' + esc(f.comment) + '</td>' +
         '<td class="cell-num">' + esc((f.created_at || '').slice(0, 10)) + '</td>' +
         '<td>' + (role().canResolveFlags ?
-          '<button type="button" class="btn btn-sm" data-resolve-flag="' + f.id + '">Resolve</button> ' +
+          '<button type="button" class="btn btn-sm" data-action-flag="' + f.id + '">Take action</button> ' +
           '<button type="button" class="btn btn-secondary btn-sm" data-view-enrolment="' + en.id + '">Profile</button>' : '') +
         '</td></tr>';
     });
     if (!flags.length) alertRows = '<tr><td colspan="7" class="empty">No open teacher concerns.</td></tr>';
-    html += sheetPanel('Open alerts', flags.length + ' flags', 'Resolve with an intervention', '<table class="data-table"><thead><tr>' +
+    html += sheetPanel('Open alerts', flags.length + ' flags', 'Document your response — the teacher who raised the flag will be notified', '<table class="data-table"><thead><tr>' +
       '<th class="col-pupil">Pupil</th><th>Course</th><th>Teacher</th><th>Category</th><th>Comment</th><th>Raised</th><th>Actions</th></tr></thead><tbody>' +
       alertRows + '</tbody></table>');
+    return html;
+  }
+
+  function renderFeedback() {
+    var d = db();
+    var items = SptFeedback.forCurrentUser(d).slice().sort(function(a, b) {
+      var aUnread = !a.read_at ? 0 : 1;
+      var bUnread = !b.read_at ? 0 : 1;
+      if (aUnread !== bUnread) return aUnread - bUnread;
+      return (b.created_at || '').localeCompare(a.created_at || '');
+    });
+    var unread = items.filter(function(i) { return !i.read_at; }).length;
+    var isFh = role().canResolveFlags;
+    var html = alertStripHtml() + '<div class="page-head"><h1>Concern updates</h1><p>' +
+      (isFh ?
+        'Teachers are notified when you take action on their flags. You are notified here when they add follow-up notes.' :
+        'When your faculty head takes action on a concern you raised, you will see it here. You can respond with your own follow-up notes.') +
+      '</p></div>';
+    if (unread) {
+      html += '<div class="feedback-toolbar"><button type="button" class="btn btn-secondary btn-sm" id="feedback-mark-all">Mark all read</button></div>';
+    }
+    var rows = '';
+    items.forEach(function(note) {
+      var en = SptStore.byId(d.enrolments, note.enrolment_id);
+      if (!en) return;
+      var flag = note.flag_id ? SptStore.byId(d.teacher_concerns, note.flag_id) : null;
+      var trailEntry = note.trail_entry_id ? SptStore.byId(d.intervention_trail, note.trail_entry_id) : null;
+      var concernCell = '—';
+      if (flag) {
+        if (isFh) {
+          concernCell = esc(SptStore.teacherName(d, flag.raised_by_teacher_id)) + ': ' + esc(flag.comment);
+        } else {
+          concernCell = '<span class="cell-hint">Your flag:</span> ' + esc(flag.comment);
+        }
+      }
+      rows += '<tr class="' + (!note.read_at ? 'row-flagged feedback-unread' : '') + '">' +
+        '<td class="col-pupil">' + esc(SptStore.pupilName(d, en.pupil_id)) + '</td>' +
+        '<td>' + esc(SptStore.courseName(d, en.course_id)) + '</td>' +
+        '<td>' + concernCell + '</td>' +
+        '<td><strong>' + esc(note.author_label) + '</strong> — ' + esc(note.note_preview) +
+        (trailEntry ? ' <span class="feedback-action-tag">' + esc(SptInterventions.sourceLabel(trailEntry.source)) + '</span>' : '') + '</td>' +
+        '<td class="cell-num">' + esc((note.created_at || '').slice(0, 16).replace('T', ' ')) + '</td>' +
+        '<td><button type="button" class="btn btn-sm" data-feedback-view="' + note.id + '">View &amp; respond</button></td></tr>';
+    });
+    if (!rows) {
+      rows = '<tr><td colspan="6" class="empty">No concern updates yet. ' +
+        (isFh ? 'You will be notified when teachers add follow-up notes.' : 'When action is taken on a flag you raised, it will appear here.') +
+        '</td></tr>';
+    }
+    html += sheetPanel('Updates', items.length + ' notifications · ' + unread + ' unread', 'Open to see the full support trail and add your own notes',
+      '<table class="data-table feedback-table"><thead><tr>' +
+      '<th class="col-pupil">Pupil</th><th>Course</th><th>' + (isFh ? 'Original concern' : 'Your concern') + '</th><th>Latest action</th><th>When</th><th></th>' +
+      '</tr></thead><tbody>' + rows + '</tbody></table>');
     return html;
   }
 
@@ -2376,7 +2459,24 @@
     document.getElementById('modal-cancel').onclick = closeModal;
   }
 
-  function showResolveModal(flagId) {
+  function interventionTrailHtml(d, interventionId, limit) {
+    var trail = SptInterventions.trailForIntervention(d, interventionId);
+    if (limit) trail = trail.slice(-limit);
+    if (!trail.length) {
+      return '<p class="cell-hint">No actions recorded yet.</p>';
+    }
+    return '<ol class="intervention-trail">' + trail.map(function(entry) {
+      return '<li class="intervention-trail-entry">' +
+        '<div class="intervention-trail-meta">' +
+        '<span class="intervention-trail-date">' + esc((entry.created_at || '').slice(0, 10)) + '</span> ' +
+        '<span class="intervention-trail-author">' + esc(entry.author_label || 'Staff') + '</span> ' +
+        '<span class="intervention-trail-source">' + esc(SptInterventions.sourceLabel(entry.source)) + '</span>' +
+        '</div>' +
+        '<p class="intervention-trail-note">' + esc(entry.note) + '</p></li>';
+    }).join('') + '</ol>';
+  }
+
+  function showActionModal(flagId) {
     var d = db();
     var flag = SptStore.byId(d.teacher_concerns, flagId);
     var en = SptStore.byId(d.enrolments, flag.enrolment_id);
@@ -2386,36 +2486,111 @@
     var intOpts = ints.map(function(i) {
       return '<option value="' + i.id + '">' + esc(i.intervention_description.slice(0, 40)) + '</option>';
     }).join('');
-    openModal('Resolve concern',
-      '<p style="font-size:.85rem;margin-bottom:.75rem">' + esc(flag.comment) + '</p>' +
-      '<form id="resolve-form" class="form-grid">' +
-      '<div><label>Link existing intervention</label><select name="intervention_id"><option value="">Create new below</option>' + intOpts + '</select></div>' +
-      '<div><label>New intervention description</label><textarea name="intervention_description" placeholder="If not linking existing"></textarea></div>' +
-      '<div><label>Review date</label><input type="date" name="review_date"></div>' +
-      '<div><label>Resolution note</label><input name="resolution_note"></div></form>',
+    openModal('Take action on concern',
+      '<p class="modal-note"><strong>' + esc(flag.category) + '</strong> — ' + esc(flag.comment) + '</p>' +
+      '<form id="action-form" class="form-grid">' +
+      '<div class="form-span-all"><label>What action have you taken?</label>' +
+      '<textarea name="action_note" rows="3" required placeholder="e.g. Emailed pastoral care and SLT"></textarea></div>' +
+      '<div><label>Link existing intervention</label><select name="intervention_id"><option value="">Start new intervention</option>' + intOpts + '</select></div>' +
+      '<div><label>Intervention summary</label><input name="intervention_description" placeholder="Short title if starting new" value="' + esc(flag.category) + ' support"></div>' +
+      '<div><label>Review date</label><input type="date" name="review_date"></div></form>',
       '<button type="button" class="btn btn-secondary" id="modal-cancel">Cancel</button>' +
-      '<button type="button" class="btn" id="resolve-submit">Resolve with intervention</button>');
-    document.getElementById('resolve-submit').onclick = function() {
-      var f = document.getElementById('resolve-form');
+      '<button type="button" class="btn" id="action-submit">Record action &amp; notify teacher</button>');
+    document.getElementById('action-submit').onclick = function() {
+      var f = document.getElementById('action-form');
+      var actionNote = (f.action_note.value || '').trim();
+      if (!actionNote) {
+        alert('Describe the action you have taken.');
+        return;
+      }
       var payload = {
         intervention_id: f.intervention_id.value || null,
-        resolution_note: f.resolution_note.value,
+        action_note: actionNote,
         create_intervention: !f.intervention_id.value,
-        intervention_description: f.intervention_description.value,
+        intervention_description: (f.intervention_description.value || '').trim() || (flag.category + ' support'),
         concern_area: flag.category,
         review_date: f.review_date.value,
         responsible_teacher_id: en.teacher_id
       };
-      if (!payload.intervention_id && !payload.intervention_description) {
-        alert('Select an existing intervention or describe a new one.');
-        return;
-      }
       SptConcerns.resolveFlag(db(), flagId, payload);
       closeModal();
       render();
       updateNavBadge();
     };
     document.getElementById('modal-cancel').onclick = closeModal;
+  }
+
+  function linkedFlagForIntervention(d, interventionId, flagIdHint) {
+    if (flagIdHint) {
+      var hinted = SptStore.byId(d.teacher_concerns, flagIdHint);
+      if (hinted) return hinted;
+    }
+    return (d.teacher_concerns || []).find(function(f) {
+      return f.intervention_id === interventionId;
+    }) || null;
+  }
+
+  function showInterventionModal(interventionId, notificationId) {
+    var d = db();
+    var intervention = SptStore.byId(d.interventions, interventionId);
+    if (!intervention) return;
+    var flagIdHint = null;
+    if (notificationId) {
+      var feedbackNote = SptStore.byId(d.concern_feedback, notificationId);
+      if (feedbackNote) {
+        SptFeedback.markRead(d, notificationId);
+        flagIdHint = feedbackNote.flag_id;
+      }
+    }
+    var en = SptStore.byId(d.enrolments, intervention.enrolment_id);
+    var canAdd = SptInterventions.canAddTrail(d, intervention);
+    var linkedFlag = linkedFlagForIntervention(d, interventionId, flagIdHint);
+    var body = '<div class="intervention-detail-head">' +
+      '<p><strong>' + esc(SptStore.pupilName(d, en.pupil_id)) + '</strong> · ' + esc(SptStore.courseName(d, en.course_id)) + '</p>' +
+      '<p class="cell-hint">' + esc(intervention.concern_area) + ' — ' + esc(intervention.intervention_description) + '</p>' +
+      '<p>Review ' + esc(intervention.review_date || '—') + ' · ' + badge(intervention.intervention_status) + '</p></div>';
+    if (linkedFlag) {
+      body += '<div class="profile-section"><h3>Original concern</h3><p>' +
+        '<strong>' + esc(linkedFlag.category) + '</strong> — ' + esc(linkedFlag.comment) + '</p></div>';
+    }
+    body += '<div class="profile-section"><h3>Support trail</h3>' + interventionTrailHtml(d, interventionId) + '</div>';
+    if (canAdd) {
+      body += '<form id="trail-form" class="form-grid">' +
+        '<div class="form-span-all"><label>Add follow-up</label>' +
+        '<textarea name="follow_up_note" rows="3" placeholder="' +
+        (role().canResolveFlags ?
+          'e.g. SLT has suggested change of level' :
+          'e.g. Spoke with pupil — will attend supported study this week') +
+        '"></textarea></div></form>';
+    }
+    openModal('Intervention trail', body,
+      '<button type="button" class="btn btn-secondary" id="modal-cancel">Close</button>' +
+      (canAdd ? '<button type="button" class="btn" id="trail-submit">Add to trail</button>' : ''));
+    if (canAdd) {
+      document.getElementById('trail-submit').onclick = function() {
+        var note = (document.querySelector('#trail-form [name="follow_up_note"]').value || '').trim();
+        if (!note) {
+          alert('Enter a follow-up note.');
+          return;
+        }
+        SptInterventions.addTrailEntry(db(), interventionId, { note: note, source: 'follow_up' });
+        closeModal();
+        render();
+        updateNavBadge();
+      };
+    }
+    document.getElementById('modal-cancel').onclick = closeModal;
+  }
+
+  function showFeedbackModal(notificationId) {
+    var d = db();
+    var note = SptStore.byId(d.concern_feedback, notificationId);
+    if (!note || !SptFeedback.isRecipient(d, note)) return;
+    showInterventionModal(note.intervention_id, notificationId);
+  }
+
+  function showResolveModal(flagId) {
+    showActionModal(flagId);
   }
 
   function openDrawer(enrolmentId) {
@@ -2487,6 +2662,19 @@
       });
       body += '</ul></div>';
     }
+    if (r.active_interventions.length) {
+      body += '<div class="profile-section"><h3>Active interventions</h3>';
+      r.active_interventions.forEach(function(int) {
+        var latest = SptInterventions.latestTrailEntry(d, int.id);
+        body += '<div class="intervention-card">' +
+          '<p><strong>' + esc(int.intervention_description) + '</strong> ' + badge(int.intervention_status) + '</p>';
+        if (latest) {
+          body += '<p class="cell-hint">' + esc((latest.created_at || '').slice(0, 10)) + ' — ' + esc(latest.note) + '</p>';
+        }
+        body += '<button type="button" class="btn btn-secondary btn-sm" data-intervention-trail="' + int.id + '">View trail</button></div>';
+      });
+      body += '</div>';
+    }
     body += '<div class="profile-section"><h3>Overview</h3><dl class="profile-grid">' +
       '<dt>Teacher</dt><dd>' + esc(SptStore.teacherName(d, en.teacher_id)) + '</dd>' +
       '<dt>Target</dt><dd>' + esc(en.target_grade) + '</dd>' +
@@ -2501,6 +2689,11 @@
     document.getElementById('pupil-drawer').classList.add('open');
     var df = document.getElementById('drawer-flag');
     if (df) df.onclick = function() { showFlagModal(en.id); };
+    document.querySelectorAll('#drawer-body [data-intervention-trail]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        showInterventionModal(btn.getAttribute('data-intervention-trail'));
+      });
+    });
     var dlc = document.getElementById('drawer-level-changes');
     if (dlc) dlc.onclick = function() { closeDrawer(); setRoute('level-changes'); };
   }
@@ -2612,16 +2805,35 @@
     var list = (d.interventions || []).filter(function(i) {
       var en = SptStore.byId(d.enrolments, i.enrolment_id);
       return en && SptStore.canViewEnrolment(d, en);
+    }).sort(function(a, b) {
+      var aOver = new Date(a.review_date) < new Date() ? 0 : 1;
+      var bOver = new Date(b.review_date) < new Date() ? 0 : 1;
+      if (aOver !== bOver) return aOver - bOver;
+      return (b.updated_at || '').localeCompare(a.updated_at || '');
     });
-    var html = '<div class="page-head"><h1>Intervention Tracker</h1></div><div class="card"><div class="table-wrap"><table class="data-table">';
-    html += '<thead><tr><th>Pupil</th><th>Intervention</th><th>Review</th><th>Status</th></tr></thead><tbody>';
+    var html = '<div class="page-head"><h1>Intervention Tracker</h1>' +
+      '<p class="page-sub">Chronological record of support actions for pupils at risk. Open a trail to add follow-up notes.</p></div>';
+    var rows = '';
     list.forEach(function(i) {
       var en = SptStore.byId(d.enrolments, i.enrolment_id);
-      var overdue = new Date(i.review_date) < new Date();
-      html += '<tr data-enrolment="' + en.id + '"' + (overdue ? ' class="row-flagged"' : '') + '><td>' + esc(SptStore.pupilName(d, en.pupil_id)) + '</td>' +
-        '<td>' + esc(i.intervention_description) + '</td><td>' + esc(i.review_date) + '</td><td>' + badge(i.intervention_status) + '</td></tr>';
+      var latest = SptInterventions.latestTrailEntry(d, i.id);
+      var overdue = i.review_date && new Date(i.review_date) < new Date() && i.intervention_status !== 'Completed';
+      rows += '<tr data-intervention-trail="' + i.id + '"' + (overdue ? ' class="row-flagged"' : '') + '>' +
+        '<td class="col-pupil">' + esc(SptStore.pupilName(d, en.pupil_id)) + '</td>' +
+        '<td>' + esc(i.intervention_description) + '</td>' +
+        '<td class="intervention-latest">' + (latest ?
+          '<span class="intervention-trail-date">' + esc((latest.created_at || '').slice(0, 10)) + '</span> ' + esc(latest.note) :
+          '<span class="cell-hint">No actions yet</span>') + '</td>' +
+        '<td>' + esc(i.review_date || '—') + '</td>' +
+        '<td>' + badge(i.intervention_status) + '</td>' +
+        '<td><button type="button" class="btn btn-secondary btn-sm" data-intervention-trail="' + i.id + '">View trail</button></td></tr>';
     });
-    return html + '</tbody></table></div></div>';
+    if (!rows) rows = '<tr><td colspan="6" class="empty">No interventions recorded yet. Actions taken on alerts will appear here.</td></tr>';
+    html += sheetPanel('Interventions', list.length + ' pupils', 'Click a row or View trail to see the full support history',
+      '<table class="data-table intervention-table"><thead><tr>' +
+      '<th class="col-pupil">Pupil</th><th>Intervention</th><th>Latest action</th><th>Review</th><th>Status</th><th></th>' +
+      '</tr></thead><tbody>' + rows + '</tbody></table>');
+    return html;
   }
 
   function renderImport() {
@@ -2849,9 +3061,38 @@
         updateEnrolmentRiskCell(p[0]);
       });
     });
-    root.querySelectorAll('[data-resolve-flag]').forEach(function(el) {
-      el.addEventListener('click', function() { showResolveModal(el.getAttribute('data-resolve-flag')); });
+    root.querySelectorAll('[data-action-flag]').forEach(function(el) {
+      el.addEventListener('click', function() { showActionModal(el.getAttribute('data-action-flag')); });
     });
+    root.querySelectorAll('[data-resolve-flag]').forEach(function(el) {
+      el.addEventListener('click', function() { showActionModal(el.getAttribute('data-resolve-flag')); });
+    });
+    root.querySelectorAll('button[data-intervention-trail]').forEach(function(btn) {
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        showInterventionModal(btn.getAttribute('data-intervention-trail'));
+      });
+    });
+    root.querySelectorAll('tr[data-intervention-trail]').forEach(function(row) {
+      row.style.cursor = 'pointer';
+      row.addEventListener('click', function(e) {
+        if (e.target.closest('button')) return;
+        showInterventionModal(row.getAttribute('data-intervention-trail'));
+      });
+    });
+    root.querySelectorAll('[data-feedback-view]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        showFeedbackModal(btn.getAttribute('data-feedback-view'));
+      });
+    });
+    var markAll = root.querySelector('#feedback-mark-all');
+    if (markAll) {
+      markAll.addEventListener('click', function() {
+        SptFeedback.markAllRead(db());
+        render();
+        updateNavBadge();
+      });
+    }
     root.querySelectorAll('[data-view-enrolment]').forEach(function(el) {
       el.addEventListener('click', function() { openDrawer(el.getAttribute('data-view-enrolment')); });
     });
@@ -3372,6 +3613,7 @@
     switch (state.route) {
       case 'dashboard': html = renderDashboard(); break;
       case 'alerts': html = renderAlerts(); break;
+      case 'feedback': html = renderFeedback(); break;
       case 'setup': html = renderSetup(); break;
       case 'courses': html = renderCoursesList(); break;
       case 'course': html = renderCoursePage(state.courseId); break;
@@ -3472,6 +3714,7 @@
       if (!teacherSel.value) return;
       SptStore.setSimulatedTeacher(teacherSel.value);
       render();
+      updateNavBadge();
     };
     document.getElementById('nav-setup').style.display = role().canSetup ? '' : 'none';
   }

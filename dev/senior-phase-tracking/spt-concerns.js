@@ -57,12 +57,20 @@
       interventionId = int.id;
     }
     if (!interventionId) return null;
+    var actionNote = (payload.action_note || payload.resolution_note || '').trim();
+    if (actionNote && global.SptInterventions) {
+      global.SptInterventions.addTrailEntry(db, interventionId, {
+        note: actionNote,
+        source: 'alert_action',
+        concern_id: flagId
+      });
+    }
     global.SptStore.updateRecord(db, 'teacher_concerns', flagId, {
       status: 'Resolved',
       intervention_id: interventionId,
       resolved_at: new Date().toISOString(),
       resolved_by: 'faculty_head',
-      resolution_note: payload.resolution_note || ''
+      resolution_note: actionNote
     }, 'concern_resolved');
     var stillOpen = openFlags(db, flag.enrolment_id).length;
     if (!stillOpen) {

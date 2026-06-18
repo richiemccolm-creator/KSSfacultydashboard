@@ -29,19 +29,21 @@ Use a local server so CSS and CSV import work correctly.
 ## New in v2
 
 - **Setup / Cohort** — add teachers, classes, pupils, enrolments, prior exam results
-- **Alerts** — open teacher concern flags; resolve by linking or creating an intervention
-- **Teacher flags** — staff flag with comment; flagged pupils sort to top; Faculty Head resolves only
+- **Alerts** — open teacher concern flags; **Take action** to document your response and start an intervention trail (the teacher who raised the flag is notified)
+- **Concern updates** — feedback loop for teachers and faculty head; see new actions on flags and add follow-up notes
+- **Intervention trail** — chronological record of support actions; add follow-up notes from the Interventions page or pupil profile
+- **Teacher flags** — staff flag with comment; flagged pupils sort to top; Faculty Head records action on each alert
 - **Attendance** — score 1–4 per tracking period (3 TPs per year) on course pages
 - **Prelim marks** — per-course components (e.g. Higher Drama written + practical); enter raw marks inline on the course grid; weighted % and grade update automatically
 - **Prior attainment** — previous results including “Crashed / withdrew”
 
 ## Roles (simulated)
 
-| Role | Setup | Flag | Resolve flags | Import |
-|------|-------|------|---------------|--------|
-| Faculty Head | Yes | Yes | Yes | Yes |
-| Class Teacher | No | Yes (own classes) | No | No |
-| Read Only | No | No | No | No |
+| Role | Setup | Flag | Take action on alerts | Concern updates | Add intervention notes | Import |
+|------|-------|------|----------------------|-----------------|------------------------|--------|
+| Faculty Head | Yes | Yes | Yes | Yes (teacher follow-ups) | Yes | Yes |
+| Class Teacher | No | Yes (own classes) | No | Yes (FH actions on your flags) | Yes (own pupils) | No |
+| Read Only | No | No | No | No | View only | No |
 
 ## Reset
 
