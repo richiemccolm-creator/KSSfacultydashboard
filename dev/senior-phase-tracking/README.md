@@ -29,12 +29,12 @@ Use a local server so CSS and CSV import work correctly.
 ## New in v2
 
 - **Setup / Cohort** — add teachers, classes, pupils, enrolments, prior exam results
-- **Alerts** — open teacher concern flags; **Take action** moves the flag to **Ongoing** (pupil stays flagged on tracking) and starts the intervention trail
+- **Alerts** — unified concern register: **Open** (red, newest first) → **Ongoing** (amber) → **Resolved** (green, archived at bottom for review)
+- **Teacher flags** — pick a category (attendance, effort, behaviour, deadlines, attainment, level change, etc.) and describe the concern; faculty head is alerted
 - **Concern updates** — feedback loop for teachers and faculty head; see new actions on flags and add follow-up notes
 - **Close concern** — faculty head marks **Resolved** or **No further action required** from the intervention trail to remove the flag from tracking
 - **S3 baseline risk** — risk colour activates from S3 entry baseline on N5/N4 course sheets (exam, effort, behaviour, CfE level)
 - **Intervention trail** — chronological record of support actions; add follow-up notes from the Interventions page or pupil profile
-- **Teacher flags** — staff flag with comment; flagged pupils sort to top; Faculty Head records action on each alert
 - **Attendance** — score 1–4 per tracking period (3 TPs per year) on course pages
 - **Prelim marks** — per-course components (e.g. Higher Drama written + practical); enter raw marks inline on the course grid; weighted % and grade update automatically
 - **Prior attainment** — previous results including “Crashed / withdrew”
@@ -49,4 +49,4 @@ Use a local server so CSS and CSV import work correctly.
 
 ## Reset
 
-**Reset development data** reloads sample pupils (includes 2 open flags for testing Alerts).
+**Reset development data** reloads sample pupils (includes open, ongoing, and resolved flags for testing Alerts).

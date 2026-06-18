@@ -35,7 +35,16 @@
   };
 
   var CONCERN_CATEGORIES = [
-    'Attainment', 'Evidence', 'Prelim', 'Attendance', 'Behaviour', 'Wellbeing', 'Level change', 'Other'
+    'Attendance',
+    'Effort',
+    'Behaviour',
+    'Not meeting deadlines',
+    'Attainment / ability',
+    'Evidence',
+    'Prelim',
+    'Level change',
+    'Wellbeing',
+    'Other'
   ];
 
   var ATTENDANCE_LABELS = {

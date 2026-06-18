@@ -126,6 +126,37 @@
     return flag;
   }
 
+  function allViewableFlags(db) {
+    return (db.teacher_concerns || []).filter(function(f) {
+      var en = global.SptStore.byId(db.enrolments, f.enrolment_id);
+      return en && global.SptStore.canViewEnrolment(db, en);
+    });
+  }
+
+  function sortForAlertsList(flags) {
+    var order = { Open: 0, Ongoing: 1, Resolved: 2 };
+    return flags.slice().sort(function(a, b) {
+      var ao = order[a.status] != null ? order[a.status] : 3;
+      var bo = order[b.status] != null ? order[b.status] : 3;
+      if (ao !== bo) return ao - bo;
+      return (b.created_at || '').localeCompare(a.created_at || '');
+    });
+  }
+
+  function alertRowClass(status) {
+    if (status === 'Open') return 'concern-row-open';
+    if (status === 'Ongoing') return 'concern-row-ongoing';
+    if (status === 'Resolved') return 'concern-row-resolved';
+    return '';
+  }
+
+  function flagActivityDate(flag) {
+    if (!flag) return '';
+    if (flag.status === 'Resolved') return flag.resolved_at || flag.created_at;
+    if (flag.status === 'Ongoing') return flag.action_taken_at || flag.updated_at || flag.created_at;
+    return flag.created_at;
+  }
+
   function sortByUrgency(rows, db) {
     return rows.slice().sort(function(a, b) {
       var aF = activeFlags(db, a.enrolment.id).length > 0;
@@ -151,6 +182,10 @@
     actionFlag: actionFlag,
     resolveFlag: actionFlag,
     closeFlag: closeFlag,
+    allViewableFlags: allViewableFlags,
+    sortForAlertsList: sortForAlertsList,
+    alertRowClass: alertRowClass,
+    flagActivityDate: flagActivityDate,
     sortByUrgency: sortByUrgency
   };
 })(typeof window !== 'undefined' ? window : global);

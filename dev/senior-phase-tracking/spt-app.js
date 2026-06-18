@@ -1074,30 +1074,63 @@
     return html;
   }
 
+  function concernAlertActionsHtml(f, en) {
+    if (!role().canResolveFlags) return '';
+    var actions = '';
+    if (f.status === 'Open') {
+      actions += '<button type="button" class="btn btn-sm" data-action-flag="' + f.id + '">Take action</button> ';
+    } else if (f.intervention_id) {
+      actions += '<button type="button" class="btn btn-sm" data-intervention-trail="' + f.intervention_id + '">' +
+        (f.status === 'Resolved' ? 'Review trail' : 'View trail') + '</button> ';
+    }
+    actions += '<button type="button" class="btn btn-secondary btn-sm" data-view-enrolment="' + en.id + '">Profile</button>';
+    return actions;
+  }
+
   function renderAlerts() {
     var d = db();
-    var flags = (d.teacher_concerns || []).filter(function(f) {
-      if (f.status !== 'Open') return false;
-      var en = SptStore.byId(d.enrolments, f.enrolment_id);
-      return en && SptStore.canViewEnrolment(d, en);
-    }).sort(function(a, b) { return (b.created_at || '').localeCompare(a.created_at || ''); });
-    var html = alertStripHtml() + '<div class="page-head"><h1>Teacher concern alerts</h1><p>Record what action you have taken on each new flag. The pupil stays flagged as <strong>Ongoing</strong> on tracking until you close the concern from the intervention trail.</p></div>';
+    var flags = SptConcerns.sortForAlertsList(SptConcerns.allViewableFlags(d));
+    var openN = flags.filter(function(f) { return f.status === 'Open'; }).length;
+    var ongoingN = flags.filter(function(f) { return f.status === 'Ongoing'; }).length;
+    var resolvedN = flags.filter(function(f) { return f.status === 'Resolved'; }).length;
+    var html = alertStripHtml() + '<div class="page-head"><h1>Teacher concern alerts</h1>' +
+      '<p>All concerns in one place — newest first within each group. Take action on <strong>Open</strong> flags; ' +
+      '<strong>Ongoing</strong> stays on tracking until you close the concern; <strong>Resolved</strong> records are kept at the bottom for review.</p></div>' +
+      '<div class="concern-legend">' +
+      '<span class="concern-legend-item concern-legend-open">Open — needs action</span>' +
+      '<span class="concern-legend-item concern-legend-ongoing">Ongoing — support in progress</span>' +
+      '<span class="concern-legend-item concern-legend-resolved">Resolved — archived for review</span></div>';
     var alertRows = '';
+    var lastStatus = null;
     flags.forEach(function(f) {
       var en = SptStore.byId(d.enrolments, f.enrolment_id);
-      alertRows += '<tr class="row-flagged"><td class="col-pupil">' + esc(SptStore.pupilName(d, en.pupil_id)) + '</td>' +
+      if (!en) return;
+      if (f.status !== lastStatus) {
+        var sectionLabel = f.status === 'Open' ? 'Awaiting your action' :
+          f.status === 'Ongoing' ? 'Ongoing support' : 'Resolved — review anytime';
+        alertRows += '<tr class="concern-section-row"><td colspan="9">' + esc(sectionLabel) + '</td></tr>';
+        lastStatus = f.status;
+      }
+      var activity = SptConcerns.flagActivityDate(f);
+      alertRows += '<tr class="' + SptConcerns.alertRowClass(f.status) + '">' +
+        '<td class="col-pupil">' + esc(SptStore.pupilName(d, en.pupil_id)) + '</td>' +
         '<td>' + esc(SptStore.courseName(d, en.course_id)) + '</td>' +
         '<td>' + esc(SptStore.teacherName(d, f.raised_by_teacher_id)) + '</td>' +
-        '<td>' + esc(f.category) + '</td><td>' + esc(f.comment) + '</td>' +
+        '<td>' + badge(f.status) + '</td>' +
+        '<td>' + esc(f.category) + '</td>' +
+        '<td>' + esc(f.comment) + '</td>' +
         '<td class="cell-num">' + esc((f.created_at || '').slice(0, 10)) + '</td>' +
-        '<td>' + (role().canResolveFlags ?
-          '<button type="button" class="btn btn-sm" data-action-flag="' + f.id + '">Take action</button> ' +
-          '<button type="button" class="btn btn-secondary btn-sm" data-view-enrolment="' + en.id + '">Profile</button>' : '') +
-        '</td></tr>';
+        '<td class="cell-num">' + esc((activity || '').slice(0, 10)) + '</td>' +
+        '<td>' + concernAlertActionsHtml(f, en) + '</td></tr>';
     });
-    if (!flags.length) alertRows = '<tr><td colspan="7" class="empty">No open teacher concerns.</td></tr>';
-    html += sheetPanel('Open alerts', flags.length + ' flags', 'Document your response — the teacher who raised the flag will be notified', '<table class="data-table"><thead><tr>' +
-      '<th class="col-pupil">Pupil</th><th>Course</th><th>Teacher</th><th>Category</th><th>Comment</th><th>Raised</th><th>Actions</th></tr></thead><tbody>' +
+    if (!alertRows) {
+      alertRows = '<tr><td colspan="9" class="empty">No teacher concerns recorded yet.</td></tr>';
+    }
+    html += sheetPanel('Concern register', openN + ' open · ' + ongoingN + ' ongoing · ' + resolvedN + ' resolved',
+      'Red = new · Amber = ongoing · Green = closed',
+      '<table class="data-table concern-alerts-table"><thead><tr>' +
+      '<th class="col-pupil">Pupil</th><th>Course</th><th>Teacher</th><th>Status</th><th>Category</th><th>Comment</th>' +
+      '<th>Raised</th><th>Last update</th><th>Actions</th></tr></thead><tbody>' +
       alertRows + '</tbody></table>');
     return html;
   }
@@ -2421,8 +2454,9 @@
       '<strong>Do not include sensitive or personal information</strong> — e.g. medical details, ' +
       'safeguarding, or child protection matters.</p>' +
       '<form id="flag-form" class="form-grid"><div><label>Category</label><select name="category">' + cats + '</select></div>' +
-      '<div><label>Comment</label><textarea name="comment" required ' +
-      'placeholder="Brief concern for the Faculty Head (no sensitive information)"></textarea></div></form>',
+      '<div><label>What is the concern?</label><textarea name="comment" required rows="4" ' +
+      'placeholder="e.g. Missing two folio deadlines, or attendance dropping in TP2"></textarea></div></form>' +
+      '<p class="cell-hint">Your faculty head will be alerted. Choose the closest category, then describe the concern in your own words.</p>',
       '<button type="button" class="btn btn-secondary" id="modal-cancel">Cancel</button>' +
       '<button type="button" class="btn" id="flag-submit">Submit flag</button>');
     document.getElementById('flag-submit').onclick = function() {
