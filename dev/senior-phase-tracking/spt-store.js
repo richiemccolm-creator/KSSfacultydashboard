@@ -281,7 +281,19 @@
     if (db.version < 18) {
       (db.attendance_records || []).forEach(function(a) {
         if (a.attendance_score != null && global.SptWorkingGrade) {
-          a.attendance_score = global.SptWorkingGrade.migrateLegacyScore(a.attendance_score);
+          var en18 = byId(db.enrolments, a.enrolment_id);
+          var course18 = en18 ? byId(db.courses, en18.course_id) : null;
+          a.attendance_score = global.SptWorkingGrade.migrateLegacyScore(a.attendance_score, course18);
+        }
+      });
+    }
+    if (db.version < 19) {
+      (db.attendance_records || []).forEach(function(a) {
+        if (a.attendance_score == null || !global.SptWorkingGrade) return;
+        var en19 = byId(db.enrolments, a.enrolment_id);
+        var course19 = en19 ? byId(db.courses, en19.course_id) : null;
+        if (!global.SptWorkingGrade.isValidScore(a.attendance_score, course19)) {
+          a.attendance_score = global.SptWorkingGrade.migrateLegacyScore(a.attendance_score, course19);
         }
       });
     }
@@ -652,7 +664,15 @@
 
   function upsertAttendance(db, enrolmentId, trackingPointId, score) {
     var parsed = score === '' || score == null ? null : parseInt(score, 10);
-    if (parsed != null && (parsed < 1 || parsed > 8)) return db;
+    if (parsed != null) {
+      var en = byId(db.enrolments, enrolmentId);
+      var course = en ? byId(db.courses, en.course_id) : null;
+      if (global.SptWorkingGrade) {
+        if (!global.SptWorkingGrade.isValidScore(parsed, course)) return db;
+      } else if (parsed < 1 || parsed > 9) {
+        return db;
+      }
+    }
     var existing = (db.attendance_records || []).find(function(a) {
       return a.enrolment_id === enrolmentId && a.tracking_point_id === trackingPointId;
     });

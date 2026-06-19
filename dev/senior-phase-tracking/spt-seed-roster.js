@@ -387,7 +387,12 @@
     var trackingPoints = (db.school_tracking_points || []).slice().sort(function(a, b) {
       return (a.tracking_point_date || '').localeCompare(b.tracking_point_date || '');
     });
-    function seedWgScore(en, tpi) {
+    function seedWgScore(en, tpi, course) {
+      if (global.SptEvidence && global.SptEvidence.isPassFailCourse(course)) {
+        if (en.risk_status === 'Red') return 8;
+        if (en.risk_status === 'Amber') return 7;
+        return 6;
+      }
       if (en.risk_status === 'Red') return tpi === 2 ? 7 : 6;
       if (en.risk_status === 'Amber') return 5;
       return 4;
@@ -396,12 +401,13 @@
     newEnrolments.forEach(function(en, idx) {
       if (existingEnrolmentIds[en.id] && db.attendance_records.some(function(a) { return a.enrolment_id === en.id; })) return;
       changed = true;
+      var course = (db.courses || []).find(function(c) { return c.id === en.course_id; });
       trackingPoints.forEach(function(tp, tpi) {
         db.attendance_records.push({
           id: 'att-' + en.id + '-' + tpi,
           enrolment_id: en.id,
           tracking_point_id: tp.id,
-          attendance_score: seedWgScore(en, tpi),
+          attendance_score: seedWgScore(en, tpi, course),
           teacher_comment: '',
           created_at: ts,
           updated_at: ts

@@ -81,9 +81,10 @@
       lines.push(['— ' + area + ': ' + coursesForSubject(area).map(function(c) { return c.course_name; }).join(', ')]);
     });
     lines.push(['']);
-    lines.push(['Scores: Effort, Behaviour, Home Learning = 1–4. WG (working grade) = 1–8 per tracking period.']);
-    lines.push(['WG scale: 1=A1, 2=A2, 3=B1, 4=B2, 5=C1, 6=C2, 7=D, 8=No Award.']);
-    lines.push(['Internally assessed courses (Creative Industries, Film and Screen): 6=Pass, 7=Borderline Fail, 8=Not going to achieve.']);
+    lines.push(['Scores: Effort, Behaviour, Home Learning = 1–4.']);
+    lines.push(['WG (working grade) per tracking period:']);
+    lines.push(['— Exam courses (Higher, Drama, Art, etc.): 1–9 (1=A1 … 8=No Award, 9=Not presented).']);
+    lines.push(['— Film & Screen, Creative Industries, NPAs: 6–8 only (6=Pass, 7=Borderline Fail, 8=Not going to achieve).']);
     lines.push(['Concern = Open to flag (optional).']);
     lines.push(['Academic year for this workbook: ' + year]);
     return lines;

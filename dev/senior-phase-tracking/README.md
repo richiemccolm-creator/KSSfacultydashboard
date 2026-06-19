@@ -35,7 +35,7 @@ Use a local server so CSS and CSV import work correctly.
 - **Close concern** — faculty head marks **Resolved** or **No further action required** from the intervention trail to remove the flag from tracking
 - **S3 baseline risk** — risk colour activates from S3 entry baseline on N5/N4 course sheets (exam, effort, behaviour, CfE level)
 - **Intervention trail** — chronological record of support actions; add follow-up notes from the Interventions page or pupil profile
-- **Working grade (WG)** — score 1–8 per tracking period (3 TPs per year) on course pages: 1=A1 … 8=No Award. Creative Industries and Film & Screen use Pass / Borderline Fail / Not going to achieve for scores 6–8
+- **Working grade (WG)** — per tracking period (3 TPs per year): **exam courses** (Higher, Drama, Art, etc.) use 1–9 (1=A1 … 8=No Award, 9=Not presented); **Film & Screen, Creative Industries and NPAs** use **6–8 only** (6=Pass, 7=Borderline Fail, 8=Not going to achieve)
 - **Prelim marks** — per-course components (e.g. Higher Drama written + practical); enter raw marks inline on the course grid; weighted % and grade update automatically
 - **Prior attainment** — previous results including “Crashed / withdrew”
 

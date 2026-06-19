@@ -507,7 +507,7 @@
 
   function wgSelectHtml(val, course, dataAttr) {
     var cls = 'inline-select score-select wg-select ' + SptWorkingGrade.scoreClass(val, course);
-    var opts = '<option value="">—</option>' + SptWorkingGrade.SCALE.map(function(n) {
+    var opts = '<option value="">—</option>' + SptWorkingGrade.scaleForCourse(course).map(function(n) {
       var selected = val === n || parseInt(val, 10) === n;
       return '<option value="' + n + '"' + (selected ? ' selected' : '') + '>' +
         esc(SptWorkingGrade.optionText(n, course)) + '</option>';
@@ -518,7 +518,7 @@
 
   function applyWgSelectColor(el) {
     var course = wgCourseFromEl(el);
-    el.classList.remove('wg-1', 'wg-2', 'wg-3', 'wg-4', 'wg-5', 'wg-6', 'wg-7', 'wg-8', 'wg-good', 'wg-empty');
+    el.classList.remove('wg-1', 'wg-2', 'wg-3', 'wg-4', 'wg-5', 'wg-6', 'wg-7', 'wg-8', 'wg-9', 'wg-good', 'wg-empty');
     el.classList.add(SptWorkingGrade.scoreClass(el.value, course));
   }
 
@@ -640,7 +640,7 @@
       '<p><strong>What this means:</strong></p>' +
       '<ul>' +
       '<li>Score <strong>4</strong> = good / no concern for effort and behaviour</li>' +
-      '<li><strong>WG (working grade)</strong> is not changed — enter the grade the pupil is working at (1–8) separately</li>' +
+      '<li><strong>WG (working grade)</strong> is not changed — exam courses use 1–9; Film &amp; Screen, Creative Industries and NPAs use 6–8 only</li>' +
       '<li>Any existing Eff or Beh scores for this tracking period will be <strong>replaced</strong></li>' +
       '<li>After applying, change individual pupils who need a lower score (1–3)</li>' +
       '</ul></div>',
