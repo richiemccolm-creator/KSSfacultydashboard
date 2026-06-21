@@ -48,9 +48,19 @@
   }
 
   function snapshotForCloud(db) {
+    if (global.SptStore && global.SptStore.cloudSnapshot) {
+      return global.SptStore.cloudSnapshot(db);
+    }
     var copy = JSON.parse(JSON.stringify(db || {}));
     delete copy.simulated_teacher_id;
     return copy;
+  }
+
+  function workbooksDiffer(a, b) {
+    if (global.SptStore && global.SptStore.workbooksDiffer) {
+      return global.SptStore.workbooksDiffer(a, b);
+    }
+    return JSON.stringify(snapshotForCloud(a)) !== JSON.stringify(snapshotForCloud(b));
   }
 
   function cloudTimestamp(row) {
@@ -89,7 +99,10 @@
       (db.pupils || []).length * 50 +
       activeEnrol * 50 +
       (db.teachers || []).length * 5 +
-      (db.pupil_tracking_data || []).length * 2;
+      (db.pupil_tracking_data || []).length * 2 +
+      (db.enrolment_baselines || []).length * 10 +
+      (db.prelim_marks || []).length * 5 +
+      (db.attendance_records || []).length * 3;
   }
 
   function localWouldClobberRemote(local, remoteData) {
@@ -110,32 +123,6 @@
     return false;
   }
 
-  function shouldImportRemote(local, remoteData, localTs, remoteTs) {
-    if (!remoteData || !remoteHasContent(remoteData)) return false;
-    if (isEffectivelyEmpty(local)) return true;
-    if (localWouldClobberRemote(local, remoteData)) return true;
-    var localScore = cohortScore(local);
-    var remoteScore = cohortScore(remoteData);
-    if (remoteScore > localScore) return true;
-    if (localScore > remoteScore) return false;
-    if (!localTs && remoteTs) return true;
-    if (localTs && !remoteTs) return false;
-    return remoteTs > localTs;
-  }
-
-  function shouldPushLocal(local, remoteData, localTs, remoteTs) {
-    if (!local || isEffectivelyEmpty(local)) return false;
-    if (!remoteData || !remoteHasContent(remoteData)) return true;
-    if (localWouldClobberRemote(local, remoteData)) return false;
-    var localScore = cohortScore(local);
-    var remoteScore = cohortScore(remoteData);
-    if (localScore > remoteScore) return true;
-    if (localScore < remoteScore) return false;
-    if (!remoteTs) return true;
-    if (!localTs) return false;
-    return localTs > remoteTs;
-  }
-
   function fetchRemote() {
     return getSession().then(function(session) {
       if (!session) return { session: null, row: null };
@@ -150,6 +137,11 @@
     });
   }
 
+  function mergeWithRemote(local, remoteData) {
+    if (!global.SptStore || !global.SptStore.mergeWorkbooks || !remoteData) return local;
+    return global.SptStore.mergeWorkbooks(local, remoteData);
+  }
+
   function pushRemote(db) {
     return getSession().then(function(session) {
       if (!session) {
@@ -157,19 +149,31 @@
         return false;
       }
       setStatus('syncing');
-      var payload = {
-        id: WORKBOOK_ID,
-        data: snapshotForCloud(db),
-        updated_at: new Date().toISOString(),
-        updated_by: session.user.id
-      };
-      return global.window.supabase.from('senior_phase_workbook')
-        .upsert(payload, { onConflict: 'id' })
-        .then(function(res) {
-          if (res.error) throw res.error;
-          setStatus('synced');
-          return true;
-        });
+      return fetchRemote().then(function(fetchResult) {
+        var remoteData = fetchResult.row && fetchResult.row.data &&
+          typeof fetchResult.row.data === 'object' ? fetchResult.row.data : null;
+        var toPush = db;
+        if (remoteData && remoteHasContent(remoteData)) {
+          toPush = mergeWithRemote(db, remoteData);
+          if (workbooksDiffer(toPush, db) && global.SptStore) {
+            global.SptStore.save(toPush, { localOnly: true });
+            if (global.SptRisk) global.SptRisk.recalculateAll(toPush);
+          }
+        }
+        var payload = {
+          id: WORKBOOK_ID,
+          data: snapshotForCloud(toPush),
+          updated_at: new Date().toISOString(),
+          updated_by: session.user.id
+        };
+        return global.window.supabase.from('senior_phase_workbook')
+          .upsert(payload, { onConflict: 'id' })
+          .then(function(res) {
+            if (res.error) throw res.error;
+            setStatus('synced');
+            return true;
+          });
+      });
     }).catch(function(err) {
       setStatus('error', err && err.message ? err.message : String(err));
       return false;
@@ -246,7 +250,7 @@
       var changed = false;
 
       if (remoteData && remoteHasContent(remoteData)) {
-        if (shouldImportRemote(local, remoteData, localTs, remoteTs)) {
+        if (isEffectivelyEmpty(local) || localWouldClobberRemote(local, remoteData)) {
           global.SptStore.importCloudSnapshot(remoteData, { cloudUpdatedAt: remoteTs });
           changed = true;
           if (localWouldClobberRemote(local, remoteData)) {
@@ -254,13 +258,24 @@
           } else {
             setStatus('synced', changed ? 'Loaded latest workbook from cloud.' : null);
           }
-        } else if (shouldPushLocal(local, remoteData, localTs, remoteTs)) {
-          return pushRemote(local).then(function() {
-            finishHydrate(callback, false);
-            return false;
-          });
         } else {
-          setStatus('synced');
+          var merged = mergeWithRemote(local, remoteData);
+          var mergedChanged = workbooksDiffer(merged, local);
+          var remoteChanged = workbooksDiffer(merged, remoteData);
+          if (mergedChanged) {
+            global.SptStore.importCloudSnapshot(merged, {
+              cloudUpdatedAt: remoteTs > localTs ? remoteTs : localTs
+            });
+            changed = true;
+          }
+          if (remoteChanged) {
+            return pushRemote(global.SptStore.load()).then(function() {
+              var msg = mergedChanged ? 'Merged tracking entries from cloud.' : null;
+              finishHydrate(callback, changed, msg);
+              return changed;
+            });
+          }
+          setStatus('synced', mergedChanged ? 'Merged tracking entries from cloud.' : null);
         }
       } else if (local && cohortScore(local) > 0) {
         return pushRemote(local).then(function() {

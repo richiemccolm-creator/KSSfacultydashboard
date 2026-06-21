@@ -39,6 +39,176 @@
     return db;
   }
 
+  function recordTs(r) {
+    return String((r && r.updated_at) || (r && r.created_at) || '').trim();
+  }
+
+  function tsNewer(a, b) {
+    return recordTs(a) >= recordTs(b);
+  }
+
+  function mergeById(localArr, remoteArr) {
+    var map = {};
+    (localArr || []).forEach(function(r) {
+      if (r && r.id) map[r.id] = r;
+    });
+    (remoteArr || []).forEach(function(r) {
+      if (!r || !r.id) return;
+      var existing = map[r.id];
+      if (!existing || tsNewer(r, existing)) map[r.id] = r;
+    });
+    return Object.keys(map).map(function(k) { return map[k]; });
+  }
+
+  function mergeFieldRecords(a, b, fields) {
+    if (!a) return b ? Object.assign({}, b) : null;
+    if (!b) return Object.assign({}, a);
+    var out = Object.assign({}, a, { id: a.id || b.id });
+    fields.forEach(function(f) {
+      var av = a[f];
+      var bv = b[f];
+      var aSet = av != null && av !== '';
+      var bSet = bv != null && bv !== '';
+      if (aSet && !bSet) out[f] = av;
+      else if (!aSet && bSet) out[f] = bv;
+      else if (aSet && bSet) out[f] = tsNewer(a, b) ? av : bv;
+    });
+    out.updated_at = tsNewer(a, b) ? (a.updated_at || b.updated_at) : (b.updated_at || a.updated_at);
+    return out;
+  }
+
+  function mergeByCompositeKey(localArr, remoteArr, keyFn, mergeFn) {
+    var map = {};
+    (localArr || []).forEach(function(r) {
+      if (!r) return;
+      var k = keyFn(r);
+      if (k) map[k] = r;
+    });
+    (remoteArr || []).forEach(function(r) {
+      if (!r) return;
+      var k = keyFn(r);
+      if (!k) return;
+      map[k] = map[k] ? mergeFn(map[k], r) : r;
+    });
+    return Object.keys(map).map(function(k) { return map[k]; });
+  }
+
+  var BASELINE_MERGE_FIELDS = [
+    's3_exam_raw', 's3_exam_mark', 's3_exam_grade', 'effort', 'behaviour',
+    'homelearning', 'progress', 'cfe_level', 'source', 'notes', 'locked_at'
+  ];
+
+  function mergeBaselines(local, remote) {
+    return mergeByCompositeKey(local, remote, function(r) { return r.enrolment_id; }, function(a, b) {
+      var merged = mergeFieldRecords(a, b, BASELINE_MERGE_FIELDS);
+      merged.enrolment_id = a.enrolment_id || b.enrolment_id;
+      merged.id = a.id || b.id;
+      return merged;
+    });
+  }
+
+  function mergePrelimMarks(local, remote) {
+    return mergeByCompositeKey(local, remote, function(r) {
+      return r.enrolment_id + '|' + r.prelim_component_id;
+    }, function(a, b) {
+      var merged = mergeFieldRecords(a, b, ['raw_mark']);
+      merged.enrolment_id = a.enrolment_id || b.enrolment_id;
+      merged.prelim_component_id = a.prelim_component_id || b.prelim_component_id;
+      merged.id = a.id || b.id;
+      return merged;
+    });
+  }
+
+  function mergeTrackingData(local, remote) {
+    return mergeByCompositeKey(local, remote, function(r) {
+      return r.enrolment_id + '|' + r.tracking_point_id;
+    }, function(a, b) {
+      var merged = mergeFieldRecords(a, b, ['effort', 'behaviour', 'imported_from_school_tracking', 'import_batch_id']);
+      merged.enrolment_id = a.enrolment_id || b.enrolment_id;
+      merged.tracking_point_id = a.tracking_point_id || b.tracking_point_id;
+      merged.id = a.id || b.id;
+      return merged;
+    });
+  }
+
+  function mergeAttendance(local, remote) {
+    return mergeByCompositeKey(local, remote, function(r) {
+      return r.enrolment_id + '|' + r.tracking_point_id;
+    }, function(a, b) {
+      var merged = mergeFieldRecords(a, b, ['attendance_score', 'teacher_comment']);
+      merged.enrolment_id = a.enrolment_id || b.enrolment_id;
+      merged.tracking_point_id = a.tracking_point_id || b.tracking_point_id;
+      merged.id = a.id || b.id;
+      return merged;
+    });
+  }
+
+  function mergePriorAttainment(local, remote) {
+    return mergeByCompositeKey(local, remote, function(r) {
+      return r.pupil_id + '|' + r.subject_area + '|' + (r.qualification_year || '');
+    }, function(a, b) {
+      var merged = mergeFieldRecords(a, b, [
+        'qualification_level', 'result_grade', 'pathway_status', 'crashing_dismissed', 'notes'
+      ]);
+      merged.pupil_id = a.pupil_id || b.pupil_id;
+      merged.subject_area = a.subject_area || b.subject_area;
+      merged.qualification_year = a.qualification_year || b.qualification_year;
+      merged.id = a.id || b.id;
+      return merged;
+    });
+  }
+
+  function mergeEvidenceBank(local, remote) {
+    return mergeByCompositeKey(local, remote, function(r) {
+      return r.enrolment_id + '|' + (r.unit_code || r.id);
+    }, function(a, b) {
+      var merged = mergeFieldRecords(a, b, [
+        'evidence_status', 'notes', 'date_banked', 'verified_by_teacher_id', 'verification_status'
+      ]);
+      merged.enrolment_id = a.enrolment_id || b.enrolment_id;
+      merged.unit_code = a.unit_code || b.unit_code;
+      merged.id = a.id || b.id;
+      return merged;
+    });
+  }
+
+  function mergeWorkbooks(local, remote) {
+    if (!remote) return local ? migrate(JSON.parse(JSON.stringify(local))) : null;
+    if (!local) return migrate(JSON.parse(JSON.stringify(remote)));
+    var base = JSON.parse(JSON.stringify(local));
+    var setupTables = [
+      'teachers', 'classes', 'pupils', 'enrolments', 'courses',
+      'assessment_points', 'school_tracking_points', 'prelim_components'
+    ];
+    setupTables.forEach(function(table) {
+      base[table] = mergeById(base[table], remote[table]);
+    });
+    base.enrolment_baselines = mergeBaselines(base.enrolment_baselines, remote.enrolment_baselines);
+    base.prelim_marks = mergePrelimMarks(base.prelim_marks, remote.prelim_marks);
+    base.pupil_tracking_data = mergeTrackingData(base.pupil_tracking_data, remote.pupil_tracking_data);
+    base.attendance_records = mergeAttendance(base.attendance_records, remote.attendance_records);
+    base.prior_attainment = mergePriorAttainment(base.prior_attainment, remote.prior_attainment);
+    base.evidence_bank = mergeEvidenceBank(base.evidence_bank, remote.evidence_bank);
+    [
+      'pupil_assessment_results', 'teacher_concerns', 'interventions',
+      'intervention_trail', 'concern_feedback', 'level_changes', 'import_batches'
+    ].forEach(function(table) {
+      base[table] = mergeById(base[table], remote[table]);
+    });
+    base.updated_at = recordTs(local) >= recordTs(remote) ? local.updated_at : remote.updated_at;
+    return migrate(base);
+  }
+
+  function cloudSnapshot(db) {
+    var copy = JSON.parse(JSON.stringify(db || {}));
+    delete copy.simulated_teacher_id;
+    return copy;
+  }
+
+  function workbooksDiffer(a, b) {
+    return JSON.stringify(cloudSnapshot(a)) !== JSON.stringify(cloudSnapshot(b));
+  }
+
   function examDefaultsForSlug(slug) {
     var byCourse = (global.SptConfig && global.SptConfig.EXAM_DEFAULTS_BY_COURSE) || {};
     return byCourse[slug] || {};
@@ -1149,6 +1319,9 @@
     load: load,
     save: save,
     importCloudSnapshot: importCloudSnapshot,
+    mergeWorkbooks: mergeWorkbooks,
+    workbooksDiffer: workbooksDiffer,
+    cloudSnapshot: cloudSnapshot,
     ensure: ensure,
     reset: reset,
     uid: uid,
