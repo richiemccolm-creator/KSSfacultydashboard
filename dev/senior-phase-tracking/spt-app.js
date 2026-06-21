@@ -1033,6 +1033,218 @@
     ];
   }
 
+  function shortTeacherName(name) {
+    var parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return '—';
+    if (parts.length === 1) return parts[0];
+    return parts[0] + ' ' + parts[parts.length - 1].charAt(0) + '.';
+  }
+
+  function daysSince(iso) {
+    if (!iso) return 0;
+    return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86400000));
+  }
+
+  function concernCellHtml(flags) {
+    if (!flags || !flags.length) return '—';
+    var primary = flags.find(function(f) { return f.status === 'Open'; }) || flags[0];
+    var snippet = primary.comment || '';
+    if (snippet.length > 36) snippet = snippet.slice(0, 33) + '…';
+    var status = SptConcerns.primaryConcernStatus(flags);
+    return badge(status) +
+      (snippet ? '<span class="concern-inline">' + esc(primary.category) + ': ' + esc(snippet) + '</span>' : '');
+  }
+
+  function concernTrendChipsInner(d) {
+    var flags = SptConcerns.allViewableFlags(d).filter(function(f) {
+      return f.status === 'Open' || f.status === 'Ongoing';
+    });
+    if (!flags.length) return '';
+    var byCat = {};
+    flags.forEach(function(f) {
+      byCat[f.category] = (byCat[f.category] || 0) + 1;
+    });
+    return Object.keys(byCat).sort(function(a, b) { return byCat[b] - byCat[a]; }).map(function(cat) {
+      return '<span class="concern-trend-chip">' + esc(cat) + ' <strong>' + byCat[cat] + '</strong></span>';
+    }).join('');
+  }
+
+  function prelimDetailForRow(d, r) {
+    if (!r.uses_exam_route) return '—';
+    var comps = SptPrelim.componentsForCourse(d, r.course.id);
+    if (!comps.length) return '—';
+    var parts = [];
+    comps.forEach(function(pc) {
+      var mark = (d.prelim_marks || []).find(function(m) {
+        return m.enrolment_id === r.enrolment.id && m.prelim_component_id === pc.id;
+      });
+      var raw = mark && mark.raw_mark != null ? mark.raw_mark : null;
+      if (raw != null && raw !== '') {
+        parts.push(SptPrelim.columnLabel(pc) + ' ' + raw + SptExamMark.componentScaleLabel(pc));
+      }
+    });
+    return parts.length ? parts.join(' · ') : '—';
+  }
+
+  function dashboardS3Cells(r, course) {
+    if (!r.shows_s3_baseline) return cellNa() + cellNa() + cellNa();
+    var b = r.s3_baseline;
+    var cfg = SptExamMark.s3ExamMarks(course);
+    var result = SptBaseline.s3ExamResult(b, course);
+    var raw = b && b.s3_exam_raw != null ? b.s3_exam_raw : '';
+    var rawDisp = raw !== '' ? (raw + '/' + cfg.paper_marks) : '—';
+    var pctDisp = result ? (result.percentage + '%') : '—';
+    var gradeDisp = result && result.grade ? gradeBandHtml(result.grade) : '—';
+    return '<td class="cell-num cell-exam-mark">' + esc(rawDisp) + '</td>' +
+      '<td class="cell-num cell-exam-pct">' + esc(pctDisp) + '</td>' +
+      '<td class="cell-grade cell-exam-grade">' + gradeDisp + '</td>';
+  }
+
+  function dashboardTpCells(d, r) {
+    var tps = SptStore.trackingPoints(d);
+    var html = '';
+    tps.forEach(function(tp, i) {
+      var att = r.attendance.find(function(a) { return a.tracking_point.id === tp.id; });
+      var wg = att && att.record ? att.record.attendance_score : '';
+      var tr = SptStore.trackingRecordFor(d, r.enrolment.id, tp.id);
+      var eff = tr ? SptStore.trackingScoreValue(tr, 'effort') : '';
+      var beh = tr ? SptStore.trackingScoreValue(tr, 'behaviour') : '';
+      html += '<td' + tpColAttrs(i, 'cell-num') + '>' + wgPillHtml(wg, r.course) + '</td>';
+      html += '<td' + tpColAttrs(i, 'cell-num') + '>' + scorePillHtml(eff) + '</td>';
+      html += '<td' + tpColAttrs(i, 'cell-num') + '>' + scorePillHtml(beh) + '</td>';
+    });
+    return html;
+  }
+
+  function renderDashboardAttention(d, allRows) {
+    var openFlags = SptConcerns.sortForAlertsList(
+      SptConcerns.allViewableFlags(d).filter(function(f) { return f.status === 'Open'; })
+    );
+    var atRisk = allRows.filter(function(r) {
+      return r.enrolment.risk_status === 'Red' || r.enrolment.risk_status === 'Amber';
+    });
+    var chips = concernTrendChipsInner(d);
+    if (!openFlags.length && !atRisk.length && !chips) return '';
+
+    var openLimit = 4;
+    var riskLimit = 4;
+    var bodyRows = '';
+    if (openFlags.length) {
+      bodyRows += '<tr class="attention-section-row"><td colspan="5">Open concerns (' + openFlags.length + ')</td></tr>';
+      openFlags.slice(0, openLimit).forEach(function(f) {
+        var en = SptStore.byId(d.enrolments, f.enrolment_id);
+        if (!en) return;
+        var comment = f.comment || '';
+        if (comment.length > 55) comment = comment.slice(0, 52) + '…';
+        bodyRows += '<tr class="concern-row-open" data-enrolment="' + en.id + '">' +
+          '<td class="col-pupil">' + esc(SptStore.pupilName(d, en.pupil_id)) + '</td>' +
+          '<td>' + esc(SptStore.courseName(d, en.course_id)) + '</td>' +
+          '<td>' + badge(f.category) + '</td>' +
+          '<td class="concern-snippet">' + esc(comment) + '</td>' +
+          '<td class="cell-num">' + esc(shortTeacherName(SptStore.teacherName(d, f.raised_by_teacher_id))) +
+          ' · ' + daysSince(f.created_at) + 'd</td></tr>';
+      });
+    }
+    if (atRisk.length) {
+      bodyRows += '<tr class="attention-section-row attention-section-risk"><td colspan="5">At risk (' + atRisk.length + ')</td></tr>';
+      atRisk.slice(0, riskLimit).forEach(function(r) {
+        var reasons = (r.enrolment.risk_reasons || []).join('; ');
+        if (reasons.length > 55) reasons = reasons.slice(0, 52) + '…';
+        bodyRows += '<tr data-enrolment="' + r.enrolment.id + '">' +
+          '<td class="col-pupil">' + esc(SptStore.pupilName(d, r.pupil.id)) + '</td>' +
+          '<td>' + esc(r.course.course_name) + '</td>' +
+          '<td>' + badge(r.enrolment.risk_status) + '</td>' +
+          '<td class="cell-risk-reason">' + esc(reasons || '—') + '</td>' +
+          '<td class="cell-num">' + esc(r.enrolment.latest_working_grade || '—') +
+          ' · ' + esc(r.prelim_result || '—') + '</td></tr>';
+      });
+    }
+
+    var links = [];
+    if (openFlags.length > openLimit) {
+      links.push('<button type="button" class="linkish" data-route="alerts">' + openFlags.length + ' concerns</button>');
+    } else if (openFlags.length) {
+      links.push('<button type="button" class="linkish" data-route="alerts">Alerts</button>');
+    }
+    if (atRisk.length > riskLimit) {
+      links.push('<span class="cell-hint">' + atRisk.length + ' at risk</span>');
+    }
+
+    return '<div class="attention-panel attention-panel-combined">' +
+      '<div class="attention-panel-head">' +
+      '<h3>Needs attention</h3>' +
+      (chips ? '<div class="attention-trend-chips">' + chips + '</div>' : '') +
+      (links.length ? '<span class="attention-links">' + links.join(' · ') + '</span>' : '') +
+      '</div>' +
+      '<div class="attention-panel-body attention-panel-scroll">' +
+      '<table class="data-table data-table-compact attention-table">' +
+      '<thead><tr><th class="col-pupil">Pupil</th><th>Course</th><th>Status</th><th>Detail</th><th>Notes</th></tr></thead>' +
+      '<tbody>' + bodyRows + '</tbody></table></div></div>';
+  }
+
+  function renderDashboardFullGrid(d, rows) {
+    var tps = SptStore.trackingPoints(d);
+    var colCount = 5 + 3 + 4 + (tps.length * 3) + 6;
+    var headGroup = '<tr class="head-group">' +
+      '<th class="col-pupil" rowspan="2">Pupil</th><th rowspan="2">Yr</th><th rowspan="2">Course</th>' +
+      '<th rowspan="2">Lvl</th><th rowspan="2">Teacher</th>' +
+      '<th colspan="3" class="s3-exam-head">S3</th>' +
+      '<th rowspan="2">Prior</th><th rowspan="2">Path</th><th rowspan="2">Units</th>' +
+      '<th rowspan="2">Concern</th>';
+    tps.forEach(function(tp, i) {
+      headGroup += '<th colspan="3" class="tp-group-head ' + tpBandClass(i) + tpStartClass(i) + '">TP' + (i + 1) + '</th>';
+    });
+    headGroup += '<th rowspan="2">Prelim</th><th rowspan="2">Pre %</th><th rowspan="2">Pre gr</th>' +
+      '<th rowspan="2">Wkg</th><th rowspan="2">Tgt</th><th rowspan="2">Risk</th></tr>';
+    var headSub = '<tr class="head-sub"><th>Mark</th><th>%</th><th>Gr</th>';
+    tps.forEach(function(_, i) {
+      headSub += '<th' + tpColAttrs(i, '') + '>WG</th><th' + tpColAttrs(i, '') + '>Eff</th><th' + tpColAttrs(i, '') + '>Beh</th>';
+    });
+    headSub += '</tr>';
+
+    var bodyRows = '';
+    if (!rows.length) {
+      bodyRows = '<tr><td colspan="' + colCount + '" class="empty">' + dashboardEmptyMessage() + '</td></tr>';
+    }
+    rows.forEach(function(r) {
+      var prelimDetail = prelimDetailForRow(d, r);
+      var prelimPct = '—';
+      var prelimGr = '—';
+      if (r.prelim_summary) {
+        prelimPct = r.prelim_summary.percentage + '%';
+        prelimGr = r.prelim_summary.grade_band ? gradeBandHtml(r.prelim_summary.grade_band) : '—';
+      } else if (r.uses_exam_route && r.prelim_result) {
+        prelimPct = r.prelim_result;
+      }
+      var priorCell = r.shows_prior_entry ? esc(r.prior_display.grade) : '—';
+      var pathwayCell = r.shows_prior_entry
+        ? (r.crashing_subject ? badge('Crashing subject') : badge(r.prior_display.pathway))
+        : '—';
+      var unitsCell = r.uses_evidence_bank ? (r.units_banked + '/' + r.units_total) : '—';
+      bodyRows += '<tr class="' + (r.open_flag_count ? 'row-flagged' : '') + '" data-enrolment="' + r.enrolment.id + '">' +
+        '<td class="col-pupil">' + esc(SptStore.pupilName(d, r.pupil.id)) + '</td>' +
+        '<td class="cell-num">' + esc(r.pupil.year_group) + '</td>' +
+        '<td>' + esc(r.course.course_name) + '</td>' +
+        '<td>' + esc(r.enrolment.current_level) + '</td>' +
+        '<td>' + esc(shortTeacherName(r.teacher_name)) + '</td>';
+      bodyRows += dashboardS3Cells(r, r.course);
+      bodyRows += '<td class="cell-grade">' + priorCell + '</td>' +
+        '<td>' + pathwayCell + '</td>' +
+        '<td class="cell-num">' + esc(unitsCell) + '</td>' +
+        '<td class="cell-concern">' + concernCellHtml(r.open_flags) + '</td>';
+      bodyRows += dashboardTpCells(d, r);
+      bodyRows += '<td class="cell-prelim-detail">' + esc(prelimDetail) + '</td>' +
+        '<td class="cell-num cell-prelim-pct">' + esc(prelimPct) + '</td>' +
+        '<td class="cell-grade">' + prelimGr + '</td>' +
+        '<td class="cell-grade">' + esc(r.uses_exam_route ? (r.enrolment.latest_working_grade || '—') :
+          (r.uses_evidence_bank ? r.units_banked + '/' + r.units_total : '—')) + '</td>' +
+        '<td class="cell-grade">' + esc(r.enrolment.target_grade || '—') + '</td>' +
+        '<td>' + badge(r.enrolment.risk_status) + '</td></tr>';
+    });
+    return '<table class="data-table data-table-full dashboard-full-grid"><thead>' +
+      headGroup + headSub + '</thead><tbody>' + bodyRows + '</tbody></table>';
+  }
+
   function dashboardEmptyMessage() {
     if (!role().canSetup) {
       return 'No tracking data yet. Your faculty head will set up teachers, classes, and enrolments.';
@@ -1048,53 +1260,16 @@
     var rows = applyFilters(allRows);
     var html = alertStripHtml() + '<div class="dashboard-wrap">';
     html += '<div class="dashboard-head">' +
-      '<div class="page-head page-head-compact"><h1>Senior Phase Dashboard</h1>' +
-      '<p class="page-sub">Flagged pupils first · overview only — enter data on ' +
-      '<button type="button" class="linkish" data-route="courses">Enter tracking</button></p></div>';
-    html += '<div class="summary-row summary-row-compact">' + summaryCards(rows).map(function(c) {
+      '<div class="page-head page-head-compact"><h1>Senior Phase Dashboard</h1></div>' +
+      '<div class="summary-row summary-row-compact">' + summaryCards(allRows).map(function(c) {
       return '<div class="summary-card ' + c.cls + '"><div class="val">' + c.val + '</div><div class="lbl">' + esc(c.lbl) + '</div></div>';
     }).join('') + '</div></div>';
+    html += renderDashboardAttention(d, allRows);
     html += filtersHtml(d,
       '<div class="filter-field"><label>Flagged</label><select data-filter="flagged"><option value="">All</option><option value="yes">Open flags only</option></select></div>',
       filterTeachers);
-    var bodyRows = '';
-    if (!rows.length) {
-      bodyRows = '<tr><td colspan="14" class="empty">' + dashboardEmptyMessage() + '</td></tr>';
-    }
-    rows.forEach(function(r) {
-      var wgCells = r.attendance.map(function(a) {
-        var v = a.record ? a.record.attendance_score : '';
-        return '<td class="cell-num">' + wgPillHtml(v, r.course) + '</td>';
-      }).join('');
-      var entryCell = '—';
-      if (r.shows_s3_baseline && r.s3_baseline) {
-        entryCell = 'S3 ' + SptBaseline.formatS3ExamDisplay(r.s3_baseline, r.course) + ' · CfE ' + (r.s3_baseline.cfe_level || '—');
-      } else if (r.shows_prior_entry) {
-        entryCell = (r.prior_display.grade || '—') + ' · ' +
-          (r.crashing_subject ? 'Crashing subject' : (r.prior_display.pathway || '—'));
-      } else if (r.uses_evidence_bank) {
-        entryCell = r.units_banked + '/' + r.units_total + ' units';
-      }
-      bodyRows += '<tr class="' + (r.open_flag_count ? 'row-flagged' : '') + '" data-enrolment="' + r.enrolment.id + '">' +
-        '<td class="col-pupil">' + esc(SptStore.pupilName(d, r.pupil.id)) + '</td>' +
-        '<td class="cell-num">' + esc(r.pupil.year_group) + '</td>' +
-        '<td>' + esc(r.course.course_name) + '</td>' +
-        '<td>' + esc(r.enrolment.current_level) + '</td>' +
-        '<td>' + esc(r.class_name) + '</td>' +
-        '<td>' + esc(r.teacher_name) + '</td>' +
-        '<td class="cell-entry">' + esc(entryCell) + '</td>' +
-        '<td>' + concernBadgeHtml(r.open_flags) + '</td>' +
-        wgCells +
-        '<td class="cell-grade">' + esc(r.uses_exam_route ? (r.prelim_result || '—') : '—') + '</td>' +
-        '<td class="cell-grade">' + esc(r.uses_exam_route ? (r.enrolment.latest_working_grade || '—') : (r.uses_evidence_bank ? r.units_banked + '/' + r.units_total : '—')) + '</td>' +
-        '<td>' + badge(r.enrolment.risk_status) + '</td></tr>';
-    });
-    var tbl = '<table class="data-table data-table-compact"><thead><tr>' +
-      '<th class="col-pupil">Pupil</th><th>Yr</th><th>Course</th><th>Level</th><th>Class</th><th>Teacher</th>' +
-      '<th>Entry</th><th>Flag</th>' +
-      '<th>WG1</th><th>WG2</th><th>WG3</th><th>Prelim</th><th>Working</th><th>Risk</th></tr></thead><tbody>' +
-      bodyRows + '</tbody></table>';
-    html += sheetPanel('Pupil register', rows.length + ' pupils', '', tbl);
+    html += sheetPanel('Faculty register', rows.length + ' pupils', '',
+      renderDashboardFullGrid(d, rows));
     html += '</div>';
     return html;
   }

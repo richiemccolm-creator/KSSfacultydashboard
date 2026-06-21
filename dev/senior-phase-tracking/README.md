@@ -12,6 +12,11 @@ npx serve . -l 4173
 
 Use a local server so CSS and CSV import work correctly.
 
+## New in v6
+
+- **Faculty dashboard** — open concerns panel (pupil names, category, comment, days open), at-risk snapshot with reasons, concern category trends
+- **Full faculty register** — spreadsheet view on Dashboard: S3 exam mark/%, prelim component marks, WG/Eff/Beh per tracking period, prior attainment, units, concerns inline
+
 ## New in v5
 
 - **Mark setup panel** — at the top of each class sheet: set **Paper total** and **Scaled to** per component (Written, Practical, S3 exam)
