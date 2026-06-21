@@ -63,4 +63,5 @@
   } else {
     patchLinks();
   }
+  window.fhEmbedPatchLinks = patchLinks;
 })();
