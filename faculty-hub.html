@@ -10082,12 +10082,20 @@ function homeAnnouncementStatus(a, today){
   if(priority==='low') return 'Reminder';
   return 'Update';
 }
-function homeAnnouncementDateIso(a){
-  return String((a&&a.updated_at)||(a&&a.created_at)||'').slice(0,10);
+function homeAnnouncementCreatedIso(a){
+  return String(a&&a.created_at||'').slice(0,10);
+}
+function homeAnnouncementUpdatedIso(a){
+  return String(a&&a.updated_at||'').slice(0,10);
+}
+function homeIsNewAnnouncement(a, today){
+  return !!today && homeAnnouncementCreatedIso(a)===today;
 }
 function homeIsRecentAnnouncement(a, today, withinDays){
   withinDays=typeof withinDays==='number'?withinDays:7;
-  var d=homeAnnouncementDateIso(a);
+  var created=homeAnnouncementCreatedIso(a);
+  var updated=homeAnnouncementUpdatedIso(a);
+  var d=created||updated;
   if(!d||!today) return false;
   var t0=new Date(today+'T00:00:00');
   var t1=new Date(d+'T00:00:00');
@@ -10096,9 +10104,12 @@ function homeIsRecentAnnouncement(a, today, withinDays){
   return diff>=0&&diff<=withinDays;
 }
 function homeAnnouncementUpdatePillText(a, today){
-  var d=homeAnnouncementDateIso(a);
+  var created=homeAnnouncementCreatedIso(a);
+  var updated=homeAnnouncementUpdatedIso(a);
+  if(created===today) return 'New today';
+  var d=updated||created;
   if(!d) return 'Recently updated';
-  if(d===today) return 'New today';
+  if(updated===today) return 'Updated today';
   var t0=new Date(today+'T00:00:00');
   var t1=new Date(d+'T00:00:00');
   if(Number.isNaN(t0.getTime())||Number.isNaN(t1.getTime())) return 'Updated '+homeFormatDateHuman(d);
@@ -10106,6 +10117,12 @@ function homeAnnouncementUpdatePillText(a, today){
   if(diff===1) return 'Updated yesterday';
   if(diff>1&&diff<=7) return 'Updated '+diff+' days ago';
   return 'Updated '+homeFormatDateHuman(d);
+}
+function homeAnnouncementsExcludingFeatured(list){
+  var featured=homeFindFeaturedAnnouncement(list);
+  return (list||[]).filter(function(a){
+    return !featured || a.id!==featured.id;
+  });
 }
 function homeExtractTrackingClasses(dataBlob, subjectLabel){
   var out=[];
@@ -10221,7 +10238,7 @@ function homeRenderSuperAnnouncement(announcements, today){
   if(featured.created_at) metaParts.push('Posted '+homeFormatDateHuman(String(featured.created_at).slice(0,10)));
   if(featured.expires_at) metaParts.push('Expires '+homeFormatDateHuman(String(featured.expires_at).slice(0,10)));
   var pillText=homeAnnouncementUpdatePillText(featured, today);
-  var isNewToday=homeAnnouncementDateIso(featured)===today;
+  var isNewToday=homeIsNewAnnouncement(featured, today);
   var isRecent=homeIsRecentAnnouncement(featured, today);
   el.hidden=false;
   el.className='home-super-ann '+toneClass+(isRecent?' home-super-ann--attention':'');
@@ -10238,7 +10255,7 @@ function homeRenderSuperAnnouncement(announcements, today){
 function homeUpdateAnnouncementsCardChrome(announcements, today){
   var card=document.getElementById('homeAnnouncementsCard');
   var pill=document.getElementById('homeAnnouncementsUpdatePill');
-  var list=Array.isArray(announcements)?announcements:[];
+  var list=homeAnnouncementsExcludingFeatured(announcements);
   if(!list.length){
     if(card) card.classList.remove('home-ann-card--attention');
     if(pill){ pill.hidden=true; pill.textContent=''; pill.className='home-ann-head-pill'; }
@@ -10246,7 +10263,7 @@ function homeUpdateAnnouncementsCardChrome(announcements, today){
   }
   var latest=list[0];
   var pillText=homeAnnouncementUpdatePillText(latest, today);
-  var isNewToday=homeAnnouncementDateIso(latest)===today;
+  var isNewToday=homeIsNewAnnouncement(latest, today);
   var isRecent=homeIsRecentAnnouncement(latest, today);
   if(card) card.classList.toggle('home-ann-card--attention', isRecent);
   if(pill){
@@ -10282,10 +10299,7 @@ function homeRenderAnnouncementsList(el, announcements, today, limit){
   el.innerHTML=visible.map(function(a){ return homeAnnouncementRowHtml(a,today); }).join('');
 }
 function homeRenderAnnouncements(announcements, today){
-  var featured=homeFindFeaturedAnnouncement(announcements);
-  var cardList=(announcements||[]).filter(function(a){
-    return !featured || a.id!==featured.id;
-  });
+  var cardList=homeAnnouncementsExcludingFeatured(announcements);
   homeUpdateAnnouncementsCardChrome(announcements, today);
   homeRenderAnnouncementsList(document.getElementById('homeAnnouncements'), cardList, today, 5);
 }
