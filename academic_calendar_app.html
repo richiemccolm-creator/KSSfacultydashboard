@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Faculty Hub">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
@@ -22,6 +22,14 @@
 <script src="supabase-init.js"></script>
 <script src="allowlist-check.js"></script>
 <script src="auth-guard.js"></script>
+<script>
+  (function () {
+    try {
+      var q = new URLSearchParams(window.location.search);
+      if (q.get('embed') === '1') document.documentElement.setAttribute('data-cal-embed', '1');
+    } catch (e) {}
+  })();
+</script>
 <script src="data-service.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -31,29 +39,41 @@
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 html{font-family:Inter,sans-serif}
-body{font-family:Inter,sans-serif;background:#f4f6f8;color:#1a1a1a;padding:40px;font-weight:400}
+body{font-family:Inter,sans-serif;background:#f4f6f8;color:#1a1a1a;padding:40px;font-weight:400;padding-bottom:calc(40px + env(safe-area-inset-bottom,0px));-webkit-tap-highlight-color:transparent}
+html[data-cal-embed="1"] body{padding:10px;padding-bottom:calc(10px + env(safe-area-inset-bottom,0px))}
+@media (max-width:880px){body{padding:12px;padding-bottom:calc(12px + env(safe-area-inset-bottom,0px))}}
 button,input,select,textarea,table,th,td{font:inherit}
 h1,h2{font-weight:700;letter-spacing:-.01em}
 h3,h4,h5,h6{font-weight:600}
 h1{font-size:28px;margin-bottom:6px}
 .container{max-width:1400px;margin:auto}
 
-.year-controls{display:flex;gap:10px;margin-bottom:12px}
-.year-btn{padding:6px 12px;border:none;border-radius:6px;background:#2a3f62;color:white;cursor:pointer}
+.year-controls{display:flex;gap:10px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+.year-btn{padding:6px 12px;min-height:44px;min-width:44px;border:none;border-radius:6px;background:#2a3f62;color:white;cursor:pointer}
 .year-display{font-weight:600;font-size:14px;align-self:center}
 .search-filter{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:20px}
 .search-wrap{flex:1;min-width:200px;max-width:340px}
+@media (max-width:880px){.search-wrap{max-width:none;min-width:0;width:100%}}
 .search-wrap input{
-  width:100%;padding:8px 12px 8px 36px;border:1px solid #cbd5e0;border-radius:6px;font-size:14px;
+  width:100%;padding:10px 12px 10px 36px;min-height:44px;border:1px solid #cbd5e0;border-radius:6px;font-size:16px;
   background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='2'%3E%3Ccircle cx='11' cy='11' r='8'/%3E%3Cpath d='m21 21-4.3-4.3'/%3E%3C/svg%3E") no-repeat 10px center;
 }
 .search-wrap input::placeholder{color:#94a3b8}
 .cat-filters{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
 .cat-chip{
-  padding:6px 12px;border-radius:999px;font-size:12px;font-weight:600;
+  padding:8px 12px;min-height:44px;border-radius:999px;font-size:12px;font-weight:600;
   border:1px solid #cbd5e0;background:#fff;color:#475569;cursor:pointer;transition:all .15s;
+  display:inline-flex;align-items:center;
 }
+@media (hover:hover) and (pointer:fine){
 .cat-chip:hover{border-color:#2a3f62;color:#2a3f62}
+.event:hover{border-color:#2a3f62;box-shadow:0 2px 8px rgba(42,63,98,.12)}
+.event-actions button:hover{background:#f1f5f9}
+.event-actions .btn-del:hover{background:#fee2e2}
+.event-actions .btn-edit:hover{background:#e0f2fe;color:#0369a1}
+button:hover{opacity:0.9}
+.day:hover{background:#f0f6ff}
+}
 .cat-chip.active{background:#2a3f62;border-color:#2a3f62;color:white}
 .filter-label{font-size:12px;font-weight:600;color:#64748b;margin-right:4px}
 
@@ -64,8 +84,7 @@ h1{font-size:28px;margin-bottom:6px}
 .snapshot-item{background:#eef2f7;padding:8px 12px;border-radius:8px;font-size:12px}
 
 .upcoming-list{display:flex;flex-direction:column;gap:10px}
-.event{padding:12px;border-radius:8px;border:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;font-size:14px;cursor:pointer;position:relative}
-.event:hover{border-color:#2a3f62;box-shadow:0 2px 8px rgba(42,63,98,.12)}
+.event{padding:12px;border-radius:8px;border:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;font-size:14px;cursor:pointer;position:relative;gap:10px;flex-wrap:wrap}
 
 .badge{padding:4px 8px;border-radius:999px;font-size:11px;font-weight:600}
 .exam{background:#fdecea;color:#c0392b}
@@ -78,24 +97,22 @@ h1{font-size:28px;margin-bottom:6px}
 .training{background:#dbeafe;color:#1d4ed8}
 .cpd{background:#e0e7ff;color:#3730a3}
 .inset{background:#fce7f3;color:#9d174d}
-.event-actions{display:flex;gap:4px;align-items:center}
-.event-actions button{font-size:11px;padding:4px 8px;border-radius:4px;border:1px solid #cbd5e0;background:#fff;cursor:pointer;color:#475569}
-.event-actions button:hover{background:#f1f5f9}
+.event-actions{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+.event-actions button{font-size:11px;padding:8px 12px;min-height:44px;border-radius:6px;border:1px solid #cbd5e0;background:#fff;cursor:pointer;color:#475569}
 .event-actions .btn-del{color:#991b1b;border-color:#fca5a5}
-.event-actions .btn-del:hover{background:#fee2e2}
-.event-actions .btn-edit:hover{background:#e0f2fe;color:#0369a1}
 .event.event-past{opacity:.72;background:#f8fafc}
 .event.event-past .badge{opacity:.85}
 
 .form-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:10px}
+@media (max-width:880px){.form-grid{grid-template-columns:1fr}}
 .form-desc-label{display:block;font-size:12px;font-weight:600;color:#64748b;margin:.25rem 0 .35rem}
-.form-desc{width:100%;min-height:4rem;padding:8px;border:1px solid #cbd5e0;border-radius:6px;font-size:14px;font-family:inherit;resize:vertical;margin-bottom:10px}
-input,select{padding:8px;border:1px solid #cbd5e0;border-radius:6px;font-size:14px}
+.form-desc{width:100%;min-height:4rem;padding:10px;border:1px solid #cbd5e0;border-radius:6px;font-size:16px;font-family:inherit;resize:vertical;margin-bottom:10px}
+input,select{padding:10px;min-height:44px;border:1px solid #cbd5e0;border-radius:6px;font-size:16px}
 .event-modal{position:fixed;inset:0;z-index:100000;display:none;align-items:center;justify-content:center;padding:1rem}
 .event-modal.visible{display:flex}
 .event-modal-back{position:absolute;inset:0;background:rgba(15,23,42,.5);cursor:pointer}
 .event-modal-panel{position:relative;max-width:32rem;width:100%;max-height:85vh;overflow:auto;background:#fff;border-radius:10px;border:1px solid #e2e8f0;box-shadow:0 20px 50px rgba(0,0,0,.2);padding:1.25rem 1.5rem}
-.event-modal-close{position:absolute;top:.75rem;right:.75rem;padding:.35rem .65rem;font-size:.8rem;border:1px solid #cbd5e0;border-radius:6px;background:#f8fafc;cursor:pointer}
+.event-modal-close{position:absolute;top:.75rem;right:.75rem;padding:.5rem .75rem;min-height:44px;font-size:.8rem;border:1px solid #cbd5e0;border-radius:6px;background:#f8fafc;cursor:pointer}
 .event-modal-intro{font-size:.85rem;color:#64748b;margin:0 0 1rem;font-weight:600}
 .event-modal-block{padding-bottom:1rem;margin-bottom:1rem;border-bottom:1px solid #e2e8f0}
 .event-modal-block:last-child{border:none;margin:0;padding:0}
@@ -104,17 +121,18 @@ input,select{padding:8px;border:1px solid #cbd5e0;border-radius:6px;font-size:14
 .event-modal-desc{font-size:.9rem;line-height:1.5;white-space:pre-wrap;word-break:break-word}
 .event-modal-nodesc{font-size:.85rem;color:#94a3b8;font-style:italic;margin:0}
 .visually-hidden{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-button{padding:10px 14px;background:#2a3f62;color:white;border:none;border-radius:6px;font-weight:600;cursor:pointer}
-button:hover{opacity:0.9}
+button{padding:10px 14px;min-height:44px;background:#2a3f62;color:white;border:none;border-radius:6px;font-weight:600;cursor:pointer}
 
 .calendar{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media (max-width:1100px){.calendar{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:720px){.calendar{grid-template-columns:1fr}}
 .month{background:white;border-radius:10px;padding:10px;border:1px solid #e2e8f0}
 .month h3{font-size:14px;margin-bottom:8px}
 .weekdays,.days{display:grid;grid-template-columns:repeat(7,1fr);font-size:11px}
 .weekdays div{text-align:center;padding:3px;font-weight:600}
 
-.day{height:36px;font-size:11px;border:1px solid #edf2f7;position:relative;padding:2px}
-.day:hover{background:#f0f6ff}
+.day{height:40px;font-size:11px;border:1px solid #edf2f7;position:relative;padding:2px;display:flex;align-items:center;justify-content:center}
+@media (max-width:880px){.day{height:44px;font-size:12px}}
 .day.day-has-events{cursor:pointer}
 
 .marker{width:6px;height:6px;border-radius:50%;position:absolute;bottom:2px;left:2px}
@@ -134,8 +152,19 @@ button:hover{opacity:0.9}
 .cal-header-logo{max-width:140px;height:auto;display:block;margin-bottom:1rem}
 .tooltip .tooltip-item{font-weight:600;margin-bottom:2px}
 .tooltip .tooltip-meta{font-size:11px;color:rgba(255,255,255,.75);margin-bottom:6px}
-.cal-toast{position:fixed;bottom:1.5rem;right:1.5rem;background:#2a3f62;color:white;padding:.85rem 1.25rem;border-radius:6px;font-size:.82rem;opacity:0;transition:opacity .25s;z-index:99998;box-shadow:0 4px 12px rgba(0,0,0,.2);pointer-events:none}
+.cal-toast{position:fixed;bottom:calc(1.5rem + env(safe-area-inset-bottom,0px));right:1rem;left:auto;max-width:calc(100vw - 2rem);background:#2a3f62;color:white;padding:.85rem 1.25rem;border-radius:6px;font-size:.82rem;opacity:0;transition:opacity .25s;z-index:99998;box-shadow:0 4px 12px rgba(0,0,0,.2);pointer-events:none}
 .cal-toast.show{opacity:1}
+
+html[data-cal-embed="1"] .cal-header-logo,
+html[data-cal-embed="1"] h1,
+html[data-cal-embed="1"] .year-controls .cal-signout{display:none}
+html[data-cal-embed="1"] .card{padding:14px;margin-bottom:14px}
+html[data-cal-embed="1"] .section-title{margin-bottom:10px}
+@media (max-width:880px){
+  h1{font-size:1.35rem}
+  .card{padding:14px;margin-bottom:16px}
+  .event-modal-panel{padding:1rem 1rem 1.25rem;margin-top:env(safe-area-inset-top,0px)}
+}
 </style>
 </head>
 
@@ -150,7 +179,7 @@ button:hover{opacity:0.9}
 <button class="year-btn" onclick="changeYear(-1)">◀</button>
 <div id="yearDisplay" class="year-display"></div>
 <button class="year-btn" onclick="changeYear(1)">▶</button>
-<a href="login.html" style="margin-left:auto;font-size:.8rem;color:#2a3f62;text-decoration:none" onclick="event.preventDefault();(window.doSignOut||function(){window.location.href='login.html';})();">Sign out</a>
+<a href="login.html" class="cal-signout" style="margin-left:auto;font-size:.8rem;color:#2a3f62;text-decoration:none;min-height:44px;display:inline-flex;align-items:center" onclick="event.preventDefault();(window.doSignOut||function(){window.location.href='login.html';})();">Sign out</a>
 </div>
 
 <div class="search-filter">
@@ -234,6 +263,7 @@ let currentYear=getCurrentAcademicYear();
 let searchText='';
 let filterCategory='';
 let searchDebounce=null;
+const calFinePointer=window.matchMedia&&window.matchMedia('(hover: hover) and (pointer: fine)').matches;
 
 /* PRELOADED GLASGOW TERM DATES (example session) */
 
@@ -711,11 +741,13 @@ let tooltip=document.getElementById("tooltip");
 if(!tooltip){tooltip=document.createElement("div");tooltip.id="tooltip";tooltip.className="tooltip";document.body.appendChild(tooltip);}
 else if(tooltip.parentElement!==document.body){document.body.appendChild(tooltip);}
 
-day.addEventListener("mouseenter",()=>showTooltip(tooltip,ev,day));
-day.addEventListener("mouseleave",()=>hideTooltip(tooltip,250));
 day.addEventListener("click",function(){openEventDetailModal(ev.slice());});
 day.addEventListener("keydown",function(ke){if(ke.key==="Enter"||ke.key===" "){ke.preventDefault();openEventDetailModal(ev.slice());}});
-if(!tooltip.dataset.listenersAdded){tooltip.dataset.listenersAdded="1";tooltip.addEventListener("mouseenter",()=>{if(tooltipHideTimeout){clearTimeout(tooltipHideTimeout);tooltipHideTimeout=null;}});tooltip.addEventListener("mouseleave",()=>hideTooltip(tooltip,0));}
+if(calFinePointer){
+day.addEventListener("mouseenter",function(){showTooltip(tooltip,ev,day);});
+day.addEventListener("mouseleave",function(){hideTooltip(tooltip,250);});
+if(!tooltip.dataset.listenersAdded){tooltip.dataset.listenersAdded="1";tooltip.addEventListener("mouseenter",function(){if(tooltipHideTimeout){clearTimeout(tooltipHideTimeout);tooltipHideTimeout=null;}});tooltip.addEventListener("mouseleave",function(){hideTooltip(tooltip,0);});}
+}
 
 }
 

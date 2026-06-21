@@ -14,12 +14,16 @@
       .replace(/"/g, '&quot;');
   }
 
+  function navHref(href) {
+    return window.fhNavHref ? window.fhNavHref(href) : href;
+  }
+
   function isMobile() {
     return window.matchMedia && window.matchMedia(MOBILE_MQ).matches;
   }
 
   function isEmbed() {
-    return document.documentElement.getAttribute('data-fh-embed') === '1';
+    return window.fhNavIsEmbed ? window.fhNavIsEmbed() : document.documentElement.getAttribute('data-fh-embed') === '1';
   }
 
   function isOnFhOverview() {
@@ -30,7 +34,6 @@
   function shouldShowTopNav() {
     if (document.body.classList.contains('fh-hub-page')) {
       if (isOnFhOverview()) {
-        /* Embedded in Faculty Hub iframe: always show (iframe width jumps when parent sidebar toggles). */
         if (isEmbed()) return true;
         return isMobile();
       }
@@ -56,7 +59,7 @@
   function buildPrimaryBtn(item) {
     var active = window.fhNavIsActive(item) ? ' is-active' : '';
     return (
-      '<a class="fh-top-nav-btn' + active + '" href="' + esc(item.href) + '">' +
+      '<a class="fh-top-nav-btn' + active + '" href="' + esc(navHref(item.href)) + '">' +
       esc(item.label) +
       '</a>'
     );
@@ -65,7 +68,7 @@
   function buildMoreLink(item) {
     var active = window.fhNavIsActive(item) ? ' is-active' : '';
     return (
-      '<a class="fh-more-sheet-link' + active + '" href="' + esc(item.href) + '">' +
+      '<a class="fh-more-sheet-link' + active + '" href="' + esc(navHref(item.href)) + '">' +
       esc(item.label) +
       '</a>'
     );
@@ -83,7 +86,7 @@
 
     var backLink = onOverview
       ? ''
-      : '<a class="fh-top-nav-back" href="' + esc(fhHub.href) + '" aria-label="Back to Faculty Head Hub overview">' +
+      : '<a class="fh-top-nav-back" href="' + esc(navHref(fhHub.href)) + '" aria-label="Back to Faculty Head Hub overview">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">' +
         '<polyline points="15 18 9 12 15 6"/>' +
         '</svg>' +
@@ -106,7 +109,7 @@
       '<a class="fh-more-sheet-link fh-more-sheet-staff" href="' + esc(home.href) + '">' +
       esc(home.label) + ' (staff view)' +
       '</a>' +
-      '<a class="fh-more-sheet-link" href="' + esc(fhHub.href) + '">' +
+      '<a class="fh-more-sheet-link" href="' + esc(navHref(fhHub.href)) + '">' +
       esc(fhHub.label) + ' overview' +
       '</a>';
 
@@ -116,7 +119,7 @@
     el.setAttribute('role', 'navigation');
     el.setAttribute('aria-label', 'Faculty Head Hub');
     var overviewHome = onOverview
-      ? '<a class="fh-top-nav-home" href="' + esc(fhHub.href) + '">' +
+      ? '<a class="fh-top-nav-home" href="' + esc(navHref(fhHub.href)) + '">' +
         '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">' +
         '<path d="M3 12l9-9 9 9"/><path d="M9 21V9h6v12"/>' +
         '</svg>' +
@@ -146,6 +149,36 @@
       '<div class="fh-more-backdrop" id="fhMoreBackdrop" aria-hidden="true"></div>';
 
     return el;
+  }
+
+  function updateChromeHeight() {
+    var nav = document.getElementById('fhTopNav');
+    var card = document.querySelector('.fh-hub-page .card');
+    var cardOffset = 0;
+    if (card && nav) {
+      cardOffset = Math.max(0, card.offsetTop + card.offsetHeight - nav.offsetHeight);
+    } else if (document.body.classList.contains('fh-page-full') && nav) {
+      cardOffset = 0;
+    }
+    if (nav) {
+      document.documentElement.style.setProperty('--fh-top-nav-h', nav.offsetHeight + 'px');
+    }
+    document.documentElement.style.setProperty('--fh-card-chrome-h', cardOffset + 'px');
+  }
+
+  function observeChrome() {
+    if (typeof ResizeObserver === 'undefined') return;
+    if (window.__fhChromeObserver) {
+      window.__fhChromeObserver.disconnect();
+    }
+    var nav = document.getElementById('fhTopNav');
+    if (!nav) return;
+    window.__fhChromeObserver = new ResizeObserver(function () {
+      updateChromeHeight();
+    });
+    window.__fhChromeObserver.observe(nav);
+    var card = document.querySelector('.fh-hub-page .card');
+    if (card) window.__fhChromeObserver.observe(card);
   }
 
   function closeMore() {
@@ -179,6 +212,7 @@
 
     if (!shouldShowTopNav()) {
       document.body.classList.remove('fh-has-top-nav', 'fh-more-open', 'fh-hub-subpage');
+      document.documentElement.style.removeProperty('--fh-top-nav-h');
       return;
     }
 
@@ -206,6 +240,10 @@
     });
 
     if (window.fhEmbedPatchLinks) window.fhEmbedPatchLinks();
+    requestAnimationFrame(function () {
+      updateChromeHeight();
+      observeChrome();
+    });
   }
 
   function init() {

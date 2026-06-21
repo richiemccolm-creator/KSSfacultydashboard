@@ -5,12 +5,30 @@
  * "Back to Faculty Hub" links use target="_top" to exit the iframe.
  */
 (function () {
+  var fromQuery = false;
+  var fromSession = false;
+  var pageName = '';
   try {
     var q = new URLSearchParams(window.location.search);
-    if (q.get('embed') !== '1' && q.get('embed') !== 'true') return;
+    fromQuery = q.get('embed') === '1' || q.get('embed') === 'true';
+    pageName = (window.location.pathname || '').split('/').pop() || '';
   } catch (e) {
     return;
   }
+  try {
+    if (fromQuery) {
+      sessionStorage.setItem('fh-embed', '1');
+    } else {
+      fromSession = sessionStorage.getItem('fh-embed') === '1';
+    }
+  } catch (e2) {}
+  if (!fromQuery && (pageName === 'faculty_head_hub.html' || pageName === 'faculty-hub.html')) {
+    try {
+      sessionStorage.removeItem('fh-embed');
+    } catch (e3) {}
+    return;
+  }
+  if (!fromQuery && !fromSession) return;
   /** Pages that use .dash-sidebar as primary in-app nav (not duplicate Faculty Hub chrome). */
   var path = '';
   try {
