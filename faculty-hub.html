@@ -1595,6 +1595,12 @@ a.subject-card-link{text-decoration:none;cursor:pointer}
   background:#eff6ff;color:#2f64bf;
 }
 .home-ann-head-pill--new{background:#fee2e2;color:#b91c1c}
+.home-ann-new-badge{
+  display:inline-flex;align-items:center;gap:3px;
+  padding:1px 6px;border-radius:99px;
+  background:#fee2e2;color:#b91c1c;
+  font-size:9px;font-weight:600;line-height:1.2;
+}
 @media(prefers-reduced-motion:reduce){
   .home-super-ann--attention,.home-ann-card--attention{animation:none}
 }
@@ -10077,8 +10083,7 @@ function homeExtractTimeAndLocation(ev){
 }
 function homeAnnouncementStatus(a, today){
   var priority=String(a&&a.priority||'none').toLowerCase();
-  var created=String(a&&a.created_at||'').slice(0,10);
-  if(created && created>=today) return 'New';
+  if(homeIsNewAnnouncement(a, today)) return 'New';
   if(priority==='low') return 'Reminder';
   return 'Update';
 }
@@ -10273,17 +10278,21 @@ function homeUpdateAnnouncementsCardChrome(announcements, today){
   }
 }
 function homeAnnouncementRowHtml(a, today){
+  var isNew=homeIsNewAnnouncement(a, today);
   var status=homeAnnouncementStatus(a,today);
   var isPriority=String(a&&a.priority||'none').toLowerCase()==='high';
-  var bar=status==='New'?'#b91c1c':(status==='Reminder'?'#b45309':'#cbd5e0');
+  var bar=isNew?'#b91c1c':(status==='Reminder'?'#b45309':'#cbd5e0');
   if(isPriority) bar='#b91c1c';
   var shaded=!!(a&&a.highlight_priority)&&String(a.priority||'none').toLowerCase()!=='none';
   var rowBg=shaded?'background:#fef2f2;':'';
+  var postedDate=homeFormatDateHuman(String(a.created_at||'').slice(0,10));
+  var metaLine=isNew?postedDate:(status+' \u00b7 '+postedDate);
   return '<div style="padding:11px 14px;border-bottom:.5px solid #f1f4f9;display:flex;gap:10px;'+rowBg+'">'+
     '<div style="width:3px;align-self:stretch;background:'+bar+';border-radius:99px;flex-shrink:0;"></div>'+
     '<div style="flex:1;min-width:0;"><div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;flex-wrap:wrap;">'+
+    (isNew?'<span class="home-ann-new-badge"><i class="ti ti-sparkles" style="font-size:10px;"></i>New</span>':'')+
     (isPriority?'<span style="display:inline-flex;align-items:center;gap:3px;padding:1px 6px;border-radius:99px;background:#fee2e2;color:#b91c1c;font-size:9px;font-weight:600;"><i class="ti ti-alert-circle" style="font-size:10px;"></i>Priority</span>':'')+
-    '<span style="font-size:9px;color:#94a3b8;">'+homeEsc(status)+' \u00b7 '+homeEsc(homeFormatDateHuman(String(a.created_at||'').slice(0,10)))+'</span></div>'+
+    '<span style="font-size:9px;color:#94a3b8;">'+homeEsc(metaLine)+'</span></div>'+
     '<div style="font-size:12px;font-weight:500;line-height:1.35;">'+homeEsc(a.title||'Untitled announcement')+'</div>'+
     '<div style="font-size:10px;color:#64748b;line-height:1.45;margin-top:3px;white-space:pre-wrap;">'+homeEsc(String(a.body||'No summary provided.'))+'</div></div>'+
   '</div>';
