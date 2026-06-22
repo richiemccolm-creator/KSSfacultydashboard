@@ -22,6 +22,7 @@
     hubStaffMessage: null,
     setupMessage: null,
     coursesMessage: null,
+    reportsMessage: null,
     importStep: 1,
     importSource: null,
     importPreview: null,
@@ -132,13 +133,115 @@
     state.modal = null;
   }
 
-  function canExportWorkbookBackup() {
+  function canManageWorkbookBackup() {
     var r = role();
     return !!(r.canSetup || r.canImport);
   }
 
+  function workbookBackupStats(data) {
+    var d = data || {};
+    return {
+      teachers: (d.teachers || []).length,
+      classes: (d.classes || []).length,
+      pupils: (d.pupils || []).length,
+      enrolments: (d.enrolments || []).filter(function(e) { return e && e.active_status !== false; }).length
+    };
+  }
+
+  function parseBackupPayload(parsed) {
+    if (!parsed || typeof parsed !== 'object') return { error: 'Invalid backup file — expected JSON.' };
+    if (parsed.data && typeof parsed.data === 'object') {
+      if (parsed.source && parsed.source !== 'senior-phase-tracking') {
+        return { error: 'This file is not a Senior Phase tracking backup.' };
+      }
+      return { data: parsed.data, meta: parsed };
+    }
+    if (parsed.courses || parsed.enrolments || parsed.teachers || parsed.pupils) {
+      return { data: parsed, meta: null };
+    }
+    return { error: 'Unrecognised backup format — use a file from Download full backup.' };
+  }
+
+  function applyWorkbookRestore(workbookData, meta) {
+    var current = db();
+    var preservedDevRole = current.dev_role;
+    var preservedSimTeacher = current.simulated_teacher_id;
+    SptStore.importCloudSnapshot(workbookData, { cloudUpdatedAt: new Date().toISOString() });
+    var d = SptStore.load();
+    if (preservedDevRole) d.dev_role = preservedDevRole;
+    if (preservedSimTeacher) d.simulated_teacher_id = preservedSimTeacher;
+    SptStore.save(d);
+    if (!SptConfig.useSeedData && window.SptSync && window.SptSync.flushPush) {
+      window.SptSync.flushPush(d);
+    }
+    initRoleControls();
+    var stats = workbookBackupStats(workbookData);
+    state.reportsMessage = 'Restored backup — ' + stats.pupils + ' pupils, ' +
+      stats.enrolments + ' active enrolments.';
+    if (meta && meta.exported_at) {
+      state.reportsMessage += ' (exported ' + meta.exported_at.slice(0, 10) + ')';
+    }
+    state.reportId = null;
+    render();
+    updateNavBadge();
+  }
+
+  function showRestoreBackupConfirm(workbookData, meta, filename) {
+    var currentStats = workbookBackupStats(db());
+    var newStats = workbookBackupStats(workbookData);
+    var exportedNote = '';
+    if (meta && meta.exported_at) {
+      exportedNote = '<p class="modal-note">Backup from ' + esc(meta.exported_at.slice(0, 16).replace('T', ' '));
+      if (meta.exported_by) exportedNote += ' · ' + esc(meta.exported_by);
+      exportedNote += '</p>';
+    }
+    openModal('Restore full backup?',
+      '<p><strong>This replaces all Senior Phase data</strong> in this faculty workbook with the backup file. ' +
+      'Current tracking, classes, and enrolments will be overwritten. Other staff devices will sync this restore.</p>' +
+      '<table class="data-table" style="margin-top:.75rem;font-size:.78rem"><tbody>' +
+      '<tr><td>Current workbook</td><td>' + currentStats.pupils + ' pupils · ' +
+      currentStats.enrolments + ' enrolments · ' + currentStats.classes + ' classes</td></tr>' +
+      '<tr><td>Backup file</td><td>' + newStats.pupils + ' pupils · ' +
+      newStats.enrolments + ' enrolments · ' + newStats.classes + ' classes</td></tr>' +
+      '</tbody></table>' +
+      (filename ? '<p class="modal-note" style="margin-top:.6rem">' + esc(filename) + '</p>' : '') +
+      exportedNote,
+      '<button type="button" class="btn btn-secondary" id="modal-cancel">Cancel</button>' +
+      '<button type="button" class="btn btn-danger" id="modal-restore-backup">Restore backup</button>');
+    document.getElementById('modal-cancel').onclick = closeModal;
+    document.getElementById('modal-restore-backup').onclick = function() {
+      closeModal();
+      applyWorkbookRestore(workbookData, meta);
+    };
+  }
+
+  function handleWorkbookBackupFile(file) {
+    if (!canManageWorkbookBackup() || !file) return;
+    var reader = new FileReader();
+    reader.onload = function() {
+      try {
+        var parsed = JSON.parse(reader.result);
+        var result = parseBackupPayload(parsed);
+        if (result.error) {
+          state.reportsMessage = result.error;
+          render();
+          return;
+        }
+        showRestoreBackupConfirm(result.data, result.meta, file.name);
+      } catch (e) {
+        state.reportsMessage = 'Could not read backup file — invalid JSON.';
+        render();
+      }
+    };
+    reader.onerror = function() {
+      state.reportsMessage = 'Could not read backup file.';
+      render();
+    };
+    reader.readAsText(file);
+  }
+
   function downloadWorkbookBackup() {
-    if (!canExportWorkbookBackup()) return;
+    if (!canManageWorkbookBackup()) return;
     var d = db();
     var stamp = new Date().toISOString().slice(0, 10);
     var year = SptConfig.currentAcademicYear ? SptConfig.currentAcademicYear() : stamp.slice(0, 7);
@@ -3224,13 +3327,18 @@
         '</tr></thead><tbody>' + repRows + '</tbody></table>');
     }
     var html = '<div class="page-head"><h1>Reports</h1></div>';
-    if (canExportWorkbookBackup()) {
+    if (canManageWorkbookBackup()) {
       html += '<div class="report-backup-panel">' +
         '<div class="report-backup-panel-inner">' +
         '<h2>Full workbook backup</h2>' +
-        '<p>Download a JSON snapshot of the entire Senior Phase workbook — pupils, classes, enrolments, tracking, flags, prelims, evidence, and interventions. Keep this file safe before major changes.</p>' +
+        '<p>Download or restore a JSON snapshot of the entire Senior Phase workbook — pupils, classes, enrolments, tracking, flags, prelims, evidence, and interventions.</p>' +
+        '<div class="report-backup-actions">' +
         '<button type="button" class="btn btn-secondary btn-sm" id="btn-export-workbook-backup" ' +
         'title="Full workbook JSON — pupils, classes, tracking, flags, prelims">Download full backup</button>' +
+        '<label class="btn btn-secondary btn-sm report-backup-upload" for="workbook-backup-file">Restore from backup</label>' +
+        '<input type="file" id="workbook-backup-file" accept=".json,application/json" hidden>' +
+        '</div>' +
+        (state.reportsMessage ? '<p class="report-backup-status">' + esc(state.reportsMessage) + '</p>' : '') +
         '</div></div>';
     }
     html += '<div class="report-grid">';
@@ -3932,6 +4040,14 @@
     });
     var workbookBackupBtn = root.querySelector('#btn-export-workbook-backup');
     if (workbookBackupBtn) workbookBackupBtn.addEventListener('click', downloadWorkbookBackup);
+    var workbookBackupFile = root.querySelector('#workbook-backup-file');
+    if (workbookBackupFile) {
+      workbookBackupFile.addEventListener('change', function() {
+        var file = workbookBackupFile.files[0];
+        workbookBackupFile.value = '';
+        if (file) handleWorkbookBackupFile(file);
+      });
+    }
   }
 
   function render() {
