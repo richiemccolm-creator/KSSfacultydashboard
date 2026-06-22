@@ -132,6 +132,36 @@
     state.modal = null;
   }
 
+  function canExportWorkbookBackup() {
+    var r = role();
+    return !!(r.canSetup || r.canImport);
+  }
+
+  function downloadWorkbookBackup() {
+    if (!canExportWorkbookBackup()) return;
+    var d = db();
+    var stamp = new Date().toISOString().slice(0, 10);
+    var year = SptConfig.currentAcademicYear ? SptConfig.currentAcademicYear() : stamp.slice(0, 7);
+    var payload = {
+      backup_version: 1,
+      exported_at: new Date().toISOString(),
+      exported_by: SptStore.getRole(d).label || d.dev_role || 'Staff',
+      source: 'senior-phase-tracking',
+      academic_year: year,
+      data: SptStore.cloudSnapshot(d)
+    };
+    var json = JSON.stringify(payload, null, 2);
+    var blob = new Blob([json], { type: 'application/json' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'senior-phase-tracking-backup-' + year + '-' + stamp + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
   function concernBadgeHtml(flags) {
     if (!flags || !flags.length) return '—';
     var status = SptConcerns.primaryConcernStatus(flags);
@@ -1261,6 +1291,11 @@
     var html = alertStripHtml() + '<div class="dashboard-wrap">';
     html += '<div class="dashboard-head">' +
       '<div class="page-head page-head-compact"><h1>Senior Phase Dashboard</h1></div>' +
+      (canExportWorkbookBackup() ?
+        '<div class="dashboard-backup">' +
+        '<button type="button" class="btn btn-secondary btn-sm" id="btn-export-workbook-backup" title="Full workbook JSON — pupils, classes, tracking, flags, prelims">' +
+        'Download full backup</button>' +
+        '<span class="dashboard-backup-hint">JSON snapshot for restore</span></div>' : '') +
       '<div class="summary-row summary-row-compact">' + summaryCards(allRows).map(function(c) {
       return '<div class="summary-card ' + c.cls + '"><div class="val">' + c.val + '</div><div class="lbl">' + esc(c.lbl) + '</div></div>';
     }).join('') + '</div></div>';
@@ -3890,6 +3925,8 @@
       var rep = SptReports.REPORTS[id];
       SptReports.downloadCsv(rep.title.replace(/\s+/g, '_') + '.csv', SptReports.toCsv(rep.headers, rep.fn(db())));
     });
+    var workbookBackupBtn = root.querySelector('#btn-export-workbook-backup');
+    if (workbookBackupBtn) workbookBackupBtn.addEventListener('click', downloadWorkbookBackup);
   }
 
   function render() {
