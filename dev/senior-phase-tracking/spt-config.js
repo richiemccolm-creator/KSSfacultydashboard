@@ -13,7 +13,7 @@
   })();
 
   var STORAGE_KEY = useSeedData ? 'spt-dev-v2' : 'spt-hub-v1';
-  var DATA_VERSION = 19;
+  var DATA_VERSION = 20;
 
   var AH_ART_PORTFOLIO_ROUTES = ['Expressive', 'Design'];
 
@@ -53,6 +53,19 @@
     3: 'Acceptable',
     4: 'Good'
   };
+
+  /** Whole-school attendance % thresholds (display / risk hints). */
+  var ATTENDANCE_PCT_GOOD = 90;
+  var ATTENDANCE_PCT_AMBER = 75;
+
+  function attendancePctClass(pct) {
+    if (pct == null || pct === '') return 'att-pct-empty';
+    var n = parseFloat(pct);
+    if (isNaN(n)) return 'att-pct-empty';
+    if (n >= ATTENDANCE_PCT_GOOD) return 'att-pct-good';
+    if (n >= ATTENDANCE_PCT_AMBER) return 'att-pct-amber';
+    return 'att-pct-low';
+  }
 
   var TRACKING_SCORE_CLASS = {
     1: 'score-1',
@@ -247,6 +260,9 @@
     STATUS: STATUS,
     CONCERN_CATEGORIES: CONCERN_CATEGORIES,
     ATTENDANCE_LABELS: ATTENDANCE_LABELS,
+    ATTENDANCE_PCT_GOOD: ATTENDANCE_PCT_GOOD,
+    ATTENDANCE_PCT_AMBER: ATTENDANCE_PCT_AMBER,
+    attendancePctClass: attendancePctClass,
     TRACKING_SCORE_CLASS: TRACKING_SCORE_CLASS,
     BADGE_CLASS: BADGE_CLASS,
     GRADE_RANK: GRADE_RANK,

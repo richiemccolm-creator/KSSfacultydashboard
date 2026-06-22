@@ -135,7 +135,7 @@
     return mergeByCompositeKey(local, remote, function(r) {
       return r.enrolment_id + '|' + r.tracking_point_id;
     }, function(a, b) {
-      var merged = mergeFieldRecords(a, b, ['attendance_score', 'teacher_comment']);
+      var merged = mergeFieldRecords(a, b, ['attendance_score', 'attendance_percent', 'teacher_comment']);
       merged.enrolment_id = a.enrolment_id || b.enrolment_id;
       merged.tracking_point_id = a.tracking_point_id || b.tracking_point_id;
       merged.id = a.id || b.id;
@@ -465,6 +465,16 @@
         if (!global.SptWorkingGrade.isValidScore(a.attendance_score, course19)) {
           a.attendance_score = global.SptWorkingGrade.migrateLegacyScore(a.attendance_score, course19);
         }
+      });
+    }
+    if (db.version < 20) {
+      (db.pupils || []).forEach(function(p) {
+        if (p.end_of_year_attendance_percent == null) return;
+        p.end_of_year_attendance_percent = parseAttendancePercent(p.end_of_year_attendance_percent);
+      });
+      (db.attendance_records || []).forEach(function(a) {
+        if (a.attendance_percent == null) return;
+        a.attendance_percent = parseAttendancePercent(a.attendance_percent);
       });
     }
     (db.teacher_concerns || []).forEach(function(f) {
@@ -858,6 +868,42 @@
     }
     if (global.SptRisk) global.SptRisk.recalculateEnrolment(db, enrolmentId);
     return db;
+  }
+
+  function parseAttendancePercent(val) {
+    if (val == null || val === '') return null;
+    var s = String(val).trim().replace(/%/g, '');
+    var n = parseFloat(s);
+    if (isNaN(n)) return null;
+    if (n < 0) return 0;
+    if (n > 100) return 100;
+    return Math.round(n * 10) / 10;
+  }
+
+  function upsertAttendancePercent(db, enrolmentId, trackingPointId, percent) {
+    var parsed = parseAttendancePercent(percent);
+    var existing = (db.attendance_records || []).find(function(a) {
+      return a.enrolment_id === enrolmentId && a.tracking_point_id === trackingPointId;
+    });
+    if (existing) {
+      updateRecord(db, 'attendance_records', existing.id, { attendance_percent: parsed }, 'att_pct_update');
+    } else {
+      insertRecord(db, 'attendance_records', {
+        enrolment_id: enrolmentId,
+        tracking_point_id: trackingPointId,
+        attendance_score: null,
+        attendance_percent: parsed,
+        teacher_comment: ''
+      }, 'att_pct_insert');
+    }
+    return db;
+  }
+
+  function updatePupilEoyAttendance(db, pupilId, percent, sessionLabel) {
+    var parsed = parseAttendancePercent(percent);
+    var patch = { end_of_year_attendance_percent: parsed };
+    if (sessionLabel) patch.end_of_year_attendance_session = sessionLabel;
+    return updateRecord(db, 'pupils', pupilId, patch, 'eoy_attendance_update');
   }
 
   function upsertTrackingScore(db, enrolmentId, trackingPointId, field, value) {
@@ -1352,6 +1398,9 @@
     insertRecord: insertRecord,
     deleteRecord: deleteRecord,
     upsertAttendance: upsertAttendance,
+    upsertAttendancePercent: upsertAttendancePercent,
+    updatePupilEoyAttendance: updatePupilEoyAttendance,
+    parseAttendancePercent: parseAttendancePercent,
     upsertTrackingScore: upsertTrackingScore,
     assessmentPointsForCourse: assessmentPointsForCourse,
     resultForAssessment: resultForAssessment,

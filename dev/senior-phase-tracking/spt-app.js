@@ -32,6 +32,11 @@
     importMessage: null,
     importMapping: null,
     importRaw: null,
+    attendanceImportStep: 1,
+    attendanceImportTarget: 'eoy',
+    attendanceImportPreview: null,
+    attendanceImportFilename: null,
+    attendanceImportMessage: null,
     modal: null,
     navCollapsed: false
   };
@@ -316,6 +321,10 @@
       state.templatePreview = null;
       state.templateRows = null;
       state.importFilename = null;
+      state.attendanceImportStep = 1;
+      state.attendanceImportPreview = null;
+      state.attendanceImportFilename = null;
+      state.attendanceImportMessage = null;
     }
     document.querySelectorAll('.nav-btn').forEach(function(btn) {
       var r = btn.getAttribute('data-route');
@@ -622,6 +631,32 @@
   function trackingScoreLabel(val) {
     var n = parseInt(val, 10);
     return SptConfig.ATTENDANCE_LABELS[n] || '';
+  }
+
+  function attendancePctHtml(pct, title) {
+    if (pct == null || pct === '') return '—';
+    var n = parseFloat(pct);
+    if (isNaN(n)) return '—';
+    var disp = (Math.round(n * 10) / 10) + '%';
+    var cls = SptConfig.attendancePctClass(n);
+    return '<span class="att-pct-pill ' + cls + '"' +
+      (title ? ' title="' + esc(title) + '"' : '') + '>' + esc(disp) + '</span>';
+  }
+
+  function pupilEoyAttendance(r) {
+    return r && r.pupil && r.pupil.end_of_year_attendance_percent != null
+      ? r.pupil.end_of_year_attendance_percent : null;
+  }
+
+  function eoyAttendanceCell(r) {
+    return '<td class="cell-num cell-att-pct">' +
+      attendancePctHtml(pupilEoyAttendance(r), 'End-of-year attendance (previous session)') + '</td>';
+  }
+
+  function tpAttendanceCell(enId, tpId, record, tpIndex) {
+    var pct = record ? record.attendance_percent : null;
+    return '<td' + tpColAttrs(tpIndex, 'cell-num cell-att-pct') + '>' +
+      attendancePctHtml(pct, 'Attendance this tracking period') + '</td>';
   }
 
   function wgCourseFromEl(el) {
@@ -1092,18 +1127,19 @@
   }
 
   function priorEntryCells(r, canEdit) {
-    if (!r.shows_prior_entry) return cellNa() + cellNa();
+    if (!r.shows_prior_entry) return cellNa() + cellNa() + cellNa();
     var enId = r.enrolment.id;
     var prior = r.prior_main;
     var grade = prior && prior.result_grade ? prior.result_grade : '';
     var pathway = prior && prior.pathway_status ? prior.pathway_status : '';
     var crashing = r.crashing_subject;
     var crashCls = crashing ? ' cell-crashing-subject' : '';
+    var eoyCell = eoyAttendanceCell(r);
     if (!canEdit) {
       var pd = r.prior_display;
       return '<td class="cell-grade' + crashCls + '">' + esc(pd.grade) + '</td>' +
         '<td class="cell-prior-pathway' + crashCls + '">' +
-        (crashing ? badge('Crashing subject') : badge(pd.pathway)) + '</td>';
+        (crashing ? badge('Crashing subject') : badge(pd.pathway)) + '</td>' + eoyCell;
     }
     var gradeTitle = crashing ? ' title="No prior qualification at the expected level for this course"' : '';
     var gradeCell = '<td class="cell-grade' + crashCls + '">' +
@@ -1121,7 +1157,7 @@
     var pathwayCell = '<td class="cell-prior-pathway' + crashCls + '">' + crashBadge +
       '<select class="inline-select inline-select-sm" data-prior="' + enId + '|pathway_status">' +
       pathwayOpts + '</select></td>';
-    return gradeCell + pathwayCell;
+    return gradeCell + pathwayCell + eoyCell;
   }
 
   function evidenceUnitCell(r, unitCode, canEdit) {
@@ -1138,9 +1174,12 @@
         if (!evUnits.some(function(x) { return x.unit_code === u.unit_code; })) evUnits.push(u);
       });
     });
+    var hasS3 = enrolments.some(function(r) { return r.shows_s3_baseline; });
+    var hasPrior = enrolments.some(function(r) { return r.shows_prior_entry; });
     return {
-      hasS3: enrolments.some(function(r) { return r.shows_s3_baseline; }),
-      hasPrior: enrolments.some(function(r) { return r.shows_prior_entry; }),
+      hasS3: hasS3,
+      hasPrior: hasPrior,
+      hasStandaloneEoy: !hasS3 && !hasPrior,
       evUnits: evUnits,
       hasExamPupils: enrolments.some(function(r) { return r.uses_exam_route; }),
       hasEvPupils: enrolments.some(function(r) { return r.uses_evidence_bank; }),
@@ -1238,7 +1277,9 @@
     var html = '';
     tps.forEach(function(tp, i) {
       var att = r.attendance.find(function(a) { return a.tracking_point.id === tp.id; });
-      var wg = att && att.record ? att.record.attendance_score : '';
+      var rec = att && att.record ? att.record : null;
+      html += tpAttendanceCell(r.enrolment.id, tp.id, rec, i);
+      var wg = rec ? rec.attendance_score : '';
       var tr = SptStore.trackingRecordFor(d, r.enrolment.id, tp.id);
       var eff = tr ? SptStore.trackingScoreValue(tr, 'effort') : '';
       var beh = tr ? SptStore.trackingScoreValue(tr, 'behaviour') : '';
@@ -1317,21 +1358,23 @@
 
   function renderDashboardFullGrid(d, rows) {
     var tps = SptStore.trackingPoints(d);
-    var colCount = 5 + 3 + 4 + (tps.length * 3) + 6;
+    var colCount = 5 + 3 + 4 + 1 + (tps.length * 4) + 6;
     var headGroup = '<tr class="head-group">' +
       '<th class="col-pupil" rowspan="2">Pupil</th><th rowspan="2">Yr</th><th rowspan="2">Course</th>' +
       '<th rowspan="2">Lvl</th><th rowspan="2">Teacher</th>' +
       '<th colspan="3" class="s3-exam-head">S3</th>' +
-      '<th rowspan="2">Prior</th><th rowspan="2">Path</th><th rowspan="2">Units</th>' +
+      '<th rowspan="2">Prior</th><th rowspan="2">Path</th><th rowspan="2">EOY Att</th>' +
+      '<th rowspan="2">Units</th>' +
       '<th rowspan="2">Concern</th>';
     tps.forEach(function(tp, i) {
-      headGroup += '<th colspan="3" class="tp-group-head ' + tpBandClass(i) + tpStartClass(i) + '">TP' + (i + 1) + '</th>';
+      headGroup += '<th colspan="4" class="tp-group-head ' + tpBandClass(i) + tpStartClass(i) + '">TP' + (i + 1) + '</th>';
     });
     headGroup += '<th rowspan="2">Prelim</th><th rowspan="2">Pre %</th><th rowspan="2">Pre gr</th>' +
       '<th rowspan="2">Wkg</th><th rowspan="2">Tgt</th><th rowspan="2">Risk</th></tr>';
     var headSub = '<tr class="head-sub"><th>Mark</th><th>%</th><th>Gr</th>';
     tps.forEach(function(_, i) {
-      headSub += '<th' + tpColAttrs(i, '') + '>WG</th><th' + tpColAttrs(i, '') + '>Eff</th><th' + tpColAttrs(i, '') + '>Beh</th>';
+      headSub += '<th' + tpColAttrs(i, '') + '>Att</th><th' + tpColAttrs(i, '') + '>WG</th>' +
+        '<th' + tpColAttrs(i, '') + '>Eff</th><th' + tpColAttrs(i, '') + '>Beh</th>';
     });
     headSub += '</tr>';
 
@@ -1363,6 +1406,7 @@
       bodyRows += dashboardS3Cells(r, r.course);
       bodyRows += '<td class="cell-grade">' + priorCell + '</td>' +
         '<td>' + pathwayCell + '</td>' +
+        eoyAttendanceCell(r) +
         '<td class="cell-num">' + esc(unitsCell) + '</td>' +
         '<td class="cell-concern">' + concernCellHtml(r.open_flags) + '</td>';
       bodyRows += dashboardTpCells(d, r);
@@ -2307,19 +2351,20 @@
         : ('/' + s3Cfg.paper_marks + ' → ' + s3Cfg.scaled_marks);
       headGroup += '<th colspan="3" class="s3-exam-head" title="Enter raw mark — % and grade calculated automatically">S3 Exam' +
         '<span class="th-sub">' + esc(s3Scale) + '</span></th>' +
-        '<th colspan="5" class="s3-baseline-head">S3 baseline' +
+        '<th colspan="6" class="s3-baseline-head">S3 baseline' +
         (canEdit && s3BaselineEnrolmentIds ? '<button type="button" class="btn-tp-default" data-s3-baseline-default="1" data-tp-enrolments="' +
           esc(s3BaselineEnrolmentIds) + '" title="Set Eff, Beh, HL, Prog to 4 and CfE to Fourth">Default 4</button>' : '') +
         '</th>';
     }
-    if (meta.hasPrior) headGroup += '<th rowspan="2">Prior exam</th><th rowspan="2">Pathway</th>';
+    if (meta.hasPrior) headGroup += '<th rowspan="2">Prior exam</th><th rowspan="2">Pathway</th><th rowspan="2">EOY Att</th>';
+    if (meta.hasStandaloneEoy) headGroup += '<th rowspan="2">EOY Att</th>';
     meta.evUnits.forEach(function(u) {
       headGroup += '<th rowspan="2" title="' + esc(u.unit_name) + '">' + esc(u.short_label) + '</th>';
     });
     headGroup += '<th rowspan="2">Flag</th>';
     tps.forEach(function(tp, i) {
       var date = formatTpShortDate(tp.tracking_point_date);
-      headGroup += '<th colspan="3" class="tp-group-head ' + tpBandClass(i) + tpStartClass(i) + '">' +
+      headGroup += '<th colspan="4" class="tp-group-head ' + tpBandClass(i) + tpStartClass(i) + '">' +
         'TP' + (i + 1) +
         (date ? '<span class="tp-date">' + esc(date) + '</span>' : '') +
         (canEdit && sheetEnrolmentIds ? '<button type="button" class="btn-tp-default" data-tp-default="' + esc(tp.id) +
@@ -2348,9 +2393,10 @@
     var headSub = '<tr class="head-sub">';
     if (meta.hasS3) {
       headSub += '<th>Mark</th><th>%</th><th>Grade</th>';
-      headSub += '<th>Eff</th><th>Beh</th><th>HL</th><th>Prog</th><th>CfE</th>';
+      headSub += '<th>Eff</th><th>Beh</th><th>HL</th><th>Prog</th><th>CfE</th><th>EOY Att</th>';
     }
     tps.forEach(function(tp, i) {
+      headSub += '<th' + tpColAttrs(i, '') + ' title="Attendance %">Att</th>';
       headSub += '<th' + tpColAttrs(i, '') + ' title="Working grade">WG</th>';
       headSub += '<th class="' + tpBandClass(i) + '">Eff</th>';
       headSub += '<th class="' + tpBandClass(i) + '">Beh</th>';
@@ -2384,8 +2430,10 @@
         courseBody += baselineFieldCell(r, 'homelearning', 'score');
         courseBody += baselineFieldCell(r, 'progress', 'score');
         courseBody += baselineFieldCell(r, 'cfe_level', 'cfe');
+        courseBody += eoyAttendanceCell(r);
       }
       if (meta.hasPrior) courseBody += priorEntryCells(r, canEdit);
+      if (meta.hasStandaloneEoy) courseBody += eoyAttendanceCell(r);
       meta.evUnits.forEach(function(u) {
         courseBody += evidenceUnitCell(r, u.unit_code, canEdit);
       });
@@ -2394,6 +2442,7 @@
         var rec = (d.attendance_records || []).find(function(a) {
           return a.enrolment_id === en.id && a.tracking_point_id === tp.id;
         });
+        courseBody += tpAttendanceCell(en.id, tp.id, rec, i);
         var val = rec ? rec.attendance_score : '';
         courseBody += trackingWgCell(en.id, tp.id, val, canEdit, i, course);
         var tr = SptStore.trackingRecordFor(d, en.id, tp.id);
@@ -3010,8 +3059,10 @@
     var body = '';
     if (r.shows_s3_baseline && r.s3_baseline) {
       var b = r.s3_baseline;
+      var eoy = pupilEoyAttendance(r);
       body += '<div class="profile-section"><h3>S3 entry baseline</h3><dl class="profile-grid">' +
         '<dt>S3 exam</dt><dd>' + s3ExamDisplayHtml(b, course) + '</dd>' +
+        '<dt>EOY Att</dt><dd>' + attendancePctHtml(eoy) + '</dd>' +
         '<dt>Effort</dt><dd>' + esc(b.effort != null ? b.effort : '—') + '</dd>' +
         '<dt>Behaviour</dt><dd>' + esc(b.behaviour != null ? b.behaviour : '—') + '</dd>' +
         '<dt>Home learning</dt><dd>' + esc(b.homelearning != null ? b.homelearning : '—') + '</dd>' +
@@ -3025,7 +3076,8 @@
     if (r.shows_prior_entry && r.prior_main) {
       body += '<div class="profile-section"><h3>Prior attainment</h3><dl class="profile-grid">' +
         '<dt>Grade</dt><dd>' + esc(r.prior_display.grade) + '</dd>' +
-        '<dt>Pathway</dt><dd>' + badge(r.prior_display.pathway) + '</dd></dl></div>';
+        '<dt>Pathway</dt><dd>' + badge(r.prior_display.pathway) + '</dd>' +
+        '<dt>EOY Att</dt><dd>' + attendancePctHtml(pupilEoyAttendance(r)) + '</dd></dl></div>';
     } else if (r.prior_attainment.length) {
       body += '<div class="profile-section"><h3>Prior attainment</h3><ul class="profile-list">';
       r.prior_attainment.forEach(function(p) {
@@ -3054,11 +3106,13 @@
     body += '<div class="profile-section"><h3>Tracking periods</h3><ul class="profile-list">';
     r.tracking_data.forEach(function(t, i) {
       var att = r.attendance[i];
+      var attPct = att && att.record ? att.record.attendance_percent : null;
       var wgScore = att && att.record ? att.record.attendance_score : null;
       var wgLbl = wgScore != null ? (SptWorkingGrade.label(wgScore, r.course) || wgScore) : '—';
       var eff = t.record ? SptStore.trackingScoreValue(t.record, 'effort') : '';
       var beh = t.record ? SptStore.trackingScoreValue(t.record, 'behaviour') : '';
-      body += '<li>TP' + (i + 1) + ': WG ' + esc(String(wgLbl)) + ' · Eff ' + (eff !== '' ? eff : '—') + ' · Beh ' + (beh !== '' ? beh : '—') + '</li>';
+      body += '<li>TP' + (i + 1) + ': Att ' + (attPct != null ? attPct + '%' : '—') +
+        ' · WG ' + esc(String(wgLbl)) + ' · Eff ' + (eff !== '' ? eff : '—') + ' · Beh ' + (beh !== '' ? beh : '—') + '</li>';
     });
     body += '</ul></div>';
     if (r.open_flags.length) {
@@ -3244,10 +3298,79 @@
     return html;
   }
 
+  function attendanceImportTargetOptions() {
+    var d = db();
+    var tps = SptStore.trackingPoints(d);
+    var opts = '<option value="eoy"' + (state.attendanceImportTarget === 'eoy' ? ' selected' : '') +
+      '>End of year snapshot (EOY Att column)</option>';
+    tps.forEach(function(tp, i) {
+      var val = 'tp:' + tp.id;
+      opts += '<option value="' + esc(val) + '"' + (state.attendanceImportTarget === val ? ' selected' : '') +
+        '>Tracking period ' + (i + 1) + ' — ' + esc(tp.tracking_point_name) + '</option>';
+    });
+    return opts;
+  }
+
+  function attendanceImportTargetLabel(target) {
+    if (target === 'eoy') return 'End of year snapshot';
+    if (target && target.indexOf('tp:') === 0) {
+      var tp = SptStore.byId(db().school_tracking_points, target.slice(3));
+      return tp ? tp.tracking_point_name : target;
+    }
+    return target || '—';
+  }
+
+  function renderAttendanceImportSection() {
+    if (state.attendanceImportStep === 2 && state.attendanceImportPreview) {
+      var summary = SptAttendanceImport.previewSummary(state.attendanceImportPreview);
+      var previewRows = state.attendanceImportPreview.slice(0, 50).map(function(item) {
+        var status = item.ready ? 'Green' : (item.match.status === 'not_in_tracking' ? 'Grey' : 'Amber');
+        return '<tr><td class="col-pupil">' + esc(item.row.known_as + ' ' + item.row.surname) + '</td>' +
+          '<td class="cell-num">' + esc(item.row.attendance_percent != null ? item.row.attendance_percent + '%' : '—') + '</td>' +
+          '<td>' + badge(status) + '</td>' +
+          '<td>' + esc(item.note || (item.ready ? 'Will import' : '—')) + '</td></tr>';
+      }).join('');
+      return '<div class="card attendance-import-card" style="margin-bottom:1rem">' +
+        '<div class="card-head"><h2>Import attendance — preview</h2></div>' +
+        '<div class="card-body">' +
+        '<p><strong>' + summary.matched + ' matched</strong> of ' + summary.total + ' rows · ' +
+        summary.notTracked + ' not in tracking · ' + summary.duplicate + ' duplicate names · ' +
+        summary.noPct + ' missing %</p>' +
+        '<p class="sheet-hint">Target: <strong>' + esc(attendanceImportTargetLabel(state.attendanceImportTarget)) +
+        '</strong> · ' + esc(state.attendanceImportFilename || '') + '</p>' +
+        '<div class="setup-quick-actions" style="margin-bottom:1rem">' +
+        (role().canImport ?
+          '<button type="button" class="btn" id="attendance-import-commit">Import ' + summary.matched + ' matched rows</button> ' :
+          '') +
+        '<button type="button" class="btn btn-secondary" id="attendance-import-cancel">Cancel</button></div>' +
+        sheetPanel('Preview', 'First ' + Math.min(50, state.attendanceImportPreview.length) + ' rows', '',
+          '<table class="data-table"><thead><tr><th class="col-pupil">Pupil</th><th>Att %</th><th>Status</th><th>Note</th></tr></thead><tbody>' +
+          (previewRows || '<tr><td colspan="4" class="empty">No rows</td></tr>') + '</tbody></table>') +
+        '</div></div>';
+    }
+
+    return '<div class="card attendance-import-card" style="margin-bottom:1rem">' +
+      '<div class="card-head"><h2>Import attendance (whole school)</h2></div>' +
+      '<div class="card-body">' +
+      '<p class="sheet-hint">Upload your MIS Excel export: <strong>A</strong> Known As, <strong>B</strong> Surname, ' +
+      '<strong>D</strong> Attendance (%). Reg class (C) and late openings (E) are ignored. ' +
+      'Only pupils already enrolled in senior-phase tracking are updated.</p>' +
+      (state.attendanceImportMessage ?
+        '<p class="hub-staff-status">' + esc(state.attendanceImportMessage) + '</p>' : '') +
+      '<div class="form-grid" style="max-width:560px;margin-bottom:0.5rem">' +
+      '<div><label>Apply to</label><select id="attendance-import-target"' +
+      (role().canImport ? '' : ' disabled') + '>' + attendanceImportTargetOptions() + '</select>' +
+      '<p class="sheet-hint">EOY Att appears beside S3 baseline (S4 N5) or prior entry (Higher/AH). ' +
+      'Tracking period updates the Att column for TP1–TP3.</p></div>' +
+      '<div><label>Excel file (.xlsx)</label><input type="file" id="attendance-import-file" accept=".xlsx,.xls"' +
+      (role().canImport ? '' : ' disabled') + '></div></div></div></div>';
+  }
+
   function renderImport() {
     var html = '<div class="page-head"><h1>Import School Tracking</h1>' +
-      '<p>Download an Excel workbook (one sheet per subject), enter data offline, then upload. ' +
-      'Re-upload the same file each tracking period — new rows are added and existing rows update.</p></div>';
+      '<p>Import whole-school attendance or tracking workbook data. Attendance imports only update pupils already in the workbook.</p></div>';
+
+    html += renderAttendanceImportSection();
 
     if (state.importMessage) {
       html += '<div class="card" style="padding:1rem;margin-bottom:1rem"><p class="hub-staff-status">' +
@@ -3255,7 +3378,7 @@
     }
 
     if (state.importStep === 1) {
-      html += '<div class="card"><div class="card-head"><h2>Excel workbook</h2></div><div class="card-body">' +
+      html += '<div class="card"><div class="card-head"><h2>Excel tracking workbook</h2></div><div class="card-body">' +
         '<p class="sheet-hint">Sheets: Instructions, Drama, Art, Photography, Film and Screen, Creative Industries. ' +
         'One row per pupil × course × tracking point.</p>' +
         '<div class="setup-quick-actions" style="margin-bottom:1rem">' +
@@ -3952,6 +4075,69 @@
       state.importFilename = null;
       render();
     });
+
+    var attTarget = root.querySelector('#attendance-import-target');
+    if (attTarget) attTarget.addEventListener('change', function() {
+      state.attendanceImportTarget = attTarget.value;
+    });
+
+    var attFile = root.querySelector('#attendance-import-file');
+    if (attFile) attFile.addEventListener('change', function() {
+      if (!role().canImport) { alert('Faculty Head only'); return; }
+      var file = attFile.files[0];
+      if (!file) return;
+      var targetSel = root.querySelector('#attendance-import-target');
+      state.attendanceImportTarget = targetSel ? targetSel.value : 'eoy';
+      var reader = new FileReader();
+      reader.onload = function() {
+        var parsed = SptAttendanceImport.parseExcelArrayBuffer(reader.result);
+        if (parsed.error) {
+          state.attendanceImportMessage = parsed.error;
+          state.attendanceImportStep = 1;
+          state.attendanceImportPreview = null;
+          render();
+          return;
+        }
+        state.attendanceImportFilename = file.name;
+        state.attendanceImportPreview = SptAttendanceImport.buildPreview(
+          db(), parsed.rows, state.attendanceImportTarget);
+        state.attendanceImportStep = 2;
+        state.attendanceImportMessage = null;
+        render();
+      };
+      reader.readAsArrayBuffer(file);
+      attFile.value = '';
+    });
+
+    var attCancel = root.querySelector('#attendance-import-cancel');
+    if (attCancel) attCancel.addEventListener('click', function() {
+      state.attendanceImportStep = 1;
+      state.attendanceImportPreview = null;
+      state.attendanceImportFilename = null;
+      state.attendanceImportMessage = null;
+      render();
+    });
+
+    var attCommit = root.querySelector('#attendance-import-commit');
+    if (attCommit) attCommit.addEventListener('click', function() {
+      if (!role().canImport) { alert('Faculty Head only'); return; }
+      if (!state.attendanceImportPreview) return;
+      var targetUsed = state.attendanceImportTarget;
+      var stats = SptAttendanceImport.commitImport(db(), state.attendanceImportPreview, {
+        target: targetUsed,
+        filename: state.attendanceImportFilename || 'attendance.xlsx',
+        uploadedBy: role().label || 'Faculty Head'
+      });
+      state.attendanceImportStep = 1;
+      state.attendanceImportPreview = null;
+      state.attendanceImportFilename = null;
+      state.attendanceImportMessage = 'Imported attendance for ' + stats.pupils + ' pupil' +
+        (stats.pupils !== 1 ? 's' : '') + ' (' + stats.processed + ' rows)' +
+        (targetUsed.indexOf('tp:') === 0 ?
+          ', ' + stats.enrolments + ' course enrolments updated' : '') + '.';
+      render();
+    });
+
     var templateBlank = root.querySelector('#template-download-blank');
     if (templateBlank) templateBlank.addEventListener('click', function() {
       if (!window.SptTemplate || !SptTemplate.hasXlsx()) {

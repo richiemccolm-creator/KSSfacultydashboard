@@ -12,6 +12,12 @@ npx serve . -l 4173
 
 Use a local server so CSS and CSV import work correctly.
 
+## New in v7
+
+- **Attendance import** — upload whole-school MIS Excel (Known As, Surname, Attendance %); choose **End of year** or a **tracking period**; only pupils already in tracking are updated
+- **EOY Att column** — beside S3 baseline (S4 N5) or prior entry (Higher/AH); colour-coded (green ≥90%, amber ≥75%, red below)
+- **Att % per tracking period** — new column beside TP1–TP3 (before WG)
+
 ## New in v6
 
 - **Faculty dashboard** — open concerns panel (pupil names, category, comment, days open), at-risk snapshot with reasons, concern category trends
