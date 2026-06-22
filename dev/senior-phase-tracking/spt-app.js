@@ -55,7 +55,8 @@
   function syncLayoutClasses() {
     document.body.classList.toggle('nav-collapsed', state.navCollapsed);
     document.body.classList.toggle('tracking-focus', state.route === 'course');
-    document.body.classList.toggle('dashboard-compact', state.route === 'dashboard');
+    document.body.classList.toggle('dashboard-compact', state.route === 'register');
+    document.body.classList.toggle('spt-visual-dashboard', state.route === 'dashboard');
   }
 
   function updateNavToggleUi() {
@@ -382,7 +383,7 @@
   function maybeBootstrapRoute() {
     if (SptConfig.useSeedData) return;
     var d = db();
-    if (state.route !== 'dashboard') return;
+    if (state.route !== 'dashboard' && state.route !== 'register') return;
     if (!(d.teachers || []).length && role().canSetup) {
       state.route = 'setup';
       document.querySelectorAll('.nav-btn').forEach(function(btn) {
@@ -1429,7 +1430,369 @@
     return 'No pupils enrolled yet — open <button type="button" class="linkish" data-route="setup">Setup</button> to add teachers, classes, and pupils.';
   }
 
+  // ── Visual dashboard helpers ──────────────────────────────
+  function dashboardKpis(allRows) {
+    var pupilMap = {};
+    allRows.forEach(function(r) { pupilMap[r.pupil.id] = r.pupil; });
+    var s4 = 0, s5 = 0, s6 = 0;
+    Object.keys(pupilMap).forEach(function(id) {
+      var p = pupilMap[id];
+      if (p.year_group === 'S4') s4++;
+      else if (p.year_group === 'S5') s5++;
+      else if (p.year_group === 'S6') s6++;
+    });
+    var atRisk = allRows.filter(function(r) {
+      return r.enrolment.risk_status === 'Red' || r.enrolment.risk_status === 'Amber';
+    }).length;
+    var attVals = [];
+    allRows.forEach(function(r) {
+      var pct = null;
+      (r.attendance || []).forEach(function(a) {
+        if (a.record && a.record.attendance_percent != null) pct = a.record.attendance_percent;
+      });
+      if (pct == null && r.pupil && r.pupil.end_of_year_attendance_percent != null) {
+        pct = r.pupil.end_of_year_attendance_percent;
+      }
+      if (pct != null) attVals.push(pct);
+    });
+    var avgAtt = attVals.length
+      ? Math.round(attVals.reduce(function(s, v) { return s + v; }, 0) / attVals.length * 10) / 10
+      : null;
+    var greenCount = allRows.filter(function(r) { return r.enrolment.risk_status === 'Green'; }).length;
+    var onTrackPct = allRows.length ? Math.round(greenCount / allRows.length * 100) : null;
+    return {
+      total: Object.keys(pupilMap).length,
+      enrolments: allRows.length,
+      s4: s4, s5: s5, s6: s6,
+      atRisk: atRisk,
+      atRiskPct: allRows.length ? Math.round(atRisk / allRows.length * 1000) / 10 : 0,
+      avgAtt: avgAtt,
+      hasAttData: attVals.length > 0,
+      onTrackPct: onTrackPct,
+      greenCount: greenCount,
+      openFlags: allRows.filter(function(r) { return r.open_flag_count > 0; }).length
+    };
+  }
+
+  function bindDashboardCharts(root) {
+    if (typeof Chart === 'undefined') return;
+    var d = db();
+    var allRows = SptStore.getEnrichedRows(d);
+
+    var riskCanvas = root.querySelector('#spt-dash-risk-chart');
+    if (riskCanvas) {
+      var rc = { Green: 0, Amber: 0, Red: 0, Grey: 0 };
+      allRows.forEach(function(r) { var s = r.enrolment.risk_status || 'Grey'; rc[s] = (rc[s] || 0) + 1; });
+      new Chart(riskCanvas.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          labels: ['On track', 'Amber', 'Red', 'Not started'],
+          datasets: [{ data: [rc.Green, rc.Amber, rc.Red, rc.Grey],
+            backgroundColor: ['#166534', '#d97706', '#dc2626', '#cbd5e1'],
+            borderWidth: 2, borderColor: '#fff' }]
+        },
+        options: { plugins: { legend: { display: false }, tooltip: { callbacks: {
+          label: function(ctx) { return ctx.label + ': ' + ctx.parsed; }
+        }}}, cutout: '62%', animation: { duration: 350 } }
+      });
+    }
+
+    var attCanvas = root.querySelector('#spt-dash-att-chart');
+    if (attCanvas) {
+      var aGood = 0, aAmb = 0, aLow = 0, aNo = 0;
+      allRows.forEach(function(r) {
+        var pct = null;
+        (r.attendance || []).forEach(function(a) {
+          if (a.record && a.record.attendance_percent != null) pct = a.record.attendance_percent;
+        });
+        if (pct == null && r.pupil && r.pupil.end_of_year_attendance_percent != null) pct = r.pupil.end_of_year_attendance_percent;
+        if (pct == null) { aNo++; return; }
+        if (pct >= 90) aGood++; else if (pct >= 75) aAmb++; else aLow++;
+      });
+      new Chart(attCanvas.getContext('2d'), {
+        type: 'doughnut',
+        data: {
+          labels: ['90%+', '75–89%', 'Under 75%', 'No data'],
+          datasets: [{ data: [aGood, aAmb, aLow, aNo],
+            backgroundColor: ['#166534', '#d97706', '#dc2626', '#e2e8f0'],
+            borderWidth: 2, borderColor: '#fff' }]
+        },
+        options: { plugins: { legend: { display: false }, tooltip: { callbacks: {
+          label: function(ctx) { return ctx.label + ': ' + ctx.parsed; }
+        }}}, cutout: '62%', animation: { duration: 350 } }
+      });
+    }
+
+    var wgCanvas = root.querySelector('#spt-dash-wg-chart');
+    if (wgCanvas) {
+      var byCourse = {};
+      d.courses.forEach(function(c) { byCourse[c.id] = { name: c.course_name, sum: 0, count: 0 }; });
+      allRows.forEach(function(r) {
+        var cid = r.course.id;
+        if (!byCourse[cid]) return;
+        var latestWg = null;
+        (r.attendance || []).forEach(function(a) {
+          if (a.record && a.record.attendance_score != null) latestWg = a.record.attendance_score;
+        });
+        if (latestWg != null) { byCourse[cid].sum += latestWg; byCourse[cid].count++; }
+      });
+      var wgItems = d.courses
+        .filter(function(c) { return byCourse[c.id] && byCourse[c.id].count > 0; })
+        .map(function(c) { var x = byCourse[c.id]; return { name: c.course_name, avg: Math.round(x.sum / x.count * 10) / 10 }; });
+      if (wgItems.length) {
+        var barColors = wgItems.map(function(w) {
+          return w.avg >= 3.25 ? '#166534' : w.avg >= 2.5 ? '#d97706' : '#dc2626';
+        });
+        wgCanvas.height = Math.max(140, wgItems.length * 42);
+        new Chart(wgCanvas.getContext('2d'), {
+          type: 'bar',
+          data: {
+            labels: wgItems.map(function(w) { return w.name; }),
+            datasets: [{ data: wgItems.map(function(w) { return w.avg; }),
+              backgroundColor: barColors, borderRadius: 4, borderSkipped: false }]
+          },
+          options: {
+            indexAxis: 'y',
+            plugins: { legend: { display: false }, tooltip: { callbacks: {
+              label: function(ctx) { return 'Avg WG: ' + ctx.parsed.x.toFixed(1); }
+            }}},
+            scales: {
+              x: { min: 0, max: 4, ticks: { stepSize: 1, font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.05)' } },
+              y: { ticks: { font: { size: 11 } }, grid: { display: false } }
+            },
+            animation: { duration: 350 }
+          }
+        });
+      }
+    }
+  }
+
   function renderDashboard() {
+    var d = db();
+    var allRows = SptConcerns.sortByUrgency(SptStore.getEnrichedRows(d), d);
+    var kpis = dashboardKpis(allRows);
+
+    var atRiskRows = allRows.filter(function(r) {
+      return r.enrolment.risk_status === 'Red' || r.enrolment.risk_status === 'Amber';
+    }).sort(function(a, b) {
+      var order = { Red: 0, Amber: 1 };
+      return (order[a.enrolment.risk_status] || 2) - (order[b.enrolment.risk_status] || 2);
+    });
+
+    var openFlags = SptConcerns.sortForAlertsList(
+      SptConcerns.allViewableFlags(d).filter(function(f) { return f.status === 'Open'; })
+    );
+
+    var attLegend = [];
+    if (kpis.hasAttData) {
+      var aGood2 = 0, aAmb2 = 0, aLow2 = 0, aNo2 = 0;
+      allRows.forEach(function(r) {
+        var pct = null;
+        (r.attendance || []).forEach(function(a) {
+          if (a.record && a.record.attendance_percent != null) pct = a.record.attendance_percent;
+        });
+        if (pct == null && r.pupil && r.pupil.end_of_year_attendance_percent != null) pct = r.pupil.end_of_year_attendance_percent;
+        if (pct == null) { aNo2++; return; }
+        if (pct >= 90) aGood2++; else if (pct >= 75) aAmb2++; else aLow2++;
+      });
+      attLegend = [
+        { lbl: '90%+', val: aGood2, cls: 'leg-green' },
+        { lbl: '75–89%', val: aAmb2, cls: 'leg-amber' },
+        { lbl: 'Under 75%', val: aLow2, cls: 'leg-red' },
+        { lbl: 'No data', val: aNo2, cls: 'leg-grey' }
+      ].filter(function(x) { return x.val > 0; });
+    }
+
+    var riskLegend = [
+      { lbl: 'On track', val: allRows.filter(function(r) { return r.enrolment.risk_status === 'Green'; }).length, cls: 'leg-green' },
+      { lbl: 'Amber', val: allRows.filter(function(r) { return r.enrolment.risk_status === 'Amber'; }).length, cls: 'leg-amber' },
+      { lbl: 'Red', val: allRows.filter(function(r) { return r.enrolment.risk_status === 'Red'; }).length, cls: 'leg-red' },
+      { lbl: 'Not started', val: allRows.filter(function(r) { return !r.enrolment.risk_status || r.enrolment.risk_status === 'Grey'; }).length, cls: 'leg-grey' }
+    ].filter(function(x) { return x.val > 0; });
+
+    var hasWgData = allRows.some(function(r) {
+      return (r.attendance || []).some(function(a) { return a.record && a.record.attendance_score != null; });
+    });
+
+    var html = alertStripHtml();
+    html += '<div class="spt-dash-overview">';
+
+    // ── Page header
+    html += '<div class="spt-dash-page-head">';
+    html += '<h1>Senior Phase Overview</h1>';
+    html += '<div class="spt-dash-head-actions">';
+    html += '<button type="button" class="btn btn-sm" data-route="register">Full register &rarr;</button>';
+    html += '</div></div>';
+
+    // ── KPI row
+    var kpiDefs = [
+      {
+        val: kpis.total, lbl: 'Total pupils',
+        sub: 'S4: ' + kpis.s4 + ' · S5: ' + kpis.s5 + ' · S6: ' + kpis.s6,
+        cls: 'kpi-neutral',
+        icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>'
+      },
+      {
+        val: kpis.atRisk, lbl: 'At risk',
+        sub: kpis.atRiskPct + '% of enrolments',
+        cls: kpis.atRisk > 0 ? 'kpi-danger' : 'kpi-ok',
+        icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>'
+      },
+      {
+        val: kpis.onTrackPct != null ? kpis.onTrackPct + '%' : '—', lbl: 'On track',
+        sub: kpis.greenCount + ' of ' + kpis.enrolments + ' enrolments',
+        cls: kpis.onTrackPct != null && kpis.onTrackPct >= 70 ? 'kpi-ok' : (kpis.onTrackPct != null ? 'kpi-warn' : 'kpi-neutral'),
+        icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>'
+      },
+      {
+        val: kpis.avgAtt != null ? kpis.avgAtt + '%' : '—', lbl: 'Avg attendance',
+        sub: kpis.hasAttData ? 'latest data across all pupils' : 'No data imported yet',
+        cls: kpis.avgAtt != null ? (kpis.avgAtt >= 90 ? 'kpi-ok' : kpis.avgAtt >= 75 ? 'kpi-warn' : 'kpi-danger') : 'kpi-neutral',
+        icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>'
+      }
+    ];
+    html += '<div class="spt-kpi-row">';
+    kpiDefs.forEach(function(k) {
+      html += '<div class="spt-kpi-card ' + k.cls + '">' +
+        '<div class="spt-kpi-icon">' + k.icon + '</div>' +
+        '<div class="spt-kpi-body">' +
+        '<div class="spt-kpi-val">' + esc(String(k.val)) + '</div>' +
+        '<div class="spt-kpi-lbl">' + esc(k.lbl) + '</div>' +
+        '<div class="spt-kpi-sub">' + esc(k.sub) + '</div>' +
+        '</div></div>';
+    });
+    html += '</div>';
+
+    // ── Charts row
+    html += '<div class="spt-dash-row spt-dash-row-charts">';
+
+    // Risk donut
+    html += '<div class="spt-dash-chart-panel">';
+    html += '<div class="spt-dash-panel-title">Risk status</div>';
+    html += '<div class="spt-dash-chart-body">';
+    if (allRows.length) {
+      html += '<canvas id="spt-dash-risk-chart" width="160" height="160"></canvas>';
+      html += '<div class="spt-dash-legend">';
+      riskLegend.forEach(function(item) {
+        html += '<div class="spt-dash-leg-item ' + item.cls + '">' +
+          '<span class="spt-dash-leg-dot"></span>' +
+          '<span class="spt-dash-leg-lbl">' + esc(item.lbl) + '</span>' +
+          '<strong class="spt-dash-leg-val">' + item.val + '</strong></div>';
+      });
+      html += '</div>';
+    } else {
+      html += '<div class="spt-dash-empty">No enrolments yet</div>';
+    }
+    html += '</div></div>';
+
+    // Attendance donut
+    html += '<div class="spt-dash-chart-panel">';
+    html += '<div class="spt-dash-panel-title">Attendance snapshot</div>';
+    html += '<div class="spt-dash-chart-body">';
+    if (kpis.hasAttData) {
+      html += '<canvas id="spt-dash-att-chart" width="160" height="160"></canvas>';
+      html += '<div class="spt-dash-legend">';
+      attLegend.forEach(function(item) {
+        html += '<div class="spt-dash-leg-item ' + item.cls + '">' +
+          '<span class="spt-dash-leg-dot"></span>' +
+          '<span class="spt-dash-leg-lbl">' + esc(item.lbl) + '</span>' +
+          '<strong class="spt-dash-leg-val">' + item.val + '</strong></div>';
+      });
+      html += '</div>';
+    } else {
+      html += '<div class="spt-dash-empty">No attendance data.<br>' +
+        '<button type="button" class="btn btn-sm" style="margin-top:0.5rem" data-route="import">Import attendance</button></div>';
+    }
+    html += '</div></div>';
+
+    // At-risk pupils table
+    html += '<div class="spt-dash-panel spt-dash-panel-wide">';
+    html += '<div class="spt-dash-panel-title">At risk' +
+      (atRiskRows.length ? ' <span class="spt-dash-count">' + atRiskRows.length + '</span>' : '') + '</div>';
+    if (atRiskRows.length) {
+      html += '<div class="spt-dash-panel-scroll">';
+      html += '<table class="data-table data-table-compact">';
+      html += '<thead><tr><th>Pupil</th><th>Course</th><th>Status</th><th>WG</th><th>Att</th></tr></thead><tbody>';
+      atRiskRows.slice(0, 14).forEach(function(r) {
+        var pct = null;
+        (r.attendance || []).forEach(function(a) {
+          if (a.record && a.record.attendance_percent != null) pct = a.record.attendance_percent;
+        });
+        if (pct == null && r.pupil && r.pupil.end_of_year_attendance_percent != null) pct = r.pupil.end_of_year_attendance_percent;
+        html += '<tr data-enrolment="' + r.enrolment.id + '">' +
+          '<td class="col-pupil">' + esc(SptStore.pupilName(d, r.pupil.id)) + '</td>' +
+          '<td>' + esc(r.course.course_name) + '</td>' +
+          '<td>' + badge(r.enrolment.risk_status) + '</td>' +
+          '<td class="cell-num">' + esc(r.enrolment.latest_working_grade || '—') + '</td>' +
+          '<td class="cell-num">' + attendancePctHtml(pct) + '</td></tr>';
+      });
+      if (atRiskRows.length > 14) {
+        html += '<tr><td colspan="5" class="cell-hint">' + (atRiskRows.length - 14) +
+          ' more — <button type="button" class="linkish" data-route="register">view register</button></td></tr>';
+      }
+      html += '</tbody></table></div>';
+    } else {
+      html += '<div class="spt-dash-empty spt-dash-empty-ok">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="28" height="28"><polyline points="20 6 9 17 4 12"/></svg>' +
+        'No pupils at risk</div>';
+    }
+    html += '</div>';
+
+    html += '</div>'; // end spt-dash-row-charts
+
+    // ── Bottom row: WG chart + Concerns
+    html += '<div class="spt-dash-row spt-dash-row-bottom">';
+
+    // WG by course
+    html += '<div class="spt-dash-chart-panel spt-dash-chart-panel-tall">';
+    html += '<div class="spt-dash-panel-title">Working grade by course <span class="spt-dash-panel-sub">(latest avg)</span></div>';
+    html += '<div class="spt-dash-chart-body spt-dash-chart-body-bar">';
+    if (hasWgData) {
+      html += '<canvas id="spt-dash-wg-chart" style="width:100%"></canvas>';
+    } else {
+      html += '<div class="spt-dash-empty">Working grade data will appear here once teachers have entered tracking points.</div>';
+    }
+    html += '</div></div>';
+
+    // Open concerns
+    html += '<div class="spt-dash-panel">';
+    html += '<div class="spt-dash-panel-title">Open concerns' +
+      (openFlags.length ? ' <span class="spt-dash-count spt-dash-count-red">' + openFlags.length + '</span>' : '') +
+      (openFlags.length ? ' <button type="button" class="linkish spt-dash-panel-link" data-route="alerts">view all</button>' : '') +
+      '</div>';
+    if (openFlags.length) {
+      html += '<div class="spt-dash-panel-scroll">';
+      html += '<table class="data-table data-table-compact">';
+      html += '<thead><tr><th>Pupil</th><th>Category</th><th>Days</th></tr></thead><tbody>';
+      openFlags.slice(0, 12).forEach(function(f) {
+        var en = SptStore.byId(d.enrolments, f.enrolment_id);
+        if (!en) return;
+        var snippet = f.comment || '';
+        if (snippet.length > 38) snippet = snippet.slice(0, 35) + '…';
+        html += '<tr data-enrolment="' + en.id + '">' +
+          '<td class="col-pupil">' + esc(SptStore.pupilName(d, en.pupil_id)) + '</td>' +
+          '<td>' + badge(f.category) +
+          (snippet ? '<span class="concern-inline">' + esc(snippet) + '</span>' : '') + '</td>' +
+          '<td class="cell-num">' + daysSince(f.created_at) + 'd</td></tr>';
+      });
+      if (openFlags.length > 12) {
+        html += '<tr><td colspan="3" class="cell-hint"><button type="button" class="linkish" data-route="alerts">View all ' +
+          openFlags.length + '</button></td></tr>';
+      }
+      html += '</tbody></table></div>';
+    } else {
+      html += '<div class="spt-dash-empty spt-dash-empty-ok">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="28" height="28"><polyline points="20 6 9 17 4 12"/></svg>' +
+        'No open concerns</div>';
+    }
+    html += '</div>';
+
+    html += '</div>'; // end spt-dash-row-bottom
+    html += '</div>'; // end spt-dash-overview
+    return html;
+  }
+
+  function renderRegister() {
     var d = db();
     var allRows = SptConcerns.sortByUrgency(SptStore.getEnrichedRows(d), d);
     var filterTeachers = teachersForFilterBar(d, dashboardRowsForTeacherFilter(allRows));
@@ -1437,7 +1800,7 @@
     var rows = applyFilters(allRows);
     var html = alertStripHtml() + '<div class="dashboard-wrap">';
     html += '<div class="dashboard-head">' +
-      '<div class="page-head page-head-compact"><h1>Senior Phase Dashboard</h1></div>' +
+      '<div class="page-head page-head-compact"><h1>Faculty Register</h1></div>' +
       '<div class="summary-row summary-row-compact">' + summaryCards(allRows).map(function(c) {
       return '<div class="summary-card ' + c.cls + '"><div class="val">' + c.val + '</div><div class="lbl">' + esc(c.lbl) + '</div></div>';
     }).join('') + '</div></div>';
@@ -1445,7 +1808,7 @@
     html += filtersHtml(d,
       '<div class="filter-field"><label>Flagged</label><select data-filter="flagged"><option value="">All</option><option value="yes">Open flags only</option></select></div>',
       filterTeachers);
-    html += sheetPanel('Faculty register', rows.length + ' pupils', '',
+    html += sheetPanel('Full pupil register', rows.length + ' pupils', '',
       renderDashboardFullGrid(d, rows));
     html += '</div>';
     return html;
@@ -4241,6 +4604,7 @@
     var html = '';
     switch (state.route) {
       case 'dashboard': html = renderDashboard(); break;
+      case 'register': html = renderRegister(); break;
       case 'alerts': html = renderAlerts(); break;
       case 'feedback': html = renderFeedback(); break;
       case 'setup': html = renderSetup(); break;
@@ -4256,7 +4620,9 @@
     document.getElementById('app-main').innerHTML = html;
     syncLayoutClasses();
     updateNavToggleUi();
-    bindMainEvents(document.getElementById('app-main'));
+    var appMain = document.getElementById('app-main');
+    bindMainEvents(appMain);
+    if (state.route === 'dashboard') bindDashboardCharts(appMain);
     restoreGridScroll(scrollPos);
   }
 
