@@ -1291,11 +1291,6 @@
     var html = alertStripHtml() + '<div class="dashboard-wrap">';
     html += '<div class="dashboard-head">' +
       '<div class="page-head page-head-compact"><h1>Senior Phase Dashboard</h1></div>' +
-      (canExportWorkbookBackup() ?
-        '<div class="dashboard-backup">' +
-        '<button type="button" class="btn btn-secondary btn-sm" id="btn-export-workbook-backup" title="Full workbook JSON — pupils, classes, tracking, flags, prelims">' +
-        'Download full backup</button>' +
-        '<span class="dashboard-backup-hint">JSON snapshot for restore</span></div>' : '') +
       '<div class="summary-row summary-row-compact">' + summaryCards(allRows).map(function(c) {
       return '<div class="summary-card ' + c.cls + '"><div class="val">' + c.val + '</div><div class="lbl">' + esc(c.lbl) + '</div></div>';
     }).join('') + '</div></div>';
@@ -3228,7 +3223,17 @@
         rep.headers.map(function(h, i) { return '<th' + (i === 0 ? ' class="col-pupil"' : '') + '>' + esc(h) + '</th>'; }).join('') +
         '</tr></thead><tbody>' + repRows + '</tbody></table>');
     }
-    var html = '<div class="page-head"><h1>Reports</h1></div><div class="report-grid">';
+    var html = '<div class="page-head"><h1>Reports</h1></div>';
+    if (canExportWorkbookBackup()) {
+      html += '<div class="report-backup-panel">' +
+        '<div class="report-backup-panel-inner">' +
+        '<h2>Full workbook backup</h2>' +
+        '<p>Download a JSON snapshot of the entire Senior Phase workbook — pupils, classes, enrolments, tracking, flags, prelims, evidence, and interventions. Keep this file safe before major changes.</p>' +
+        '<button type="button" class="btn btn-secondary btn-sm" id="btn-export-workbook-backup" ' +
+        'title="Full workbook JSON — pupils, classes, tracking, flags, prelims">Download full backup</button>' +
+        '</div></div>';
+    }
+    html += '<div class="report-grid">';
     Object.keys(SptReports.REPORTS).forEach(function(id) {
       html += '<div class="report-tile" data-report="' + id + '"><h3>' + esc(SptReports.REPORTS[id].title) + '</h3></div>';
     });
