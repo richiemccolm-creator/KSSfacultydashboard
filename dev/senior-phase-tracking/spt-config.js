@@ -13,7 +13,7 @@
   })();
 
   var STORAGE_KEY = useSeedData ? 'spt-dev-v2' : 'spt-hub-v1';
-  var DATA_VERSION = 20;
+  var DATA_VERSION = 21;
 
   var AH_ART_PORTFOLIO_ROUTES = ['Expressive', 'Design'];
 
@@ -31,7 +31,7 @@
     intervention: ['Planned', 'Active', 'Reviewed', 'Completed', 'Escalated'],
     impact: ['No Impact', 'Some Impact', 'Good Impact', 'Not Yet Known'],
     flag: ['Open', 'Ongoing', 'Resolved'],
-    pathway: ['Completed previous level', 'Crashing subject', 'Deferred', 'First time in subject', 'No prior entry', 'Not crashing (override)']
+    pathway: ['Completed previous level', 'Crashing subject']
   };
 
   var CONCERN_CATEGORIES = [
@@ -85,10 +85,7 @@
     'Under Review': 'badge-amber', Recommended: 'badge-amber', Approved: 'badge-green',
     Completed: 'badge-green', 'Not Proceeding': 'badge-grey',
     'Completed previous level': 'badge-green',
-    'Crashing subject': 'badge-amber',
-    'First time in subject': 'badge-amber',
-    'First time': 'badge-amber',
-    'Not crashing (override)': 'badge-green'
+    'Crashing subject': 'badge-amber'
   };
 
   var GRADE_RANK = {

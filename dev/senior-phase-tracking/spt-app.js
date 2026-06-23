@@ -1139,23 +1139,17 @@
     if (!canEdit) {
       var pd = r.prior_display;
       return '<td class="cell-grade' + crashCls + '">' + esc(pd.grade) + '</td>' +
-        '<td class="cell-prior-pathway' + crashCls + '">' +
-        (crashing ? badge('Crashing subject') : badge(pd.pathway)) + '</td>' + eoyCell;
+        '<td class="cell-prior-pathway' + crashCls + '">' + badge(pd.pathway) + '</td>' + eoyCell;
     }
+    if (!pathway) pathway = crashing ? 'Crashing subject' : 'Completed previous level';
     var gradeTitle = crashing ? ' title="No prior qualification at the expected level for this course"' : '';
     var gradeCell = '<td class="cell-grade' + crashCls + '">' +
       '<input type="text" class="inline-input-sm prior-grade-input" data-prior="' + enId + '|result_grade" ' +
       'value="' + esc(grade) + '" placeholder="Grade"' + gradeTitle + '></td>';
-    var pathwayOpts = '<option value="">—</option>' + SptConfig.STATUS.pathway.map(function(s) {
+    var pathwayOpts = SptConfig.STATUS.pathway.map(function(s) {
       return '<option value="' + esc(s) + '"' + (pathway === s ? ' selected' : '') + '>' + esc(s) + '</option>';
     }).join('');
-    var crashBadge = '';
-    if (crashing) {
-      crashBadge = '<span class="crash-tag">' + badge('Crashing subject') +
-        '<button type="button" class="crash-dismiss" data-dismiss-crashing="' + enId + '" ' +
-        'title="Remove crashing flag (admin override)">×</button></span> ';
-    }
-    var pathwayCell = '<td class="cell-prior-pathway' + crashCls + '">' + crashBadge +
+    var pathwayCell = '<td class="cell-prior-pathway' + crashCls + '">' +
       '<select class="inline-select inline-select-sm" data-prior="' + enId + '|pathway_status">' +
       pathwayOpts + '</select></td>';
     return gradeCell + pathwayCell + eoyCell;
@@ -1394,9 +1388,7 @@
         prelimPct = r.prelim_result;
       }
       var priorCell = r.shows_prior_entry ? esc(r.prior_display.grade) : '—';
-      var pathwayCell = r.shows_prior_entry
-        ? (r.crashing_subject ? badge('Crashing subject') : badge(r.prior_display.pathway))
-        : '—';
+      var pathwayCell = r.shows_prior_entry ? badge(r.prior_display.pathway) : '—';
       var unitsCell = r.uses_evidence_bank ? (r.units_banked + '/' + r.units_total) : '—';
       bodyRows += '<tr class="' + (r.open_flag_count ? 'row-flagged' : '') + '" data-enrolment="' + r.enrolment.id + '">' +
         '<td class="col-pupil">' + esc(SptStore.pupilName(d, r.pupil.id)) + '</td>' +
@@ -4146,16 +4138,6 @@
       if (el.tagName === 'INPUT') {
         el.addEventListener('blur', function() { el.dispatchEvent(new Event('change')); });
       }
-    });
-    root.querySelectorAll('[data-dismiss-crashing]').forEach(function(el) {
-      el.addEventListener('click', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-        if (!role().canEdit) return;
-        var enId = el.getAttribute('data-dismiss-crashing');
-        SptStore.upsertPriorForCourse(db(), enId, { crashing_dismissed: true });
-        if (state.route === 'course') render();
-      });
     });
     root.querySelectorAll('[data-prior]').forEach(function(el) {
       function savePrior() {

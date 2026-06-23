@@ -108,12 +108,7 @@
   }
 
   var COMPLETED_PATHWAYS = ['Completed previous level', 'Completed'];
-  var CRASHING_PATHWAYS = ['Crashing subject', 'First time in subject', 'First time', 'No prior entry'];
-  var OVERRIDE_PATHWAYS = ['Not crashing (override)'];
-
-  function isCrashingDismissed(prior) {
-    return !!(prior && (prior.crashing_dismissed || OVERRIDE_PATHWAYS.indexOf(prior.pathway_status || '') >= 0));
-  }
+  var CRASHING_PATHWAYS = ['Crashing subject'];
 
   function qualLevelMatches(level, courseType) {
     var lvl = (level || '').toLowerCase();
@@ -142,16 +137,12 @@
   function isCrashingSubject(db, enrolment, course) {
     if (!showsPriorEntry(course)) return false;
     var prior = priorForCourse(db, enrolment.pupil_id, course);
-    if (prior && isCrashingDismissed(prior)) return false;
     if (prior) {
       var ps = prior.pathway_status || '';
+      if (COMPLETED_PATHWAYS.indexOf(ps) >= 0) return false;
+      if (CRASHING_PATHWAYS.indexOf(ps) >= 0) return true;
       if (ps === 'Crashed / withdrew') {
         return !hasQualifyingPrior(db, enrolment.pupil_id, course);
-      }
-      if (CRASHING_PATHWAYS.indexOf(ps) >= 0) return true;
-      if (COMPLETED_PATHWAYS.indexOf(ps) >= 0) {
-        if (!prior.result_grade || !String(prior.result_grade).trim()) return false;
-        return !qualLevelMatches(prior.qualification_level, course.course_type);
       }
     }
     return !hasQualifyingPrior(db, enrolment.pupil_id, course);
@@ -167,11 +158,16 @@
 
   function priorDisplay(prior, crashing) {
     if (!prior) {
-      return { grade: '—', pathway: '—', crashing_subject: !!crashing };
+      return {
+        grade: '—',
+        pathway: crashing ? 'Crashing subject' : 'Completed previous level',
+        crashing_subject: !!crashing
+      };
     }
+    var pathway = prior.pathway_status || (crashing ? 'Crashing subject' : 'Completed previous level');
     return {
       grade: prior.result_grade || '—',
-      pathway: prior.pathway_status || '—',
+      pathway: pathway,
       crashing_subject: !!crashing
     };
   }
@@ -199,16 +195,7 @@
     if (!course || !showsPriorEntry(course)) return null;
     var existing = priorForCourse(db, en.pupil_id, course);
     if (patch.pathway_status !== undefined) {
-      if (OVERRIDE_PATHWAYS.indexOf(patch.pathway_status) >= 0) {
-        patch.crashing_dismissed = true;
-      } else if (CRASHING_PATHWAYS.indexOf(patch.pathway_status) >= 0) {
-        patch.crashing_dismissed = false;
-      } else if (COMPLETED_PATHWAYS.indexOf(patch.pathway_status) >= 0) {
-        patch.crashing_dismissed = false;
-      }
-    }
-    if (patch.crashing_dismissed === true && patch.pathway_status === undefined) {
-      patch.pathway_status = OVERRIDE_PATHWAYS[0];
+      patch.crashing_dismissed = COMPLETED_PATHWAYS.indexOf(patch.pathway_status) >= 0;
     }
     if (patch.result_grade !== undefined) {
       var grade = String(patch.result_grade || '').trim();

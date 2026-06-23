@@ -528,10 +528,12 @@
     }
     (db.prior_attainment || []).forEach(function(p) {
       if (p.pathway_status === 'Completed') p.pathway_status = 'Completed previous level';
-      if (p.pathway_status === 'First time') p.pathway_status = 'First time in subject';
       if (p.pathway_status === 'Crashed / withdrew') {
         p.pathway_status = p.result_grade ? 'Completed previous level' : 'Crashing subject';
       }
+      var legacyCrashing = ['First time', 'First time in subject', 'No prior entry', 'Deferred'];
+      if (legacyCrashing.indexOf(p.pathway_status) >= 0) p.pathway_status = 'Crashing subject';
+      if (p.pathway_status === 'Not crashing (override)') p.pathway_status = 'Completed previous level';
     });
     (db.enrolments || []).forEach(function(en) {
       if (global.SptConcerns && global.SptConcerns.syncEnrolmentFlag) {
