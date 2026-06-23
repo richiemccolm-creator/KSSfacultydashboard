@@ -62,10 +62,16 @@
         <label for="fhAnnBody">Body</label>
         <textarea id="fhAnnBody" placeholder="Optional details..."></textarea>
       </div>
-      <div style="margin:10px 0 14px">
+      <div style="margin:10px 0 8px">
         <label style="display:flex;align-items:center;gap:8px;font-size:var(--fs-sm);color:var(--ink-500)">
           <input id="fhAnnHighlight" type="checkbox">
           Shade full announcement with priority colour
+        </label>
+      </div>
+      <div style="margin:0 0 14px">
+        <label style="display:flex;align-items:center;gap:8px;font-size:var(--fs-sm);color:var(--ink-500)">
+          <input id="fhAnnFeaturedBanner" type="checkbox">
+          Show as full-width banner on home screen
         </label>
       </div>
       <div class="ann-actions">
@@ -124,15 +130,22 @@ function fhSetAnnouncementsSchemaHint() {
   var el = document.getElementById('fhAnnSchemaHint');
   if (!el || !window.DataService || typeof DataService.getAnnouncementsSchemaSupport !== 'function') return;
   DataService.getAnnouncementsSchemaSupport().then(function(info) {
-    if (info && info.priorityColumns) {
+    var warnings = [];
+    if (!info || !info.priorityColumns) {
+      warnings.push('Priority colour fields are unavailable on this database. Run the announcements priority migration to enable them.');
+    }
+    if (!info || !info.featuredBannerColumn) {
+      warnings.push('The home-screen banner option is unavailable until the featured_banner migration is applied.');
+    }
+    if (!warnings.length) {
       el.style.display = 'none';
       return;
     }
     el.style.display = 'block';
-    el.textContent = 'Priority colour fields are unavailable on this database. Run the announcements priority migration to enable them.';
+    el.textContent = warnings.join(' ');
   }).catch(function() {
     el.style.display = 'block';
-    el.textContent = 'Could not verify priority colour support. If colours do not apply, run the announcements priority migration.';
+    el.textContent = 'Could not verify announcement schema support. If colours or the banner option do not work, run the latest announcements migrations.';
   });
 }
 
@@ -144,6 +157,7 @@ function fhResetAnnouncementForm() {
   document.getElementById('fhAnnExpires').value = '';
   document.getElementById('fhAnnPriority').value = 'none';
   document.getElementById('fhAnnHighlight').checked = false;
+  document.getElementById('fhAnnFeaturedBanner').checked = false;
   document.getElementById('fhAnnCreateBtn').style.display = 'inline-flex';
   document.getElementById('fhAnnUpdateBtn').style.display = 'none';
   document.getElementById('fhAnnCancelBtn').style.display = 'none';
@@ -155,7 +169,8 @@ function fhReadAnnouncementForm() {
     body: document.getElementById('fhAnnBody').value.trim() || null,
     expires_at: document.getElementById('fhAnnExpires').value || null,
     priority: document.getElementById('fhAnnPriority').value || 'none',
-    highlight_priority: !!document.getElementById('fhAnnHighlight').checked
+    highlight_priority: !!document.getElementById('fhAnnHighlight').checked,
+    featured_banner: !!document.getElementById('fhAnnFeaturedBanner').checked
   };
 }
 
@@ -166,14 +181,16 @@ function fhRenderAnnouncements() {
     wrap.innerHTML = '<div class="empty-s">No announcements yet.</div>';
     return;
   }
-  wrap.innerHTML = '<table class="table"><thead><tr><th>Title</th><th>Priority</th><th>Created</th><th>Expires</th><th></th></tr></thead><tbody>' +
+  wrap.innerHTML = '<table class="table"><thead><tr><th>Title</th><th>Priority</th><th>Home banner</th><th>Created</th><th>Expires</th><th></th></tr></thead><tbody>' +
     fhAnnouncements.map(function(a) {
       var p = String(a.priority || 'none');
       var pLabel = p.charAt(0).toUpperCase() + p.slice(1) + ((a.highlight_priority && p !== 'none') ? ' (shaded)' : '');
+      var bannerLabel = a.featured_banner ? 'Yes' : '—';
       var subject = String(a.subject || a.target_subject || a.targetSubject || '').trim();
       return '<tr class="' + fhSubjectRowClass(subject) + '">' +
         '<td>' + fhEsc(a.title) + fhSubjectBadge(subject) + '</td>' +
         '<td>' + fhEsc(pLabel) + '</td>' +
+        '<td>' + fhEsc(bannerLabel) + '</td>' +
         '<td>' + fhEsc((a.created_at || '').slice(0, 10)) + '</td>' +
         '<td>' + fhEsc(a.expires_at || '—') + '</td>' +
         '<td><button class="btn" type="button" onclick="fhEditAnnouncement(\'' + fhEsc(a.id) + '\')">Edit</button> <button class="btn" type="button" onclick="fhDeleteAnnouncement(\'' + fhEsc(a.id) + '\')">Delete</button></td>' +
@@ -202,6 +219,7 @@ function fhEditAnnouncement(id) {
   document.getElementById('fhAnnExpires').value = a.expires_at || '';
   document.getElementById('fhAnnPriority').value = a.priority || 'none';
   document.getElementById('fhAnnHighlight').checked = !!a.highlight_priority;
+  document.getElementById('fhAnnFeaturedBanner').checked = !!a.featured_banner;
   document.getElementById('fhAnnCreateBtn').style.display = 'none';
   document.getElementById('fhAnnUpdateBtn').style.display = 'inline-flex';
   document.getElementById('fhAnnCancelBtn').style.display = 'inline-flex';
