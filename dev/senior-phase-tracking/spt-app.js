@@ -649,6 +649,17 @@
       ? r.pupil.end_of_year_attendance_percent : null;
   }
 
+  function rowAttPct(r) {
+    var pct = null;
+    (r.attendance || []).forEach(function(a) {
+      if (a.record && a.record.attendance_percent != null) pct = a.record.attendance_percent;
+    });
+    if (pct == null && r.pupil && r.pupil.end_of_year_attendance_percent != null) {
+      pct = r.pupil.end_of_year_attendance_percent;
+    }
+    return pct;
+  }
+
   function eoyAttendanceCell(r) {
     return '<td class="cell-num cell-att-pct">' +
       attendancePctHtml(pupilEoyAttendance(r), 'End-of-year attendance (previous session)') + '</td>';
@@ -1471,21 +1482,65 @@
     var d = db();
     var allRows = SptStore.getEnrichedRows(d);
 
+    function drillDownTable(filteredRows) {
+      if (!filteredRows.length) {
+        return '<p class="modal-note">No pupils in this group.</p>';
+      }
+      var html = '<div style="max-height:440px;overflow-y:auto">' +
+        '<table class="data-table data-table-compact">' +
+        '<thead><tr><th>Pupil</th><th>Year</th><th>Course</th><th>Status</th><th>Att</th></tr></thead><tbody>';
+      filteredRows.forEach(function(r) {
+        html += '<tr data-enrolment="' + r.enrolment.id + '">' +
+          '<td class="col-pupil">' + esc(SptStore.pupilName(d, r.pupil.id)) + '</td>' +
+          '<td>' + esc(r.pupil.year_group || '—') + '</td>' +
+          '<td>' + esc(r.course.course_name) + '</td>' +
+          '<td>' + badge(r.enrolment.risk_status) + '</td>' +
+          '<td class="cell-num">' + attendancePctHtml(rowAttPct(r)) + '</td></tr>';
+      });
+      html += '</tbody></table></div>';
+      return html;
+    }
+
+    function drillDownTitle(label, count) {
+      return label + ' \u2014 ' + count + ' pupil' + (count !== 1 ? 's' : '');
+    }
+
+    function setChartCursor(canvas, elements) {
+      canvas.style.cursor = elements.length ? 'pointer' : 'default';
+    }
+
     var riskCanvas = root.querySelector('#spt-dash-risk-chart');
     if (riskCanvas) {
       var rc = { Green: 0, Amber: 0, Red: 0, Grey: 0 };
       allRows.forEach(function(r) { var s = r.enrolment.risk_status || 'Grey'; rc[s] = (rc[s] || 0) + 1; });
+      var riskSegmentKeys = ['Green', 'Amber', 'Red', 'Grey'];
+      var riskSegmentLabels = ['On track', 'Amber', 'Red', 'Not started'];
       new Chart(riskCanvas.getContext('2d'), {
         type: 'doughnut',
         data: {
-          labels: ['On track', 'Amber', 'Red', 'Not started'],
+          labels: riskSegmentLabels,
           datasets: [{ data: [rc.Green, rc.Amber, rc.Red, rc.Grey],
             backgroundColor: ['#166534', '#d97706', '#dc2626', '#cbd5e1'],
             borderWidth: 2, borderColor: '#fff' }]
         },
-        options: { plugins: { legend: { display: false }, tooltip: { callbacks: {
-          label: function(ctx) { return ctx.label + ': ' + ctx.parsed; }
-        }}}, cutout: '62%', animation: { duration: 350 } }
+        options: {
+          plugins: { legend: { display: false }, tooltip: { callbacks: {
+            label: function(ctx) { return ctx.label + ': ' + ctx.parsed; }
+          }}},
+          cutout: '62%',
+          animation: { duration: 350 },
+          onHover: function(evt, elements) { setChartCursor(riskCanvas, elements); },
+          onClick: function(evt, elements) {
+            if (!elements.length) return;
+            var idx = elements[0].index;
+            var key = riskSegmentKeys[idx];
+            var label = riskSegmentLabels[idx];
+            var filtered = allRows.filter(function(r) {
+              return (r.enrolment.risk_status || 'Grey') === key;
+            });
+            openModal(drillDownTitle('Risk: ' + label, filtered.length), drillDownTable(filtered));
+          }
+        }
       });
     }
 
@@ -1493,25 +1548,42 @@
     if (attCanvas) {
       var aGood = 0, aAmb = 0, aLow = 0, aNo = 0;
       allRows.forEach(function(r) {
-        var pct = null;
-        (r.attendance || []).forEach(function(a) {
-          if (a.record && a.record.attendance_percent != null) pct = a.record.attendance_percent;
-        });
-        if (pct == null && r.pupil && r.pupil.end_of_year_attendance_percent != null) pct = r.pupil.end_of_year_attendance_percent;
+        var pct = rowAttPct(r);
         if (pct == null) { aNo++; return; }
         if (pct >= 90) aGood++; else if (pct >= 75) aAmb++; else aLow++;
       });
+      var attSegmentLabels = ['90%+', '75\u201389%', 'Under 75%', 'No data'];
       new Chart(attCanvas.getContext('2d'), {
         type: 'doughnut',
         data: {
-          labels: ['90%+', '75–89%', 'Under 75%', 'No data'],
+          labels: attSegmentLabels,
           datasets: [{ data: [aGood, aAmb, aLow, aNo],
             backgroundColor: ['#166534', '#d97706', '#dc2626', '#e2e8f0'],
             borderWidth: 2, borderColor: '#fff' }]
         },
-        options: { plugins: { legend: { display: false }, tooltip: { callbacks: {
-          label: function(ctx) { return ctx.label + ': ' + ctx.parsed; }
-        }}}, cutout: '62%', animation: { duration: 350 } }
+        options: {
+          plugins: { legend: { display: false }, tooltip: { callbacks: {
+            label: function(ctx) { return ctx.label + ': ' + ctx.parsed; }
+          }}},
+          cutout: '62%',
+          animation: { duration: 350 },
+          onHover: function(evt, elements) { setChartCursor(attCanvas, elements); },
+          onClick: function(evt, elements) {
+            if (!elements.length) return;
+            var idx = elements[0].index;
+            var label = attSegmentLabels[idx];
+            var filtered = allRows.filter(function(r) {
+              var pct = rowAttPct(r);
+              if (idx === 0) return pct != null && pct >= 90;
+              if (idx === 1) return pct != null && pct >= 75 && pct < 90;
+              if (idx === 2) return pct != null && pct < 75;
+              return pct == null;
+            });
+            var titleLabel = 'Attendance: ' + label;
+            if (idx === 2) titleLabel = 'Attendance concern (Under 75%)';
+            openModal(drillDownTitle(titleLabel, filtered.length), drillDownTable(filtered));
+          }
+        }
       });
     }
 
