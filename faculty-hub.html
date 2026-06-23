@@ -17,6 +17,35 @@
     if (window.ensureAppVersionInUrl) window.ensureAppVersionInUrl();
   })();
 </script>
+<script>
+(function () {
+  var q = new URLSearchParams(location.search);
+  var id = q.get('panel');
+  if (q.get('view') === 'actions') id = 'dip-action-plan-2627';
+  if (!id || id === 'home') return;
+
+  function panelWrap(panelId) {
+    if (panelId === 'home' || panelId === 'home-announcements-all' || panelId === 'academic-calendar' || panelId === 'data-backup' || panelId.indexOf('embed-') === 0) return 'panel-home';
+    if (panelId.indexOf('drama') === 0) return 'panel-drama';
+    if (panelId.indexOf('photo') === 0) return 'panel-photo';
+    if (panelId.indexOf('dip') === 0) return 'panel-dip';
+    return 'panel-ad';
+  }
+
+  var wrap = panelWrap(id);
+  var esc = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape(id) : id.replace(/[^\w-]/g, '');
+  var css =
+    '#panel-home,#panel-drama,#panel-ad,#panel-photo,#panel-dip{display:none!important}' +
+    '.panel{display:none!important}' +
+    '#' + wrap + '{display:block!important}' +
+    '#' + esc + '{display:block!important}';
+  var s = document.createElement('style');
+  s.id = 'hub-panel-boot';
+  s.textContent = css;
+  document.head.appendChild(s);
+  document.documentElement.setAttribute('data-initial-panel', id);
+})();
+</script>
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="supabase-init.js"></script>
@@ -6122,7 +6151,37 @@ function homeGetTrackerBlobs(){
   });
   return homeTrackerBlobsPromise;
 }
-function showPanel(id){
+function resolveDeepPanelFromUrl(){
+  var urlParams=new URLSearchParams(window.location.search);
+  var deepPanel=urlParams.get('panel');
+  if(urlParams.get('view')==='actions') deepPanel='dip-action-plan-2627';
+  if(deepPanel&&document.getElementById(deepPanel)) return deepPanel;
+  return 'home';
+}
+function syncPanelToUrl(id){
+  try{
+    var url=new URL(window.location.href);
+    var current=url.searchParams.get('panel');
+    if(id==='home'){
+      if(!current&&!url.searchParams.get('view')) return;
+      url.searchParams.delete('panel');
+      url.searchParams.delete('view');
+    }else{
+      if(current===id) return;
+      url.searchParams.set('panel',id);
+      url.searchParams.delete('view');
+    }
+    history.replaceState({panel:id},'',url.pathname+url.search+url.hash);
+  }catch(e){}
+}
+function clearPanelBootStyle(){
+  var boot=document.getElementById('hub-panel-boot');
+  if(boot) boot.remove();
+  document.documentElement.classList.add('panel-ready');
+  document.documentElement.removeAttribute('data-initial-panel');
+}
+function showPanel(id,opts){
+  opts=opts||{};
   const subj=id==='home'||id==='home-announcements-all'||id==='academic-calendar'||id==='data-backup'||id.startsWith('embed-')?'home':id.startsWith('drama')?'drama':id.startsWith('photo')?'photo':id.startsWith('dip')?'dip':'ad';
   // Show/hide subject group wrappers
   const dPanel=document.getElementById('panel-drama');
@@ -6193,6 +6252,8 @@ function showPanel(id){
     }
   }
   if(id==='dip-main') dipUpdateTrackerWidgets();
+  clearPanelBootStyle();
+  if(!opts.skipUrlSync) syncPanelToUrl(id);
 }
 
 /** Open My tasks inside hub iframe; optional hash e.g. #task-abc */
@@ -10881,10 +10942,10 @@ document.addEventListener('DOMContentLoaded',function(){
     var banner=document.getElementById('cloud-sync-banner');if(banner)banner.style.display=(window.DataService&&window.DataService.isUsingCloud&&window.DataService.isUsingCloud())?'none':'block';
   }
   homeUpdateStorageIndicatorFn=updateStorageIndicator;
-  var urlParams=new URLSearchParams(window.location.search);
-  var deepPanel=urlParams.get('panel');
-  if(urlParams.get('view')==='actions') deepPanel='dip-action-plan-2627';
-  showPanel(deepPanel&&document.getElementById(deepPanel)?deepPanel:'home');
+  showPanel(resolveDeepPanelFromUrl(),{skipUrlSync:true});
+  window.addEventListener('popstate',function(){
+    showPanel(resolveDeepPanelFromUrl(),{skipUrlSync:true});
+  });
   homeLoadGreeting();
   homeShowSectionLoading();
 
@@ -10914,7 +10975,7 @@ document.addEventListener('DOMContentLoaded',function(){
     homeHasCompletedInitialLoad=true;
   }).catch(function(){
     updateStorageIndicator();
-    showPanel('home');
+    showPanel(resolveDeepPanelFromUrl(),{skipUrlSync:true});
     homeDashboardRender({ showLoading: false });
     scheduleHomeDataRefresh(60);
     homeHasCompletedInitialLoad=true;
