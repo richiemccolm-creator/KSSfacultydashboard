@@ -14,6 +14,7 @@
     filters: {},
     setupTeacherId: null,
     setupClassId: null,
+    alertsShowResolved: false,
     hubStaff: [],
     hubStaffStatus: 'idle',
     hubStaffError: null,
@@ -1964,50 +1965,71 @@
     return actions;
   }
 
+  function alertsActivityHtml(f) {
+    var activity = SptConcerns.flagActivityDate(f) || f.created_at;
+    if (!activity) return '—';
+    var days = daysSince(activity);
+    var rel = days === 0 ? 'today' : days === 1 ? '1d ago' : days + 'd ago';
+    return '<span title="Raised ' + esc((f.created_at || '').slice(0, 10)) +
+      ' · last update ' + esc((activity || '').slice(0, 10)) + '">' + rel + '</span>';
+  }
+
   function renderAlerts() {
     var d = db();
     var flags = SptConcerns.sortForAlertsList(SptConcerns.allViewableFlags(d));
     var openN = flags.filter(function(f) { return f.status === 'Open'; }).length;
     var ongoingN = flags.filter(function(f) { return f.status === 'Ongoing'; }).length;
     var resolvedN = flags.filter(function(f) { return f.status === 'Resolved'; }).length;
-    var html = alertStripHtml() + '<div class="page-head"><h1>Teacher concern alerts</h1>' +
-      '<p>All concerns in one place — newest first within each group. Take action on <strong>Open</strong> flags; ' +
-      '<strong>Ongoing</strong> stays on tracking until you close the concern; <strong>Resolved</strong> records are kept at the bottom for review.</p></div>' +
-      '<div class="concern-legend">' +
-      '<span class="concern-legend-item concern-legend-open">Open — needs action</span>' +
-      '<span class="concern-legend-item concern-legend-ongoing">Ongoing — support in progress</span>' +
-      '<span class="concern-legend-item concern-legend-resolved">Resolved — archived for review</span></div>';
+    var showResolved = !!state.alertsShowResolved;
+    var COLS = 8;
+
+    var html = '<div class="page-head page-head-compact alerts-head">' +
+      '<h1>Teacher concern alerts</h1>' +
+      '<div class="alerts-chips">' +
+      '<button type="button" class="alerts-chip concern-legend-item concern-legend-open" data-alerts-jump="open"' +
+      (openN ? '' : ' disabled') + '>Open <strong>' + openN + '</strong></button>' +
+      '<button type="button" class="alerts-chip concern-legend-item concern-legend-ongoing" data-alerts-jump="ongoing"' +
+      (ongoingN ? '' : ' disabled') + '>Ongoing <strong>' + ongoingN + '</strong></button>' +
+      '<button type="button" class="alerts-chip concern-legend-item concern-legend-resolved" data-alerts-toggle-resolved' +
+      (resolvedN ? '' : ' disabled') + '>Resolved <strong>' + resolvedN + '</strong></button>' +
+      '</div></div>';
+
     var alertRows = '';
     var lastStatus = null;
     flags.forEach(function(f) {
       var en = SptStore.byId(d.enrolments, f.enrolment_id);
       if (!en) return;
       if (f.status !== lastStatus) {
-        var sectionLabel = f.status === 'Open' ? 'Awaiting your action' :
-          f.status === 'Ongoing' ? 'Ongoing support' : 'Resolved — review anytime';
-        alertRows += '<tr class="concern-section-row"><td colspan="9">' + esc(sectionLabel) + '</td></tr>';
+        if (f.status === 'Resolved') {
+          alertRows += '<tr class="concern-section-row alerts-resolved-toggle-row" id="alerts-section-resolved"><td colspan="' + COLS + '">' +
+            'Resolved — archived for review ' +
+            '<button type="button" class="alerts-resolved-toggle" data-alerts-toggle-resolved>' +
+            (showResolved ? 'Hide' : 'Show ' + resolvedN) + '</button></td></tr>';
+        } else {
+          var sectionLabel = f.status === 'Open' ? 'Awaiting your action' : 'Ongoing support';
+          alertRows += '<tr class="concern-section-row" id="alerts-section-' + esc(f.status.toLowerCase()) + '"><td colspan="' + COLS + '">' +
+            esc(sectionLabel) + '</td></tr>';
+        }
         lastStatus = f.status;
       }
-      var activity = SptConcerns.flagActivityDate(f);
+      if (f.status === 'Resolved' && !showResolved) return;
       alertRows += '<tr class="' + SptConcerns.alertRowClass(f.status) + '">' +
         '<td class="col-pupil">' + esc(SptStore.pupilName(d, en.pupil_id)) + '</td>' +
         '<td>' + esc(SptStore.courseName(d, en.course_id)) + '</td>' +
         '<td>' + esc(SptStore.teacherName(d, f.raised_by_teacher_id)) + '</td>' +
         '<td>' + badge(f.status) + '</td>' +
         '<td>' + esc(f.category) + '</td>' +
-        '<td>' + esc(f.comment) + '</td>' +
-        '<td class="cell-num">' + esc((f.created_at || '').slice(0, 10)) + '</td>' +
-        '<td class="cell-num">' + esc((activity || '').slice(0, 10)) + '</td>' +
+        '<td class="cell-concern" title="' + esc(f.comment || '') + '">' + esc(f.comment) + '</td>' +
+        '<td class="cell-num">' + alertsActivityHtml(f) + '</td>' +
         '<td>' + concernAlertActionsHtml(f, en) + '</td></tr>';
     });
     if (!alertRows) {
-      alertRows = '<tr><td colspan="9" class="empty">No teacher concerns recorded yet.</td></tr>';
+      alertRows = '<tr><td colspan="' + COLS + '" class="empty">No teacher concerns recorded yet.</td></tr>';
     }
-    html += sheetPanel('Concern register', openN + ' open · ' + ongoingN + ' ongoing · ' + resolvedN + ' resolved',
-      'Red = new · Amber = ongoing · Green = closed',
+    html += sheetPanel('Concern register', openN + ' open · ' + ongoingN + ' ongoing · ' + resolvedN + ' resolved', '',
       '<table class="data-table concern-alerts-table"><thead><tr>' +
       '<th class="col-pupil">Pupil</th><th>Course</th><th>Teacher</th><th>Status</th><th>Category</th><th>Comment</th>' +
-      '<th>Raised</th><th>Last update</th><th>Actions</th></tr></thead><tbody>' +
+      '<th>Activity</th><th>Actions</th></tr></thead><tbody>' +
       alertRows + '</tbody></table>');
     return html;
   }
@@ -3985,6 +4007,21 @@
   function bindMainEvents(root) {
     root.querySelectorAll('[data-route]').forEach(function(el) {
       el.addEventListener('click', function() { setRoute(el.getAttribute('data-route')); });
+    });
+    root.querySelectorAll('[data-alerts-toggle-resolved]').forEach(function(el) {
+      el.addEventListener('click', function(e) {
+        e.stopPropagation();
+        state.alertsShowResolved = !state.alertsShowResolved;
+        render();
+        var sec = document.getElementById('alerts-section-resolved');
+        if (sec) sec.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      });
+    });
+    root.querySelectorAll('[data-alerts-jump]').forEach(function(el) {
+      el.addEventListener('click', function() {
+        var sec = document.getElementById('alerts-section-' + el.getAttribute('data-alerts-jump'));
+        if (sec) sec.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      });
     });
     root.querySelectorAll('[data-enrolment]').forEach(function(el) {
       el.addEventListener('click', function(e) {
