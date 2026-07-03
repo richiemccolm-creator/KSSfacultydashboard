@@ -52,6 +52,7 @@
 <script src="allowlist-check.js"></script>
 <script src="auth-guard.js"></script>
 <script src="data-service.js"></script>
+<script src="academic-calendar-defaults.js"></script>
 <script src="dip-tracker-service.js"></script>
 <script src="planner-service.js"></script>
 <script src="staff-display-name.js"></script>
@@ -2029,6 +2030,7 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
 }
 .cal-cat-chip:hover{border-color:var(--accent-drama);color:var(--accent-drama)}
 .cal-cat-chip.active{background:var(--navy-active);border-color:var(--navy-active);color:white}
+.cal-cat-chip[data-cat="faculty-deadline"].active{background:#c0392b;border-color:#c0392b;color:white}
 .cal-filter-label{font-size:.72rem;font-weight:600;color:var(--text3);margin-right:.25rem}
 .cal-year-btn{
   padding:.5rem 1rem;border:none;border-radius:6px;
@@ -2085,6 +2087,7 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
 .cal-event-bar.training{background:linear-gradient(180deg,#1d4ed8,#3b82f6)}
 .cal-event-bar.cpd{background:linear-gradient(180deg,#3730a3,#6366f1)}
 .cal-event-bar.inset{background:linear-gradient(180deg,#9d174d,#ec4899)}
+.cal-event-bar.faculty-deadline{background:linear-gradient(180deg,#c0392b,#e74c3c)}
 .cal-event-actions{display:flex;gap:4px;align-items:center;margin-top:6px}
 .cal-event-actions button{font-size:11px;padding:4px 8px;border-radius:4px;border:1px solid var(--border2);background:var(--card);cursor:pointer;color:var(--text2)}
 .cal-event-actions button:hover{background:var(--bg)}
@@ -2125,6 +2128,7 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
 .cal-badge.training{background:#dbeafe;color:#1d4ed8}
 .cal-badge.cpd{background:#e0e7ff;color:#3730a3}
 .cal-badge.inset{background:#fce7f3;color:#9d174d}
+.cal-badge.faculty-deadline{background:#fdecea;color:#c0392b;border:1px solid #f5a5a5}
 .cal-form-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:1rem}
 .cal-form-grid input,.cal-form-grid select{
   padding:.5rem .75rem;border:1px solid var(--border2);border-radius:6px;font-size:.85rem
@@ -2217,6 +2221,7 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
 .cal-marker.training{background:#1d4ed8}
 .cal-marker.cpd{background:#3730a3}
 .cal-marker.inset{background:#9d174d}
+.cal-marker.faculty-deadline{background:#c0392b}
 .cal-tooltip{position:fixed;background:#16243c;color:white;padding:10px 12px;border-radius:6px;font-size:12px;max-width:280px;display:none;z-index:99999;box-shadow:0 4px 12px rgba(0,0,0,.35);pointer-events:auto}
 .cal-tooltip.visible{display:block}
 .cal-tooltip .cal-tooltip-item{font-weight:600;margin-bottom:2px}
@@ -2925,6 +2930,7 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
               <span class="cal-cat-chip" data-cat="training" onclick="calSetCategory('training')">Training</span>
               <span class="cal-cat-chip" data-cat="cpd" onclick="calSetCategory('cpd')">CPD</span>
               <span class="cal-cat-chip" data-cat="inset" onclick="calSetCategory('inset')">In-Service</span>
+              <span class="cal-cat-chip" data-cat="faculty-deadline" onclick="calSetCategory('faculty-deadline')" style="border-color:#f5a5a5;color:#c0392b">Faculty Deadlines</span>
               <span class="cal-cat-chip" data-cat="general" onclick="calSetCategory('general')">General</span>
             </div>
           </div>
@@ -8374,55 +8380,7 @@ function downloadSlideAsPDF() {
 const CAL_STORAGE_KEY='academicCalendarEvents';
 function calGetCurrentAcademicYear(){const d=new Date();return d.getMonth()>=7?d.getFullYear():d.getFullYear()-1;}
 let calCurrentYear=calGetCurrentAcademicYear();
-const CAL_DEFAULT_EVENTS=[
-  {title:'Pupils Return',date:'2025-08-14',category:'general'},
-  {title:'September Weekend Holiday',date:'2025-09-26',category:'holiday'},
-  {title:'September Weekend Holiday',date:'2025-09-29',category:'holiday'},
-  {title:'October Holiday',date:'2025-10-13',category:'holiday'},
-  {title:'October Holiday',date:'2025-10-14',category:'holiday'},
-  {title:'October Holiday',date:'2025-10-15',category:'holiday'},
-  {title:'October Holiday',date:'2025-10-16',category:'holiday'},
-  {title:'October Holiday',date:'2025-10-17',category:'holiday'},
-  {title:'Christmas Holiday',date:'2025-12-22',category:'holiday'},
-  {title:'Christmas Holiday',date:'2025-12-23',category:'holiday'},
-  {title:'Christmas Holiday',date:'2025-12-24',category:'holiday'},
-  {title:'Christmas Holiday',date:'2025-12-25',category:'holiday'},
-  {title:'Christmas Holiday',date:'2025-12-26',category:'holiday'},
-  {title:'Christmas Holiday',date:'2025-12-29',category:'holiday'},
-  {title:'Christmas Holiday',date:'2025-12-30',category:'holiday'},
-  {title:'Christmas Holiday',date:'2025-12-31',category:'holiday'},
-  {title:'Christmas Holiday',date:'2026-01-01',category:'holiday'},
-  {title:'Christmas Holiday',date:'2026-01-02',category:'holiday'},
-  {title:'Schools Return',date:'2026-01-05',category:'general'},
-  {title:'February Holiday',date:'2026-02-16',category:'holiday'},
-  {title:'February Holiday',date:'2026-02-17',category:'holiday'},
-  {title:'In-Service Day',date:'2026-02-18',category:'meeting'},
-  {title:'Spring Break',date:'2026-04-06',category:'holiday'},
-  {title:'Spring Break',date:'2026-04-07',category:'holiday'},
-  {title:'Spring Break',date:'2026-04-08',category:'holiday'},
-  {title:'Spring Break',date:'2026-04-09',category:'holiday'},
-  {title:'Spring Break',date:'2026-04-10',category:'holiday'},
-  {title:'Spring Break',date:'2026-04-13',category:'holiday'},
-  {title:'Spring Break',date:'2026-04-14',category:'holiday'},
-  {title:'Spring Break',date:'2026-04-15',category:'holiday'},
-  {title:'Spring Break',date:'2026-04-16',category:'holiday'},
-  {title:'Spring Break',date:'2026-04-17',category:'holiday'},
-  {title:'May Day Holiday',date:'2026-05-04',category:'holiday'},
-  {title:'May Weekend',date:'2026-05-22',category:'holiday'},
-  {title:'May Weekend',date:'2026-05-25',category:'holiday'},
-  {title:'S2 Parents Evening',date:'2026-03-24',category:'general'},
-  {title:'Departmental Meeting 18',date:'2026-03-31',category:'meeting'},
-  {title:'Strategy Group Meeting 2',date:'2026-04-22',category:'meeting'},
-  {title:'Departmental Meeting 19',date:'2026-04-28',category:'meeting'},
-  {title:'S3 Parents Evening',date:'2026-05-06',category:'general'},
-  {title:'In-Service Day 5',date:'2026-05-07',category:'meeting'},
-  {title:'Moderation Meeting',date:'2026-05-11',category:'meeting'},
-  {title:'Ped Pod 5',date:'2026-06-03',category:'meeting'},
-  {title:'S1 Full Reports Deadline',date:'2026-06-05',category:'reporting'},
-  {title:'Departmental Meeting 20',date:'2026-06-09',category:'meeting'},
-  {title:'Staff Meeting 2',date:'2026-06-10',category:'meeting'},
-  {title:'Schools Close for Summer',date:'2026-06-25',category:'holiday'}
-];
+const CAL_DEFAULT_EVENTS=(window.ACADEMIC_CALENDAR_DEFAULT_EVENTS||[]).slice();
 var calEventsCache=null;
 var calSearchText='';
 var calFilterCategory='';
@@ -9331,7 +9289,7 @@ function exportModerationSingle(unitId,format){
 }
 
 var calEditingEvent=null;
-const CAL_CAT_LABELS={exam:'Exam',meeting:'Meeting',deadline:'Deadline',assessment:'Assessment',reporting:'Reporting',training:'Training',cpd:'CPD',inset:'In-Service',holiday:'Holiday',general:'General'};
+const CAL_CAT_LABELS={exam:'Exam',meeting:'Meeting',deadline:'Deadline',assessment:'Assessment',reporting:'Reporting',training:'Training',cpd:'CPD',inset:'In-Service',holiday:'Holiday',general:'General','faculty-deadline':'Faculty Deadline'};
 function calEscapeHtml(s){
   return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
