@@ -5,6 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Faculty Timetable — Art & Drama — v2 Aug 26</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,500;0,9..40,700;0,9..40,900;1,9..40,300&family=DM+Mono:wght@500&display=swap" rel="stylesheet">
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-init.js"></script>
+<script src="allowlist-check.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -352,12 +356,12 @@
     background: var(--border);
   }
 
-  /* ── Red Zone ─────────────────────────────────────────────────────────── */
-  .filter-btn.rz-btn { border-color: #dc2626; color: #dc2626; }
-  .filter-btn.rz-btn:hover { background: #fef2f2; }
-  .filter-btn.rz-btn.active { background: #dc2626; border-color: #dc2626; color: #fff; }
+  /* ── Monitoring ───────────────────────────────────────────────────────── */
+  .filter-btn.mon-btn { border-color: #dc2626; color: #dc2626; }
+  .filter-btn.mon-btn:hover { background: #fef2f2; }
+  .filter-btn.mon-btn.active { background: #dc2626; border-color: #dc2626; color: #fff; }
 
-  .rz-count {
+  .mon-count {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -371,20 +375,20 @@
     margin-left: 0.3rem;
     line-height: 1;
   }
-  .filter-btn.rz-btn:not(.active) .rz-count {
+  .filter-btn.mon-btn:not(.active) .mon-count {
     background: #dc2626;
     color: #fff;
   }
-  .rz-count[data-n="0"] { display: none; }
+  .mon-count[data-n="0"] { display: none; }
 
-  .rz-banner {
+  .mon-banner {
     display: none;
     max-width: 1400px;
     margin: 0 auto;
     padding: 0 1.6rem 0.5rem;
   }
-  .rz-banner.visible { display: block; }
-  .rz-banner-inner {
+  .mon-banner.visible { display: block; }
+  .mon-banner-inner {
     display: flex;
     align-items: center;
     gap: 0.6rem;
@@ -397,18 +401,18 @@
     color: #991b1b;
     font-weight: 500;
   }
-  .rz-banner-inner svg { flex-shrink: 0; color: #dc2626; }
-  .rz-banner-inner strong { font-weight: 700; }
+  .mon-banner-inner svg { flex-shrink: 0; color: #dc2626; }
+  .mon-banner-inner strong { font-weight: 700; }
 
-  .class-chip.red-zone {
+  .class-chip.monitored {
     background: #fef2f2 !important;
     border: 1.5px solid #dc2626 !important;
     color: #991b1b !important;
     position: relative;
   }
-  .class-chip.red-zone .cls-name { color: #991b1b; }
-  .class-chip.red-zone .cls-room { color: #dc2626 !important; opacity: 0.85; }
-  .class-chip.red-zone::after {
+  .class-chip.monitored .cls-name { color: #991b1b; }
+  .class-chip.monitored .cls-room { color: #dc2626 !important; opacity: 0.85; }
+  .class-chip.monitored::after {
     content: '⚑';
     position: absolute;
     top: 2px;
@@ -418,22 +422,22 @@
     color: #dc2626;
   }
 
-  body.rz-mode .class-chip:not(.special) { cursor: pointer; }
-  body.rz-mode .class-chip:not(.special):hover {
+  body.mon-mode .class-chip:not(.special) { cursor: pointer; }
+  body.mon-mode .class-chip:not(.special):hover {
     outline: 2px dashed #dc2626;
     outline-offset: 1px;
   }
-  body.rz-mode .class-chip.red-zone:hover {
+  body.mon-mode .class-chip.monitored:hover {
     outline: 2px solid #dc2626;
     outline-offset: 1px;
   }
 
-  .key-card.rz-key {
+  .key-card.mon-key {
     border-color: #fca5a5;
     background: #fef2f2;
     color: #991b1b;
   }
-  .key-card.rz-key .key-swatch { background: #dc2626; }
+  .key-card.mon-key .key-swatch { background: #dc2626; }
 
   /* ── Embed mode (Faculty Hub iframe) ──────────────────────────────────── */
   body.embedded .banner,
@@ -510,24 +514,24 @@
   <select id="teacher-filter" class="teacher-select" aria-label="Filter timetable by teacher">
     <option value="all">All teachers</option>
   </select>
-  <button class="filter-btn rz-btn" id="rz-toggle" style="margin-left:auto" aria-pressed="false">
+  <button class="filter-btn mon-btn" id="mon-toggle" style="margin-left:auto;display:none" aria-pressed="false">
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px">
       <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
       <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
     </svg>
-    Red Zone Mode
-    <span class="rz-count" id="rz-count" data-n="0">0</span>
+    Monitoring Mode
+    <span class="mon-count" id="mon-count" data-n="0">0</span>
   </button>
 </div>
 
-<!-- ── Red Zone mode banner ───────────────────────────────────────────────── -->
-<div class="rz-banner" id="rz-banner">
-  <div class="rz-banner-inner">
+<!-- ── Monitoring mode banner ─────────────────────────────────────────────── -->
+<div class="mon-banner" id="mon-banner">
+  <div class="mon-banner-inner">
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
       <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
       <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
     </svg>
-    <span><strong>Red Zone Mode active</strong> — Click any class to flag it for monitoring. Click again to remove the flag. Flags are saved automatically.</span>
+    <span><strong>Monitoring Mode active</strong> — Click any class to flag it for monitoring. Click again to remove the flag. Flags are saved to your account.</span>
   </div>
 </div>
 
@@ -556,10 +560,10 @@
       S. Airdrie
       <span class="key-room">F23</span>
     </div>
-    <div class="key-card rz-key" id="rz-key-drama" style="display:none">
+    <div class="key-card mon-key" id="mon-key-drama" style="display:none">
       <div class="key-swatch"></div>
-      Red Zone
-      <span class="key-room">Monitor</span>
+      Monitored
+      <span class="key-room">Under observation</span>
     </div>
   </div>
   <div class="grid-wrap">
@@ -591,10 +595,10 @@
       V. Deighan
       <span class="key-room">S13</span>
     </div>
-    <div class="key-card rz-key" id="rz-key-art" style="display:none">
+    <div class="key-card mon-key" id="mon-key-art" style="display:none">
       <div class="key-swatch"></div>
-      Red Zone
-      <span class="key-room">Monitor</span>
+      Monitored
+      <span class="key-room">Under observation</span>
     </div>
   </div>
   <div class="grid-wrap">
@@ -611,62 +615,107 @@ const DAY_PERIODS = { Monday:7, Tuesday:7, Wednesday:7, Thursday:6, Friday:6 };
 const MAX_P      = 7;
 const SPECIAL    = new Set(['PT meeting','WA','AfN','5A1']);
 
-/* ── Red Zone state ─────────────────────────────────────────────────────── */
-const RZ_KEY = 'kss_red_zone_v1';
-let redZone  = new Set(JSON.parse(localStorage.getItem(RZ_KEY) || '[]'));
-let rzMode   = false;
+/* ── Monitoring state ───────────────────────────────────────────────────── */
+let monitoredFlags = new Set();
+let monMode        = false;
 
-function rzSave() {
-  localStorage.setItem(RZ_KEY, JSON.stringify([...redZone]));
-}
-
-function rzChipKey(subject, teacherName, day, period) {
+function monChipKey(subject, teacherName, day, period) {
   return `${subject}|${teacherName}|${day}|${period}`;
 }
 
-function rzUpdateCount() {
-  const n   = redZone.size;
-  const el  = document.getElementById('rz-count');
+function monUpdateCount() {
+  const n  = monitoredFlags.size;
+  const el = document.getElementById('mon-count');
   if (!el) return;
   el.textContent = n;
   el.dataset.n   = n;
 }
 
-function rzUpdateKeyCards() {
-  ['drama','art'].forEach(subj => {
-    const keyEl = document.getElementById(`rz-key-${subj}`);
+function monUpdateKeyCards() {
+  ['drama', 'art'].forEach(subj => {
+    const keyEl = document.getElementById(`mon-key-${subj}`);
     if (!keyEl) return;
-    const hasAny = [...redZone].some(k => k.startsWith(subj + '|'));
+    const hasAny = [...monitoredFlags].some(k => k.startsWith(subj + '|'));
     keyEl.style.display = hasAny ? '' : 'none';
   });
 }
 
-function rzToggleMode() {
-  rzMode = !rzMode;
-  const btn    = document.getElementById('rz-toggle');
-  const banner = document.getElementById('rz-banner');
-  btn.classList.toggle('active', rzMode);
-  btn.setAttribute('aria-pressed', rzMode);
-  banner.classList.toggle('visible', rzMode);
-  document.body.classList.toggle('rz-mode', rzMode);
+function monToggleMode() {
+  monMode = !monMode;
+  const btn    = document.getElementById('mon-toggle');
+  const banner = document.getElementById('mon-banner');
+  btn.classList.toggle('active', monMode);
+  btn.setAttribute('aria-pressed', monMode);
+  banner.classList.toggle('visible', monMode);
+  document.body.classList.toggle('mon-mode', monMode);
 }
 
-function rzHandleChipClick(e) {
-  if (!rzMode) return;
+async function monHandleChipClick(e) {
+  if (!monMode) return;
   const chip = e.currentTarget;
   if (chip.classList.contains('special')) return;
-  const key = chip.dataset.rzKey;
+  const key = chip.dataset.monKey;
   if (!key) return;
-  if (redZone.has(key)) {
-    redZone.delete(key);
-    chip.classList.remove('red-zone');
+
+  if (monitoredFlags.has(key)) {
+    monitoredFlags.delete(key);
+    chip.classList.remove('monitored');
+    if (window.supabase) {
+      const { data: { session } } = await window.supabase.auth.getSession();
+      if (session) {
+        await window.supabase.from('monitoring_flags')
+          .delete()
+          .eq('user_id', session.user.id)
+          .eq('flag_key', key);
+      }
+    }
   } else {
-    redZone.add(key);
-    chip.classList.add('red-zone');
+    monitoredFlags.add(key);
+    chip.classList.add('monitored');
+    if (window.supabase) {
+      const { data: { session } } = await window.supabase.auth.getSession();
+      if (session) {
+        await window.supabase.from('monitoring_flags')
+          .upsert({ user_id: session.user.id, flag_key: key }, { onConflict: 'user_id,flag_key' });
+      }
+    }
   }
-  rzSave();
-  rzUpdateCount();
-  rzUpdateKeyCards();
+  monUpdateCount();
+  monUpdateKeyCards();
+}
+
+async function monLoadFlags() {
+  if (!window.supabase) return;
+  const { data: { session } } = await window.supabase.auth.getSession();
+  if (!session) return;
+  const { data, error } = await window.supabase
+    .from('monitoring_flags')
+    .select('flag_key')
+    .eq('user_id', session.user.id);
+  if (!error && data) {
+    monitoredFlags = new Set(data.map(r => r.flag_key));
+  }
+  monUpdateCount();
+  monUpdateKeyCards();
+  renderByFilters();
+}
+
+async function monInitAuth() {
+  if (!window.supabase || typeof window.checkAllowlist !== 'function') return;
+  try {
+    const { data: { session } } = await window.supabase.auth.getSession();
+    if (!session) return;
+    const result = await window.checkAllowlist();
+    if (!result.isFacultyHead && !result.isAdmin) return;
+    const btn = document.getElementById('mon-toggle');
+    if (btn) {
+      btn.style.display = '';
+      btn.addEventListener('click', monToggleMode);
+    }
+    await monLoadFlags();
+  } catch (err) {
+    console.warn('Monitoring auth check failed:', err);
+  }
 }
 /* ────────────────────────────────────────────────────────────────────────── */
 
@@ -818,10 +867,10 @@ function buildGrid(containerId, staff) {
             chip.style.border     = `1.5px solid ${s.ac}`;
             chip.style.color      = s.dk;
 
-            const rzKey = rzChipKey(subject, s.name, day, p);
-            chip.dataset.rzKey = rzKey;
-            if (redZone.has(rzKey)) chip.classList.add('red-zone');
-            chip.addEventListener('click', rzHandleChipClick);
+            const monKey = monChipKey(subject, s.name, day, p);
+            chip.dataset.monKey = monKey;
+            if (monitoredFlags.has(monKey)) chip.classList.add('monitored');
+            chip.addEventListener('click', monHandleChipClick);
           }
           const cName = el('span','cls-name');
           cName.textContent = cls;
@@ -859,7 +908,7 @@ function populateTeacherFilter() {
 function applyTeacherToKeyCards(sectionEl) {
   if (!sectionEl) return;
   sectionEl.querySelectorAll('.key-card').forEach(card => {
-    if (card.classList.contains('rz-key')) return;
+    if (card.classList.contains('mon-key')) return;
     const cardTeacher = card.dataset.teacher;
     const show = FILTER_STATE.teacher === 'all' || cardTeacher === FILTER_STATE.teacher;
     card.classList.toggle('hidden', !show);
@@ -891,20 +940,17 @@ document.getElementById('teacher-filter').addEventListener('change', (e) => {
   renderByFilters();
 });
 
-document.querySelectorAll('.filter-btn:not(.rz-btn)').forEach(btn => {
+document.querySelectorAll('.filter-btn:not(.mon-btn)').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.filter-btn:not(.rz-btn)').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.filter-btn:not(.mon-btn)').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     FILTER_STATE.subject = btn.dataset.filter || 'all';
     renderByFilters();
   });
 });
 
-document.getElementById('rz-toggle').addEventListener('click', rzToggleMode);
-
 renderByFilters();
-rzUpdateCount();
-rzUpdateKeyCards();
+monInitAuth();
 </script>
 </body>
 </html>
