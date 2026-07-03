@@ -1509,14 +1509,41 @@
       canvas.style.cursor = elements.length ? 'pointer' : 'default';
     }
 
+    function centreTextPlugin(mainText, subText) {
+      return {
+        id: 'sptCentreText',
+        afterDraw: function(chart) {
+          var area = chart.chartArea;
+          if (!area) return;
+          var ctx = chart.ctx;
+          var cx = (area.left + area.right) / 2;
+          var cy = (area.top + area.bottom) / 2;
+          ctx.save();
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = '#0f1a30';
+          ctx.font = '700 20px "DM Sans", "Inter", system-ui, sans-serif';
+          ctx.fillText(String(mainText), cx, subText ? cy - 7 : cy);
+          if (subText) {
+            ctx.fillStyle = '#64748b';
+            ctx.font = '600 9px "DM Sans", "Inter", system-ui, sans-serif';
+            ctx.fillText(String(subText).toUpperCase(), cx, cy + 11);
+          }
+          ctx.restore();
+        }
+      };
+    }
+
     var riskCanvas = root.querySelector('#spt-dash-risk-chart');
     if (riskCanvas) {
       var rc = { Green: 0, Amber: 0, Red: 0, Grey: 0 };
       allRows.forEach(function(r) { var s = r.enrolment.risk_status || 'Grey'; rc[s] = (rc[s] || 0) + 1; });
       var riskSegmentKeys = ['Green', 'Amber', 'Red', 'Grey'];
       var riskSegmentLabels = ['On track', 'Amber', 'Red', 'Not started'];
+      var riskAttention = rc.Amber + rc.Red;
       new Chart(riskCanvas.getContext('2d'), {
         type: 'doughnut',
+        plugins: [centreTextPlugin(riskAttention, 'at risk')],
         data: {
           labels: riskSegmentLabels,
           datasets: [{ data: [rc.Green, rc.Amber, rc.Red, rc.Grey],
@@ -1553,8 +1580,17 @@
         if (pct >= 90) aGood++; else if (pct >= 75) aAmb++; else aLow++;
       });
       var attSegmentLabels = ['90%+', '75\u201389%', 'Under 75%', 'No data'];
+      var attWithData = [];
+      allRows.forEach(function(r) {
+        var pct = rowAttPct(r);
+        if (pct != null) attWithData.push(pct);
+      });
+      var attAvgCentre = attWithData.length
+        ? (Math.round(attWithData.reduce(function(s, v) { return s + v; }, 0) / attWithData.length * 10) / 10) + '%'
+        : '\u2014';
       new Chart(attCanvas.getContext('2d'), {
         type: 'doughnut',
+        plugins: [centreTextPlugin(attAvgCentre, 'avg att')],
         data: {
           labels: attSegmentLabels,
           datasets: [{ data: [aGood, aAmb, aLow, aNo],
@@ -1589,42 +1625,79 @@
 
     var wgCanvas = root.querySelector('#spt-dash-wg-chart');
     if (wgCanvas) {
-      var byCourse = {};
-      d.courses.forEach(function(c) { byCourse[c.id] = { name: c.course_name, sum: 0, count: 0 }; });
+      // Latest working grade per enrolment, classified into on-track / borderline /
+      // at-risk bands via the same scale-aware rules used for risk calculation
+      // (exam courses 1–9 where 1 is best; pass/fail courses 6–8).
+      var wgBandKeys = ['good', 'amber', 'red'];
+      var wgBandLabels = { good: 'On track', amber: 'Borderline', red: 'At risk' };
+      var wgByCourse = {};
+      d.courses.forEach(function(c) {
+        wgByCourse[c.id] = { name: c.course_name, good: [], amber: [], red: [] };
+      });
       allRows.forEach(function(r) {
-        var cid = r.course.id;
-        if (!byCourse[cid]) return;
+        var bucket = wgByCourse[r.course.id];
+        if (!bucket) return;
         var latestWg = null;
         (r.attendance || []).forEach(function(a) {
           if (a.record && a.record.attendance_score != null) latestWg = a.record.attendance_score;
         });
-        if (latestWg != null) { byCourse[cid].sum += latestWg; byCourse[cid].count++; }
+        if (latestWg == null) return;
+        var band = 'good';
+        if (window.SptWorkingGrade && SptWorkingGrade.assessRisk) {
+          var risk = SptWorkingGrade.assessRisk(latestWg, r.course);
+          if (risk && risk.level === 'red') band = 'red';
+          else if (risk && risk.level === 'amber') band = 'amber';
+        }
+        bucket[band].push(r);
       });
-      var wgItems = d.courses
-        .filter(function(c) { return byCourse[c.id] && byCourse[c.id].count > 0; })
-        .map(function(c) { var x = byCourse[c.id]; return { name: c.course_name, avg: Math.round(x.sum / x.count * 10) / 10 }; });
-      if (wgItems.length) {
-        var barColors = wgItems.map(function(w) {
-          return w.avg >= 3.25 ? '#166534' : w.avg >= 2.5 ? '#d97706' : '#dc2626';
-        });
-        wgCanvas.height = Math.max(140, wgItems.length * 42);
+      var wgCourses = d.courses.filter(function(c) {
+        var b = wgByCourse[c.id];
+        return b && (b.good.length + b.amber.length + b.red.length) > 0;
+      });
+      if (wgCourses.length) {
+        var wgBandColors = { good: '#166534', amber: '#d97706', red: '#dc2626' };
+        wgCanvas.height = Math.max(140, wgCourses.length * 42);
         new Chart(wgCanvas.getContext('2d'), {
           type: 'bar',
           data: {
-            labels: wgItems.map(function(w) { return w.name; }),
-            datasets: [{ data: wgItems.map(function(w) { return w.avg; }),
-              backgroundColor: barColors, borderRadius: 4, borderSkipped: false }]
+            labels: wgCourses.map(function(c) { return c.course_name; }),
+            datasets: wgBandKeys.map(function(key) {
+              return {
+                label: wgBandLabels[key],
+                data: wgCourses.map(function(c) { return wgByCourse[c.id][key].length; }),
+                backgroundColor: wgBandColors[key],
+                borderRadius: 3,
+                borderSkipped: false
+              };
+            })
           },
           options: {
             indexAxis: 'y',
-            plugins: { legend: { display: false }, tooltip: { callbacks: {
-              label: function(ctx) { return 'Avg WG: ' + ctx.parsed.x.toFixed(1); }
-            }}},
-            scales: {
-              x: { min: 0, max: 4, ticks: { stepSize: 1, font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.05)' } },
-              y: { ticks: { font: { size: 11 } }, grid: { display: false } }
+            plugins: {
+              legend: { display: true, position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } },
+              tooltip: { callbacks: {
+                label: function(ctx) {
+                  return ctx.dataset.label + ': ' + ctx.parsed.x + ' pupil' + (ctx.parsed.x !== 1 ? 's' : '');
+                }
+              }}
             },
-            animation: { duration: 350 }
+            scales: {
+              x: { stacked: true, ticks: { stepSize: 1, precision: 0, font: { size: 11 } }, grid: { color: 'rgba(0,0,0,0.05)' } },
+              y: { stacked: true, ticks: { font: { size: 11 } }, grid: { display: false } }
+            },
+            animation: { duration: 350 },
+            onHover: function(evt, elements) { setChartCursor(wgCanvas, elements); },
+            onClick: function(evt, elements) {
+              if (!elements.length) return;
+              var el = elements[0];
+              var course = wgCourses[el.index];
+              var band = wgBandKeys[el.datasetIndex];
+              var rows = wgByCourse[course.id][band];
+              openModal(
+                drillDownTitle(course.course_name + ' \u2014 ' + wgBandLabels[band], rows.length),
+                drillDownTable(rows)
+              );
+            }
           }
         });
       }
@@ -1770,9 +1843,9 @@
     html += '</div></div>';
 
     // At-risk pupils table
-    html += '<div class="spt-dash-panel spt-dash-panel-wide">';
+    html += '<div class="spt-dash-panel spt-dash-panel-wide' + (atRiskRows.length ? ' spt-dash-panel-attention' : '') + '">';
     html += '<div class="spt-dash-panel-title">At risk' +
-      (atRiskRows.length ? ' <span class="spt-dash-count">' + atRiskRows.length + '</span>' : '') + '</div>';
+      (atRiskRows.length ? ' <span class="spt-dash-count spt-dash-count-red">' + atRiskRows.length + '</span>' : '') + '</div>';
     if (atRiskRows.length) {
       html += '<div class="spt-dash-panel-scroll">';
       html += '<table class="data-table data-table-compact">';
@@ -1809,7 +1882,7 @@
 
     // WG by course
     html += '<div class="spt-dash-chart-panel spt-dash-chart-panel-tall">';
-    html += '<div class="spt-dash-panel-title">Working grade by course <span class="spt-dash-panel-sub">(latest avg)</span></div>';
+    html += '<div class="spt-dash-panel-title">Working grades by course <span class="spt-dash-panel-sub">(latest WG per pupil \u2014 click a bar to see pupils)</span></div>';
     html += '<div class="spt-dash-chart-body spt-dash-chart-body-bar">';
     if (hasWgData) {
       html += '<canvas id="spt-dash-wg-chart" style="width:100%"></canvas>';
@@ -1819,7 +1892,7 @@
     html += '</div></div>';
 
     // Open concerns
-    html += '<div class="spt-dash-panel">';
+    html += '<div class="spt-dash-panel' + (openFlags.length ? ' spt-dash-panel-attention' : '') + '">';
     html += '<div class="spt-dash-panel-title">Open concerns' +
       (openFlags.length ? ' <span class="spt-dash-count spt-dash-count-red">' + openFlags.length + '</span>' : '') +
       (openFlags.length ? ' <button type="button" class="linkish spt-dash-panel-link" data-route="alerts">view all</button>' : '') +
