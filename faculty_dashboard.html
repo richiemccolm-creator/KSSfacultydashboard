@@ -2052,12 +2052,12 @@ function adminDmRenderMeetingList() {
   }
   var esc = function(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); };
   var eid = function(x) { return String(x || '').replace(/'/g, "\\'"); };
-  w.innerHTML = '<table class="table-wrap" style="width:100%"><thead><tr><th>Date</th><th>Title</th><th>Visibility</th><th></th></tr></thead><tbody>' +
+  w.innerHTML = '<div class="table-wrap"><table style="width:100%"><thead><tr><th>Date</th><th>Title</th><th>Visibility</th><th></th></tr></thead><tbody>' +
     adminDmMeetings.map(function(m) {
       var st = m.status === 'published' ? '<span style="color:#059669;font-weight:600">On meetings tab</span>' : '<span style="color:#b45309;font-weight:600">Draft only</span>';
       var tit = (m.title && m.title.trim()) ? esc(m.title.trim()) : '—';
-      return '<tr><td>' + esc(m.meeting_date || '') + '</td><td>' + tit + '</td><td>' + st + '</td><td><button type="button" class="btn btn-ghost" style="font-size:.7rem;padding:.25rem .5rem" onclick="adminDmEditMeeting(\'' + eid(m.id) + '\')">Edit</button> <button type="button" class="btn btn-danger" style="font-size:.7rem;padding:.25rem .5rem" onclick="adminDmDelete(\'' + eid(m.id) + '\')">Delete</button></td></tr>';
-    }).join('') + '</tbody></table>';
+      return '<tr><td>' + esc(m.meeting_date || '') + '</td><td>' + tit + '</td><td>' + st + '</td><td style="white-space:nowrap"><button type="button" class="btn btn-ghost" style="font-size:.7rem;padding:.25rem .5rem" onclick="adminDmEditMeeting(\'' + eid(m.id) + '\')">Edit</button> <button type="button" class="btn btn-danger" style="font-size:.7rem;padding:.25rem .5rem" onclick="adminDmDelete(\'' + eid(m.id) + '\')">Delete</button></td></tr>';
+    }).join('') + '</tbody></table></div>';
 }
 
 function adminDmDelete(id) {
@@ -2218,7 +2218,7 @@ function adminRenderCalendarRequests() {
     var ids = pending.map(function(r) { return r.requester_id; });
     return CalendarRequestService.getRequesterProfiles(ids).then(function(profiles) {
       var esc = function(s) { return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/'/g, '&#39;'); };
-      list.innerHTML = '<table class="table-wrap" style="width:100%"><thead><tr><th>Submitted</th><th>Staff</th><th>Title</th><th>Dates</th><th>Category</th><th></th></tr></thead><tbody>' +
+      list.innerHTML = '<div class="table-wrap"><table style="width:100%"><thead><tr><th>Submitted</th><th>Staff</th><th>Title</th><th>Dates</th><th>Category</th><th></th></tr></thead><tbody>' +
         pending.map(function(r) {
           var who = profiles[r.requester_id] || 'Staff';
           var range = CalendarRequestService.formatDateRange(r);
@@ -2227,7 +2227,7 @@ function adminRenderCalendarRequests() {
           return '<tr><td>' + esc(sub) + '</td><td>' + esc(who) + '</td><td>' + esc(r.title) + '</td><td>' + esc(range) + '</td><td>' + esc(r.category) + '</td><td style="white-space:nowrap">' +
             '<button class="btn btn-primary" style="font-size:.7rem;padding:.25rem .5rem" onclick="adminApproveCalendarRequest(\'' + rid + '\')">Approve</button> ' +
             '<button class="btn btn-ghost" style="font-size:.7rem;padding:.25rem .5rem" onclick="adminRejectCalendarRequest(\'' + rid + '\')">Reject</button></td></tr>';
-        }).join('') + '</tbody></table>';
+        }).join('') + '</tbody></table></div>';
     });
   }).catch(function() {
     list.innerHTML = '<div class="empty-s" style="padding:1rem;color:#b45309">Could not load requests. Run migration <code>20250601120000_calendar_event_requests.sql</code> in Supabase.</div>';
@@ -2347,7 +2347,7 @@ function renderAdminConsole() {
         annList.innerHTML = '<div class="empty-s" style="padding:1rem">No announcements yet. Add one above — it will appear on the Faculty Hub home page.</div>';
       } else {
         var esc = function(s) { return (s||'').replace(/'/g,"\\'").replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
-        annList.innerHTML = '<table class="table-wrap" style="width:100%"><thead><tr><th>Title</th><th>Priority</th><th>Home banner</th><th>Created</th><th></th></tr></thead><tbody>' +
+        annList.innerHTML = '<div class="table-wrap"><table style="width:100%"><thead><tr><th>Title</th><th>Priority</th><th>Home banner</th><th>Created</th><th></th></tr></thead><tbody>' +
           adminAnnouncements.map(function(a) {
             var d = a.created_at ? a.created_at.slice(0, 10) : '';
             var p = (a.priority || 'none');
@@ -2355,7 +2355,7 @@ function renderAdminConsole() {
             if (a.highlight_priority && p !== 'none') pLabel += ' (shaded)';
             var bannerLabel = a.featured_banner ? 'Yes' : '—';
             return '<tr><td>' + esc(a.title) + '</td><td>' + esc(pLabel) + '</td><td>' + esc(bannerLabel) + '</td><td>' + esc(d) + '</td><td><button class="btn btn-ghost" style="font-size:.7rem;padding:.25rem .5rem" onclick="adminEditAnnouncement(\'' + (a.id||'').replace(/'/g,"\\'") + '\')">Edit</button> <button class="btn btn-danger" style="font-size:.7rem;padding:.25rem .5rem" onclick="adminDeleteAnnouncement(\'' + (a.id||'').replace(/'/g,"\\'") + '\')">Delete</button></td></tr>';
-          }).join('') + '</tbody></table>';
+          }).join('') + '</tbody></table></div>';
       }
     }
   });
@@ -2368,12 +2368,12 @@ function renderAdminConsole() {
       list.innerHTML = '<div class="empty-s" style="padding:1rem">No shared events yet. Add one above — it will appear on everyone\'s calendar.</div>';
       return;
     }
-    list.innerHTML = '<table class="table-wrap" style="width:100%"><thead><tr><th>Date</th><th>Title</th><th>Category</th><th>Details</th><th></th></tr></thead><tbody>' +
+    list.innerHTML = '<div class="table-wrap"><table style="width:100%"><thead><tr><th>Date</th><th>Title</th><th>Category</th><th>Details</th><th></th></tr></thead><tbody>' +
       adminSharedEvents.map(function(e) {
         var esc = function(s) { return (s||'').replace(/'/g,"\\'").replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
         var hasDesc = (e.description && String(e.description).trim() !== '');
         return '<tr><td>' + esc(e.date) + '</td><td>' + esc(e.title) + '</td><td>' + (catLbl[e.category] || e.category) + '</td><td>' + (hasDesc ? '✓' : '—') + '</td><td><button class="btn btn-ghost" style="font-size:.7rem;padding:.25rem .5rem" onclick="adminEditSharedEvent(\'' + (e.id||'').replace(/'/g,"\\'") + '\')">Edit</button> <button class="btn btn-danger" style="font-size:.7rem;padding:.25rem .5rem" onclick="adminDeleteSharedEvent(\'' + (e.id||'').replace(/'/g,"\\'") + '\')">Delete</button></td></tr>';
-      }).join('') + '</tbody></table>';
+      }).join('') + '</tbody></table></div>';
   });
   DataService.listDepartmentMeetings().then(function(list) {
     adminDmMeetings = list || [];

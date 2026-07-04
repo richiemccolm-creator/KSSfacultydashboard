@@ -31,6 +31,8 @@
 .ann-field input,.ann-field select,.ann-field textarea{width:100%;padding:10px;border:1px solid var(--navy-100);border-radius:var(--r-md);font:var(--fs-sm)/1.3 var(--font-sans)}
 .ann-field textarea{min-height:96px;resize:vertical}
 .ann-actions{display:flex;gap:var(--sp-2);flex-wrap:wrap}
+.ann-table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}
+.ann-table-scroll table{min-width:560px}
 .ann-toast{position:fixed;bottom:calc(var(--sp-6) + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--ink-900);color:#fff;padding:var(--sp-3) var(--sp-5);border-radius:var(--r-pill);z-index:1000;display:none}
 </style>
 </head>
@@ -40,7 +42,7 @@
       <h2 id="fhAnnFormTitle">New Announcement</h2>
       <p style="color:var(--ink-500);margin:6px 0 14px">Announcements appear on the Faculty Hub home page for staff.</p>
       <div class="ann-form-grid">
-        <div class="ann-field" style="grid-column:span 2">
+        <div class="ann-field" style="grid-column:1/-1">
           <label for="fhAnnTitle">Title</label>
           <input id="fhAnnTitle" type="text" placeholder="e.g. Department Meeting Reminder">
         </div>
@@ -181,7 +183,7 @@ function fhRenderAnnouncements() {
     wrap.innerHTML = '<div class="empty-s">No announcements yet.</div>';
     return;
   }
-  wrap.innerHTML = '<table class="table"><thead><tr><th>Title</th><th>Priority</th><th>Home banner</th><th>Created</th><th>Expires</th><th></th></tr></thead><tbody>' +
+  wrap.innerHTML = '<div class="ann-table-scroll"><table class="table"><thead><tr><th>Title</th><th>Priority</th><th>Home banner</th><th>Created</th><th>Expires</th><th></th></tr></thead><tbody>' +
     fhAnnouncements.map(function(a) {
       var p = String(a.priority || 'none');
       var pLabel = p.charAt(0).toUpperCase() + p.slice(1) + ((a.highlight_priority && p !== 'none') ? ' (shaded)' : '');
@@ -196,7 +198,7 @@ function fhRenderAnnouncements() {
         '<td><button class="btn" type="button" onclick="fhEditAnnouncement(\'' + fhEsc(a.id) + '\')">Edit</button> <button class="btn" type="button" onclick="fhDeleteAnnouncement(\'' + fhEsc(a.id) + '\')">Delete</button></td>' +
       '</tr>';
     }).join('') +
-    '</tbody></table>';
+    '</tbody></table></div>';
 }
 
 function fhLoadAnnouncements() {

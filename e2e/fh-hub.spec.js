@@ -73,6 +73,23 @@ test.describe("Faculty Head Hub page assets", () => {
     expect(html).toContain("viewport-fit=cover");
   });
 
+  test("iframe target pages are embed-aware", async ({ request }) => {
+    // Pages embedded by fh_* wrappers must strip their own desktop chrome
+    // (fixed sidebars, heroes) when loaded with ?embed=1.
+    const embedChromePages = ["purchase_orders.html", "department_meetings.html"];
+    for (const path of embedChromePages) {
+      const res = await request.get("/" + path);
+      expect(res.ok(), path + " should load").toBeTruthy();
+      const html = await res.text();
+      expect(html, path).toContain("embed-chrome.js");
+    }
+
+    // class_management handles embed itself via the is-embed class.
+    const cmRes = await request.get("/class_management.js");
+    expect(cmRes.ok()).toBeTruthy();
+    expect(await cmRes.text()).toContain("classList.add('is-embed')");
+  });
+
   test("all fh wrapper pages include shared access and embed scripts", async ({ request }) => {
     const pages = [
       "fh_calendar.html",

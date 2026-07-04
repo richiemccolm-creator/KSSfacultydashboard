@@ -153,17 +153,25 @@
 
   function updateChromeHeight() {
     var nav = document.getElementById('fhTopNav');
-    var card = document.querySelector('.fh-hub-page .card');
-    var cardOffset = 0;
-    if (card && nav) {
-      cardOffset = Math.max(0, card.offsetTop + card.offsetHeight - nav.offsetHeight);
-    } else if (document.body.classList.contains('fh-page-full') && nav) {
-      cardOffset = 0;
-    }
     if (nav) {
       document.documentElement.style.setProperty('--fh-top-nav-h', nav.offsetHeight + 'px');
     }
-    document.documentElement.style.setProperty('--fh-card-chrome-h', cardOffset + 'px');
+    // Measure only the chrome around the iframe (card margins, padding, heading),
+    // never the iframe itself — including it makes the calc circular and can
+    // collapse the frame to its min-height.
+    var chrome = 0;
+    var card = document.querySelector('.fh-hub-page .card');
+    var frame = card ? card.querySelector('.page-frame') : null;
+    if (nav && card && frame && !document.body.classList.contains('fh-page-full')) {
+      var navRect = nav.getBoundingClientRect();
+      var cardRect = card.getBoundingClientRect();
+      var frameRect = frame.getBoundingClientRect();
+      var above = Math.max(0, frameRect.top - navRect.bottom);
+      var below = Math.max(0, cardRect.bottom - frameRect.bottom);
+      var marginBottom = parseFloat(getComputedStyle(card).marginBottom) || 0;
+      chrome = Math.round(above + below + marginBottom);
+    }
+    document.documentElement.style.setProperty('--fh-card-chrome-h', chrome + 'px');
   }
 
   function observeChrome() {
