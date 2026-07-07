@@ -14,6 +14,7 @@
 <script src="allowlist-check.js"></script>
 <script src="auth-guard.js"></script>
 <script src="data-service.js"></script>
+<script src="curriculum-units.js"></script>
 <script src="report-builder-bridge.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
@@ -101,6 +102,27 @@ header .spacer{flex:1}
 .sidebar-btn-add:hover{background:rgba(255,255,255,.12);color:white}
 .sidebar-btn-clear{background:transparent;color:rgba(239,68,68,.6);border-color:rgba(239,68,68,.2)}
 .sidebar-btn-clear:hover{background:rgba(239,68,68,.1);color:rgba(239,68,68,.9)}
+
+.class-filter-wrap{padding:8px 10px 6px;border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0}
+.class-filter-label{font-size:.62rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:rgba(255,255,255,.35);margin-bottom:5px}
+.class-filter-row{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px}
+.cf-btn{font-size:.65rem;font-weight:600;padding:.26rem .65rem;border-radius:4px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:rgba(255,255,255,.65);cursor:pointer;transition:all .12s}
+.cf-btn:hover{border-color:rgba(96,165,250,.6);color:white}
+.cf-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.tracker-sync-hint{font-size:.68rem;color:rgba(255,255,255,.4);line-height:1.4;margin-top:4px}
+
+.tracker-avgs-panel{background:#f0f9ff;border:1px solid #bae6fd;border-radius:8px;padding:12px 14px;margin-bottom:12px}
+.tracker-avgs-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;font-size:.78rem;font-weight:600;color:var(--text)}
+.tracker-avgs-status{font-size:.72rem;font-weight:600;color:#1d4ed8;background:#dbeafe;padding:2px 8px;border-radius:4px}
+.tracker-avgs-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px}
+@media(max-width:900px){.tracker-avgs-grid{grid-template-columns:repeat(2,1fr)}}
+.tracker-avg-card{background:white;border:1px solid var(--border);border-radius:6px;padding:8px 10px;text-align:center}
+.tracker-avg-highlight{border-color:#93c5fd;background:#eff6ff}
+.tracker-avg-label{font-size:.68rem;color:var(--text-3);margin-bottom:3px}
+.tracker-avg-value{font-size:1.1rem;font-weight:700}
+.tracker-avgs-detail{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+.tracker-avgs-chip{font-size:.7rem;color:var(--text-2);background:white;border:1px solid var(--border);border-radius:4px;padding:2px 8px}
+.tracker-avgs-note{font-size:.68rem;color:var(--text-3);line-height:1.4}
 
 /* Main */
 .main{flex:1;overflow-y:auto;padding:16px 20px;background:var(--bg)}
@@ -241,9 +263,9 @@ header .spacer{flex:1}
   <div class="header-divider"></div>
   <div class="header-context">Broad General Education · CfE</div>
   <div class="spacer"></div>
-  <button class="tracker-import-btn" onclick="importFromTracker()" title="Import pupils and suggested comments from the Unit Tracker" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);color:rgba(255,255,255,.85);padding:0 14px;height:34px;border-radius:5px;font-family:'Inter',sans-serif;font-size:.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:7px">
+  <button class="tracker-import-btn" onclick="syncFromTracker()" title="Sync classes and scores from the Unit Tracker" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);color:rgba(255,255,255,.85);padding:0 14px;height:34px;border-radius:5px;font-family:'Inter',sans-serif;font-size:.8rem;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:7px">
     <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
-    Import from Tracker
+    Sync from Tracker
   </button>
   <button id="exportBtn" disabled onclick="exportWord()">
     <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
@@ -263,6 +285,10 @@ header .spacer{flex:1}
       <button class="sel-tool-btn sel-tool-all" onclick="selectAll()">All</button>
       <button class="sel-tool-btn sel-tool-del" id="delSelectedBtn" onclick="deleteSelected()" disabled>Delete</button>
       <button class="sel-tool-btn sel-tool-all" onclick="toggleSelectMode()">Cancel</button>
+    </div>
+    <div class="class-filter-wrap" id="classFilterWrap">
+      <div id="classFilter"></div>
+      <div class="tracker-sync-hint" id="trackerSyncHint">Classes from your Art Tracker appear here. Select a class to write reports.</div>
     </div>
     <div class="import-zone" onclick="document.getElementById('pdfInput').click()">
       <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
@@ -537,13 +563,16 @@ let activePupilId = null;
 let contextSummary = '';
 let selectMode = false;
 let selectedPupilIds = new Set();
+let curYG = 's1';
+let curCls = 'all';
+let trackerClasses = [];
 const STORAGE_KEY = 'bge_art_reports_v1';
 
 function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2); }
 
 // ─── Persistence ──────────────────────────────────────────────────────────────
 function saveData(){
-  var payload = { pupils, activePupilId, contextSummary };
+  var payload = { pupils, activePupilId, contextSummary, curYG, curCls };
   if (window.DataService) {
     DataService.set(STORAGE_KEY, payload).catch(function(){ showToast('Save failed'); });
   } else {
@@ -556,6 +585,9 @@ function loadData(){
     function hydratePupil(p){
       return {
         ...p,
+        className: p && p.className ? p.className : '',
+        trackerPupilId: p && p.trackerPupilId ? p.trackerPupilId : '',
+        dimAvgs: p && p.dimAvgs ? p.dimAvgs : null,
         cfeLevel: p && p.cfeLevel ? p.cfeLevel : '',
         trackStatus: p && p.trackStatus ? p.trackStatus : '',
         isEal: !!(p && p.isEal),
@@ -568,14 +600,19 @@ function loadData(){
     pupils = (d.pupils || []).map(hydratePupil);
     activePupilId = d.activePupilId || null;
     contextSummary = d.contextSummary || '';
+    curYG = d.curYG || 's1';
+    curCls = d.curCls || 'all';
     return pupils.length > 0;
   });
 }
 
 // ─── Pupil creation ───────────────────────────────────────────────────────────
-function createPupil(firstName='New', lastName='Pupil'){
+function createPupil(firstName='New', lastName='Pupil', extra={}){
   return {
-    id: uid(), firstName, lastName, year: 'S1',
+    id: uid(), firstName, lastName, year: extra.year || 'S1',
+    className: extra.className || '',
+    trackerPupilId: extra.trackerPupilId || '',
+    dimAvgs: extra.dimAvgs || null,
     cfeLevel: '',
     trackStatus: '',
     isEal: false,
@@ -589,13 +626,113 @@ function createPupil(firstName='New', lastName='Pupil'){
   };
 }
 
+// ─── Tracker class filter ─────────────────────────────────────────────────────
+function getFilteredPupils(){
+  return pupils.filter(function(p){
+    if (p.year && p.year.toLowerCase() !== curYG) return false;
+    if (curCls !== 'all' && p.className !== curCls) return false;
+    return true;
+  });
+}
+function classesForCurrentYG(){ return trackerClasses.filter(function(c){ return c.yg === curYG; }); }
+function renderClassFilter(){
+  var el = document.getElementById('classFilter');
+  if (!el) return;
+  var ygLabels = { s1:'S1', s2:'S2', s3:'S3' };
+  var ygRow = '<div class="class-filter-label">Year group</div><div class="class-filter-row">' +
+    ['s1','s2','s3'].map(function(yg){
+      return '<button type="button" class="cf-btn '+(curYG===yg?'active':'')+'" onclick="setTrackerYG(\''+yg+'\')">'+ygLabels[yg]+'</button>';
+    }).join('') + '</div>';
+  var clsList = classesForCurrentYG();
+  var clsRow = '<div class="class-filter-label">Class</div><div class="class-filter-row">';
+  var totalInYG = clsList.reduce(function(n,c){ return n+c.pupilCount; },0);
+  clsRow += '<button type="button" class="cf-btn '+(curCls==='all'?'active':'')+'" onclick="setTrackerCls(\'all\')">All ('+totalInYG+')</button>';
+  clsList.forEach(function(c){
+    var safe = c.className.replace(/'/g,"\\'");
+    clsRow += '<button type="button" class="cf-btn '+(curCls===c.className?'active':'')+'" onclick="setTrackerCls(\''+safe+'\')">'+c.className.replace(/&/g,'&amp;').replace(/</g,'&lt;')+' ('+c.pupilCount+')</button>';
+  });
+  clsRow += '</div>';
+  el.innerHTML = ygRow + clsRow;
+  var hint = document.getElementById('trackerSyncHint');
+  if (hint) hint.textContent = clsList.length
+    ? 'Classes from your Art Tracker. Select a class, then sync or pick a pupil.'
+    : 'No classes in the Tracker for '+ygLabels[curYG]+' — add classes in the Art Tracker first.';
+}
+function setTrackerYG(yg){
+  curYG = yg; curCls = 'all'; saveData(); renderClassFilter(); renderSidebar();
+  if (activePupilId){
+    var visible = getFilteredPupils();
+    if (!visible.find(function(p){ return p.id===activePupilId; })){
+      activePupilId = visible[0] ? visible[0].id : null;
+      if (activePupilId){ renderEditor(); renderPreview(); } else { showWelcome(); }
+    }
+  }
+}
+function setTrackerCls(cls){
+  curCls = cls; saveData(); renderClassFilter();
+  syncFromTracker({ silent:true }).then(function(){
+    renderSidebar();
+    var visible = getFilteredPupils();
+    if (!activePupilId || !visible.find(function(p){ return p.id===activePupilId; })){
+      if (visible[0]) selectPupil(visible[0].id); else showWelcome();
+    }
+  });
+}
+function showWelcome(){
+  document.getElementById('mainPanel').innerHTML = `
+    <div class="welcome" id="welcomeMsg">
+      <div class="welcome-icon">
+        <svg width="24" height="24" fill="none" stroke="#b45309" stroke-width="1.5" viewBox="0 0 24 24"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      </div>
+      <h2>BGE Art &amp; Design Report Builder</h2>
+      <p>Select a class from your Tracker above, or import a class list manually. Tracker averages help you choose the right comments.</p>
+    </div>`;
+}
+function refreshTrackerClasses(){
+  return ReportBuilderBridge.loadTrackerState(REPORT_SUBJECT).then(function(state){
+    trackerClasses = ReportBuilderBridge.listTrackerClasses(state);
+    if (trackerClasses.length && !trackerClasses.find(function(c){ return c.yg===curYG; })){
+      curYG = trackerClasses[0].yg; curCls = 'all';
+    }
+    renderClassFilter();
+    return state;
+  });
+}
+function syncFromTracker(options){
+  options = options || {};
+  return ReportBuilderBridge.loadTrackerState(REPORT_SUBJECT).then(function(state){
+    if (!state || !state.pupils){
+      if (!options.silent) showToast('No tracker data — set up classes in the Art Tracker first');
+      return null;
+    }
+    trackerClasses = ReportBuilderBridge.listTrackerClasses(state);
+    var allEntries = ReportBuilderBridge.buildAllEntriesFromTrackerState(REPORT_SUBJECT, state);
+    var entries = ReportBuilderBridge.filterEntries(allEntries, curYG, curCls);
+    if (entries.length === 0){
+      if (!options.silent) showToast('No pupils in this class — add pupils in the Tracker first');
+      renderClassFilter();
+      return null;
+    }
+    var result = ReportBuilderBridge.syncPupilsFromTracker(REPORT_SUBJECT, pupils, function(fn,ln){ return createPupil(fn,ln); }, entries, { updateSuggestions: options.updateSuggestions !== false });
+    if (!activePupilId && pupils.length) activePupilId = getFilteredPupils()[0]?.id || pupils[0].id;
+    saveData(); renderClassFilter(); renderSidebar();
+    if (activePupilId){ renderEditor(); renderPreview(); }
+    if (!options.silent){
+      var msg = result.added>0 && result.updated>0 ? 'Synced: '+result.added+' new, '+result.updated+' updated' : result.added>0 ? result.added+' pupils synced from Tracker' : result.updated+' pupils updated from Tracker';
+      if (result.reviewed>0) msg += ' ('+result.reviewed+' need strength review)';
+      showToast(msg+' \u2713');
+    }
+    return result;
+  });
+}
+
 // ─── Sidebar ──────────────────────────────────────────────────────────────────
 function renderSidebar(){
   const list = document.getElementById('pupilList');
   list.innerHTML = '';
   list.classList.toggle('select-mode', selectMode);
 
-  for (const p of pupils){
+  for (const p of getFilteredPupils()){
     const done = p.confirmed;
     const isSel = selectedPupilIds.has(p.id);
     const div = document.createElement('div');
@@ -614,9 +751,10 @@ function renderSidebar(){
     list.appendChild(div);
   }
 
-  const done = pupils.filter(p=>p.confirmed).length;
+  const visible = getFilteredPupils();
+  const done = visible.filter(p=>p.confirmed).length;
   document.getElementById('progressText').textContent =
-    pupils.length === 0 ? 'No pupils loaded' : `${done} / ${pupils.length} confirmed`;
+    visible.length === 0 ? 'No pupils in this class' : `${done} / ${visible.length} confirmed`;
   document.getElementById('exportBtn').disabled = pupils.length === 0;
 
   if (selectMode){
@@ -645,8 +783,9 @@ function togglePupilSelection(id){
   renderSidebar();
 }
 function selectAll(){
-  if (selectedPupilIds.size === pupils.length) selectedPupilIds.clear();
-  else pupils.forEach(p=>selectedPupilIds.add(p.id));
+  const visible = getFilteredPupils();
+  if (selectedPupilIds.size === visible.length) selectedPupilIds.clear();
+  else visible.forEach(p=>selectedPupilIds.add(p.id));
   renderSidebar();
 }
 function deleteSelected(){
@@ -774,6 +913,7 @@ function renderEditor(){
         <span class="toggle-slider"></span>
       </label>
     </div>` : ''}
+    ${p.trackerImport && p.dimAvgs ? ReportBuilderBridge.buildTrackerAvgsHtml(p.dimAvgs, REPORT_SUBJECT, p.trackStatus) : ''}
     ${p.trackerImport ? `<div class="tracker-suggest-banner">Comments suggested from Tracker — review and adjust before confirming. Remove any that don&apos;t fit this pupil.</div>` : ''}
     ${showNoStrengthsWarning(p) ? `<div class="no-str-warning">No strengths selected — that&apos;s fine if nothing applies honestly. Consider a Closing note, Approach to Learning comment, or brief sentence in Additional Comments if effort has been reasonable.</div>` : ''}
     <details class="writing-guide-details"><summary>Writing this report</summary>${ReportBuilderBridge.WRITING_GUIDE}</details>
@@ -1073,8 +1213,9 @@ function renderPreview(){
 
 // ─── Confirm / Next ───────────────────────────────────────────────────────────
 function nextPupilId(){
-  const idx = pupils.findIndex(x=>x.id===activePupilId);
-  return idx>=0 && idx<pupils.length-1 ? pupils[idx+1].id : null;
+  const visible = getFilteredPupils();
+  const idx = visible.findIndex(x=>x.id===activePupilId);
+  return idx>=0 && idx<visible.length-1 ? visible[idx+1].id : null;
 }
 function confirmPupil(){
   const p = pupils.find(x=>x.id===activePupilId); if (!p) return;
@@ -1295,50 +1436,23 @@ function showToast(msg){
   setTimeout(()=>t.classList.remove('show'),3000);
 }
 
-// ─── Import from Tracker ──────────────────────────────────────────────────────
-function importFromTracker() {
-  const TRACKER_KEY = ReportBuilderBridge.EXPORT_KEYS[REPORT_SUBJECT];
-  (window.DataService ? DataService.get(TRACKER_KEY) : Promise.resolve(JSON.parse(localStorage.getItem(TRACKER_KEY) || 'null'))).then(function(data) {
-    if (!data || !Array.isArray(data) || data.length === 0) {
-      showToast('No tracker data found — use "Send to Report Builder" in the Tracker first');
-      return;
-    }
-    var added = 0, updated = 0, reviewed = 0;
-    for (var i = 0; i < data.length; i++) {
-      var entry = data[i];
-      if (!entry.firstName) continue;
-      let p = pupils.find(x =>
-        x.firstName.toLowerCase() === entry.firstName.toLowerCase() &&
-        x.lastName.toLowerCase() === entry.lastName.toLowerCase()
-      );
-      if (!p) {
-        p = createPupil(entry.firstName, entry.lastName);
-        pupils.push(p);
-        added++;
-      } else {
-        updated++;
-      }
-      if (entry.year && ['S1','S2','S3'].includes(entry.year)) p.year = entry.year;
-      ReportBuilderBridge.applySuggestedToPupil(p, entry, true);
-      if (entry.cfeLevel) p.cfeLevel = entry.cfeLevel;
-      if (entry.trackStatus) p.trackStatus = entry.trackStatus;
-      if (entry.isEal) applyEalToPupil(p);
-      if (p.noStrengthsSuggested) reviewed++;
-    }
-    activePupilId = pupils[0] ? pupils[0].id : null;
-    saveData();
-    renderSidebar();
-    if (activePupilId) { renderEditor(); renderPreview(); }
-    var msg = added > 0 && updated > 0 ? 'Imported: ' + added + ' new, ' + updated + ' updated' : added > 0 ? added + ' pupils imported from Tracker' : updated + ' pupils updated from Tracker';
-    if (reviewed > 0) msg += ' (' + reviewed + ' need strength review)';
-    showToast(msg + ' \u2713');
-  });
-}
+// ─── Sync from Tracker ────────────────────────────────────────────────────────
+function importFromTracker(){ syncFromTracker(); }
 
 // ─── Init ─────────────────────────────────────────────────────────────────────
 loadData().then(function(hadData){
-  renderSidebar();
-  if (hadData && activePupilId){ renderEditor(); renderPreview(); showToast('Session restored \u2713'); }
+  return refreshTrackerClasses().then(function(){
+    if (trackerClasses.length > 0) {
+      return syncFromTracker({ silent: true, updateSuggestions: !hadData });
+    }
+  }).then(function(){
+    renderSidebar();
+    if (hadData && activePupilId){ renderEditor(); renderPreview(); showToast('Session restored \u2713'); }
+    else if (getFilteredPupils().length > 0){
+      if (!activePupilId) activePupilId = getFilteredPupils()[0].id;
+      renderEditor(); renderPreview();
+    }
+  });
 });
 </script>
 </body>

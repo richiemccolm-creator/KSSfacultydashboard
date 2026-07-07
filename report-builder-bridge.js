@@ -9,6 +9,24 @@
     art: 'bge_art_tracker_export_v1'
   };
 
+  var TRACKER_STATE_KEYS = {
+    drama: 'drama-v3',
+    art: 'art-v2'
+  };
+
+  var YEAR_GROUPS = ['s1', 's2', 's3'];
+
+  var PROC_DIM_LABELS = {
+    drama: { creating: 'Creating', presenting: 'Presenting', evaluating: 'Evaluating' },
+    art: { creating: 'Expressing & Creating', presenting: 'Expressing & Creating', evaluating: 'Reflecting & Analysing' }
+  };
+
+  var ATTIT_DIM_LABELS = {
+    effort: 'Effort',
+    behaviour: 'Behaviour',
+    homelearning: 'Home Learning'
+  };
+
   var YEAR_PREFIX = { S1: 'A', S2: 'B', S3: 'C' };
 
   var PROC_DIM_TO_CPE = {
@@ -251,8 +269,205 @@
       if (extra.cfeLevel) entry.cfeLevel = extra.cfeLevel;
       if (extra.notes) entry.notes = extra.notes;
       if (extra.isEal) entry.isEal = true;
+      if (extra.className) entry.className = extra.className;
+      if (extra.trackerPupilId) entry.trackerPupilId = extra.trackerPupilId;
     }
     return entry;
+  }
+
+  function getTpIdsByYg(subject) {
+    var tps = (global.CURRICULUM_TPS && global.CURRICULUM_TPS[subject]) || {};
+    var out = {};
+    YEAR_GROUPS.forEach(function (yg) {
+      out[yg] = (tps[yg] || []).map(function (tp) { return tp.id; });
+    });
+    return out;
+  }
+
+  function loadTrackerState(subject) {
+    var key = TRACKER_STATE_KEYS[subject];
+    if (!key) return Promise.resolve(null);
+    if (global.DataService) {
+      return global.DataService.get(key).catch(function () { return null; });
+    }
+    try {
+      var raw = localStorage.getItem(key);
+      return Promise.resolve(raw ? JSON.parse(raw) : null);
+    } catch (e) {
+      return Promise.resolve(null);
+    }
+  }
+
+  function listTrackerClasses(trackerState) {
+    if (!trackerState || !trackerState.pupils) return [];
+    var classes = [];
+    YEAR_GROUPS.forEach(function (yg) {
+      var byClass = trackerState.pupils[yg] || {};
+      Object.keys(byClass).sort().forEach(function (className) {
+        var list = byClass[className] || [];
+        classes.push({
+          yg: yg,
+          year: yg.toUpperCase(),
+          className: className,
+          pupilCount: list.length
+        });
+      });
+    });
+    return classes;
+  }
+
+  function buildAllEntriesFromTrackerState(subject, trackerState) {
+    if (!trackerState || !trackerState.pupils) return [];
+    var tpIdsByYg = getTpIdsByYg(subject);
+    var out = [];
+    YEAR_GROUPS.forEach(function (yg) {
+      var tpIds = tpIdsByYg[yg] || [];
+      var year = yg.toUpperCase();
+      Object.keys(trackerState.pupils[yg] || {}).forEach(function (cls) {
+        (trackerState.pupils[yg][cls] || []).forEach(function (p) {
+          var scoresByTp = trackerState.scores && trackerState.scores[yg] && trackerState.scores[yg][p.id]
+            ? trackerState.scores[yg][p.id] : {};
+          var profile = trackerState.profiles && trackerState.profiles[yg] && trackerState.profiles[yg][p.id]
+            ? trackerState.profiles[yg][p.id] : {};
+          var notes = '';
+          tpIds.forEach(function (tpId) {
+            var n = scoresByTp[tpId] && scoresByTp[tpId].notes;
+            if (n && String(n).trim()) notes = String(n).trim();
+          });
+          out.push(buildTrackerExportEntry(subject, p, year, scoresByTp, tpIds, {
+            cfeLevel: profile.cfeLevel || '',
+            notes: notes,
+            isEal: !!profile.isEal,
+            className: cls,
+            trackerPupilId: p.id
+          }));
+        });
+      });
+    });
+    return out;
+  }
+
+  function filterEntries(entries, yg, className) {
+    if (!entries || !entries.length) return [];
+    return entries.filter(function (entry) {
+      if (yg && entry.year && entry.year.toLowerCase() !== yg) return false;
+      if (className && className !== 'all' && entry.className !== className) return false;
+      return true;
+    });
+  }
+
+  function findMatchingPupil(pupils, entry) {
+    if (!entry) return null;
+    if (entry.trackerPupilId) {
+      var byId = pupils.find(function (p) { return p.trackerPupilId === entry.trackerPupilId; });
+      if (byId) return byId;
+    }
+    return pupils.find(function (p) {
+      return p.firstName.toLowerCase() === (entry.firstName || '').toLowerCase() &&
+        p.lastName.toLowerCase() === (entry.lastName || '').toLowerCase() &&
+        (!entry.year || p.year === entry.year) &&
+        (!entry.className || !p.className || p.className === entry.className);
+    }) || null;
+  }
+
+  function mergeTrackerEntry(pupil, entry, options) {
+    options = options || {};
+    pupil.className = entry.className || pupil.className || '';
+    pupil.trackerPupilId = entry.trackerPupilId || pupil.trackerPupilId || '';
+    pupil.dimAvgs = entry.dimAvgs || pupil.dimAvgs || null;
+    pupil.trackerImport = true;
+    pupil.noStrengthsSuggested = !!entry.noStrengthsSuggested;
+    if (entry.year && ['S1', 'S2', 'S3'].indexOf(entry.year) !== -1) pupil.year = entry.year;
+    if (entry.cfeLevel && !pupil.cfeLevel) pupil.cfeLevel = entry.cfeLevel;
+    if (entry.isEal) pupil.isEal = true;
+    if (entry.notes && !pupil.additionalComments) pupil.additionalComments = entry.notes;
+
+    var updateSuggestions = options.updateSuggestions !== false && !pupil.confirmed;
+    if (updateSuggestions) {
+      applySuggestedToPupil(pupil, entry, true);
+    } else if (!pupil.confirmed && entry.trackStatus) {
+      pupil.trackStatus = entry.trackStatus;
+    }
+    if (entry.dimAvgs) pupil.dimAvgs = entry.dimAvgs;
+  }
+
+  function scoreColor(val) {
+    if (val == null) return '#94a3b8';
+    if (val >= 3) return '#16a34a';
+    if (val >= 2.5) return '#d97706';
+    return '#dc2626';
+  }
+
+  function formatAvg(val) {
+    if (val == null) return '—';
+    return (Math.round(val * 10) / 10).toFixed(1);
+  }
+
+  function trackStatusLabel(trackStatus) {
+    var match = TRACK_STATUSES.find(function (s) { return s.id === trackStatus; });
+    return match ? match.label : 'Not set';
+  }
+
+  function buildTrackerAvgsHtml(dimAvgs, subject, trackStatus) {
+    if (!dimAvgs) return '';
+    var proc = processAvg(dimAvgs);
+    var procLabel = subject === 'art' ? 'Progress' : 'Process';
+    var procDims = ['creating', 'presenting', 'evaluating'];
+    var procLabels = PROC_DIM_LABELS[subject] || PROC_DIM_LABELS.drama;
+    var attitDims = ['effort', 'behaviour', 'homelearning'];
+
+    var html = '<div class="tracker-avgs-panel">';
+    html += '<div class="tracker-avgs-head"><span>Tracker averages</span>';
+    if (trackStatus) {
+      html += '<span class="tracker-avgs-status">' + trackStatusLabel(trackStatus).replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</span>';
+    }
+    html += '</div><div class="tracker-avgs-grid">';
+
+    html += '<div class="tracker-avg-card tracker-avg-highlight">';
+    html += '<div class="tracker-avg-label">' + procLabel + '</div>';
+    html += '<div class="tracker-avg-value" style="color:' + scoreColor(proc) + '">' + formatAvg(proc) + '</div>';
+    html += '</div>';
+
+    attitDims.forEach(function (d) {
+      var val = dimAvgs[d];
+      html += '<div class="tracker-avg-card">';
+      html += '<div class="tracker-avg-label">' + ATTIT_DIM_LABELS[d] + '</div>';
+      html += '<div class="tracker-avg-value" style="color:' + scoreColor(val) + '">' + formatAvg(val) + '</div>';
+      html += '</div>';
+    });
+
+    html += '</div><div class="tracker-avgs-detail">';
+    procDims.forEach(function (d) {
+      var val = dimAvgs[d];
+      if (val == null) return;
+      var label = procLabels[d];
+      if (subject === 'art' && d === 'presenting') return;
+      html += '<span class="tracker-avgs-chip"><strong>' + label + ':</strong> ' + formatAvg(val) + '</span>';
+    });
+    html += '</div><div class="tracker-avgs-note">Averages across all tracking periods (1–4 scale). Use alongside suggested comments below.</div>';
+    html += '</div>';
+    return html;
+  }
+
+  function syncPupilsFromTracker(subject, pupils, createPupilFn, entries, options) {
+    options = options || {};
+    var added = 0;
+    var updated = 0;
+    var reviewed = 0;
+    entries.forEach(function (entry) {
+      if (!entry.firstName) return;
+      var p = findMatchingPupil(pupils, entry);
+      if (!p) {
+        p = createPupilFn(entry.firstName, entry.lastName);
+        pupils.push(p);
+        added++;
+      } else {
+        updated++;
+      }
+      mergeTrackerEntry(p, entry, { updateSuggestions: options.updateSuggestions });
+      if (p.noStrengthsSuggested) reviewed++;
+    });
+    return { added: added, updated: updated, reviewed: reviewed };
   }
 
   function emptySelections() {
@@ -457,6 +672,8 @@
 
   global.ReportBuilderBridge = {
     EXPORT_KEYS: EXPORT_KEYS,
+    TRACKER_STATE_KEYS: TRACKER_STATE_KEYS,
+    YEAR_GROUPS: YEAR_GROUPS,
     SECTION_HINTS: SECTION_HINTS,
     WRITING_GUIDE: WRITING_GUIDE,
     TRACK_STATUSES: TRACK_STATUSES,
@@ -466,10 +683,20 @@
     getEalSnippet: getEalSnippet,
     buildProgressSentence: buildProgressSentence,
     suggestTrackStatus: suggestTrackStatus,
+    processAvg: processAvg,
     codeToSection: codeToSection,
     suggestCodes: suggestCodes,
     computeDimAvgs: computeDimAvgs,
     buildTrackerExportEntry: buildTrackerExportEntry,
+    getTpIdsByYg: getTpIdsByYg,
+    loadTrackerState: loadTrackerState,
+    listTrackerClasses: listTrackerClasses,
+    buildAllEntriesFromTrackerState: buildAllEntriesFromTrackerState,
+    filterEntries: filterEntries,
+    findMatchingPupil: findMatchingPupil,
+    mergeTrackerEntry: mergeTrackerEntry,
+    buildTrackerAvgsHtml: buildTrackerAvgsHtml,
+    syncPupilsFromTracker: syncPupilsFromTracker,
     emptySelections: emptySelections,
     hydrateSelections: hydrateSelections,
     applySuggestedToPupil: applySuggestedToPupil,
