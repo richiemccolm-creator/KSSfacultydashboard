@@ -156,6 +156,34 @@
     var startYear = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
     return startYear + '-' + (startYear + 1);
   }
+  function defaultAcademicYearRange(opts) {
+    opts = opts || {};
+    var past = opts.past != null ? opts.past : 3;
+    var future = opts.future != null ? opts.future : 2;
+    var now = new Date();
+    var start = now.getMonth() >= 7 ? now.getFullYear() : now.getFullYear() - 1;
+    var labels = [];
+    for (var i = -past; i <= future; i++) {
+      var y = start + i;
+      labels.push(y + '-' + (y + 1));
+    }
+    return labels;
+  }
+  function mergeAcademicYearRows(dbRows, extraLabels) {
+    var byLabel = {};
+    (dbRows || []).forEach(function(row) {
+      var label = String(row.label || '').trim();
+      if (label) byLabel[label] = row;
+    });
+    (extraLabels || []).forEach(function(label) {
+      label = String(label || '').trim();
+      if (!label || byLabel[label]) return;
+      byLabel[label] = { id: null, label: label };
+    });
+    return Object.keys(byLabel).map(function(key) { return byLabel[key]; }).sort(function(a, b) {
+      return String(b.label).localeCompare(String(a.label), undefined, { numeric: true });
+    });
+  }
   function isMissingRpcError(err) {
     if (!err) return false;
     var code = String(err.code || '');
@@ -1093,8 +1121,9 @@
       return normalizeTrackerSubject(subject);
     },
 
-    listAcademicYears: function() {
-      if (!useSupabase()) return Promise.resolve([]);
+    listAcademicYears: function(opts) {
+      var fallback = mergeAcademicYearRows([], defaultAcademicYearRange(opts));
+      if (!useSupabase()) return Promise.resolve(fallback);
       return getSessionWithRetry({ retries: 4, delayMs: 250 }).then(function(session) {
         if (!session) throw new Error('Not authenticated');
         return window.supabase.from('academic_years')
@@ -1102,7 +1131,8 @@
           .order('label', { ascending: false })
           .then(function(r) {
             if (r.error) throw r.error;
-            return Array.isArray(r.data) ? r.data : [];
+            var dbRows = Array.isArray(r.data) ? r.data : [];
+            return mergeAcademicYearRows(dbRows, defaultAcademicYearRange(opts));
           });
       });
     },
