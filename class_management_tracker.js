@@ -387,6 +387,8 @@ window.ClassManagementTracker = (function() {
     nextYearGroup: nextYearGroup,
     transferClass: transferClass,
     promoteAndAssign: promoteAndAssign,
+    loadTrackerState: loadTrackerState,
+    saveTrackerState: saveTrackerState,
     loadStaff: function() {
       return DataService.getStaffListWithWorkForAdmin();
     }

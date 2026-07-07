@@ -1100,6 +1100,100 @@
       });
     },
 
+    listTeacherClassPupilsForLoader: function(options) {
+      if (!useSupabase()) return Promise.resolve([]);
+      var opts = options || {};
+      var teacherId = String(opts.teacherId || '').trim();
+      var subject = normalizeTrackerSubject(opts.subject);
+      var academicYearLabel = String(opts.academicYearLabel || '').trim();
+      if (!teacherId) return Promise.reject(new Error('Teacher is required'));
+      if (!subject) return Promise.reject(new Error('Subject must be Art, Drama, or Photography'));
+      if (!academicYearLabel) return Promise.reject(new Error('Academic year label is required'));
+
+      function fallbackList() {
+        return window.supabase.from('academic_years')
+          .select('id')
+          .eq('label', academicYearLabel)
+          .maybeSingle()
+          .then(function(yearRes) {
+            if (yearRes.error) throw yearRes.error;
+            if (!yearRes.data || !yearRes.data.id) return [];
+            return window.supabase.from('class_teacher_assignments')
+              .select('class_id')
+              .eq('teacher_id', teacherId)
+              .eq('assignment_role', 'primary')
+              .then(function(assignRes) {
+                if (assignRes.error) throw assignRes.error;
+                var classIds = Array.from(new Set((assignRes.data || []).map(function(item) {
+                  return item.class_id;
+                }).filter(Boolean)));
+                if (!classIds.length) return [];
+                return window.supabase.from('classes')
+                  .select('id, subject, class_code, class_name, year_level_id')
+                  .in('id', classIds)
+                  .eq('academic_year_id', yearRes.data.id)
+                  .eq('subject', subject)
+                  .then(function(classRes) {
+                    if (classRes.error) throw classRes.error;
+                    var classes = classRes.data || [];
+                    if (!classes.length) return [];
+
+                    function queryEnrolments(tableName) {
+                      return window.supabase.from(tableName)
+                        .select('class_id, pupil_id, pupils(id, first_name, last_name, preferred_name, external_id)')
+                        .in('class_id', classes.map(function(c) { return c.id; }))
+                        .then(function(enrolRes) {
+                          if (enrolRes.error) throw enrolRes.error;
+                          var classById = {};
+                          classes.forEach(function(c) { classById[c.id] = c; });
+                          return (enrolRes.data || []).map(function(row) {
+                            var cls = classById[row.class_id];
+                            var pupil = row.pupils || {};
+                            if (!cls) return null;
+                            return {
+                              class_id: cls.id,
+                              class_code: cls.class_code,
+                              class_name: cls.class_name,
+                              year_level: cls.year_level_id,
+                              year_level_label: 'S' + cls.year_level_id,
+                              pupil_id: pupil.id || row.pupil_id,
+                              first_name: pupil.first_name || '',
+                              last_name: pupil.last_name || '',
+                              preferred_name: pupil.preferred_name || '',
+                              external_id: pupil.external_id || ''
+                            };
+                          }).filter(Boolean);
+                        });
+                    }
+
+                    return queryEnrolments('class_enrolments').catch(function() {
+                      return queryEnrolments('class_enrollments').catch(function() {
+                        return queryEnrolments('enrolments').catch(function() {
+                          return [];
+                        });
+                      });
+                    });
+                  });
+              });
+          });
+      }
+
+      return getSessionWithRetry({ retries: 4, delayMs: 250 }).then(function(session) {
+        if (!session) throw new Error('Not authenticated');
+        return window.supabase.rpc('list_teacher_class_pupils_for_loader', {
+          p_teacher_id: teacherId,
+          p_subject: subject,
+          p_academic_year_label: academicYearLabel
+        }).then(function(r) {
+          if (r.error) throw r.error;
+          return Array.isArray(r.data) ? r.data : [];
+        }).catch(function(err) {
+          if (!isMissingRpcError(err)) return fallbackList();
+          return fallbackList();
+        });
+      });
+    },
+
     assignClassesToTeachers: function(assignments, academicYearLabel, overrideConflicts) {
       if (!useSupabase()) return Promise.reject(new Error('Supabase required'));
       var rows = Array.isArray(assignments) ? assignments : [];
