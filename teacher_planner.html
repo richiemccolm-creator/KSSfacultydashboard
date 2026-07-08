@@ -24,6 +24,11 @@
 <script src="auth-guard.js"></script>
 <script src="data-service.js"></script>
 <script src="curriculum-units.js"></script>
+<script src="n5-ci-curriculum-manifest.js"></script>
+<script src="n5-ci-schedule.js"></script>
+<script src="n5-ci-planner-import.js"></script>
+<script src="faculty-timetable-data.js"></script>
+<script src="faculty-timetable-planner-import.js"></script>
 <script src="planner-service.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -944,6 +949,8 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
     <div class="timetable-display-header">
       <span class="timetable-display-title">My weekly timetable</span>
       <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+        <button type="button" class="btn-primary" id="importFacultyTtBtn" title="Fill your weekly timetable from the faculty timetable">Import faculty timetable</button>
+        <button type="button" class="btn-primary" id="importN5CiBtn" title="Place all N5 Creative Industries sessions into your Tue/Wed/Fri periods">Import N5 CI sessions</button>
         <button type="button" class="btn-edit-timetable" id="editTimetableBtn">Edit timetable</button>
         <button type="button" class="btn-new-year" id="newAcademicYearBtn" title="Clear timetable to enter your new year schedule">Start new academic year</button>
       </div>
@@ -977,6 +984,8 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
     </div>
     <div style="padding:1rem 1.25rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
       <button class="btn-save-timetable" id="saveTimetable">Save Timetable</button>
+      <button type="button" class="btn-primary" id="importFacultyTtBtnEdit" title="Fill your weekly timetable from the faculty timetable">Import faculty timetable</button>
+      <button type="button" class="btn-primary" id="importN5CiBtnEdit" title="Place N5 CI sessions into your Tue/Wed/Fri periods">Import N5 CI sessions</button>
       <button type="button" class="btn-new-year" id="newAcademicYearBtnEdit" title="Clear and start fresh for the new academic year">Start new academic year</button>
     </div>
   </div>
@@ -989,6 +998,7 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
     <div class="nav-label" id="weekDisplay"></div>
     <button class="nav-btn" id="weekNext">&#9654;</button>
     <button class="nav-today" id="weekToday">Today</button>
+    <button type="button" class="nav-today" id="weekCourseStart" title="Jump to N5 Creative Industries course start week">CI start</button>
   </div>
   <div id="weekGridWrap"></div>
 </div>
@@ -1000,6 +1010,7 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
     <div class="day-date-title" id="dayViewDisplay"></div>
     <button class="nav-btn" id="dayNext">&#9654;</button>
     <button class="nav-today" id="dayViewToday">Today</button>
+    <button type="button" class="nav-today" id="dayCourseStart" title="Jump to N5 Creative Industries course start">CI start</button>
   </div>
   <div class="day-notes-panel">
     <h3 class="day-notes-heading">Notes for this day</h3>
@@ -1016,6 +1027,7 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
     <div class="nav-label" id="monthDisplay"></div>
     <button class="nav-btn" id="monthNext">&#9654;</button>
     <button class="nav-today" id="monthToday">Today</button>
+    <button type="button" class="nav-today" id="monthCourseStart" title="Jump to N5 Creative Industries course start month">CI start</button>
   </div>
   <div id="monthGridWrap" class="month-wrap"></div>
 </div>
@@ -1248,6 +1260,92 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
     <div class="modal-footer" style="flex-wrap:wrap;gap:.5rem">
       <button type="button" class="btn-secondary" id="schemeExportCopyBtn">Copy to clipboard</button>
       <button type="button" class="btn-primary" id="schemeExportSendBtn">Send to Class Planner</button>
+    </div>
+  </div>
+</div>
+
+<!-- Faculty timetable import modal -->
+<div class="modal-overlay" id="facultyTtImportModal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <h2 class="modal-title">Import faculty timetable</h2>
+      <button type="button" class="modal-close" id="facultyTtImportClose">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:.85rem;color:var(--text2);margin-bottom:1rem;line-height:1.5">Copies your teaching slots from the <strong>Expressive Arts faculty timetable</strong> into My Timetable — class codes, rooms and subjects. You can still edit periods afterwards.</p>
+      <div class="form-group">
+        <label class="form-label" for="facultyTtTeacherSelect">Teacher</label>
+        <select class="form-select" id="facultyTtTeacherSelect">
+          <option value="">— Select your name —</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="facultyTtImportMode">If you already have a timetable</label>
+        <select class="form-select" id="facultyTtImportMode">
+          <option value="replaceAll">Replace my entire timetable</option>
+          <option value="mergeOverwrite">Merge — overwrite matching periods</option>
+          <option value="mergeKeepExisting">Merge — keep my existing periods</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:.75rem">
+        <label style="display:flex;align-items:center;gap:.5rem;font-size:.85rem;cursor:pointer">
+          <input type="checkbox" id="facultyTtIncludeSpecial" checked>
+          Include non-teaching slots (PT meeting, WA, AfN, 5A1)
+        </label>
+      </div>
+      <p id="facultyTtImportPreview" style="font-size:.8rem;color:var(--text2);margin:0;padding:.65rem .75rem;background:var(--bg);border-radius:6px;border:1px solid var(--border);line-height:1.5"></p>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn-secondary" id="facultyTtImportCancel">Cancel</button>
+      <button type="button" class="btn-primary" id="facultyTtImportConfirm">Import timetable</button>
+    </div>
+  </div>
+</div>
+
+<!-- N5 Creative Industries import modal -->
+<div class="modal-overlay" id="n5CiImportModal">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header">
+      <h2 class="modal-title">Import N5 Creative Industries</h2>
+      <button type="button" class="modal-close" id="n5CiImportClose">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:.85rem;color:var(--text2);margin-bottom:1rem;line-height:1.5">Places all 61 sessions into your <strong>Tuesday, Wednesday and Friday</strong> periods using the official year planner (<strong>Aug 2025 – Feb 2026</strong>). After import, use <strong>Week View</strong> — use <strong>CI start</strong> or the ◀ ▶ arrows to reach course weeks (they will not appear on today’s week).</p>
+      <div class="form-group">
+        <label class="form-label">Tuesday period</label>
+        <select class="form-select" id="n5CiSlotTuesday"><option value="">— Select slot —</option></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Wednesday period</label>
+        <select class="form-select" id="n5CiSlotWednesday"><option value="">— Select slot —</option></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Friday period</label>
+        <select class="form-select" id="n5CiSlotFriday"><option value="">— Select slot —</option></select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+        <div class="form-group" style="margin-bottom:.75rem">
+          <label class="form-label">From session</label>
+          <input type="number" class="form-input" id="n5CiFromSession" min="1" max="61" value="1">
+        </div>
+        <div class="form-group" style="margin-bottom:.75rem">
+          <label class="form-label">To session</label>
+          <input type="number" class="form-input" id="n5CiToSession" min="1" max="61" value="61">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">If a period already has a lesson</label>
+        <select class="form-select" id="n5CiImportMode">
+          <option value="skipExisting">Skip — keep my existing plan</option>
+          <option value="replaceCi">Replace only previous N5 CI imports</option>
+          <option value="replaceAll">Replace all lessons in those periods</option>
+        </select>
+      </div>
+      <p id="n5CiImportPreview" style="font-size:.8rem;color:var(--text2);margin:0;padding:.65rem .75rem;background:var(--bg);border-radius:6px;border:1px solid var(--border);line-height:1.5"></p>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn-secondary" id="n5CiImportCancel">Cancel</button>
+      <button type="button" class="btn-primary" id="n5CiImportConfirm">Import into periods</button>
     </div>
   </div>
 </div>
@@ -2039,7 +2137,7 @@ function renderTimetableDisplay() {
       }
     });
   }
-  html += '</div></div><div style="display:flex;gap:.6rem;align-items:center;margin-top:.9rem;flex-wrap:wrap"><button type="button" class="btn-secondary" id="editTimetableBtnInline">Edit timetable</button><span style="font-size:.73rem;color:var(--muted)">Your recurring weekly schedule — plan lessons in <strong>Week View</strong> or <strong>Day View</strong></span></div>';
+  html += '</div></div><div style="display:flex;gap:.6rem;align-items:center;margin-top:.9rem;flex-wrap:wrap"><button type="button" class="btn-secondary" id="editTimetableBtnInline">Edit timetable</button><span style="font-size:.73rem;color:var(--muted)">Use <strong>Import faculty timetable</strong> to fill periods from the faculty view, or <strong>Import N5 CI sessions</strong> for course plans — then edit in <strong>Week View</strong> or <strong>Day View</strong></span></div>';
   gridEl.innerHTML = html;
   displaySection.style.display = 'block';
   editSection.style.display = 'none';
@@ -2912,8 +3010,13 @@ function renderDayView() {
     html += '<div class="day-cls-label">' + escHtml(clsLabel + roomLabel) + (timeLabel ? ' · ' + escHtml(timeLabel) : '') + '</div>';
     if (lesson) {
       var u = window.getUnitFromKey && window.getUnitFromKey(lesson.unitKey);
-      html += '<div class="day-lesson-title">' + escHtml(lesson.title || 'Untitled') + '</div>';
+      var dayTitle = lesson.title || 'Untitled';
+      if (lesson.lessonNumber && String(lesson.lessonNumber).trim()) {
+        dayTitle = String(lesson.lessonNumber).trim() + ' · ' + dayTitle;
+      }
+      html += '<div class="day-lesson-title">' + escHtml(dayTitle) + '</div>';
       if (u && u.unit) html += '<div class="day-lesson-unit">' + escHtml(u.unit) + '</div>';
+      else if (lesson.n5CiSession) html += '<div class="day-lesson-unit">N5 Creative Industries</div>';
     } else {
       html += '<div class="day-lesson-empty">No lesson plan yet — click to add</div>';
     }
@@ -2935,8 +3038,11 @@ function renderDayView() {
 }
 
 function switchToDayViewForDate(d) {
-  PS.setCurrentDayViewDate(d);
-  document.getElementById('dayViewDate').value = getDateStr(d);
+  var d2 = snapToWeekday(d);
+  PS.setCurrentDayViewDate(d2);
+  PS.setCurrentWeekStart(PS.getWeekStart(d2));
+  PS.setCurrentMonthStart(PS.getMonthStart(d2));
+  document.getElementById('dayViewDate').value = getDateStr(d2);
   document.querySelectorAll('.planner-tab').forEach(function(t) { t.classList.remove('active'); });
   document.querySelectorAll('.planner-panel').forEach(function(p) { p.classList.remove('active'); });
   document.querySelector('.planner-tab[data-tab="day"]').classList.add('active');
@@ -3499,19 +3605,25 @@ document.getElementById('topbarAcademicYear').addEventListener('click', function
 document.getElementById('weekPrev').addEventListener('click', function() {
   var start = PS.getCurrentWeekStart();
   start.setDate(start.getDate() - 7);
+  syncDayAndMonthFromWeekStart(start);
   renderWeekView();
 });
 
 document.getElementById('weekNext').addEventListener('click', function() {
   var start = PS.getCurrentWeekStart();
   start.setDate(start.getDate() + 7);
+  syncDayAndMonthFromWeekStart(start);
   renderWeekView();
 });
 
 document.getElementById('weekToday').addEventListener('click', function() {
   PS.setCurrentWeekStart(PS.getWeekStart(new Date()));
+  syncDayAndMonthFromWeekStart(PS.getCurrentWeekStart());
   renderWeekView();
 });
+
+var weekCourseStartBtn = document.getElementById('weekCourseStart');
+if (weekCourseStartBtn) weekCourseStartBtn.addEventListener('click', goToCourseStartDate);
 
 document.getElementById('monthPrev').addEventListener('click', function() {
   var m = PS.getCurrentMonthStart();
@@ -3530,15 +3642,25 @@ document.getElementById('monthToday').addEventListener('click', function() {
   renderMonthView();
 });
 
+var monthCourseStartBtn = document.getElementById('monthCourseStart');
+if (monthCourseStartBtn) monthCourseStartBtn.addEventListener('click', goToCourseStartDate);
+
 document.querySelectorAll('.planner-tab').forEach(function(tab) {
   tab.addEventListener('click', function() {
     document.querySelectorAll('.planner-tab').forEach(function(t){t.classList.remove('active')});
     document.querySelectorAll('.planner-panel').forEach(function(p){p.classList.remove('active')});
     tab.classList.add('active');
     document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
+    var weekStart = PS.getCurrentWeekStart();
     if (tab.dataset.tab === 'week') renderWeekView();
-    if (tab.dataset.tab === 'month') renderMonthView();
-    if (tab.dataset.tab === 'day') renderDayView();
+    if (tab.dataset.tab === 'month') {
+      if (weekStart) syncDayAndMonthFromWeekStart(weekStart);
+      renderMonthView();
+    }
+    if (tab.dataset.tab === 'day') {
+      if (weekStart) syncDayAndMonthFromWeekStart(weekStart);
+      renderDayView();
+    }
     if (tab.dataset.tab === 'bank') renderTemplatesList();
     if (tab.dataset.tab === 'schemes') renderSchemesPanel();
   });
@@ -3733,19 +3855,28 @@ document.getElementById('dayViewDate').addEventListener('change', function() {
 document.getElementById('dayViewToday').addEventListener('click', function() {
   var d = snapToWeekday(new Date());
   PS.setCurrentDayViewDate(d);
+  PS.setCurrentWeekStart(PS.getWeekStart(d));
+  PS.setCurrentMonthStart(PS.getMonthStart(d));
   document.getElementById('dayViewDate').value = getDateStr(d);
   renderDayView();
 });
 
+var dayCourseStartBtn = document.getElementById('dayCourseStart');
+if (dayCourseStartBtn) dayCourseStartBtn.addEventListener('click', goToCourseStartDate);
+
 document.getElementById('dayPrev').addEventListener('click', function() {
   var d = shiftWeekday(new Date(PS.getState().currentDayViewDate || new Date()), -1);
   PS.setCurrentDayViewDate(d);
+  PS.setCurrentWeekStart(PS.getWeekStart(d));
+  PS.setCurrentMonthStart(PS.getMonthStart(d));
   renderDayView();
 });
 
 document.getElementById('dayNext').addEventListener('click', function() {
   var d = shiftWeekday(new Date(PS.getState().currentDayViewDate || new Date()), 1);
   PS.setCurrentDayViewDate(d);
+  PS.setCurrentWeekStart(PS.getWeekStart(d));
+  PS.setCurrentMonthStart(PS.getMonthStart(d));
   renderDayView();
 });
 
@@ -4034,8 +4165,365 @@ document.getElementById('applyToTimetableModal').addEventListener('click', funct
   }
 });
 
+function switchPlannerTab(tabName) {
+  document.querySelectorAll('.planner-tab').forEach(function (t) {
+    t.classList.toggle('active', t.getAttribute('data-tab') === tabName);
+  });
+  document.querySelectorAll('.planner-panel').forEach(function (p) {
+    p.classList.toggle('active', p.id === 'panel-' + tabName);
+  });
+}
+
+/** Keep day + month views aligned with the week currently shown in Week View. */
+function syncDayAndMonthFromWeekStart(weekStart) {
+  if (!weekStart) return;
+  PS.setCurrentMonthStart(PS.getMonthStart(weekStart));
+  var weekStartStr = getDateStr(weekStart);
+  var weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate() + 6);
+  var weekEndStr = getDateStr(weekEnd);
+  var lessons = ((PS.getState().lessons && PS.getState().lessons.lessons) || []).filter(function (l) {
+    var d = (l.date || '').slice(0, 10);
+    return d.length === 10 && d >= weekStartStr && d <= weekEndStr;
+  }).sort(function (a, b) { return (a.date || '').localeCompare(b.date || ''); });
+  var pickStr = lessons.length ? lessons[0].date.slice(0, 10) : weekStartStr;
+  var parts = pickStr.split('-');
+  var pickDate = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+  PS.setCurrentDayViewDate(snapToWeekday(pickDate));
+}
+
+function goToCourseStartDate() {
+  var firstEntry = window.N5_CI_SCHEDULE_HELPERS && window.N5_CI_SCHEDULE_HELPERS.getEntry
+    ? window.N5_CI_SCHEDULE_HELPERS.getEntry(1) : null;
+  if (!firstEntry || !firstEntry.date) {
+    showToast('N5 CI schedule not loaded');
+    return;
+  }
+  var parts = String(firstEntry.date).split('-');
+  var d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+  if (isNaN(d.getTime())) return;
+  var weekStart = PS.getWeekStart(d);
+  PS.setCurrentWeekStart(weekStart);
+  PS.setCurrentDayViewDate(snapToWeekday(d));
+  PS.setCurrentMonthStart(PS.getMonthStart(d));
+  var activeTab = document.querySelector('.planner-tab.active');
+  var tab = activeTab ? activeTab.getAttribute('data-tab') : 'week';
+  if (tab === 'day') renderDayView();
+  else if (tab === 'month') renderMonthView();
+  else {
+    switchPlannerTab('week');
+    renderWeekView();
+  }
+}
+
+function goToPlannerWeekForDate(dateStr) {
+  if (!dateStr) return;
+  var parts = String(dateStr).split('-');
+  if (parts.length !== 3) return;
+  var d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+  if (isNaN(d.getTime())) return;
+  var weekStart = PS.getWeekStart(d);
+  PS.setCurrentWeekStart(weekStart);
+  syncDayAndMonthFromWeekStart(weekStart);
+  switchPlannerTab('week');
+  renderWeekView();
+}
+
+function fillN5CiDaySlotSelect(selectEl, day, slots, selectedKey) {
+  if (!selectEl) return;
+  selectEl.innerHTML = '<option value="">— No slot on this day —</option>';
+  var Imp = window.N5CiPlannerImport;
+  var daySlots = Imp ? Imp.getSlotsForDay(slots, day) : [];
+  daySlots.forEach(function (slot) {
+    var key = slotKey(slot.day, slot.period);
+    var opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = Imp.slotLabel(slot);
+    if (selectedKey === key) opt.selected = true;
+    selectEl.appendChild(opt);
+  });
+}
+
+function getN5CiSlotKeysFromModal() {
+  return {
+    tuesday: (document.getElementById('n5CiSlotTuesday') || {}).value || '',
+    wednesday: (document.getElementById('n5CiSlotWednesday') || {}).value || '',
+    friday: (document.getElementById('n5CiSlotFriday') || {}).value || ''
+  };
+}
+
+function updateN5CiImportPreview() {
+  var preview = document.getElementById('n5CiImportPreview');
+  if (!preview || !window.N5CiPlannerImport) return;
+  var keys = getN5CiSlotKeysFromModal();
+  if (!keys.tuesday && !keys.wednesday && !keys.friday) {
+    preview.innerHTML = '<strong>Choose your Tue, Wed and Fri periods</strong> — these must match where N5 Creative Industries appears on your timetable.';
+    return;
+  }
+  var missing = [];
+  if (!keys.tuesday) missing.push('Tuesday');
+  if (!keys.wednesday) missing.push('Wednesday');
+  if (!keys.friday) missing.push('Friday');
+  var plan = window.N5CiPlannerImport.buildPlan({
+    slotKeysByDay: keys,
+    mode: (document.getElementById('n5CiImportMode') || {}).value || 'skipExisting',
+    fromSession: (document.getElementById('n5CiFromSession') || {}).value,
+    toSession: (document.getElementById('n5CiToSession') || {}).value
+  });
+  if (plan.error) {
+    preview.textContent = plan.error;
+    return;
+  }
+  var c = plan.counts;
+  var parts = [];
+  if (c.add) parts.push('<strong>' + c.add + '</strong> session' + (c.add === 1 ? '' : 's') + ' will be added');
+  if (plan.dateRange) parts.push('dates ' + escHtml(plan.dateRange));
+  if (c.skip) parts.push(c.skip + ' skipped (already planned)');
+  if (c.noSlot) parts.push(c.noSlot + ' skipped (no period selected for that weekday)');
+  if (missing.length) parts.push('<span style="color:#b45309">Missing: ' + escHtml(missing.join(', ')) + '</span>');
+  var existing = window.N5CiPlannerImport.countImportedLessons ? window.N5CiPlannerImport.countImportedLessons() : 0;
+  if (existing) parts.push(existing + ' N5 CI session' + (existing === 1 ? '' : 's') + ' already in planner');
+  preview.innerHTML = parts.length ? parts.join(' · ') + '.' : 'Nothing to import for this range — try Replace mode if you imported before.';
+}
+
+function openN5CiImportModal() {
+  var Imp = window.N5CiPlannerImport;
+  if (!Imp || !window.N5_CI_SCHEDULE) {
+    showToast('N5 CI import data not loaded — refresh the page');
+    return;
+  }
+  var slots = (PS.getState().timetable && PS.getState().timetable.slots) || [];
+  if (!slots.length) {
+    showToast('Set up your timetable first — add your Tue/Wed/Fri CI periods');
+    document.getElementById('timetableDisplaySection').style.display = 'none';
+    document.getElementById('timetableEditSection').style.display = 'block';
+    return;
+  }
+  var detected = Imp.detectSlotKeysByDay(slots);
+  fillN5CiDaySlotSelect(document.getElementById('n5CiSlotTuesday'), 'tuesday', slots, detected.tuesday || '');
+  fillN5CiDaySlotSelect(document.getElementById('n5CiSlotWednesday'), 'wednesday', slots, detected.wednesday || '');
+  fillN5CiDaySlotSelect(document.getElementById('n5CiSlotFriday'), 'friday', slots, detected.friday || '');
+  document.getElementById('n5CiFromSession').value = '1';
+  document.getElementById('n5CiToSession').value = '61';
+  document.getElementById('n5CiImportMode').value = 'skipExisting';
+  updateN5CiImportPreview();
+  document.getElementById('n5CiImportModal').classList.add('visible');
+}
+
+function closeN5CiImportModal() {
+  document.getElementById('n5CiImportModal').classList.remove('visible');
+}
+
+function fillFacultyTtTeacherSelect(selectedName) {
+  var selectEl = document.getElementById('facultyTtTeacherSelect');
+  var Imp = window.FacultyTimetablePlannerImport;
+  if (!selectEl || !Imp) return;
+  var options = Imp.teacherOptions();
+  var html = '<option value="">— Select your name —</option>';
+  options.forEach(function (t) {
+    var label = t.name + (t.room ? ' · ' + t.room : '') + (t.department ? ' (' + t.department + ')' : '');
+    var sel = selectedName && t.name === selectedName ? ' selected' : '';
+    html += '<option value="' + escHtml(t.name) + '"' + sel + '>' + escHtml(label) + '</option>';
+  });
+  selectEl.innerHTML = html;
+}
+
+function updateFacultyTtImportPreview() {
+  var preview = document.getElementById('facultyTtImportPreview');
+  var Imp = window.FacultyTimetablePlannerImport;
+  if (!preview || !Imp) return;
+  var teacherName = (document.getElementById('facultyTtTeacherSelect') || {}).value || '';
+  if (!teacherName) {
+    preview.innerHTML = '<strong>Select your name</strong> from the faculty timetable list.';
+    return;
+  }
+  var plan = Imp.buildPlan({
+    teacherName: teacherName,
+    mode: (document.getElementById('facultyTtImportMode') || {}).value || 'replaceAll',
+    includeSpecial: !!(document.getElementById('facultyTtIncludeSpecial') || {}).checked
+  });
+  if (plan.error) {
+    preview.textContent = plan.error;
+    return;
+  }
+  var c = plan.counts;
+  var parts = [];
+  parts.push('<strong>' + plan.slots.length + '</strong> period' + (plan.slots.length === 1 ? '' : 's') + ' will be saved');
+  if (c.teaching) parts.push(c.teaching + ' teaching');
+  if (c.add) parts.push(c.add + ' new');
+  if (c.replace) parts.push(c.replace + ' replaced');
+  if (c.keep) parts.push(c.keep + ' kept');
+  if (c.skipSpecial) parts.push(c.skipSpecial + ' special skipped');
+  if (plan.existingCount && plan.mode === 'replaceAll') {
+    parts.push('<span style="color:#b45309">replaces your current ' + plan.existingCount + ' period' + (plan.existingCount === 1 ? '' : 's') + '</span>');
+  }
+  if (plan.room) parts.push('room ' + escHtml(plan.room));
+  preview.innerHTML = parts.join(' · ') + '.';
+}
+
+function openFacultyTtImportModal() {
+  var Imp = window.FacultyTimetablePlannerImport;
+  if (!Imp || !window.FacultyTimetableData) {
+    showToast('Faculty timetable data not loaded — refresh the page');
+    return;
+  }
+  var loginName = (document.getElementById('topbarTeacherName') && document.getElementById('topbarTeacherName').textContent) || '';
+  var matched = Imp.matchStaffName(loginName);
+  fillFacultyTtTeacherSelect(matched || '');
+  document.getElementById('facultyTtImportMode').value = 'replaceAll';
+  document.getElementById('facultyTtIncludeSpecial').checked = true;
+  updateFacultyTtImportPreview();
+  document.getElementById('facultyTtImportModal').classList.add('visible');
+}
+
+function closeFacultyTtImportModal() {
+  document.getElementById('facultyTtImportModal').classList.remove('visible');
+}
+
+function bindFacultyTtImportUi() {
+  ['importFacultyTtBtn', 'importFacultyTtBtnEdit'].forEach(function (id) {
+    var btn = document.getElementById(id);
+    if (btn) btn.addEventListener('click', openFacultyTtImportModal);
+  });
+  var closeBtn = document.getElementById('facultyTtImportClose');
+  var cancelBtn = document.getElementById('facultyTtImportCancel');
+  var modal = document.getElementById('facultyTtImportModal');
+  var confirmBtn = document.getElementById('facultyTtImportConfirm');
+  if (closeBtn) closeBtn.addEventListener('click', closeFacultyTtImportModal);
+  if (cancelBtn) cancelBtn.addEventListener('click', closeFacultyTtImportModal);
+  if (modal) {
+    modal.addEventListener('click', function (e) {
+      if (e.target === this) closeFacultyTtImportModal();
+    });
+  }
+  ['facultyTtTeacherSelect', 'facultyTtImportMode', 'facultyTtIncludeSpecial'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('change', updateFacultyTtImportPreview);
+  });
+  if (!confirmBtn) return;
+  confirmBtn.addEventListener('click', function () {
+    var Imp = window.FacultyTimetablePlannerImport;
+    if (!Imp) return;
+    var teacherName = document.getElementById('facultyTtTeacherSelect').value || '';
+    if (!teacherName) {
+      showToast('Select your name from the faculty list');
+      return;
+    }
+    var mode = document.getElementById('facultyTtImportMode').value || 'replaceAll';
+    var includeSpecial = !!document.getElementById('facultyTtIncludeSpecial').checked;
+    var plan = Imp.buildPlan({
+      teacherName: teacherName,
+      mode: mode,
+      includeSpecial: includeSpecial
+    });
+    if (plan.error) {
+      showToast(plan.error);
+      return;
+    }
+    if (!plan.slots.length) {
+      showToast('No periods found for that teacher');
+      return;
+    }
+    var existingCount = plan.existingCount || 0;
+    if (mode === 'replaceAll' && existingCount > 0) {
+      if (!confirm('Replace your current timetable (' + existingCount + ' period' + (existingCount === 1 ? '' : 's') + ') with ' + plan.slots.length + ' from the faculty timetable for ' + teacherName + '?')) {
+        return;
+      }
+    }
+    confirmBtn.disabled = true;
+    Imp.run(plan).then(function (res) {
+      closeFacultyTtImportModal();
+      showToast(res.applied + ' period' + (res.applied === 1 ? '' : 's') + ' imported for ' + (res.teacherName || teacherName));
+      renderTimetable();
+      renderTimetableDisplay();
+      renderWeekView();
+      renderMonthView();
+      renderPlannerInsights();
+    }).catch(function (err) {
+      console.error('Faculty timetable import failed', err);
+      showToast('Import failed — check you are signed in and try again');
+    }).then(function () {
+      confirmBtn.disabled = false;
+    });
+  });
+}
+
+function bindN5CiImportUi() {
+  ['importN5CiBtn', 'importN5CiBtnEdit'].forEach(function (id) {
+    var btn = document.getElementById(id);
+    if (btn) btn.addEventListener('click', openN5CiImportModal);
+  });
+  var closeBtn = document.getElementById('n5CiImportClose');
+  var cancelBtn = document.getElementById('n5CiImportCancel');
+  var modal = document.getElementById('n5CiImportModal');
+  var confirmBtn = document.getElementById('n5CiImportConfirm');
+  if (closeBtn) closeBtn.addEventListener('click', closeN5CiImportModal);
+  if (cancelBtn) cancelBtn.addEventListener('click', closeN5CiImportModal);
+  if (modal) {
+    modal.addEventListener('click', function (e) {
+      if (e.target === this) closeN5CiImportModal();
+    });
+  }
+  ['n5CiSlotTuesday', 'n5CiSlotWednesday', 'n5CiSlotFriday', 'n5CiImportMode', 'n5CiFromSession', 'n5CiToSession'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('change', updateN5CiImportPreview);
+    if (el && el.tagName === 'INPUT') el.addEventListener('input', updateN5CiImportPreview);
+  });
+  if (!confirmBtn) return;
+  confirmBtn.addEventListener('click', function () {
+    var Imp = window.N5CiPlannerImport;
+    if (!Imp) return;
+    var keys = getN5CiSlotKeysFromModal();
+    if (!keys.tuesday || !keys.wednesday || !keys.friday) {
+      showToast('Select Tue, Wed and Fri periods for N5 CI');
+      return;
+    }
+    var mode = document.getElementById('n5CiImportMode').value || 'skipExisting';
+    var plan = Imp.buildPlan({
+      slotKeysByDay: keys,
+      mode: mode,
+      fromSession: document.getElementById('n5CiFromSession').value,
+      toSession: document.getElementById('n5CiToSession').value
+    });
+    if (!plan.counts.add) {
+      if (plan.counts.skip && mode === 'skipExisting') {
+        var firstEntry = window.N5_CI_SCHEDULE_HELPERS && window.N5_CI_SCHEDULE_HELPERS.getEntry
+          ? window.N5_CI_SCHEDULE_HELPERS.getEntry(1) : null;
+        showToast('Already imported — opening course start week in Week View');
+        goToPlannerWeekForDate(firstEntry ? firstEntry.date : '2025-08-15');
+      } else {
+        showToast('No sessions to import — select Tue, Wed and Fri periods');
+      }
+      return;
+    }
+    if (mode === 'replaceAll' && plan.counts.skip > 0) {
+      if (!confirm('Replace existing lessons in ' + plan.counts.add + ' period' + (plan.counts.add === 1 ? '' : 's') + '?')) return;
+    }
+    confirmBtn.disabled = true;
+    Imp.run(plan).then(function (res) {
+      closeN5CiImportModal();
+      var msg = res.applied + ' N5 CI session' + (res.applied === 1 ? '' : 's') + ' added';
+      if (res.dateRange) msg += ' (' + res.dateRange + ')';
+      showToast(msg + ' — opening course start week');
+      renderTimetableDisplay();
+      if (res.firstDate) {
+        goToPlannerWeekForDate(res.firstDate);
+      } else {
+        renderWeekView();
+      }
+    }).catch(function (err) {
+      console.error('N5 CI import failed', err);
+      showToast('Import failed — check you are signed in and try again');
+    }).then(function () {
+      confirmBtn.disabled = false;
+    });
+  });
+}
+
 // Init
 initLessonBodyEditor();
+bindFacultyTtImportUi();
+bindN5CiImportUi();
 PS.load().then(function() {
   bindSchemesPanelEvents();
   renderTimetable();
