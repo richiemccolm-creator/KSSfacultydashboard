@@ -196,7 +196,7 @@ window.ClassManagementTracker = (function() {
     return null;
   }
 
-  function promoteHandoverToState(targetS, handover, toYg, toClsName, includeSnapshot) {
+  function promoteHandoverToState(targetS, handover, toYg, toClsName, includeSnapshot, promoteOptions) {
     targetS = ensureTrackerShape(targetS);
     var fromYg = handover.yearGroup;
     var toCls = toClsName || suggestPromotedClassName(handover.className, fromYg, toYg, targetS);
@@ -204,35 +204,42 @@ window.ClassManagementTracker = (function() {
       throw new Error('"' + toCls + '" already exists in ' + toYg.toUpperCase());
     }
 
-    var pidMap = {};
-    var newPupils = (handover.pupils || []).map(function(p) {
-      var np = { id: uid(), name: p.name };
-      pidMap[p.id] = np.id;
-      return np;
+    var promoteHandover = window.TrackerPromoteArchive
+      ? TrackerPromoteArchive.filterHandover(handover, promoteOptions || {})
+      : handover;
+    if (!promoteHandover.pupils || !promoteHandover.pupils.length) {
+      throw new Error('No pupils to promote');
+    }
+
+    var newPupils = (promoteHandover.pupils || []).map(function(p) {
+      return { id: uid(), name: p.name };
     });
     targetS.pupils[toYg][toCls] = newPupils;
 
     if (includeSnapshot) {
       newPupils.forEach(function(np, i) {
-        var oldP = handover.pupils[i];
+        var oldP = promoteHandover.pupils[i];
         if (!oldP) return;
         var oldId = oldP.id;
         if (!targetS.profiles[toYg][np.id]) targetS.profiles[toYg][np.id] = {};
         targetS.profiles[toYg][np.id].trackingHistory = targetS.profiles[toYg][np.id].trackingHistory || {};
         targetS.profiles[toYg][np.id].trackingHistory[fromYg] = {
           className: handover.className,
-          scores: handover.scores && handover.scores[oldId] ? handover.scores[oldId] : {},
-          profiles: handover.profiles && handover.profiles[oldId] ? handover.profiles[oldId] : {},
+          scores: promoteHandover.scores && promoteHandover.scores[oldId] ? promoteHandover.scores[oldId] : {},
+          profiles: promoteHandover.profiles && promoteHandover.profiles[oldId] ? promoteHandover.profiles[oldId] : {},
           snapshotAt: new Date().toISOString()
         };
       });
     }
 
+    var excludedCount = (handover.pupils || []).length - (promoteHandover.pupils || []).length;
+
     return {
       state: targetS,
       toYearGroup: toYg,
       toClassName: toCls,
-      pupilCount: newPupils.length
+      pupilCount: newPupils.length,
+      excludedCount: excludedCount
     };
   }
 
@@ -333,6 +340,10 @@ window.ClassManagementTracker = (function() {
     var includeSnapshot = opts.includeSnapshot !== false;
     var archiveSource = opts.archiveSource !== false;
     var academicYear = opts.academicYearLabel;
+    var promoteFilter = {
+      excludePupilIds: opts.excludePupilIds,
+      continuingPupilIds: opts.continuingPupilIds
+    };
 
     if (!toYg) throw new Error('Cannot promote above S3');
 
@@ -365,14 +376,35 @@ window.ClassManagementTracker = (function() {
 
       if (fromId === toId) {
         var defaultName = toCls || suggestPromotedClassName(cls, fromYg, toYg, fromS);
-        var sameResult = promoteHandoverToState(fromS, handover, toYg, defaultName, includeSnapshot);
+        if (window.TrackerPromoteArchive) {
+          var promoted = TrackerPromoteArchive.promoteClass(fromS, {
+            fromYearGroup: fromYg,
+            className: cls,
+            toYearGroup: toYg,
+            toClassName: defaultName,
+            uid: uid,
+            includeSnapshot: includeSnapshot,
+            archiveSource: archiveSource,
+            excludePupilIds: promoteFilter.excludePupilIds,
+            continuingPupilIds: promoteFilter.continuingPupilIds
+          });
+          var sameResult = {
+            state: promoted.state,
+            toYearGroup: promoted.toYearGroup,
+            toClassName: promoted.toClassName,
+            pupilCount: promoted.pupilCount,
+            excludedCount: promoted.excludedCount
+          };
+          return afterPromote(sameResult, [saveTrackerState(fromId, subject, sameResult.state)]);
+        }
+        var sameResult = promoteHandoverToState(fromS, handover, toYg, defaultName, includeSnapshot, promoteFilter);
         archiveSourceClass(sameResult.state, sameResult);
         return afterPromote(sameResult, [saveTrackerState(fromId, subject, sameResult.state)]);
       }
 
       return loadTrackerState(toId, subject).then(function(toS) {
         var defaultName = toCls || suggestPromotedClassName(cls, fromYg, toYg, toS);
-        var result = promoteHandoverToState(toS, handover, toYg, defaultName, includeSnapshot);
+        var result = promoteHandoverToState(toS, handover, toYg, defaultName, includeSnapshot, promoteFilter);
         var saves = [saveTrackerState(toId, subject, result.state)];
         fromS = archiveSourceClass(fromS, result);
         if (archiveSource) saves.push(saveTrackerState(fromId, subject, fromS));

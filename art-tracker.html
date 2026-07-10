@@ -1119,6 +1119,13 @@ function suggestPromotedClassName(cls,yg,nextYg){
   if(/\bs2\b/i.test(cls)&&nextYg==='s3')return cls.replace(/\bs2\b/gi,nextYg);
   return S.pupils[nextYg][cls]?cls+' (promoted)':cls;
 }
+function promotePupilChecklistHtml(pupils){
+  const rows=pupils.map(p=>`<label style="display:flex;align-items:center;gap:.45rem;font-size:.78rem;cursor:pointer"><input type="checkbox" class="promote-pupil-cb" data-pid="${escAttr(p.id)}" checked style="accent-color:var(--accent)"/><span>${escAttr(p.name)}</span></label>`).join('');
+  return `<label class="form-label" style="margin-top:.65rem">Pupils continuing</label><p style="font-size:.72rem;color:var(--text3);margin:0 0 .4rem">Uncheck pupils not continuing in this subject. Their scores remain in the archived class.</p><div style="max-height:180px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:.5rem .65rem;display:flex;flex-direction:column;gap:.35rem">${rows}</div>`;
+}
+function continuingPupilIdsFromPromoteModal(){
+  return Array.from(document.querySelectorAll('.promote-pupil-cb:checked')).map(cb=>cb.dataset.pid).filter(Boolean);
+}
 function promoteClass(yg,cls){
   if(roBlock())return;
   if(!cls||!window.TrackerPromoteArchive)return;
@@ -1127,14 +1134,19 @@ function promoteClass(yg,cls){
   const pupils=S.pupils[yg][cls]||[];
   if(!pupils.length){toast('No pupils to promote');return;}
   const defaultTarget=suggestPromotedClassName(cls,yg,nextYg);
-  showModal(`Promote "${cls}" to ${nextYg.toUpperCase()}?`,`${pupils.length} pupils will move to ${nextYg.toUpperCase()} with fresh TP columns. Their ${yg.toUpperCase()} scores are saved as a read-only snapshot on each pupil's profile in ${nextYg.toUpperCase()}, and the ${yg.toUpperCase()} class will be archived (hidden from active lists but preserved below).<br><br><label class="form-label">Class name in ${nextYg.toUpperCase()}</label><input class="form-input" id="promote-cls-inp" value="${escAttr(defaultTarget)}" />`,'Promote',()=>{
+  showModal(`Promote "${cls}" to ${nextYg.toUpperCase()}?`,`${pupils.length} pupils in this class. Checked pupils move to ${nextYg.toUpperCase()} with fresh TP columns; prior-year scores are saved as a read-only snapshot on each promoted pupil's profile. The ${yg.toUpperCase()} class is archived with all pupils (including those not continuing).<br><br><label class="form-label">Class name in ${nextYg.toUpperCase()}</label><input class="form-input" id="promote-cls-inp" value="${escAttr(defaultTarget)}" />${promotePupilChecklistHtml(pupils)}`,'Promote',()=>{
     const inp=document.getElementById('promote-cls-inp');const targetCls=(inp?.value||'').trim();
     if(!targetCls){toast('Enter a class name');return false;}
     if(S.pupils[nextYg][targetCls]){toast(`"${targetCls}" already exists in ${nextYg.toUpperCase()}`);return false;}
+    const continuingPupilIds=continuingPupilIdsFromPromoteModal();
+    if(!continuingPupilIds.length){toast('Select at least one pupil to promote');return false;}
+    let result;
     try{
-      TrackerPromoteArchive.promoteClass(S,{fromYearGroup:yg,className:cls,toYearGroup:nextYg,toClassName:targetCls,uid:uid,includeSnapshot:true,archiveSource:true});
+      result=TrackerPromoteArchive.promoteClass(S,{fromYearGroup:yg,className:cls,toYearGroup:nextYg,toClassName:targetCls,uid:uid,includeSnapshot:true,archiveSource:true,continuingPupilIds:continuingPupilIds});
     }catch(e){toast(e.message||'Promote failed');return false;}
-    save();renderSetup(yg);nav('setup-'+nextYg);toast(`Promoted to ${nextYg.toUpperCase()} as "${targetCls}" — ${yg.toUpperCase()} class archived`);
+    save();renderSetup(yg);nav('setup-'+nextYg);
+    const excluded=(result.excludedCount||0)>0?` (${result.excludedCount} not continuing — kept in archive only)`:'' ;
+    toast(`Promoted ${result.pupilCount} pupil${result.pupilCount!==1?'s':''} to ${nextYg.toUpperCase()} as "${targetCls}"${excluded} — ${yg.toUpperCase()} class archived`);
   },false);
   setTimeout(()=>{const inp=document.getElementById('promote-cls-inp');if(inp){inp.focus();inp.select();}},50);
 }

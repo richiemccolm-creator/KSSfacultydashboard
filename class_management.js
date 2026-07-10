@@ -911,6 +911,29 @@
     if (modal) modal.classList.add('open');
   }
 
+  function renderPromotePupilList(pupils) {
+    var wrap = $('cm-promote-pupils-wrap');
+    var list = $('cm-promote-pupils');
+    if (!wrap || !list) return;
+    if (!pupils || !pupils.length) {
+      wrap.style.display = 'none';
+      list.innerHTML = '';
+      return;
+    }
+    wrap.style.display = '';
+    list.innerHTML = pupils.map(function(p) {
+      return '<label class="cm-check cm-promote-pupil-item">' +
+        '<input type="checkbox" class="cm-promote-pupil-cb" data-pid="' + escAttr(p.id) + '" checked />' +
+        '<span>' + escHtml(p.name) + '</span></label>';
+    }).join('');
+  }
+
+  function continuingPupilIdsFromPromoteModal() {
+    return Array.from(document.querySelectorAll('.cm-promote-pupil-cb:checked'))
+      .map(function(cb) { return cb.getAttribute('data-pid'); })
+      .filter(Boolean);
+  }
+
   function openPromoteModal(row) {
     state.wizardRow = row;
     var modal = $('cm-promote-modal');
@@ -918,7 +941,7 @@
     var nextYg = ClassManagementTracker.nextYearGroup(row.yearGroup);
     if (desc) {
       desc.textContent = 'Promote “' + row.className + '” from ' + row.yearGroup.toUpperCase() +
-        ' to ' + (nextYg || '').toUpperCase() + ' for a teacher. The source class will be archived and prior-year scores attached as a read-only snapshot on each pupil in the new year.';
+        ' to ' + (nextYg || '').toUpperCase() + ' for a teacher. The source class will be archived and prior-year scores attached as a read-only snapshot on each promoted pupil in the new year.';
     }
     fillTeacherSelect('cm-promote-to', null);
     var toSel = $('cm-promote-to');
@@ -933,6 +956,13 @@
     if (clsInp && nextYg) {
       clsInp.value = ClassManagementTracker.suggestPromotedClassName(row.className, row.yearGroup, nextYg, null);
     }
+    renderPromotePupilList([]);
+    ClassManagementTracker.loadTrackerState(row.userId, row.subject).then(function(trackerS) {
+      var pupils = (trackerS.pupils[row.yearGroup] && trackerS.pupils[row.yearGroup][row.className]) || [];
+      renderPromotePupilList(pupils);
+    }).catch(function() {
+      renderPromotePupilList([]);
+    });
     fillModalYearSelects();
     if (modal) modal.classList.add('open');
   }
@@ -985,6 +1015,8 @@
     var archiveSource = $('cm-promote-archive') && $('cm-promote-archive').checked;
     var year = ($('cm-promote-year-roster') && $('cm-promote-year-roster').value) || state.academicYear;
     if (!toYg) { toast('Invalid promote target year', 'error'); return; }
+    var continuingPupilIds = continuingPupilIdsFromPromoteModal();
+    if (!continuingPupilIds.length) { toast('Select at least one pupil to promote', 'error'); return; }
     var btn = $('cm-promote-confirm');
     if (btn) btn.disabled = true;
     ClassManagementTracker.promoteAndAssign({
@@ -997,9 +1029,14 @@
       toClassName: toCls,
       includeSnapshot: snapshot,
       archiveSource: archiveSource,
-      academicYearLabel: year
+      academicYearLabel: year,
+      continuingPupilIds: continuingPupilIds
     }).then(function(res) {
-      toast('Promoted ' + res.pupilCount + ' pupils to ' + res.toClassName + ' (' + res.toYearGroup.toUpperCase() + ')' + (archiveSource ? ' — source class archived' : ''), 'success');
+      var excluded = (res.excludedCount || 0) > 0
+        ? ' (' + res.excludedCount + ' not continuing — kept in archive only)'
+        : '';
+      toast('Promoted ' + res.pupilCount + ' pupils to ' + res.toClassName + ' (' + res.toYearGroup.toUpperCase() + ')' +
+        excluded + (archiveSource ? ' — source class archived' : ''), 'success');
       closeModal('cm-promote-modal');
       loadTrackerClasses();
     }).catch(function(err) {

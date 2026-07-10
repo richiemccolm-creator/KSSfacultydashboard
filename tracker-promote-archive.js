@@ -73,12 +73,49 @@ window.TrackerPromoteArchive = (function() {
     return S;
   }
 
+  function filterHandover(handover, options) {
+    options = options || {};
+    var excludeIds = options.excludePupilIds;
+    var continuingIds = options.continuingPupilIds;
+    if ((!excludeIds || !excludeIds.length) && !continuingIds) {
+      return deepCopy(handover);
+    }
+    var excludeSet = null;
+    var continuingSet = null;
+    if (Array.isArray(excludeIds) && excludeIds.length) {
+      excludeSet = {};
+      excludeIds.forEach(function(id) { excludeSet[id] = true; });
+    }
+    if (Array.isArray(continuingIds)) {
+      continuingSet = {};
+      continuingIds.forEach(function(id) { continuingSet[id] = true; });
+    }
+    var filteredPupils = (handover.pupils || []).filter(function(p) {
+      if (excludeSet && excludeSet[p.id]) return false;
+      if (continuingSet && !continuingSet[p.id]) return false;
+      return true;
+    });
+    var scores = {};
+    var profiles = {};
+    filteredPupils.forEach(function(p) {
+      if (handover.scores && handover.scores[p.id]) scores[p.id] = deepCopy(handover.scores[p.id]);
+      if (handover.profiles && handover.profiles[p.id]) profiles[p.id] = deepCopy(handover.profiles[p.id]);
+    });
+    return {
+      pupils: filteredPupils.map(function(p) { return { id: p.id, name: p.name }; }),
+      scores: scores,
+      profiles: profiles,
+      className: handover.className,
+      yearGroup: handover.yearGroup
+    };
+  }
+
   function attachTrackingSnapshots(S, toYg, newPupils, handover, fromYg, fromClsName) {
     if (!S.profiles) S.profiles = { s1: {}, s2: {}, s3: {} };
     if (!S.profiles[toYg]) S.profiles[toYg] = {};
     (newPupils || []).forEach(function(np, i) {
       var oldP = handover.pupils && handover.pupils[i];
-      if (!oldP) return;
+      if (!oldP || oldP.id == null) return;
       var oldId = oldP.id;
       if (!S.profiles[toYg][np.id]) S.profiles[toYg][np.id] = {};
       S.profiles[toYg][np.id].trackingHistory = S.profiles[toYg][np.id].trackingHistory || {};
@@ -111,9 +148,14 @@ window.TrackerPromoteArchive = (function() {
       throw new Error('Target class already exists');
     }
 
-    var handover = extractClassData(S, fromYg, cls);
-    handover.className = cls;
-    handover.yearGroup = fromYg;
+    var fullHandover = extractClassData(S, fromYg, cls);
+    fullHandover.className = cls;
+    fullHandover.yearGroup = fromYg;
+    var handover = filterHandover(fullHandover, options);
+
+    if (!handover.pupils.length) {
+      throw new Error('No pupils to promote');
+    }
 
     var newPupils = handover.pupils.map(function(p) {
       return { id: uidFn(), name: p.name };
@@ -126,7 +168,7 @@ window.TrackerPromoteArchive = (function() {
     }
 
     if (archiveSource) {
-      archiveClassFromHandover(S, fromYg, cls, handover, {
+      archiveClassFromHandover(S, fromYg, cls, fullHandover, {
         promotedTo: { yearGroup: toYg, className: targetCls }
       });
     }
@@ -134,6 +176,7 @@ window.TrackerPromoteArchive = (function() {
     return {
       state: S,
       pupilCount: newPupils.length,
+      excludedCount: (fullHandover.pupils || []).length - handover.pupils.length,
       toYearGroup: toYg,
       toClassName: targetCls,
       archived: archiveSource
@@ -155,6 +198,7 @@ window.TrackerPromoteArchive = (function() {
     YGS: YGS,
     ensureArchivedShape: ensureArchivedShape,
     extractClassData: extractClassData,
+    filterHandover: filterHandover,
     archiveClass: archiveClass,
     archiveClassFromHandover: archiveClassFromHandover,
     attachTrackingSnapshots: attachTrackingSnapshots,
