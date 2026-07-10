@@ -136,6 +136,22 @@ window.ClassManagementTracker = (function() {
     return S;
   }
 
+  function removePupilsFromClass(S, yg, cls, pupilIds) {
+    S = ensureTrackerShape(S);
+    var idSet = {};
+    (pupilIds || []).forEach(function(id) { idSet[id] = true; });
+    S.pupils[yg][cls] = (S.pupils[yg][cls] || []).filter(function(p) {
+      if (!idSet[p.id]) return true;
+      if (S.scores[yg]) delete S.scores[yg][p.id];
+      if (S.profiles[yg]) delete S.profiles[yg][p.id];
+      return false;
+    });
+    if (!S.pupils[yg][cls] || !S.pupils[yg][cls].length) {
+      delete S.pupils[yg][cls];
+    }
+    return S;
+  }
+
   function importHandoverIntoState(S, handover, targetCls, replaceExisting) {
     S = ensureTrackerShape(S);
     var yg = handover.yearGroup;
@@ -299,18 +315,36 @@ window.ClassManagementTracker = (function() {
     var syncRoster = opts.syncRoster !== false;
     var academicYear = opts.academicYearLabel;
 
+    var transferFilter = {
+      excludePupilIds: opts.excludePupilIds,
+      continuingPupilIds: opts.continuingPupilIds
+    };
+
     return loadTrackerState(fromId, subject).then(function(fromS) {
       if (!fromS.pupils[yg] || !fromS.pupils[yg][cls]) {
         throw new Error('Class not found on source teacher');
       }
-      var handover = extractHandover(fromS, subject, yg, cls);
+      var fullHandover = extractHandover(fromS, subject, yg, cls);
+      var handover = window.TrackerPromoteArchive
+        ? TrackerPromoteArchive.filterHandover(fullHandover, transferFilter)
+        : fullHandover;
+      if (!handover.pupils || !handover.pupils.length) {
+        throw new Error('No pupils to transfer');
+      }
       handover.className = targetCls;
+      var transferredIds = handover.pupils.map(function(p) { return p.id; });
+      var transferringAll = transferredIds.length === (fullHandover.pupils || []).length;
 
       return loadTrackerState(toId, subject).then(function(toS) {
         var result = importHandoverIntoState(toS, handover, targetCls, true);
+        result.excludedCount = (fullHandover.pupils || []).length - handover.pupils.length;
         var saves = [saveTrackerState(toId, subject, result.state)];
         if (removeFromSource) {
-          fromS = removeClassFromState(fromS, yg, cls);
+          if (transferringAll) {
+            fromS = removeClassFromState(fromS, yg, cls);
+          } else {
+            fromS = removePupilsFromClass(fromS, yg, cls, transferredIds);
+          }
           saves.push(saveTrackerState(fromId, subject, fromS));
         }
         return Promise.all(saves).then(function() {
