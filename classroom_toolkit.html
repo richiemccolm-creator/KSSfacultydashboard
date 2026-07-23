@@ -116,8 +116,9 @@ button{font-family:inherit}
 .top-right{display:flex;align-items:center;gap:6px;margin-left:auto}
 .top-link{display:flex;align-items:center;gap:7px;padding:9px 12px;border-radius:10px;color:var(--text-2);font:500 13.5px/1 var(--font);transition:background .15s,color .15s;cursor:pointer}
 .top-link:hover{background:rgba(71,101,180,.12);color:#fff}
+.top-link.on{background:rgba(71,101,180,.16);color:#fff}
 .top-link svg{color:var(--muted)}
-.top-link:hover svg{color:#fff}
+.top-link:hover svg,.top-link.on svg{color:#fff}
 .bell{position:relative;padding:10px;border-radius:10px;cursor:pointer;color:var(--text-2);transition:background .15s}
 .bell:hover{background:rgba(71,101,180,.12);color:#fff}
 .bell .dot{position:absolute;top:8px;right:8px;width:8px;height:8px;border-radius:50%;background:var(--coral);border:2px solid var(--bg);box-shadow:0 0 8px var(--coral)}
@@ -281,6 +282,20 @@ button{font-family:inherit}
 .tool .tfav.on svg{fill:currentColor}
 .tool .tfav.pulse{animation:favpulse .4s var(--ease)}
 
+.dev-badge{
+  display:inline-block;margin-top:6px;padding:3px 8px;border-radius:6px;
+  font:600 10.5px/1 var(--font);letter-spacing:.03em;text-transform:uppercase;
+  color:#F4D9A0;background:rgba(244,166,42,.16);border:1px solid rgba(244,166,42,.35);
+}
+.pick .dev-badge{margin-top:8px}
+.tool .dev-badge{margin-top:5px}
+.ql-row .dev-badge{margin:0;padding:2px 6px;font-size:9.5px}
+.ql-row .qn-wrap{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
+.play-item.soon{cursor:default;opacity:.85}
+.play-item .psoon{margin-left:auto;font:600 10.5px/1 var(--font);color:var(--muted);text-transform:uppercase;letter-spacing:.03em}
+.create-btn[disabled],.create-btn.is-soon{opacity:.7;cursor:pointer}
+.nav-sec .add.is-soon{opacity:.65}
+
 .empty{display:none;padding:56px 20px;text-align:center;color:var(--muted);border:1px dashed var(--line-strong);border-radius:16px}
 .empty.show{display:block}
 .empty strong{display:block;color:var(--text-2);font:650 17px/1.3 var(--font-display);margin-bottom:4px}
@@ -347,35 +362,57 @@ button{font-family:inherit}
 
 /* mobile nav toggle (hidden desktop) */
 .menu-btn{display:none;width:40px;height:40px;border-radius:10px;background:transparent;border:1px solid var(--line);color:var(--text-2);place-items:center;cursor:pointer}
+.nav-backdrop{
+  display:none;position:fixed;inset:0;top:var(--header-h);z-index:45;
+  background:rgba(2,6,18,.55);backdrop-filter:blur(2px);border:0;padding:0;cursor:pointer;
+}
+.nav-backdrop.show{display:block}
+
+/* embed inside Faculty Hub — hide duplicate brand chrome */
+body.embedded .topbar .brand{display:none}
+body.embedded .topbar .bell{display:none}
+body.embedded{--header-h:64px}
+body.embedded .topbar{height:var(--header-h)}
+body.embedded .side-left,body.embedded .side-right{top:var(--header-h);height:calc(100vh - var(--header-h))}
 
 /* ---------- responsive ---------- */
 @media(max-width:1280px){
   :root{--left-w:210px;--right-w:270px}
   .grid,.picks{grid-template-columns:repeat(2,1fr)}
+  .hero{padding:24px 26px;min-height:168px}
+  .hero h1{font-size:clamp(32px,3.6vw,44px)}
 }
 @media(max-width:1024px){
   .body-cols{grid-template-columns:1fr}
-  .side-left{position:fixed;left:0;top:var(--header-h);z-index:50;transform:translateX(-102%);transition:transform .25s var(--ease);box-shadow:0 20px 60px rgba(0,0,0,.5)}
+  .side-left{position:fixed;left:0;top:var(--header-h);z-index:50;transform:translateX(-102%);transition:transform .25s var(--ease);box-shadow:0 20px 60px rgba(0,0,0,.5);width:min(280px,86vw)}
   .side-left.open{transform:none}
   .side-right{width:auto;height:auto;position:static;border-left:none;border-top:1px solid var(--divider);order:3;padding:20px 24px 40px}
   .main{order:2}
   .menu-btn{display:grid}
   .brand{min-width:0}
-  .search{flex-basis:340px}
+  .search{flex-basis:340px;min-width:0}
+  .panel-preview{display:none}
+  .filter,.tool,.pick,.ql-row,.nav-item{min-height:44px}
+  .tool{min-height:104px}
 }
 @media(max-width:640px){
-  .topbar{gap:12px;padding:0 14px}
+  .topbar{gap:10px;padding:0 12px;overflow:hidden}
   .brand-mark{height:40px;border-radius:8px}
-  .search{flex-basis:auto;flex:1}
-  .top-link span{display:none}
+  .search{flex-basis:auto;flex:1;min-width:0;margin:0}
+  .top-link{display:none}
   .user .nm,.user .rl,.user .chev{display:none}
   .kbd{display:none}
+  .hero{padding:20px 18px;min-height:0}
   .hero-inner{max-width:100%}
-  .hero-art{opacity:.5}
+  .hero-art{opacity:.45}
+  .hero .sub{font-size:15px}
+  .reassure{gap:12px 16px}
   .grid,.picks{grid-template-columns:1fr}
   .main{padding:16px 14px 32px}
-  .filters{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}
-  .filter{flex:none}
+  .filters{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .filters::-webkit-scrollbar{display:none}
+  .filter{flex:none;height:40px;padding:0 16px}
+  .side-right{padding:16px 14px 36px}
 }
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
@@ -383,12 +420,18 @@ button{font-family:inherit}
 </style>
 </head>
 <body>
-<script>(function(){if(new URLSearchParams(location.search).get('embed')==='1')document.body.classList.add('embedded');})();</script>
+<script>(function(){
+  try{
+    var q=new URLSearchParams(location.search);
+    var emb=q.get('embed')==='1'||q.get('embed')==='true'||sessionStorage.getItem('fh-embed')==='1';
+    if(emb) document.body.classList.add('embedded');
+  }catch(e){}
+})();</script>
 
 <div class="app">
   <!-- TOP BAR -->
   <header class="topbar">
-    <button class="menu-btn" id="menuBtn" aria-label="Menu">
+    <button class="menu-btn" id="menuBtn" aria-label="Menu" aria-expanded="false" aria-controls="sideLeft">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
     </button>
     <a class="brand" href="faculty-hub.html" title="Back to Faculty Hub">
@@ -402,17 +445,13 @@ button{font-family:inherit}
     </label>
 
     <div class="top-right">
-      <div class="top-link" data-nav="My Favourites">
+      <div class="top-link" data-nav="Favourites" role="button" tabindex="0">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9 6.8 19.2l1-5.8L3.5 9.2l5.9-.9z"/></svg>
         <span>Favourites</span>
       </div>
-      <div class="top-link" data-nav="Recent">
+      <div class="top-link" data-nav="Recent" role="button" tabindex="0">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
         <span>History</span>
-      </div>
-      <div class="bell" title="Notifications">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
-        <span class="dot"></span>
       </div>
       <div class="user" id="tkUser" title="Signed-in teacher">
         <span class="avatar" id="tkUserAvatar">—</span>
@@ -422,17 +461,19 @@ button{font-family:inherit}
     </div>
   </header>
 
+  <button type="button" class="nav-backdrop" id="navBackdrop" aria-label="Close menu"></button>
+
   <div class="body-cols">
     <!-- LEFT NAV -->
     <aside class="side-left" id="sideLeft">
       <nav id="navPrimary"></nav>
-      <div class="nav-sec"><span>Playlists</span><button class="add" title="New playlist"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button></div>
+      <div class="nav-sec"><span>Lesson packs</span><button type="button" class="add is-soon" id="packAddBtn" title="Coming soon" aria-label="New lesson pack"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button></div>
       <div id="navPlaylists"></div>
       <div class="create-panel">
         <span class="spark"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.6 4.4L18 9l-4.4 1.6L12 15l-1.6-4.4L6 9l4.4-1.6z"/></svg></span>
         <h4>Create your own tools</h4>
-        <p>Build custom activities tailored to your class.</p>
-        <button class="create-btn" id="createBtn">Create New Tool</button>
+        <p>Custom Art &amp; Drama activities — coming soon.</p>
+        <button class="create-btn is-soon" id="createBtn" type="button">Coming soon</button>
       </div>
     </aside>
 
@@ -463,9 +504,9 @@ button{font-family:inherit}
         </div>
         <div class="hero-inner">
           <h1>Classroom Toolkit</h1>
-          <p class="sub">Quick, engaging tools for your big-screen moments.</p>
+          <p class="sub">Quick tools for Art &amp; Drama — BGE and Senior Phase.</p>
           <div class="reassure">
-            <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 5-3.5 8-7 9-3.5-1-7-4-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg>No sign-ups for students</span>
+            <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v6c0 5-3.5 8-7 9-3.5-1-7-4-7-9V6z"/><path d="M9 12l2 2 4-4"/></svg>No sign-ups for pupils</span>
             <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5a10 10 0 0114 0M8 15.5a6 6 0 018 0"/><circle cx="12" cy="19" r="1.2" fill="currentColor"/></svg>Works offline</span>
             <span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7-4.5-9.3-9.2C1 7.5 3 4.5 6.2 4.5c2 0 3.3 1.2 4 2.3.7-1.1 2-2.3 4-2.3 3.2 0 5.2 3 3.5 6.3C19 15.5 12 20 12 20z"/></svg>Built for teachers</span>
           </div>
@@ -481,7 +522,7 @@ button{font-family:inherit}
       </div>
       <div class="picks" id="picks"></div>
 
-      <div class="sec-head" id="allHead"><h2>All tools</h2></div>
+      <div class="sec-head" id="allHead"><h2 id="allHeadTitle">All tools</h2></div>
       <div class="grid" id="grid"></div>
       <div class="empty" id="empty"><strong>Nothing matches</strong>Try a different search or category.</div>
     </main>
@@ -492,10 +533,10 @@ button{font-family:inherit}
         <div class="ph"><span class="bolt"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M13 2L4 14h6l-1 8 9-12h-6z"/></svg></span>Quick Launch</div>
         <p class="psub">Launch a tool in one click</p>
         <div id="quickLaunch"></div>
-        <span class="ql-edit"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>Edit Quick Launch</span>
+        <span class="ql-edit" id="qlEdit" role="button" tabindex="0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z"/></svg>Edit Quick Launch</span>
       </div>
 
-      <div class="panel">
+      <div class="panel panel-preview">
         <div class="lp-head"><span class="live"></span><span class="lt">Live Preview</span></div>
         <p class="lp-name" id="lpName">Big Timer</p>
         <div class="timer-wrap">
@@ -522,7 +563,7 @@ button{font-family:inherit}
           </div>
         </div>
         <button class="fs-btn" id="fsBtn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>Launch Fullscreen</button>
-        <div class="adv"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 00-.1-1.3l2-1.6-2-3.4-2.4 1a7 7 0 00-2.2-1.3L14 2h-4l-.3 2.4a7 7 0 00-2.2 1.3l-2.4-1-2 3.4 2 1.6A7 7 0 005 12a7 7 0 00.1 1.3l-2 1.6 2 3.4 2.4-1a7 7 0 002.2 1.3L10 22h4l.3-2.4a7 7 0 002.2-1.3l2.4 1 2-3.4-2-1.6A7 7 0 0019 12z"/></svg>Advanced settings</div>
+        <div class="adv" id="advSettings" role="button" tabindex="0"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 00-.1-1.3l2-1.6-2-3.4-2.4 1a7 7 0 00-2.2-1.3L14 2h-4l-.3 2.4a7 7 0 00-2.2 1.3l-2.4-1-2 3.4 2 1.6A7 7 0 005 12a7 7 0 00.1 1.3l-2 1.6 2 3.4 2.4-1a7 7 0 002.2 1.3L10 22h4l.3-2.4a7 7 0 002.2-1.3l2.4 1 2-3.4-2-1.6A7 7 0 0019 12z"/></svg>Advanced settings</div>
       </div>
     </aside>
   </div>
@@ -571,7 +612,7 @@ button{font-family:inherit}
     {id:"busters",    name:"Quiz Busters",     cat:"Quiz",   hue:"amber",   icon:"busters",    featured:true, live:true,  href:"toolkit/quiz-busters.html",
       desc:"Blockbusters-style letter board for two teams."},
     {id:"picker",     name:"Name Picker",      cat:"Groups", hue:"mint",    icon:"picker",     live:false, href:"toolkit/picker.html",
-      desc:"Spin to select a random student or group."},
+      desc:"Spin to select a random pupil or group."},
     {id:"noise",      name:"Noise Meter",      cat:"Focus",  hue:"cyan",    icon:"noise",      live:false, href:"toolkit/noise.html",
       desc:"Visualise classroom noise levels."},
     {id:"dice",       name:"Dice Roller",      cat:"Chance", hue:"amber",   icon:"dice",       live:false, href:"toolkit/dice.html",
@@ -591,27 +632,24 @@ button{font-family:inherit}
   ];
 
   var NAV_PRIMARY = [
-    {label:"Toolkit", icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.6"/><rect x="14" y="3" width="7" height="7" rx="1.6"/><rect x="3" y="14" width="7" height="7" rx="1.6"/><rect x="14" y="14" width="7" height="7" rx="1.6"/></svg>', on:true},
-    {label:"My Favourites", icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9 6.8 19.2l1-5.8L3.5 9.2l5.9-.9z"/></svg>'},
-    {label:"Recent", icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>'},
-    {label:"Collections", icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>'},
-    {label:"My Classes", icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.2"/><path d="M3.5 20c0-3.2 2.7-5 5.5-5s5.5 1.8 5.5 5"/><path d="M15 20c.2-2 1.7-3.2 3.6-3.2"/></svg>'},
-    {label:"Shared with Me", icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="6" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.2 10.8l7.6-3.6M8.2 13.2l7.6 3.6"/></svg>'}
+    {id:"toolkit", label:"Toolkit", icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.6"/><rect x="14" y="3" width="7" height="7" rx="1.6"/><rect x="3" y="14" width="7" height="7" rx="1.6"/><rect x="14" y="14" width="7" height="7" rx="1.6"/></svg>'},
+    {id:"favourites", label:"Favourites", icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9 6.8 19.2l1-5.8L3.5 9.2l5.9-.9z"/></svg>'},
+    {id:"recent", label:"Recent", icon:'<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>', soon:true}
   ];
 
-  var PLAYLISTS = [
-    {label:"Drama Warm-ups", n:8,  c:"var(--amber)"},
-    {label:"Music Lessons",  n:12, c:"var(--cyan)"},
-    {label:"Visual Arts",    n:9,  c:"var(--magenta)"},
-    {label:"Year 9 Engagement", n:6, c:"var(--mint)"},
-    {label:"Sub Plans",      n:7,  c:"var(--coral)"}
+  var LESSON_PACKS = [
+    {label:"Drama warm-ups (BGE)", c:"var(--amber)"},
+    {label:"Art studio starters (BGE)", c:"var(--magenta)"},
+    {label:"S1–S3 engagement", c:"var(--mint)"},
+    {label:"Senior Phase (S4–S6)", c:"var(--cyan)"},
+    {label:"Cover / sub plans", c:"var(--coral)"}
   ];
 
   var QUICK = ["busters","timer","picker","groups","dice"];
 
   // ---------- state ----------
   var favs = loadFavs();
-  var state = {cat:"All", q:""};
+  var state = {cat:"All", q:"", view:"toolkit"};
   var CATS = ["All"].concat(TOOLS.map(function(t){return t.cat}).filter(function(v,i,a){return a.indexOf(v)===i}));
 
   function loadFavs(){ try{ return JSON.parse(localStorage.getItem("tk_favs")||"[]"); }catch(e){ return []; } }
@@ -626,7 +664,8 @@ button{font-family:inherit}
   var grid=$("grid"), picks=$("picks"), filters=$("filters"),
       navP=$("navPrimary"), navPl=$("navPlaylists"), quick=$("quickLaunch"),
       empty=$("empty"), toastEl=$("toast");
-  var picksHead=$("picksHead"), allHead=$("allHead");
+  var picksHead=$("picksHead"), allHead=$("allHead"), allHeadTitle=$("allHeadTitle");
+  var menuBtn=$("menuBtn"), sideLeft=$("sideLeft"), navBackdrop=$("navBackdrop");
   var toastT=null;
 
   function toast(msg){ toastEl.textContent=msg; toastEl.classList.add("show");
@@ -635,6 +674,14 @@ button{font-family:inherit}
   function starIcon(){ return '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9 6.8 19.2l1-5.8L3.5 9.2l5.9-.9z"/></svg>'; }
   function arrow(){ return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>'; }
   function chev(){ return '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>'; }
+  function devBadge(){ return '<span class="dev-badge">In development</span>'; }
+
+  function setDrawer(open){
+    if(!sideLeft) return;
+    sideLeft.classList.toggle("open", !!open);
+    if(menuBtn) menuBtn.setAttribute("aria-expanded", open?"true":"false");
+    if(navBackdrop) navBackdrop.classList.toggle("show", !!open);
+  }
 
   function launch(t){
     if(!t) return;
@@ -648,50 +695,84 @@ button{font-family:inherit}
       window.location.href=href;
       return;
     }
-    toast(t.name+" is on the way — we'll build it next");
+    toast(t.name+" — in development, available soon");
+  }
+
+  function setView(viewId){
+    if(viewId==="recent"){
+      toast("Recent history — in development");
+      return;
+    }
+    state.view = viewId==="favourites" ? "favourites" : "toolkit";
+    if(state.view==="favourites"){
+      state.cat="All";
+      state.q="";
+      if($("search")) $("search").value="";
+      filters.querySelectorAll(".filter").forEach(function(f){ f.classList.toggle("on",f.dataset.cat==="All"); });
+    }
+    syncNav();
+    render();
+    setDrawer(false);
+    if(state.view==="favourites" && grid){
+      try{ grid.scrollIntoView({behavior:"smooth",block:"start"}); }catch(e){}
+    }
+  }
+
+  function syncNav(){
+    if(!navP) return;
+    navP.querySelectorAll(".nav-item").forEach(function(el){
+      var id=el.getAttribute("data-nav-id");
+      el.classList.toggle("on", id===state.view || (state.view==="toolkit" && id==="toolkit"));
+    });
+    document.querySelectorAll(".top-link[data-nav]").forEach(function(el){
+      var n=el.getAttribute("data-nav");
+      el.classList.toggle("on", (n==="Favourites" && state.view==="favourites"));
+    });
   }
 
   // ---------- nav ----------
   navP.innerHTML = NAV_PRIMARY.map(function(n){
-    return '<div class="nav-item'+(n.on?" on":"")+'" data-nav="'+n.label+'">'+n.icon+n.label+'</div>';
+    return '<div class="nav-item'+(n.id==="toolkit"?" on":"")+'" data-nav-id="'+n.id+'" data-nav="'+n.label+'" role="button" tabindex="0">'+n.icon+n.label+'</div>';
   }).join("");
-  navPl.innerHTML = PLAYLISTS.map(function(p){
-    return '<div class="play-item"><span class="pdot" style="background:'+p.c+'"></span>'+p.label+'<span class="pcount">'+p.n+'</span></div>';
+  navPl.innerHTML = LESSON_PACKS.map(function(p){
+    return '<div class="play-item soon" data-pack="1" title="Lesson packs coming soon"><span class="pdot" style="background:'+p.c+'"></span>'+p.label+'<span class="psoon">Soon</span></div>';
   }).join("");
 
   filters.innerHTML = CATS.map(function(c){
-    return '<button class="filter'+(c===state.cat?" on":"")+'" data-cat="'+c+'">'+c+'</button>';
+    return '<button type="button" class="filter'+(c===state.cat?" on":"")+'" data-cat="'+c+'">'+c+'</button>';
   }).join("");
 
   quick.innerHTML = QUICK.map(function(id){
     var t = TOOLS.filter(function(x){return x.id===id})[0];
     return '<div class="ql-row" style="'+hue(t)+'" data-launch="'+t.id+'">'
       + '<span class="tile sm">'+ICONS[t.icon]+'</span>'
-      + '<span class="qn">'+t.name+'</span>'
+      + '<span class="qn-wrap"><span class="qn">'+t.name+'</span>'+(t.live?"":devBadge())+'</span>'
       + '<span class="qchev">'+chev()+'</span></div>';
   }).join("");
 
   // ---------- render ----------
   function matches(t){
+    if(state.view==="favourites" && !isFav(t.id)) return false;
     if(state.cat!=="All" && t.cat!==state.cat) return false;
     if(state.q && (t.name+" "+t.desc+" "+t.cat).toLowerCase().indexOf(state.q)===-1) return false;
     return true;
   }
 
   function render(){
-    var showPicks = state.cat==="All" && !state.q;
+    var showPicks = state.view==="toolkit" && state.cat==="All" && !state.q;
     picksHead.style.display = showPicks?"":"none";
     picks.style.display = showPicks?"":"none";
-    allHead.style.display = showPicks?"":"none";
+    allHead.style.display = "";
+    if(allHeadTitle) allHeadTitle.textContent = state.view==="favourites" ? "Favourites" : "All tools";
 
     if(showPicks){
       picks.innerHTML = TOOLS.filter(function(t){return t.featured}).map(function(t){
         return '<div class="pick" style="'+hue(t)+'" data-open="'+t.id+'">'
           + '<div class="ptop"><span class="tile">'+ICONS[t.icon]+'</span>'
-          +   '<div class="ptxt"><h3>'+t.name+'</h3><p>'+t.desc+'</p></div></div>'
+          +   '<div class="ptxt"><h3>'+t.name+'</h3><p>'+t.desc+'</p>'+(t.live?"":devBadge())+'</div></div>'
           + '<div class="prow">'
-          +   '<button class="launch-btn" data-launch="'+t.id+'">Launch '+arrow()+'</button>'
-          +   '<button class="fav'+(isFav(t.id)?" on":"")+'" data-fav="'+t.id+'" aria-label="Favourite">'+starIcon()+'</button>'
+          +   '<button type="button" class="launch-btn" data-launch="'+t.id+'">'+(t.live?"Launch ":"Preview ")+arrow()+'</button>'
+          +   '<button type="button" class="fav'+(isFav(t.id)?" on":"")+'" data-fav="'+t.id+'" aria-label="Favourite">'+starIcon()+'</button>'
           + '</div></div>';
       }).join("");
     }
@@ -701,10 +782,18 @@ button{font-family:inherit}
       return '<div class="tool" style="'+hue(t)+'" data-open="'+t.id+'">'
         + '<span class="tfav'+(isFav(t.id)?" on":"")+'" data-fav="'+t.id+'" aria-label="Favourite">'+starIcon()+'</span>'
         + '<span class="tile">'+ICONS[t.icon]+'</span>'
-        + '<div class="ttxt"><h3>'+t.name+'</h3><p>'+t.desc+'</p></div></div>';
+        + '<div class="ttxt"><h3>'+t.name+'</h3><p>'+t.desc+'</p>'+(t.live?"":devBadge())+'</div></div>';
     }).join("");
 
-    empty.classList.toggle("show", visible.length===0);
+    if(visible.length===0){
+      empty.classList.add("show");
+      empty.innerHTML = state.view==="favourites"
+        ? "<strong>No favourites yet</strong>Tap the star on a tool to save it here."
+        : "<strong>Nothing matches</strong>Try a different search or category.";
+    } else {
+      empty.classList.remove("show");
+    }
+    syncNav();
   }
 
   // ---------- events ----------
@@ -715,18 +804,35 @@ button{font-family:inherit}
     render();
   });
 
-  $("search").addEventListener("input", function(e){ state.q=e.target.value.trim().toLowerCase(); render(); });
+  $("search").addEventListener("input", function(e){
+    state.q=e.target.value.trim().toLowerCase();
+    if(state.q && state.view==="favourites"){ /* keep favourites filter while searching */ }
+    render();
+  });
 
   document.addEventListener("click", function(e){
     var favBtn=e.target.closest("[data-fav]");
     if(favBtn){
       e.stopPropagation();
       var id=favBtn.dataset.fav; toggleFav(id);
+      if(state.view==="favourites"){ render(); return; }
       document.querySelectorAll('[data-fav="'+id+'"]').forEach(function(el){
         el.classList.toggle("on",isFav(id)); el.classList.remove("pulse"); void el.offsetWidth; if(isFav(id))el.classList.add("pulse");
       });
       return;
     }
+    var navEl=e.target.closest("[data-nav-id], .top-link[data-nav]");
+    if(navEl){
+      var nid=navEl.getAttribute("data-nav-id");
+      var nlabel=navEl.getAttribute("data-nav");
+      if(nid) setView(nid);
+      else if(nlabel==="Favourites" || nlabel==="My Favourites") setView("favourites");
+      else if(nlabel==="Recent") setView("recent");
+      else if(nlabel==="Toolkit") setView("toolkit");
+      return;
+    }
+    var pack=e.target.closest("[data-pack]");
+    if(pack){ toast("Lesson packs — in development"); return; }
     var lb=e.target.closest("[data-launch]");
     if(lb){ e.stopPropagation(); launch(TOOLS.filter(function(x){return x.id===lb.dataset.launch})[0]); return; }
     var card=e.target.closest("[data-open]");
@@ -734,33 +840,42 @@ button{font-family:inherit}
   });
 
   $("viewAll").addEventListener("click", function(){
-    state.cat="All"; state.q=""; $("search").value="";
+    state.view="toolkit"; state.cat="All"; state.q=""; $("search").value="";
     filters.querySelectorAll(".filter").forEach(function(f){ f.classList.toggle("on",f.dataset.cat==="All"); });
     render(); document.querySelector(".grid").scrollIntoView({behavior:"smooth",block:"start"});
   });
 
   $("createBtn").addEventListener("click", function(){ toast("Custom tool builder — coming soon"); });
+  var packAdd=$("packAddBtn");
+  if(packAdd) packAdd.addEventListener("click", function(){ toast("Lesson packs — coming soon"); });
+  var qlEdit=$("qlEdit");
+  if(qlEdit) qlEdit.addEventListener("click", function(){ toast("Quick Launch editor — in development"); });
+  var adv=$("advSettings");
+  if(adv) adv.addEventListener("click", function(){ toast("Advanced settings — in development"); });
 
-  // mobile nav
-  $("menuBtn").addEventListener("click", function(){ $("sideLeft").classList.toggle("open"); });
+  // mobile nav + backdrop
+  menuBtn.addEventListener("click", function(){ setDrawer(!sideLeft.classList.contains("open")); });
+  if(navBackdrop) navBackdrop.addEventListener("click", function(){ setDrawer(false); });
   document.addEventListener("click", function(e){
     if(window.innerWidth>1024) return;
-    var sl=$("sideLeft");
-    if(sl.classList.contains("open") && !e.target.closest("#sideLeft") && !e.target.closest("#menuBtn")) sl.classList.remove("open");
+    if(sideLeft.classList.contains("open") && !e.target.closest("#sideLeft") && !e.target.closest("#menuBtn") && !e.target.closest("#navBackdrop")){
+      setDrawer(false);
+    }
   });
 
-  // keyboard: ⌘K / Ctrl-K focuses search
+  // keyboard: ⌘K / Ctrl-K focuses search; Escape closes drawer
   document.addEventListener("keydown", function(e){
     if((e.metaKey||e.ctrlKey) && (e.key==="k"||e.key==="K")){ e.preventDefault(); $("search").focus(); }
+    if(e.key==="Escape") setDrawer(false);
   });
 
   // ---------- live preview timer ----------
   (function(){
     var TOTAL=300, remaining=TOTAL, running=true, last=null;
     var arc=$("tArc"), disp=$("tDisplay"), pauseBtn=$("tPause"), pauseIcon=$("tPauseIcon");
+    if(!arc||!disp||!pauseBtn) return;
     var CIRC=2*Math.PI*43;
     arc.setAttribute("stroke-dasharray", CIRC.toFixed(1));
-    var playSVG='<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M8 5v14l11-7z"/></svg>';
     var pauseSVG='<rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/>';
     function fmt(s){ var m=Math.floor(s/60), r=Math.floor(s%60); return (m<10?"0":"")+m+":"+(r<10?"0":"")+r; }
     function draw(){ disp.textContent=fmt(remaining); arc.setAttribute("stroke-dashoffset",(CIRC*(1-remaining/TOTAL)).toFixed(2)); }
