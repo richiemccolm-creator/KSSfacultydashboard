@@ -195,9 +195,24 @@ a{color:inherit;text-decoration:none}
 body.hosting .shell{max-width:none;padding:0}
 body.hosting .top .sub{display:none}
 
-.leaders{width:min(520px,94vw);text-align:left;margin-top:8px}
-.leaders h3{margin:0 0 8px;font:650 13px/1 var(--font);color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
-.lead-row{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid rgba(130,150,200,.1);font:600 14px/1.3 var(--font)}
+.mode-pick{display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin:12px 0 4px;width:min(720px,96vw)}
+.mode-btn{
+  flex:1 1 220px;min-height:74px;padding:12px 14px;border-radius:14px;text-align:left;
+  border:1px solid var(--line);background:rgba(12,23,49,.75);color:var(--text-2);cursor:pointer;
+}
+.mode-btn strong{display:block;color:#fff;font:650 14px/1.2 var(--font-display);margin-bottom:4px}
+.mode-btn span{font:500 12px/1.35 var(--font);color:var(--muted)}
+.mode-btn.on{border-color:rgba(244,94,104,.55);background:rgba(244,94,104,.14);color:#fff;box-shadow:0 0 0 1px rgba(244,94,104,.25)}
+.board-leaders{
+  width:min(560px,96vw);margin:10px auto 0;padding:14px 16px;border-radius:16px;
+  border:1px solid var(--line);background:rgba(12,23,49,.75);text-align:left;
+}
+.board-leaders h3{margin:0 0 10px;font:700 15px/1.2 var(--font-display)}
+.lead-row{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:8px 0;border-bottom:1px solid rgba(130,150,200,.1);font:600 14px/1.3 var(--font)}
+.lead-row:last-child{border-bottom:none}
+.lead-row .rank{color:var(--muted);min-width:1.6em}
+.lead-row .pts{font-variant-numeric:tabular-nums;color:#F4D9A0}
+.lead-row .subp{display:block;font:500 11px/1.2 var(--font);color:var(--muted);margin-top:2px}
 .live-lobby{display:grid;grid-template-columns:1fr 1fr;gap:18px;width:min(860px,96vw);align-items:start;text-align:left}
 .live-lobby .panel{
   border:1px solid var(--line);border-radius:16px;padding:16px;
@@ -378,41 +393,66 @@ body.hosting .top .sub{display:none}
     window.supabase.rpc("quiz_list_players", { p_session_id: h.sessionId }).then(function (res) {
       if (res.error) return;
       h.players = Array.isArray(res.data) ? res.data : (res.data || []);
-      if (h.phase === "lobby" || h.phase === "reveal" || h.phase === "end") {
+      var count = document.getElementById("hostPlayerCount");
+      if (count) count.textContent = String(h.players.length);
+      if (h.phase === "lobby" || h.phase === "playing") {
         var list = document.getElementById("hostPlayers");
-        var count = document.getElementById("hostPlayerCount");
-        if (count) count.textContent = String(h.players.length);
         if (list) {
           list.innerHTML = h.players.length
             ? h.players.map(function (p) {
-                return '<span class="player-chip">' + esc(p.nickname) + (h.phase !== "lobby" ? " · " + esc(p.score) : "") + "</span>";
+                var extra = h.phase === "lobby"
+                  ? ""
+                  : (" · " + esc(p.score) + (p.answered != null ? " (" + p.answered + "/" + (p.question_count || h.quiz.questions.length) + ")" : ""));
+                return '<span class="player-chip">' + esc(p.nickname) + extra + "</span>";
               }).join("")
             : '<span class="meta">Waiting for pupils to join…</span>';
         }
+      }
+      if (h.phase !== "lobby") {
         var board = document.getElementById("hostLeaderboard");
-        if (board && h.phase !== "lobby") {
-          board.innerHTML = leadersBlock(h.players);
+        if (board) {
+          board.outerHTML = leadersBlock(h.players);
+        } else {
+          var mount = document.getElementById("hostLeaderboardMount");
+          if (mount) mount.innerHTML = leadersBlock(h.players);
         }
       }
     });
   }
 
-  function leadersBlock(players) {
-    var list = (players || []).slice(0, 8);
-    if (!list.length) return "";
+  function leadersBlock(players, opts) {
+    opts = opts || {};
+    var list = (players || []).slice(0, opts.limit || 10);
+    var qCount = (state.host && state.host.quiz && state.host.quiz.questions)
+      ? state.host.quiz.questions.length
+      : 0;
+    if (!list.length) {
+      return '<div class="board-leaders" id="hostLeaderboard"><h3>Leaderboard</h3><p class="meta">No scores yet</p></div>';
+    }
     return (
-      '<div class="leaders"><h3>Leaderboard</h3>' +
+      '<div class="board-leaders" id="hostLeaderboard"><h3>Leaderboard</h3>' +
       list.map(function (p, i) {
-        return '<div class="lead-row"><span>' + (i + 1) + ". " + esc(p.nickname) + "</span><span>" + esc(p.score) + "</span></div>";
+        var answered = p.answered != null ? p.answered : null;
+        var progress = (answered != null && qCount)
+          ? '<span class="subp">' + answered + " / " + qCount + " answered</span>"
+          : "";
+        return (
+          '<div class="lead-row">' +
+            '<span><span class="rank">' + (i + 1) + ".</span> " + esc(p.nickname) + progress + "</span>" +
+            '<span class="pts">' + esc(p.score) + "</span>" +
+          "</div>"
+        );
       }).join("") +
       "</div>"
     );
   }
 
-  function createLiveSession(quiz) {
+  function createLiveSession(quiz, playMode) {
     if (!window.supabase || !window.supabase.auth) {
       return Promise.reject(new Error("Cloud sync unavailable — hosting locally"));
     }
+    var mode = playMode || (state.host && state.host.playMode) || "facilitated";
+    mode = mode === "self_paced" ? "self_paced" : "facilitated";
     return window.supabase.auth.getSession().then(function (r) {
       var session = r && r.data && r.data.session;
       if (!session || !session.user) throw new Error("Sign in required for live phone play");
@@ -421,6 +461,7 @@ body.hosting .top .sub{display:none}
         host_id: session.user.id,
         pin: pin,
         title: quiz.title,
+        play_mode: mode,
         quiz_json: {
           id: quiz.id,
           title: quiz.title,
@@ -431,9 +472,12 @@ body.hosting .top .sub{display:none}
         question_index: 0,
         question_started_at: null
       };
+      // Prefer the mode selected on the lobby at insert time
+      if (state.host && state.host.playMode) {
+        payload.play_mode = state.host.playMode === "self_paced" ? "self_paced" : "facilitated";
+      }
       return window.supabase.from("quiz_live_sessions").insert(payload).select("*").single().then(function (res) {
         if (res.error) {
-          // retry once on pin collision
           payload.pin = randomPin();
           return window.supabase.from("quiz_live_sessions").insert(payload).select("*").single().then(function (res2) {
             if (res2.error) throw res2.error;
@@ -859,18 +903,20 @@ body.hosting .top .sub{display:none}
       hostUserId: null,
       pin: null,
       players: [],
-      liveError: null
+      liveError: null,
+      playMode: "facilitated"
     };
     setView("host");
     whenAuthReady(function () {
       if (!state.host || state.host.quiz.id !== q.id) return;
-      createLiveSession(q)
+      createLiveSession(q, state.host.playMode)
         .then(function (row) {
           if (!state.host) return;
           state.host.live = true;
           state.host.sessionId = row.id;
           state.host.hostUserId = row.host_id;
           state.host.pin = row.pin;
+          state.host.playMode = row.play_mode || state.host.playMode;
           state.host.players = [];
           drawLobbyQr._tries = 0;
           renderHost();
@@ -886,6 +932,32 @@ body.hosting .top .sub{display:none}
           toast(state.host.liveError);
         });
     });
+  }
+
+  function setPlayMode(mode) {
+    if (!state.host || state.host.phase !== "lobby") return;
+    state.host.playMode = mode === "self_paced" ? "self_paced" : "facilitated";
+    if (state.host.live && state.host.sessionId) {
+      syncSessionPatch({ play_mode: state.host.playMode }).then(function () {
+        renderHost();
+        drawLobbyQr();
+      });
+    } else {
+      renderHost();
+    }
+  }
+
+  function startSelfPaced() {
+    if (!state.host) return;
+    stopHostTimers();
+    state.host.phase = "playing";
+    syncSessionPatch({
+      status: "playing",
+      play_mode: "self_paced",
+      question_index: 0,
+      question_started_at: new Date().toISOString()
+    }).then(function () { refreshPlayers(); });
+    renderHost();
   }
 
   function currentQuestion() {
@@ -954,7 +1026,12 @@ body.hosting .top .sub{display:none}
   function nextHostStep() {
     if (!state.host) return;
     if (state.host.phase === "lobby") {
-      beginQuestion();
+      if (state.host.playMode === "self_paced") startSelfPaced();
+      else beginQuestion();
+      return;
+    }
+    if (state.host.phase === "playing") {
+      finishHost();
       return;
     }
     if (state.host.phase === "question") {
@@ -980,8 +1057,19 @@ body.hosting .top .sub{display:none}
     var h = state.host;
     if (!h) { root.innerHTML = ""; return; }
     var quiz = h.quiz;
+    var facilitatedOn = h.playMode !== "self_paced";
 
     if (h.phase === "lobby") {
+      var modePick =
+        '<div class="mode-pick" role="group" aria-label="Play mode">' +
+          '<button type="button" class="mode-btn' + (facilitatedOn ? " on" : "") + '" data-mode="facilitated">' +
+            "<strong>Teacher paced</strong><span>You reveal each question on the board. Pupils answer together on their phones.</span>" +
+          "</button>" +
+          '<button type="button" class="mode-btn' + (!facilitatedOn ? " on" : "") + '" data-mode="self_paced">' +
+            "<strong>Pupil paced</strong><span>Pupils work through the quiz on their phones at their own speed. You watch the leaderboard.</span>" +
+          "</button>" +
+        "</div>";
+
       var livePanel = h.live
         ? (
           '<div class="live-lobby">' +
@@ -1012,13 +1100,34 @@ body.hosting .top .sub{display:none}
           '<h2 class="host-title">' + esc(quiz.title) + "</h2>" +
           (quiz.description ? '<p class="host-sub">' + esc(quiz.description) + "</p>" : "") +
           '<p class="host-sub">' + quiz.questions.length + " questions</p>" +
+          modePick +
           livePanel +
           '<div class="host-actions">' +
-            '<button type="button" class="btn btn-primary" id="hostStart" style="min-width:160px;height:48px">Start</button>' +
+            '<button type="button" class="btn btn-primary" id="hostStart" style="min-width:160px;height:48px">' +
+              (facilitatedOn ? "Start together" : "Open for pupils") +
+            "</button>" +
             '<button type="button" class="btn" id="hostFs">Fullscreen</button>' +
           "</div>" +
         "</div></div>";
       drawLobbyQr();
+      return;
+    }
+
+    if (h.phase === "playing") {
+      root.innerHTML =
+        '<div class="host"><div class="host-stage">' +
+          '<p class="q-progress">Pupil paced · PIN ' + esc(h.pin || "") + "</p>" +
+          '<h2 class="host-title">' + esc(quiz.title) + "</h2>" +
+          '<p class="host-sub">Pupils are answering on their phones. Watch the live leaderboard.</p>' +
+          '<div id="hostLeaderboardMount">' + leadersBlock(h.players) + "</div>" +
+          '<p class="q-progress" style="margin-top:16px">Players · <span id="hostPlayerCount">' + (h.players.length || 0) + "</span></p>" +
+          '<div class="player-list" id="hostPlayers"></div>' +
+          '<div class="host-actions">' +
+            '<button type="button" class="btn btn-primary" id="hostEndSelf">End quiz</button>' +
+            '<button type="button" class="btn" id="hostFs">Fullscreen</button>' +
+          "</div>" +
+        "</div></div>";
+      refreshPlayers();
       return;
     }
 
@@ -1028,7 +1137,7 @@ body.hosting .top .sub{display:none}
           '<p class="q-progress">Finished</p>' +
           '<h2 class="host-title">Quiz complete</h2>' +
           '<p class="end-stat">' + esc(quiz.title) + " · " + quiz.questions.length + " questions</p>" +
-          '<div id="hostLeaderboard">' + leadersBlock(h.players) + "</div>" +
+          '<div id="hostLeaderboardMount">' + leadersBlock(h.players) + "</div>" +
           '<div class="host-actions">' +
             '<button type="button" class="btn btn-primary" id="hostAgain">Play again</button>' +
             '<button type="button" class="btn" id="hostToLibrary">Back to library</button>' +
@@ -1063,10 +1172,11 @@ body.hosting .top .sub{display:none}
         "</p>" +
         '<h2 class="host-title">' + esc(q.prompt) + "</h2>" +
         (revealing
-          ? '<div id="hostLeaderboard">' + leadersBlock(h.players) + "</div>"
+          ? ""
           : '<div class="timer-bar-wrap"><div class="timer-bar" id="hostTimerBar" style="transform:scaleX(1)"></div></div>' +
             '<div class="meta" id="hostTimerLabel">' + Math.ceil(h.remaining || h.totalTime) + "s</div>") +
         '<div class="answer-grid">' + ansHtml + "</div>" +
+        '<div id="hostLeaderboardMount">' + leadersBlock(h.players) + "</div>" +
         '<div class="host-actions">' +
           (revealing
             ? '<button type="button" class="btn btn-primary" id="hostNext">' +
@@ -1240,15 +1350,31 @@ body.hosting .top .sub{display:none}
       return;
     }
 
-    if (t.id === "hostStart" || t.id === "hostNext" || t.id === "hostReveal" || t.id === "hostAgain") {
+    if (t.id === "hostStart" || t.id === "hostNext" || t.id === "hostReveal" || t.id === "hostAgain" || t.id === "hostEndSelf") {
       if (t.id === "hostAgain") {
         var againQuiz = state.host && state.host.quiz;
+        var againMode = state.host && state.host.playMode;
         closeLiveSession().then(function () {
-          if (againQuiz) startHost(againQuiz);
+          if (againQuiz) {
+            startHost(againQuiz);
+            // restore mode after lobby boots
+            setTimeout(function () {
+              if (state.host && againMode) setPlayMode(againMode);
+            }, 400);
+          }
         });
         return;
       }
+      if (t.id === "hostEndSelf") {
+        finishHost();
+        return;
+      }
       nextHostStep();
+      return;
+    }
+    var modeBtn = t.getAttribute("data-mode");
+    if (modeBtn) {
+      setPlayMode(modeBtn);
       return;
     }
     if (t.id === "hostToLibrary") {
