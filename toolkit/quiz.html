@@ -205,7 +205,10 @@ body.hosting .top .sub{display:none}
 }
 .pin-huge{font:700 clamp(40px,10vw,72px)/1 var(--font-display);letter-spacing:.12em;text-align:center;margin:8px 0}
 .join-url{font:500 12px/1.4 var(--font);color:var(--muted);word-break:break-all;text-align:center}
-#hostQr{display:block;width:min(220px,70vw);height:auto;margin:10px auto;border-radius:12px;background:#fff;padding:10px}
+#hostQr{
+  display:block;width:min(220px,70vw);height:auto;aspect-ratio:1;margin:10px auto;
+  border-radius:12px;background:#fff;padding:10px;object-fit:contain;
+}
 .player-list{max-height:220px;overflow:auto;margin-top:8px}
 .player-chip{
   display:inline-flex;align-items:center;margin:4px;padding:6px 10px;border-radius:999px;
@@ -454,13 +457,49 @@ body.hosting .top .sub{display:none}
   }
 
   function drawLobbyQr() {
-    var canvas = document.getElementById("hostQr");
+    var el = document.getElementById("hostQr");
     var h = state.host;
-    if (!canvas || !h || !h.pin) return;
+    if (!el || !h || !h.pin) return;
     var url = joinUrlForPin(h.pin);
-    if (window.QRCode && typeof window.QRCode.toCanvas === "function") {
-      window.QRCode.toCanvas(canvas, url, { width: 200, margin: 1, color: { dark: "#081126", light: "#ffffff" } }, function () {});
+
+    function setQrSrc(src) {
+      if (el.tagName !== "IMG") {
+        var img = document.createElement("img");
+        img.id = "hostQr";
+        img.alt = "QR code to join quiz";
+        el.parentNode.replaceChild(img, el);
+        el = img;
+      }
+      el.alt = "QR code to join quiz";
+      el.src = src;
     }
+
+    function fallback() {
+      setQrSrc("https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&data=" + encodeURIComponent(url));
+    }
+
+    var lib = window.QRCode;
+    if (lib && typeof lib.toDataURL === "function") {
+      drawLobbyQr._tries = 0;
+      lib.toDataURL(url, {
+        width: 220,
+        margin: 1,
+        color: { dark: "#081126", light: "#ffffff" }
+      }, function (err, dataUrl) {
+        if (err || !dataUrl) fallback();
+        else setQrSrc(dataUrl);
+      });
+      return;
+    }
+
+    if (!drawLobbyQr._tries) drawLobbyQr._tries = 0;
+    if (drawLobbyQr._tries < 30) {
+      drawLobbyQr._tries += 1;
+      setTimeout(drawLobbyQr, 100);
+      return;
+    }
+    drawLobbyQr._tries = 0;
+    fallback();
   }
 
   function toast(msg) {
@@ -833,6 +872,7 @@ body.hosting .top .sub{display:none}
           state.host.hostUserId = row.host_id;
           state.host.pin = row.pin;
           state.host.players = [];
+          drawLobbyQr._tries = 0;
           renderHost();
           stopPlayerPoll();
           refreshPlayers();
@@ -949,7 +989,7 @@ body.hosting .top .sub{display:none}
               '<div class="live-badge">Live phone join</div>' +
               '<p class="host-sub" style="margin-top:10px;text-align:center">Pupils scan the QR or enter this PIN</p>' +
               '<div class="pin-huge">' + esc(h.pin) + "</div>" +
-              '<canvas id="hostQr" width="200" height="200"></canvas>' +
+              '<img id="hostQr" alt="QR code to join quiz" width="220" height="220">' +
               '<p class="join-url">' + esc(joinUrlForPin(h.pin)) + "</p>" +
             "</div>" +
             '<div class="panel">' +
