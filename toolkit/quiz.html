@@ -1,0 +1,1276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Quiz Builder — Classroom Toolkit</title>
+<script src="../app-version.js"></script>
+<script>(function(){if(window.ensureAppVersionInUrl)window.ensureAppVersionInUrl();})();</script>
+<script src="../config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../supabase-init.js"></script>
+<script src="../allowlist-check.js"></script>
+<script>window.__authGuardLoginPath='../login.html';</script>
+<script src="../auth-guard.js"></script>
+<script src="../embed-chrome.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://api.fontshare.com/v2/css?f[]=general-sans@500,600,700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#050B1D; --surface:#0C1731; --surface-2:#111F3D;
+  --line:rgba(124,148,205,.16); --line-strong:rgba(129,156,224,.28);
+  --text:#F5F7FF; --text-2:#B6C0D9; --muted:#7D8AA8;
+  --blue:#3B6CFF; --violet:#8658F5; --amber:#F4A62A; --coral:#F45E68; --mint:#35C796;
+  --red:#E84D5B; --blue-a:#3B6CFF; --yellow:#F4A62A; --green:#35C796;
+  --font:"Inter",ui-sans-serif,system-ui,sans-serif;
+  --font-display:"General Sans","Inter",sans-serif;
+  --ease:cubic-bezier(.2,.8,.2,1);
+}
+*{box-sizing:border-box}
+html{color-scheme:dark}
+body{
+  margin:0;font-family:var(--font);color:var(--text);min-height:100vh;
+  background:
+    radial-gradient(circle at 18% 0%,rgba(244,94,104,.12),transparent 36%),
+    radial-gradient(circle at 92% 14%,rgba(59,108,255,.10),transparent 32%),
+    var(--bg);
+  -webkit-font-smoothing:antialiased;
+}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:inherit;text-decoration:none}
+.hidden{display:none!important}
+
+.app{min-height:100vh;display:flex;flex-direction:column}
+.top{
+  display:flex;align-items:center;gap:14px;padding:14px 20px;
+  border-bottom:1px solid rgba(130,150,200,.14);
+  background:rgba(5,11,29,.92);backdrop-filter:blur(16px);position:sticky;top:0;z-index:30;
+}
+.back{
+  display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 12px;border-radius:10px;
+  border:1px solid var(--line);background:rgba(255,255,255,.02);color:var(--text-2);font:500 13px/1 var(--font);
+}
+.back:hover{color:#fff;border-color:var(--line-strong)}
+.top h1{margin:0;font:650 17px/1.2 var(--font-display);letter-spacing:-.02em}
+.top .sub{margin:2px 0 0;font:500 12px/1.2 var(--font);color:var(--muted)}
+.top-actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+.btn{
+  height:40px;min-height:44px;padding:0 14px;border-radius:10px;border:1px solid var(--line);
+  background:#0D1831;color:var(--text-2);font:600 13.5px/1 var(--font);
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  transition:background .15s,border-color .15s,color .15s,filter .15s;
+}
+.btn:hover{color:#fff;border-color:var(--line-strong)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-primary{
+  border:none;color:#fff;
+  background:linear-gradient(135deg,#F45E68,#E0454F);
+  box-shadow:0 8px 20px -8px rgba(244,94,104,.5);
+}
+.btn-primary:hover{filter:brightness(1.08);color:#fff}
+.btn-blue{
+  border:none;color:#fff;
+  background:linear-gradient(135deg,#3768FF,#4457D8);
+  box-shadow:0 8px 20px -8px rgba(55,104,255,.55);
+}
+.btn-ghost{background:transparent}
+.btn.on{color:#fff;border-color:rgba(244,94,104,.45);background:rgba(244,94,104,.18)}
+.btn-danger{border-color:rgba(244,94,104,.4);color:#FFB4B9}
+.btn-sm{height:36px;min-height:36px;padding:0 12px;font-size:12.5px}
+
+.shell{flex:1;padding:20px 22px 40px;width:100%;max-width:1100px;margin:0 auto}
+.view.hidden{display:none!important}
+
+/* library */
+.lib-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+.lib-head h2{margin:0;font:700 22px/1.2 var(--font-display);letter-spacing:-.02em}
+.lib-head p{margin:6px 0 0;font:400 13.5px/1.45 var(--font);color:var(--muted);max-width:520px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
+.card{
+  border:1px solid var(--line);border-radius:16px;padding:18px;
+  background:linear-gradient(145deg,#0D1834,#081126);
+  display:flex;flex-direction:column;gap:10px;
+  box-shadow:0 12px 30px rgba(0,0,0,.22);
+}
+.card h3{margin:0;font:650 16px/1.25 var(--font-display)}
+.card .meta{font:500 12.5px/1.4 var(--font);color:var(--muted)}
+.card .actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:auto;padding-top:8px}
+.badge{
+  display:inline-block;padding:3px 8px;border-radius:6px;font:600 10.5px/1 var(--font);
+  letter-spacing:.03em;text-transform:uppercase;color:#F4D9A0;
+  background:rgba(244,166,42,.14);border:1px solid rgba(244,166,42,.32);
+}
+.soon-note{
+  margin-top:22px;padding:14px 16px;border-radius:12px;border:1px dashed var(--line-strong);
+  color:var(--muted);font:500 13px/1.45 var(--font);
+}
+
+/* editor */
+.ed-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px}
+.ed-fields{display:grid;gap:12px;margin-bottom:18px}
+.field label{display:block;font:600 11px/1 var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.field input,.field textarea{
+  width:100%;border-radius:10px;border:1px solid rgba(132,153,207,.18);background:#0D1731;
+  padding:10px 12px;outline:none;color:var(--text);
+}
+.field textarea{min-height:72px;resize:vertical;line-height:1.45}
+.field input:focus,.field textarea:focus{border-color:rgba(244,94,104,.5);box-shadow:0 0 0 3px rgba(244,94,104,.14)}
+.q-list{display:flex;flex-direction:column;gap:14px}
+.q-card{
+  border:1px solid var(--line);border-radius:14px;padding:14px;background:rgba(12,23,49,.75);
+}
+.q-card-head{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.q-num{
+  width:32px;height:32px;border-radius:9px;display:grid;place-items:center;
+  font:700 13px/1 var(--font);background:rgba(244,94,104,.16);color:#FFB4B9;border:1px solid rgba(244,94,104,.3);
+}
+.q-card-head .grow{flex:1;min-width:140px}
+.opts{display:grid;gap:8px;margin-top:10px}
+.opt-row{display:flex;align-items:center;gap:8px}
+.opt-row .letter{
+  width:28px;height:28px;border-radius:8px;flex:none;display:grid;place-items:center;
+  font:700 12px/1 var(--font);color:#fff;
+}
+.opt-row .letter.l0{background:var(--red)}
+.opt-row .letter.l1{background:var(--blue-a)}
+.opt-row .letter.l2{background:var(--yellow);color:#1a1205}
+.opt-row .letter.l3{background:var(--green);color:#062218}
+.opt-row input[type="text"]{
+  flex:1;height:40px;border-radius:9px;border:1px solid rgba(132,153,207,.16);background:#0A142C;padding:0 10px;outline:none;
+}
+.opt-row input[type="radio"]{width:18px;height:18px;accent-color:var(--mint)}
+.opt-row .rm{width:36px;height:36px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--muted)}
+.q-tools{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;align-items:center}
+.time-inp{width:72px;height:36px;border-radius:8px;border:1px solid var(--line);background:#0A142C;padding:0 8px;text-align:center}
+
+/* host play */
+.host{min-height:calc(100vh - 72px);display:flex;flex-direction:column}
+.host-stage{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:20px 18px 28px;gap:18px;text-align:center;
+}
+.host-title{margin:0;font:700 clamp(28px,5vw,48px)/1.15 var(--font-display);letter-spacing:-.03em;max-width:900px}
+.host-sub{margin:0;font:400 15px/1.5 var(--font);color:var(--text-2);max-width:560px}
+.pin-box{
+  margin-top:8px;padding:16px 22px;border-radius:16px;border:1px dashed var(--line-strong);
+  color:var(--muted);font:500 13.5px/1.45 var(--font);max-width:420px;
+}
+.q-progress{font:600 13px/1 var(--font);color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.timer-bar-wrap{width:min(520px,90vw);height:8px;border-radius:99px;background:rgba(129,156,224,.14);overflow:hidden}
+.timer-bar{height:100%;width:100%;background:linear-gradient(90deg,#3B6CFF,#8658F5,#F45E68);transform-origin:left center;transition:transform .1s linear}
+.answer-grid{
+  display:grid;grid-template-columns:1fr 1fr;gap:12px;width:min(900px,96vw);margin-top:8px;
+}
+.ans{
+  min-height:88px;border:none;border-radius:16px;padding:18px 16px;text-align:left;
+  display:flex;align-items:center;gap:14px;font:650 18px/1.25 var(--font-display);color:#fff;
+  box-shadow:0 12px 28px rgba(0,0,0,.28);transition:transform .15s,filter .15s,opacity .2s;
+}
+.ans .mark{
+  width:40px;height:40px;border-radius:12px;flex:none;display:grid;place-items:center;
+  font:700 16px/1 var(--font);background:rgba(0,0,0,.22);
+}
+.ans.a0{background:linear-gradient(135deg,#F45E68,#C93A48)}
+.ans.a1{background:linear-gradient(135deg,#3B6CFF,#2A4FD0)}
+.ans.a2{background:linear-gradient(135deg,#F4A62A,#D88912);color:#1a1205}
+.ans.a2 .mark{color:#1a1205}
+.ans.a3{background:linear-gradient(135deg,#35C796,#1F9A70)}
+.ans.dim{opacity:.35;filter:grayscale(.3)}
+.ans.correct{outline:3px solid #fff;transform:scale(1.02);opacity:1;filter:none}
+.host-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:8px}
+.end-stat{font:500 15px/1.5 var(--font);color:var(--text-2)}
+
+.toast{
+  position:fixed;left:50%;bottom:24px;transform:translate(-50%,16px);z-index:60;
+  background:#fff;color:#081126;font:600 13.5px/1 var(--font);padding:12px 18px;border-radius:12px;
+  box-shadow:0 14px 34px rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;
+}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+body.hosting .shell{max-width:none;padding:0}
+body.hosting .top .sub{display:none}
+
+.leaders{width:min(520px,94vw);text-align:left;margin-top:8px}
+.leaders h3{margin:0 0 8px;font:650 13px/1 var(--font);color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.lead-row{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid rgba(130,150,200,.1);font:600 14px/1.3 var(--font)}
+.live-lobby{display:grid;grid-template-columns:1fr 1fr;gap:18px;width:min(860px,96vw);align-items:start;text-align:left}
+.live-lobby .panel{
+  border:1px solid var(--line);border-radius:16px;padding:16px;
+  background:rgba(12,23,49,.7);
+}
+.pin-huge{font:700 clamp(40px,10vw,72px)/1 var(--font-display);letter-spacing:.12em;text-align:center;margin:8px 0}
+.join-url{font:500 12px/1.4 var(--font);color:var(--muted);word-break:break-all;text-align:center}
+#hostQr{display:block;width:min(220px,70vw);height:auto;margin:10px auto;border-radius:12px;background:#fff;padding:10px}
+.player-list{max-height:220px;overflow:auto;margin-top:8px}
+.player-chip{
+  display:inline-flex;align-items:center;margin:4px;padding:6px 10px;border-radius:999px;
+  background:rgba(59,108,255,.16);border:1px solid rgba(59,108,255,.3);font:600 13px/1 var(--font);
+}
+.live-badge{
+  display:inline-block;padding:4px 8px;border-radius:6px;font:600 11px/1 var(--font);
+  background:rgba(53,199,150,.16);color:#9FE7C8;border:1px solid rgba(53,199,150,.35);
+}
+@media(max-width:720px){
+  .answer-grid{grid-template-columns:1fr}
+  .ans{min-height:72px;font-size:16px}
+  .shell{padding:16px 14px 32px}
+  .live-lobby{grid-template-columns:1fr}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
+}
+</style>
+</head>
+<body>
+<script>(function(){
+  try{
+    var q=new URLSearchParams(location.search);
+    if(q.get('embed')==='1'||q.get('embed')==='true'||sessionStorage.getItem('fh-embed')==='1'){
+      document.body.classList.add('embedded');
+    }
+  }catch(e){}
+})();</script>
+
+<div class="app">
+  <header class="top">
+    <a class="back" id="backLink" href="../classroom_toolkit.html">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      Toolkit
+    </a>
+    <div>
+      <h1 id="pageTitle">Quiz Builder</h1>
+      <p class="sub" id="pageSub">Kahoot-style quizzes for Art &amp; Drama</p>
+    </div>
+    <div class="top-actions" id="topActions"></div>
+  </header>
+
+  <main class="shell">
+    <section class="view" id="viewLibrary"></section>
+    <section class="view hidden" id="viewEditor"></section>
+    <section class="view hidden" id="viewHost"></section>
+  </main>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var STORE_KEY = "tk_quiz_builder_v1";
+  var SOUND_KEY = "tk_quiz_builder_sound";
+  var LETTERS = ["A", "B", "C", "D"];
+  var DEFAULT_TIME = 20;
+
+  var SAMPLE = {
+    id: "sample-art-drama-bge",
+    title: "Art & Drama BGE Keywords",
+    description: "Quick multiple-choice plenary for S1–S3 Expressive Arts.",
+    builtIn: true,
+    updatedAt: "2026-07-23T00:00:00.000Z",
+    questions: [
+      {
+        prompt: "In Drama, what do we call the written text of a play?",
+        options: ["Script", "Score", "Storyboard", "Synopsis"],
+        correct: 0,
+        timeLimit: 20
+      },
+      {
+        prompt: "Which Art element describes light and dark?",
+        options: ["Line", "Tone", "Texture", "Pattern"],
+        correct: 1,
+        timeLimit: 20
+      },
+      {
+        prompt: "What is the area where the audience sits called?",
+        options: ["Wings", "Fly tower", "Auditorium", "Green room"],
+        correct: 2,
+        timeLimit: 20
+      },
+      {
+        prompt: "In Drama, using your body to show a character without words is…",
+        options: ["Mime", "Monologue", "Motif", "Montage"],
+        correct: 0,
+        timeLimit: 20
+      },
+      {
+        prompt: "Which principle of design repeats elements to create rhythm?",
+        options: ["Balance", "Contrast", "Repetition", "Emphasis"],
+        correct: 2,
+        timeLimit: 20
+      },
+      {
+        prompt: "A short speech by one character alone on stage is a…",
+        options: ["Duologue", "Monologue", "Chorus", "Freeze frame"],
+        correct: 1,
+        timeLimit: 20
+      }
+    ]
+  };
+
+  var $ = function (id) { return document.getElementById(id); };
+  var state = {
+    view: "library",
+    quizzes: [],
+    sound: true,
+    editId: null,
+    draft: null,
+    host: null
+  };
+
+  var audioCtx = null;
+  var toastT = null;
+  var hostTimer = null;
+  var hostRaf = null;
+  var playerPoll = null;
+
+  function whenAuthReady(cb) {
+    if (window.__authReady) cb();
+    else {
+      try { window.addEventListener("auth-guard-ready", cb, { once: true }); }
+      catch (e) { window.addEventListener("auth-guard-ready", cb); }
+      setTimeout(cb, 2500);
+    }
+  }
+
+  function randomPin() {
+    return String(Math.floor(100000 + Math.random() * 900000));
+  }
+
+  function joinUrlForPin(pin) {
+    var base = location.href.replace(/[^/]*$/, "quiz-join.html");
+    return base.split("#")[0].split("?")[0] + "?c=" + encodeURIComponent(pin);
+  }
+
+  function stopPlayerPoll() {
+    if (playerPoll) { clearInterval(playerPoll); playerPoll = null; }
+  }
+
+  function syncSessionPatch(patch) {
+    var h = state.host;
+    if (!h || !h.live || !h.sessionId || !window.supabase) return Promise.resolve();
+    return window.supabase
+      .from("quiz_live_sessions")
+      .update(patch)
+      .eq("id", h.sessionId)
+      .eq("host_id", h.hostUserId)
+      .then(function (res) {
+        if (res.error) throw res.error;
+      })
+      .catch(function (err) {
+        console.warn(err);
+        toast((err && err.message) || "Could not sync live session");
+      });
+  }
+
+  function refreshPlayers() {
+    var h = state.host;
+    if (!h || !h.live || !h.sessionId || !window.supabase) return;
+    window.supabase.rpc("quiz_list_players", { p_session_id: h.sessionId }).then(function (res) {
+      if (res.error) return;
+      h.players = Array.isArray(res.data) ? res.data : (res.data || []);
+      if (h.phase === "lobby" || h.phase === "reveal" || h.phase === "end") {
+        var list = document.getElementById("hostPlayers");
+        var count = document.getElementById("hostPlayerCount");
+        if (count) count.textContent = String(h.players.length);
+        if (list) {
+          list.innerHTML = h.players.length
+            ? h.players.map(function (p) {
+                return '<span class="player-chip">' + esc(p.nickname) + (h.phase !== "lobby" ? " · " + esc(p.score) : "") + "</span>";
+              }).join("")
+            : '<span class="meta">Waiting for pupils to join…</span>';
+        }
+        var board = document.getElementById("hostLeaderboard");
+        if (board && h.phase !== "lobby") {
+          board.innerHTML = leadersBlock(h.players);
+        }
+      }
+    });
+  }
+
+  function leadersBlock(players) {
+    var list = (players || []).slice(0, 8);
+    if (!list.length) return "";
+    return (
+      '<div class="leaders"><h3>Leaderboard</h3>' +
+      list.map(function (p, i) {
+        return '<div class="lead-row"><span>' + (i + 1) + ". " + esc(p.nickname) + "</span><span>" + esc(p.score) + "</span></div>";
+      }).join("") +
+      "</div>"
+    );
+  }
+
+  function createLiveSession(quiz) {
+    if (!window.supabase || !window.supabase.auth) {
+      return Promise.reject(new Error("Cloud sync unavailable — hosting locally"));
+    }
+    return window.supabase.auth.getSession().then(function (r) {
+      var session = r && r.data && r.data.session;
+      if (!session || !session.user) throw new Error("Sign in required for live phone play");
+      var pin = randomPin();
+      var payload = {
+        host_id: session.user.id,
+        pin: pin,
+        title: quiz.title,
+        quiz_json: {
+          id: quiz.id,
+          title: quiz.title,
+          description: quiz.description,
+          questions: quiz.questions
+        },
+        status: "lobby",
+        question_index: 0,
+        question_started_at: null
+      };
+      return window.supabase.from("quiz_live_sessions").insert(payload).select("*").single().then(function (res) {
+        if (res.error) {
+          // retry once on pin collision
+          payload.pin = randomPin();
+          return window.supabase.from("quiz_live_sessions").insert(payload).select("*").single().then(function (res2) {
+            if (res2.error) throw res2.error;
+            return res2.data;
+          });
+        }
+        return res.data;
+      });
+    });
+  }
+
+  function closeLiveSession() {
+    var h = state.host;
+    stopPlayerPoll();
+    if (!h || !h.live || !h.sessionId || !window.supabase) return Promise.resolve();
+    return window.supabase
+      .from("quiz_live_sessions")
+      .update({ status: "closed" })
+      .eq("id", h.sessionId)
+      .then(function () {});
+  }
+
+  function drawLobbyQr() {
+    var canvas = document.getElementById("hostQr");
+    var h = state.host;
+    if (!canvas || !h || !h.pin) return;
+    var url = joinUrlForPin(h.pin);
+    if (window.QRCode && typeof window.QRCode.toCanvas === "function") {
+      window.QRCode.toCanvas(canvas, url, { width: 200, margin: 1, color: { dark: "#081126", light: "#ffffff" } }, function () {});
+    }
+  }
+
+  function toast(msg) {
+    var el = $("toast");
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(toastT);
+    toastT = setTimeout(function () { el.classList.remove("show"); }, 2200);
+  }
+
+  function uid() {
+    return "q_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
+  }
+
+  function ensureAudio() {
+    if (audioCtx) return audioCtx;
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    audioCtx = new AC();
+    return audioCtx;
+  }
+
+  function beep(freq, dur, type) {
+    if (!state.sound) return;
+    var ctx = ensureAudio();
+    if (!ctx) return;
+    if (ctx.state === "suspended") ctx.resume();
+    var now = ctx.currentTime;
+    var osc = ctx.createOscillator();
+    var gain = ctx.createGain();
+    osc.type = type || "sine";
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.12, now + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start(now);
+    osc.stop(now + dur + 0.02);
+  }
+
+  function playTick() { beep(880, 0.06, "square"); }
+  function playCorrect() {
+    beep(523, 0.1);
+    setTimeout(function () { beep(659, 0.12); }, 90);
+    setTimeout(function () { beep(784, 0.18); }, 180);
+  }
+
+  function loadSound() {
+    try { return localStorage.getItem(SOUND_KEY) !== "0"; } catch (e) { return true; }
+  }
+  function saveSound() {
+    try { localStorage.setItem(SOUND_KEY, state.sound ? "1" : "0"); } catch (e) {}
+  }
+
+  function normalizeQuiz(q) {
+    if (!q || typeof q !== "object") return null;
+    var questions = Array.isArray(q.questions) ? q.questions.map(normalizeQuestion).filter(Boolean) : [];
+    return {
+      id: String(q.id || uid()),
+      title: String(q.title || "Untitled quiz").slice(0, 120),
+      description: String(q.description || "").slice(0, 400),
+      builtIn: !!q.builtIn,
+      updatedAt: q.updatedAt || new Date().toISOString(),
+      questions: questions
+    };
+  }
+
+  function normalizeQuestion(item) {
+    if (!item || typeof item !== "object") return null;
+    var opts = Array.isArray(item.options) ? item.options.map(function (o) { return String(o || "").slice(0, 120); }) : [];
+    while (opts.length < 2) opts.push("");
+    if (opts.length > 4) opts = opts.slice(0, 4);
+    var correct = parseInt(item.correct, 10);
+    if (isNaN(correct) || correct < 0 || correct >= opts.length) correct = 0;
+    var timeLimit = parseInt(item.timeLimit, 10);
+    if (isNaN(timeLimit) || timeLimit < 5) timeLimit = DEFAULT_TIME;
+    if (timeLimit > 120) timeLimit = 120;
+    return {
+      prompt: String(item.prompt || "").slice(0, 280),
+      options: opts,
+      correct: correct,
+      timeLimit: timeLimit
+    };
+  }
+
+  function blankQuestion() {
+    return { prompt: "", options: ["", "", "", ""], correct: 0, timeLimit: DEFAULT_TIME };
+  }
+
+  function blankQuiz() {
+    return {
+      id: uid(),
+      title: "New quiz",
+      description: "",
+      builtIn: false,
+      updatedAt: new Date().toISOString(),
+      questions: [blankQuestion(), blankQuestion()]
+    };
+  }
+
+  function loadQuizzes() {
+    var list = [];
+    try {
+      var raw = localStorage.getItem(STORE_KEY);
+      if (raw) {
+        var parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) list = parsed.map(normalizeQuiz).filter(Boolean);
+      }
+    } catch (e) {}
+    if (!list.some(function (q) { return q.id === SAMPLE.id; })) {
+      list.unshift(normalizeQuiz(SAMPLE));
+    }
+    return list;
+  }
+
+  function saveQuizzes() {
+    try {
+      var toSave = state.quizzes.map(function (q) {
+        var copy = normalizeQuiz(q);
+        if (copy.id === SAMPLE.id) copy.builtIn = true;
+        return copy;
+      });
+      localStorage.setItem(STORE_KEY, JSON.stringify(toSave));
+    } catch (e) {
+      toast("Could not save quizzes");
+    }
+  }
+
+  function findQuiz(id) {
+    return state.quizzes.find(function (q) { return q.id === id; }) || null;
+  }
+
+  function formatDate(iso) {
+    try {
+      var d = new Date(iso);
+      if (isNaN(d.getTime())) return "";
+      return d.toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+    } catch (e) { return ""; }
+  }
+
+  function setView(name) {
+    state.view = name;
+    document.body.classList.toggle("hosting", name === "host");
+    $("viewLibrary").classList.toggle("hidden", name !== "library");
+    $("viewEditor").classList.toggle("hidden", name !== "editor");
+    $("viewHost").classList.toggle("hidden", name !== "host");
+    if (name !== "host") {
+      stopHostTimers();
+      stopPlayerPoll();
+    }
+    renderChrome();
+    if (name === "library") renderLibrary();
+    if (name === "editor") renderEditor();
+    if (name === "host") renderHost();
+  }
+
+  function renderChrome() {
+    var title = $("pageTitle");
+    var sub = $("pageSub");
+    var actions = $("topActions");
+    if (state.view === "library") {
+      title.textContent = "Quiz Builder";
+      sub.textContent = "Kahoot-style quizzes for Art & Drama";
+      actions.innerHTML =
+        '<button type="button" class="btn btn-ghost' + (state.sound ? " on" : "") + '" id="btnSound" title="Sound">' +
+        (state.sound ? "Sound on" : "Sound off") + "</button>" +
+        '<button type="button" class="btn btn-primary" id="btnNew">New quiz</button>';
+    } else if (state.view === "editor") {
+      title.textContent = "Edit quiz";
+      sub.textContent = "Autosaves on this device";
+      actions.innerHTML =
+        '<button type="button" class="btn btn-ghost" id="btnEditorBack">Library</button>' +
+        '<button type="button" class="btn btn-blue" id="btnEditorHost">Host</button>' +
+        '<button type="button" class="btn btn-primary" id="btnEditorSave">Save</button>';
+    } else {
+      var hq = state.host && state.host.quiz;
+      title.textContent = hq ? hq.title : "Host";
+      sub.textContent = "Big-screen mode";
+      actions.innerHTML =
+        '<button type="button" class="btn btn-ghost' + (state.sound ? " on" : "") + '" id="btnSound">' +
+        (state.sound ? "Sound on" : "Sound off") + "</button>" +
+        '<button type="button" class="btn btn-ghost" id="btnHostExit">Exit</button>';
+    }
+  }
+
+  function renderLibrary() {
+    var root = $("viewLibrary");
+    var cards = state.quizzes.map(function (q) {
+      return (
+        '<article class="card" data-id="' + esc(q.id) + '">' +
+          "<h3>" + esc(q.title) + "</h3>" +
+          '<div class="meta">' + q.questions.length + " question" + (q.questions.length === 1 ? "" : "s") +
+            (q.builtIn ? ' · <span class="badge">Sample</span>' : "") +
+            (q.updatedAt ? " · Updated " + esc(formatDate(q.updatedAt)) : "") +
+          "</div>" +
+          (q.description ? '<div class="meta">' + esc(q.description) + "</div>" : "") +
+          '<div class="actions">' +
+            '<button type="button" class="btn btn-primary btn-sm" data-host="' + esc(q.id) + '">Host</button>' +
+            '<button type="button" class="btn btn-sm" data-edit="' + esc(q.id) + '">Edit</button>' +
+            '<button type="button" class="btn btn-sm" data-dup="' + esc(q.id) + '">Duplicate</button>' +
+            (q.builtIn && q.id === SAMPLE.id
+              ? ""
+              : '<button type="button" class="btn btn-sm btn-danger" data-del="' + esc(q.id) + '">Delete</button>') +
+          "</div>" +
+        "</article>"
+      );
+    }).join("");
+
+    root.innerHTML =
+      '<div class="lib-head">' +
+        "<div><h2>Your quizzes</h2>" +
+        "<p>Build multiple-choice quizzes, host on the classroom screen, and let pupils join on their phones with a PIN or QR.</p></div>" +
+      "</div>" +
+      '<div class="grid">' + cards + "</div>" +
+      '<div class="soon-note">Pupils can join on their phones with a PIN / QR from Host mode. Apply the quiz live Supabase migration if join is unavailable.</div>';
+  }
+
+  function esc(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function openEditor(quiz) {
+    state.editId = quiz.id;
+    state.draft = JSON.parse(JSON.stringify(normalizeQuiz(quiz)));
+    setView("editor");
+  }
+
+  function persistDraft(showToast) {
+    if (!state.draft) return false;
+    syncDraftFromDom();
+    var cleaned = normalizeQuiz(state.draft);
+    if (!cleaned.title.trim()) {
+      toast("Add a quiz title");
+      return false;
+    }
+    cleaned.questions = cleaned.questions.filter(function (q) {
+      return q.prompt.trim() && q.options.filter(function (o) { return o.trim(); }).length >= 2;
+    });
+    if (!cleaned.questions.length) {
+      toast("Add at least one complete question");
+      return false;
+    }
+    cleaned.questions.forEach(function (q) {
+      q.options = q.options.filter(function (o) { return o.trim(); });
+      if (q.options.length < 2) q.options.push("Option");
+      if (q.correct >= q.options.length) q.correct = 0;
+    });
+    cleaned.updatedAt = new Date().toISOString();
+    if (cleaned.id === SAMPLE.id) cleaned.builtIn = true;
+    var idx = state.quizzes.findIndex(function (q) { return q.id === cleaned.id; });
+    if (idx >= 0) state.quizzes[idx] = cleaned;
+    else state.quizzes.unshift(cleaned);
+    state.draft = JSON.parse(JSON.stringify(cleaned));
+    saveQuizzes();
+    if (showToast) toast("Quiz saved");
+    return true;
+  }
+
+  function syncDraftFromDom() {
+    if (!state.draft) return;
+    var title = $("edTitle");
+    var desc = $("edDesc");
+    if (title) state.draft.title = title.value;
+    if (desc) state.draft.description = desc.value;
+    var cards = document.querySelectorAll("#edQuestions .q-card");
+    state.draft.questions = Array.prototype.map.call(cards, function (card) {
+      var prompt = card.querySelector(".q-prompt");
+      var time = card.querySelector(".time-inp");
+      var opts = Array.prototype.map.call(card.querySelectorAll(".opt-text"), function (inp) {
+        return inp.value;
+      });
+      var correctEl = card.querySelector('input[type="radio"]:checked');
+      var correct = correctEl ? parseInt(correctEl.value, 10) : 0;
+      return {
+        prompt: prompt ? prompt.value : "",
+        options: opts,
+        correct: isNaN(correct) ? 0 : correct,
+        timeLimit: time ? parseInt(time.value, 10) || DEFAULT_TIME : DEFAULT_TIME
+      };
+    });
+  }
+
+  function renderEditor() {
+    var d = state.draft;
+    if (!d) return;
+    var root = $("viewEditor");
+    var qHtml = d.questions.map(function (q, qi) {
+      var opts = q.options.slice();
+      while (opts.length < 2) opts.push("");
+      var optRows = opts.map(function (opt, oi) {
+        return (
+          '<div class="opt-row">' +
+            '<span class="letter l' + oi + '">' + LETTERS[oi] + "</span>" +
+            '<input type="text" class="opt-text" data-qi="' + qi + '" data-oi="' + oi + '" value="' + esc(opt) + '" placeholder="Answer option" maxlength="120">' +
+            '<label title="Correct answer"><input type="radio" name="correct-' + qi + '" value="' + oi + '"' + (q.correct === oi ? " checked" : "") + "></label>" +
+            (opts.length > 2
+              ? '<button type="button" class="rm" data-rm-opt="' + qi + "-" + oi + '" title="Remove option">×</button>'
+              : '<span style="width:36px"></span>') +
+          "</div>"
+        );
+      }).join("");
+
+      return (
+        '<div class="q-card" data-qi="' + qi + '">' +
+          '<div class="q-card-head">' +
+            '<span class="q-num">' + (qi + 1) + "</span>" +
+            '<div class="grow"><input type="text" class="q-prompt" value="' + esc(q.prompt) + '" placeholder="Question prompt" maxlength="280"></div>' +
+          "</div>" +
+          '<div class="opts">' + optRows + "</div>" +
+          '<div class="q-tools">' +
+            '<label class="meta">Seconds <input type="number" class="time-inp" min="5" max="120" value="' + (q.timeLimit || DEFAULT_TIME) + '"></label>' +
+            (opts.length < 4 ? '<button type="button" class="btn btn-sm" data-add-opt="' + qi + '">Add option</button>' : "") +
+            '<button type="button" class="btn btn-sm" data-up="' + qi + '"' + (qi === 0 ? " disabled" : "") + ">Up</button>" +
+            '<button type="button" class="btn btn-sm" data-down="' + qi + '"' + (qi === d.questions.length - 1 ? " disabled" : "") + ">Down</button>" +
+            '<button type="button" class="btn btn-sm btn-danger" data-rm-q="' + qi + '">Delete question</button>' +
+          "</div>" +
+        "</div>"
+      );
+    }).join("");
+
+    root.innerHTML =
+      '<div class="ed-bar">' +
+        '<button type="button" class="btn btn-sm" id="btnAddQ">Add question</button>' +
+      "</div>" +
+      '<div class="ed-fields">' +
+        '<div class="field"><label for="edTitle">Title</label><input id="edTitle" maxlength="120" value="' + esc(d.title) + '"></div>' +
+        '<div class="field"><label for="edDesc">Description (optional)</label><textarea id="edDesc" maxlength="400">' + esc(d.description) + "</textarea></div>" +
+      "</div>" +
+      '<div class="q-list" id="edQuestions">' + qHtml + "</div>";
+  }
+
+  function stopHostTimers() {
+    if (hostTimer) { clearInterval(hostTimer); hostTimer = null; }
+    if (hostRaf) { cancelAnimationFrame(hostRaf); hostRaf = null; }
+  }
+
+  function startHost(quiz) {
+    var q = normalizeQuiz(quiz);
+    if (!q.questions.length) {
+      toast("This quiz has no questions");
+      return;
+    }
+    state.host = {
+      quiz: q,
+      phase: "lobby",
+      index: 0,
+      remaining: 0,
+      totalTime: 0,
+      startedAt: 0,
+      live: false,
+      sessionId: null,
+      hostUserId: null,
+      pin: null,
+      players: [],
+      liveError: null
+    };
+    setView("host");
+    whenAuthReady(function () {
+      if (!state.host || state.host.quiz.id !== q.id) return;
+      createLiveSession(q)
+        .then(function (row) {
+          if (!state.host) return;
+          state.host.live = true;
+          state.host.sessionId = row.id;
+          state.host.hostUserId = row.host_id;
+          state.host.pin = row.pin;
+          state.host.players = [];
+          renderHost();
+          stopPlayerPoll();
+          refreshPlayers();
+          playerPoll = setInterval(refreshPlayers, 2000);
+        })
+        .catch(function (err) {
+          if (!state.host) return;
+          state.host.live = false;
+          state.host.liveError = (err && err.message) || "Live phone join unavailable";
+          renderHost();
+          toast(state.host.liveError);
+        });
+    });
+  }
+
+  function currentQuestion() {
+    if (!state.host) return null;
+    return state.host.quiz.questions[state.host.index] || null;
+  }
+
+  function beginQuestion() {
+    var q = currentQuestion();
+    if (!q || !state.host) return;
+    stopHostTimers();
+    state.host.phase = "question";
+    state.host.totalTime = q.timeLimit || DEFAULT_TIME;
+    state.host.remaining = state.host.totalTime;
+    state.host.startedAt = performance.now();
+    renderHost();
+    ensureAudio();
+    syncSessionPatch({
+      status: "question",
+      question_index: state.host.index,
+      question_started_at: new Date().toISOString()
+    });
+
+    function frame(now) {
+      if (!state.host || state.host.phase !== "question") return;
+      var elapsed = (now - state.host.startedAt) / 1000;
+      state.host.remaining = Math.max(0, state.host.totalTime - elapsed);
+      var bar = document.getElementById("hostTimerBar");
+      if (bar) bar.style.transform = "scaleX(" + (state.host.remaining / state.host.totalTime) + ")";
+      var label = document.getElementById("hostTimerLabel");
+      if (label) label.textContent = Math.ceil(state.host.remaining) + "s";
+      if (state.host.remaining <= 0) {
+        revealQuestion();
+        return;
+      }
+      hostRaf = requestAnimationFrame(frame);
+    }
+    hostRaf = requestAnimationFrame(frame);
+
+    hostTimer = setInterval(function () {
+      if (!state.host || state.host.phase !== "question") return;
+      if (state.host.remaining <= 5 && state.host.remaining > 0) playTick();
+    }, 1000);
+  }
+
+  function revealQuestion() {
+    stopHostTimers();
+    if (!state.host) return;
+    state.host.phase = "reveal";
+    state.host.remaining = 0;
+    playCorrect();
+    syncSessionPatch({
+      status: "reveal",
+      question_index: state.host.index
+    }).then(function () { refreshPlayers(); });
+    renderHost();
+  }
+
+  function finishHost() {
+    if (!state.host) return;
+    state.host.phase = "end";
+    syncSessionPatch({ status: "end" }).then(function () { refreshPlayers(); });
+    renderHost();
+  }
+
+  function nextHostStep() {
+    if (!state.host) return;
+    if (state.host.phase === "lobby") {
+      beginQuestion();
+      return;
+    }
+    if (state.host.phase === "question") {
+      revealQuestion();
+      return;
+    }
+    if (state.host.phase === "reveal") {
+      if (state.host.index >= state.host.quiz.questions.length - 1) {
+        finishHost();
+        return;
+      }
+      state.host.index += 1;
+      beginQuestion();
+      return;
+    }
+    if (state.host.phase === "end") {
+      startHost(state.host.quiz);
+    }
+  }
+
+  function renderHost() {
+    var root = $("viewHost");
+    var h = state.host;
+    if (!h) { root.innerHTML = ""; return; }
+    var quiz = h.quiz;
+
+    if (h.phase === "lobby") {
+      var livePanel = h.live
+        ? (
+          '<div class="live-lobby">' +
+            '<div class="panel">' +
+              '<div class="live-badge">Live phone join</div>' +
+              '<p class="host-sub" style="margin-top:10px;text-align:center">Pupils scan the QR or enter this PIN</p>' +
+              '<div class="pin-huge">' + esc(h.pin) + "</div>" +
+              '<canvas id="hostQr" width="200" height="200"></canvas>' +
+              '<p class="join-url">' + esc(joinUrlForPin(h.pin)) + "</p>" +
+            "</div>" +
+            '<div class="panel">' +
+              '<p class="q-progress">Players · <span id="hostPlayerCount">0</span></p>' +
+              '<div class="player-list" id="hostPlayers"><span class="meta">Waiting for pupils to join…</span></div>' +
+            "</div>" +
+          "</div>"
+        )
+        : (
+          '<div class="pin-box">' +
+            (h.liveError
+              ? esc(h.liveError) + " — you can still host on the board without phones."
+              : "Starting live session…") +
+          "</div>"
+        );
+
+      root.innerHTML =
+        '<div class="host"><div class="host-stage">' +
+          '<p class="q-progress">Ready to host</p>' +
+          '<h2 class="host-title">' + esc(quiz.title) + "</h2>" +
+          (quiz.description ? '<p class="host-sub">' + esc(quiz.description) + "</p>" : "") +
+          '<p class="host-sub">' + quiz.questions.length + " questions</p>" +
+          livePanel +
+          '<div class="host-actions">' +
+            '<button type="button" class="btn btn-primary" id="hostStart" style="min-width:160px;height:48px">Start</button>' +
+            '<button type="button" class="btn" id="hostFs">Fullscreen</button>' +
+          "</div>" +
+        "</div></div>";
+      drawLobbyQr();
+      return;
+    }
+
+    if (h.phase === "end") {
+      root.innerHTML =
+        '<div class="host"><div class="host-stage">' +
+          '<p class="q-progress">Finished</p>' +
+          '<h2 class="host-title">Quiz complete</h2>' +
+          '<p class="end-stat">' + esc(quiz.title) + " · " + quiz.questions.length + " questions</p>" +
+          '<div id="hostLeaderboard">' + leadersBlock(h.players) + "</div>" +
+          '<div class="host-actions">' +
+            '<button type="button" class="btn btn-primary" id="hostAgain">Play again</button>' +
+            '<button type="button" class="btn" id="hostToLibrary">Back to library</button>' +
+          "</div>" +
+        "</div></div>";
+      refreshPlayers();
+      return;
+    }
+
+    var q = currentQuestion();
+    var revealing = h.phase === "reveal";
+    var opts = (q.options || []).slice(0, 4);
+    var ansHtml = opts.map(function (opt, i) {
+      var cls = "ans a" + i;
+      if (revealing) {
+        if (i === q.correct) cls += " correct";
+        else cls += " dim";
+      }
+      return (
+        '<div class="' + cls + '" role="presentation">' +
+          '<span class="mark">' + LETTERS[i] + "</span>" +
+          "<span>" + esc(opt) + "</span>" +
+        "</div>"
+      );
+    }).join("");
+
+    root.innerHTML =
+      '<div class="host"><div class="host-stage">' +
+        '<p class="q-progress">Question ' + (h.index + 1) + " of " + quiz.questions.length +
+          (revealing ? " · Answer" : "") +
+          (h.live && h.pin ? " · PIN " + esc(h.pin) : "") +
+        "</p>" +
+        '<h2 class="host-title">' + esc(q.prompt) + "</h2>" +
+        (revealing
+          ? '<div id="hostLeaderboard">' + leadersBlock(h.players) + "</div>"
+          : '<div class="timer-bar-wrap"><div class="timer-bar" id="hostTimerBar" style="transform:scaleX(1)"></div></div>' +
+            '<div class="meta" id="hostTimerLabel">' + Math.ceil(h.remaining || h.totalTime) + "s</div>") +
+        '<div class="answer-grid">' + ansHtml + "</div>" +
+        '<div class="host-actions">' +
+          (revealing
+            ? '<button type="button" class="btn btn-primary" id="hostNext">' +
+                (h.index >= quiz.questions.length - 1 ? "Finish" : "Next question") +
+              "</button>"
+            : '<button type="button" class="btn btn-primary" id="hostReveal">Reveal answers</button>') +
+        "</div>" +
+      "</div></div>";
+  }
+
+  function toggleFullscreen() {
+    var doc = document;
+    var el = document.documentElement;
+    if (!doc.fullscreenElement && !doc.webkitFullscreenElement) {
+      var req = el.requestFullscreen || el.webkitRequestFullscreen;
+      if (req) req.call(el);
+    } else {
+      var exit = doc.exitFullscreen || doc.webkitExitFullscreen;
+      if (exit) exit.call(doc);
+    }
+  }
+
+  // events
+  document.addEventListener("click", function (e) {
+    var t = e.target.closest("button, [data-host], [data-edit]");
+    if (!t) return;
+
+    if (t.id === "btnSound") {
+      state.sound = !state.sound;
+      saveSound();
+      renderChrome();
+      toast(state.sound ? "Sound on" : "Sound off");
+      return;
+    }
+    if (t.id === "btnNew") {
+      var nq = blankQuiz();
+      state.quizzes.unshift(nq);
+      saveQuizzes();
+      openEditor(nq);
+      return;
+    }
+    if (t.id === "btnEditorBack") {
+      syncDraftFromDom();
+      persistDraft(false);
+      setView("library");
+      return;
+    }
+    if (t.id === "btnEditorSave") {
+      persistDraft(true);
+      renderEditor();
+      return;
+    }
+    if (t.id === "btnEditorHost") {
+      if (!persistDraft(false)) return;
+      startHost(findQuiz(state.draft.id) || state.draft);
+      return;
+    }
+    if (t.id === "btnHostExit") {
+      stopHostTimers();
+      closeLiveSession().then(function () {
+        state.host = null;
+        setView("library");
+      });
+      return;
+    }
+    if (t.id === "btnAddQ") {
+      syncDraftFromDom();
+      state.draft.questions.push(blankQuestion());
+      renderEditor();
+      return;
+    }
+
+    var hostId = t.getAttribute("data-host");
+    if (hostId) {
+      var hq = findQuiz(hostId);
+      if (hq) startHost(hq);
+      return;
+    }
+    var editId = t.getAttribute("data-edit");
+    if (editId) {
+      var eq = findQuiz(editId);
+      if (eq) openEditor(eq);
+      return;
+    }
+    var dupId = t.getAttribute("data-dup");
+    if (dupId) {
+      var dq = findQuiz(dupId);
+      if (!dq) return;
+      var copy = normalizeQuiz(dq);
+      copy.id = uid();
+      copy.title = copy.title + " (copy)";
+      copy.builtIn = false;
+      copy.updatedAt = new Date().toISOString();
+      state.quizzes.unshift(copy);
+      saveQuizzes();
+      renderLibrary();
+      toast("Quiz duplicated");
+      return;
+    }
+    var delId = t.getAttribute("data-del");
+    if (delId) {
+      if (delId === SAMPLE.id) return;
+      if (!confirm("Delete this quiz?")) return;
+      state.quizzes = state.quizzes.filter(function (q) { return q.id !== delId; });
+      saveQuizzes();
+      renderLibrary();
+      toast("Quiz deleted");
+      return;
+    }
+
+    var addOpt = t.getAttribute("data-add-opt");
+    if (addOpt != null) {
+      syncDraftFromDom();
+      var ai = parseInt(addOpt, 10);
+      if (state.draft.questions[ai] && state.draft.questions[ai].options.length < 4) {
+        state.draft.questions[ai].options.push("");
+        renderEditor();
+      }
+      return;
+    }
+    var rmOpt = t.getAttribute("data-rm-opt");
+    if (rmOpt) {
+      syncDraftFromDom();
+      var parts = rmOpt.split("-");
+      var qi = parseInt(parts[0], 10);
+      var oi = parseInt(parts[1], 10);
+      var qq = state.draft.questions[qi];
+      if (qq && qq.options.length > 2) {
+        qq.options.splice(oi, 1);
+        if (qq.correct >= qq.options.length) qq.correct = qq.options.length - 1;
+        if (qq.correct > oi) qq.correct -= 1;
+        else if (qq.correct === oi) qq.correct = 0;
+        renderEditor();
+      }
+      return;
+    }
+    var rmQ = t.getAttribute("data-rm-q");
+    if (rmQ != null) {
+      syncDraftFromDom();
+      var ri = parseInt(rmQ, 10);
+      if (state.draft.questions.length <= 1) {
+        toast("Keep at least one question");
+        return;
+      }
+      state.draft.questions.splice(ri, 1);
+      renderEditor();
+      return;
+    }
+    var up = t.getAttribute("data-up");
+    if (up != null) {
+      syncDraftFromDom();
+      var ui = parseInt(up, 10);
+      if (ui > 0) {
+        var tmp = state.draft.questions[ui - 1];
+        state.draft.questions[ui - 1] = state.draft.questions[ui];
+        state.draft.questions[ui] = tmp;
+        renderEditor();
+      }
+      return;
+    }
+    var down = t.getAttribute("data-down");
+    if (down != null) {
+      syncDraftFromDom();
+      var di = parseInt(down, 10);
+      if (di < state.draft.questions.length - 1) {
+        var tmp2 = state.draft.questions[di + 1];
+        state.draft.questions[di + 1] = state.draft.questions[di];
+        state.draft.questions[di] = tmp2;
+        renderEditor();
+      }
+      return;
+    }
+
+    if (t.id === "hostStart" || t.id === "hostNext" || t.id === "hostReveal" || t.id === "hostAgain") {
+      if (t.id === "hostAgain") {
+        var againQuiz = state.host && state.host.quiz;
+        closeLiveSession().then(function () {
+          if (againQuiz) startHost(againQuiz);
+        });
+        return;
+      }
+      nextHostStep();
+      return;
+    }
+    if (t.id === "hostToLibrary") {
+      stopHostTimers();
+      closeLiveSession().then(function () {
+        state.host = null;
+        setView("library");
+      });
+      return;
+    }
+    if (t.id === "hostFs") {
+      toggleFullscreen();
+    }
+  });
+
+  // autosave editor fields lightly
+  $("viewEditor").addEventListener("change", function () {
+    if (state.view !== "editor") return;
+    syncDraftFromDom();
+  });
+
+  document.addEventListener("keydown", function (e) {
+    var tag = (e.target && e.target.tagName) || "";
+    if (tag === "INPUT" || tag === "TEXTAREA") return;
+
+    if (state.view === "host") {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        stopHostTimers();
+        closeLiveSession().then(function () {
+          state.host = null;
+          setView("library");
+        });
+        return;
+      }
+      if (e.key === " " || e.key === "Enter") {
+        e.preventDefault();
+        nextHostStep();
+        return;
+      }
+      if (e.key === "f" || e.key === "F") {
+        e.preventDefault();
+        toggleFullscreen();
+      }
+    }
+  });
+
+  (function patchBackLink() {
+    var a = $("backLink");
+    if (!a) return;
+    try {
+      if (new URLSearchParams(location.search).get("embed") === "1" || sessionStorage.getItem("fh-embed") === "1") {
+        a.href = "../classroom_toolkit.html?embed=1";
+      }
+    } catch (e) {}
+  })();
+
+  state.sound = loadSound();
+  state.quizzes = loadQuizzes();
+  saveQuizzes();
+  setView("library");
+})();
+</script>
+</body>
+</html>

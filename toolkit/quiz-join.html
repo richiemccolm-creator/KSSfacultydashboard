@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Join Quiz — Classroom Toolkit</title>
+<script src="../app-version.js"></script>
+<script>(function(){if(window.ensureAppVersionInUrl)window.ensureAppVersionInUrl();})();</script>
+<script src="../config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../supabase-init.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://api.fontshare.com/v2/css?f[]=general-sans@500,600,700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#050B1D; --text:#F5F7FF; --text-2:#B6C0D9; --muted:#7D8AA8;
+  --line:rgba(124,148,205,.18); --coral:#F45E68; --blue:#3B6CFF; --amber:#F4A62A; --mint:#35C796;
+  --font:"Inter",ui-sans-serif,system-ui,sans-serif;
+  --font-display:"General Sans","Inter",sans-serif;
+}
+*{box-sizing:border-box}
+html{color-scheme:dark}
+body{
+  margin:0;min-height:100vh;font-family:var(--font);color:var(--text);
+  background:
+    radial-gradient(circle at 20% 0%,rgba(244,94,104,.16),transparent 40%),
+    radial-gradient(circle at 90% 20%,rgba(59,108,255,.12),transparent 35%),
+    var(--bg);
+  -webkit-font-smoothing:antialiased;
+}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+.wrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px 16px 32px;gap:16px}
+.card{
+  width:min(440px,100%);border-radius:18px;padding:22px 18px;
+  background:linear-gradient(150deg,#0D1834,#081126);border:1px solid var(--line);
+  box-shadow:0 16px 40px rgba(0,0,0,.35);
+}
+h1{margin:0 0 6px;font:700 24px/1.2 var(--font-display);letter-spacing:-.02em;text-align:center}
+.sub{margin:0 0 18px;text-align:center;color:var(--muted);font:500 13.5px/1.45 var(--font)}
+label{display:block;font:600 11px/1 var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+input{
+  width:100%;height:48px;border-radius:12px;border:1px solid var(--line);background:#0A142C;
+  padding:0 14px;outline:none;margin-bottom:12px;font:600 16px/1 var(--font);letter-spacing:.04em;
+}
+input:focus{border-color:rgba(244,94,104,.5);box-shadow:0 0 0 3px rgba(244,94,104,.14)}
+.btn{
+  width:100%;height:48px;border:none;border-radius:12px;font:700 15px/1 var(--font);
+  color:#fff;background:linear-gradient(135deg,#F45E68,#E0454F);
+  box-shadow:0 10px 24px -8px rgba(244,94,104,.55);
+}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.err{color:#FFB4B9;font:600 13px/1.4 var(--font);min-height:1.2em;margin:0 0 8px;text-align:center}
+.meta{text-align:center;color:var(--text-2);font:500 13px/1.4 var(--font)}
+.score{font:700 28px/1 var(--font-display);text-align:center;margin:8px 0}
+.prompt{font:650 20px/1.3 var(--font-display);text-align:center;margin:0 0 14px}
+.opts{display:grid;gap:10px}
+.opt{
+  min-height:56px;border:none;border-radius:14px;padding:14px;text-align:left;
+  display:flex;align-items:center;gap:12px;font:650 15px/1.25 var(--font-display);color:#fff;
+}
+.opt .m{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:rgba(0,0,0,.22);font:700 14px/1 var(--font);flex:none}
+.opt.o0{background:linear-gradient(135deg,#F45E68,#C93A48)}
+.opt.o1{background:linear-gradient(135deg,#3B6CFF,#2A4FD0)}
+.opt.o2{background:linear-gradient(135deg,#F4A62A,#D88912);color:#1a1205}
+.opt.o2 .m{color:#1a1205}
+.opt.o3{background:linear-gradient(135deg,#35C796,#1F9A70)}
+.opt:disabled{opacity:.85}
+.opt.picked{outline:3px solid #fff}
+.opt.dim{opacity:.4}
+.leaders{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+.leaders h2{margin:0 0 8px;font:650 14px/1 var(--font-display);color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.row{display:flex;justify-content:space-between;gap:10px;padding:6px 0;font:600 14px/1.3 var(--font)}
+.hidden{display:none!important}
+.wait{text-align:center;padding:24px 8px;color:var(--text-2);font:500 15px/1.45 var(--font)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card" id="viewJoin">
+    <h1>Join the quiz</h1>
+    <p class="sub">Enter the PIN from the board and a nickname. No sign-in needed.</p>
+    <p class="err" id="joinErr"></p>
+    <label for="pin">Game PIN</label>
+    <input id="pin" inputmode="numeric" maxlength="6" placeholder="6-digit PIN" autocomplete="one-time-code">
+    <label for="nick">Nickname</label>
+    <input id="nick" maxlength="24" placeholder="Your name" autocomplete="nickname">
+    <button type="button" class="btn" id="btnJoin">Join</button>
+  </div>
+
+  <div class="card hidden" id="viewPlay">
+    <p class="meta" id="playMeta"></p>
+    <div class="score" id="playScore">0</div>
+    <div id="playBody"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var LETTERS = ["A", "B", "C", "D"];
+  var $ = function (id) { return document.getElementById(id); };
+  var state = {
+    pin: "",
+    token: "",
+    nickname: "",
+    lastStatus: "",
+    lastIndex: -1,
+    poll: null,
+    submitting: false
+  };
+
+  function tokenKey(pin) { return "tk_quiz_player_" + pin; }
+
+  function getOrCreateToken(pin) {
+    var key = tokenKey(pin);
+    try {
+      var t = localStorage.getItem(key);
+      if (t && t.length >= 16) return t;
+    } catch (e) {}
+    var t2 = "p_" + Math.random().toString(36).slice(2) + Date.now().toString(36) + Math.random().toString(36).slice(2);
+    try { localStorage.setItem(key, t2); } catch (e2) {}
+    return t2;
+  }
+
+  function rpc(name, args) {
+    if (!window.supabase || !window.supabase.rpc) {
+      return Promise.reject(new Error("Connection not ready"));
+    }
+    return window.supabase.rpc(name, args).then(function (res) {
+      if (res.error) throw res.error;
+      return res.data;
+    });
+  }
+
+  function showJoin() {
+    $("viewJoin").classList.remove("hidden");
+    $("viewPlay").classList.add("hidden");
+  }
+
+  function showPlay() {
+    $("viewJoin").classList.add("hidden");
+    $("viewPlay").classList.remove("hidden");
+  }
+
+  function esc(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function leadersHtml(list) {
+    if (!list || !list.length) return "";
+    return (
+      '<div class="leaders"><h2>Leaderboard</h2>' +
+      list.map(function (r, i) {
+        return '<div class="row"><span>' + (i + 1) + ". " + esc(r.nickname) + "</span><span>" + esc(r.score) + "</span></div>";
+      }).join("") +
+      "</div>"
+    );
+  }
+
+  function renderState(data) {
+    if (!data) return;
+    $("playMeta").textContent = (data.title || "Quiz") + " · " + (state.nickname || data.nickname || "");
+    $("playScore").textContent = String(data.player_score != null ? data.player_score : 0);
+    var body = $("playBody");
+    var status = data.status;
+
+    if (status === "lobby") {
+      body.innerHTML = '<div class="wait">You\'re in!<br>Waiting for the teacher to start…</div>' + leadersHtml(data.leaders);
+      return;
+    }
+    if (status === "end" || status === "closed") {
+      body.innerHTML =
+        '<div class="wait"><strong>Quiz finished</strong><br>Nice work, ' + esc(state.nickname) + ".</div>" +
+        leadersHtml(data.leaders);
+      return;
+    }
+
+    var opts = Array.isArray(data.options) ? data.options : [];
+    var answered = !!data.answered;
+    var revealing = status === "reveal";
+    var qLabel = "Question " + ((data.question_index || 0) + 1) + " of " + (data.question_count || "?");
+
+    body.innerHTML =
+      '<p class="meta">' + esc(qLabel) + (revealing ? " · Answer" : "") + "</p>" +
+      '<p class="prompt">' + esc(data.prompt || "") + "</p>" +
+      '<div class="opts">' +
+      opts.map(function (opt, i) {
+        var cls = "opt o" + i;
+        if (answered && data.choice === i) cls += " picked";
+        if (revealing) {
+          if (data.correct === i) cls += " picked";
+          else cls += " dim";
+        }
+        return (
+          '<button type="button" class="' + cls + '" data-choice="' + i + '"' +
+            ((answered || revealing) ? " disabled" : "") + ">" +
+            '<span class="m">' + LETTERS[i] + "</span><span>" + esc(opt) + "</span>" +
+          "</button>"
+        );
+      }).join("") +
+      "</div>" +
+      (answered && !revealing ? '<p class="meta" style="margin-top:12px">Answer locked in — hang tight</p>' : "") +
+      (revealing ? leadersHtml(data.leaders) : "");
+  }
+
+  function poll() {
+    if (!state.pin || !state.token) return;
+    rpc("quiz_get_session_state", { p_pin: state.pin, p_token: state.token })
+      .then(function (data) {
+        renderState(data);
+      })
+      .catch(function () {});
+  }
+
+  function startPolling() {
+    if (state.poll) clearInterval(state.poll);
+    poll();
+    state.poll = setInterval(poll, 1200);
+  }
+
+  function join() {
+    var pin = String($("pin").value || "").replace(/\D/g, "").slice(0, 6);
+    var nick = String($("nick").value || "").trim().slice(0, 24);
+    $("joinErr").textContent = "";
+    if (pin.length !== 6) {
+      $("joinErr").textContent = "Enter the 6-digit PIN from the board.";
+      return;
+    }
+    if (!nick) {
+      $("joinErr").textContent = "Enter a nickname.";
+      return;
+    }
+    if (!window.supabase) {
+      $("joinErr").textContent = "Can't connect right now. Check the school network.";
+      return;
+    }
+    $("btnJoin").disabled = true;
+    var token = getOrCreateToken(pin);
+    rpc("quiz_join_session", { p_pin: pin, p_nickname: nick, p_token: token })
+      .then(function (data) {
+        state.pin = pin;
+        state.token = token;
+        state.nickname = data.nickname || nick;
+        try {
+          sessionStorage.setItem("tk_quiz_join_pin", pin);
+          sessionStorage.setItem("tk_quiz_join_nick", state.nickname);
+        } catch (e) {}
+        showPlay();
+        startPolling();
+      })
+      .catch(function (err) {
+        $("joinErr").textContent = (err && err.message) ? err.message : "Could not join. Check the PIN.";
+      })
+      .then(function () {
+        $("btnJoin").disabled = false;
+      });
+  }
+
+  $("btnJoin").addEventListener("click", join);
+  $("pin").addEventListener("keydown", function (e) { if (e.key === "Enter") join(); });
+  $("nick").addEventListener("keydown", function (e) { if (e.key === "Enter") join(); });
+
+  $("viewPlay").addEventListener("click", function (e) {
+    var btn = e.target.closest("[data-choice]");
+    if (!btn || state.submitting) return;
+    var choice = parseInt(btn.getAttribute("data-choice"), 10);
+    state.submitting = true;
+    rpc("quiz_get_session_state", { p_pin: state.pin, p_token: state.token })
+      .then(function (data) {
+        return rpc("quiz_submit_answer", {
+          p_token: state.token,
+          p_question_index: data.question_index,
+          p_choice: choice
+        }).then(function () { return data; });
+      })
+      .then(function () { poll(); })
+      .catch(function (err) {
+        alert((err && err.message) || "Could not submit answer");
+      })
+      .then(function () { state.submitting = false; });
+  });
+
+  // Prefill PIN from QR query
+  try {
+    var q = new URLSearchParams(location.search);
+    var c = String(q.get("c") || q.get("pin") || "").replace(/\D/g, "").slice(0, 6);
+    if (c) $("pin").value = c;
+    var savedNick = sessionStorage.getItem("tk_quiz_join_nick");
+    if (savedNick) $("nick").value = savedNick;
+  } catch (e) {}
+})();
+</script>
+</body>
+</html>
