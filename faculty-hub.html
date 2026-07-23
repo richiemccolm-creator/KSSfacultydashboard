@@ -58,6 +58,8 @@
 <script src="staff-display-name.js"></script>
 <script src="teacher-tasks-service.js"></script>
 <script src="teacher-tasks-home.js"></script>
+<script src="sticky-notes-service.js"></script>
+<script src="sticky-notes-home.js"></script>
 <script src="calendar-request-service.js"></script>
 <script src="quality-calendar-months.js"></script>
 <script src="quality-calendar-qi-focus.js"></script>
@@ -1396,6 +1398,121 @@ a.subject-card-link{text-decoration:none;cursor:pointer}
 }
 @media(max-width:760px){
   .home-task-list-scroll{max-height:320px}
+}
+.home-sticky-section{
+  background:#fff;
+  border:.5px solid #e2e8f0;
+  border-radius:10px;
+  padding:12px 14px;
+  margin-bottom:14px;
+}
+.home-sticky-board-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:10px;
+  margin-bottom:10px;
+  flex-wrap:wrap;
+}
+.home-sticky-title{font-weight:500;font-size:12px}
+.home-sticky-sub{font-size:10px;color:#64748b;margin-top:1px}
+.home-sticky-add{
+  display:inline-flex;
+  align-items:center;
+  gap:4px;
+  border:.5px solid #e2e8f0;
+  background:#f8fafc;
+  color:#334155;
+  font-size:11px;
+  font-weight:500;
+  padding:6px 10px;
+  border-radius:7px;
+  cursor:pointer;
+  font-family:inherit;
+}
+.home-sticky-add:hover{background:#f1f5f9;border-color:#cbd5e1}
+.home-sticky-add:disabled{opacity:.45;cursor:not-allowed}
+.home-sticky-board{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(160px,1fr));
+  gap:10px;
+}
+.home-sticky-empty{
+  grid-column:1 / -1;
+  font-size:11px;
+  color:#94a3b8;
+  padding:14px 4px;
+}
+.home-sticky-note{
+  position:relative;
+  border-radius:2px 8px 8px 8px;
+  padding:8px 10px 10px;
+  min-height:128px;
+  display:flex;
+  flex-direction:column;
+  box-shadow:0 1px 2px rgba(15,23,42,.06), 0 6px 14px rgba(15,23,42,.05);
+  transform:rotate(-0.4deg);
+  transition:transform .15s ease, box-shadow .15s ease;
+}
+.home-sticky-note:nth-child(even){transform:rotate(0.5deg)}
+.home-sticky-note:nth-child(3n){transform:rotate(-0.7deg)}
+.home-sticky-note:hover{
+  transform:rotate(0deg) translateY(-1px);
+  box-shadow:0 2px 4px rgba(15,23,42,.08), 0 10px 20px rgba(15,23,42,.08);
+  z-index:1;
+}
+.home-sticky-note.is-pinned{box-shadow:0 0 0 1.5px rgba(15,23,42,.12), 0 6px 14px rgba(15,23,42,.08)}
+.home-sticky-note.color-yellow{background:#fef9c3;color:#713f12}
+.home-sticky-note.color-mint{background:#dcfce7;color:#14532d}
+.home-sticky-note.color-sky{background:#e0f2fe;color:#0c4a6e}
+.home-sticky-note.color-peach{background:#ffedd5;color:#9a3412}
+.home-sticky-note.color-rose{background:#ffe4e6;color:#9f1239}
+.home-sticky-note-bar{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:6px;
+  margin-bottom:6px;
+}
+.home-sticky-colors{display:flex;gap:4px;align-items:center}
+.home-sticky-color{
+  width:12px;height:12px;border-radius:50%;
+  border:1.5px solid rgba(15,23,42,.18);
+  padding:0;cursor:pointer;background:#fef9c3;
+}
+.home-sticky-color[data-color="yellow"]{background:#facc15}
+.home-sticky-color[data-color="mint"]{background:#4ade80}
+.home-sticky-color[data-color="sky"]{background:#38bdf8}
+.home-sticky-color[data-color="peach"]{background:#fb923c}
+.home-sticky-color[data-color="rose"]{background:#fb7185}
+.home-sticky-color.is-active{outline:2px solid rgba(15,23,42,.35);outline-offset:1px}
+.home-sticky-actions{display:flex;gap:2px;align-items:center}
+.home-sticky-pin,.home-sticky-delete{
+  border:none;background:transparent;cursor:pointer;
+  width:22px;height:22px;border-radius:4px;
+  display:inline-flex;align-items:center;justify-content:center;
+  color:inherit;opacity:.55;padding:0;font-size:13px;
+}
+.home-sticky-pin:hover,.home-sticky-delete:hover{opacity:1;background:rgba(15,23,42,.06)}
+.home-sticky-pin.is-on{opacity:1}
+.home-sticky-text{
+  flex:1;
+  width:100%;
+  border:none;
+  background:transparent;
+  resize:none;
+  font-family:inherit;
+  font-size:12px;
+  line-height:1.4;
+  color:inherit;
+  outline:none;
+  min-height:72px;
+}
+.home-sticky-text::placeholder{color:inherit;opacity:.45}
+@media(prefers-reduced-motion:reduce){
+  .home-sticky-note,.home-sticky-note:nth-child(even),.home-sticky-note:nth-child(3n),.home-sticky-note:hover{
+    transform:none;transition:none
+  }
 }
 .staff-home-week{
   border:1px solid #e2e8f0;
@@ -2849,6 +2966,8 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
                 <div id="homeTrackingClasses" style="display:flex;flex-direction:column;gap:9px;"></div>
               </div>
             </section>
+
+            <section id="homeStickyNotes" class="home-sticky-section" aria-label="Sticky notes"></section>
 
             <section style="background:#fff;border:.5px solid #e2e8f0;border-radius:10px;padding:12px 14px;margin-bottom:14px;">
               <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
@@ -8903,7 +9022,7 @@ function dip2627ExportActionPlanChecklist(){
 
 // ── DATA BACKUP & RESTORE ───────────────────────────────────────
 function backupExport(){
-  (window.DataService?DataService.exportAll():Promise.resolve((function(){var o={};var keys=['drama-v3','art-v2','academicCalendarEvents','bge_drama_reports_v1','bge_art_reports_v1','bge_drama_tracker_export_v1','bge_art_tracker_export_v1','dipSelfEvaluation','dipSelfEvaluation2627','dipActionPlan2627','moderation-data','plannerTimetable','plannerLessons','plannerWeekNotes','lessonPlanTemplates','plannerSchemesOfWork','clplProgress','teacherTasksV1'];keys.forEach(function(k){try{var v=localStorage.getItem(k);if(v)o[k]=JSON.parse(v);}catch(e){}});return o;})())).then(function(data){
+  (window.DataService?DataService.exportAll():Promise.resolve((function(){var o={};var keys=['drama-v3','art-v2','academicCalendarEvents','bge_drama_reports_v1','bge_art_reports_v1','bge_drama_tracker_export_v1','bge_art_tracker_export_v1','dipSelfEvaluation','dipSelfEvaluation2627','dipActionPlan2627','moderation-data','plannerTimetable','plannerLessons','plannerWeekNotes','lessonPlanTemplates','plannerSchemesOfWork','clplProgress','teacherTasksV1','stickyNotesV1'];keys.forEach(function(k){try{var v=localStorage.getItem(k);if(v)o[k]=JSON.parse(v);}catch(e){}});return o;})())).then(function(data){
     if(!data.version)data={version:1,exportDate:new Date().toISOString(),source:'Expressive Arts Faculty'};
     var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
     var a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='ExpressiveArts_Backup_'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(a.href);
@@ -10663,6 +10782,9 @@ function homeApplyDashboardData(ctx){
   homeRenderQualityFocus();
   homeRenderWeekAhead(events, today);
   homeRenderTasks(tasks.filter(function(t){ return t.status!=='completed'&&!t.completed; }), taskState);
+  if(window.StickyNotesHome&&typeof window.StickyNotesHome.render==='function'){
+    window.StickyNotesHome.render();
+  }
 }
 function homeLoadGreeting(){
   var nameEl=document.getElementById('homeGreetingName');
@@ -10802,6 +10924,9 @@ function homeDashboardRender(opts){
     homeRenderUpcomingEvents([]);
     homeRenderWeekAhead([], today);
     homeRenderTasks([], { tasks:[], buckets:[] });
+    if(window.StickyNotesHome&&typeof window.StickyNotesHome.render==='function'){
+      window.StickyNotesHome.render();
+    }
   });
 
   var dramaPromise=homeGetTrackerBlobs().then(function(blobs){ return blobs[0]; });
