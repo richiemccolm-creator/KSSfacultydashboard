@@ -549,6 +549,7 @@ button{font-family:inherit}
     timer:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 1.5M9.5 2h5"/></svg>',
     groups:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.2"/><path d="M3.5 20c0-3.2 2.7-5 5.5-5s5.5 1.8 5.5 5"/><path d="M15 20c.2-2 1.7-3.2 3.6-3.2"/></svg>',
     quiz:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 3z"/><path d="M8.5 9.5L10.5 11.5 15 7"/></svg>',
+    busters:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 4.5v11L12 22l-8-4.5v-11z"/><path d="M12 12l8-4.5M12 12v10M12 12L4 7.5"/></svg>',
     picker:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.2"/><path d="M12 3v5.8M12 15.2V21M3 12h5.8M15.2 12H21"/></svg>',
     noise:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15V9M8 18V6M12 21V3M16 17V7M20 14v-4"/></svg>',
     dice:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="4"/><circle cx="8.7" cy="8.7" r="1.2" fill="currentColor" stroke="none"/><circle cx="15.3" cy="8.7" r="1.2" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="8.7" cy="15.3" r="1.2" fill="currentColor" stroke="none"/><circle cx="15.3" cy="15.3" r="1.2" fill="currentColor" stroke="none"/></svg>',
@@ -565,8 +566,10 @@ button{font-family:inherit}
       desc:"Huge, clear countdowns perfect for any activity."},
     {id:"groups",     name:"Group Randomiser", cat:"Groups", hue:"violet",  icon:"groups",     featured:true, live:false, href:"toolkit/groups.html",
       desc:"Create balanced groups in seconds."},
-    {id:"quiz",       name:"Quiz Builder",     cat:"Quiz",   hue:"coral",   icon:"quiz",       featured:true, live:false, href:"toolkit/quiz.html",
+    {id:"quiz",       name:"Quiz Builder",     cat:"Quiz",   hue:"coral",   icon:"quiz",       featured:false, live:false, href:"toolkit/quiz.html",
       desc:"Interactive quizzes that get everyone involved."},
+    {id:"busters",    name:"Quiz Busters",     cat:"Quiz",   hue:"amber",   icon:"busters",    featured:true, live:true,  href:"toolkit/quiz-busters.html",
+      desc:"Blockbusters-style letter board for two teams."},
     {id:"picker",     name:"Name Picker",      cat:"Groups", hue:"mint",    icon:"picker",     live:false, href:"toolkit/picker.html",
       desc:"Spin to select a random student or group."},
     {id:"noise",      name:"Noise Meter",      cat:"Focus",  hue:"cyan",    icon:"noise",      live:false, href:"toolkit/noise.html",
@@ -604,7 +607,7 @@ button{font-family:inherit}
     {label:"Sub Plans",      n:7,  c:"var(--coral)"}
   ];
 
-  var QUICK = ["timer","picker","groups","lights","dice"];
+  var QUICK = ["busters","timer","picker","groups","dice"];
 
   // ---------- state ----------
   var favs = loadFavs();
@@ -634,7 +637,17 @@ button{font-family:inherit}
   function chev(){ return '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>'; }
 
   function launch(t){
-    if(t.live){ window.location.href=t.href; return; }
+    if(!t) return;
+    if(t.live){
+      var href=t.href;
+      try{
+        if(new URLSearchParams(location.search).get("embed")==="1"||sessionStorage.getItem("fh-embed")==="1"){
+          href+= (href.indexOf("?")>=0?"&":"?")+"embed=1";
+        }
+      }catch(e){}
+      window.location.href=href;
+      return;
+    }
     toast(t.name+" is on the way — we'll build it next");
   }
 
