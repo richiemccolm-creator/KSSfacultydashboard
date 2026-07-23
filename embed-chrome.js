@@ -56,6 +56,7 @@
     'html[data-fh-embed="1"] .planner-nav a[href="faculty-hub.html"]{display:none!important}' +
     'html[data-fh-embed="1"] .tasks-logo-link{display:none!important}' +
     'html[data-fh-embed="1"] .tasks-nav a[href="faculty-hub.html"]{display:none!important}' +
+    'html[data-fh-embed="1"] .brand[href="faculty-hub.html"]{pointer-events:none;cursor:default}' +
     'html[data-fh-embed="1"] .dm-hero.no-print{display:none!important}' +
     'html[data-fh-embed="1"] #dm-admin-strip{margin-top:0}';
   var s = document.createElement('style');

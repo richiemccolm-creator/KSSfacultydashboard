@@ -21,6 +21,7 @@ const NAV = [
     { id:"units",      label:"Curriculum Units", href:"curriculum_units.html",              icon:"book"     },
     { id:"planner",    label:"Teacher Planner",  href:"teacher_planner.html",               icon:"grid"     },
     { id:"tasks",      label:"Teacher Tasks",    href:"teacher_tasks.html",                 icon:"check"    },
+    { id:"toolkit",    label:"Classroom Toolkit", href:"classroom_toolkit.html",            icon:"grid"     },
   ]},
   { group: "Operations", items: [
     { id:"class-management", label:"Class Management", href:"class_management.html",        icon:"users"    },
