@@ -1,0 +1,2256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KSS QS Attainment Dashboard · Faculty of Art &amp; Drama</title>
+<link rel="icon" type="image/png" href="faculty-hub-logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>
+  window.QS_EMBED = new URLSearchParams(window.location.search).get('embed') === '1';
+  if (window.QS_EMBED) {
+    document.documentElement.classList.add('qs-embed');
+    window.__authGuardLoginPath = 'login.html';
+  }
+</script>
+<script src="config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase-init.js"></script>
+<script src="allowlist-check.js"></script>
+<script src="auth-guard.js"></script>
+<script src="qs-attainment-service.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root{
+  --navy:#e8c25c; --navy-deep:#1a1e24; --navy-ink:#f0eee6;
+  --gold:#e3b04b; --gold-soft:#8a6d2a; --gold-pale:rgba(227,176,75,.10);
+  --bg:#262b33; --card:#2f353e; --line:#3f4650; --line-soft:#39404a;
+  --ink:#e9e7df; --ink-2:#b6bcc4; --ink-3:#848d97;
+  --green:#7cc98f; --green-2:#4f8f5f; --amber:#e3b04b; --orange:#ce8147; --red:#e0736a; --grey:#7a8089;
+  --teal:#8fb8b6; --coral:#c65f4e; --slate:#9aa8bc;
+  --radius:10px;
+  --shadow:0 1px 2px rgba(0,0,0,.25), 0 4px 16px rgba(0,0,0,.22);
+  --shadow-lift:0 2px 4px rgba(0,0,0,.28), 0 12px 32px rgba(0,0,0,.35);
+  --sans:'Archivo',-apple-system,sans-serif;
+  --serif:'Oswald','Archivo Narrow',sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  font-family:var(--sans); background:var(--bg); color:var(--ink);
+  font-size:14px; line-height:1.5;
+  background-image:
+    radial-gradient(ellipse 900px 420px at 85% -10%, rgba(227,176,75,.05), transparent 60%),
+    radial-gradient(ellipse 800px 400px at -5% 0%, rgba(206,129,71,.04), transparent 60%);
+  background-attachment:fixed;
+  min-height:100vh;
+}
+::selection{background:var(--gold-soft)}
+
+/* ---------- Header ---------- */
+header{
+  background:linear-gradient(135deg,#16191e 0%,#1d222a 65%,#242b35 100%);
+  border-bottom:1px solid #3a414b;
+  color:#fff; position:relative; overflow:hidden;
+}
+header::after{
+  content:''; position:absolute; inset:0; pointer-events:none;
+  background-image:repeating-linear-gradient(115deg, transparent 0 26px, rgba(255,255,255,.028) 26px 27px);
+}
+.header-inner{
+  max-width:1280px; margin:0 auto; padding:26px 32px 24px;
+  display:flex; align-items:center; gap:20px; flex-wrap:wrap; position:relative; z-index:1;
+}
+.crest{
+  width:52px;height:52px; border:1.5px solid var(--gold); border-radius:8px;
+  display:flex; align-items:center; justify-content:center; flex:none;
+  font-family:var(--serif); font-weight:700; font-size:17px; letter-spacing:.04em; color:var(--gold);
+  background:rgba(255,255,255,.04);
+  box-shadow:inset 0 0 0 3px rgba(184,145,47,.15);
+}
+.brand{flex:1 1 auto; min-width:260px}
+.brand .kicker{
+  font-size:10.5px; font-weight:700; letter-spacing:.22em; text-transform:uppercase;
+  color:var(--gold); margin-bottom:3px;
+}
+.brand h1{
+  font-family:var(--serif); font-weight:600; font-size:24px; letter-spacing:.05em; line-height:1.15; text-transform:uppercase;
+}
+.brand h1 .accent{color:var(--gold)}
+.brand .sub{font-size:12.5px; color:rgba(255,255,255,.62); margin-top:4px; font-weight:500; letter-spacing:.02em}
+.header-actions{display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+.file-chip{
+  display:none; align-items:center; gap:9px;
+  background:rgba(255,255,255,.09); border:1px solid rgba(255,255,255,.18);
+  border-radius:999px; padding:7px 14px 7px 11px; font-size:12px; font-weight:600;
+  backdrop-filter:blur(4px);
+}
+.file-chip.on{display:inline-flex}
+.file-chip .dot{width:8px;height:8px;border-radius:50%;background:#5fce8f;box-shadow:0 0 8px rgba(95,206,143,.8);flex:none}
+.file-chip .meta{color:rgba(255,255,255,.55);font-weight:500}
+.btn{
+  font-family:var(--sans); font-size:12.5px; font-weight:700; letter-spacing:.03em;
+  border-radius:8px; padding:9px 16px; cursor:pointer; border:1px solid transparent;
+  transition:all .18s ease; display:inline-flex; align-items:center; gap:7px;
+}
+.btn svg{flex:none}
+.btn-gold{background:var(--gold); color:#fff; border-color:rgba(0,0,0,.08)}
+.btn-gold:hover{background:#a5811f; transform:translateY(-1px); box-shadow:0 6px 16px rgba(184,145,47,.35)}
+.btn-ghost{background:transparent; color:rgba(255,255,255,.85); border-color:rgba(255,255,255,.28)}
+.btn-ghost:hover{background:rgba(255,255,255,.1)}
+.hidden{display:none!important}
+
+/* ---------- Snapshot banner ---------- */
+#snapshotBanner{
+  background:var(--gold-pale); border-bottom:1px solid var(--gold-soft);
+  padding:9px 32px; text-align:center; font-size:12.5px; font-weight:600; color:#e5c164;
+}
+#snapshotBanner b{font-weight:800}
+
+/* ---------- Upload hero ---------- */
+#uploadHero{max-width:860px; margin:52px auto 80px; padding:0 24px}
+.hero-title{
+  text-align:center; font-family:var(--serif); font-size:33px; font-weight:600;
+  color:var(--navy-ink); letter-spacing:.04em; line-height:1.25; text-transform:uppercase;
+}
+.hero-title em{font-style:italic; color:var(--gold)}
+.hero-sub{text-align:center; color:var(--ink-2); font-size:14.5px; margin:12px auto 34px; max-width:560px}
+.dropzone{
+  border:2px dashed #4a525d; border-radius:16px; background:var(--card);
+  padding:56px 32px; text-align:center; cursor:pointer; position:relative;
+  transition:all .22s ease; box-shadow:var(--shadow);
+}
+.dropzone:hover,.dropzone.drag{
+  border-color:var(--gold); background:#363d47; transform:translateY(-2px); box-shadow:var(--shadow-lift);
+}
+.dropzone.drag{border-style:solid}
+.dz-icon{
+  width:68px;height:68px;border-radius:50%;margin:0 auto 18px;
+  background:linear-gradient(135deg,#8a6d2a,#e3b04b); color:#1d2127;
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 8px 24px rgba(227,176,75,.22);
+}
+.dz-title{font-family:var(--serif); font-size:20px; font-weight:600; color:var(--navy-ink)}
+.dz-sub{color:var(--ink-2); font-size:13px; margin-top:6px}
+.dz-sub b{color:var(--navy)}
+.dz-note{
+  margin-top:18px; display:inline-flex; align-items:center; gap:7px;
+  font-size:11.5px; font-weight:600; color:var(--ink-3);
+  background:var(--bg); border:1px solid var(--line); border-radius:999px; padding:6px 13px;
+}
+.va-toggle{
+  display:inline-flex; align-items:center; gap:8px; margin-left:auto;
+  font-size:12px; font-weight:600; color:var(--ink-2); cursor:pointer;
+  background:var(--card); border:1px solid var(--line); border-radius:999px; padding:7px 14px;
+}
+.va-toggle input{accent-color:var(--gold); cursor:pointer}
+.va-toggle .ext{color:var(--ink-3); font-weight:500}
+.rep-desc{font-size:12.5px; color:var(--ink-2); line-height:1.6; margin:10px 0 16px}
+.rep-note{font-size:12px; color:var(--ink-3); margin-top:16px; text-align:center}
+.hero-controls{display:flex; justify-content:center; margin-bottom:16px}
+.hero-controls .filter select{min-width:210px; text-align:center}
+.dz-error{
+  display:none; margin-top:16px; background:rgba(194,59,46,.14); border:1px solid #7a3a33; color:#e0736a;
+  border-radius:8px; padding:10px 16px; font-size:13px; font-weight:600;
+}
+.steps{display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:26px}
+.step{
+  background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+  padding:18px 18px 16px; box-shadow:var(--shadow); position:relative;
+}
+.step .num{
+  font-family:var(--serif); font-style:italic; font-size:26px; font-weight:600; color:var(--gold);
+  line-height:1; margin-bottom:8px;
+}
+.step h4{font-size:13px; font-weight:700; color:var(--navy-ink); margin-bottom:4px}
+.step p{font-size:12px; color:var(--ink-2); line-height:1.55}
+
+/* ---------- App shell ---------- */
+#app{max-width:1280px; margin:0 auto; padding:0 32px 72px}
+#preResultsBanner{
+  display:none; margin:20px 0 0; background:rgba(227,176,75,.10); border:1px solid #6e5a24;
+  border-left:4px solid var(--amber); border-radius:8px; padding:12px 18px;
+  font-size:13px; color:#e5c164; align-items:center; gap:10px;
+}
+#preResultsBanner.on{display:flex}
+#preResultsBanner b{font-weight:800}
+
+/* Filter bar */
+.filterbar{
+  position:sticky; top:0; z-index:50;
+  background:rgba(38,43,51,.92); backdrop-filter:blur(10px);
+  margin:0 -32px; padding:14px 32px 12px; border-bottom:1px solid var(--line);
+  display:flex; align-items:flex-end; gap:14px; flex-wrap:wrap;
+}
+.filter{display:flex; flex-direction:column; gap:4px}
+.filter label{
+  font-size:10px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:var(--ink-3);
+}
+.filter select{
+  font-family:var(--sans); font-size:13px; font-weight:600; color:var(--navy-ink);
+  border:1px solid var(--line); background:var(--card); border-radius:8px;
+  padding:7px 30px 7px 11px; min-width:130px; cursor:pointer; appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23b6bcc4' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right 11px center;
+  transition:border-color .15s;
+}
+.filter select:hover{border-color:var(--gold)}
+.filter select:focus{outline:none; border-color:var(--gold); box-shadow:0 0 0 3px rgba(184,145,47,.15)}
+#resetFilters{
+  font-size:12px; font-weight:700; color:var(--ink-3); background:none; border:none;
+  cursor:pointer; padding:8px 4px; letter-spacing:.02em;
+}
+#resetFilters:hover{color:var(--red)}
+#cohortCount{
+  margin-left:auto; font-size:12px; font-weight:600; color:var(--ink-2);
+  background:var(--card); border:1px solid var(--line); border-radius:999px; padding:7px 14px;
+}
+#cohortCount b{font-family:var(--serif); font-size:14px; color:var(--navy)}
+
+/* Tabs */
+.tabbar{
+  display:flex; gap:2px; margin:22px 0 26px; border-bottom:2px solid var(--line);
+  overflow-x:auto; scrollbar-width:none;
+}
+.tabbar::-webkit-scrollbar{display:none}
+.tab{
+  font-family:var(--sans); background:none; border:none; cursor:pointer;
+  padding:10px 15px 12px; font-size:13px; font-weight:600; color:var(--ink-2);
+  border-bottom:2.5px solid transparent; margin-bottom:-2px; white-space:nowrap;
+  display:flex; align-items:baseline; gap:7px; transition:color .15s;
+}
+.tab .tn{
+  font-family:var(--serif); font-style:italic; font-size:11px; color:var(--ink-3); font-weight:600;
+}
+.tab:hover{color:var(--navy)}
+.tab.active{color:var(--navy); border-bottom-color:var(--gold)}
+.tab.active .tn{color:var(--gold)}
+.panel{display:none; animation:fadeUp .35s ease both}
+.panel.active{display:block}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+/* Section heading */
+.section-head{margin:6px 0 18px; display:flex; align-items:baseline; gap:14px; flex-wrap:wrap}
+.section-head h2{
+  font-family:var(--serif); font-size:22px; font-weight:600; color:var(--navy-ink);
+  letter-spacing:.05em; text-transform:uppercase;
+}
+.section-head h2::before{content:'| '; color:var(--gold)}
+.section-head .desc{font-size:13px; color:var(--ink-3)}
+
+/* KPI strip */
+.kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; margin-bottom:22px}
+.kpi{
+  background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+  padding:16px 18px 14px; box-shadow:var(--shadow); position:relative; overflow:hidden;
+}
+.kpi::before{
+  content:''; position:absolute; top:0; left:0; right:0; height:3px;
+  background:linear-gradient(90deg,var(--gold),var(--gold-soft));
+  opacity:0; transition:opacity .2s;
+}
+.kpi:hover::before{opacity:1}
+.kpi .label{font-size:10px; font-weight:800; letter-spacing:.13em; text-transform:uppercase; color:var(--ink-3)}
+.kpi .value{
+  font-family:var(--serif); font-size:31px; font-weight:600; color:var(--navy-ink);
+  line-height:1.15; margin-top:5px; font-variant-numeric:tabular-nums;
+}
+.kpi .value small{font-size:16px; color:var(--ink-3); font-weight:500}
+.kpi .foot{font-size:11px; color:var(--ink-3); margin-top:3px; font-weight:500}
+.kpi .foot.good{color:var(--green)} .kpi .foot.bad{color:var(--red)}
+
+/* Cards & grids */
+.grid{display:grid; gap:16px; margin-bottom:16px}
+.grid.c2{grid-template-columns:1fr 1fr}
+.grid.c3{grid-template-columns:1fr 1fr 1fr}
+.grid.c21{grid-template-columns:1.6fr 1fr}
+.grid.c12{grid-template-columns:1fr 1.6fr}
+@media(max-width:960px){.grid.c2,.grid.c3,.grid.c21,.grid.c12{grid-template-columns:1fr}.steps{grid-template-columns:1fr}}
+.card{
+  background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+  box-shadow:var(--shadow); padding:18px 20px 16px; position:relative;
+}
+.card h3{
+  font-size:13.5px; font-weight:800; color:var(--navy-ink); letter-spacing:.01em;
+  display:flex; align-items:baseline; gap:8px;
+}
+.card h3 .hint{font-size:11px; font-weight:500; color:var(--ink-3); letter-spacing:0}
+.card .chart-wrap{position:relative; height:290px; margin-top:14px}
+.card .chart-wrap.tall{height:360px}
+.card .chart-wrap.short{height:230px}
+
+/* Chart "how to read" hints */
+.info{
+  position:absolute; top:13px; right:13px; width:19px; height:19px; border-radius:50%;
+  border:1px solid var(--line); color:var(--ink-3); font-size:11px; font-weight:700;
+  display:flex; align-items:center; justify-content:center; cursor:help;
+  background:var(--card); z-index:5; user-select:none; transition:all .15s;
+}
+.info:hover,.info:focus{border-color:var(--gold); color:var(--gold); outline:none}
+.info::after{
+  content:attr(data-tip); position:absolute; top:26px; right:-4px; width:300px;
+  background:#14171c; border:1px solid var(--line); border-radius:8px; padding:11px 13px;
+  font-size:11.5px; font-weight:500; color:var(--ink-2); line-height:1.6; text-align:left;
+  opacity:0; pointer-events:none; transform:translateY(-4px); transition:all .18s;
+  z-index:80; box-shadow:var(--shadow-lift); white-space:normal;
+}
+.info:hover::after,.info:focus::after{opacity:1; transform:none}
+
+/* Locked overlay (pre-results) */
+.card.locked .chart-wrap, .card.locked table, .card.locked .matrix{filter:blur(3px) grayscale(.6); opacity:.35; pointer-events:none}
+.card.locked::after{
+  content:'Awaiting results day — upload the file again once the QS Grade column is complete';
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  font-size:12.5px; font-weight:700; color:#e5c164; text-align:center; padding:20px 36px; line-height:1.6;
+}
+
+/* Headlines */
+.headlines{list-style:none; margin-top:12px}
+.headlines li{
+  padding:11px 2px 11px 26px; border-bottom:1px solid var(--line-soft);
+  font-size:13.5px; color:var(--ink-2); position:relative; line-height:1.55;
+}
+.headlines li:last-child{border-bottom:none}
+.headlines li::before{
+  content:''; position:absolute; left:4px; top:18px; width:7px; height:7px;
+  border-radius:2px; background:var(--gold); transform:rotate(45deg);
+}
+.headlines li b{color:var(--navy-ink); font-weight:700}
+
+/* Tables */
+.tbl-wrap{overflow-x:auto; margin-top:14px}
+table{width:100%; border-collapse:collapse; font-size:12.5px}
+th{
+  text-align:left; font-size:10px; font-weight:800; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--ink-3); padding:8px 10px; border-bottom:2px solid var(--line); white-space:nowrap;
+}
+th.r,td.r{text-align:right}
+td{padding:8px 10px; border-bottom:1px solid var(--line-soft); color:var(--ink-2); font-variant-numeric:tabular-nums; white-space:nowrap}
+td.strong{color:var(--navy-ink); font-weight:700}
+tbody tr:hover td{background:#333a43}
+tr.total td{border-top:2px solid var(--line); font-weight:700; color:var(--navy-ink); background:#343b44}
+.pill{display:inline-block; border-radius:999px; padding:2px 9px; font-size:11px; font-weight:700}
+.pill.g{background:rgba(227,176,75,.16); color:#eec25a}
+.pill.a{background:rgba(216,207,158,.14); color:#d8cf9e}
+.pill.r{background:rgba(194,59,46,.18); color:#e0736a}
+.pill.n{background:rgba(255,255,255,.06); color:var(--ink-3)}
+.delta-up{color:var(--green); font-weight:700}
+.delta-dn{color:var(--red); font-weight:700}
+.delta-eq{color:var(--ink-3)}
+
+/* Matrix */
+.matrix{display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-top:14px}
+.matrix .cell{
+  border-radius:8px; padding:16px 14px; text-align:center; border:1px solid var(--line);
+}
+.matrix .cell .mv{font-family:var(--serif); font-size:27px; font-weight:600; line-height:1.1}
+.matrix .cell .ml{font-size:10.5px; font-weight:800; letter-spacing:.1em; text-transform:uppercase; margin-top:4px}
+.matrix .above{background:rgba(227,176,75,.13)} .matrix .above .mv,.matrix .above .ml{color:#eec25a}
+.matrix .equal{background:rgba(255,255,255,.05)} .matrix .equal .mv,.matrix .equal .ml{color:#d6d9de}
+.matrix .below{background:rgba(194,59,46,.14)} .matrix .below .mv,.matrix .below .ml{color:#e0736a}
+
+/* Inline selects inside cards */
+.inline-controls{display:flex; gap:10px; flex-wrap:wrap; margin:2px 0 4px}
+.inline-controls .filter select{min-width:120px}
+
+/* Teacher panel */
+.teacher-head{display:flex; align-items:flex-end; gap:18px; flex-wrap:wrap; margin-bottom:18px}
+.priority-list{list-style:none; margin-top:12px}
+.priority-list li{
+  display:flex; gap:11px; padding:10px 2px; border-bottom:1px solid var(--line-soft);
+  font-size:13px; color:var(--ink-2); line-height:1.55;
+}
+.priority-list li:last-child{border-bottom:none}
+.priority-list .tag{
+  flex:none; align-self:flex-start; margin-top:1px;
+  font-size:9.5px; font-weight:800; letter-spacing:.09em; text-transform:uppercase;
+  border-radius:5px; padding:3px 8px;
+}
+.tag.dev{background:rgba(227,176,75,.16); color:#eec25a}
+.tag.str{background:rgba(124,201,143,.14); color:#7cc98f}
+.tag.watch{background:rgba(194,59,46,.18); color:#e0736a}
+.priority-list b{color:var(--navy-ink)}
+
+/* Footer */
+footer{
+  border-top:1px solid var(--line); padding:22px 32px 30px; text-align:center;
+  font-size:11.5px; color:var(--ink-3);
+}
+footer b{color:var(--ink-2)}
+
+/* Empty chart note */
+.empty-note{
+  display:flex; align-items:center; justify-content:center; height:100%;
+  color:var(--ink-3); font-size:12.5px; font-weight:600; text-align:center; padding:0 24px;
+}
+
+/* Hub cloud library */
+#hubCloudBanner{
+  background:rgba(124,201,143,.12); border-bottom:1px solid rgba(124,201,143,.35);
+  padding:9px 32px; text-align:center; font-size:12.5px; font-weight:600; color:#9ad6a8;
+}
+#hubCloudBanner b{font-weight:800; color:#c8ecc8}
+.qs-hub-library-wrap{
+  margin:28px auto 0; max-width:860px; text-align:left;
+  background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
+  padding:18px 18px 16px; box-shadow:var(--shadow);
+}
+.qs-hub-library-wrap h3{
+  font-family:var(--serif); font-size:15px; font-weight:600; letter-spacing:.04em;
+  text-transform:uppercase; color:var(--navy-ink); margin-bottom:6px;
+}
+.qs-hub-library-wrap .qs-hub-lead{font-size:12.5px; color:var(--ink-2); margin-bottom:12px; line-height:1.5}
+.qs-hub-status{font-size:12px; font-weight:600; color:var(--ink-3); margin-bottom:10px; min-height:1.2em}
+.qs-hub-status--ok{color:var(--green)}
+.qs-hub-status--err{color:var(--red)}
+.qs-hub-library{display:flex; flex-wrap:wrap; gap:10px}
+.qs-hub-year{
+  flex:1 1 160px; max-width:220px; text-align:left; cursor:pointer;
+  background:var(--bg); border:1px solid var(--line); border-radius:8px;
+  padding:12px 14px; color:var(--ink); transition:all .18s ease;
+}
+.qs-hub-year:hover{border-color:var(--gold); transform:translateY(-1px)}
+.qs-hub-year.on{border-color:var(--gold); background:rgba(227,176,75,.1); box-shadow:inset 0 0 0 1px rgba(227,176,75,.25)}
+.qs-hub-year-label{display:block; font-family:var(--serif); font-size:16px; font-weight:600; letter-spacing:.04em; color:var(--gold); margin-bottom:4px}
+.qs-hub-year-meta{display:block; font-size:11.5px; color:var(--ink-3); line-height:1.45; font-weight:500}
+.qs-hub-empty{font-size:12.5px; color:var(--ink-3); font-weight:600; padding:4px 2px 2px}
+html.qs-embed header{padding-top:0}
+html.qs-embed .header-inner{padding:18px 20px 16px}
+html.qs-embed #uploadHero{margin-top:28px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <div class="crest">KSS</div>
+    <div class="brand">
+      <div class="kicker">Qualifications Scotland · Attainment Intelligence</div>
+      <h1>KSS QS Attainment Analysis <span class="accent" id="sessionLabel"></span></h1>
+      <div class="sub">Faculty of Art &amp; Drama · Knightswood Secondary<span id="sessionSub"></span></div>
+    </div>
+    <div class="header-actions">
+      <span class="file-chip" id="fileChip">
+        <span class="dot"></span><span id="fileChipName">—</span><span class="meta" id="fileChipMeta"></span>
+      </span>
+      <button class="btn btn-ghost hidden" id="btnReplace">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>
+        Replace data
+      </button>
+      <button class="btn btn-gold hidden qs-hub-manage-only" id="btnSaveHub" title="Save this session to Faculty Hub for staff review">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Save to Hub
+      </button>
+      <button class="btn btn-ghost hidden qs-hub-manage-only" id="btnDeleteHub" title="Delete the saved hub snapshot for this session">Delete saved</button>
+      <button class="btn btn-gold hidden" id="btnSnapshot">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>
+        Download snapshot
+      </button>
+    </div>
+  </div>
+</header>
+
+<div id="hubCloudBanner" class="hidden"></div>
+<div id="snapshotBanner" class="hidden">📌 <b>Snapshot report</b> — data embedded <span id="snapshotMeta"></span>. This copy opens without the Excel file.</div>
+
+<input type="file" id="fileInput" accept=".xlsx,.xlsm,.xls,.csv" class="hidden">
+
+<section id="uploadHero">
+  <h2 class="hero-title">Every chart, table &amp; insight —<br>from <em>one</em> Excel file.</h2>
+  <p class="hero-sub">Upload the faculty master workbook and the analysis suite builds itself. Faculty heads can <b>Save to Hub</b> so staff can reopen each exam session securely inside the Faculty Hub.</p>
+  <div class="hero-controls">
+    <div class="filter"><label>Exam session</label><select id="ySession"><option value="">Auto-detect from file</option></select></div>
+  </div>
+  <div class="qs-hub-library-wrap" id="qsHubLibraryWrap">
+    <h3>Saved sessions in the hub</h3>
+    <p class="qs-hub-lead">Open a previous year to review interactively. New uploads replace that session when you save again.</p>
+    <div class="qs-hub-status" id="qsHubStatus">Checking saved sessions…</div>
+    <div class="qs-hub-library" id="qsHubLibrary"></div>
+  </div>
+  <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="Upload Excel file" style="margin-top:22px">
+    <div class="dz-icon">
+      <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M12 18v-6"/><path d="M9 15l3 3 3-3"/></svg>
+    </div>
+    <div class="dz-title">Drop this session's <b>QS data workbook</b> here</div>
+    <div class="dz-sub">or <b>click to browse</b> — .xlsx / .xlsm / .csv · any year's file works</div>
+    <div class="dz-note">
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      Parsed in your browser — then saved securely to Supabase when you choose Save to Hub
+    </div>
+    <div class="dz-error" id="dzError"></div>
+  </div>
+  <div class="steps">
+    <div class="step"><div class="num">01</div><h4>Fill in the workbook</h4><p>Yellow cells only — estimates before results day, grades &amp; component marks after. Grey and blue cells look after themselves.</p></div>
+    <div class="step"><div class="num">02</div><h4>Drop it above</h4><p>Sheets are detected automatically. Then drop the <b>QS Component Marks Report</b> (CSV) on top — it fills this year's component marks and whole-school attainment in one go.</p></div>
+    <div class="step"><div class="num">03</div><h4>Save to the hub</h4><p>Faculty heads save the session once — staff reopen it from Improvement any time. Download snapshot still works for offline sharing.</p></div>
+  </div>
+</section>
+
+<div id="app" class="hidden">
+  <div id="preResultsBanner">⏳ <span><b>Pre-results mode</b> — no awarded grades detected yet. Analysis below uses <b>teacher estimates</b> where marked <i>(est.)</i>; value-added charts unlock when the QS Grade column is filled in after results day.</span></div>
+
+  <div class="filterbar">
+    <div class="filter"><label>Subject</label><select id="fSubject"></select></div>
+    <div class="filter"><label>Level</label><select id="fLevel"></select></div>
+    <div class="filter"><label>Teacher</label><select id="fTeacher"></select></div>
+    <div class="filter"><label>SIMD Quintile</label><select id="fQuintile"></select></div>
+    <button id="resetFilters">✕ Reset</button>
+    <span id="cohortCount"><b>0</b> pupils in view</span>
+  </div>
+
+  <nav class="tabbar" id="tabbar">
+    <button class="tab active" data-tab="overview"><span class="tn">01</span>Overview</button>
+    <button class="tab" data-tab="attainment"><span class="tn">02</span>Attainment</button>
+    <button class="tab" data-tab="value"><span class="tn">03</span>Value Added</button>
+    <button class="tab" data-tab="equity"><span class="tn">04</span>Equity · SIMD</button>
+    <button class="tab" data-tab="attendance"><span class="tn">05</span>Attendance</button>
+    <button class="tab" data-tab="components"><span class="tn">06</span>Components</button>
+    <button class="tab" data-tab="trends"><span class="tn">07</span>Over Time</button>
+    <button class="tab" data-tab="teacher"><span class="tn">08</span>Teacher</button>
+    <button class="tab" data-tab="reports"><span class="tn">09</span>Reports</button>
+  </nav>
+
+  <!-- 01 OVERVIEW -->
+  <section class="panel active" id="panel-overview">
+    <div class="section-head"><h2>Overview</h2><span class="desc">Faculty headlines at a glance</span></div>
+    <div class="kpis" id="kpiStrip"></div>
+    <div class="grid c2">
+      <div class="card"><h3 id="hGradeDist">Grade distribution</h3><div class="chart-wrap"><canvas id="chGradeDist"></canvas></div></div>
+      <div class="card"><h3 id="hAcBySubject">A–C rate by subject</h3><div class="chart-wrap"><canvas id="chAcBySubject"></canvas></div></div>
+    </div>
+    <div class="grid c12">
+      <div class="card"><h3>Cohort by level <span class="hint">entries per subject</span></h3><div class="chart-wrap"><canvas id="chCohort"></canvas></div></div>
+      <div class="card"><h3>Auto-generated headlines <span class="hint">recalculated for the current filter</span></h3><ul class="headlines" id="headlines"></ul></div>
+    </div>
+  </section>
+
+  <!-- 02 ATTAINMENT -->
+  <section class="panel" id="panel-attainment">
+    <div class="section-head"><h2>Attainment</h2><span class="desc">Band profiles and subject / level breakdown</span></div>
+    <div class="grid c2">
+      <div class="card"><h3 id="hBandProfile">Band profile by subject</h3><div class="chart-wrap"><canvas id="chBandProfile"></canvas></div></div>
+      <div class="card"><h3 id="hAvgBand">Average band by level <span class="hint">lower is better · 1 = A1</span></h3><div class="chart-wrap"><canvas id="chAvgBand"></canvas></div></div>
+    </div>
+    <div class="card"><h3>Subject × level breakdown</h3><div class="tbl-wrap"><table id="tblBreakdown"></table></div></div>
+  </section>
+
+  <!-- 03 VALUE ADDED -->
+  <section class="panel" id="panel-value">
+    <div class="section-head"><h2>Value Added</h2><span class="desc">Awarded outcomes vs CEM baseline &amp; estimate accuracy</span>
+      <label class="va-toggle"><input type="checkbox" id="vaExtToggle"> Include Higher / Adv Higher <span class="ext">(extrapolated — CEM predicts to N5 only)</span></label>
+    </div>
+    <div class="grid c2">
+      <div class="card needs-results"><h3 id="hVaScatter">Awarded vs CEM predicted band <span class="hint">points below the line beat their prediction</span></h3><div class="chart-wrap tall"><canvas id="chVaScatter"></canvas></div></div>
+      <div class="card needs-results"><h3 id="hVaTeacherTitle">Value added by teacher <span class="hint">avg predicted band − awarded band</span></h3><div class="chart-wrap tall"><canvas id="chVaTeacher"></canvas></div></div>
+    </div>
+    <div class="grid c2">
+      <div class="card needs-results"><h3>Estimate accuracy <span class="hint">estimate band − awarded band</span></h3><div class="chart-wrap"><canvas id="chEstAcc"></canvas></div></div>
+      <div class="card needs-results"><h3>Prediction outcome matrix</h3>
+        <div class="matrix" id="vaMatrix"></div>
+        <div class="chart-wrap short"><canvas id="chAttained"></canvas></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 04 EQUITY -->
+  <section class="panel" id="panel-equity">
+    <div class="section-head"><h2>Equity · SIMD</h2><span class="desc">The poverty-related attainment gap</span></div>
+    <div class="grid c2">
+      <div class="card"><h3 id="hAcQuintile">A–C rate by SIMD quintile</h3><div class="chart-wrap"><canvas id="chAcQuintile"></canvas></div></div>
+      <div class="card"><h3 id="hSimdGap">Deprivation gap by subject <span class="hint">A–C rate: Q1–2 vs Q4–5</span></h3><div class="chart-wrap"><canvas id="chSimdGap"></canvas></div></div>
+    </div>
+    <div class="card"><h3 id="hAttainDep">Attainment versus deprivation <span class="hint">bubble size = pupils at that decile · dashed line = school trend</span></h3><div class="chart-wrap tall"><canvas id="chAttainDep"></canvas></div></div>
+    <div class="card"><h3 id="hSimdProfile">SIMD vs attainment <span class="hint">band profile by decile · 1 = most deprived</span></h3><div class="chart-wrap"><canvas id="chSimdProfile"></canvas></div></div>
+    <div class="card"><h3 id="hTeacherSimd">Per-teacher SIMD breakdown</h3><div class="tbl-wrap"><table id="tblTeacherSimd"></table></div></div>
+  </section>
+
+  <!-- 05 ATTENDANCE -->
+  <section class="panel" id="panel-attendance">
+    <div class="section-head"><h2>Attendance</h2><span class="desc">Presence and attainment</span></div>
+    <div class="grid c21">
+      <div class="card"><h3 id="hAttScatter">Attendance vs outcome <span class="hint">with trend line</span></h3><div class="chart-wrap tall"><canvas id="chAttScatter"></canvas></div></div>
+      <div class="card"><h3 id="hAcAttBand">A–C rate by attendance band</h3><div class="chart-wrap tall"><canvas id="chAcAttBand"></canvas></div></div>
+    </div>
+  </section>
+
+  <!-- 06 COMPONENTS -->
+  <section class="panel" id="panel-components">
+    <div class="section-head"><h2>Components</h2><span class="desc">Year-on-year component marks vs national averages</span></div>
+    <div class="inline-controls">
+      <div class="filter"><label>Course</label><select id="cSubject"></select></div>
+      <div class="filter"><label>Level</label><select id="cLevel"></select></div>
+      <div class="filter"><label>Component</label><select id="cComponent"></select></div>
+    </div>
+    <div class="grid c2">
+      <div class="card"><h3>Component marks by year <span class="hint">each component: cohort (solid) vs national (faded)</span></h3><div class="chart-wrap tall"><canvas id="chCompYoY"></canvas></div></div>
+      <div class="card"><h3>Deviation from national average <span class="hint">per component · marks above / below</span></h3><div class="chart-wrap tall"><canvas id="chCompDev"></canvas></div></div>
+    </div>
+    <div class="card"><h3>Component detail <span class="hint">Δ YoY compares each year with the previous</span></h3><div class="tbl-wrap"><table id="tblComp"></table></div></div>
+  </section>
+
+  <!-- 07 ATTAINMENT OVER TIME -->
+  <section class="panel" id="panel-trends">
+    <div class="section-head"><h2>Attainment Over Time</h2><span class="desc">Multi-year trends from the combined component records + this session's results</span></div>
+    <div class="inline-controls">
+      <div class="filter"><label>Course</label><select id="trSubject"></select></div>
+      <div class="filter"><label>Level</label><select id="trLevel"></select></div>
+    </div>
+    <div class="grid c21">
+      <div class="card"><h3>Average band by year <span class="hint">lower is better · one line per course &amp; level</span></h3><div class="chart-wrap tall"><canvas id="chTrendBand"></canvas></div></div>
+      <div class="card"><h3>How are we doing? <span class="hint">auto-generated trend analysis</span></h3><ul class="headlines" id="trendHeadlines"></ul></div>
+    </div>
+    <div class="grid c2">
+      <div class="card"><h3>Grades by year comparison <span class="hint">% of graded entries</span></h3><div class="chart-wrap"><canvas id="chTrendGrades"></canvas></div></div>
+      <div class="card"><h3>A and A–C rate by year</h3><div class="chart-wrap"><canvas id="chTrendAC"></canvas></div></div>
+    </div>
+    <div class="card"><h3>Component breakdown by year <span class="hint">average mark per component — cohort (solid) vs national (faded) · use the Course &amp; Level filters above</span></h3><div class="chart-wrap tall"><canvas id="chTrendCompDev"></canvas></div></div>
+  </section>
+
+  <!-- 09 REPORTS -->
+  <section class="panel" id="panel-reports">
+    <div class="section-head"><h2>Reports</h2><span class="desc">Print-ready A4 portrait reports · always built from the full dataset, regardless of the filter bar</span></div>
+    <div class="grid c2">
+      <div class="card">
+        <h3>Faculty report</h3>
+        <p class="rep-desc">The complete picture: whole-faculty summary, attainment by level, equity, value added, multi-year trends, areas for development for the <b>faculty improvement plan</b>, plus a section per subject.</p>
+        <button class="btn btn-gold" id="repFacultyBtn">Generate faculty report</button>
+      </div>
+      <div class="card">
+        <h3>Subject report</h3>
+        <p class="rep-desc">A standalone department report — broken down by level, with trends, component analysis and subject-specific development areas. Ideal for handing to each department.</p>
+        <div class="inline-controls" style="margin-bottom:12px"><div class="filter"><label>Subject</label><select id="repSubjectSel"></select></div></div>
+        <button class="btn btn-gold" id="repSubjectBtn">Generate subject report</button>
+      </div>
+      <div class="card">
+        <h3>Teacher report</h3>
+        <p class="rep-desc">An individual report for <b>PRD discussions</b> — class-by-class results, strengths, development priorities, professional-development suggestions and reflection prompts.</p>
+        <div class="inline-controls" style="margin-bottom:12px"><div class="filter"><label>Teacher</label><select id="repTeacherSel"></select></div></div>
+        <button class="btn btn-gold" id="repTeacherBtn">Generate teacher report</button>
+      </div>
+      <div class="card">
+        <h3>Departmental review</h3>
+        <p class="rep-desc">Answers the standard end-of-session review questions per level — exceeded / matched / below predicted attainment, component marks vs national — with <b>type-in boxes for reflections</b> before printing. Attach whole-school results to unlock the highest / lowest attainment questions.</p>
+        <div class="inline-controls" style="margin-bottom:12px"><div class="filter"><label>Subject</label><select id="revSubjectSel"></select></div></div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <button class="btn btn-gold" id="revBtn">Generate review</button>
+          <button class="btn btn-ghost" id="schoolBtn">Attach whole-school results…</button>
+        </div>
+        <div id="schoolStatus" class="rep-note" style="text-align:left;margin-top:10px">No whole-school data attached — highest / lowest attainment questions will show as awaiting data.</div>
+      </div>
+    </div>
+    <input type="file" id="schoolInput" accept=".xlsx,.xlsm,.xls" class="hidden">
+    <p class="rep-note">Each report opens in a new tab with a <b>Print / Save as PDF</b> button — choose “Save as PDF”, A4, portrait. Colours and charts are embedded automatically.</p>
+  </section>
+
+  <!-- 08 TEACHER -->
+  <section class="panel" id="panel-teacher">
+    <div class="section-head"><h2>Teacher view</h2><span class="desc">Individual class analysis &amp; development priorities</span></div>
+    <div class="teacher-head">
+      <div class="filter"><label>Teacher</label><select id="tTeacher"></select></div>
+      <div class="filter"><label>Subject</label><select id="tSubject"></select></div>
+      <div class="filter"><label>Level</label><select id="tLevel"></select></div>
+      <span id="tCount" style="margin-left:auto;font-size:12px;font-weight:600;color:var(--ink-2);background:var(--card);border:1px solid var(--line);border-radius:999px;padding:7px 14px"></span>
+    </div>
+    <div class="kpis" id="tKpis"></div>
+    <div class="grid c21">
+      <div class="card"><h3 id="hTGrades">Grade distribution</h3><div class="chart-wrap"><canvas id="chTGrades"></canvas></div></div>
+      <div class="card needs-results"><h3>Estimates outcome <span class="hint">awarded vs estimate — selected teacher</span></h3><div class="chart-wrap"><canvas id="chTEstPie"></canvas></div></div>
+    </div>
+    <div class="grid c2">
+      <div class="card"><h3>Average CEM score by class <span class="hint">100 ≈ national average</span></h3><div class="chart-wrap"><canvas id="chTCem"></canvas></div></div>
+      <div class="card"><h3 id="hTAvgBand">Average band by class <span class="hint">lower is better</span></h3><div class="chart-wrap"><canvas id="chTAvgBand"></canvas></div></div>
+    </div>
+    <div class="grid c2">
+      <div class="card needs-results"><h3>Grade vs estimates by class <span class="hint">above / below / equal to estimate</span></h3><div class="chart-wrap"><canvas id="chTEstComp"></canvas></div></div>
+      <div class="card"><h3 id="hTComps">Component marks vs national <span class="hint">selected teacher · 25-26</span></h3><div class="chart-wrap"><canvas id="chTComps"></canvas></div></div>
+    </div>
+    <div class="grid c12">
+      <div class="card"><h3>Strengths &amp; development priorities <span class="hint">auto-generated from the data</span></h3><ul class="priority-list" id="tPriorities"></ul></div>
+      <div class="card"><h3>Class list</h3><div class="tbl-wrap"><table id="tblClass"></table></div></div>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  <b>KSS QS Attainment Dashboard</b> · Faculty of Art &amp; Drama · Parsed in-browser · Saved snapshots live securely in Faculty Hub · CEM prediction is an approximation for value-added context, not an official QS predictor, and is applied to National 5 only
+</footer>
+
+<script>
+'use strict';
+/* ============================================================
+   KSS QS Attainment Dashboard — application logic
+   ============================================================ */
+
+const GRADE_BAND = {A1:1,A2:2,B3:3,B4:4,C5:5,C6:6,B1:3,B2:4,C1:5,C2:6,D:7,'NO AWARD':8,NA:8,'N/A':8,DNA:9,'DID NOT ATTEMPT':9,A:2,B:4,C:6};
+const BAND_LABEL = {1:'A1',2:'A2',3:'B3',4:'B4',5:'C5',6:'C6',7:'D',8:'No Award',9:'DNA'};
+const BAND_COLOR = {1:'#f7ca4a',2:'#e0ab33',3:'#cbc79b',4:'#b0ad85',5:'#d99a4e',6:'#c07a38',7:'#995633',8:'#c23b2e',9:'#7a8089'};
+const CLUSTERS = ['A','B','C','D','No Award','DNA'];
+const CLUSTER_COLOR = {A:'#eebc45',B:'#b5b8a8',C:'#d8cf9e',D:'#ce8147','No Award':'#c23b2e',DNA:'#7a8089'};
+const SUBJ_COLOR = {'Art & Design':'#e3b04b','Drama':'#ddd8c0','Photography':'#c96b31'};
+const PALETTE = ['#e3b04b','#ddd8c0','#c96b31','#c23b2e','#9aa0a8','#b5b8a8','#8a6d3b'];
+const COMP_COLS = ['#e3b04b','#ddd8c0','#c96b31','#c23b2e','#9aa0a8','#8fb8b6','#b5825f','#7d5ba6'];
+const fadeCol = hex=>{const n=parseInt(hex.slice(1),16);return 'rgba('+(n>>16&255)+','+(n>>8&255)+','+(n&255)+',.38)';};
+const compTitle = r=>r.title||('Component '+r.component);
+const LEVEL_ORDER = ['National 5','Higher','Advanced Higher','NPA'];
+
+const state = { rows:[], comps:[], filename:'', pupilCount:0, preResults:false, vaExt:false,
+  filters:{subject:'All',level:'All',teacher:'All',quintile:'All'}, tab:'overview' };
+const charts = {};
+const $ = id => document.getElementById(id);
+
+/* ---------- helpers ---------- */
+const normSubject = s => { s=String(s||'').trim();
+  if(/^art/i.test(s)){ const m=s.match(/\((design|expressive)\)/i); return 'Art & Design'+(m?' ('+m[1][0].toUpperCase()+m[1].slice(1).toLowerCase()+')':''); }
+  if(/photo/i.test(s)) return 'Photography'; if(/drama/i.test(s)) return 'Drama'; return s||'—'; };
+const normLevel = s => { s=String(s||'').trim();
+  if(s==='75') return 'National 5'; if(s==='76') return 'Higher'; if(s==='77') return 'Advanced Higher';
+  if(/^n\.?\s*5$|nat(ional)?\s*5/i.test(s)) return 'National 5'; if(/adv/i.test(s)) return 'Advanced Higher'; if(/^higher$/i.test(s)) return 'Higher'; if(/npa/i.test(s)) return 'NPA'; return s||'—'; };
+const toNum = v => { if(v===null||v===undefined||v==='') return null; const n=parseFloat(String(v).replace('%','')); return isNaN(n)?null:n; };
+const gradeToBand = g => { if(g===null||g===undefined||g==='') return null; if(typeof g==='number') return (g>=1&&g<=9)?Math.round(g):null; const k=String(g).trim().toUpperCase().replace(/\s+/g,' '); if(GRADE_BAND[k]!==undefined) return GRADE_BAND[k]; const n=parseFloat(k); return (!isNaN(n)&&n>=1&&n<=9)?Math.round(n):null; };
+const cemBand = (cem,level) => { if(cem===null) return null; const off = level==='Advanced Higher'?1.5 : level==='Higher'?0.8 : 0; let b=Math.round(5.5-(cem-100)*0.07-off); return Math.max(1,Math.min(8,b)); };
+const pct = (num,den) => den>0 ? (100*num/den) : null;
+const fmtPct = v => v===null?'—':v.toFixed(1)+'%';
+const fmt1 = v => v===null?'—':v.toFixed(1);
+const avg = arr => arr.length? arr.reduce((a,b)=>a+b,0)/arr.length : null;
+const esc = s => String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function headerMap(json0){ const map={}; Object.keys(json0||{}).forEach(k=>map[k.toLowerCase().replace(/[^a-z0-9]/g,'')]=k); return map; }
+function pick(row,map,...cands){ for(const c of cands){ const key=map[c]; if(key!==undefined && row[key]!==undefined && row[key]!=='') return row[key]; } return null; }
+
+/* ---------- workbook parsing ---------- */
+/* Reads a sheet as objects, auto-detecting the header row (handles banner/blank rows above headers). */
+function sheetToObjects(ws){
+  if(!ws) return [];
+  const arr = XLSX.utils.sheet_to_json(ws, {header:1, defval:null});
+  let hi = -1;
+  for(let i=0; i<Math.min(arr.length,15); i++){
+    const cells = (arr[i]||[]).map(v=>String(v??'').trim().toLowerCase());
+    const has = k => cells.some(c=>c===k);
+    if((has('forename')&&has('surname')) || (has('year')&&has('mark')&&has('component'))){ hi=i; break; }
+  }
+  if(hi<0) return [];
+  const seen={};
+  const keys = (arr[hi]||[]).map(h=>{
+    let k = h===null? '' : String(h).trim(); if(!k) return '';
+    if(seen[k]!==undefined){ seen[k]++; k = k+'_'+seen[k]; } else seen[k]=0;
+    return k;
+  });
+  const out=[];
+  for(let i=hi+1; i<arr.length; i++){
+    const row=arr[i]; if(!row) continue;
+    const o={}; let any=false;
+    keys.forEach((k,j)=>{ if(!k) return; const v=row[j]??null; o[k]=v; if(v!==null && v!=='') any=true; });
+    if(any) out.push(o);
+  }
+  return out;
+}
+
+function parseResultRows(json){
+  if(!json.length) return [];
+  const m = headerMap(json[0]);
+  const natKeys = Object.keys(json[0]).filter(k=>/national/i.test(k));
+  const rows = [];
+  for(const r of json){
+    const fore = pick(r,m,'forename'), sur = pick(r,m,'surname');
+    if(!fore && !sur) continue;
+    const subject = pick(r,m,'subject');
+    if(subject===null || subject==='') continue;
+    const level = normLevel(pick(r,m,'level'));
+    let cem = toNum(pick(r,m,'cemscore','cem'));
+    if(cem===0) cem = null;
+    let attendance = toNum(pick(r,m,'attendance','attendancerate'));
+    if(attendance!==null && attendance<=1.5) attendance = attendance*100;
+    const gradeRaw = pick(r,m,'sqagrade','grade');
+    let band = gradeToBand(pick(r,m,'sqaresultband','resultband','sqaresults','sqaresult'));
+    if(band===null) band = gradeToBand(gradeRaw);
+    const est = gradeToBand(pick(r,m,'sqaestimate','sqaestimates','estimate','estimates'));
+    let pred = gradeToBand(pick(r,m,'cempredictedband','predictedband','cemprediction'));
+    if(pred===null) pred = cemBand(cem, level);
+    let decile = toNum(pick(r,m,'simddecile','simd'));
+    if(decile!==null && (decile<1 || decile>10)) decile = null; /* 0 = unknown SIMD in some exports */
+    const asnRaw = String(pick(r,m,'asn')||'').trim();
+    const nat = i => { let v = toNum(pick(r,m,'nationalavgc'+i,'nationalaveragec'+i)); if(v===null && natKeys[i-1]!==undefined) v = toNum(r[natKeys[i-1]]); return v; };
+    rows.push({
+      name: [fore,sur].filter(Boolean).join(' '),
+      teacher: String(pick(r,m,'teacher')||'—').trim() || '—',
+      subject: normSubject(subject),
+      level, cem, pred, attendance, est, band,
+      gradeRaw: gradeRaw!==null && gradeRaw!==''? String(gradeRaw).trim() : null,
+      decile, quintile: decile!==null? Math.ceil(decile/2) : null,
+      asn: !!asnRaw && !/^(0|no|n|none|-|na|n\/a)$/i.test(asnRaw),
+      c1: toNum(pick(r,m,'component1mark','component1')), n1: nat(1),
+      c2: toNum(pick(r,m,'component2mark','component2')), n2: nat(2),
+      c3: toNum(pick(r,m,'component3mark','component3')), n3: nat(3),
+    });
+  }
+  return rows;
+}
+
+function parseCompRows(json){
+  if(!json.length) return [];
+  const cm = headerMap(json[0]);
+  const out=[];
+  for(const r of json){
+    const year = pick(r,cm,'year');
+    let mark = toNum(pick(r,cm,'mark'));
+    if(mark!==null && mark>=999) mark=null; /* 999 = missing-data code */
+    const band = gradeToBand(pick(r,cm,'band'));
+    if(!year || (mark===null && band===null)) continue;
+    out.push({
+      year: String(year).trim(),
+      fore: String(pick(r,cm,'forename')||'').trim(),
+      sur: String(pick(r,cm,'surname')||'').trim(),
+      subject: normSubject(pick(r,cm,'coursetitle','course','subject')),
+      level: normLevel(pick(r,cm,'level')),
+      component: String(pick(r,cm,'component')||'').trim(),
+      title: String(pick(r,cm,'title')||'').trim(),
+      mark, band, nat: toNum(pick(r,cm,'nationalaveragemark','nationalaverage','nationalavg')),
+    });
+  }
+  return out;
+}
+
+/* ---------- QS Component Marks Report (official whole-school export) ---------- */
+function qsCompSheet(wb){
+  let best=null;
+  for(const n of wb.SheetNames){
+    const j=sheetToObjects(wb.Sheets[n]); if(!j.length) continue;
+    const m=headerMap(j[0]);
+    if(m['scn']!==undefined && m['mark']!==undefined && m['coursetitle']!==undefined && m['component']!==undefined && m['year']===undefined)
+      if(!best || j.length>best.length) best=j;
+  }
+  return best;
+}
+function mergeCompReport(json, filename){
+  const m=headerMap(json[0]);
+  const entries=[];
+  for(const r of json){
+    const fore=pick(r,m,'forename'), sur=pick(r,m,'surname');
+    if(!fore||!sur) continue;
+    let mark=toNum(pick(r,m,'mark')); if(mark!==null&&mark>=999) mark=null;
+    const band=gradeToBand(pick(r,m,'band'));
+    if(mark===null&&band===null) continue;
+    entries.push({fore:String(fore).trim(), sur:String(sur).trim(),
+      subject:normSubject(pick(r,m,'coursetitle')), level:normLevel(pick(r,m,'level')),
+      component:String(pick(r,m,'component')||'').trim(), title:String(pick(r,m,'title')||'').trim(),
+      mark, band});
+  }
+  if(!entries.length) throw new Error('No component mark rows found in the QS report.');
+  /* Session year: use the selected/detected session, else derive from the export date in the filename */
+  let year=state.session;
+  if(!year){ const d=filename.match(/(\d{2})(\d{2})(20\d{2})/); if(d){ const y=+d[3]-(+d[2]>=8?0:1); year=String(y%100).padStart(2,'0')+'-'+String((y+1)%100).padStart(2,'0'); } }
+  if(!year) year='this session';
+  /* Faculty subjects → component records for the current year (replacing any already present) */
+  const facSubs=[...new Set(state.rows.map(r=>r.subject))];
+  const isFac=s=>facSubs.some(f=>s===f||s.startsWith(f+' ('));
+  const facRows=entries.filter(r=>isFac(r.subject));
+  state.comps=state.comps.filter(r=>!(r.year===year && isFac(r.subject)));
+  facRows.forEach(r=>state.comps.push({year, fore:r.fore, sur:r.sur, subject:r.subject, level:r.level, component:r.component, title:r.title, mark:r.mark, band:r.band, nat:null}));
+  /* Every subject → whole-school attainment (one band per pupil per course) */
+  const seen=new Set(), school=[];
+  for(const r of entries){
+    if(r.band===null) continue;
+    const k=nameKey(r.fore,r.sur)+'¦'+r.subject;
+    if(seen.has(k)) continue; seen.add(k);
+    school.push({key:nameKey(r.fore,r.sur), subject:r.subject, level:r.level, band:r.band});
+  }
+  state.school=school;
+  state.compReport={filename, year, fac:facRows.length, all:entries.length};
+  $('fileChipMeta').textContent='· '+state.rows.length+' pupils · '+state.comps.length+' component records · marks report ✓'+(state.sheetName?' · sheet: '+state.sheetName:'');
+  $('schoolStatus').innerHTML='<span style="color:var(--green)">✓</span> QS Component Marks Report attached ('+esc(year)+'): <b>'+facRows.length+'</b> faculty component marks merged · whole-school attainment for <b>'+new Set(school.map(r=>r.key)).size+'</b> pupils across '+new Set(school.map(r=>r.subject)).size+' subjects — highest / lowest attainment questions unlocked.';
+  buildComponentControls(); buildTrendControls(); renderAll();
+  alert('QS Component Marks Report added for '+year+':\n· '+facRows.length+' faculty component marks (Components & Over Time updated)\n· whole-school attainment attached for the departmental review questions.\n\nNational averages still come from the Component Marks Combined sheet — paste them there when QS publishes them.');
+}
+
+function parseWorkbook(wb, filename){
+  /* Results sheet: score all candidates, keep the richest one */
+  const resCandidates = wb.SheetNames.filter(n=>{
+    const l=n.toLowerCase();
+    if(/pivot|dashboard|detail|donut|form/.test(l)) return false;
+    return ((l.includes('sqa')||/\bqs\b/.test(l)) && (l.includes('result')||l.includes('data')||l.includes('exam'))) || l.trim()==='data';
+  });
+  if(!resCandidates.length){
+    /* No results sheet — is this the official QS Component Marks Report? */
+    const qs=qsCompSheet(wb);
+    if(qs){
+      if(!state.rows.length) throw new Error('This looks like the QS Component Marks Report — upload the faculty data workbook first, then drop this file on top.');
+      mergeCompReport(qs, filename);
+      return;
+    }
+    throw new Error('Could not find a results sheet. Expected a sheet whose name contains “SQA” or “QS” plus “Results”, “Data” or “Exam” — or the QS Component Marks Report export.');
+  }
+  let best=null;
+  for(const name of resCandidates){
+    const rows = parseResultRows(sheetToObjects(wb.Sheets[name]));
+    if(!rows.length) continue;
+    const score = rows.length
+      + 3*rows.filter(r=>r.band!==null).length
+      + 1*rows.filter(r=>r.est!==null).length
+      + 0.5*rows.filter(r=>r.attendance!==null).length;
+    if(!best || score>best.score) best={name, rows, score};
+  }
+  if(!best) throw new Error('No pupil rows found. Checked sheet(s): '+resCandidates.join(', ')+'.');
+
+  /* Component marks: prefer a “combined” sheet, else merge per-year sheets */
+  const compNames = wb.SheetNames.filter(n=>{
+    const l=n.toLowerCase();
+    return /componant|component/.test(l) && !/pivot|dashboard/.test(l);
+  });
+  let comps=[];
+  const combined = compNames.find(n=>/combined/i.test(n));
+  if(combined) comps = parseCompRows(sheetToObjects(wb.Sheets[combined]));
+  else for(const n of compNames) comps = comps.concat(parseCompRows(sheetToObjects(wb.Sheets[n])));
+
+  /* Fresh master workbook: clear attachments tied to the previous dataset */
+  state.school=[]; state.compReport=null;
+  if($('schoolStatus')) $('schoolStatus').textContent='No whole-school data attached — highest / lowest attainment questions will show as awaiting data.';
+  loadData(best.rows, comps, filename, best.name);
+}
+
+/* ---------- state & boot ---------- */
+function loadData(rows, comps, filename, sheetName){
+  state.rows = rows; state.comps = comps; state.filename = filename; state.sheetName = sheetName||''; state.pupilCount = rows.length;
+  state.preResults = !rows.some(r => r.band !== null);
+  state.filters = {subject:'All',level:'All',teacher:'All',quintile:'All'};
+  $('uploadHero').classList.add('hidden');
+  $('app').classList.remove('hidden');
+  $('btnSnapshot').classList.remove('hidden');
+  $('btnReplace').classList.remove('hidden');
+  if($('btnSaveHub') && window.QsAttainmentService && window.QsAttainmentService.canManage()) $('btnSaveHub').classList.remove('hidden');
+  $('fileChip').classList.add('on');
+  $('fileChipName').textContent = filename;
+  $('fileChipMeta').textContent = '· '+rows.length+' pupils'+(comps.length? ' · '+comps.length+' component records':'')+(sheetName? ' · sheet: '+sheetName:'');
+  $('preResultsBanner').classList.toggle('on', state.preResults);
+  let sess = $('ySession').value || state.session || '';
+  if(!sess){ const m = ((sheetName||'')+' '+filename).match(/(\d{2})[-–\/](\d{2})/); if(m) sess = m[1]+'-'+m[2]; }
+  state.session = sess;
+  if(sess){
+    const o=[...$('ySession').options].find(o=>o.value===sess);
+    if(!o) $('ySession').insertAdjacentHTML('beforeend','<option value="'+esc(sess)+'">'+esc(sess)+'</option>');
+    $('ySession').value = sess;
+  }
+  $('sessionLabel').textContent = sess? '| '+sess : '';
+  $('sessionSub').textContent = sess? ' · Session 20'+sess.slice(0,2)+'–'+sess.slice(3,5) : '';
+  buildFilterOptions();
+  buildComponentControls();
+  buildTrendControls();
+  buildTeacherControl();
+  buildReportControls();
+  renderAll();
+  window.scrollTo({top:0});
+  if(window.QSAttainment && typeof window.QSAttainment._notifyLoaded==='function') window.QSAttainment._notifyLoaded();
+}
+
+function buildFilterOptions(){
+  const opts = (values, all='All') => ['<option>'+all+'</option>', ...values.map(v=>'<option>'+esc(v)+'</option>')].join('');
+  const subs = [...new Set(state.rows.map(r=>r.subject))].sort();
+  const lvls = [...new Set(state.rows.map(r=>r.level))].sort((a,b)=>LEVEL_ORDER.indexOf(a)-LEVEL_ORDER.indexOf(b));
+  const tchs = [...new Set(state.rows.map(r=>r.teacher))].sort();
+  const qs = [...new Set(state.rows.map(r=>r.quintile).filter(v=>v!==null))].sort((a,b)=>a-b).map(q=>'Q'+q);
+  $('fSubject').innerHTML = opts(subs); $('fLevel').innerHTML = opts(lvls);
+  $('fTeacher').innerHTML = opts(tchs); $('fQuintile').innerHTML = opts(qs);
+}
+
+function filtered(){
+  const f = state.filters;
+  return state.rows.filter(r =>
+    (f.subject==='All'||r.subject===f.subject) &&
+    (f.level==='All'||r.level===f.level) &&
+    (f.teacher==='All'||r.teacher===f.teacher) &&
+    (f.quintile==='All'||('Q'+r.quintile)===f.quintile));
+}
+
+/* CEM predictions are validated to National 5 only — value-added comparisons
+   default to N5; Higher/AH are extrapolations shown only when explicitly toggled. */
+const predEligible = r => r.level==='National 5' && r.pred!==null;
+const vaSet = rows => rows.filter(r => predEligible(r) && r.band!==null && r.band<=8);
+
+/* Band source: awarded if present, else estimates (pre-results). */
+const bandOf = r => r.band!==null ? r.band : (state.preResults ? r.est : null);
+const estTag = () => state.preResults ? ' (est.)' : '';
+const gradeable = rows => rows.filter(r => r.level!=='NPA' && bandOf(r)!==null);
+const isAC = b => b!==null && b<=6;
+const acRate = rows => { const g=gradeable(rows); return pct(g.filter(r=>isAC(bandOf(r))).length, g.length); };
+const avgBand = rows => { const g=gradeable(rows).filter(r=>bandOf(r)<=8); return avg(g.map(r=>bandOf(r))); };
+
+/* ---------- Chart.js defaults & helpers ---------- */
+Chart.defaults.font.family = "'Archivo',sans-serif";
+Chart.defaults.font.size = 11.5;
+Chart.defaults.color = '#b6bcc4';
+Chart.defaults.borderColor = 'rgba(255,255,255,.08)';
+Chart.defaults.plugins.legend.labels.boxWidth = 12;
+Chart.defaults.plugins.legend.labels.boxHeight = 12;
+Chart.defaults.plugins.legend.labels.padding = 14;
+Chart.defaults.plugins.tooltip.backgroundColor = '#14171c';
+Chart.defaults.plugins.tooltip.padding = 10;
+Chart.defaults.plugins.tooltip.cornerRadius = 6;
+Chart.defaults.plugins.tooltip.titleFont = {weight:'700'};
+Chart.defaults.animation.duration = 500;
+
+function makeChart(id, cfg){
+  const el = $(id); if(!el) return;
+  if(charts[id]) charts[id].destroy();
+  charts[id] = new Chart(el, cfg);
+}
+function emptyChart(id, msg){
+  const el = $(id); if(!el) return;
+  if(charts[id]){ charts[id].destroy(); delete charts[id]; }
+  const wrap = el.parentElement;
+  let note = wrap.querySelector('.empty-note');
+  if(!note){ note = document.createElement('div'); note.className='empty-note'; note.style.position='absolute'; note.style.inset='0'; wrap.appendChild(note); }
+  note.textContent = msg; note.style.display='flex'; el.style.visibility='hidden';
+}
+function unhideCanvas(id){
+  const el = $(id); if(!el) return;
+  el.style.visibility='visible';
+  const note = el.parentElement.querySelector('.empty-note'); if(note) note.style.display='none';
+}
+const gridY = {grid:{drawTicks:false}, border:{display:false}};
+const noGridX = {grid:{display:false}, border:{display:false}};
+const pctAxis = max => ({beginAtZero:true, max:max||100, ticks:{callback:v=>v+'%'}, grid:{drawTicks:false}, border:{display:false}});
+
+/* ---------- render orchestration ---------- */
+function renderAll(){
+  const rows = filtered();
+  const f = state.filters;
+  const active = [f.subject,f.level,f.teacher,f.quintile].filter(v=>v!=='All');
+  $('cohortCount').innerHTML = '<b>'+rows.length+'</b> pupil'+(rows.length===1?'':'s')+
+    (active.length? ' · '+active.map(esc).join(' · ') : ' in view')+
+    (state.pupilCount && rows.length!==state.pupilCount? ' <span style="color:var(--ink-3)">(of '+state.pupilCount+')</span>':'');
+  document.querySelectorAll('.needs-results').forEach(c=>c.classList.toggle('locked', state.preResults));
+  renderOverview(rows);
+  renderAttainment(rows);
+  renderValue(rows);
+  renderEquity(rows);
+  renderAttendance(rows);
+  renderComponents();
+  renderTrends();
+  renderTeacher();
+}
+/* ============================ 01 OVERVIEW ============================ */
+function renderOverview(rows){
+  const g = gradeable(rows);
+  const ac = acRate(rows), ab = avgBand(rows);
+  const attVals = rows.map(r=>r.attendance).filter(v=>v!==null);
+  const attAvg = avg(attVals);
+  const withPred = g.filter(r=>predEligible(r) && bandOf(r)!==null && bandOf(r)<=8);
+  const attained = state.preResults ? null : pct(withPred.filter(r=>r.band<=r.pred).length, withPred.length);
+  const aRate = pct(g.filter(r=>bandOf(r)<=2).length, g.length);
+  const kpis = [
+    {label:'Pupils in view', value:String(rows.length), foot:[...new Set(rows.map(r=>r.subject))].length+' subjects · '+[...new Set(rows.map(r=>r.teacher))].length+' teachers'},
+    {label:'A–C rate'+estTag(), value:fmtPct(ac), foot:g.length+' graded entries'},
+    {label:'A rate'+estTag(), value:fmtPct(aRate), foot:'bands 1–2'},
+    {label:'Average band'+estTag(), value:fmt1(ab), foot:'1 = A1 · excludes DNA'},
+    {label:'Avg attendance', value:attAvg===null?'—':attAvg.toFixed(1)+'<small>%</small>', foot:attVals.filter(v=>v<80).length+' pupils below 80%', cls:attAvg!==null&&attAvg<90?'bad':'good'},
+    {label:'Attained potential', value:attained===null?'—':fmtPct(attained), foot:state.preResults?'unlocks on results day':'National 5 · vs CEM prediction'},
+  ];
+  $('kpiStrip').innerHTML = kpis.map(k=>'<div class="kpi"><div class="label">'+k.label+'</div><div class="value">'+k.value+'</div><div class="foot '+(k.cls||'')+'">'+k.foot+'</div></div>').join('');
+
+  /* Grade distribution */
+  $('hGradeDist').textContent = state.preResults? 'Estimated grade distribution' : 'Grade distribution';
+  const counts = CLUSTERS.map(c => g.filter(r=>clusterOf(bandOf(r))===c).length);
+  if(g.length){ unhideCanvas('chGradeDist');
+    makeChart('chGradeDist',{type:'bar',data:{labels:CLUSTERS,datasets:[{data:counts,backgroundColor:CLUSTERS.map(c=>CLUSTER_COLOR[c]),borderRadius:5,maxBarThickness:56}]},
+      options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.y+' pupils ('+fmtPct(pct(c.parsed.y,g.length))+')'}}},scales:{x:noGridX,y:{...gridY,beginAtZero:true,ticks:{precision:0}}}}});
+  } else emptyChart('chGradeDist','No graded entries for this filter');
+
+  /* A–C by subject */
+  $('hAcBySubject').textContent = 'A–C rate by subject'+estTag();
+  const subs = [...new Set(rows.map(r=>r.subject))].sort();
+  const acVals = subs.map(s=>acRate(rows.filter(r=>r.subject===s)));
+  if(subs.length && acVals.some(v=>v!==null)){ unhideCanvas('chAcBySubject');
+    makeChart('chAcBySubject',{type:'bar',data:{labels:subs,datasets:[{data:acVals,backgroundColor:subs.map((s,i)=>SUBJ_COLOR[s]||PALETTE[i%PALETTE.length]),borderRadius:5,maxBarThickness:64}]},
+      options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmtPct(c.parsed.y)+' A–C'}}},scales:{x:noGridX,y:pctAxis()}}});
+  } else emptyChart('chAcBySubject','Awaiting graded entries');
+
+  /* Cohort stacked by level */
+  const lvls = [...new Set(rows.map(r=>r.level))].sort((a,b)=>LEVEL_ORDER.indexOf(a)-LEVEL_ORDER.indexOf(b));
+  makeChart('chCohort',{type:'bar',data:{labels:subs,datasets:lvls.map((l,i)=>({label:l,data:subs.map(s=>rows.filter(r=>r.subject===s&&r.level===l).length),backgroundColor:PALETTE[i%PALETTE.length],borderRadius:4,maxBarThickness:56}))},
+    options:{plugins:{legend:{position:'bottom'}},scales:{x:{...noGridX,stacked:true},y:{...gridY,stacked:true,beginAtZero:true,ticks:{precision:0}}}}});
+  unhideCanvas('chCohort');
+
+  $('headlines').innerHTML = buildHeadlines(rows).map(h=>'<li>'+h+'</li>').join('');
+}
+function clusterOf(b){ if(b===null)return null; if(b<=2)return 'A'; if(b<=4)return 'B'; if(b<=6)return 'C'; if(b===7)return 'D'; if(b===8)return 'No Award'; return 'DNA'; }
+
+function buildHeadlines(rows){
+  const H=[]; const g=gradeable(rows); const e=estTag();
+  if(!rows.length) return ['<b>No pupils match the current filter.</b> Reset the filters to see the full cohort.'];
+  const ac=acRate(rows);
+  if(ac!==null) H.push('<b>'+fmtPct(ac)+' A–C'+e+'</b> across '+g.length+' graded entries in view.');
+  const subs=[...new Set(rows.map(r=>r.subject))];
+  if(subs.length>1){
+    const ranked=subs.map(s=>({s,v:acRate(rows.filter(r=>r.subject===s))})).filter(x=>x.v!==null).sort((a,b)=>b.v-a.v);
+    if(ranked.length>1) H.push('<b>'+esc(ranked[0].s)+'</b> leads on A–C'+e+' at <b>'+fmtPct(ranked[0].v)+'</b>; '+esc(ranked[ranked.length-1].s)+' sits at '+fmtPct(ranked[ranked.length-1].v)+'.');
+  }
+  if(!state.preResults){
+    const wp=vaSet(g);
+    if(wp.length){ const above=wp.filter(r=>r.band<r.pred).length, below=wp.filter(r=>r.band>r.pred).length;
+      H.push('<b>'+above+' National 5 pupils</b> beat their CEM prediction; '+below+' fell short — net value added of <b>'+fmt1(avg(wp.map(r=>r.pred-r.band)))+' bands</b> per pupil (CEM predicts to N5 only).');
+    }
+    const we=g.filter(r=>r.est!==null&&r.band!==null);
+    if(we.length){ const exact=pct(we.filter(r=>r.est===r.band).length,we.length), within=pct(we.filter(r=>Math.abs(r.est-r.band)<=1).length,we.length);
+      H.push('Teacher estimates were <b>exact for '+fmtPct(exact)+'</b> of pupils and within one band for '+fmtPct(within)+'.');
+    }
+  } else H.push('<b>Pre-results mode</b> — figures above use teacher estimates. Value-added and estimate-accuracy analysis unlocks when grades are entered.');
+  const q12=rows.filter(r=>r.quintile!==null&&r.quintile<=2), q45=rows.filter(r=>r.quintile!==null&&r.quintile>=4);
+  const a1=acRate(q12), a2=acRate(q45);
+  if(a1!==null&&a2!==null) H.push('SIMD gap'+e+': Q1–2 pupils at <b>'+fmtPct(a1)+'</b> A–C vs <b>'+fmtPct(a2)+'</b> for Q4–5 — a gap of '+fmt1(Math.abs(a2-a1))+' points.');
+  const low=rows.filter(r=>r.attendance!==null&&r.attendance<80);
+  if(low.length){ const la=acRate(low); H.push('<b>'+low.length+' pupils</b> attend below 80%'+(la!==null?'; their A–C rate'+e+' is <b>'+fmtPct(la)+'</b>':'')+'.'); }
+  return H;
+}
+
+/* ============================ 02 ATTAINMENT ============================ */
+function renderAttainment(rows){
+  const g = gradeable(rows); const e = estTag();
+  $('hBandProfile').textContent='Band profile by subject'+e;
+  $('hAvgBand').innerHTML='Average band by level'+e+' <span class="hint">lower is better · 1 = A1</span>';
+  const subs=[...new Set(rows.map(r=>r.subject))].sort();
+  if(g.length){ unhideCanvas('chBandProfile');
+    makeChart('chBandProfile',{type:'bar',data:{labels:subs,datasets:[1,2,3,4,5,6,7,8,9].map(b=>({label:BAND_LABEL[b],data:subs.map(s=>{const sg=g.filter(r=>r.subject===s);return pct(sg.filter(r=>bandOf(r)===b).length,sg.length)||0;}),backgroundColor:BAND_COLOR[b],maxBarThickness:34}))},
+      options:{indexAxis:'y',plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmtPct(c.parsed.x)}}},scales:{x:{...pctAxis(100),stacked:true},y:{...noGridX,stacked:true}}}});
+  } else emptyChart('chBandProfile','No graded entries for this filter');
+
+  const lvls=[...new Set(g.map(r=>r.level))].sort((a,b)=>LEVEL_ORDER.indexOf(a)-LEVEL_ORDER.indexOf(b));
+  const abVals=lvls.map(l=>avgBand(g.filter(r=>r.level===l)));
+  if(lvls.length && abVals.some(v=>v!==null)){ unhideCanvas('chAvgBand');
+    makeChart('chAvgBand',{type:'bar',data:{labels:lvls,datasets:[{data:abVals,backgroundColor:'#e3b04b',borderRadius:5,maxBarThickness:60}]},
+      options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'Avg band '+fmt1(c.parsed.y)}}},scales:{x:noGridX,y:{...gridY,min:1,max:8,reverse:true,ticks:{callback:v=>BAND_LABEL[v]||v}}}}});
+  } else emptyChart('chAvgBand','No graded entries for this filter');
+
+  /* Breakdown table */
+  let html='<thead><tr><th>Subject</th><th>Level</th><th class="r">Entries</th><th class="r">A rate'+e+'</th><th class="r">A–C rate'+e+'</th><th class="r">Avg band'+e+'</th><th class="r">No Award / DNA</th></tr></thead><tbody>';
+  const groups=[];
+  for(const s of subs) for(const l of [...new Set(rows.filter(r=>r.subject===s).map(r=>r.level))].sort((a,b)=>LEVEL_ORDER.indexOf(a)-LEVEL_ORDER.indexOf(b))) groups.push([s,l]);
+  for(const [s,l] of groups){
+    const rr=rows.filter(r=>r.subject===s&&r.level===l); const gg=gradeable(rr);
+    const a=pct(gg.filter(r=>bandOf(r)<=2).length,gg.length), acr=acRate(rr);
+    const nd=gg.filter(r=>bandOf(r)>=8).length;
+    html+='<tr><td class="strong">'+esc(s)+'</td><td>'+esc(l)+'</td><td class="r">'+rr.length+'</td><td class="r">'+fmtPct(a)+'</td><td class="r">'+pillPct(acr)+'</td><td class="r">'+fmt1(avgBand(rr))+'</td><td class="r">'+(gg.length?nd:'—')+'</td></tr>';
+  }
+  const gAll=gradeable(rows);
+  html+='<tr class="total"><td>All in view</td><td></td><td class="r">'+rows.length+'</td><td class="r">'+fmtPct(pct(gAll.filter(r=>bandOf(r)<=2).length,gAll.length))+'</td><td class="r">'+fmtPct(acRate(rows))+'</td><td class="r">'+fmt1(avgBand(rows))+'</td><td class="r">'+gAll.filter(r=>bandOf(r)>=8).length+'</td></tr></tbody>';
+  $('tblBreakdown').innerHTML=html;
+}
+function pillPct(v){ if(v===null) return '<span class="pill n">—</span>'; const cls=v>=75?'g':v>=55?'a':'r'; return '<span class="pill '+cls+'">'+fmtPct(v)+'</span>'; }
+
+/* ============================ 03 VALUE ADDED ============================ */
+function renderValue(rows){
+  if(state.preResults) return; /* cards carry locked overlay */
+  const ext = !!state.vaExt;
+  const scope = ext? ' — all levels <span class="hint">Higher / Adv H extrapolated (△)</span>' : ' — National 5 <span class="hint">CEM predicts to N5 only</span>';
+  $('hVaScatter').innerHTML='Awarded vs CEM predicted band'+scope;
+  $('hVaTeacherTitle').innerHTML='Value added by teacher'+scope;
+  const g = rows.filter(r=>r.band!==null && r.band<=8 && r.pred!==null && (ext? r.level!=='NPA' : r.level==='National 5'));
+  /* scatter with jitter */
+  const jit=()=> (Math.random()-.5)*.5;
+  if(g.length){ unhideCanvas('chVaScatter');
+    makeChart('chVaScatter',{type:'scatter',data:{datasets:[
+      {label:'Pupils',data:g.map(r=>({x:r.pred+jit(),y:r.band+jit(),name:r.name,subj:r.subject,lvl:r.level,p:r.pred,b:r.band})),
+       pointStyle:g.map(r=>r.level==='National 5'?'circle':'triangle'),
+       backgroundColor:g.map(r=> r.band<r.pred?'rgba(240,196,74,.85)': r.band>r.pred?'rgba(214,80,66,.85)':'rgba(232,230,223,.55)'),pointRadius:4.5,pointHoverRadius:6},
+      {label:'Prediction line',type:'line',data:[{x:1,y:1},{x:8,y:8}],borderColor:'#f0c04a',borderWidth:1.5,borderDash:[6,4],pointRadius:0,fill:false}
+    ]},options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>{const d=c.raw; return d.name? d.name+' · '+d.subj+' '+(d.lvl==='National 5'?'':'('+d.lvl+', extrapolated) ')+'— predicted '+BAND_LABEL[d.p]+', awarded '+BAND_LABEL[d.b] : '';}}}},
+      scales:{x:{title:{display:true,text:'CEM predicted band'},min:0,max:9,ticks:{stepSize:1,callback:v=>BAND_LABEL[v]||''},grid:{drawTicks:false},border:{display:false}},
+              y:{title:{display:true,text:'Awarded band'},min:0,max:10,reverse:true,ticks:{stepSize:1,callback:v=>BAND_LABEL[v]||''},grid:{drawTicks:false},border:{display:false}}}}});
+  } else emptyChart('chVaScatter', ext? 'No pupils with both a CEM baseline and an awarded grade' : 'No National 5 pupils with both a CEM baseline and an awarded grade — use the toggle above to include extrapolated levels');
+
+  /* VA by teacher */
+  const tchs=[...new Set(g.map(r=>r.teacher))].sort();
+  const va=tchs.map(t=>avg(g.filter(r=>r.teacher===t).map(r=>r.pred-r.band)));
+  if(tchs.length){ unhideCanvas('chVaTeacher');
+    const vaMax=Math.max(.5,...va.map(v=>Math.abs(v)))*1.15;
+    makeChart('chVaTeacher',{type:'bar',data:{labels:tchs,datasets:[{data:va,backgroundColor:va.map(v=>v>=0?'#e3b04b':'#c23b2e'),borderRadius:5,maxBarThickness:38}]},
+      options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>(c.parsed.x>=0?'+':'')+c.parsed.x.toFixed(2)+' bands vs prediction'}}},
+        scales:{x:{min:-vaMax,max:vaMax,title:{display:true,text:'← below prediction · above prediction →'},grid:{drawTicks:false},border:{display:false}},y:noGridX}}});
+  } else emptyChart('chVaTeacher','No data');
+
+  /* Estimate accuracy histogram */
+  const we=rows.filter(r=>r.est!==null&&r.band!==null&&r.level!=='NPA');
+  const diffs=we.map(r=>r.est-r.band);
+  const bins=['≤ −3','−2','−1','0 exact','+1','+2','≥ +3'];
+  const binIdx=d=> d<=-3?0 : d===-2?1 : d===-1?2 : d===0?3 : d===1?4 : d===2?5 : 6;
+  const counts=[0,0,0,0,0,0,0]; diffs.forEach(d=>counts[binIdx(d)]++);
+  if(we.length){ unhideCanvas('chEstAcc');
+    makeChart('chEstAcc',{type:'bar',data:{labels:bins,datasets:[{data:counts,backgroundColor:bins.map((b,i)=>i===3?'#e3b04b':Math.abs(i-3)===1?'#d8cf9e':'#c23b2e'),borderRadius:5,maxBarThickness:52}]},
+      options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.y+' pupils ('+fmtPct(pct(c.parsed.y,we.length))+')'}}},
+        scales:{x:{...noGridX,title:{display:true,text:'estimate optimistic ← 0 → estimate cautious'}},y:{...gridY,beginAtZero:true,ticks:{precision:0}}}}});
+  } else emptyChart('chEstAcc','No pupils with both an estimate and an awarded grade');
+
+  /* Matrix + attained by subject */
+  const above=g.filter(r=>r.band<r.pred).length, equal=g.filter(r=>r.band===r.pred).length, below=g.filter(r=>r.band>r.pred).length;
+  $('vaMatrix').innerHTML =
+    '<div class="cell above"><div class="mv">'+above+'</div><div class="ml">Above prediction</div></div>'+
+    '<div class="cell equal"><div class="mv">'+equal+'</div><div class="ml">On prediction</div></div>'+
+    '<div class="cell below"><div class="mv">'+below+'</div><div class="ml">Below prediction</div></div>';
+  const subs=[...new Set(g.map(r=>r.subject))].sort();
+  makeChart('chAttained',{type:'bar',data:{labels:subs,datasets:[{label:'% attained potential',data:subs.map(s=>{const sg=g.filter(r=>r.subject===s);return pct(sg.filter(r=>r.band<=r.pred).length,sg.length);}),backgroundColor:subs.map((s,i)=>SUBJ_COLOR[s]||PALETTE[i]),borderRadius:5,maxBarThickness:48}]},
+    options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmtPct(c.parsed.y)+' attained potential'}}},scales:{x:noGridX,y:pctAxis()}}});
+  unhideCanvas('chAttained');
+}
+
+/* ============================ 04 EQUITY ============================ */
+function renderEquity(rows){
+  const e=estTag();
+  $('hAcQuintile').textContent='A–C rate by SIMD quintile'+e;
+  $('hSimdGap').innerHTML='Deprivation gap by subject'+e+' <span class="hint">A–C rate: Q1–2 vs Q4–5</span>';
+  $('hTeacherSimd').textContent='Per-teacher SIMD breakdown'+e;
+  const qs=[1,2,3,4,5];
+  const qData=qs.map(q=>{const qr=rows.filter(r=>r.quintile===q);return {q, n:qr.length, ac:acRate(qr)};});
+  if(qData.some(d=>d.n>0)){ unhideCanvas('chAcQuintile');
+    makeChart('chAcQuintile',{type:'bar',data:{labels:qs.map(q=>'Q'+q),datasets:[{data:qData.map(d=>d.ac),backgroundColor:['#c23b2e','#ce8147','#e3b04b','#d8cf9e','#efe9d0'],borderRadius:5,maxBarThickness:56}]},
+      options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmtPct(c.parsed.y)+' A–C · '+qData[c.dataIndex].n+' pupils'}}},scales:{x:{...noGridX,title:{display:true,text:'Q1 most deprived → Q5 least deprived'}},y:pctAxis()}}});
+  } else emptyChart('chAcQuintile','No SIMD data for this filter');
+
+  const subs=[...new Set(rows.map(r=>r.subject))].sort();
+  const dis=subs.map(s=>acRate(rows.filter(r=>r.subject===s&&r.quintile!==null&&r.quintile<=2)));
+  const adv=subs.map(s=>acRate(rows.filter(r=>r.subject===s&&r.quintile!==null&&r.quintile>=4)));
+  if(subs.length && (dis.some(v=>v!==null)||adv.some(v=>v!==null))){ unhideCanvas('chSimdGap');
+    makeChart('chSimdGap',{type:'bar',data:{labels:subs,datasets:[
+      {label:'Q1–2 (most deprived)',data:dis,backgroundColor:'#c96b31',borderRadius:4,maxBarThickness:40},
+      {label:'Q4–5 (least deprived)',data:adv,backgroundColor:'#e3b04b',borderRadius:4,maxBarThickness:40}]},
+      options:{plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmtPct(c.parsed.y)}}},scales:{x:noGridX,y:pctAxis()}}});
+  } else emptyChart('chSimdGap','No SIMD data for this filter');
+
+  let html='<thead><tr><th>Teacher</th>'+qs.map(q=>'<th class="r">Q'+q+' A–C / n</th>').join('')+'<th class="r">Q1–2 vs Q4–5 gap</th></tr></thead><tbody>';
+  for(const t of [...new Set(rows.map(r=>r.teacher))].sort()){
+    const tr=rows.filter(r=>r.teacher===t);
+    html+='<tr><td class="strong">'+esc(t)+'</td>';
+    for(const q of qs){ const qr=tr.filter(r=>r.quintile===q); html+='<td class="r">'+(qr.length? fmtPct(acRate(qr))+' <span style="color:var(--ink-3)">/ '+qr.length+'</span>':'—')+'</td>'; }
+    const g1=acRate(tr.filter(r=>r.quintile!==null&&r.quintile<=2)), g2=acRate(tr.filter(r=>r.quintile!==null&&r.quintile>=4));
+    html+='<td class="r">'+(g1!==null&&g2!==null? '<span class="'+(g2-g1>15?'delta-dn':'delta-eq')+'">'+fmt1(g2-g1)+' pts</span>':'—')+'</td></tr>';
+  }
+  $('tblTeacherSimd').innerHTML=html+'</tbody>';
+
+  /* Attainment versus deprivation — bubble per decile + school trend line */
+  $('hAttainDep').innerHTML='Attainment versus deprivation'+e+' <span class="hint">bubble size = pupils at that decile · dashed line = school trend</span>';
+  const gAD=gradeable(rows).filter(r=>r.decile!==null && bandOf(r)<=8);
+  if(gAD.length>1){
+    unhideCanvas('chAttainDep');
+    const decsAD=[...new Set(gAD.map(r=>r.decile))].sort((a,b)=>a-b);
+    const bubbles=decsAD.map(d=>{
+      const dr=gAD.filter(r=>r.decile===d);
+      return {x:d, y:avg(dr.map(r=>bandOf(r))), r:Math.min(24, 5+Math.sqrt(dr.length)*2.6), n:dr.length};
+    });
+    /* trend from individual pupils so small deciles don't dominate */
+    const xs=gAD.map(r=>r.decile), ys=gAD.map(r=>bandOf(r));
+    const mx=avg(xs), my=avg(ys);
+    let num=0, den=0; for(let i=0;i<gAD.length;i++){ num+=(xs[i]-mx)*(ys[i]-my); den+=(xs[i]-mx)**2; }
+    const slope=den?num/den:0, icept=my-slope*mx;
+    makeChart('chAttainDep',{data:{datasets:[
+      {type:'bubble',label:'School',data:bubbles,backgroundColor:'rgba(227,176,75,.55)',borderColor:'#e3b04b',borderWidth:1.5},
+      {type:'line',label:'School trend',data:[{x:.5,y:slope*.5+icept},{x:10.5,y:slope*10.5+icept}],borderColor:'#f0c04a',borderWidth:2,borderDash:[7,5],pointRadius:0}
+    ]},options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>{const d=c.raw; return d.n!==undefined? 'Decile '+d.x+' — avg band '+d.y.toFixed(2)+' · '+d.n+' pupil'+(d.n===1?'':'s') : '';}}}},
+      scales:{x:{min:0,max:11,title:{display:true,text:'SIMD decile · 1 = most deprived'},ticks:{stepSize:1,callback:v=>(v>=1&&v<=10)?v:''},grid:{drawTicks:false},border:{display:false}},
+              y:{min:0,max:9,reverse:true,title:{display:true,text:'Average band'+e+' · A1 at top'},ticks:{stepSize:1,callback:v=>BAND_LABEL[v]||''},grid:{drawTicks:false},border:{display:false}}}}});
+  } else emptyChart('chAttainDep','Need SIMD deciles plus grades'+(state.preResults?' / estimates':'')+' for this view');
+
+  /* SIMD vs attainment — stacked band profile by decile */
+  $('hSimdProfile').innerHTML='SIMD vs attainment'+e+' <span class="hint">band profile by decile · 1 = most deprived</span>';
+  const gD=gradeable(rows).filter(r=>r.decile!==null);
+  const decs=[...new Set(gD.map(r=>r.decile))].sort((a,b)=>a-b);
+  if(gD.length){ unhideCanvas('chSimdProfile');
+    makeChart('chSimdProfile',{type:'bar',data:{labels:decs.map(d=>String(d)),datasets:[1,2,3,4,5,6,7,8,9].map(b=>({label:BAND_LABEL[b],data:decs.map(d=>{const dg=gD.filter(r=>r.decile===d);return pct(dg.filter(r=>bandOf(r)===b).length,dg.length)||0;}),backgroundColor:BAND_COLOR[b],maxBarThickness:44}))},
+      options:{plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmtPct(c.parsed.y)}}},
+        scales:{x:{...noGridX,stacked:true,title:{display:true,text:'SIMD decile'}},y:{...pctAxis(100),stacked:true}}}});
+  } else emptyChart('chSimdProfile','No SIMD data for this filter');
+}
+
+/* ============================ 05 ATTENDANCE ============================ */
+function renderAttendance(rows){
+  const e=estTag();
+  $('hAttScatter').innerHTML='Attendance vs outcome'+e+' <span class="hint">with trend line</span>';
+  $('hAcAttBand').textContent='A–C rate by attendance band'+e;
+  const g=gradeable(rows).filter(r=>r.attendance!==null && bandOf(r)<=8);
+  if(g.length>1){
+    unhideCanvas('chAttScatter');
+    const xs=g.map(r=>r.attendance), ys=g.map(r=>bandOf(r));
+    const mx=avg(xs), my=avg(ys);
+    let num=0, den=0; for(let i=0;i<g.length;i++){ num+=(xs[i]-mx)*(ys[i]-my); den+=(xs[i]-mx)**2; }
+    const slope=den?num/den:0, icept=my-slope*mx;
+    const x0=Math.min(...xs), x1=Math.max(...xs);
+    makeChart('chAttScatter',{type:'scatter',data:{datasets:[
+      {label:'Pupils',data:g.map(r=>({x:r.attendance,y:bandOf(r)+(Math.random()-.5)*.4,name:r.name,subj:r.subject,b:bandOf(r)})),
+       backgroundColor:g.map(r=>r.attendance<80?'rgba(214,80,66,.8)':r.attendance<90?'rgba(206,129,71,.8)':'rgba(232,230,223,.45)'),pointRadius:4.5,pointHoverRadius:6},
+      {label:'Trend',type:'line',data:[{x:x0,y:slope*x0+icept},{x:x1,y:slope*x1+icept}],borderColor:'#f0c04a',borderWidth:2,borderDash:[6,4],pointRadius:0}
+    ]},options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>{const d=c.raw;return d.name? d.name+' · '+d.subj+' — '+d.x.toFixed(1)+'% · '+BAND_LABEL[d.b]:'';}}}},
+      scales:{x:{title:{display:true,text:'Attendance %'},grid:{drawTicks:false},border:{display:false}},
+              y:{title:{display:true,text:'Band'+e},min:0,max:9,reverse:true,ticks:{stepSize:1,callback:v=>BAND_LABEL[v]||''},grid:{drawTicks:false},border:{display:false}}}}});
+  } else emptyChart('chAttScatter','Need attendance data plus grades'+(state.preResults?' / estimates':''));
+
+  const bands=[['High · ≥90%',r=>r.attendance>=90,'#e3b04b'],['Medium · 80–90%',r=>r.attendance>=80&&r.attendance<90,'#ce8147'],['Low · <80%',r=>r.attendance<80,'#c23b2e']];
+  const withAtt=rows.filter(r=>r.attendance!==null);
+  const vals=bands.map(([l,f])=>acRate(withAtt.filter(f)));
+  const ns=bands.map(([l,f])=>withAtt.filter(f).length);
+  if(withAtt.length){ unhideCanvas('chAcAttBand');
+    makeChart('chAcAttBand',{type:'bar',data:{labels:bands.map(b=>b[0]),datasets:[{data:vals,backgroundColor:bands.map(b=>b[2]),borderRadius:5,maxBarThickness:60}]},
+      options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmtPct(c.parsed.x)+' A–C · '+ns[c.dataIndex]+' pupils'}}},scales:{x:pctAxis(),y:noGridX}}});
+  } else emptyChart('chAcAttBand','No attendance data — paste the MIS export into the Attendance Data sheet');
+}
+/* ============================ 06 COMPONENTS ============================ */
+function buildComponentControls(){
+  const c=state.comps;
+  const fill=(id,vals,label)=>{ $(id).innerHTML=['<option>All</option>',...vals.map(v=>'<option>'+esc(v)+'</option>')].join(''); };
+  fill('cSubject',[...new Set(c.map(r=>r.subject))].sort());
+  fill('cLevel',[...new Set(c.map(r=>r.level))].sort((a,b)=>LEVEL_ORDER.indexOf(a)-LEVEL_ORDER.indexOf(b)));
+  fill('cComponent',[...new Set(c.map(r=>r.component))].sort());
+}
+function compFiltered(){
+  const s=$('cSubject').value, l=$('cLevel').value, k=$('cComponent').value;
+  return state.comps.filter(r=>(s==='All'||r.subject===s)&&(l==='All'||r.level===l)&&(k==='All'||r.component===k));
+}
+function renderComponents(){
+  const c=compFiltered();
+  if(!state.comps.length){
+    emptyChart('chCompYoY','No “Component Marks Combined” sheet found — the rest of the dashboard is unaffected');
+    emptyChart('chCompDev','Add the sheet to unlock year-on-year trends');
+    $('tblComp').innerHTML=''; return;
+  }
+  const years=[...new Set(c.map(r=>r.year))].sort();
+  if(c.length){
+    const titles=[...new Set(c.map(compTitle))].sort();
+    const of=(y,t)=>c.filter(r=>r.year===y&&compTitle(r)===t);
+    /* Per-component: cohort (solid) vs national (faded) */
+    unhideCanvas('chCompYoY');
+    const ds=[];
+    titles.forEach((t,i)=>{
+      const col=COMP_COLS[i%COMP_COLS.length];
+      ds.push({label:t+' — KSS',data:years.map(y=>avg(of(y,t).filter(r=>r.mark!==null).map(r=>r.mark))),backgroundColor:col,borderRadius:3,maxBarThickness:26});
+      ds.push({label:t+' — National',data:years.map(y=>avg(of(y,t).filter(r=>r.nat!==null).map(r=>r.nat))),backgroundColor:fadeCol(col),borderRadius:3,maxBarThickness:26});
+    });
+    makeChart('chCompYoY',{type:'bar',data:{labels:years,datasets:ds},
+      options:{plugins:{legend:{position:'bottom',labels:{boxWidth:11}},tooltip:{callbacks:{label:x=>x.dataset.label+': '+(x.parsed.y===null?'—':x.parsed.y.toFixed(1))+' marks'}}},
+        scales:{x:noGridX,y:{...gridY,beginAtZero:true,title:{display:true,text:'average mark'}}}}});
+    /* Per-component deviation from its own national average */
+    unhideCanvas('chCompDev');
+    makeChart('chCompDev',{type:'bar',data:{labels:years,datasets:titles.map((t,i)=>({label:t,
+      data:years.map(y=>{const yr=of(y,t).filter(r=>r.mark!==null&&r.nat!==null);return yr.length?avg(yr.map(r=>r.mark-r.nat)):null;}),
+      backgroundColor:COMP_COLS[i%COMP_COLS.length],borderRadius:3,maxBarThickness:26}))},
+      options:{plugins:{legend:{position:'bottom',labels:{boxWidth:11}},tooltip:{callbacks:{label:x=>x.dataset.label+': '+(x.parsed.y===null?'no national figure':(x.parsed.y>=0?'+':'')+x.parsed.y.toFixed(1)+' marks vs national')}}},
+        scales:{x:noGridX,y:{...gridY,title:{display:true,text:'← below national · above national →'}}}}});
+  } else { emptyChart('chCompYoY','No component records match this selection'); emptyChart('chCompDev',''); }
+
+  /* detail table: year × subject/level/component */
+  const keys=[...new Set(c.map(r=>r.subject+'¦'+r.level+'¦'+r.component+'¦'+r.title))].sort();
+  let html='<thead><tr><th>Course</th><th>Level</th><th>Component</th>'+years.map(y=>'<th class="r">'+esc(y)+' avg / nat</th>').join('')+'<th class="r">Δ YoY (latest)</th></tr></thead><tbody>';
+  for(const k of keys){
+    const [s,l,comp,title]=k.split('¦');
+    const rowsK=c.filter(r=>r.subject===s&&r.level===l&&r.component===comp&&r.title===title);
+    const yAvg=years.map(y=>avg(rowsK.filter(r=>r.year===y&&r.mark!==null).map(r=>r.mark)));
+    const yNat=years.map(y=>avg(rowsK.filter(r=>r.year===y&&r.nat!==null).map(r=>r.nat)));
+    const present=yAvg.map((v,i)=>v!==null?i:null).filter(v=>v!==null);
+    let delta='—';
+    if(present.length>=2){ const d=yAvg[present[present.length-1]]-yAvg[present[present.length-2]];
+      delta='<span class="'+(d>0.5?'delta-up':d<-0.5?'delta-dn':'delta-eq')+'">'+(d>=0?'+':'')+d.toFixed(1)+'</span>'; }
+    html+='<tr><td class="strong">'+esc(s)+'</td><td>'+esc(l)+'</td><td>C'+esc(comp)+(title?' · '+esc(title):'')+'</td>'+
+      years.map((y,i)=>'<td class="r">'+(yAvg[i]===null?'—':yAvg[i].toFixed(1)+' <span style="color:var(--ink-3)">/ '+(yNat[i]===null?'—':yNat[i].toFixed(1))+'</span>')+'</td>').join('')+
+      '<td class="r">'+delta+'</td></tr>';
+  }
+  $('tblComp').innerHTML=html+'</tbody>';
+}
+
+/* ============================ 07 ATTAINMENT OVER TIME ============================ */
+/* One record per pupil per course per year, from the Band column of the combined
+   component records, extended with this session's awarded results. */
+function trendBands(){
+  const seen=new Map();
+  for(const r of state.comps){
+    if(r.band===null) continue;
+    const k=[r.year,r.fore,r.sur,r.subject,r.level].join('¦');
+    if(!seen.has(k)) seen.set(k,{year:r.year,subject:r.subject,level:r.level,band:r.band});
+  }
+  const out=[...seen.values()];
+  const sess=state.session;
+  if(sess && !state.preResults && !out.some(r=>r.year===sess)){
+    for(const r of state.rows) if(r.band!==null && r.level!=='NPA')
+      out.push({year:sess,subject:r.subject,level:r.level,band:r.band});
+  }
+  return out;
+}
+const LEVEL_SHORT={'National 5':'N5','Higher':'Higher','Advanced Higher':'Adv H'};
+const TREND_SHADES={
+  'Art & Design':['#f0c674','#e3b04b','#a8802f'],
+  'Drama':['#ffffff','#ddd8c0','#a39e83'],
+  'Photography':['#e0736a','#c9483a','#8f2f26'],
+};
+function trendColor(subject,level,i){
+  const base=Object.keys(TREND_SHADES).find(k=>subject.startsWith(k));
+  const li=Math.max(0,LEVEL_ORDER.indexOf(level));
+  return base? TREND_SHADES[base][Math.min(li,2)] : PALETTE[i%PALETTE.length];
+}
+function buildTrendControls(){
+  const all=trendBands();
+  const keep=(id,vals)=>{ $(id).innerHTML=['<option>All</option>',...vals.map(v=>'<option>'+esc(v)+'</option>')].join(''); };
+  keep('trSubject',[...new Set(all.map(r=>r.subject))].sort());
+  keep('trLevel',[...new Set(all.map(r=>r.level))].sort((a,b)=>LEVEL_ORDER.indexOf(a)-LEVEL_ORDER.indexOf(b)));
+}
+function renderTrends(){
+  const all=trendBands();
+  if(!all.length){
+    emptyChart('chTrendBand','No multi-year data — the “Component Marks Combined” sheet (with its Band column) powers this view');
+    emptyChart('chTrendGrades',''); emptyChart('chTrendAC',''); emptyChart('chTrendCompDev','');
+    $('trendHeadlines').innerHTML='<li><b>No historical records found.</b> Keep pasting each year\'s component data into the combined sheet and this section builds itself.</li>';
+    return;
+  }
+  const ts=$('trSubject').value||'All', tl=$('trLevel').value||'All';
+  const rows=all.filter(r=>(ts==='All'||r.subject===ts)&&(tl==='All'||r.level===tl));
+  const years=[...new Set(rows.map(r=>r.year))].sort();
+
+  /* Average band by year — line per course·level */
+  const series=[...new Set(rows.map(r=>r.subject+'¦'+r.level))]
+    .sort((a,b)=>{const[sa,la]=a.split('¦'),[sb,lb]=b.split('¦');return sa.localeCompare(sb)||LEVEL_ORDER.indexOf(la)-LEVEL_ORDER.indexOf(lb);});
+  unhideCanvas('chTrendBand');
+  makeChart('chTrendBand',{type:'line',data:{labels:years,datasets:series.map((k,i)=>{
+    const[s,l]=k.split('¦');
+    const col=trendColor(s,l,i);
+    return {label:s+' · '+(LEVEL_SHORT[l]||l),
+      data:years.map(y=>{const yr=rows.filter(r=>r.year===y&&r.subject===s&&r.level===l);return yr.length?avg(yr.map(r=>r.band)):null;}),
+      borderColor:col,backgroundColor:col,pointRadius:3.5,pointHoverRadius:5,borderWidth:2,tension:.25,spanGaps:true};
+  })},options:{plugins:{legend:{position:'right',labels:{boxWidth:14,boxHeight:3}},
+      tooltip:{callbacks:{label:c=>c.dataset.label+': avg band '+(c.parsed.y===null?'—':c.parsed.y.toFixed(2))}}},
+    scales:{x:noGridX,y:{...gridY,min:1,max:9,reverse:true,title:{display:true,text:'average band · A1 at top'},ticks:{stepSize:1,callback:v=>BAND_LABEL[v]||''}}}}});
+
+  /* Grades by year — grouped % bars */
+  const gClusters=['A','B','C','D','No Award'];
+  const yearN=y=>rows.filter(r=>r.year===y&&r.band<=8).length;
+  unhideCanvas('chTrendGrades');
+  makeChart('chTrendGrades',{type:'bar',data:{labels:years,datasets:gClusters.map(cl=>({label:cl,
+    data:years.map(y=>pct(rows.filter(r=>r.year===y&&clusterOf(r.band)===cl).length,yearN(y))),
+    backgroundColor:CLUSTER_COLOR[cl],borderRadius:3,maxBarThickness:30}))},
+    options:{plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmtPct(c.parsed.y)}}},
+      scales:{x:noGridX,y:pctAxis(null)}}});
+
+  /* A and A–C rate by year */
+  const aRateY=years.map(y=>{const g=rows.filter(r=>r.year===y&&r.band<=8);return pct(g.filter(r=>r.band<=2).length,g.length);});
+  const acRateY=years.map(y=>{const g=rows.filter(r=>r.year===y&&r.band<=8);return pct(g.filter(r=>r.band<=6).length,g.length);});
+  unhideCanvas('chTrendAC');
+  makeChart('chTrendAC',{type:'line',data:{labels:years,datasets:[
+    {label:'A–C rate',data:acRateY,borderColor:'#e3b04b',backgroundColor:'#e3b04b',borderWidth:2.5,pointRadius:4,tension:.25},
+    {label:'A rate',data:aRateY,borderColor:'#ddd8c0',backgroundColor:'#ddd8c0',borderWidth:2,pointRadius:4,borderDash:[6,4],tension:.25}]},
+    options:{plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmtPct(c.parsed.y)+' · '+yearN(years[c.dataIndex])+' entries'}}},
+      scales:{x:noGridX,y:pctAxis()}}});
+
+  /* Component breakdown by year — grouped bars: cohort vs national per component */
+  const compRows=state.comps.filter(r=>r.mark!==null&&(ts==='All'||r.subject===ts)&&(tl==='All'||r.level===tl));
+  const cYears=[...new Set(compRows.map(r=>r.year))].sort();
+  const COMP_COLS=['#e3b04b','#ddd8c0','#c96b31','#c23b2e','#9aa0a8','#8fb8b6','#b5825f','#7d5ba6'];
+  const fade=hex=>{const n=parseInt(hex.slice(1),16);return 'rgba('+(n>>16&255)+','+(n>>8&255)+','+(n&255)+',.38)';};
+  if(compRows.length){
+    const titles=[...new Set(compRows.map(r=>r.title||('Component '+r.component)))].sort();
+    const datasets=[];
+    titles.forEach((t,i)=>{
+      const col=COMP_COLS[i%COMP_COLS.length];
+      const of=y=>compRows.filter(r=>r.year===y&&(r.title||('Component '+r.component))===t);
+      datasets.push({label:t+' — KSS',data:cYears.map(y=>avg(of(y).map(r=>r.mark))),backgroundColor:col,borderRadius:3,maxBarThickness:26});
+      datasets.push({label:t+' — National',data:cYears.map(y=>avg(of(y).filter(r=>r.nat!==null).map(r=>r.nat))),backgroundColor:fade(col),borderRadius:3,maxBarThickness:26});
+    });
+    unhideCanvas('chTrendCompDev');
+    makeChart('chTrendCompDev',{type:'bar',data:{labels:cYears,datasets},
+      options:{plugins:{legend:{position:'bottom',labels:{boxWidth:12}},
+        tooltip:{callbacks:{label:c=>c.dataset.label+': '+(c.parsed.y===null?'—':c.parsed.y.toFixed(1))+' marks'}}},
+        scales:{x:noGridX,y:{...gridY,beginAtZero:true,title:{display:true,text:'average mark'}}}}});
+  } else emptyChart('chTrendCompDev','No component marks for this selection');
+
+  $('trendHeadlines').innerHTML=trendHeadlines(rows,years,compRows,cYears).map(h=>'<li>'+h+'</li>').join('');
+}
+function trendHeadlines(rows,years,compRows,cYears){
+  const H=[];
+  if(years.length<2){ H.push('Only one year of data in view — trends appear once a second year is added.'); return H; }
+  const y0=years[0], yPrev=years[years.length-2], yNow=years[years.length-1];
+  const stat=(y,f)=>{const g=rows.filter(r=>r.year===y&&r.band<=8);return f(g);};
+  const acY=y=>stat(y,g=>pct(g.filter(r=>r.band<=6).length,g.length));
+  const aY=y=>stat(y,g=>pct(g.filter(r=>r.band<=2).length,g.length));
+  const naY=y=>stat(y,g=>pct(g.filter(r=>r.band===8).length,g.length));
+  const abY=y=>stat(y,g=>avg(g.map(r=>r.band)));
+  const d=(a,b)=>a!==null&&b!==null? a-b : null;
+  const dir=(v,inv)=>v===null?'':(inv?v<0:v>0)?'up':'down';
+  const acD=d(acY(yNow),acY(yPrev)), acD0=d(acY(yNow),acY(y0));
+  if(acD!==null) H.push('<b>A–C rate is '+dir(acD)+' '+Math.abs(acD).toFixed(1)+' points</b> on last year ('+fmtPct(acY(yNow))+' in '+yNow+' vs '+fmtPct(acY(yPrev))+' in '+yPrev+')'+(acD0!==null?', and '+dir(acD0)+' '+Math.abs(acD0).toFixed(1)+' points since '+y0:'')+'.');
+  const aD=d(aY(yNow),aY(yPrev));
+  if(aD!==null) H.push('The <b>A rate</b> sits at <b>'+fmtPct(aY(yNow))+'</b> — '+dir(aD)+' '+Math.abs(aD).toFixed(1)+' points on '+yPrev+'.');
+  const nas=years.map(y=>({y,v:naY(y)})).filter(x=>x.v!==null);
+  if(nas.length>1){ const best=nas.reduce((a,b)=>b.v<=a.v?b:a);
+    if(best.y===yNow) H.push('<b>No Awards are at their lowest level in '+years.length+' years</b> ('+fmtPct(naY(yNow))+' of entries).');
+    else H.push('No Awards: '+fmtPct(naY(yNow))+' of entries in '+yNow+' (best was '+best.y+' at '+fmtPct(best.v)+').');
+  }
+  const abD=d(abY(yNow),abY(y0));
+  if(abD!==null) H.push('Average band has '+(abD<0?'<b>improved</b> by ':'slipped by ')+Math.abs(abD).toFixed(2)+' since '+y0+' ('+fmt1(abY(y0))+' → '+fmt1(abY(yNow))+', lower is better).');
+  if(compRows.length && cYears.length>1){
+    const devY=y=>{const yr=compRows.filter(r=>r.year===y&&r.nat!==null&&r.mark!==null);return yr.length?avg(yr.map(r=>r.mark-r.nat)):null;};
+    const dNow=devY(cYears[cYears.length-1]), dPrev=devY(cYears[cYears.length-2]);
+    if(dNow!==null&&dPrev!==null){
+      const better=dNow>dPrev;
+      H.push('<b>Component marks are '+(dNow>=0?'above':'below')+' national</b> by '+Math.abs(dNow).toFixed(1)+' marks on average — '+(better?'an improvement':'a drop')+' of '+Math.abs(dNow-dPrev).toFixed(1)+' marks on last year.');
+    }
+  }
+  return H;
+}
+
+/* ============================ 08 TEACHER ============================ */
+function buildTeacherControl(){
+  const tchs=[...new Set(state.rows.map(r=>r.teacher))].sort();
+  $('tTeacher').innerHTML=tchs.map(t=>'<option>'+esc(t)+'</option>').join('');
+  buildTeacherSubFilters();
+}
+function buildTeacherSubFilters(){
+  const t=$('tTeacher').value; if(!t) return;
+  const tr=state.rows.filter(r=>r.teacher===t);
+  const keep=(id,vals)=>{ const cur=$(id).value; $(id).innerHTML=['<option>All</option>',...vals.map(v=>'<option>'+esc(v)+'</option>')].join(''); if(vals.includes(cur)) $(id).value=cur; };
+  keep('tSubject',[...new Set(tr.map(r=>r.subject))].sort());
+  keep('tLevel',[...new Set(tr.map(r=>r.level))].sort((a,b)=>LEVEL_ORDER.indexOf(a)-LEVEL_ORDER.indexOf(b)));
+}
+function renderTeacher(){
+  const t=$('tTeacher').value; if(!t) return;
+  const ts=$('tSubject').value||'All', tl=$('tLevel').value||'All';
+  const rows=state.rows.filter(r=>r.teacher===t && (ts==='All'||r.subject===ts) && (tl==='All'||r.level===tl));
+  const scopeLabel=(ts==='All'&&tl==='All')?'all classes':[ts,tl].filter(v=>v!=='All').join(' · ');
+  $('tCount').innerHTML='<b style="font-family:var(--serif);font-size:14px;color:var(--navy)">'+rows.length+'</b> pupils · '+esc(t)+' · '+esc(scopeLabel);
+  const g=gradeable(rows); const e=estTag();
+  const facAC=acRate(state.rows);
+  const ac=acRate(rows), ab=avgBand(rows);
+  const attAvg=avg(rows.map(r=>r.attendance).filter(v=>v!==null));
+  const wp=state.preResults? [] : vaSet(g);
+  const att=wp.length? pct(wp.filter(r=>r.band<=r.pred).length,wp.length):null;
+  const cemAvg=avg(rows.map(r=>r.cem).filter(v=>v!==null));
+  const kpis=[
+    {label:'Pupils',value:String(rows.length),foot:(n=>n+' class'+(n===1?'':'es'))([...new Set(rows.map(r=>r.subject+' '+r.level))].length)},
+    {label:'A–C rate'+e,value:fmtPct(ac),foot:facAC!==null&&ac!==null?((ac-facAC>=0?'+':'')+(ac-facAC).toFixed(1)+' pts vs faculty'):'',cls:ac!==null&&facAC!==null?(ac>=facAC?'good':'bad'):''},
+    {label:'Avg band'+e,value:fmt1(ab),foot:'1 = A1'},
+    {label:'Avg CEM score',value:cemAvg===null?'—':cemAvg.toFixed(1),foot:'cohort baseline · 100 ≈ average'},
+    {label:'Attained potential',value:att===null?'—':fmtPct(att),foot:state.preResults?'unlocks on results day':'National 5 · vs CEM prediction'},
+    {label:'Avg attendance',value:attAvg===null?'—':attAvg.toFixed(1)+'<small>%</small>',foot:rows.filter(r=>r.attendance!==null&&r.attendance<80).length+' below 80%'},
+  ];
+  $('tKpis').innerHTML=kpis.map(k=>'<div class="kpi"><div class="label">'+k.label+'</div><div class="value">'+k.value+'</div><div class="foot '+(k.cls||'')+'">'+k.foot+'</div></div>').join('');
+
+  $('hTGrades').textContent=(state.preResults?'Estimated grade distribution — ':'Grade distribution — ')+t+(scopeLabel!=='all classes'?' · '+scopeLabel:'');
+  if(g.length){ unhideCanvas('chTGrades');
+    const counts=CLUSTERS.map(cl=>g.filter(r=>clusterOf(bandOf(r))===cl).length);
+    makeChart('chTGrades',{type:'bar',data:{labels:CLUSTERS,datasets:[{data:counts,backgroundColor:CLUSTERS.map(cl=>CLUSTER_COLOR[cl]),borderRadius:5,maxBarThickness:52}]},
+      options:{plugins:{legend:{display:false}},scales:{x:noGridX,y:{...gridY,beginAtZero:true,ticks:{precision:0}}}}});
+  } else emptyChart('chTGrades','No graded entries yet');
+
+  /* Estimates outcome doughnut — selected teacher */
+  if(!state.preResults){
+    const we=g.filter(r=>r.est!==null&&r.band!==null);
+    if(we.length){ unhideCanvas('chTEstPie');
+      const above=we.filter(r=>r.band<r.est).length, below=we.filter(r=>r.band>r.est).length, equal=we.filter(r=>r.band===r.est).length;
+      makeChart('chTEstPie',{type:'doughnut',data:{labels:['Above estimate','Below estimate','Equal'],datasets:[{data:[above,below,equal],backgroundColor:['#ce8147','#c23b2e','#e8e6df'],borderColor:'#2f353e',borderWidth:3}]},
+        options:{cutout:'55%',plugins:{legend:{position:'right'},tooltip:{callbacks:{label:c=>c.label+': '+c.parsed+' pupils ('+fmtPct(pct(c.parsed,we.length))+')'}}}}});
+    } else emptyChart('chTEstPie','No pupils with both an estimate and an awarded grade');
+  }
+
+  /* Per-class breakdowns for the selected teacher (class = subject × level) */
+  const classes=[...new Set(rows.map(r=>r.subject+'¦'+r.level))]
+    .sort((a,b)=>{const[sa,la]=a.split('¦'),[sb,lb]=b.split('¦');return sa.localeCompare(sb)||LEVEL_ORDER.indexOf(la)-LEVEL_ORDER.indexOf(lb);});
+  const clsLabel=k=>{const[s,l]=k.split('¦');return s.replace(' & Design','')+' · '+l.replace('National 5','N5').replace('Advanced Higher','Adv H');};
+  const clsRows=k=>{const[s,l]=k.split('¦');return rows.filter(r=>r.subject===s&&r.level===l);};
+  const clsColors=classes.map((k,i)=>PALETTE[i%PALETTE.length]);
+  const cemByC=classes.map(k=>avg(clsRows(k).map(r=>r.cem).filter(v=>v!==null)));
+  if(cemByC.some(v=>v!==null)){ unhideCanvas('chTCem');
+    makeChart('chTCem',{type:'bar',data:{labels:classes.map(clsLabel),datasets:[{data:cemByC,backgroundColor:clsColors,borderRadius:5,maxBarThickness:52}]},
+      options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'Avg CEM '+fmt1(c.parsed.y)+' · '+clsRows(classes[c.dataIndex]).length+' pupils'}}},scales:{x:noGridX,y:{...gridY,suggestedMin:80,suggestedMax:115}}}});
+  } else emptyChart('chTCem','No CEM scores for this selection');
+  $('hTAvgBand').innerHTML='Average band by class'+e+' <span class="hint">lower is better</span>';
+  const abByC=classes.map(k=>avgBand(clsRows(k)));
+  if(abByC.some(v=>v!==null)){ unhideCanvas('chTAvgBand');
+    makeChart('chTAvgBand',{type:'bar',data:{labels:classes.map(clsLabel),datasets:[{data:abByC,backgroundColor:clsColors,borderRadius:5,maxBarThickness:52}]},
+      options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>'Avg band '+fmt1(c.parsed.y)+' · '+clsRows(classes[c.dataIndex]).length+' pupils'}}},scales:{x:noGridX,y:{...gridY,min:1,max:8,reverse:true,ticks:{callback:v=>BAND_LABEL[v]||v}}}}});
+  } else emptyChart('chTAvgBand','No graded entries for this selection');
+
+  /* Grade vs estimates by class — above/below/equal grouped */
+  if(!state.preResults){
+    const cmp=classes.map(k=>{
+      const tw=gradeable(clsRows(k)).filter(r=>r.est!==null&&r.band!==null);
+      return {above:tw.filter(r=>r.band<r.est).length, below:tw.filter(r=>r.band>r.est).length, equal:tw.filter(r=>r.band===r.est).length};
+    });
+    if(cmp.some(c=>c.above+c.below+c.equal>0)){ unhideCanvas('chTEstComp');
+      makeChart('chTEstComp',{type:'bar',data:{labels:classes.map(clsLabel),datasets:[
+        {label:'Above',data:cmp.map(c=>c.above),backgroundColor:'#ce8147',borderRadius:4,maxBarThickness:26},
+        {label:'Below',data:cmp.map(c=>c.below),backgroundColor:'#c23b2e',borderRadius:4,maxBarThickness:26},
+        {label:'Equal',data:cmp.map(c=>c.equal),backgroundColor:'#e8e6df',borderRadius:4,maxBarThickness:26}]},
+        options:{plugins:{legend:{position:'bottom'}},scales:{x:noGridX,y:{...gridY,beginAtZero:true,ticks:{precision:0}}}}});
+    } else emptyChart('chTEstComp','No estimates recorded for this selection');
+  }
+
+  /* Component marks vs national — selected teacher, built from the component records
+     so only real components appear and national averages come from the combined sheet */
+  $('hTComps').innerHTML='Component marks vs national <span class="hint">'+esc(t)+' · '+esc(scopeLabel)+' · current session</span>';
+  const sessYear=state.session;
+  const nameSet=new Set(rows.map(r=>r.name.toLowerCase().replace(/[^a-z]/g,'')));
+  const crows=state.comps.filter(r=>r.year===sessYear && nameSet.has(nameKey(r.fore,r.sur)) && (ts==='All'||r.subject.startsWith(ts)) && (tl==='All'||r.level===tl));
+  if(crows.length){
+    const keys=[...new Set(crows.map(r=>r.subject+'¦'+r.level+'¦'+r.component+'¦'+(r.title||('Component '+r.component))))].sort();
+    const of=k=>{const[s,l,c,ti]=k.split('¦');return crows.filter(r=>r.subject===s&&r.level===l&&String(r.component)===c);};
+    const multi=new Set(crows.map(r=>r.subject+'¦'+r.level)).size>1;
+    const labels=keys.map(k=>{const[s,l,c,ti]=k.split('¦');return (multi? s.replace(' & Design','').replace(/\(.*\)/,'').trim()+' '+(LEVEL_SHORT[l]||l)+' · ':'')+ti;});
+    const kss=keys.map(k=>avg(of(k).filter(r=>r.mark!==null).map(r=>r.mark)));
+    /* national: from these rows, else from the whole cohort's records for the same component */
+    const nat=keys.map(k=>{const[s,l,c]=k.split('¦');
+      let v=avg(of(k).filter(r=>r.nat!==null).map(r=>r.nat));
+      if(v===null) v=avg(state.comps.filter(r=>r.year===sessYear&&r.subject===s&&r.level===l&&String(r.component)===c&&r.nat!==null).map(r=>r.nat));
+      return v;});
+    unhideCanvas('chTComps');
+    makeChart('chTComps',{type:'bar',data:{labels,datasets:[
+      {label:'Class average',data:kss,backgroundColor:'#e3b04b',borderRadius:5,maxBarThickness:44},
+      {label:'National average',data:nat,backgroundColor:'#9aa0a8',borderRadius:5,maxBarThickness:44}]},
+      options:{plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+(c.parsed.y===null?'not yet published':c.parsed.y.toFixed(1)+' marks')}}},
+        scales:{x:noGridX,y:{...gridY,beginAtZero:true,title:{display:true,text:'average mark'}}}}});
+  } else emptyChart('chTComps','No component records for this selection yet — drop the QS Component Marks Report, or paste this year\'s rows into the Component Marks Combined sheet');
+
+  $('tPriorities').innerHTML=teacherPriorities(rows,t).map(p=>'<li><span class="tag '+p.tag+'">'+p.tagLabel+'</span><span>'+p.text+'</span></li>').join('');
+
+  let html='<thead><tr><th>Pupil</th><th>Subject</th><th>Level</th><th class="r">CEM band</th><th class="r">Attendance</th><th class="r">Estimate</th><th class="r">Awarded</th><th>Vs estimate</th><th>Vs CEM (N5)</th><th class="r">ASN</th></tr></thead><tbody>';
+  for(const r of [...rows].sort((a,b)=>a.subject.localeCompare(b.subject)||a.name.localeCompare(b.name))){
+    let vsEst='—';
+    if(!state.preResults&&r.band!==null&&r.est!==null&&r.band<=8)
+      vsEst=r.band<r.est?'<span class="pill g">Above</span>':r.band===r.est?'<span class="pill n">Equal</span>':'<span class="pill r">Below</span>';
+    let vsCem=r.level==='National 5'?'—':'<span class="pill n" title="CEM predicts to National 5 only">n/a</span>';
+    if(!state.preResults&&r.band!==null&&r.band<=8&&predEligible(r))
+      vsCem=r.band<r.pred?'<span class="pill g">Above</span>':r.band===r.pred?'<span class="pill n">Equal</span>':'<span class="pill r">Below</span>';
+    html+='<tr><td class="strong">'+esc(r.name)+'</td><td>'+esc(r.subject)+'</td><td>'+esc(r.level)+'</td>'+
+      '<td class="r">'+(r.pred!==null?BAND_LABEL[r.pred]:'—')+'</td>'+
+      '<td class="r">'+(r.attendance!==null?r.attendance.toFixed(1)+'%':'—')+'</td>'+
+      '<td class="r">'+(r.est!==null?BAND_LABEL[r.est]:'—')+'</td>'+
+      '<td class="r">'+(r.gradeRaw!==null?esc(r.gradeRaw):(r.band!==null?BAND_LABEL[r.band]:'—'))+'</td>'+
+      '<td>'+vsEst+'</td><td>'+vsCem+'</td><td class="r">'+(r.asn?'✓':'')+'</td></tr>';
+  }
+  $('tblClass').innerHTML=html+'</tbody>';
+}
+function teacherPriorities(rows,t){
+  const P=[]; const g=gradeable(rows); const e=estTag();
+  const ac=acRate(rows), facAC=acRate(state.rows);
+  if(ac!==null&&facAC!==null){
+    const d=ac-facAC;
+    if(d>=3) P.push({tag:'str',tagLabel:'Strength',text:'A–C rate'+e+' of <b>'+fmtPct(ac)+'</b> sits '+d.toFixed(1)+' points above the faculty figure.'});
+    else if(d<=-5) P.push({tag:'dev',tagLabel:'Develop',text:'A–C rate'+e+' of <b>'+fmtPct(ac)+'</b> is '+Math.abs(d).toFixed(1)+' points below faculty — review borderline C/D pupils early.'});
+  }
+  if(!state.preResults){
+    const wp=vaSet(g);
+    if(wp.length){ const va=avg(wp.map(r=>r.pred-r.band));
+      if(va>=0.3) P.push({tag:'str',tagLabel:'Strength',text:'Strong value added at National 5: pupils averaged <b>'+va.toFixed(2)+' bands above</b> their CEM prediction.'});
+      else if(va<=-0.3) P.push({tag:'dev',tagLabel:'Develop',text:'National 5 pupils averaged <b>'+Math.abs(va).toFixed(2)+' bands below</b> CEM prediction — compare course demands with baseline evidence.'});
+    }
+    const we=g.filter(r=>r.est!==null&&r.band!==null);
+    if(we.length){ const exact=pct(we.filter(r=>r.est===r.band).length,we.length);
+      if(exact!==null&&exact<40) P.push({tag:'dev',tagLabel:'Develop',text:'Estimates matched final awards for only <b>'+fmtPct(exact)+'</b> of pupils — moderate estimate evidence against QS standards.'});
+      else if(exact!==null&&exact>=60) P.push({tag:'str',tagLabel:'Strength',text:'Estimate accuracy is strong — <b>'+fmtPct(exact)+'</b> exact matches.'});
+    }
+  }
+  const q12=rows.filter(r=>r.quintile!==null&&r.quintile<=2), q45=rows.filter(r=>r.quintile!==null&&r.quintile>=4);
+  const a1=acRate(q12), a2=acRate(q45);
+  if(a1!==null&&a2!==null&&a2-a1>15) P.push({tag:'watch',tagLabel:'Watch',text:'SIMD gap'+e+' of <b>'+(a2-a1).toFixed(1)+' points</b> between Q1–2 and Q4–5 pupils — consider targeted support for the '+q12.length+' Q1–2 pupils.'});
+  const low=rows.filter(r=>r.attendance!==null&&r.attendance<80);
+  if(low.length) P.push({tag:'watch',tagLabel:'Watch',text:'<b>'+low.length+' pupil'+(low.length===1?'':'s')+'</b> below 80% attendance: '+esc(low.slice(0,4).map(r=>r.name).join(', '))+(low.length>4?'…':'')+'.'});
+  if(!P.length) P.push({tag:'str',tagLabel:'Strength',text:'No flags raised — attainment, equity and attendance indicators are all within expected ranges for this class group.'});
+  return P;
+}
+
+/* ============================ 09 REPORTS ============================ */
+function buildReportControls(){
+  const subs=[...new Set(state.rows.map(r=>r.subject))].sort().map(s=>'<option>'+esc(s)+'</option>').join('');
+  $('repSubjectSel').innerHTML=subs;
+  $('revSubjectSel').innerHTML=subs;
+  $('repTeacherSel').innerHTML=[...new Set(state.rows.map(r=>r.teacher))].sort().map(t=>'<option>'+esc(t)+'</option>').join('');
+}
+
+/* Render a Chart.js config to a data-URL <img>, restyled for white paper:
+   dark axis text, light grids, and pale dashboard colours swapped for print-visible tones. */
+const PRINT_SAFE={'#ffffff':'#7a765f','#ddd8c0':'#a39e83','#e8e6df':'#9a958a','#efe9d0':'#c0b58a','#d8cf9e':'#b3a76a','#e6e2d5':'#a39e83','#2f353e':'#ffffff'};
+const psCol=c=>typeof c==='string'&&PRINT_SAFE[c]?PRINT_SAFE[c]:c;
+function chartImg(cfg,h=280){
+  (cfg.data.datasets||[]).forEach(d=>{
+    for(const k of ['backgroundColor','borderColor'])
+      if(Array.isArray(d[k])) d[k]=d[k].map(psCol); else d[k]=psCol(d[k]);
+  });
+  const D=Chart.defaults, saved={color:D.color,borderColor:D.borderColor};
+  D.color='#3d4650'; D.borderColor='#e3e6ea';
+  const cv=document.createElement('canvas');
+  cv.width=660; cv.height=h;
+  cfg.options=Object.assign({},cfg.options,{responsive:false,animation:false,devicePixelRatio:2});
+  const ch=new Chart(cv.getContext('2d'),cfg);
+  const url=cv.toDataURL('image/png');
+  ch.destroy();
+  D.color=saved.color; D.borderColor=saved.borderColor;
+  return '<img class="chart" src="'+url+'" alt="">';
+}
+const statPack=rows=>{ const g=gradeable(rows); return {
+  n:rows.length,
+  a:pct(g.filter(r=>bandOf(r)<=2).length,g.length),
+  ac:acRate(rows),
+  avg:avgBand(rows),
+  na:g.length? g.filter(r=>bandOf(r)>=8).length : null,
+  att:avg(rows.map(r=>r.attendance).filter(v=>v!==null)),
+};};
+const repKpis=rows=>{ const s=statPack(rows);
+  const k=(l,v,f)=>'<div class="kpi"><div class="l">'+l+'</div><div class="v">'+v+'</div><div class="f">'+f+'</div></div>';
+  return '<div class="kpis">'+
+    k('Pupils',s.n,[...new Set(rows.map(r=>r.teacher))].length+' teachers')+
+    k('A–C rate'+estTag(),fmtPct(s.ac),'bands 1–6')+
+    k('A rate'+estTag(),fmtPct(s.a),'bands 1–2')+
+    k('Avg band'+estTag(),fmt1(s.avg),'1 = A1')+
+    k('No Award / DNA',s.na===null?'—':s.na,'entries')+
+    k('Avg attendance',s.att===null?'—':s.att.toFixed(1)+'%',rows.filter(r=>r.attendance!==null&&r.attendance<80).length+' below 80%')+
+  '</div>';
+};
+function repLevelTables(rows, groupBySubject){
+  const lvls=[...new Set(rows.map(r=>r.level))].sort((a,b)=>LEVEL_ORDER.indexOf(a)-LEVEL_ORDER.indexOf(b));
+  let html='';
+  const rowHtml=(label,rr)=>{ const s=statPack(rr);
+    return '<tr><td class="s">'+esc(label)+'</td><td class="r">'+s.n+'</td><td class="r">'+fmtPct(s.a)+'</td><td class="r">'+fmtPct(s.ac)+'</td><td class="r">'+fmt1(s.avg)+'</td><td class="r">'+(s.na===null?'—':s.na)+'</td><td class="r">'+(s.att===null?'—':s.att.toFixed(1)+'%')+'</td></tr>'; };
+  const head='<tr><th>'+(groupBySubject?'Subject':'Level')+'</th><th class="r">Entries</th><th class="r">A rate'+estTag()+'</th><th class="r">A–C'+estTag()+'</th><th class="r">Avg band</th><th class="r">NA / DNA</th><th class="r">Attendance</th></tr>';
+  if(groupBySubject){
+    for(const l of lvls){
+      const lr=rows.filter(r=>r.level===l);
+      html+='<h3>'+esc(l)+'</h3><table><thead>'+head+'</thead><tbody>';
+      for(const s of [...new Set(lr.map(r=>r.subject))].sort()) html+=rowHtml(s,lr.filter(r=>r.subject===s));
+      html+='<tr class="total">'+rowHtml('All '+l,lr).slice(4);
+      html+='</tbody></table>';
+    }
+  } else {
+    html+='<table><thead>'+head+'</thead><tbody>';
+    for(const l of lvls) html+=rowHtml(l,rows.filter(r=>r.level===l));
+    html+='<tr class="total">'+rowHtml('All levels',rows).slice(4);
+    html+='</tbody></table>';
+  }
+  return html;
+}
+/* Rule-based development areas */
+function devAreasHtml(rows, comps, scope){
+  const out=[]; const g=gradeable(rows); const e=estTag();
+  const dev=(t,ev,a)=>out.push('<div class="dev"><div class="dt">'+t+'</div><div class="de">'+ev+'</div><div class="da"><b>Suggested action:</b> '+a+'</div></div>');
+  const ac=acRate(rows), aR=pct(g.filter(r=>bandOf(r)<=2).length,g.length);
+  const q12=acRate(rows.filter(r=>r.quintile!==null&&r.quintile<=2)), q45=acRate(rows.filter(r=>r.quintile!==null&&r.quintile>=4));
+  if(q12!==null&&q45!==null&&q45-q12>10)
+    dev('Close the poverty-related attainment gap','A–C'+e+' for SIMD Q1–2 pupils is '+fmtPct(q12)+' against '+fmtPct(q45)+' for Q4–5 — a gap of '+(q45-q12).toFixed(1)+' points.','Identify Q1–2 pupils at the start of the session; prioritise them for targeted feedback, resource access and tracking conversations. Consider PEF-supported interventions.');
+  const low=rows.filter(r=>r.attendance!==null&&r.attendance<80), rest=rows.filter(r=>r.attendance!==null&&r.attendance>=80);
+  const la=acRate(low), ra=acRate(rest);
+  if(low.length>=3&&la!==null&&ra!==null&&ra-la>10)
+    dev('Attendance is limiting attainment',low.length+' pupils attend below 80%; their A–C rate'+e+' is '+fmtPct(la)+' vs '+fmtPct(ra)+' for the rest of the cohort.','Flag sub-80% attenders to pastoral staff early; agree catch-up routines for missed practical/portfolio time.');
+  if(!state.preResults){
+    const we=g.filter(r=>r.est!==null&&r.band!==null);
+    if(we.length){ const exact=pct(we.filter(r=>r.est===r.band).length,we.length);
+      if(exact!==null&&exact<50) dev('Strengthen estimate accuracy','Estimates matched final awards for only '+fmtPct(exact)+' of pupils ('+we.length+' entries).','Build moderation time around QS Understanding Standards materials; cross-mark against national exemplars before estimates are submitted.');
+    }
+    const wp=vaSet(g);
+    if(wp.length){ const va=avg(wp.map(r=>r.pred-r.band));
+      if(va!==null&&va<-0.2) dev('Outcomes below CEM baseline (National 5)','N5 pupils averaged '+Math.abs(va).toFixed(2)+' bands below their CEM-predicted band.','Review course demands against baseline evidence; use predictions to set and track aspirational individual targets from the start of the course.');
+    }
+  }
+  const naShare=g.length? pct(g.filter(r=>bandOf(r)>=8).length,g.length):null;
+  if(naShare!==null&&naShare>5)
+    dev('Reduce No Awards / non-attempts',fmtPct(naShare)+' of graded entries'+e+' resulted in No Award or DNA.','Review presentation policy and course-choice guidance; track at-risk pupils from the first tracking point with early intervention.');
+  if(ac!==null&&aR!==null&&ac>=70&&aR<20)
+    dev('Stretch at the top end','A–C'+e+' is strong at '+fmtPct(ac)+' but only '+fmtPct(aR)+' of entries reached an A.','Use top-band exemplars and success criteria from the outset; identify band 3–4 pupils early and target the specific components holding marks back.');
+  const cn=comps.filter(r=>r.mark!==null&&r.nat!==null);
+  if(cn.length){
+    const latest=[...new Set(cn.map(r=>r.year))].sort().pop();
+    const byTitle={};
+    cn.filter(r=>r.year===latest).forEach(r=>{const k=r.subject+' — '+(r.title||('Component '+r.component));(byTitle[k]=byTitle[k]||[]).push(r.mark-r.nat);});
+    const weak=Object.entries(byTitle).map(([k,v])=>({k,d:avg(v)})).filter(x=>x.d<-1).sort((a,b)=>a.d-b.d).slice(0,3);
+    if(weak.length) dev('Components below the national average ('+esc(latest)+')',weak.map(x=>esc(x.k)+' ('+x.d.toFixed(1)+' marks)').join(' · '),'Make these components a learning-and-teaching focus: analyse the QS course reports, refresh exemplification and moderate internal marking against national standards.');
+  }
+  if(!out.length) out.push('<div class="dev"><div class="dt">Sustain current performance</div><div class="de">No significant risk indicators in the current data for '+esc(scope)+' — attainment, equity, estimates and component performance are all within expected ranges.</div><div class="da"><b>Suggested action:</b> Maintain moderation and tracking routines; capture and share the practice behind these results across the faculty.</div></div>');
+  return out.join('');
+}
+/* Shared chart configs for reports */
+const repCfg={
+  gradeDist(rows){ const g=gradeable(rows); return {type:'bar',data:{labels:CLUSTERS,datasets:[{data:CLUSTERS.map(c=>g.filter(r=>clusterOf(bandOf(r))===c).length),backgroundColor:CLUSTERS.map(c=>CLUSTER_COLOR[c]),borderRadius:4,maxBarThickness:52}]},options:{plugins:{legend:{display:false}},scales:{x:noGridX,y:{...gridY,beginAtZero:true,ticks:{precision:0}}}}}; },
+  acBySubject(rows){ const subs=[...new Set(rows.map(r=>r.subject))].sort(); return {type:'bar',data:{labels:subs,datasets:[{data:subs.map(s=>acRate(rows.filter(r=>r.subject===s))),backgroundColor:subs.map((s,i)=>SUBJ_COLOR[s]||PALETTE[i%PALETTE.length]),borderRadius:4,maxBarThickness:60}]},options:{plugins:{legend:{display:false}},scales:{x:noGridX,y:pctAxis()}}}; },
+  quintile(rows){ const qs=[1,2,3,4,5]; return {type:'bar',data:{labels:qs.map(q=>'Q'+q),datasets:[{data:qs.map(q=>acRate(rows.filter(r=>r.quintile===q))),backgroundColor:['#c23b2e','#ce8147','#e3b04b','#d8cf9e','#efe9d0'],borderRadius:4,maxBarThickness:52}]},options:{plugins:{legend:{display:false}},scales:{x:{...noGridX,title:{display:true,text:'Q1 most deprived → Q5 least deprived'}},y:pctAxis()}}}; },
+  attBand(rows){ const bands=[['High · ≥90%',r=>r.attendance>=90,'#e3b04b'],['Medium · 80–90%',r=>r.attendance>=80&&r.attendance<90,'#ce8147'],['Low · <80%',r=>r.attendance<80,'#c23b2e']]; const wa=rows.filter(r=>r.attendance!==null); return {type:'bar',data:{labels:bands.map(b=>b[0]),datasets:[{data:bands.map(([l,f])=>acRate(wa.filter(f))),backgroundColor:bands.map(b=>b[2]),borderRadius:4,maxBarThickness:44}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:pctAxis(),y:noGridX}}}; },
+  vaTeacher(rows){ const g=rows.filter(r=>predEligible(r)&&r.band!==null&&r.band<=8); const tchs=[...new Set(g.map(r=>r.teacher))].sort(); const va=tchs.map(t=>avg(g.filter(r=>r.teacher===t).map(r=>r.pred-r.band))); const m=Math.max(.5,...va.map(v=>Math.abs(v)))*1.15; return {type:'bar',data:{labels:tchs,datasets:[{data:va,backgroundColor:va.map(v=>v>=0?'#e3b04b':'#c23b2e'),borderRadius:4,maxBarThickness:30}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{min:-m,max:m,title:{display:true,text:'← below prediction · above prediction →'},grid:{drawTicks:false},border:{display:false}},y:noGridX}}}; },
+  trendAC(tr){ const years=[...new Set(tr.map(r=>r.year))].sort(); const f=(y,b)=>{const g=tr.filter(r=>r.year===y&&r.band<=8);return pct(g.filter(r=>r.band<=b).length,g.length);}; return {type:'line',data:{labels:years,datasets:[{label:'A–C rate',data:years.map(y=>f(y,6)),borderColor:'#e3b04b',backgroundColor:'#e3b04b',borderWidth:2.5,pointRadius:4,tension:.25},{label:'A rate',data:years.map(y=>f(y,2)),borderColor:'#ddd8c0',backgroundColor:'#ddd8c0',borderWidth:2,borderDash:[6,4],pointRadius:4,tension:.25}]},options:{plugins:{legend:{position:'bottom'}},scales:{x:noGridX,y:pctAxis()}}}; },
+  trendBand(tr){ const years=[...new Set(tr.map(r=>r.year))].sort(); const series=[...new Set(tr.map(r=>r.subject+'¦'+r.level))].sort((a,b)=>{const[sa,la]=a.split('¦'),[sb,lb]=b.split('¦');return sa.localeCompare(sb)||LEVEL_ORDER.indexOf(la)-LEVEL_ORDER.indexOf(lb);}); return {type:'line',data:{labels:years,datasets:series.map((k,i)=>{const[s,l]=k.split('¦');const col=trendColor(s,l,i);return {label:s+' · '+(LEVEL_SHORT[l]||l),data:years.map(y=>{const yr=tr.filter(r=>r.year===y&&r.subject===s&&r.level===l);return yr.length?avg(yr.map(r=>r.band)):null;}),borderColor:col,backgroundColor:col,borderWidth:2,pointRadius:3,tension:.25,spanGaps:true};})},options:{plugins:{legend:{position:'bottom',labels:{boxWidth:12,boxHeight:3}}},scales:{x:noGridX,y:{...gridY,min:1,max:9,reverse:true,ticks:{stepSize:1,callback:v=>BAND_LABEL[v]||''}}}}}; },
+  compBreak(comps){ const cy=[...new Set(comps.map(r=>r.year))].sort(); const COMP_COLS=['#e3b04b','#ddd8c0','#c96b31','#c23b2e','#9aa0a8','#8fb8b6','#b5825f','#7d5ba6']; const fade=hex=>{const n=parseInt(hex.slice(1),16);return 'rgba('+(n>>16&255)+','+(n>>8&255)+','+(n&255)+',.38)';}; const titles=[...new Set(comps.map(r=>r.title||('Component '+r.component)))].sort(); const ds=[]; titles.forEach((t,i)=>{const col=COMP_COLS[i%COMP_COLS.length]; const of=y=>comps.filter(r=>r.year===y&&(r.title||('Component '+r.component))===t); ds.push({label:t+' — KSS',data:cy.map(y=>avg(of(y).filter(r=>r.mark!==null).map(r=>r.mark))),backgroundColor:col,borderRadius:3,maxBarThickness:22}); ds.push({label:t+' — Nat',data:cy.map(y=>avg(of(y).filter(r=>r.nat!==null).map(r=>r.nat))),backgroundColor:fade(col),borderRadius:3,maxBarThickness:22});}); return {type:'bar',data:{labels:cy,datasets:ds},options:{plugins:{legend:{position:'bottom',labels:{boxWidth:10}}},scales:{x:noGridX,y:{...gridY,beginAtZero:true}}}}; },
+  estPie(rows){ const we=gradeable(rows).filter(r=>r.est!==null&&r.band!==null); return {type:'doughnut',data:{labels:['Above estimate','Below estimate','Equal'],datasets:[{data:[we.filter(r=>r.band<r.est).length,we.filter(r=>r.band>r.est).length,we.filter(r=>r.band===r.est).length],backgroundColor:['#ce8147','#c23b2e','#e8e6df'],borderColor:'#2f353e',borderWidth:3}]},options:{cutout:'55%',plugins:{legend:{position:'right'}}}}; },
+};
+/* Report styles — print-friendly: white paper, dark ink, gold accents, colour kept for charts only */
+function repStyles(){ return "@page{size:A4 portrait;margin:11mm}"+
+"*{margin:0;padding:0;box-sizing:border-box;-webkit-print-color-adjust:exact;print-color-adjust:exact}"+
+"html,body{background:#fff;color:#2a323c;font-family:'Archivo',-apple-system,sans-serif;font-size:11.5px;line-height:1.5}"+
+"#rep{max-width:186mm;margin:0 auto;padding:8mm 4mm 10mm}"+
+".printbar{position:fixed;top:10px;right:10px;display:flex;gap:12px;align-items:center;z-index:9;background:#14263d;border-radius:8px;padding:8px 12px;font-size:12px;color:#cfd6de;box-shadow:0 4px 14px rgba(0,0,0,.25)}"+
+".printbar button{background:#e3b04b;border:none;border-radius:6px;padding:8px 16px;font-weight:700;font-family:'Archivo',sans-serif;cursor:pointer;color:#1d2127;font-size:12.5px}"+
+"@media print{.printbar{display:none}}"+
+".rep-head{display:flex;align-items:center;gap:14px;border-bottom:2.5px solid #b8912f;padding-bottom:12px;margin-bottom:12px}"+
+".crest{width:44px;height:44px;border:1.5px solid #b8912f;border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'Oswald',sans-serif;font-weight:700;color:#a8802f;font-size:15px;flex:none}"+
+"h1{font-family:'Oswald',sans-serif;text-transform:uppercase;font-size:19px;letter-spacing:.05em;color:#14263d;line-height:1.2}"+
+"h1 .accent{color:#a8802f}"+
+".meta{color:#7c8794;font-size:10px;margin-top:3px}"+
+"h2{font-family:'Oswald',sans-serif;text-transform:uppercase;font-size:13.5px;letter-spacing:.06em;color:#14263d;margin:16px 0 8px;border-left:3px solid #b8912f;padding-left:8px;page-break-after:avoid}"+
+"h3{font-size:11.5px;font-weight:800;color:#14263d;margin:10px 0 4px;page-break-after:avoid}"+
+".kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin:10px 0}"+
+".kpi{border:1px solid #d9dee4;border-top:2.5px solid #b8912f;border-radius:8px;padding:8px 9px}"+
+".kpi .l{font-size:7.5px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#7c8794}"+
+".kpi .v{font-family:'Oswald',sans-serif;font-size:17px;color:#14263d;margin-top:2px}"+
+".kpi .f{font-size:8.5px;color:#7c8794}"+
+".card{border:1px solid #d9dee4;border-radius:8px;padding:10px 12px;margin:8px 0;page-break-inside:avoid}"+
+".card .ct{font-size:10.5px;font-weight:800;margin-bottom:6px;color:#14263d}"+
+".two{display:grid;grid-template-columns:1fr 1fr;gap:8px}"+
+"img.chart{width:100%;display:block}"+
+"table{width:100%;border-collapse:collapse;font-size:9.5px;margin:5px 0 9px}"+
+"th{text-align:left;font-size:7.5px;letter-spacing:.08em;text-transform:uppercase;color:#7c8794;border-bottom:1.5px solid #b8912f;padding:4px 6px}"+
+"th.r,td.r{text-align:right}"+
+"td{padding:4px 6px;border-bottom:1px solid #e8ebee;color:#3d4650}"+
+"td.s{color:#14263d;font-weight:700}"+
+"tr.total td{border-top:1.5px solid #c8cfd6;font-weight:700;color:#14263d}"+
+"ul.heads{list-style:none;margin:6px 0}"+
+"ul.heads li{padding:5px 0 5px 14px;position:relative;border-bottom:1px solid #e8ebee;color:#3d4650}"+
+"ul.heads li:last-child{border-bottom:none}"+
+"ul.heads li::before{content:'';position:absolute;left:2px;top:11px;width:5px;height:5px;background:#b8912f;transform:rotate(45deg)}"+
+"ul.heads b,.de b{color:#14263d}"+
+".dev{border:1px solid #d9dee4;border-left:3px solid #b8912f;border-radius:8px;padding:9px 12px;margin:7px 0;page-break-inside:avoid}"+
+".dev .dt{font-weight:800;color:#14263d;font-size:11px}"+
+".dev .de{color:#3d4650;font-size:10px;margin-top:3px}"+
+".dev .da{color:#8a6d1f;font-size:10px;margin-top:4px}"+
+".prompt{border:1px solid #d9dee4;border-radius:8px;padding:8px 11px;margin:6px 0;color:#3d4650;font-size:10.5px;page-break-inside:avoid}"+
+".pb{page-break-before:always}"+
+".writein{border:1.5px dashed #c9a25c;border-radius:8px;min-height:76px;padding:10px 12px;font-size:11px;line-height:1.6;color:#2a323c;margin:4px 0 12px;page-break-inside:avoid;outline:none}"+
+".writein:focus{border-style:solid;border-color:#b8912f}"+
+".writein:empty::before{content:attr(data-ph);color:#a6adb5}"+
+".foot{margin-top:16px;border-top:1px solid #d9dee4;padding-top:6px;font-size:8.5px;color:#7c8794;text-align:center}"; }
+function repHead(title){
+  const d=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+  return '<div class="rep-head"><div class="crest">KSS</div><div><h1>'+esc(title)+' <span class="accent">| '+esc(state.session||'—')+'</span></h1><div class="meta">Faculty of Art &amp; Drama · Knightswood Secondary · Generated '+d+' · Source: '+esc(state.filename)+(state.preResults?' · <b style="color:#9a7a1a">PRE-RESULTS — figures use teacher estimates</b>':'')+'</div></div></div>';
+}
+const repFoot='<div class="foot">KSS QS Attainment Analysis · data processed entirely in the browser · CEM prediction is an approximation for value-added context, not an official QS predictor, and is applied to National 5 only</div>';
+function openReportWindow(title){
+  const w=window.open('','_blank');
+  if(!w){ alert('Pop-up blocked — please allow pop-ups for this page to generate reports.'); return null; }
+  w.document.write('<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>'+esc(title)+'</title>'+
+    '<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">'+
+    '<style>'+repStyles()+'</style></head><body>'+
+    '<div class="printbar"><span>A4 · portrait · choose “Save as PDF” as the destination</span><button onclick="window.print()">Print / Save as PDF</button></div>'+
+    '<div id="rep">Building report…</div></body></html>');
+  w.document.close();
+  return w;
+}
+function subjectSection(subject, mini){
+  const rows=state.rows.filter(r=>r.subject===subject);
+  if(!rows.length) return '';
+  const comps=state.comps.filter(r=>r.subject.startsWith(subject));
+  const tr=trendBands().filter(r=>r.subject.startsWith(subject));
+  let h='<h2>'+esc(subject)+'</h2>'+repKpis(rows);
+  h+='<h3>Attainment by level</h3>'+repLevelTables(rows,false);
+  h+='<div class="two"><div class="card"><div class="ct">Grade distribution'+estTag()+'</div>'+chartImg(repCfg.gradeDist(rows),230)+'</div>';
+  h+='<div class="card"><div class="ct">A–C rate by SIMD quintile'+estTag()+'</div>'+chartImg(repCfg.quintile(rows),230)+'</div></div>';
+  if(!mini){
+    if(tr.length && [...new Set(tr.map(r=>r.year))].length>1)
+      h+='<div class="card"><div class="ct">Average band by year — lower is better</div>'+chartImg(repCfg.trendBand(tr),260)+'</div>';
+    if(comps.some(r=>r.mark!==null))
+      h+='<div class="card"><div class="ct">Component breakdown by year — cohort (solid) vs national (faded)</div>'+chartImg(repCfg.compBreak(comps),290)+'</div>';
+  }
+  h+='<h3>Areas for development — '+esc(subject)+'</h3>'+devAreasHtml(rows,comps,subject);
+  return h;
+}
+function facultyReport(){
+  const rows=state.rows;
+  let h=repHead('Faculty Attainment Report');
+  h+='<h2>Faculty summary</h2>'+repKpis(rows);
+  h+='<div class="two"><div class="card"><div class="ct">Grade distribution'+estTag()+'</div>'+chartImg(repCfg.gradeDist(rows),230)+'</div>';
+  h+='<div class="card"><div class="ct">A–C rate by subject'+estTag()+'</div>'+chartImg(repCfg.acBySubject(rows),230)+'</div></div>';
+  h+='<div class="card"><div class="ct">Headlines</div><ul class="heads">'+buildHeadlines(rows).map(x=>'<li>'+x+'</li>').join('')+'</ul></div>';
+  h+='<div class="pb"></div><h2>Attainment by level</h2>'+repLevelTables(rows,true);
+  h+='<h2>Equity &amp; attendance</h2>';
+  h+='<div class="two"><div class="card"><div class="ct">A–C by SIMD quintile'+estTag()+'</div>'+chartImg(repCfg.quintile(rows),230)+'</div>';
+  h+='<div class="card"><div class="ct">A–C by attendance band'+estTag()+'</div>'+chartImg(repCfg.attBand(rows),230)+'</div></div>';
+  if(!state.preResults) h+='<h2>Value added</h2><div class="card"><div class="ct">Average bands vs CEM prediction, by teacher — National 5 pupils only (CEM predictions are not validated beyond N5)</div>'+chartImg(repCfg.vaTeacher(rows),260)+'</div>';
+  const tr=trendBands();
+  if(tr.length && [...new Set(tr.map(r=>r.year))].length>1){
+    h+='<div class="pb"></div><h2>Attainment over time</h2>';
+    h+='<div class="card"><div class="ct">A and A–C rate by year</div>'+chartImg(repCfg.trendAC(tr),240)+'</div>';
+    h+='<div class="card"><div class="ct">Average band by year — lower is better</div>'+chartImg(repCfg.trendBand(tr),280)+'</div>';
+    const cYears=[...new Set(state.comps.filter(r=>r.mark!==null&&r.nat!==null).map(r=>r.year))].sort();
+    h+='<div class="card"><div class="ct">Trend analysis</div><ul class="heads">'+trendHeadlines(tr,[...new Set(tr.map(r=>r.year))].sort(),state.comps.filter(r=>r.mark!==null),cYears).map(x=>'<li>'+x+'</li>').join('')+'</ul></div>';
+  }
+  h+='<div class="pb"></div><h2>Areas for development — faculty improvement plan</h2>'+devAreasHtml(rows,state.comps,'the faculty');
+  for(const s of [...new Set(rows.map(r=>r.subject))].sort()) h+='<div class="pb"></div>'+subjectSection(s,true);
+  return h+repFoot;
+}
+function subjectReport(subject){
+  return repHead(subject+' — Subject Report')+subjectSection(subject,false)+repFoot;
+}
+function teacherReport(t){
+  const rows=state.rows.filter(r=>r.teacher===t);
+  const g=gradeable(rows); const e=estTag();
+  let h=repHead('Teacher Report — '+t);
+  h+='<div class="card" style="border-left:3px solid #b8912f"><div class="de">Prepared to support <b>PRD discussion</b> and professional-development planning. Figures are drawn from the faculty QS data workbook'+(state.preResults?' and use teacher estimates (pre-results)':'')+'.</div></div>';
+  h+=repKpis(rows);
+  /* class summary */
+  const classes=[...new Set(rows.map(r=>r.subject+'¦'+r.level))].sort((a,b)=>{const[sa,la]=a.split('¦'),[sb,lb]=b.split('¦');return sa.localeCompare(sb)||LEVEL_ORDER.indexOf(la)-LEVEL_ORDER.indexOf(lb);});
+  h+='<h2>Class summary</h2><table><thead><tr><th>Class</th><th class="r">Pupils</th><th class="r">A rate'+e+'</th><th class="r">A–C'+e+'</th><th class="r">Avg band'+e+'</th><th class="r">Avg CEM</th><th class="r">Attendance</th><th class="r">Value added</th></tr></thead><tbody>';
+  for(const k of classes){ const[s,l]=k.split('¦'); const cr=rows.filter(r=>r.subject===s&&r.level===l); const sp=statPack(cr);
+    const wp=state.preResults? [] : vaSet(gradeable(cr));
+    const va=wp.length? avg(wp.map(r=>r.pred-r.band)):null;
+    h+='<tr><td class="s">'+esc(s)+' · '+esc(l)+'</td><td class="r">'+sp.n+'</td><td class="r">'+fmtPct(sp.a)+'</td><td class="r">'+fmtPct(sp.ac)+'</td><td class="r">'+fmt1(sp.avg)+'</td><td class="r">'+fmt1(avg(cr.map(r=>r.cem).filter(v=>v!==null)))+'</td><td class="r">'+(sp.att===null?'—':sp.att.toFixed(1)+'%')+'</td><td class="r">'+(va===null?'—':(va>=0?'+':'')+va.toFixed(2))+'</td></tr>';
+  }
+  h+='</tbody></table>';
+  h+='<div class="two"><div class="card"><div class="ct">Grade distribution'+e+'</div>'+chartImg(repCfg.gradeDist(rows),230)+'</div>';
+  h+=state.preResults? '<div class="card"><div class="ct">Estimates outcome</div><div class="de" style="padding:20px 8px">Available after results day — estimates vs awarded grades.</div></div>'
+    : '<div class="card"><div class="ct">Estimates outcome — awarded vs estimate</div>'+chartImg(repCfg.estPie(rows),230)+'</div>';
+  h+='</div>';
+  /* pupil list */
+  h+='<div class="pb"></div><h2>Pupil detail</h2><table><thead><tr><th>Pupil</th><th>Class</th><th class="r">CEM band</th><th class="r">Attendance</th><th class="r">Estimate</th><th class="r">Awarded</th><th>Vs estimate</th><th>Vs CEM (N5)</th></tr></thead><tbody>';
+  for(const r of [...rows].sort((a,b)=>a.subject.localeCompare(b.subject)||a.name.localeCompare(b.name))){
+    let vsEst='—';
+    if(!state.preResults&&r.band!==null&&r.est!==null&&r.band<=8) vsEst=r.band<r.est?'Above':r.band===r.est?'Equal':'Below';
+    let vs=r.level==='National 5'?'—':'n/a';
+    if(!state.preResults&&r.band!==null&&r.band<=8&&predEligible(r)) vs=r.band<r.pred?'Above':r.band===r.pred?'Equal':'Below';
+    h+='<tr><td class="s">'+esc(r.name)+'</td><td>'+esc(r.subject)+' · '+esc(r.level)+'</td><td class="r">'+(r.pred!==null?BAND_LABEL[r.pred]:'—')+'</td><td class="r">'+(r.attendance!==null?r.attendance.toFixed(1)+'%':'—')+'</td><td class="r">'+(r.est!==null?BAND_LABEL[r.est]:'—')+'</td><td class="r">'+(r.gradeRaw!==null?esc(r.gradeRaw):(r.band!==null?BAND_LABEL[r.band]:'—'))+'</td><td>'+vsEst+'</td><td>'+vs+'</td></tr>';
+  }
+  h+='</tbody></table>';
+  h+='<h2>Strengths &amp; development priorities</h2><ul class="heads">'+teacherPriorities(rows,t).map(p=>'<li><b>'+p.tagLabel+':</b> '+p.text+'</li>').join('')+'</ul>';
+  /* PD suggestions */
+  const pd=[];
+  if(!state.preResults){
+    const we=g.filter(r=>r.est!==null&&r.band!==null);
+    if(we.length){ const exact=pct(we.filter(r=>r.est===r.band).length,we.length);
+      if(exact!==null&&exact<50) pd.push('<b>Assessment standards:</b> engage with QS Understanding Standards materials and cross-marking to sharpen estimate accuracy.');
+      else if(exact!==null&&exact>=60) pd.push('<b>Lead moderation:</b> estimate accuracy is a strength — consider leading faculty moderation or mentoring colleagues on standards.');
+    }
+    const wp=vaSet(g);
+    if(wp.length){ const va=avg(wp.map(r=>r.pred-r.band));
+      if(va<=-0.3) pd.push('<b>Data-informed targets:</b> CLPL on using CEM baselines to set and track aspirational individual targets (National 5).');
+      if(va>=0.3) pd.push('<b>Share practice:</b> strong value added at National 5 — capture what is working and share it at faculty or school level.');
+    }
+  }
+  const q12=acRate(rows.filter(r=>r.quintile!==null&&r.quintile<=2)), q45=acRate(rows.filter(r=>r.quintile!==null&&r.quintile>=4));
+  if(q12!==null&&q45!==null&&q45-q12>15) pd.push('<b>Equity pedagogy:</b> explore approaches for closing the poverty-related gap (targeted feedback, cost-of-the-school-day awareness, family engagement).');
+  const ac=acRate(rows), aR=pct(g.filter(r=>bandOf(r)<=2).length,g.length);
+  if(ac!==null&&aR!==null&&ac>=70&&aR<20) pd.push('<b>Stretch &amp; challenge:</b> professional learning on top-band exemplification and extending high-attaining pupils.');
+  if(!pd.length) pd.push('<b>Own choice:</b> indicators are healthy across the board — an opportunity to pursue a development interest of your own (digital pedagogy, creativity, leadership).');
+  h+='<h2>Professional development suggestions</h2><ul class="heads">'+pd.map(x=>'<li>'+x+'</li>').join('')+'</ul>';
+  h+='<h2>PRD reflection prompts</h2>'+[
+    'Which pupils exceeded expectations this session — and what teaching approaches enabled that?',
+    'Where estimates and final awards diverged, what evidence would improve confidence next time?',
+    'Which component shows the biggest gap to the national average, and what one change to learning and teaching would target it?',
+    'Which pupils from SIMD Q1–2 or with low attendance need a different approach next session?',
+    'What professional learning this year would have the biggest impact on your classes’ outcomes?',
+  ].map(q=>'<div class="prompt">'+q+'</div>').join('');
+  return h+repFoot;
+}
+/* ---------- Departmental review ---------- */
+/* Whole-school results (optional upload) let the review answer the
+   "was this subject the pupil's highest / lowest attainment?" questions. */
+/* Letters-only key so "Josh T Brogan" matches "Josh T"+"Brogan" */
+const nameKey = (f,s)=>String((f||'')+(s||'')).toLowerCase().replace(/[^a-z]/g,'');
+function parseSchoolRows(json){
+  if(!json.length) return [];
+  const m=headerMap(json[0]);
+  const out=[];
+  for(const r of json){
+    const fore=pick(r,m,'forename','knownas','firstname'), sur=pick(r,m,'surname');
+    if(!fore||!sur) continue;
+    const subj=pick(r,m,'subject','coursetitle','course');
+    if(!subj) continue;
+    let band=gradeToBand(pick(r,m,'sqaresultband','resultband','band','sqaresults','sqaresult'));
+    if(band===null) band=gradeToBand(pick(r,m,'sqagrade','grade','award','result'));
+    if(band===null) continue;
+    out.push({key:nameKey(fore,sur), subject:normSubject(subj), level:normLevel(pick(r,m,'level')), band});
+  }
+  return out;
+}
+function handleSchoolFile(file){
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+      let best=[];
+      for(const n of wb.SheetNames){ const rows=parseSchoolRows(sheetToObjects(wb.Sheets[n])); if(rows.length>best.length) best=rows; }
+      if(!best.length) throw new Error('No result rows found — expected columns for Forename, Surname, Subject/Course, Level and Grade or Band.');
+      state.school=best;
+      $('schoolStatus').innerHTML='<span style="color:var(--green)">✓</span> Whole-school data attached: <b>'+best.length+'</b> results · '+new Set(best.map(r=>r.key)).size+' pupils · '+new Set(best.map(r=>r.subject)).size+' subjects — highest / lowest attainment questions are unlocked.';
+    }catch(ex){ alert('Could not read whole-school file: '+ex.message); }
+  };
+  reader.readAsArrayBuffer(file);
+}
+/* Simplified Insight-style course tariff for cross-subject comparison */
+const TARIFF={'National 5':{A:33,B:27,C:21,D:15},'Higher':{A:66,B:54,C:42,D:30},'Advanced Higher':{A:88,B:72,C:56,D:40}};
+function tariff(level,band){ if(band===null) return null; if(band>=8) return 0; const t=TARIFF[level]; if(!t) return null; return t[clusterOf(band)]??0; }
+function rankStats(rows,subject){
+  if(!(state.school&&state.school.length)) return null;
+  const byPupil=new Map();
+  for(const e of state.school){ const p=tariff(e.level,e.band); if(p===null) continue;
+    if(!byPupil.has(e.key)) byPupil.set(e.key,[]); byPupil.get(e.key).push({subject:e.subject,pts:p}); }
+  let n=0, hi=0, eq=0, lo=0;
+  for(const r of rows){
+    if(r.band===null) continue;
+    const our=tariff(r.level,r.band); if(our===null) continue;
+    const k=r.name.toLowerCase().replace(/[^a-z]/g,'');
+    const entries=(byPupil.get(k)||[]).filter(e=>e.subject!==subject && !e.subject.startsWith(subject));
+    if(!entries.length) continue;
+    n++;
+    const maxO=Math.max(...entries.map(e=>e.pts)), minO=Math.min(...entries.map(e=>e.pts));
+    if(our>maxO) hi++; else if(our===maxO) eq++;
+    if(our<minO) lo++;
+  }
+  return n? {n,hi,eq,lo} : null;
+}
+function reviewReport(subject){
+  const rowsAll=state.rows.filter(r=>r.subject===subject);
+  const e=estTag();
+  let h=repHead('Departmental Review — '+subject);
+  h+='<div class="card"><table><tbody>'+
+    '<tr><td class="s" style="width:30%">Department</td><td>Faculty of Art &amp; Drama</td></tr>'+
+    '<tr><td class="s">Subject</td><td>'+esc(subject)+'</td></tr>'+
+    '<tr><td class="s">Session</td><td>'+esc(state.session||'—')+'</td></tr>'+
+    '<tr><td class="s">Teachers</td><td>'+[...new Set(rowsAll.map(r=>r.teacher))].sort().map(esc).join(', ')+'</td></tr>'+
+    '<tr><td class="s">Entries</td><td>'+rowsAll.length+' pupils across '+[...new Set(rowsAll.map(r=>r.level))].length+' levels</td></tr></tbody></table></div>';
+  if(state.preResults) h+='<div class="card" style="border-left:3px solid #b8912f"><div class="de"><b>Pre-results:</b> prediction-outcome questions below use teacher estimates only and will finalise once awarded grades are entered.</div></div>';
+  const box=(q,ph)=>'<h3>'+q+'</h3><div class="writein" contenteditable="true" data-ph="'+ph+'"></div>';
+  h+='<h2>Reflections <span style="font-size:9px;letter-spacing:.02em;text-transform:none;color:#7c8794">— click a box and type; your text will print</span></h2>';
+  h+=box('What went well this session?','Type here…');
+  h+=box('What was tricky?','Type here…');
+  h+=box('What do you plan to change for next session?','Type here…');
+  const lvls=[...new Set(rowsAll.map(r=>r.level))].filter(l=>l!=='NPA').sort((a,b)=>LEVEL_ORDER.indexOf(a)-LEVEL_ORDER.indexOf(b));
+  const qa=(q,a)=>'<tr><td class="s" style="width:62%">'+q+'</td><td>'+a+'</td></tr>';
+  for(const l of lvls){
+    const rows=rowsAll.filter(r=>r.level===l);
+    h+='<div class="pb"></div><h2>'+esc(subject)+' — '+esc(l)+' <span style="font-size:10px;color:#7c8794;text-transform:none;letter-spacing:.02em">('+rows.length+' pupils)</span></h2>';
+    h+='<table><thead><tr><th>Question</th><th>Answer</th></tr></thead><tbody>';
+    /* predicted attainment = teacher estimate */
+    const we=gradeable(rows).filter(r=>r.est!==null&&bandOf(r)!==null);
+    const exc=we.filter(r=>bandOf(r)<r.est).length, mat=we.filter(r=>bandOf(r)===r.est).length, low=we.filter(r=>bandOf(r)>r.est).length;
+    const p=(x)=>we.length? x+' &nbsp;<span style="color:#7c8794">('+fmtPct(pct(x,we.length))+' of '+we.length+')</span>' : 'No estimates recorded';
+    h+=qa('How many / what % of young people <b>exceeded</b> their predicted attainment?'+e, we.length?p(exc):'—');
+    h+=qa('How many / what % of young people <b>matched</b> their predicted attainment?'+e, we.length?p(mat):'—');
+    h+=qa('How many / what % of young people attained <b>lower</b> than their predicted attainment?'+e, we.length?p(low):'—');
+    /* highest / lowest attainment — whole-school comparison */
+    const rk=state.preResults? null : rankStats(rows,subject);
+    const rkAns=(x)=>rk? x+' &nbsp;<span style="color:#7c8794">('+fmtPct(pct(x,rk.n))+' of '+rk.n+' comparable pupils)</span>' : '<span style="color:#9a7a1a">Awaiting whole-school data upload</span>';
+    h+=qa('For how many / what % of young people was '+esc(subject)+' their <b>highest</b> attainment?', rkAns(rk?rk.hi:0));
+    h+=qa('…their <b>equal highest</b> attainment?', rkAns(rk?rk.eq:0));
+    h+=qa('…their <b>lowest</b> attainment?', rkAns(rk?rk.lo:0));
+    /* components vs national */
+    const latestYear=[...new Set(state.comps.map(r=>r.year))].sort().pop();
+    for(const i of [1,2,3]){
+      const ck='c'+i, nk='n'+i;
+      let kss=avg(rows.map(r=>r[ck]).filter(v=>v!==null)), nat=avg(rows.map(r=>r[nk]).filter(v=>v!==null)), title='';
+      if((kss===null||nat===null) && latestYear){
+        const cr=state.comps.filter(r=>r.year===latestYear&&r.subject.startsWith(subject)&&r.level===l&&String(r.component)===String(i));
+        if(cr.length){
+          if(kss===null) kss=avg(cr.filter(r=>r.mark!==null).map(r=>r.mark));
+          if(nat===null) nat=avg(cr.filter(r=>r.nat!==null).map(r=>r.nat));
+          title=cr[0].title;
+        }
+      }
+      let ans='Not yet entered';
+      if(kss!==null&&nat!==null){ const d=kss-nat;
+        ans='Cohort '+kss.toFixed(1)+' vs national '+nat.toFixed(1)+' — <b>'+Math.abs(d).toFixed(1)+' marks '+(d>=0?'above':'below')+'</b>';
+      } else if(kss!==null) ans='Cohort '+kss.toFixed(1)+' — national average not entered';
+      h+=qa('How did your component marks compare to the national average? <b>Component '+i+(title?' · '+esc(title):'')+'</b>', ans);
+    }
+    h+='</tbody></table>';
+  }
+  h+='<h2>Component analysis</h2>'+box('What actions are you taking in light of your component mark analysis?','Type here…');
+  h+='<div class="foot" style="text-align:left">Method notes: “predicted attainment” = teacher estimate (band). Highest / lowest attainment compares this subject against every other subject the pupil sat, using simplified Insight-style tariff points (so a Higher award outranks the same grade at National 5); pupils are only counted when whole-school data contains at least one other subject for them.</div>';
+  return h+repFoot;
+}
+
+function runReport(kind,arg){
+  if(!state.rows.length) return;
+  const titles={faculty:'Faculty Attainment Report',subject:(arg||'')+' Subject Report',teacher:'Teacher Report — '+(arg||''),review:'Departmental Review — '+(arg||'')};
+  const w=openReportWindow('KSS '+titles[kind]+' '+(state.session||''));
+  if(!w) return;
+  setTimeout(()=>{
+    try{
+      const html= kind==='faculty'? facultyReport() : kind==='subject'? subjectReport(arg) : kind==='review'? reviewReport(arg) : teacherReport(arg);
+      w.document.getElementById('rep').innerHTML=html;
+    }catch(ex){ w.document.getElementById('rep').innerHTML='<p style="color:#e0736a">Report failed: '+esc(ex.message)+'</p>'; }
+  },60);
+}
+
+/* ============================ Chart reading guides ============================ */
+const CHART_TIPS={
+  chGradeDist:'Counts every graded entry by final grade cluster. Taller bars towards the left (A, B) = stronger results. DNA = did not attempt.',
+  chAcBySubject:'The percentage of each subject’s entries awarded A–C (bands 1–6). Use it to compare subjects at a glance — hover a bar for the exact figure.',
+  chCohort:'How many entries each subject presents, stacked by course level. This shows the size and shape of the cohort — not results.',
+  chBandProfile:'Splits each subject’s results into the nine QS bands as percentages. More gold (A bands) at the left of each bar is better; red is No Award, grey is DNA.',
+  chAvgBand:'The average awarded band per level. Bands run from A1 (best) to No Award — bars reaching closer to A1 are better.',
+  tblBreakdown:'One row per subject and level: entries, A rate, A–C rate, average band and No Awards. A–C pills: green ≥ 75%, amber ≥ 55%, red below.',
+  chVaScatter:'Each dot is one pupil: across = the band their CEM score predicted, down = the band actually awarded. Gold dots beat their prediction, red fell short, pale dots matched it. Shows National 5 only by default — CEM predictions are not validated beyond N5; triangles mark extrapolated Higher/AH pupils when toggled on.',
+  chVaTeacher:'Each teacher’s average distance from CEM prediction (National 5 pupils by default). Gold bars (right) = pupils typically beat predictions; red (left) = fell short. Around ±0.5 bands is a meaningful difference.',
+  chEstAcc:'How far teacher estimates were from awarded grades. The centre bar (0) is spot on; left of centre the estimate was optimistic (award came out worse); right, cautious (award came out better).',
+  chAttained:'The share of pupils in each subject who achieved or beat their CEM-predicted band. The boxes above count pupils across the whole selection.',
+  chAcQuintile:'A–C rate by SIMD quintile (Q1 = most deprived areas). A flat profile means deprivation is not predicting outcomes; a downward slope towards Q1 means it is.',
+  chSimdGap:'For each subject, the A–C rate of pupils from Q1–2 areas next to those from Q4–5. A big height difference within a pair = an equity gap in that subject.',
+  chAttainDep:'Each bubble is one SIMD decile: across = deprivation (1 = most deprived), down = the average band achieved, bubble size = how many pupils live there. The dashed line is the school trend — if it climbs towards A1 at the higher deciles, deprivation is still predicting outcomes; a flat line means lower attainers are keeping pace with higher attainers.',
+  chSimdProfile:'The full band profile for each SIMD decile (1 = most deprived). Watch for red (No Award) concentrating at the low deciles.',
+  tblTeacherSimd:'A–C rate and pupil count per SIMD quintile for each teacher’s classes. The last column is the Q1–2 vs Q4–5 gap — red when it exceeds 15 points.',
+  chAttScatter:'Each dot is one pupil, placed by attendance (across) and awarded band (down). Red dots attend below 80%. The dashed line is the overall trend — sloping up towards the top-right means better attendance goes with better grades.',
+  chAcAttBand:'A–C rate for high (≥90%), medium (80–90%) and low (<80%) attenders. A large drop in the Low bar quantifies the cost of poor attendance.',
+  chCompYoY:'For each component, the solid bar is your cohort’s average mark and the faded bar beside it is that component’s national average. Compare within each pair — different components have different maximum marks.',
+  chCompDev:'Your average mark minus the national average, per component. Bars above zero beat the country; below zero fell short. The same component sitting below zero year after year is a persistent focus area.',
+  tblComp:'Average mark / national average per year for every component. Δ YoY is the change in your average mark versus the previous year — green up, red down.',
+  chTrendBand:'One line per course and level, tracking the average awarded band each year. Lines climbing towards A1 (top) show improvement. Data comes from the combined component records plus this session’s results.',
+  chTrendGrades:'The grade profile of the current selection each year, as percentages. Growing gold (A) and shrinking red (No Award) means the profile is strengthening.',
+  chTrendAC:'The headline measures over time: solid gold = % awarded A–C, dashed = % awarded an A. Up and to the right is good.',
+  chTrendCompDev:'For each component, cohort average (solid) vs national average (faded), year by year — shows whether each component is gaining ground on the country.',
+  chTGrades:'This teacher’s results by grade cluster, for the classes currently selected above.',
+  chTEstPie:'Of this teacher’s pupils, the share awarded a better grade than estimated (above), worse (below) or exactly as estimated (equal).',
+  chTCem:'The ability baseline of each class — average CEM score, where 100 ≈ the national average. Read results in the context of this starting point.',
+  chTAvgBand:'Average awarded band per class. Read alongside the CEM chart: a modest band from a class with a low baseline can still represent strong value added.',
+  chTEstComp:'For each class, how many pupils finished above, below or equal to their estimate — a quick check on estimate accuracy class by class.',
+  chTComps:'This teacher’s class average per component (gold) against the national average (grey), built from the component records — only components that actually exist for the course appear. National bars show once QS publish the averages (or via the marks report / combined sheet).',
+  tblClass:'Every pupil in the selection. “Vs estimate” compares the awarded grade with the teacher’s estimate — the key moderation signal. “Vs CEM (N5)” compares with the CEM prediction, National 5 only.',
+};
+Object.entries(CHART_TIPS).forEach(([id,tip])=>{
+  const el=$(id); if(!el) return;
+  const card=el.closest('.card'); if(!card || card.querySelector('.info')) return;
+  const b=document.createElement('span');
+  b.className='info'; b.tabIndex=0; b.textContent='?'; b.dataset.tip=tip;
+  b.setAttribute('role','note'); b.setAttribute('aria-label','How to read this chart');
+  card.appendChild(b);
+});
+
+/* ============================ Upload & events ============================ */
+/* Populate the exam-session picker: two years back through two years ahead */
+(function(){
+  const now=new Date(); const startYear=now.getFullYear()-(now.getMonth()<7?1:0); /* session rolls over in August */
+  const opts=[];
+  for(let y=startYear-2;y<=startYear+2;y++) opts.push(String(y%100).padStart(2,'0')+'-'+String((y+1)%100).padStart(2,'0'));
+  $('ySession').innerHTML='<option value="">Auto-detect from file</option>'+opts.map(s=>'<option>'+s+'</option>').join('');
+})();
+function handleFile(file){
+  const err=$('dzError'); err.style.display='none';
+  if(!/\.(xlsx|xlsm|xls|csv)$/i.test(file.name)){ showError('That doesn’t look like an Excel or CSV file — please upload .xlsx, .xlsm or .csv.'); return; }
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{ parseWorkbook(XLSX.read(new Uint8Array(e.target.result),{type:'array'}), file.name); }
+    catch(ex){ showError(ex.message||'Could not read that workbook.'); }
+  };
+  reader.onerror=()=>showError('Could not read the file.');
+  reader.readAsArrayBuffer(file);
+}
+function showError(msg){
+  const err=$('dzError');
+  if(!$('uploadHero').classList.contains('hidden')){ err.textContent='⚠ '+msg; err.style.display='block'; }
+  else alert(msg);
+}
+const dz=$('dropzone');
+dz.addEventListener('click',()=>$('fileInput').click());
+dz.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' ')$('fileInput').click();});
+['dragover','dragenter'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add('drag');}));
+['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove('drag');}));
+dz.addEventListener('drop',e=>{const f=e.dataTransfer.files[0]; if(f) handleFile(f);});
+document.addEventListener('dragover',e=>e.preventDefault());
+document.addEventListener('drop',e=>{e.preventDefault(); if(!$('app').classList.contains('hidden')){const f=e.dataTransfer.files[0]; if(f) handleFile(f);}});
+$('fileInput').addEventListener('change',e=>{if(e.target.files[0]) handleFile(e.target.files[0]); e.target.value='';});
+$('btnReplace').addEventListener('click',()=>$('fileInput').click());
+
+['fSubject','fLevel','fTeacher','fQuintile'].forEach(id=>$(id).addEventListener('change',()=>{
+  state.filters={subject:$('fSubject').value,level:$('fLevel').value,teacher:$('fTeacher').value,quintile:$('fQuintile').value};
+  renderAll();
+}));
+$('resetFilters').addEventListener('click',()=>{
+  ['fSubject','fLevel','fTeacher','fQuintile'].forEach(id=>$(id).selectedIndex=0);
+  state.filters={subject:'All',level:'All',teacher:'All',quintile:'All'};
+  renderAll();
+});
+['cSubject','cLevel','cComponent'].forEach(id=>$(id).addEventListener('change',renderComponents));
+['trSubject','trLevel'].forEach(id=>$(id).addEventListener('change',renderTrends));
+$('vaExtToggle').addEventListener('change',()=>{ state.vaExt=$('vaExtToggle').checked; renderValue(filtered()); });
+$('repFacultyBtn').addEventListener('click',()=>runReport('faculty'));
+$('repSubjectBtn').addEventListener('click',()=>runReport('subject',$('repSubjectSel').value));
+$('repTeacherBtn').addEventListener('click',()=>runReport('teacher',$('repTeacherSel').value));
+$('revBtn').addEventListener('click',()=>runReport('review',$('revSubjectSel').value));
+$('schoolBtn').addEventListener('click',()=>$('schoolInput').click());
+$('schoolInput').addEventListener('change',e=>{if(e.target.files[0]) handleSchoolFile(e.target.files[0]); e.target.value='';});
+$('tTeacher').addEventListener('change',()=>{ $('tSubject').value='All'; $('tLevel').value='All'; buildTeacherSubFilters(); renderTeacher(); });
+['tSubject','tLevel'].forEach(id=>$(id).addEventListener('change',renderTeacher));
+
+$('tabbar').addEventListener('click',e=>{
+  const btn=e.target.closest('.tab'); if(!btn) return;
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t===btn));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.id==='panel-'+btn.dataset.tab));
+  state.tab=btn.dataset.tab;
+});
+
+/* ============================ Snapshot export ============================ */
+$('btnSnapshot').addEventListener('click',()=>{
+  const payload={rows:state.rows,comps:state.comps,school:state.school||[],filename:state.filename,sheetName:state.sheetName,session:state.session||'',
+    generated:new Date().toLocaleString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})};
+  const clone=document.documentElement.cloneNode(true);
+  const oldSnap=clone.querySelector('#snapshot-data'); if(oldSnap) oldSnap.remove();
+  const s=document.createElement('script'); s.id='snapshot-data';
+  s.textContent='window.__SNAPSHOT__='+JSON.stringify(payload).replace(/</g,'\\u003c')+';';
+  clone.querySelector('head').appendChild(s);
+  const html='<!DOCTYPE html>\n'+clone.outerHTML;
+  const blob=new Blob([html],{type:'text/html'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  const stamp=new Date().toISOString().slice(0,10);
+  a.download='KSS QS Attainment Snapshot '+stamp+'.html';
+  a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),4000);
+});
+
+/* ============================ Boot ============================ */
+if(window.__SNAPSHOT__){
+  const snap=window.__SNAPSHOT__;
+  $('snapshotBanner').classList.remove('hidden');
+  $('snapshotMeta').textContent='· generated '+snap.generated+' from '+snap.filename;
+  if(snap.session){ const o=[...$('ySession').options].find(o=>o.value===snap.session); if(!o) $('ySession').insertAdjacentHTML('beforeend','<option>'+esc(snap.session)+'</option>'); $('ySession').value=snap.session; }
+  if(snap.school&&snap.school.length){ state.school=snap.school;
+    $('schoolStatus').innerHTML='<span style="color:var(--green)">✓</span> Whole-school data embedded in this snapshot: <b>'+snap.school.length+'</b> results.'; }
+  loadData(snap.rows, snap.comps||[], snap.filename, snap.sheetName||'');
+}
+
+/* Expose API for Faculty Hub cloud bridge */
+(function(){
+  const listeners=[];
+  window.QSAttainment = {
+    getPayload: function(){
+      return {
+        rows: state.rows,
+        comps: state.comps,
+        school: state.school || [],
+        filename: state.filename || '',
+        sheetName: state.sheetName || '',
+        session: state.session || ($('ySession') && $('ySession').value) || '',
+        preResults: !!state.preResults,
+        compReport: state.compReport || null,
+        pupilCount: state.pupilCount || (state.rows && state.rows.length) || 0
+      };
+    },
+    setSession: function(sess){
+      state.session = sess || '';
+      if(sess && $('ySession')){
+        const o=[...$('ySession').options].find(o=>o.value===sess);
+        if(!o) $('ySession').insertAdjacentHTML('beforeend','<option value="'+esc(sess)+'">'+esc(sess)+'</option>');
+        $('ySession').value = sess;
+      }
+      $('sessionLabel').textContent = sess? '| '+sess : '';
+      $('sessionSub').textContent = sess? ' · Session 20'+String(sess).slice(0,2)+'–'+String(sess).slice(3,5) : '';
+    },
+    loadFromCloud: function(payload){
+      if(!payload) return;
+      state.school = payload.school || [];
+      state.compReport = payload.compReport || null;
+      state.session = payload.session || '';
+      if(payload.session){
+        const o=[...$('ySession').options].find(o=>o.value===payload.session);
+        if(!o) $('ySession').insertAdjacentHTML('beforeend','<option value="'+esc(payload.session)+'">'+esc(payload.session)+'</option>');
+        $('ySession').value = payload.session;
+      }
+      if(state.school && state.school.length && $('schoolStatus')){
+        $('schoolStatus').innerHTML='<span style="color:var(--green)">✓</span> Whole-school data loaded from hub: <b>'+state.school.length+'</b> results.';
+      }
+      loadData(payload.rows||[], payload.comps||[], payload.filename||'Hub snapshot', payload.sheetName||'');
+      if(typeof payload.preResults==='boolean'){
+        state.preResults = payload.preResults;
+        $('preResultsBanner').classList.toggle('on', state.preResults);
+      }
+    },
+    onDataLoaded: function(fn){ if(typeof fn==='function') listeners.push(fn); },
+    _notifyLoaded: function(){ listeners.forEach(function(fn){ try{ fn(); }catch(e){} }); }
+  };
+})();
+</script>
+<script src="qs-attainment-hub.js"></script>
+</body>
+</html>

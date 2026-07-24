@@ -43,6 +43,7 @@ window.FH_NAV = {
       group: 'Faculty Leadership',
       items: [
         { id: 'dip', label: 'Improvement Plan', href: 'faculty-hub.html?panel=dip-main' },
+        { id: 'qs-attainment', label: 'QS Attainment', href: 'faculty-hub.html?panel=embed-qs-attainment' },
         {
           id: 'meetings',
           label: 'Meetings',
@@ -134,6 +135,13 @@ window.FH_NAV = {
           sidebarLabel: 'Improvement Plan',
           href: 'faculty-hub.html?panel=dip-main',
           icon: 'dip'
+        },
+        {
+          id: 'qs-attainment',
+          label: 'QS Attainment',
+          sidebarLabel: 'QS Attainment',
+          href: 'faculty-hub.html?panel=embed-qs-attainment',
+          icon: 'targets'
         },
         {
           id: 'meetings',
