@@ -119,8 +119,7 @@
         target: r.enrolment.target_grade,
         working: r.enrolment.latest_working_grade,
         risk: r.enrolment.risk_status,
-        final_estimate: r.enrolment.final_estimate,
-        qs_awarded_grade: r.enrolment.qs_awarded_grade || ''
+        final_estimate: r.enrolment.final_estimate
       };
     });
   }
@@ -148,9 +147,7 @@
         teacher: r.teacher_name,
         working: r.enrolment.latest_working_grade,
         final_estimate: r.enrolment.final_estimate,
-        qs_awarded_grade: r.enrolment.qs_awarded_grade || '',
-        risk: r.enrolment.risk_status,
-        scn: r.pupil.candidate_number || ''
+        risk: r.enrolment.risk_status
       };
     });
   }
@@ -176,9 +173,9 @@
     'missing-evidence': { title: 'Missing Evidence', fn: missingEvidence, headers: ['pupil', 'course', 'unit_component', 'teacher', 'evidence_status', 'notes'] },
     'level-change': { title: 'Level Change', fn: levelChangeReport, headers: ['pupil', 'course', 'original_level', 'recommended_level', 'reason', 'status', 'pupil_discussed', 'parent_contacted', 'sqa_confirmed'] },
     'interventions': { title: 'Interventions', fn: interventionReport, headers: ['pupil', 'course', 'teacher', 'concern_area', 'intervention', 'start_date', 'review_date', 'status', 'impact', 'outcome'] },
-    'course-overview': { title: 'Course Overview', fn: courseOverview, headers: ['course', 'pupil', 'teacher', 'level', 'target', 'working', 'risk', 'final_estimate', 'qs_awarded_grade'] },
+    'course-overview': { title: 'Course Overview', fn: courseOverview, headers: ['course', 'pupil', 'teacher', 'level', 'target', 'working', 'risk', 'final_estimate'] },
     'prelim': { title: 'Prelim Performance', fn: prelimPerformance, headers: ['pupil', 'course', 'teacher', 'target', 'prelim', 'risk'] },
-    'final-estimate': { title: 'Final Estimate', fn: finalEstimateReport, headers: ['pupil', 'course', 'teacher', 'working', 'final_estimate', 'qs_awarded_grade', 'risk', 'scn'] }
+    'final-estimate': { title: 'Final Estimate', fn: finalEstimateReport, headers: ['pupil', 'course', 'teacher', 'working', 'final_estimate', 'risk'] }
   };
 
   global.SptReports = {

@@ -38,12 +38,6 @@
     attendanceImportPreview: null,
     attendanceImportFilename: null,
     attendanceImportMessage: null,
-    qsImportStep: 1,
-    qsImportKind: null,
-    qsImportPreview: null,
-    qsImportFilename: null,
-    qsImportMessage: null,
-    qsSyncMessage: null,
     modal: null,
     navCollapsed: false
   };
@@ -1077,36 +1071,6 @@
     if (!canEdit) return '<td class="' + cls + ' cell-num">' + scorePillHtml(val) + '</td>';
     return '<td class="' + cls + '">' +
       scoreSelectHtml(val, 'data-tracking="' + enId + '|' + tpId + '|' + field + '"') + '</td>';
-  }
-
-  function qsGradeSelectHtml(val, course, dataAttr) {
-    var selectVal = window.SptQsBridge
-      ? SptQsBridge.bandToSelectValue(val, course)
-      : (val === '' || val == null ? '' : String(val));
-    return wgSelectHtml(selectVal, course, dataAttr);
-  }
-
-  function qsGradePillHtml(val, course) {
-    var selectVal = window.SptQsBridge
-      ? SptQsBridge.bandToSelectValue(val, course)
-      : val;
-    return wgPillHtml(selectVal, course);
-  }
-
-  function qsEstimateCell(en, course, canEdit) {
-    if (canEdit) {
-      return '<td class="cell-qs">' +
-        qsBandSelectHtml(en.final_estimate, course, 'data-qs-estimate="' + en.id + '"') + '</td>';
-    }
-    return '<td class="cell-qs cell-num">' + qsBandPillHtml(en.final_estimate, course) + '</td>';
-  }
-
-  function qsAwardedCell(en, course, canEdit) {
-    if (canEdit) {
-      return '<td class="cell-qs">' +
-        qsBandSelectHtml(en.qs_awarded_grade, course, 'data-qs-awarded="' + en.id + '"') + '</td>';
-    }
-    return '<td class="cell-qs cell-num">' + qsBandPillHtml(en.qs_awarded_grade, course) + '</td>';
   }
 
   function canEditBaselineField(field) {
@@ -2880,10 +2844,6 @@
       (state.unassignedOnly && canEdit && enrolments.length ?
         '<button type="button" class="btn btn-secondary btn-sm" data-remove-all-unassigned="' + courseId + '">Remove all unassigned</button>' : '') +
       (canEdit ? '<button type="button" class="btn btn-sm" data-add-pupil-course="' + courseId + '">+ Add pupil</button>' : '') +
-      (role().canImport ?
-        '<button type="button" class="btn btn-secondary btn-sm" data-send-qs-course="' + courseId + '"' +
-        (state.classId ? ' data-send-qs-class="' + state.classId + '"' : '') +
-        ' title="Push estimates and QS grades for this sheet to the QS Attainment dashboard">Send to QS</button>' : '') +
       '<button type="button" class="btn btn-secondary btn-sm layout-toggle-inline" id="nav-toggle-inline" title="Toggle navigation (N)">' +
       (state.navCollapsed ? 'Show menu' : 'Hide menu') + '</button>' +
       '</div></div>';
@@ -2950,9 +2910,7 @@
       });
     }
     if (meta.hasEvPupils && !meta.hasExamPupils) headGroup += '<th rowspan="2">Units</th>';
-    headGroup += '<th rowspan="2" title="Teacher QS estimate band">Estimate</th>' +
-      '<th rowspan="2" title="QS awarded grade (after results day)">QS grade</th>' +
-      '<th rowspan="2">Risk</th><th rowspan="2">Actions</th></tr>';
+    headGroup += '<th rowspan="2">Risk</th><th rowspan="2">Actions</th></tr>';
 
     var headSub = '<tr class="head-sub">';
     if (meta.hasS3) {
@@ -3053,8 +3011,6 @@
       if (meta.hasEvPupils && !meta.hasExamPupils) {
         courseBody += '<td class="cell-num">' + esc(r.uses_evidence_bank ? r.units_banked + '/' + r.units_total : '—') + '</td>';
       }
-      courseBody += qsEstimateCell(en, course, canEdit);
-      courseBody += qsAwardedCell(en, course, canEdit);
       courseBody += '<td class="cell-risk">' + badge(en.risk_status) + '</td><td class="cell-actions">';
       if (role().canFlag) courseBody += '<button type="button" class="btn btn-sm" data-flag="' + en.id + '">Flag</button> ';
       var pendingLc = SptLevelChange.activeForEnrolment(d, en.id);
@@ -3076,7 +3032,6 @@
     var sheetHint = '1 red · 2 amber · 3 yellow · 4 green';
     if (meta.hasEvPupils) sheetHint += ' · evidence';
     if (prelimComps.length) sheetHint += ' · prelims';
-    sheetHint += ' · Estimate / QS grade for attainment sync';
     if (role().canFlag) sheetHint += ' · flag concerns';
     html += sheetPanel('Tracking grid', enrolments.length + ' rows', sheetHint,
       '<table class="data-table course-grid"><thead>' + head + '</thead><tbody>' + courseBody + '</tbody></table>',
@@ -3137,7 +3092,7 @@
       '<div><label>First name</label><input name="first_name" required autocomplete="given-name"></div>' +
       '<div><label>Surname</label><input name="surname" required autocomplete="family-name"></div>' +
       '<div><label>Year group</label><select name="year_group">' + yearGroupOptionsHtml('S5/6') + '</select></div>' +
-      '<div><label>Candidate no. / SCN</label><input name="candidate_number" placeholder="e.g. 2409999 — needed for QS Excel match"></div></div>' +
+      '<div><label>Candidate no. (optional)</label><input name="candidate_number" placeholder="e.g. 2409999"></div></div>' +
       '<div id="add-pupil-existing-fields" hidden>' +
       '<div><label>Pupil</label><select name="pupil_id"><option value="">— Select pupil —</option>' + pupilOpts + '</select></div></div>' +
       '<div><label>Teacher</label><select name="teacher_id"' + (!r.viewAll ? ' disabled' : '') + '>' + teacherOpts + '</select>' +
@@ -3704,11 +3659,8 @@
     }
     body += '<div class="profile-section"><h3>Overview</h3><dl class="profile-grid">' +
       '<dt>Teacher</dt><dd>' + esc(SptStore.teacherName(d, en.teacher_id)) + '</dd>' +
-      '<dt>SCN</dt><dd>' + esc((pupil && pupil.candidate_number) || '—') + '</dd>' +
       '<dt>Target</dt><dd>' + esc(en.target_grade) + '</dd>' +
       '<dt>Working</dt><dd>' + esc(en.latest_working_grade) + '</dd>' +
-      '<dt>Estimate</dt><dd>' + qsBandPillHtml(en.final_estimate, course) + '</dd>' +
-      '<dt>QS grade</dt><dd>' + qsBandPillHtml(en.qs_awarded_grade, course) + '</dd>' +
       '<dt>Risk</dt><dd>' + badge(en.risk_status) + '</dd></dl></div>';
     if (role().canFlag) {
       body += '<button type="button" class="btn btn-sm" id="drawer-flag" data-enrolment="' + en.id + '">Flag concern</button> ';
@@ -3890,127 +3842,6 @@
     return target || '—';
   }
 
-  function sendSheetToQs(courseId, classId) {
-    if (!role().canImport) { alert('Faculty Head only'); return; }
-    if (!window.SptQsBridge || !window.QsAttainmentService) {
-      alert('QS bridge not loaded — refresh the page.');
-      return;
-    }
-    var opts = {};
-    if (courseId) opts.courseId = courseId;
-    if (classId) opts.classId = classId;
-    var built = SptQsBridge.buildQsRows(db(), opts);
-    var msg = 'Send ' + built.rows.length + ' pupil rows to QS Attainment for ' + built.schoolYear + '?';
-    if (built.missingScn) msg += '\n\nWarning: ' + built.missingScn + ' without SCN.';
-    if (!built.withEstimate && !built.withAwarded) {
-      msg += '\n\nNo estimates or QS grades are filled yet — charts will be empty until you add them.';
-    }
-    if (!confirm(msg)) return;
-    SptQsBridge.pushToQsAttainment(db(), opts).then(function(res) {
-      state.qsSyncMessage = 'Synced ' + res.built.rows.length + ' rows to QS Attainment (' + res.year +
-        '). Open Improvement → QS Attainment to review.';
-      state.coursesMessage = state.qsSyncMessage;
-      alert(state.qsSyncMessage);
-      render();
-    }).catch(function(err) {
-      alert('Could not send to QS: ' + ((err && err.message) || err));
-    });
-  }
-
-  function resetQsImportState() {
-    state.qsImportStep = 1;
-    state.qsImportKind = null;
-    state.qsImportPreview = null;
-    state.qsImportFilename = null;
-  }
-
-  function handleQsImportFile(file) {
-    if (!role().canImport) { alert('Faculty Head only'); return; }
-    if (!window.SptQsBridge) {
-      alert('QS bridge not loaded — refresh the page.');
-      return;
-    }
-    var reader = new FileReader();
-    reader.onload = function() {
-      try {
-        var wb = SptQsBridge.parseWorkbookArrayBuffer(reader.result);
-        var detected = SptQsBridge.detectImportKind(wb);
-        if (detected.kind === 'unknown' || !detected.rows.length) {
-          state.qsImportMessage = 'Could not detect QS results or component marks in that file.';
-          resetQsImportState();
-          render();
-          return;
-        }
-        state.qsImportFilename = file.name;
-        state.qsImportKind = detected.kind;
-        if (detected.kind === 'components') {
-          state.qsImportPreview = SptQsBridge.parseComponentEntries(detected.rows);
-          if (!state.qsImportPreview.length) {
-            state.qsImportMessage = 'No component mark rows found.';
-            resetQsImportState();
-            render();
-            return;
-          }
-        } else {
-          state.qsImportPreview = SptQsBridge.previewResultsImport(db(), detected.rows);
-        }
-        state.qsImportStep = 2;
-        state.qsImportMessage = null;
-        render();
-      } catch (ex) {
-        state.qsImportMessage = ex.message || 'Could not read that workbook.';
-        resetQsImportState();
-        render();
-      }
-    };
-    reader.readAsArrayBuffer(file);
-  }
-
-  function bindQsImportEvents(root) {
-    var qsFile = root.querySelector('#qs-import-file');
-    if (qsFile) qsFile.addEventListener('change', function() {
-      var file = qsFile.files[0];
-      if (!file) return;
-      handleQsImportFile(file);
-      qsFile.value = '';
-    });
-    var qsCancel = root.querySelector('#qs-import-cancel');
-    if (qsCancel) qsCancel.addEventListener('click', function() {
-      resetQsImportState();
-      state.qsImportMessage = null;
-      render();
-    });
-    var qsCommitResults = root.querySelector('#qs-import-commit-results');
-    if (qsCommitResults) qsCommitResults.addEventListener('click', function() {
-      if (!role().canImport || !state.qsImportPreview) return;
-      var result = SptQsBridge.commitResultsImport(db(), state.qsImportPreview);
-      resetQsImportState();
-      state.qsImportMessage = 'Updated estimate / QS grade on ' + result.updated + ' enrolment' +
-        (result.updated !== 1 ? 's' : '') + '. Use Send to QS Attainment when ready.';
-      render();
-    });
-    var qsCommitComps = root.querySelector('#qs-import-commit-comps');
-    if (qsCommitComps) qsCommitComps.addEventListener('click', function() {
-      if (!role().canImport || !state.qsImportPreview) return;
-      if (!window.QsAttainmentService) {
-        alert('QS Attainment service not loaded.');
-        return;
-      }
-      SptQsBridge.pushComponentsToQs(db(), state.qsImportPreview).then(function(res) {
-        resetQsImportState();
-        state.qsImportMessage = 'Appended ' + res.facCount + ' faculty component marks to QS ' +
-          res.year + ' (' + res.comps + ' component records total). Earlier years kept.';
-        render();
-      }).catch(function(err) {
-        alert('Could not save components: ' + ((err && err.message) || err));
-      });
-    });
-    var qsSendAll = root.querySelector('#qs-send-all');
-    if (qsSendAll) qsSendAll.addEventListener('click', function() {
-      sendSheetToQs(null, null);
-    });
-  }
-
   function renderAttendanceImportSection() {
     if (state.attendanceImportStep === 2 && state.attendanceImportPreview) {
       var summary = SptAttendanceImport.previewSummary(state.attendanceImportPreview);
@@ -4057,82 +3888,10 @@
       (role().canImport ? '' : ' disabled') + '></div></div></div></div>';
   }
 
-  function renderQsImportSection() {
-    var year = window.SptQsBridge ? SptQsBridge.schoolYear() : SptConfig.currentAcademicYear();
-    if (state.qsImportStep === 2 && state.qsImportPreview) {
-      if (state.qsImportKind === 'components') {
-        return '<div class="card" style="margin-bottom:1rem">' +
-          '<div class="card-head"><h2>QS Component Marks — ready</h2></div>' +
-          '<div class="card-body">' +
-          '<p><strong>' + state.qsImportPreview.length + ' component rows</strong> detected from ' +
-          esc(state.qsImportFilename || 'file') + '. These will append to the <strong>' + esc(year) +
-          '</strong> QS Attainment snapshot (earlier years stay intact).</p>' +
-          '<div class="setup-quick-actions" style="margin-bottom:1rem">' +
-          (role().canImport ?
-            '<button type="button" class="btn" id="qs-import-commit-comps">Append components to QS ' + esc(year) + '</button> ' : '') +
-          '<button type="button" class="btn btn-secondary" id="qs-import-cancel">Cancel</button></div>' +
-          '</div></div>';
-      }
-      var summary = { matched: 0, noScn: 0, missing: 0 };
-      state.qsImportPreview.forEach(function(item) {
-        if (item.ready) summary.matched++;
-        else if (item.status === 'no_scn') summary.noScn++;
-        else summary.missing++;
-      });
-      var previewRows = state.qsImportPreview.slice(0, 60).map(function(item) {
-        var status = item.ready ? 'Green' : (item.status === 'no_scn' ? 'Amber' : 'Grey');
-        return '<tr><td class="cell-num">' + esc(item.scn || '—') + '</td>' +
-          '<td class="col-pupil">' + esc(item.name) + '</td>' +
-          '<td>' + esc(item.subject) + '</td>' +
-          '<td class="cell-num">' + esc(item.estimate != null ? item.estimate : '—') + '</td>' +
-          '<td class="cell-num">' + esc(item.awarded != null ? item.awarded : '—') + '</td>' +
-          '<td>' + badge(status) + '</td>' +
-          '<td>' + esc(item.note || '') + '</td></tr>';
-      }).join('');
-      return '<div class="card" style="margin-bottom:1rem">' +
-        '<div class="card-head"><h2>QS results import — preview</h2></div>' +
-        '<div class="card-body">' +
-        '<p><strong>' + summary.matched + ' matched by SCN</strong> · ' + summary.noScn +
-        ' missing SCN · ' + summary.missing + ' unmatched</p>' +
-        '<p class="sheet-hint">Matched rows update <strong>Estimate</strong> and <strong>QS grade</strong> on class sheets. ' +
-        esc(state.qsImportFilename || '') + '</p>' +
-        '<div class="setup-quick-actions" style="margin-bottom:1rem">' +
-        (role().canImport ?
-          '<button type="button" class="btn" id="qs-import-commit-results">Import ' + summary.matched + ' matched rows</button> ' : '') +
-        '<button type="button" class="btn btn-secondary" id="qs-import-cancel">Cancel</button></div>' +
-        sheetPanel('Preview', 'First ' + Math.min(60, state.qsImportPreview.length) + ' rows', '',
-          '<table class="data-table"><thead><tr><th>SCN</th><th class="col-pupil">Pupil</th><th>Subject</th>' +
-          '<th>Estimate</th><th>QS grade</th><th>Status</th><th>Note</th></tr></thead><tbody>' +
-          (previewRows || '<tr><td colspan="7" class="empty">No rows</td></tr>') + '</tbody></table>') +
-        '</div></div>';
-    }
-
-    return '<div class="card" style="margin-bottom:1rem">' +
-      '<div class="card-head"><h2>QS Attainment — results &amp; components</h2></div>' +
-      '<div class="card-body">' +
-      '<p class="sheet-hint">Upload the faculty QS workbook or the official <strong>QS Component Marks Report</strong>. ' +
-      'Results match pupils by <strong>SCN</strong> and fill Estimate / QS grade. Component marks append to the ' +
-      '<strong>' + esc(year) + '</strong> hub snapshot for year-on-year charts.</p>' +
-      (state.qsImportMessage ? '<p class="hub-staff-status">' + esc(state.qsImportMessage) + '</p>' : '') +
-      (state.qsSyncMessage ? '<p class="hub-staff-status">' + esc(state.qsSyncMessage) + '</p>' : '') +
-      '<div class="setup-quick-actions" style="margin-bottom:0.75rem">' +
-      (role().canImport ?
-        '<button type="button" class="btn btn-sm" id="qs-send-all">Send all estimates / grades to QS Attainment</button> ' : '') +
-      '<a class="btn btn-secondary btn-sm" href="../../faculty-hub.html?panel=embed-qs-attainment" target="_blank" rel="noopener">Open QS Attainment</a>' +
-      '</div>' +
-      '<div class="form-grid" style="max-width:560px">' +
-      '<div><label>Excel / CSV (.xlsx, .xlsm, .csv)</label>' +
-      '<input type="file" id="qs-import-file" accept=".xlsx,.xlsm,.xls,.csv"' +
-      (role().canImport ? '' : ' disabled') + '></div></div>' +
-      '<p class="sheet-hint">Tip: keep SCN filled on every pupil in Setup so results match cleanly.</p>' +
-      '</div></div>';
-  }
-
   function renderImport() {
     var html = '<div class="page-head"><h1>Import School Tracking</h1>' +
-      '<p>Import attendance, tracking workbooks, or QS results / component marks (matched by SCN).</p></div>';
+      '<p>Import whole-school attendance or tracking workbook data. Attendance imports only update pupils already in the workbook.</p></div>';
 
-    html += renderQsImportSection();
     html += renderAttendanceImportSection();
 
     if (state.importMessage) {
@@ -4433,29 +4192,6 @@
         SptStore.upsertAttendance(db(), p[0], p[1], el.value);
         applyWgSelectColor(el);
         updateEnrolmentRiskCell(p[0]);
-      });
-    });
-    root.querySelectorAll('[data-qs-estimate]').forEach(function(el) {
-      applyWgSelectColor(el);
-      el.addEventListener('change', function() {
-        var enId = el.getAttribute('data-qs-estimate');
-        SptStore.updateRecord(db(), 'enrolments', enId, { final_estimate: el.value }, 'qs_estimate_update');
-        applyWgSelectColor(el);
-        updateEnrolmentRiskCell(enId);
-      });
-    });
-    root.querySelectorAll('[data-qs-awarded]').forEach(function(el) {
-      applyWgSelectColor(el);
-      el.addEventListener('change', function() {
-        var enId = el.getAttribute('data-qs-awarded');
-        SptStore.updateRecord(db(), 'enrolments', enId, { qs_awarded_grade: el.value }, 'qs_awarded_update');
-        applyWgSelectColor(el);
-        updateEnrolmentRiskCell(enId);
-      });
-    });
-    root.querySelectorAll('[data-send-qs-course]').forEach(function(el) {
-      el.addEventListener('click', function() {
-        sendSheetToQs(el.getAttribute('data-send-qs-course'), el.getAttribute('data-send-qs-class') || null);
       });
     });
     root.querySelectorAll('[data-tp-default]').forEach(function(el) {
@@ -4928,8 +4664,6 @@
           ', ' + stats.enrolments + ' course enrolments updated' : '') + '.';
       render();
     });
-
-    bindQsImportEvents(root);
 
     var templateBlank = root.querySelector('#template-download-blank');
     if (templateBlank) templateBlank.addEventListener('click', function() {

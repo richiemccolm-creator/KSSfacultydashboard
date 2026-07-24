@@ -986,7 +986,6 @@
       target_grade: '',
       latest_working_grade: '',
       final_estimate: '',
-      qs_awarded_grade: '',
       risk_status: 'Grey',
       risk_manual_override: false,
       risk_override_reason: '',

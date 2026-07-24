@@ -13,7 +13,7 @@
   })();
 
   var STORAGE_KEY = useSeedData ? 'spt-dev-v2' : 'spt-hub-v1';
-  var DATA_VERSION = 22;
+  var DATA_VERSION = 21;
 
   var AH_ART_PORTFOLIO_ROUTES = ['Expressive', 'Design'];
 
