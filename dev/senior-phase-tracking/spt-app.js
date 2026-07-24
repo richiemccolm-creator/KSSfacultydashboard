@@ -38,6 +38,12 @@
     attendanceImportPreview: null,
     attendanceImportFilename: null,
     attendanceImportMessage: null,
+    qsImportStep: 1,
+    qsImportKind: null,
+    qsImportPreview: null,
+    qsImportFilename: null,
+    qsImportMessage: null,
+    qsSyncMessage: null,
     modal: null,
     navCollapsed: false
   };
@@ -536,6 +542,34 @@
     if (!role().canEdit) return false;
     if (role().viewAll) return true;
     return en.teacher_id === db().simulated_teacher_id;
+  }
+
+  function normalizeScnInput(raw) {
+    return String(raw == null ? '' : raw).replace(/\s+/g, '').trim();
+  }
+
+  /** Save SCN on an existing pupil; soft-warn on duplicate. */
+  function savePupilScn(pupilId, rawValue, inputEl) {
+    if (!pupilId) return false;
+    if (!(role().canEdit || role().canSetup)) return false;
+    var scn = normalizeScnInput(rawValue);
+    var d = db();
+    if (scn) {
+      var clash = (d.pupils || []).find(function(p) {
+        return p.id !== pupilId && normalizeScnInput(p.candidate_number) === scn;
+      });
+      if (clash) {
+        alert('SCN ' + scn + ' is already used by ' + SptStore.pupilName(d, clash.id) + '.');
+        if (inputEl) {
+          var cur = SptStore.byId(d.pupils, pupilId);
+          inputEl.value = (cur && cur.candidate_number) || '';
+        }
+        return false;
+      }
+    }
+    SptStore.updateRecord(d, 'pupils', pupilId, { candidate_number: scn }, 'pupil_scn_update');
+    if (inputEl) inputEl.value = scn;
+    return true;
   }
 
   function courseShowsTeacherColumn(d, courseId, enrolments) {
@@ -2644,9 +2678,12 @@
         '<div><label>Year group</label><select name="year_group">' + yearGroupOptionsHtml('S5/6') + '</select></div>' +
         '<div><label>Candidate number</label><input name="candidate_number"></div>' +
         '<button type="submit" class="btn btn-sm">Add pupil</button></form>' +
+        '<p class="sheet-hint" style="margin-bottom:.75rem">Edit <strong>SCN</strong> below for pupils already on roll — needed for QS results matching.</p>' +
         '<table class="data-table"><thead><tr><th>Name</th><th>Year</th><th>SCN</th></tr></thead><tbody>' +
         d.pupils.map(function(p) {
-          return '<tr><td>' + esc(SptStore.pupilName(d, p.id)) + '</td><td>' + esc(p.year_group) + '</td><td>' + esc(p.candidate_number) + '</td></tr>';
+          return '<tr><td>' + esc(SptStore.pupilName(d, p.id)) + '</td><td>' + esc(p.year_group) + '</td>' +
+            '<td><input type="text" class="inline-input" data-pupil-scn="' + p.id + '" value="' +
+            esc(p.candidate_number || '') + '" placeholder="e.g. 2409999" autocomplete="off"></td></tr>';
         }).join('') + '</tbody></table></div></div>';
     } else if (tab === 'enrolments') {
       html += '<div class="card"><div class="card-head"><h2>Enrolments</h2></div><div class="card-body">' +
@@ -2844,6 +2881,14 @@
       (state.unassignedOnly && canEdit && enrolments.length ?
         '<button type="button" class="btn btn-secondary btn-sm" data-remove-all-unassigned="' + courseId + '">Remove all unassigned</button>' : '') +
       (canEdit ? '<button type="button" class="btn btn-sm" data-add-pupil-course="' + courseId + '">+ Add pupil</button>' : '') +
+      (function() {
+        try {
+          return window.SptQsBridge ? SptQsBridge.sendButtonHtml(courseId, state.classId, role().canImport) : '';
+        } catch (e) {
+          console.error('QS send button', e);
+          return '';
+        }
+      })() +
       '<button type="button" class="btn btn-secondary btn-sm layout-toggle-inline" id="nav-toggle-inline" title="Toggle navigation (N)">' +
       (state.navCollapsed ? 'Show menu' : 'Hide menu') + '</button>' +
       '</div></div>';
@@ -2910,6 +2955,11 @@
       });
     }
     if (meta.hasEvPupils && !meta.hasExamPupils) headGroup += '<th rowspan="2">Units</th>';
+    try {
+      if (window.SptQsBridge) headGroup += SptQsBridge.headColumnsHtml();
+    } catch (qsHeadErr) {
+      console.error('QS head columns', qsHeadErr);
+    }
     headGroup += '<th rowspan="2">Risk</th><th rowspan="2">Actions</th></tr>';
 
     var headSub = '<tr class="head-sub">';
@@ -3010,6 +3060,17 @@
       }
       if (meta.hasEvPupils && !meta.hasExamPupils) {
         courseBody += '<td class="cell-num">' + esc(r.uses_evidence_bank ? r.units_banked + '/' + r.units_total : '—') + '</td>';
+      }
+      try {
+        if (window.SptQsBridge) {
+          courseBody += SptQsBridge.estimateCellHtml(en, course, canEdit, esc, wgSelectHtml, wgPillHtml);
+          courseBody += SptQsBridge.awardedCellHtml(en, course, canEdit, esc, wgSelectHtml, wgPillHtml);
+        }
+      } catch (qsCellErr) {
+        console.error('QS grade cells', qsCellErr);
+        if (window.SptQsBridge && SptQsBridge.isEnabled && SptQsBridge.isEnabled()) {
+          courseBody += '<td class="cell-qs cell-num">—</td><td class="cell-qs cell-num">—</td>';
+        }
       }
       courseBody += '<td class="cell-risk">' + badge(en.risk_status) + '</td><td class="cell-actions">';
       if (role().canFlag) courseBody += '<button type="button" class="btn btn-sm" data-flag="' + en.id + '">Flag</button> ';
@@ -3576,6 +3637,7 @@
     var r = SptStore.getEnrichedRows(d).find(function(x) { return x.enrolment.id === enrolmentId; });
     var pupil = SptStore.byId(d.pupils, en.pupil_id);
     var course = SptStore.byId(d.courses, en.course_id);
+    if (!pupil || !course || !r) return;
     document.getElementById('drawer-title').textContent = SptStore.pupilName(d, pupil.id);
     document.getElementById('drawer-sub').textContent = course.course_name + ' · ' + en.current_level;
     var body = '';
@@ -3661,7 +3723,28 @@
       '<dt>Teacher</dt><dd>' + esc(SptStore.teacherName(d, en.teacher_id)) + '</dd>' +
       '<dt>Target</dt><dd>' + esc(en.target_grade) + '</dd>' +
       '<dt>Working</dt><dd>' + esc(en.latest_working_grade) + '</dd>' +
-      '<dt>Risk</dt><dd>' + badge(en.risk_status) + '</dd></dl></div>';
+      '<dt>Risk</dt><dd>' + badge(en.risk_status) + '</dd>';
+    try {
+      var canEditScn = !!(role().canEdit || role().canSetup);
+      var scnVal = (pupil && pupil.candidate_number) || '';
+      body += '<dt>SCN</dt><dd>' +
+        (canEditScn
+          ? '<input type="text" class="inline-input" id="drawer-pupil-scn" data-pupil-scn="' + pupil.id +
+            '" value="' + esc(scnVal) + '" placeholder="e.g. 2409999" autocomplete="off" style="max-width:10rem">'
+          : esc(scnVal || '—')) +
+        '</dd>';
+    } catch (scnDrawerErr) {
+      console.error('SCN drawer field', scnDrawerErr);
+    }
+    if (window.SptQsBridge && SptQsBridge.isEnabled()) {
+      try {
+        body += '<dt>Estimate</dt><dd>' + esc(en.final_estimate || '—') + '</dd>' +
+          '<dt>QS grade</dt><dd>' + esc(en.qs_awarded_grade || '—') + '</dd>';
+      } catch (qsDrawerErr) {
+        console.error('QS drawer fields', qsDrawerErr);
+      }
+    }
+    body += '</dl></div>';
     if (role().canFlag) {
       body += '<button type="button" class="btn btn-sm" id="drawer-flag" data-enrolment="' + en.id + '">Flag concern</button> ';
     }
@@ -3678,6 +3761,12 @@
     });
     var dlc = document.getElementById('drawer-level-changes');
     if (dlc) dlc.onclick = function() { closeDrawer(); setRoute('level-changes'); };
+    var drawerScn = document.getElementById('drawer-pupil-scn');
+    if (drawerScn) {
+      drawerScn.addEventListener('change', function() {
+        savePupilScn(drawerScn.getAttribute('data-pupil-scn'), drawerScn.value, drawerScn);
+      });
+    }
   }
 
   function closeDrawer() {
@@ -3893,6 +3982,14 @@
       '<p>Import whole-school attendance or tracking workbook data. Attendance imports only update pupils already in the workbook.</p></div>';
 
     html += renderAttendanceImportSection();
+
+    if (window.SptQsBridge && typeof SptQsBridge.importSectionHtml === 'function') {
+      try {
+        html += SptQsBridge.importSectionHtml(state, esc, role().canImport);
+      } catch (qsImportHtmlErr) {
+        console.error('QS import section', qsImportHtmlErr);
+      }
+    }
 
     if (state.importMessage) {
       html += '<div class="card" style="padding:1rem;margin-bottom:1rem"><p class="hub-staff-status">' +
@@ -4372,6 +4469,12 @@
         SptStore.updateRecord(db(), 'pupils', el.getAttribute('data-pupil-year'), { year_group: el.value }, 'pupil_year_update');
       });
     });
+    root.querySelectorAll('[data-pupil-scn]').forEach(function(el) {
+      el.addEventListener('change', function() {
+        if (!(role().canSetup || role().canEdit)) return;
+        savePupilScn(el.getAttribute('data-pupil-scn'), el.value, el);
+      });
+    });
     root.querySelectorAll('[data-class-year]').forEach(function(el) {
       el.addEventListener('change', function() {
         if (!role().canSetup) return;
@@ -4765,29 +4868,77 @@
 
   function render() {
     var scrollPos = captureGridScroll();
-    var html = '';
-    switch (state.route) {
-      case 'dashboard': html = renderDashboard(); break;
-      case 'register': html = renderRegister(); break;
-      case 'alerts': html = renderAlerts(); break;
-      case 'feedback': html = renderFeedback(); break;
-      case 'setup': html = renderSetup(); break;
-      case 'courses': html = renderCoursesList(); break;
-      case 'course': html = renderCoursePage(state.courseId); break;
-      case 'evidence': html = renderEvidence(); break;
-      case 'level-changes': html = renderLevelChanges(); break;
-      case 'interventions': html = renderInterventions(); break;
-      case 'import': html = renderImport(); break;
-      case 'reports': html = renderReports(); break;
-      default: html = renderDashboard();
+    try {
+      var html = '';
+      switch (state.route) {
+        case 'dashboard': html = renderDashboard(); break;
+        case 'register': html = renderRegister(); break;
+        case 'alerts': html = renderAlerts(); break;
+        case 'feedback': html = renderFeedback(); break;
+        case 'setup': html = renderSetup(); break;
+        case 'courses': html = renderCoursesList(); break;
+        case 'course': html = renderCoursePage(state.courseId); break;
+        case 'evidence': html = renderEvidence(); break;
+        case 'level-changes': html = renderLevelChanges(); break;
+        case 'interventions': html = renderInterventions(); break;
+        case 'import': html = renderImport(); break;
+        case 'reports': html = renderReports(); break;
+        default: html = renderDashboard();
+      }
+      document.getElementById('app-main').innerHTML = html;
+      syncLayoutClasses();
+      updateNavToggleUi();
+      var appMain = document.getElementById('app-main');
+      bindMainEvents(appMain);
+      try {
+        if (window.SptQsBridge && typeof window.SptQsBridge.bindSheetEvents === 'function') {
+          window.SptQsBridge.bindSheetEvents(appMain, {
+            db: db,
+            role: role,
+            updateEnrolmentRiskCell: updateEnrolmentRiskCell,
+            applyWgSelectColor: applyWgSelectColor,
+            render: render,
+            esc: esc,
+            badge: badge
+          });
+        }
+      } catch (qsBindErr) {
+        console.error('QS sheet bind error', qsBindErr);
+      }
+      try {
+        if (window.SptQsBridge && typeof window.SptQsBridge.bindImportEvents === 'function') {
+          window.SptQsBridge.bindImportEvents(appMain, {
+            db: db,
+            role: role,
+            state: state,
+            render: render,
+            esc: esc
+          });
+        }
+      } catch (qsImportErr) {
+        console.error('QS import bind error', qsImportErr);
+      }
+      if (state.route === 'dashboard') bindDashboardCharts(appMain);
+      restoreGridScroll(scrollPos);
+    } catch (err) {
+      console.error('Senior Phase Tracking UI error', err);
+      var main = document.getElementById('app-main');
+      if (main) {
+        main.innerHTML =
+          '<div class="card" style="margin:1.5rem;padding:1.25rem;border-left:4px solid #b45309">' +
+          '<h2 style="margin:0 0 .5rem">Tracking UI error</h2>' +
+          '<p style="margin:0 0 .75rem">Something went wrong rendering this page. Try a hard refresh. ' +
+          'If it continues, open the browser console and note the error.</p>' +
+          '<p class="sheet-hint" style="margin:0">' +
+          String((err && err.message) || err).replace(/[&<>]/g, function(c) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c];
+          }) + '</p>' +
+          '<p style="margin:.75rem 0 0"><button type="button" class="btn btn-secondary btn-sm" id="spt-ui-error-retry">Retry</button></p>' +
+          '</div>';
+        var retry = document.getElementById('spt-ui-error-retry');
+        if (retry) retry.addEventListener('click', function() { render(); });
+      }
     }
-    document.getElementById('app-main').innerHTML = html;
-    syncLayoutClasses();
-    updateNavToggleUi();
-    var appMain = document.getElementById('app-main');
-    bindMainEvents(appMain);
-    if (state.route === 'dashboard') bindDashboardCharts(appMain);
-    restoreGridScroll(scrollPos);
   }
 
   document.querySelectorAll('.nav-btn').forEach(function(btn) {

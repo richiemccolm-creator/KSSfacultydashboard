@@ -13,7 +13,9 @@
   })();
 
   var STORAGE_KEY = useSeedData ? 'spt-dev-v2' : 'spt-hub-v1';
-  var DATA_VERSION = 21;
+  var DATA_VERSION = 22;
+  /** QS Attainment bridge: Estimate / QS grade columns, Send, SCN import */
+  var ENABLE_QS_BRIDGE = true;
 
   var AH_ART_PORTFOLIO_ROUTES = ['Expressive', 'Design'];
 
@@ -277,6 +279,7 @@
     EXAM_DEFAULTS_BY_COURSE: EXAM_DEFAULTS_BY_COURSE,
     PRELIM_COMPONENT_TEMPLATES: PRELIM_COMPONENT_TEMPLATES,
     TRACKING_POINT_NAMES: TRACKING_POINT_NAMES,
-    currentAcademicYear: currentAcademicYear
+    currentAcademicYear: currentAcademicYear,
+    enableQsBridge: ENABLE_QS_BRIDGE
   };
 })(typeof window !== 'undefined' ? window : global);

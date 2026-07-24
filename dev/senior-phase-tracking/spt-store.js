@@ -526,6 +526,12 @@
     } else {
       patchNpaPhotoCourse(db);
     }
+    if (db.version < 22) {
+      (db.enrolments || []).forEach(function(en) {
+        if (en.qs_awarded_grade == null) en.qs_awarded_grade = '';
+        if (en.final_estimate == null) en.final_estimate = '';
+      });
+    }
     (db.prior_attainment || []).forEach(function(p) {
       if (p.pathway_status === 'Completed') p.pathway_status = 'Completed previous level';
       if (p.pathway_status === 'Crashed / withdrew') {
@@ -986,6 +992,7 @@
       target_grade: '',
       latest_working_grade: '',
       final_estimate: '',
+      qs_awarded_grade: '',
       risk_status: 'Grey',
       risk_manual_override: false,
       risk_override_reason: '',
