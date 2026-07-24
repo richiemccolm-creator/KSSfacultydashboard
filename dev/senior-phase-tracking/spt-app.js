@@ -306,6 +306,74 @@
     var feedbackNav = document.getElementById('nav-feedback');
     if (alertNav) alertNav.style.display = r.canResolveFlags ? '' : 'none';
     if (feedbackNav) feedbackNav.style.display = (r.canFlag || r.canResolveFlags) ? '' : 'none';
+    var setupNav = document.getElementById('nav-setup');
+    if (setupNav) setupNav.style.display = r.canSetup ? '' : 'none';
+  }
+
+  /** Hub: real faculty head/admin only. Seed: View as Faculty Head. */
+  var hubCanManageSchool = null;
+
+  function canClearAllData() {
+    if (SptConfig.useSeedData) {
+      return !!(role().canSetup || role().canImport);
+    }
+    if (window.__authGuardCanManageSchool || window.__authGuardIsAdmin) return true;
+    return hubCanManageSchool === true;
+  }
+
+  function refreshHubManageFlag() {
+    if (SptConfig.useSeedData) {
+      syncNavVisibility();
+      return Promise.resolve(canClearAllData());
+    }
+    if (window.__authGuardCanManageSchool || window.__authGuardIsAdmin) {
+      hubCanManageSchool = true;
+      syncNavVisibility();
+      return Promise.resolve(true);
+    }
+    function applyAllowlist(r) {
+      hubCanManageSchool = !!(r && (r.canManageSchool || r.isAdmin || r.isFacultyHead));
+      if (hubCanManageSchool) window.__authGuardCanManageSchool = true;
+      if (r && r.isAdmin) window.__authGuardIsAdmin = true;
+      syncNavVisibility();
+      return hubCanManageSchool;
+    }
+    function runCheck() {
+      if (typeof window.checkAllowlist !== 'function') {
+        hubCanManageSchool = false;
+        syncNavVisibility();
+        return Promise.resolve(false);
+      }
+      return window.checkAllowlist().then(applyAllowlist).catch(function() {
+        hubCanManageSchool = false;
+        syncNavVisibility();
+        return false;
+      });
+    }
+    if (typeof window.checkAllowlist === 'function') return runCheck();
+    return new Promise(function(resolve) {
+      var existing = document.querySelector('script[data-spt-allowlist="1"]');
+      if (existing) {
+        existing.addEventListener('load', function() { runCheck().then(resolve); });
+        existing.addEventListener('error', function() {
+          hubCanManageSchool = false;
+          syncNavVisibility();
+          resolve(false);
+        });
+        return;
+      }
+      var s = document.createElement('script');
+      s.src = '../../allowlist-check.js';
+      s.async = true;
+      s.setAttribute('data-spt-allowlist', '1');
+      s.onload = function() { runCheck().then(resolve); };
+      s.onerror = function() {
+        hubCanManageSchool = false;
+        syncNavVisibility();
+        resolve(false);
+      };
+      document.head.appendChild(s);
+    });
   }
 
   function setRoute(route, params) {
@@ -338,8 +406,7 @@
       var r = btn.getAttribute('data-route');
       btn.classList.toggle('active', r === route || (route === 'course' && r === 'courses'));
     });
-    var setupNav = document.getElementById('nav-setup');
-    if (setupNav) setupNav.style.display = role().canSetup ? '' : 'none';
+    syncNavVisibility();
     render();
     updateNavBadge();
     if (params.enrolmentId) openDrawer(params.enrolmentId);
@@ -2765,6 +2832,15 @@
             '<td>' + esc(p.result_grade) + '</td><td>' + badge(p.pathway_status) + '</td></tr>';
         }).join('') + '</tbody></table></div></div>';
     }
+    if (canClearAllData()) {
+      html += '<div class="card" style="margin-top:1.5rem;border-color:#b45309">' +
+        '<div class="card-head"><h2>Danger zone</h2></div>' +
+        '<div class="card-body">' +
+        '<p class="sheet-hint">Clears all teachers, classes, pupils, and tracking data. Course templates remain. ' +
+        'Faculty Head / Admin only — not shown in the main menu.</p>' +
+        '<button type="button" class="btn btn-secondary btn-sm" id="btn-reset-data">Clear all data</button>' +
+        '</div></div>';
+    }
     return html;
   }
 
@@ -4864,6 +4940,8 @@
         if (file) handleWorkbookBackupFile(file);
       });
     }
+    var resetDataBtn = root.querySelector('#btn-reset-data');
+    if (resetDataBtn) resetDataBtn.addEventListener('click', confirmClearAllData);
   }
 
   function render() {
@@ -4948,16 +5026,27 @@
       else setRoute(r);
     });
   });
+  function confirmClearAllData() {
+    refreshHubManageFlag().then(function() {
+      if (!canClearAllData()) {
+        alert('Only Faculty Head / Admin can clear tracking data.');
+        return;
+      }
+      var msg = SptConfig.useSeedData
+        ? 'Reset all development sample data?\n\nType CLEAR to confirm.'
+        : 'This clears all teachers, classes, pupils, and tracking data for Senior Phase Tracking.\nCourse templates remain. This cannot be undone easily.\n\nType CLEAR to confirm.';
+      var typed = window.prompt(msg);
+      if (String(typed || '').trim().toUpperCase() !== 'CLEAR') return;
+      SptStore.reset();
+      render();
+      updateNavBadge();
+    });
+  }
+
   document.getElementById('drawer-close').addEventListener('click', closeDrawer);
   document.getElementById('drawer-backdrop').addEventListener('click', closeDrawer);
   document.getElementById('modal-close').addEventListener('click', closeModal);
   document.getElementById('modal-backdrop').addEventListener('click', closeModal);
-  document.getElementById('btn-reset-data').addEventListener('click', function() {
-    var msg = SptConfig.useSeedData
-      ? 'Reset all development sample data?'
-      : 'Clear all teachers, classes, pupils, and tracking data? Course templates will remain.';
-    if (confirm(msg)) { SptStore.reset(); render(); updateNavBadge(); }
-  });
 
   function updateSyncBanner(status, message) {
     if (SptConfig.useSeedData) return;
@@ -5016,7 +5105,7 @@
     roleSel.onchange = function() {
       SptStore.setDevRole(roleSel.value);
       initRoleControls();
-      document.getElementById('nav-setup').style.display = SptStore.getRole(db()).canSetup ? '' : 'none';
+      syncNavVisibility();
       render();
       updateNavBadge();
     };
@@ -5026,7 +5115,7 @@
       render();
       updateNavBadge();
     };
-    document.getElementById('nav-setup').style.display = role().canSetup ? '' : 'none';
+    syncNavVisibility();
   }
 
   function initHubEmbed() {
@@ -5052,6 +5141,7 @@
   maybeBootstrapRoute();
   render();
   updateNavBadge();
+  refreshHubManageFlag();
 
   window.addEventListener('staffdisplaynameupdated', function() {
     if (SptConfig.useSeedData || !window.SptSync) {
@@ -5069,6 +5159,7 @@
     }
     updateSyncBanner(status, message);
     loadHubStaffState();
+    refreshHubManageFlag();
   }
 
   if (!SptConfig.useSeedData && window.SptSync) {
