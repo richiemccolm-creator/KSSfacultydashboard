@@ -42,7 +42,29 @@
   }
 
   function canManage() {
-    return !!(window.__authGuardCanManageSchool || window.__authGuardIsAdmin);
+    if (window.__authGuardCanManageSchool || window.__authGuardIsAdmin) return true;
+    try {
+      if (window.SptStore && window.SptStore.ensure && window.SptStore.getRole) {
+        var role = window.SptStore.getRole(window.SptStore.ensure());
+        if (role && (role.canImport || role.canSetup)) return true;
+      }
+    } catch (e) {}
+    return false;
+  }
+
+  function ensureCanManage() {
+    if (canManage()) return Promise.resolve(true);
+    if (typeof window.checkAllowlist === 'function') {
+      return window.checkAllowlist().then(function (r) {
+        if (r && (r.canManageSchool || r.isAdmin)) {
+          window.__authGuardCanManageSchool = true;
+          window.__authGuardIsAdmin = !!r.isAdmin;
+          return true;
+        }
+        return false;
+      }).catch(function () { return false; });
+    }
+    return Promise.resolve(false);
   }
 
   window.QsAttainmentService = {
@@ -50,6 +72,7 @@
     toSessionLabel: toSessionLabel,
     guessCurrentSchoolYear: guessCurrentSchoolYear,
     canManage: canManage,
+    ensureCanManage: ensureCanManage,
 
     listSnapshots: function () {
       return new Promise(function (resolve, reject) {
@@ -115,51 +138,53 @@
           reject(new Error('Supabase required'));
           return;
         }
-        if (!canManage()) {
-          reject(new Error('Only faculty heads and admins can save attainment data'));
-          return;
-        }
-        getSession().then(function (session) {
-          if (!session) {
-            reject(new Error('Not authenticated'));
+        ensureCanManage().then(function (ok) {
+          if (!ok) {
+            reject(new Error('Only faculty heads and admins can save attainment data'));
             return;
           }
-          var schoolYear = toSchoolYear(payload.school_year || payload.session);
-          if (!schoolYear) {
-            reject(new Error('Exam session / school year is required before saving'));
-            return;
-          }
-          var data = payload.data || {};
-          var meta = payload.metadata || {};
-          var rows = data.rows || [];
-          var comps = data.comps || [];
-          var row = {
-            school_year: schoolYear,
-            session_label: toSessionLabel(schoolYear),
-            uploaded_by: session.user.id,
-            data: data,
-            metadata: Object.assign(
-              {
-                pupil_count: rows.length,
-                component_count: comps.length,
-                filename: data.filename || '',
-                pre_results: !!data.preResults,
-                saved_at: new Date().toISOString()
-              },
-              meta
-            )
-          };
-          window.supabase
-            .from('qs_attainment_snapshots')
-            .upsert(row, { onConflict: 'school_year' })
-            .select()
-            .then(function (r) {
-              if (r.error) {
-                reject(r.error);
-                return;
-              }
-              resolve((r.data && r.data[0]) || row);
-            });
+          getSession().then(function (session) {
+            if (!session) {
+              reject(new Error('Not authenticated'));
+              return;
+            }
+            var schoolYear = toSchoolYear(payload.school_year || payload.session);
+            if (!schoolYear) {
+              reject(new Error('Exam session / school year is required before saving'));
+              return;
+            }
+            var data = payload.data || {};
+            var meta = payload.metadata || {};
+            var rows = data.rows || [];
+            var comps = data.comps || [];
+            var row = {
+              school_year: schoolYear,
+              session_label: toSessionLabel(schoolYear),
+              uploaded_by: session.user.id,
+              data: data,
+              metadata: Object.assign(
+                {
+                  pupil_count: rows.length,
+                  component_count: comps.length,
+                  filename: data.filename || '',
+                  pre_results: !!data.preResults,
+                  saved_at: new Date().toISOString()
+                },
+                meta
+              )
+            };
+            window.supabase
+              .from('qs_attainment_snapshots')
+              .upsert(row, { onConflict: 'school_year' })
+              .select()
+              .then(function (r) {
+                if (r.error) {
+                  reject(r.error);
+                  return;
+                }
+                resolve((r.data && r.data[0]) || row);
+              });
+          }).catch(reject);
         }).catch(reject);
       });
     },
@@ -171,23 +196,25 @@
           reject(new Error('Supabase required'));
           return;
         }
-        if (!canManage()) {
-          reject(new Error('Only faculty heads and admins can delete attainment data'));
-          return;
-        }
-        getSession().then(function (session) {
-          if (!session) {
-            reject(new Error('Not authenticated'));
+        ensureCanManage().then(function (ok) {
+          if (!ok) {
+            reject(new Error('Only faculty heads and admins can delete attainment data'));
             return;
           }
-          window.supabase
-            .from('qs_attainment_snapshots')
-            .delete()
-            .eq('school_year', year)
-            .then(function (r) {
-              if (r.error) reject(r.error);
-              else resolve();
-            });
+          getSession().then(function (session) {
+            if (!session) {
+              reject(new Error('Not authenticated'));
+              return;
+            }
+            window.supabase
+              .from('qs_attainment_snapshots')
+              .delete()
+              .eq('school_year', year)
+              .then(function (r) {
+                if (r.error) reject(r.error);
+                else resolve();
+              });
+          }).catch(reject);
         }).catch(reject);
       });
     }

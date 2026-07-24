@@ -12,6 +12,13 @@ npx serve . -l 4173
 
 Use a local server so CSS and CSV import work correctly.
 
+## New in v8
+
+- **Estimate & QS grade** on every class sheet (same 1–9 bands as working grade)
+- **SCN** used to match QS Excel imports to pupils
+- **Import → QS Attainment** — upload results workbook or Component Marks Report
+- **Send to QS** — push estimates/awarded grades into the Faculty Hub QS Attainment year snapshot; component marks **append** for the current year without wiping earlier years
+
 ## New in v7
 
 - **Attendance import** — upload whole-school MIS Excel (Known As, Surname, Attendance %); choose **End of year** or a **tracking period**; only pupils already in tracking are updated

@@ -44,7 +44,7 @@
     var tracking = (db.pupil_tracking_data || []).filter(function(t) { return t.enrolment_id === enrolmentId; });
     if (tracking.some(function(t) { return hasScore(t.effort) || hasScore(t.behaviour); })) return true;
 
-    if (hasText(en.target_grade) || hasText(en.latest_working_grade) || hasText(en.final_estimate)) return true;
+    if (hasText(en.target_grade) || hasText(en.latest_working_grade) || hasText(en.final_estimate) || hasText(en.qs_awarded_grade)) return true;
 
     var results = (db.pupil_assessment_results || []).filter(function(r) { return r.enrolment_id === enrolmentId; });
     if (results.some(function(r) {
