@@ -417,8 +417,34 @@ footer b{color:var(--ink-2)}
 .qs-hub-year-label{display:block; font-family:var(--serif); font-size:16px; font-weight:600; letter-spacing:.04em; color:var(--gold); margin-bottom:4px}
 .qs-hub-year-meta{display:block; font-size:11.5px; color:var(--ink-3); line-height:1.45; font-weight:500}
 .qs-hub-empty{font-size:12.5px; color:var(--ink-3); font-weight:600; padding:4px 2px 2px}
+.qs-year-bar{
+  display:flex; flex-wrap:wrap; align-items:center; gap:10px 14px;
+  max-width:1280px; margin:0 auto; padding:12px 32px 14px;
+  border-bottom:1px solid var(--line);
+  background:rgba(22,25,30,.92);
+}
+.qs-year-bar-label{
+  font-size:10.5px; font-weight:800; letter-spacing:.16em; text-transform:uppercase; color:var(--gold);
+  flex:none;
+}
+.qs-year-chips{display:flex; flex-wrap:wrap; gap:8px; flex:1 1 auto; min-width:180px}
+.qs-year-chip{
+  font-family:var(--sans); font-size:12.5px; font-weight:700; letter-spacing:.02em;
+  border-radius:8px; padding:7px 12px; cursor:pointer;
+  background:var(--card); color:var(--ink); border:1px solid var(--line);
+  transition:all .15s ease;
+}
+.qs-year-chip:hover{border-color:var(--gold); color:#fff}
+.qs-year-chip.on{background:rgba(227,176,75,.16); border-color:var(--gold); color:var(--gold)}
+.qs-year-chip:disabled{opacity:.55; cursor:wait}
+.qs-year-bar-actions{display:flex; flex-wrap:wrap; align-items:center; gap:8px}
+.qs-year-bar-status{font-size:11.5px; font-weight:600; color:var(--ink-3); width:100%; order:5}
+.qs-year-bar-status.qs-hub-status--ok{color:var(--green)}
+.qs-year-bar-status.qs-hub-status--err{color:var(--red)}
+.qs-year-empty{font-size:12px; font-weight:600; color:var(--ink-3); padding:4px 0}
 html.qs-embed header{padding-top:0}
 html.qs-embed .header-inner{padding:18px 20px 16px}
+html.qs-embed .qs-year-bar{padding-left:20px; padding-right:20px}
 html.qs-embed #uploadHero{margin-top:28px}
 </style>
 </head>
@@ -438,7 +464,11 @@ html.qs-embed #uploadHero{margin-top:28px}
       </span>
       <button class="btn btn-ghost hidden" id="btnReplace">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>
-        Replace data
+        Replace this year
+      </button>
+      <button class="btn btn-ghost" id="btnNewYear" title="Upload a different exam session without overwriting the one you are viewing">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Upload new year
       </button>
       <button class="btn btn-gold hidden qs-hub-manage-only" id="btnSaveHub" title="Save this session to Faculty Hub for staff review">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
@@ -451,6 +481,14 @@ html.qs-embed #uploadHero{margin-top:28px}
       </button>
     </div>
   </div>
+  <div class="qs-year-bar" id="qsYearBar" aria-label="Exam session switcher">
+    <span class="qs-year-bar-label">Years</span>
+    <div class="qs-year-chips" id="qsYearChips"><span class="qs-year-empty">Loading saved years…</span></div>
+    <div class="qs-year-bar-actions">
+      <div class="filter" style="margin:0"><label for="ySessionBar">Save as</label><select id="ySessionBar" title="Exam session used when saving to the hub"><option value="">Auto-detect</option></select></div>
+    </div>
+    <div class="qs-year-bar-status" id="qsYearBarStatus"></div>
+  </div>
 </header>
 
 <div id="hubCloudBanner" class="hidden"></div>
@@ -460,13 +498,13 @@ html.qs-embed #uploadHero{margin-top:28px}
 
 <section id="uploadHero">
   <h2 class="hero-title">Every chart, table &amp; insight —<br>from <em>one</em> Excel file.</h2>
-  <p class="hero-sub">Upload the faculty master workbook and the analysis suite builds itself. Faculty heads can <b>Save to Hub</b> so staff can reopen each exam session securely inside the Faculty Hub.</p>
+  <p class="hero-sub">Upload the faculty master workbook and the analysis suite builds itself. Use the <b>Years</b> bar above to switch saved sessions — each exam year is stored separately.</p>
   <div class="hero-controls">
-    <div class="filter"><label>Exam session</label><select id="ySession"><option value="">Auto-detect from file</option></select></div>
+    <div class="filter"><label>Exam session for this upload</label><select id="ySession"><option value="">Auto-detect from file</option></select></div>
   </div>
   <div class="qs-hub-library-wrap" id="qsHubLibraryWrap">
     <h3>Saved sessions in the hub</h3>
-    <p class="qs-hub-lead">Open a previous year to review interactively. New uploads replace that session when you save again.</p>
+    <p class="qs-hub-lead">Click a year to open it, or upload below for a <b>new</b> session. Saving only updates that year — earlier years stay intact.</p>
     <div class="qs-hub-status" id="qsHubStatus">Checking saved sessions…</div>
     <div class="qs-hub-library" id="qsHubLibrary"></div>
   </div>
@@ -925,14 +963,10 @@ function loadData(rows, comps, filename, sheetName){
   $('fileChipName').textContent = filename;
   $('fileChipMeta').textContent = '· '+rows.length+' pupils'+(comps.length? ' · '+comps.length+' component records':'')+(sheetName? ' · sheet: '+sheetName:'');
   $('preResultsBanner').classList.toggle('on', state.preResults);
-  let sess = $('ySession').value || state.session || '';
+  let sess = $('ySession').value || $('ySessionBar')?.value || state.session || '';
   if(!sess){ const m = ((sheetName||'')+' '+filename).match(/(\d{2})[-–\/](\d{2})/); if(m) sess = m[1]+'-'+m[2]; }
   state.session = sess;
-  if(sess){
-    const o=[...$('ySession').options].find(o=>o.value===sess);
-    if(!o) $('ySession').insertAdjacentHTML('beforeend','<option value="'+esc(sess)+'">'+esc(sess)+'</option>');
-    $('ySession').value = sess;
-  }
+  syncSessionSelects(sess);
   $('sessionLabel').textContent = sess? '| '+sess : '';
   $('sessionSub').textContent = sess? ' · Session 20'+sess.slice(0,2)+'–'+sess.slice(3,5) : '';
   buildFilterOptions();
@@ -2109,13 +2143,25 @@ Object.entries(CHART_TIPS).forEach(([id,tip])=>{
 });
 
 /* ============================ Upload & events ============================ */
-/* Populate the exam-session picker: two years back through two years ahead */
+/* Populate the exam-session pickers: two years back through two years ahead */
 (function(){
   const now=new Date(); const startYear=now.getFullYear()-(now.getMonth()<7?1:0); /* session rolls over in August */
   const opts=[];
   for(let y=startYear-2;y<=startYear+2;y++) opts.push(String(y%100).padStart(2,'0')+'-'+String((y+1)%100).padStart(2,'0'));
-  $('ySession').innerHTML='<option value="">Auto-detect from file</option>'+opts.map(s=>'<option>'+s+'</option>').join('');
+  const html='<option value="">Auto-detect from file</option>'+opts.map(s=>'<option value="'+s+'">'+s+'</option>').join('');
+  $('ySession').innerHTML=html;
+  if($('ySessionBar')) $('ySessionBar').innerHTML=html.replace('Auto-detect from file','Auto-detect');
 })();
+function syncSessionSelects(sess){
+  ['ySession','ySessionBar'].forEach(id=>{
+    const el=$(id); if(!el) return;
+    if(sess){
+      const o=[...el.options].find(o=>o.value===sess);
+      if(!o) el.insertAdjacentHTML('beforeend','<option value="'+esc(sess)+'">'+esc(sess)+'</option>');
+      el.value=sess;
+    }
+  });
+}
 function handleFile(file){
   const err=$('dzError'); err.style.display='none';
   if(!/\.(xlsx|xlsm|xls|csv)$/i.test(file.name)){ showError('That doesn’t look like an Excel or CSV file — please upload .xlsx, .xlsm or .csv.'); return; }
@@ -2142,6 +2188,15 @@ document.addEventListener('dragover',e=>e.preventDefault());
 document.addEventListener('drop',e=>{e.preventDefault(); if(!$('app').classList.contains('hidden')){const f=e.dataTransfer.files[0]; if(f) handleFile(f);}});
 $('fileInput').addEventListener('change',e=>{if(e.target.files[0]) handleFile(e.target.files[0]); e.target.value='';});
 $('btnReplace').addEventListener('click',()=>$('fileInput').click());
+function onSessionSelectChange(e){
+  const sess=e.target.value||'';
+  state.session=sess;
+  syncSessionSelects(sess);
+  $('sessionLabel').textContent = sess? '| '+sess : '';
+  $('sessionSub').textContent = sess? ' · Session 20'+sess.slice(0,2)+'–'+sess.slice(3,5) : '';
+}
+$('ySession').addEventListener('change', onSessionSelectChange);
+if($('ySessionBar')) $('ySessionBar').addEventListener('change', onSessionSelectChange);
 
 ['fSubject','fLevel','fTeacher','fQuintile'].forEach(id=>$(id).addEventListener('change',()=>{
   state.filters={subject:$('fSubject').value,level:$('fLevel').value,teacher:$('fTeacher').value,quintile:$('fQuintile').value};
@@ -2203,15 +2258,20 @@ if(window.__SNAPSHOT__){
 /* Expose API for Faculty Hub cloud bridge */
 (function(){
   const listeners=[];
+  function ensureSessionOption(sess){
+    if(!sess) return;
+    syncSessionSelects(sess);
+  }
   window.QSAttainment = {
     getPayload: function(){
+      const sess = state.session || ($('ySessionBar') && $('ySessionBar').value) || ($('ySession') && $('ySession').value) || '';
       return {
         rows: state.rows,
         comps: state.comps,
         school: state.school || [],
         filename: state.filename || '',
         sheetName: state.sheetName || '',
-        session: state.session || ($('ySession') && $('ySession').value) || '',
+        session: sess,
         preResults: !!state.preResults,
         compReport: state.compReport || null,
         pupilCount: state.pupilCount || (state.rows && state.rows.length) || 0
@@ -2219,24 +2279,41 @@ if(window.__SNAPSHOT__){
     },
     setSession: function(sess){
       state.session = sess || '';
-      if(sess && $('ySession')){
-        const o=[...$('ySession').options].find(o=>o.value===sess);
-        if(!o) $('ySession').insertAdjacentHTML('beforeend','<option value="'+esc(sess)+'">'+esc(sess)+'</option>');
-        $('ySession').value = sess;
-      }
+      ensureSessionOption(sess);
       $('sessionLabel').textContent = sess? '| '+sess : '';
       $('sessionSub').textContent = sess? ' · Session 20'+String(sess).slice(0,2)+'–'+String(sess).slice(3,5) : '';
+    },
+    showUploadForNewYear: function(preferredSession){
+      $('app').classList.add('hidden');
+      $('uploadHero').classList.remove('hidden');
+      $('btnSnapshot').classList.add('hidden');
+      $('btnReplace').classList.add('hidden');
+      $('fileChip').classList.remove('on');
+      const banner=$('hubCloudBanner');
+      if(banner){
+        banner.classList.remove('hidden');
+        banner.innerHTML='Uploading a <b>new exam session</b> — set the year below, then drop the workbook. Existing saved years stay in the Years bar.';
+      }
+      if(preferredSession){
+        state.session=preferredSession;
+        ensureSessionOption(preferredSession);
+      } else {
+        state.session='';
+        if($('ySession')) $('ySession').value='';
+        if($('ySessionBar')) $('ySessionBar').value='';
+        $('sessionLabel').textContent='';
+        $('sessionSub').textContent='';
+      }
+      window.scrollTo({top:0, behavior:'smooth'});
+      const dzEl=$('dropzone');
+      if(dzEl) dzEl.focus();
     },
     loadFromCloud: function(payload){
       if(!payload) return;
       state.school = payload.school || [];
       state.compReport = payload.compReport || null;
       state.session = payload.session || '';
-      if(payload.session){
-        const o=[...$('ySession').options].find(o=>o.value===payload.session);
-        if(!o) $('ySession').insertAdjacentHTML('beforeend','<option value="'+esc(payload.session)+'">'+esc(payload.session)+'</option>');
-        $('ySession').value = payload.session;
-      }
+      ensureSessionOption(payload.session);
       if(state.school && state.school.length && $('schoolStatus')){
         $('schoolStatus').innerHTML='<span style="color:var(--green)">✓</span> Whole-school data loaded from hub: <b>'+state.school.length+'</b> results.';
       }
