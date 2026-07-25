@@ -104,7 +104,9 @@ input:focus,textarea:focus{border-color:rgba(216,67,178,.5);box-shadow:0 0 0 3px
     poll: null,
     submitting: false,
     cache: null,
-    activeIndex: 0
+    activeIndex: 0,
+    draft: "",
+    renderKey: ""
   };
 
   var BLOCK = [
@@ -203,12 +205,22 @@ input:focus,textarea:focus{border-color:rgba(216,67,178,.5);box-shadow:0 0 0 3px
     var status = data.status;
 
     if (status === "lobby") {
-      body.innerHTML = '<div class="wait">You\'re in!<br>Waiting for the teacher to open submissions…</div>';
+      var lobbyKey = "lobby";
+      if (state.renderKey !== lobbyKey) {
+        state.renderKey = lobbyKey;
+        state.draft = "";
+        body.innerHTML = '<div class="wait">You\'re in!<br>Waiting for the teacher to open submissions…</div>';
+      }
       renderProgress(data);
       return;
     }
     if (status === "closed") {
-      body.innerHTML = '<div class="wait"><strong>Thanks — you\'re done.</strong><br>You can put your phone away.</div>';
+      var closedKey = "closed";
+      if (state.renderKey !== closedKey) {
+        state.renderKey = closedKey;
+        state.draft = "";
+        body.innerHTML = '<div class="wait"><strong>Thanks — you\'re done.</strong><br>You can put your phone away.</div>';
+      }
       renderProgress(data);
       return;
     }
@@ -218,15 +230,34 @@ input:focus,textarea:focus{border-color:rgba(216,67,178,.5);box-shadow:0 0 0 3px
     state.activeIndex = idx;
 
     if (idx >= prompts.length) {
-      body.innerHTML =
-        '<div class="wait"><strong>All submitted</strong><br>Hang tight — your teacher is reviewing answers.</div>';
+      var doneKey = "done";
+      if (state.renderKey !== doneKey) {
+        state.renderKey = doneKey;
+        state.draft = "";
+        body.innerHTML =
+          '<div class="wait"><strong>All submitted</strong><br>Hang tight — your teacher is reviewing answers.</div>';
+      }
       renderProgress(data);
       return;
     }
 
     var prompt = prompts[idx] || {};
     var mine = mineMap(data)[idx];
-    var blockedMsg = mine && mine.status === "blocked"
+    var blocked = !!(mine && mine.status === "blocked");
+    var formKey = "form:" + status + ":" + idx + ":" + (blocked ? "1" : "0");
+
+    // Keep the textarea mounted while polling — rebuilding it dismisses the mobile keyboard
+    if (state.renderKey === formKey && $("answer")) {
+      renderProgress(data);
+      return;
+    }
+
+    // Preserve any in-progress typing if we must rebuild (e.g. blocked rewrite)
+    var existing = $("answer");
+    if (existing) state.draft = existing.value;
+
+    state.renderKey = formKey;
+    var blockedMsg = blocked
       ? '<p class="err">Please rewrite your answer using respectful language.</p>'
       : "";
 
@@ -244,7 +275,12 @@ input:focus,textarea:focus{border-color:rgba(216,67,178,.5);box-shadow:0 0 0 3px
 
     var ta = $("answer");
     var count = $("charCount");
+    if (state.draft) {
+      ta.value = state.draft;
+      count.textContent = String(ta.value.length);
+    }
     ta.addEventListener("input", function () {
+      state.draft = ta.value;
       count.textContent = String(ta.value.length);
     });
     $("btnSubmit").addEventListener("click", function () { submitAnswer(idx, ta.value); });
@@ -279,9 +315,12 @@ input:focus,textarea:focus{border-color:rgba(216,67,178,.5);box-shadow:0 0 0 3px
       if (res && res.blocked) {
         err.textContent = (res.message) || "Please rewrite your answer using respectful language.";
         if (btn) btn.disabled = false;
+        state.renderKey = ""; // force rebuild to show blocked message
         poll();
         return;
       }
+      state.draft = "";
+      state.renderKey = "";
       poll();
     }).catch(function (e) {
       state.submitting = false;
