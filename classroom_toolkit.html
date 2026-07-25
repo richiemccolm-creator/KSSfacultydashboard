@@ -272,8 +272,12 @@ button{font-family:inherit}
 }
 .pick:hover{transform:translateY(-3px);border-color:var(--tc);box-shadow:0 18px 42px rgba(0,0,0,.34),0 0 26px -6px var(--tglow)}
 .pick .ptop{display:flex;align-items:flex-start;gap:14px}
-.pick .ptxt h3{margin:0 0 4px;font:650 17px/1.2 var(--font-display);color:#F5F7FF}
-.pick .ptxt p{margin:0;font:400 13.5px/1.45 var(--font);color:#A7B2CC}
+.pick .ptop.is-brand{
+  flex-direction:column;align-items:stretch;gap:12px;
+}
+.pick .ptxt{min-width:0;flex:1}
+.pick .ptxt h3{margin:0 0 4px;font:650 17px/1.25 var(--font-display);color:#F5F7FF}
+.pick .ptxt p{margin:0;font:400 13.5px/1.5 var(--font);color:#A7B2CC}
 .pick .prow{display:flex;gap:10px;margin-top:auto}
 .launch-btn{
   flex:1;height:38px;border:none;border-radius:10px;cursor:pointer;
@@ -320,12 +324,14 @@ button{font-family:inherit}
 }
 .tile.brand.sm img{height:28px;max-width:72px}
 .pick .tile.brand{
-  height:auto;min-height:64px;padding:6px 8px;border-radius:16px;
+  width:100%;height:auto;min-height:0;padding:10px 12px;border-radius:14px;
   background:rgba(0,0,0,.28);border-color:var(--tl);
   box-shadow:0 0 24px var(--tglow);
+  justify-content:center;
 }
 .pick .tile.brand img{
-  height:clamp(52px,5.5vw,70px);max-width:min(160px,28vw);
+  height:clamp(58px,6.5vw,76px);width:auto;max-width:100%;
+  margin:0 auto;
 }
 
 /* tool grid */
@@ -340,9 +346,19 @@ button{font-family:inherit}
 .tool::before{content:"";position:absolute;inset:0;background:var(--tg);opacity:.4;pointer-events:none}
 .tool>*{position:relative}
 .tool:hover{transform:translateY(-3px);background:#111F3D;border-color:var(--tc);box-shadow:0 18px 42px rgba(0,0,0,.34),0 0 22px -8px var(--tglow)}
-.tool .ttxt{min-width:0}
-.tool .ttxt h3{margin:0 0 3px;font:650 16px/1.2 var(--font-display);color:#F5F7FF}
-.tool .ttxt p{margin:0;font:400 12.5px/1.4 var(--font);color:#A7B2CC;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tool .ttxt{min-width:0;flex:1}
+.tool .ttxt h3{margin:0 0 3px;font:650 16px/1.25 var(--font-display);color:#F5F7FF}
+.tool .ttxt p{margin:0;font:400 12.5px/1.45 var(--font);color:#A7B2CC;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tool.is-brand{
+  flex-direction:column;align-items:stretch;gap:12px;min-height:0;padding-top:18px;padding-bottom:16px;
+}
+.tool.is-brand .tile.brand{
+  width:100%;height:auto;min-height:0;padding:8px 10px;justify-content:center;
+}
+.tool.is-brand .tile.brand img{
+  height:clamp(48px,5.5vw,64px);max-width:100%;margin:0 auto;
+}
+.tool.is-brand .ttxt{padding-right:28px}
 .tool .tfav{position:absolute;top:12px;right:12px;color:var(--muted);cursor:pointer;padding:2px;transition:color .15s;z-index:2}
 .tool .tfav:hover{color:#fff}
 .tool .tfav.on{color:var(--tc)}
@@ -737,12 +753,14 @@ body.embedded .side-left,body.embedded .side-right{top:var(--header-h);height:ca
       logo:"toolkit/quiz-busters-logo.png",
       desc:"Blockbusters-style letter board for two teams."},
     {id:"picker",     name:"Name Picker",      cat:"Groups", hue:"mint",    icon:"picker",     live:false, href:"toolkit/picker.html",
+      logo:"toolkit/name-picker-logo.png",
       desc:"Spin to select a random pupil or group."},
     {id:"noise",      name:"Noise Meter",      cat:"Focus",  hue:"cyan",    icon:"noise",      live:false, href:"toolkit/noise.html",
       desc:"Visualise classroom noise levels."},
     {id:"dice",       name:"Dice Roller",      cat:"Chance", hue:"amber",   icon:"dice",       live:false, href:"toolkit/dice.html",
       desc:"Roll one or more dice instantly."},
     {id:"exit",       name:"Exit Tickets",     cat:"Quiz",   hue:"magenta", icon:"exit",       live:false, href:"toolkit/exit.html",
+      logo:"toolkit/exit-tickets-logo.png",
       desc:"Quick, paperless exit ticket templates."},
     {id:"seats",      name:"Seating Shuffler", cat:"Groups", hue:"blue",    icon:"seats",      live:false, href:"toolkit/seats.html",
       desc:"Shuffle seats for fresh interactions."},
@@ -751,6 +769,7 @@ body.embedded .side-left,body.embedded .side-right{top:var(--header-h);height:ca
     {id:"mystery",    name:"Mystery Box",      cat:"Chance", hue:"amber",   icon:"mystery",    live:false, href:"toolkit/mystery.html",
       desc:"Random rewards, prompts or challenges."},
     {id:"lights",     name:"Traffic Lights",   cat:"Focus",  hue:"lime",    icon:"lights",     live:false, href:"toolkit/lights.html",
+      logo:"toolkit/traffic-lights-logo.png",
       desc:"Instant visual classroom signals."},
     {id:"qr",         name:"QR Maker",         cat:"Utility",hue:"cyan",    icon:"qr",         live:false, href:"toolkit/qr.html",
       desc:"Create QR codes in seconds."}
@@ -900,7 +919,7 @@ body.embedded .side-left,body.embedded .side-right{top:var(--header-h);height:ca
     if(showPicks){
       picks.innerHTML = TOOLS.filter(function(t){return t.featured}).map(function(t){
         return '<div class="pick" style="'+hue(t)+'" data-open="'+t.id+'">'
-          + '<div class="ptop">'+toolTile(t, false)
+          + '<div class="ptop'+(t.logo?" is-brand":"")+'">'+toolTile(t, false)
           +   '<div class="ptxt"><h3>'+t.name+'</h3><p>'+t.desc+'</p>'+(t.live?"":devBadge())+'</div></div>'
           + '<div class="prow">'
           +   '<button type="button" class="launch-btn" data-launch="'+t.id+'">'+(t.live?"Launch ":"Preview ")+arrow()+'</button>'
@@ -911,7 +930,7 @@ body.embedded .side-left,body.embedded .side-right{top:var(--header-h);height:ca
 
     var visible = TOOLS.filter(matches);
     grid.innerHTML = visible.map(function(t){
-      return '<div class="tool" style="'+hue(t)+'" data-open="'+t.id+'">'
+      return '<div class="tool'+(t.logo?" is-brand":"")+'" style="'+hue(t)+'" data-open="'+t.id+'">'
         + '<span class="tfav'+(isFav(t.id)?" on":"")+'" data-fav="'+t.id+'" aria-label="Favourite">'+starIcon()+'</span>'
         + toolTile(t, false)
         + '<div class="ttxt"><h3>'+t.name+'</h3><p>'+t.desc+'</p>'+(t.live?"":devBadge())+'</div></div>';
