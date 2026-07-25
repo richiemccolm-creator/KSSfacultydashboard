@@ -260,24 +260,36 @@ a{color:inherit;text-decoration:none}
   display:flex;align-items:center;justify-content:center;padding:18px;
 }
 .modal{
-  width:min(560px,100%);max-height:min(88vh,720px);overflow:auto;
+  width:min(640px,100%);max-height:min(92vh,820px);overflow:auto;
   border-radius:18px;border:1px solid rgba(140,160,220,.28);
   background:linear-gradient(160deg,#122047,#0A142C);
   box-shadow:0 24px 60px rgba(0,0,0,.45);padding:22px 22px 18px;
 }
-.modal h2{margin:0 0 8px;font:700 22px/1.15 var(--font-display);letter-spacing:-.02em}
-.modal .steps{margin:0 0 14px;padding-left:18px;color:var(--text-2);font:400 13.5px/1.5 var(--font)}
-.modal .steps li{margin:4px 0}
-.modal .import-actions{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
-.modal label{display:block;font:600 11px/1 var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:10px 0 6px}
+.modal h2{margin:0 0 6px;font:700 22px/1.15 var(--font-display);letter-spacing:-.02em}
+.modal .lead{margin:0 0 14px;color:var(--text-2);font:400 13.5px/1.45 var(--font)}
+.modal .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px}
+.modal .form-grid .span2{grid-column:1 / -1}
+.modal label{display:block;font:600 11px/1 var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+.modal input[type="text"],.modal select,.modal textarea{
+  width:100%;border-radius:10px;border:1px solid rgba(132,153,207,.22);
+  background:#0A142C;padding:10px 12px;outline:none;color:var(--text);font:500 13.5px/1.4 var(--font);
+}
 .modal textarea{
-  width:100%;min-height:180px;border-radius:12px;border:1px solid rgba(132,153,207,.22);
-  background:#0A142C;padding:12px;outline:none;color:var(--text);resize:vertical;line-height:1.45;
+  min-height:72px;resize:vertical;line-height:1.45;
   font:400 13px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
 }
-.modal textarea:focus{border-color:rgba(59,108,255,.55);box-shadow:0 0 0 3px rgba(59,108,255,.16)}
+.modal #aiPromptOut{min-height:140px}
+.modal #importPaste{min-height:150px}
+.modal input:focus,.modal select:focus,.modal textarea:focus{
+  border-color:rgba(59,108,255,.55);box-shadow:0 0 0 3px rgba(59,108,255,.16);
+}
+.modal .section{margin-top:16px;padding-top:14px;border-top:1px solid rgba(130,150,200,.14)}
+.modal .section h3{margin:0 0 8px;font:650 14px/1.2 var(--font-display)}
+.modal .section .hint{margin:0 0 10px;color:var(--muted);font:400 12.5px/1.4 var(--font)}
+.modal .import-actions{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 0}
 .modal-foot{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:14px}
 .modal .err{margin:8px 0 0;color:#FFB4B9;font:500 13px/1.4 var(--font);min-height:1.2em}
+@media(max-width:560px){.modal .form-grid{grid-template-columns:1fr}}
 
 .toast{
   position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);
@@ -336,19 +348,67 @@ a{color:inherit;text-decoration:none}
 
 <div class="modal-backdrop hidden" id="importModal" role="dialog" aria-modal="true" aria-labelledby="importTitle">
   <div class="modal">
-    <h2 id="importTitle">Import from AI</h2>
-    <ol class="steps">
-      <li>Download the template (opens in Word / Notes / Docs).</li>
-      <li>Copy the ChatGPT section into your AI and ask it to fill all 20 Q&amp;As.</li>
-      <li>Paste the AI’s board text below and click Import.</li>
-    </ol>
-    <div class="import-actions">
-      <a class="btn" id="btnDownloadTemplate" href="quiz-busters-ai-template.txt" download="quiz-busters-ai-template.txt">Download template</a>
-      <button type="button" class="btn" id="btnCopyPrompt">Copy ChatGPT prompt</button>
+    <h2 id="importTitle">Generate with AI</h2>
+    <p class="lead">Answer a few questions, copy the prompt into ChatGPT, then paste the 20 Q&amp;As it returns below.</p>
+
+    <div class="form-grid" id="aiForm">
+      <div>
+        <label for="aiSubject">Subject</label>
+        <select id="aiSubject">
+          <option value="Drama">Drama</option>
+          <option value="Art &amp; Design">Art &amp; Design</option>
+          <option value="Expressive Arts (Art &amp; Drama)">Expressive Arts (Art &amp; Drama)</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div>
+        <label for="aiLevel">Level</label>
+        <select id="aiLevel">
+          <option value="BGE S1–S3">BGE S1–S3</option>
+          <option value="National 4">National 4</option>
+          <option value="National 5">National 5</option>
+          <option value="Higher">Higher</option>
+          <option value="Mixed / any">Mixed / any</option>
+        </select>
+      </div>
+      <div class="span2">
+        <label for="aiTopic">Topic / focus</label>
+        <input type="text" id="aiTopic" maxlength="160" placeholder="e.g. theatre keywords, art processes, design elements">
+      </div>
+      <div class="span2">
+        <label for="aiVocab">Vocabulary to assess (optional)</label>
+        <textarea id="aiVocab" maxlength="800" placeholder="List words or phrases — ideally with varied starting letters&#10;e.g. Script, Motif, Blocking, Tone, Freeze"></textarea>
+      </div>
+      <div class="span2">
+        <label for="aiDifficulty">Style</label>
+        <select id="aiDifficulty">
+          <option value="quick plenary">Quick plenary</option>
+          <option value="standard">Standard</option>
+          <option value="stretch / challenge">Stretch / challenge</option>
+        </select>
+      </div>
     </div>
-    <label for="importPaste">Paste board text</label>
-    <textarea id="importPaste" placeholder="Title: My board&#10;&#10;1. Q: What is …? | A: Script&#10;2. Q: … | A: …" spellcheck="false"></textarea>
-    <div class="err" id="importErr"></div>
+
+    <div class="import-actions">
+      <button type="button" class="btn btn-primary" id="btnBuildPrompt">Create prompt</button>
+    </div>
+
+    <div class="section hidden" id="aiPromptSection">
+      <h3>1. Copy this into ChatGPT</h3>
+      <p class="hint">Paste into ChatGPT (or another AI). Ask it to return only the board in the format shown (exactly 20 items).</p>
+      <textarea id="aiPromptOut" readonly spellcheck="false"></textarea>
+      <div class="import-actions">
+        <button type="button" class="btn btn-primary" id="btnCopyPrompt">Copy prompt</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>2. Paste the AI board here</h3>
+      <p class="hint">Copy the AI’s reply and paste it below, then click Import.</p>
+      <textarea id="importPaste" placeholder="Title: My board&#10;&#10;1. Q: What is …? | A: Script&#10;2. Q: … | A: …" spellcheck="false"></textarea>
+      <div class="err" id="importErr"></div>
+    </div>
+
     <div class="modal-foot">
       <button type="button" class="btn btn-ghost" id="btnImportCancel">Cancel</button>
       <button type="button" class="btn btn-primary" id="btnImportGo">Import</button>
@@ -550,7 +610,7 @@ a{color:inherit;text-decoration:none}
         '<button class="btn btn-ghost" id="btnExitPlay">Library</button>';
     } else {
       actions =
-        '<button class="btn" id="btnImportAI">Import from AI</button>' +
+        '<button class="btn" id="btnImportAI">Generate with AI</button>' +
         '<button class="btn btn-primary" id="btnNewBoard">New board</button>';
     }
     $("pageTitle").textContent = title;
@@ -577,11 +637,11 @@ a{color:inherit;text-decoration:none}
     $("viewLibrary").innerHTML =
       '<div class="hero-card">' +
         "<h2>Quiz Busters</h2>" +
-        "<p>Two teams race to link opposite sides of the board. Click a letter, ask the question, then award the tile to the team that answers first. Or download the AI template, generate 20 Q&As in ChatGPT, and paste them back in.</p>" +
+        "<p>Two teams race to link opposite sides of the board. Click a letter, ask the question, then award the tile to the team that answers first. Or answer a few questions, copy a ChatGPT prompt, and paste the board back in.</p>" +
         '<div class="hero-actions">' +
           '<button class="btn btn-primary" id="heroPlaySample">Play sample board</button>' +
           '<button class="btn" id="heroNew">Create your own</button>' +
-          '<button class="btn" id="heroImportAI">Import from AI</button>' +
+          '<button class="btn" id="heroImportAI">Generate with AI</button>' +
         "</div>" +
       "</div>" +
       '<div class="section-label"><span>Your boards</span></div>' +
@@ -891,32 +951,76 @@ a{color:inherit;text-decoration:none}
   }
 
 
-  var AI_PROMPT_BUSTERS =
-    "Create a Quiz Busters (Blockbusters-style) board for Scottish secondary pupils.\n\n" +
-    "Subject: [e.g. Drama / Art & Design]\n" +
-    "Level: [e.g. BGE S1–S3 / National 5]\n" +
-    "Topic: [e.g. theatre keywords / art processes]\n\n" +
-    "Rules:\n" +
-    "- Return ONLY the board in the exact format below. No markdown, no introduction, no closing notes.\n" +
-    "- Exactly 20 question-and-answer pairs (the board is 5 x 4).\n" +
-    "- Each answer should be a short word or phrase.\n" +
-    "- Vary the FIRST LETTER of answers across the alphabet so the board has mixed tiles.\n" +
-    "- Questions should be short plenary-style prompts.\n\n" +
-    "Use this format exactly:\n\n" +
-    "Title: [board title]\n\n" +
-    "1. Q: [question] | A: [answer]\n" +
-    "2. Q: [question] | A: [answer]\n" +
-    "(…continue through 20.)";
+
+  function val(id) {
+    var el = $(id);
+    return el ? String(el.value || "").trim() : "";
+  }
+
+  function buildBoardPromptFromForm() {
+    var subject = val("aiSubject") || "Expressive Arts";
+    var level = val("aiLevel") || "BGE S1–S3";
+    var topic = val("aiTopic") || "key vocabulary for this lesson";
+    var vocabRaw = val("aiVocab");
+    var difficulty = val("aiDifficulty") || "quick plenary";
+
+    var vocabBlock = "";
+    if (vocabRaw) {
+      var parts = vocabRaw
+        .split(/[\n,;]+/)
+        .map(function (s) { return s.trim(); })
+        .filter(Boolean);
+      if (parts.length) {
+        vocabBlock =
+          "\nVocabulary / terms to use as answers where possible (vary first letters):\n- " +
+          parts.join("\n- ") +
+          "\n";
+      }
+    }
+
+    return (
+      "Create a Quiz Busters (Blockbusters-style) board for Scottish secondary pupils.\n\n" +
+      "Subject: " + subject + "\n" +
+      "Level: " + level + "\n" +
+      "Topic / focus: " + topic + "\n" +
+      "Style: " + difficulty + "\n" +
+      vocabBlock +
+      "\nRules:\n" +
+      "- Return ONLY the board in the exact format below. No markdown, no introduction, no closing notes.\n" +
+      "- Exactly 20 question-and-answer pairs (the board is 5 x 4).\n" +
+      "- Each answer should be a short word or phrase.\n" +
+      "- Vary the FIRST LETTER of answers across the alphabet so the board has mixed tiles.\n" +
+      "- Questions should be short plenary-style prompts.\n\n" +
+      "Use this format exactly:\n\n" +
+      "Title: [board title]\n\n" +
+      "1. Q: [question] | A: [answer]\n" +
+      "2. Q: [question] | A: [answer]\n" +
+      "3. Q: [question] | A: [answer]\n" +
+      "(Continue until you have exactly 20 items.)"
+    );
+  }
 
   function openImportModal() {
     $("importErr").textContent = "";
     $("importPaste").value = "";
+    $("aiPromptOut").value = "";
+    $("aiPromptSection").classList.add("hidden");
     $("importModal").classList.remove("hidden");
-    setTimeout(function () { $("importPaste").focus(); }, 50);
+    setTimeout(function () {
+      var topic = $("aiTopic");
+      if (topic) topic.focus();
+    }, 50);
   }
 
   function closeImportModal() {
     $("importModal").classList.add("hidden");
+  }
+
+  function showBuiltPrompt() {
+    var prompt = buildBoardPromptFromForm();
+    $("aiPromptOut").value = prompt;
+    $("aiPromptSection").classList.remove("hidden");
+    $("aiPromptOut").scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
   function copyText(str) {
@@ -1083,11 +1187,20 @@ a{color:inherit;text-decoration:none}
       importBoardFromPaste();
       return;
     }
+    if (t.id === "btnBuildPrompt") {
+      showBuiltPrompt();
+      return;
+    }
     if (t.id === "btnCopyPrompt") {
-      copyText(AI_PROMPT_BUSTERS).then(function () {
+      var prompt = $("aiPromptOut").value.trim() || buildBoardPromptFromForm();
+      if (!$("aiPromptOut").value.trim()) {
+        $("aiPromptOut").value = prompt;
+        $("aiPromptSection").classList.remove("hidden");
+      }
+      copyText(prompt).then(function () {
         toast("Prompt copied — paste into ChatGPT");
       }).catch(function () {
-        toast("Could not copy — download the template instead");
+        toast("Could not copy — select the prompt and copy manually");
       });
       return;
     }

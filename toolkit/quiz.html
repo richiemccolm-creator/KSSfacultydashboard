@@ -105,11 +105,6 @@ a{color:inherit;text-decoration:none}
   letter-spacing:.03em;text-transform:uppercase;color:#F4D9A0;
   background:rgba(244,166,42,.14);border:1px solid rgba(244,166,42,.32);
 }
-.soon-note{
-  margin-top:22px;padding:14px 16px;border-radius:12px;border:1px dashed var(--line-strong);
-  color:var(--muted);font:500 13px/1.45 var(--font);
-}
-
 /* editor */
 .ed-bar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px}
 .ed-fields{display:grid;gap:12px;margin-bottom:18px}
@@ -191,24 +186,36 @@ a{color:inherit;text-decoration:none}
   display:flex;align-items:center;justify-content:center;padding:18px;
 }
 .modal{
-  width:min(560px,100%);max-height:min(88vh,720px);overflow:auto;
+  width:min(640px,100%);max-height:min(92vh,820px);overflow:auto;
   border-radius:18px;border:1px solid rgba(140,160,220,.28);
   background:linear-gradient(160deg,#122047,#0A142C);
   box-shadow:0 24px 60px rgba(0,0,0,.45);padding:22px 22px 18px;
 }
-.modal h2{margin:0 0 8px;font:700 22px/1.15 var(--font-display);letter-spacing:-.02em}
-.modal .steps{margin:0 0 14px;padding-left:18px;color:var(--text-2);font:400 13.5px/1.5 var(--font)}
-.modal .steps li{margin:4px 0}
-.modal .import-actions{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
-.modal label{display:block;font:600 11px/1 var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:10px 0 6px}
+.modal h2{margin:0 0 6px;font:700 22px/1.15 var(--font-display);letter-spacing:-.02em}
+.modal .lead{margin:0 0 14px;color:var(--text-2);font:400 13.5px/1.45 var(--font)}
+.modal .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 12px}
+.modal .form-grid .span2{grid-column:1 / -1}
+.modal label{display:block;font:600 11px/1 var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+.modal input[type="text"],.modal select,.modal textarea{
+  width:100%;border-radius:10px;border:1px solid rgba(132,153,207,.22);
+  background:#0A142C;padding:10px 12px;outline:none;color:var(--text);font:500 13.5px/1.4 var(--font);
+}
 .modal textarea{
-  width:100%;min-height:180px;border-radius:12px;border:1px solid rgba(132,153,207,.22);
-  background:#0A142C;padding:12px;outline:none;color:var(--text);resize:vertical;line-height:1.45;
+  min-height:72px;resize:vertical;line-height:1.45;
   font:400 13px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
 }
-.modal textarea:focus{border-color:rgba(244,94,104,.5);box-shadow:0 0 0 3px rgba(244,94,104,.14)}
+.modal #aiPromptOut{min-height:140px}
+.modal #importPaste{min-height:150px}
+.modal input:focus,.modal select:focus,.modal textarea:focus{
+  border-color:rgba(244,94,104,.5);box-shadow:0 0 0 3px rgba(244,94,104,.14);
+}
+.modal .section{margin-top:16px;padding-top:14px;border-top:1px solid rgba(130,150,200,.14)}
+.modal .section h3{margin:0 0 8px;font:650 14px/1.2 var(--font-display)}
+.modal .section .hint{margin:0 0 10px;color:var(--muted);font:400 12.5px/1.4 var(--font)}
+.modal .import-actions{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 0}
 .modal-foot{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:14px}
 .modal .err{margin:8px 0 0;color:#FFB4B9;font:500 13px/1.4 var(--font);min-height:1.2em}
+@media(max-width:560px){.modal .form-grid{grid-template-columns:1fr}}
 
 .toast{
   position:fixed;left:50%;bottom:24px;transform:translate(-50%,16px);z-index:60;
@@ -302,19 +309,76 @@ body.hosting .top .sub{display:none}
 
 <div class="modal-backdrop hidden" id="importModal" role="dialog" aria-modal="true" aria-labelledby="importTitle">
   <div class="modal">
-    <h2 id="importTitle">Import from AI</h2>
-    <ol class="steps">
-      <li>Download the template (opens in Word / Notes / Docs).</li>
-      <li>Copy the ChatGPT section into your AI and ask it to fill the quiz.</li>
-      <li>Paste the AI’s quiz text below and click Import.</li>
-    </ol>
-    <div class="import-actions">
-      <a class="btn" id="btnDownloadTemplate" href="quiz-ai-template.txt" download="quiz-ai-template.txt">Download template</a>
-      <button type="button" class="btn" id="btnCopyPrompt">Copy ChatGPT prompt</button>
+    <h2 id="importTitle">Generate with AI</h2>
+    <p class="lead">Answer a few questions, copy the prompt into ChatGPT, then paste the quiz it returns below.</p>
+
+    <div class="form-grid" id="aiForm">
+      <div>
+        <label for="aiSubject">Subject</label>
+        <select id="aiSubject">
+          <option value="Drama">Drama</option>
+          <option value="Art &amp; Design">Art &amp; Design</option>
+          <option value="Expressive Arts (Art &amp; Drama)">Expressive Arts (Art &amp; Drama)</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div>
+        <label for="aiLevel">Level</label>
+        <select id="aiLevel">
+          <option value="BGE S1–S3">BGE S1–S3</option>
+          <option value="National 4">National 4</option>
+          <option value="National 5">National 5</option>
+          <option value="Higher">Higher</option>
+          <option value="Mixed / any">Mixed / any</option>
+        </select>
+      </div>
+      <div class="span2">
+        <label for="aiTopic">Topic / focus</label>
+        <input type="text" id="aiTopic" maxlength="160" placeholder="e.g. theatre keywords, elements of art, staging">
+      </div>
+      <div class="span2">
+        <label for="aiVocab">Vocabulary to assess (optional)</label>
+        <textarea id="aiVocab" maxlength="800" placeholder="List words or phrases, one per line or comma-separated&#10;e.g. Script, Motif, Tone, Blocking"></textarea>
+      </div>
+      <div>
+        <label for="aiCount">Number of questions</label>
+        <select id="aiCount">
+          <option value="6">6</option>
+          <option value="8" selected>8</option>
+          <option value="10">10</option>
+          <option value="12">12</option>
+        </select>
+      </div>
+      <div>
+        <label for="aiDifficulty">Style</label>
+        <select id="aiDifficulty">
+          <option value="quick plenary">Quick plenary</option>
+          <option value="standard">Standard</option>
+          <option value="stretch / challenge">Stretch / challenge</option>
+        </select>
+      </div>
     </div>
-    <label for="importPaste">Paste quiz text</label>
-    <textarea id="importPaste" placeholder="Title: My quiz&#10;Description: …&#10;&#10;Q1. …&#10;A) … *&#10;B) …&#10;C) …&#10;D) …&#10;Time: 20" spellcheck="false"></textarea>
-    <div class="err" id="importErr"></div>
+
+    <div class="import-actions">
+      <button type="button" class="btn btn-primary" id="btnBuildPrompt">Create prompt</button>
+    </div>
+
+    <div class="section hidden" id="aiPromptSection">
+      <h3>1. Copy this into ChatGPT</h3>
+      <p class="hint">Paste into ChatGPT (or another AI). Ask it to return only the quiz in the format shown.</p>
+      <textarea id="aiPromptOut" readonly spellcheck="false"></textarea>
+      <div class="import-actions">
+        <button type="button" class="btn btn-primary" id="btnCopyPrompt">Copy prompt</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h3>2. Paste the AI quiz here</h3>
+      <p class="hint">Copy the AI’s reply and paste it below, then click Import.</p>
+      <textarea id="importPaste" placeholder="Title: My quiz&#10;Description: …&#10;&#10;Q1. …&#10;A) … *&#10;B) …&#10;C) …&#10;D) …&#10;Time: 20" spellcheck="false"></textarea>
+      <div class="err" id="importErr"></div>
+    </div>
+
     <div class="modal-foot">
       <button type="button" class="btn btn-ghost" id="btnImportCancel">Cancel</button>
       <button type="button" class="btn btn-primary" id="btnImportGo">Import</button>
@@ -497,7 +561,7 @@ body.hosting .top .sub{display:none}
 
   function createLiveSession(quiz, playMode) {
     if (!window.supabase || !window.supabase.auth) {
-      return Promise.reject(new Error("Cloud sync unavailable — hosting locally"));
+      return Promise.reject(new Error("Phone join is not available right now"));
     }
     var mode = playMode || (state.host && state.host.playMode) || "facilitated";
     mode = mode === "self_paced" ? "self_paced" : "facilitated";
@@ -759,7 +823,7 @@ body.hosting .top .sub{display:none}
       actions.innerHTML =
         '<button type="button" class="btn btn-ghost' + (state.sound ? " on" : "") + '" id="btnSound" title="Sound">' +
         (state.sound ? "Sound on" : "Sound off") + "</button>" +
-        '<button type="button" class="btn" id="btnImportAI">Import from AI</button>' +
+        '<button type="button" class="btn" id="btnImportAI">Generate with AI</button>' +
         '<button type="button" class="btn btn-primary" id="btnNew">New quiz</button>';
     } else if (state.view === "editor") {
       title.textContent = "Edit quiz";
@@ -805,10 +869,9 @@ body.hosting .top .sub{display:none}
     root.innerHTML =
       '<div class="lib-head">' +
         "<div><h2>Your quizzes</h2>" +
-        "<p>Build multiple-choice quizzes, host on the classroom screen, and let pupils join on their phones with a PIN or QR. Or download the AI template, generate questions in ChatGPT, and paste them back in.</p></div>" +
+        "<p>Build multiple-choice quizzes, host on the classroom screen, and let pupils join on their phones with a PIN or QR. Or answer a few questions, copy a ChatGPT prompt, and paste the quiz back in.</p></div>" +
       "</div>" +
-      '<div class="grid">' + cards + "</div>" +
-      '<div class="soon-note">Pupils can join on their phones with a PIN / QR from Host mode. Apply the quiz live Supabase migration if join is unavailable.</div>';
+      '<div class="grid">' + cards + "</div>';
   }
 
   function esc(s) {
@@ -976,7 +1039,7 @@ body.hosting .top .sub{display:none}
         .catch(function (err) {
           if (!state.host) return;
           state.host.live = false;
-          state.host.liveError = (err && err.message) || "Live phone join unavailable";
+          state.host.liveError = (err && err.message) || "Phone join is not available right now";
           renderHost();
           toast(state.host.liveError);
         });
@@ -1249,43 +1312,89 @@ body.hosting .top .sub{display:none}
   }
 
 
-  var AI_PROMPT_QUIZ =
-    "Create a multiple-choice classroom quiz for Scottish secondary pupils.\n\n" +
-    "Subject: [e.g. Drama / Art & Design]\n" +
-    "Level: [e.g. BGE S1–S3 / National 5]\n" +
-    "Topic: [e.g. theatre keywords / elements of art]\n" +
-    "Number of questions: [e.g. 8]\n\n" +
-    "Rules:\n" +
-    "- Return ONLY the quiz in the exact format below. No markdown, no introduction, no closing notes.\n" +
-    "- Exactly 4 options per question (A–D).\n" +
-    "- Mark the single correct option with an asterisk * at the end of that line.\n" +
-    "- Keep questions clear and suitable for a quick plenary.\n" +
-    "- Include a Time: value in seconds (usually 20).\n\n" +
-    "Use this format exactly:\n\n" +
-    "Title: [quiz title]\n" +
-    "Description: [one short sentence]\n\n" +
-    "Q1. [question text]\n" +
-    "A) [option]\n" +
-    "B) [option] *\n" +
-    "C) [option]\n" +
-    "D) [option]\n" +
-    "Time: 20\n\n" +
-    "Q2. [question text]\n" +
-    "A) [option]\n" +
-    "B) [option]\n" +
-    "C) [option] *\n" +
-    "D) [option]\n" +
-    "Time: 20";
+
+  function val(id) {
+    var el = $(id);
+    return el ? String(el.value || "").trim() : "";
+  }
+
+  function buildQuizPromptFromForm() {
+    var subject = val("aiSubject") || "Expressive Arts";
+    var level = val("aiLevel") || "BGE S1–S3";
+    var topic = val("aiTopic") || "key vocabulary for this lesson";
+    var vocabRaw = val("aiVocab");
+    var count = val("aiCount") || "8";
+    var difficulty = val("aiDifficulty") || "quick plenary";
+
+    var vocabBlock = "";
+    if (vocabRaw) {
+      var parts = vocabRaw
+        .split(/[\n,;]+/)
+        .map(function (s) { return s.trim(); })
+        .filter(Boolean);
+      if (parts.length) {
+        vocabBlock =
+          "\nVocabulary / terms that MUST appear across the quiz (cover as many as possible):\n- " +
+          parts.join("\n- ") +
+          "\n";
+      }
+    }
+
+    return (
+      "Create a multiple-choice classroom quiz for Scottish secondary pupils.\n\n" +
+      "Subject: " + subject + "\n" +
+      "Level: " + level + "\n" +
+      "Topic / focus: " + topic + "\n" +
+      "Number of questions: " + count + "\n" +
+      "Style: " + difficulty + "\n" +
+      vocabBlock +
+      "\nRules:\n" +
+      "- Return ONLY the quiz in the exact format below. No markdown, no introduction, no closing notes.\n" +
+      "- Exactly 4 options per question (A–D).\n" +
+      "- Mark the single correct option with an asterisk * at the end of that line.\n" +
+      "- Keep questions clear and suitable for a classroom plenary.\n" +
+      "- Include a Time: value in seconds (usually 20).\n" +
+      "- Plausible distractors; only one correct answer per question.\n\n" +
+      "Use this format exactly:\n\n" +
+      "Title: [quiz title]\n" +
+      "Description: [one short sentence]\n\n" +
+      "Q1. [question text]\n" +
+      "A) [option]\n" +
+      "B) [option] *\n" +
+      "C) [option]\n" +
+      "D) [option]\n" +
+      "Time: 20\n\n" +
+      "Q2. [question text]\n" +
+      "A) [option]\n" +
+      "B) [option]\n" +
+      "C) [option] *\n" +
+      "D) [option]\n" +
+      "Time: 20\n\n" +
+      "(Continue until you have exactly " + count + " questions.)"
+    );
+  }
 
   function openImportModal() {
     $("importErr").textContent = "";
     $("importPaste").value = "";
+    $("aiPromptOut").value = "";
+    $("aiPromptSection").classList.add("hidden");
     $("importModal").classList.remove("hidden");
-    setTimeout(function () { $("importPaste").focus(); }, 50);
+    setTimeout(function () {
+      var topic = $("aiTopic");
+      if (topic) topic.focus();
+    }, 50);
   }
 
   function closeImportModal() {
     $("importModal").classList.add("hidden");
+  }
+
+  function showBuiltPrompt() {
+    var prompt = buildQuizPromptFromForm();
+    $("aiPromptOut").value = prompt;
+    $("aiPromptSection").classList.remove("hidden");
+    $("aiPromptOut").scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 
   function copyText(str) {
@@ -1471,11 +1580,20 @@ body.hosting .top .sub{display:none}
       importQuizFromPaste();
       return;
     }
+    if (t.id === "btnBuildPrompt") {
+      showBuiltPrompt();
+      return;
+    }
     if (t.id === "btnCopyPrompt") {
-      copyText(AI_PROMPT_QUIZ).then(function () {
+      var prompt = $("aiPromptOut").value.trim() || buildQuizPromptFromForm();
+      if (!$("aiPromptOut").value.trim()) {
+        $("aiPromptOut").value = prompt;
+        $("aiPromptSection").classList.remove("hidden");
+      }
+      copyText(prompt).then(function () {
         toast("Prompt copied — paste into ChatGPT");
       }).catch(function () {
-        toast("Could not copy — download the template instead");
+        toast("Could not copy — select the prompt and copy manually");
       });
       return;
     }
