@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Exit Tickets — Classroom Toolkit</title>
+<script src="../app-version.js"></script>
+<script>(function(){if(window.ensureAppVersionInUrl)window.ensureAppVersionInUrl();})();</script>
+<script src="../config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../supabase-init.js"></script>
+<script src="../allowlist-check.js"></script>
+<script>window.__authGuardLoginPath='../login.html';</script>
+<script src="../auth-guard.js"></script>
+<script src="../embed-chrome.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://api.fontshare.com/v2/css?f[]=general-sans@500,600,700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#050B1D; --surface:#0C1731;
+  --line:rgba(124,148,205,.16); --line-strong:rgba(129,156,224,.28);
+  --text:#F5F7FF; --text-2:#B6C0D9; --muted:#7D8AA8;
+  --magenta:#D843B2; --amber:#F4A62A; --mint:#35C796; --coral:#F45E68; --blue:#3B6CFF;
+  --font:"Inter",ui-sans-serif,system-ui,sans-serif;
+  --font-display:"General Sans","Inter",sans-serif;
+}
+*{box-sizing:border-box}
+html{color-scheme:dark}
+body{
+  margin:0;font-family:var(--font);color:var(--text);min-height:100vh;
+  background:
+    radial-gradient(ellipse 48% 34% at 12% -6%,rgba(216,67,178,.2),transparent 55%),
+    radial-gradient(ellipse 42% 30% at 92% 0%,rgba(59,108,255,.14),transparent 50%),
+    var(--bg);
+  -webkit-font-smoothing:antialiased;
+}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:inherit;text-decoration:none}
+.hidden{display:none!important}
+
+.app{min-height:100vh;display:flex;flex-direction:column}
+.top{
+  display:flex;align-items:center;gap:14px;padding:14px 20px;
+  border-bottom:1px solid rgba(130,150,200,.14);
+  background:rgba(5,11,29,.9);backdrop-filter:blur(16px);position:sticky;top:0;z-index:20;
+}
+.back{
+  display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 12px;border-radius:10px;
+  border:1px solid var(--line);background:rgba(255,255,255,.02);color:var(--text-2);font:500 13px/1 var(--font);
+}
+.back:hover{color:#fff;border-color:var(--line-strong)}
+.top-brand{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:0}
+.top-logo{
+  display:block;height:clamp(42px,5.8vh,58px);width:auto;max-width:min(50vw,320px);
+  object-fit:contain;filter:drop-shadow(0 0 14px rgba(216,67,178,.35));
+}
+.top .sub{margin:0;font:500 12px/1.2 var(--font);color:var(--muted)}
+.top-actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+.btn{
+  height:40px;min-height:44px;padding:0 14px;border-radius:10px;border:1px solid var(--line);
+  background:#0D1831;color:var(--text-2);font:600 13.5px/1 var(--font);
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+}
+.btn:hover{color:#fff;border-color:var(--line-strong)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-primary{
+  border:none;color:#fff;
+  background:linear-gradient(135deg,#D843B2,#9B2F8A);
+  box-shadow:0 8px 20px -8px rgba(216,67,178,.5);
+}
+.btn-mint{border:none;color:#fff;background:linear-gradient(135deg,#35C796,#1F9A70)}
+.btn-ghost{background:transparent}
+.btn-danger{border-color:rgba(244,94,104,.4);color:#FFB4B9}
+.btn.on{color:#fff;border-color:rgba(216,67,178,.5);background:rgba(216,67,178,.22)}
+.btn-sm{height:34px;min-height:34px;padding:0 10px;font-size:12.5px}
+
+.shell{flex:1;padding:22px 20px 40px;width:min(1080px,100%);margin:0 auto}
+.hero{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(200px,.85fr);gap:16px;align-items:center;margin-bottom:20px}
+.hero h2{margin:0;font:800 clamp(26px,3.5vw,36px)/1.1 var(--font-display);letter-spacing:-.03em}
+.hero p{margin:8px 0 0;color:var(--muted);font:500 14.5px/1.45 var(--font);max-width:36rem}
+.hero-logo{width:min(100%,360px);height:auto;filter:drop-shadow(0 0 20px rgba(216,67,178,.35))}
+@media(max-width:760px){.hero{grid-template-columns:1fr}.hero-logo{width:min(100%,280px)}}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.card{
+  border-radius:16px;padding:16px;border:1px solid var(--line);
+  background:linear-gradient(150deg,rgba(216,67,178,.08),#081126 55%);
+  display:flex;flex-direction:column;gap:10px;min-height:148px;
+}
+.card h3{margin:0;font:650 17px/1.25 var(--font-display)}
+.card .meta{color:var(--muted);font:500 12.5px/1.35 var(--font)}
+.card .row{display:flex;gap:8px;margin-top:auto;flex-wrap:wrap}
+.empty{border:1px dashed rgba(130,150,200,.28);border-radius:16px;padding:36px 20px;text-align:center;color:var(--muted)}
+
+.form{display:grid;gap:14px}
+label{display:block;font:600 11px/1 var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+input,textarea{
+  width:100%;border-radius:12px;border:1px solid var(--line);background:#0A142C;
+  padding:12px 14px;outline:none;
+}
+input{height:46px}
+textarea{min-height:160px;resize:vertical;line-height:1.45}
+input:focus,textarea:focus{border-color:rgba(216,67,178,.5);box-shadow:0 0 0 3px rgba(216,67,178,.14)}
+.hint{margin:6px 0 0;color:var(--muted);font:500 12.5px/1.4 var(--font)}
+.form-actions{display:flex;flex-wrap:wrap;gap:8px}
+
+.host-grid{
+  display:grid;grid-template-columns:minmax(260px,340px) minmax(0,1fr);gap:18px;align-items:start;
+}
+@media(max-width:900px){.host-grid{grid-template-columns:1fr}}
+.panel{
+  border-radius:18px;padding:18px;border:1px solid var(--line);
+  background:linear-gradient(160deg,#101B38,#081126);
+}
+.panel h3{margin:0 0 10px;font:700 15px/1.2 var(--font-display)}
+.pin{
+  font:800 clamp(40px,8vw,64px)/1 var(--font-display);letter-spacing:.12em;
+  text-align:center;color:#F7B4E8;text-shadow:0 0 24px rgba(216,67,178,.35);
+}
+.qr-wrap{text-align:center;margin:12px 0}
+.qr-wrap img{width:min(220px,100%);border-radius:12px;background:#fff;padding:10px}
+.meta{color:var(--muted);font:500 13px/1.4 var(--font)}
+.player-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.chip{
+  padding:5px 10px;border-radius:999px;font:600 12px/1 var(--font);
+  background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--text-2);
+}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.inbox{display:grid;gap:10px;max-height:min(58vh,620px);overflow:auto}
+.resp{
+  border-radius:14px;padding:12px 14px;border:1px solid var(--line);
+  background:rgba(10,20,44,.8);display:grid;gap:8px;
+}
+.resp.approved{border-color:rgba(53,199,150,.4);background:rgba(53,199,150,.08)}
+.resp.blocked{border-color:rgba(244,94,104,.4);background:rgba(244,94,104,.08)}
+.resp.hidden{opacity:.55}
+.resp .who{font:650 12px/1.2 var(--font);color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.resp .body{font:500 15px/1.4 var(--font);color:var(--text)}
+.resp .actions{display:flex;flex-wrap:wrap;gap:6px}
+.board{
+  margin-top:16px;border-radius:18px;padding:18px;border:1px solid rgba(216,67,178,.28);
+  background:
+    radial-gradient(circle at 20% 0%,rgba(216,67,178,.12),transparent 50%),
+    linear-gradient(160deg,#0D1834,#081126);
+  min-height:180px;
+}
+.board h3{margin:0 0 12px;font:700 16px/1.2 var(--font-display)}
+.board-list{display:grid;gap:10px}
+.board-item{
+  padding:12px 14px;border-radius:12px;background:rgba(255,255,255,.04);
+  border:1px solid rgba(130,150,200,.14);font:500 16px/1.4 var(--font-display);
+}
+.board-item .nick{display:block;font:600 11px/1 var(--font);color:var(--muted);margin-bottom:6px;letter-spacing:.04em;text-transform:uppercase}
+.toast{
+  position:fixed;bottom:22px;left:50%;transform:translateX(-50%);
+  background:#122048;border:1px solid var(--line-strong);color:#fff;
+  padding:10px 16px;border-radius:999px;font:600 13px/1 var(--font);
+  box-shadow:0 12px 30px rgba(0,0,0,.35);z-index:50;opacity:0;pointer-events:none;transition:opacity .2s;
+}
+.toast.on{opacity:1}
+body.embedded .back{display:inline-flex}
+.safety{
+  margin:10px 0 0;padding:10px 12px;border-radius:10px;
+  background:rgba(244,166,42,.08);border:1px solid rgba(244,166,42,.25);
+  color:#F8D48A;font:500 12.5px/1.4 var(--font);
+}
+</style>
+</head>
+<body>
+<script>(function(){
+  try{
+    var q=new URLSearchParams(location.search);
+    if(q.get('embed')==='1'||q.get('embed')==='true'||sessionStorage.getItem('fh-embed')==='1'){
+      document.body.classList.add('embedded');
+    }
+  }catch(e){}
+})();</script>
+
+<div class="app">
+  <header class="top">
+    <a class="back" id="homeLink" href="../classroom_toolkit.html" title="Back to Classroom Toolkit">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V20h5v-5h4v5h5V9.5"/></svg>
+      Home
+    </a>
+    <div class="top-brand">
+      <img class="top-logo" src="exit-tickets-logo.png" width="804" height="318" alt="Exit Tickets" decoding="async">
+      <p class="sub">Short text check-outs — teacher-approved on the board</p>
+    </div>
+    <div class="top-actions" id="topActions"></div>
+  </header>
+  <main class="shell">
+    <section id="viewLibrary"></section>
+    <section class="hidden" id="viewEditor"></section>
+    <section class="hidden" id="viewHost"></section>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var STORE_KEY = "tk_exit_tickets_v1";
+  var MAX_PROMPTS = 3;
+  var MAX_CHARS = 160;
+  var $ = function (id) { return document.getElementById(id); };
+  var state = {
+    packs: [],
+    editingId: null,
+    host: null,
+    poll: null,
+    inboxFilter: "pending"
+  };
+  var toastTimer = null;
+
+  var BLOCK = [
+    "fuck","fucking","fucked","shit","shitty","bitch","bastard","asshole","arsehole",
+    "cunt","cock","dick","piss","wank","wanker","slut","whore","nigger","nigga",
+    "faggot","retard","retarded","rape","rapist","kys"
+  ];
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c];
+    });
+  }
+
+  function uid() {
+    return "e_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+
+  function toast(msg) {
+    var el = $("toast");
+    el.textContent = msg;
+    el.classList.add("on");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.remove("on"); }, 2200);
+  }
+
+  function isBlocked(text) {
+    var raw = String(text || "").toLowerCase();
+    var spaced = " " + raw.replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ") + " ";
+    var glued = raw.replace(/[^a-z]/g, "");
+    for (var i = 0; i < BLOCK.length; i++) {
+      var w = BLOCK[i];
+      if (spaced.indexOf(" " + w + " ") >= 0) return true;
+      if (w.length >= 4 && glued.indexOf(w) >= 0) return true;
+    }
+    if (raw.indexOf("kill yourself") >= 0) return true;
+    return false;
+  }
+
+  function loadPacks() {
+    try {
+      var raw = JSON.parse(localStorage.getItem(STORE_KEY) || "[]");
+      state.packs = Array.isArray(raw) ? raw : [];
+    } catch (e) { state.packs = []; }
+  }
+
+  function savePacks() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(state.packs)); } catch (e) {}
+  }
+
+  function parsePrompts(text) {
+    return String(text || "")
+      .split(/\n+/)
+      .map(function (l) { return l.trim(); })
+      .filter(Boolean)
+      .slice(0, MAX_PROMPTS);
+  }
+
+  function show(view) {
+    ["viewLibrary", "viewEditor", "viewHost"].forEach(function (id) {
+      $(id).classList.toggle("hidden", id !== view);
+    });
+  }
+
+  function setTop(html) {
+    $("topActions").innerHTML = html || "";
+  }
+
+  function stopPoll() {
+    if (state.poll) { clearInterval(state.poll); state.poll = null; }
+  }
+
+  function joinUrlForPin(pin) {
+    var base = location.href.replace(/[^/]*$/, "exit-join.html");
+    base = base.split("#")[0].split("?")[0];
+    if (window.withAppVersion) base = window.withAppVersion(base);
+    var u = base + (base.indexOf("?") >= 0 ? "&" : "?") + "c=" + encodeURIComponent(pin);
+    return u;
+  }
+
+  function randomPin() {
+    return String(Math.floor(100000 + Math.random() * 900000));
+  }
+
+  function whenAuthReady(cb) {
+    if (window.__authReady) cb();
+    else {
+      try { window.addEventListener("auth-guard-ready", cb, { once: true }); }
+      catch (e) { window.addEventListener("auth-guard-ready", cb); }
+      setTimeout(cb, 2500);
+    }
+  }
+
+  function renderLibrary() {
+    stopPoll();
+    state.host = null;
+    show("viewLibrary");
+    setTop('<button type="button" class="btn btn-primary" id="btnNew">New ticket</button>');
+    var el = $("viewLibrary");
+    el.innerHTML =
+      '<div class="hero">' +
+        "<div><h2>Exit ticket packs</h2>" +
+        "<p>Ask 1–3 short questions. Pupils join by QR, answers stay private until you approve them for the board.</p></div>" +
+        '<div><img class="hero-logo" src="exit-tickets-logo.png" width="804" height="318" alt="" decoding="async"></div>' +
+      "</div>";
+
+    if (!state.packs.length) {
+      el.innerHTML += '<div class="empty">No tickets yet. Create one for the end of today\'s lesson.</div>';
+    } else {
+      el.innerHTML +=
+        '<div class="grid">' +
+        state.packs.map(function (p) {
+          return (
+            '<article class="card" data-id="' + esc(p.id) + '">' +
+              "<h3>" + esc(p.title) + "</h3>" +
+              '<p class="meta">' + p.prompts.length + " prompt" + (p.prompts.length === 1 ? "" : "s") + "</p>" +
+              '<div class="row">' +
+                '<button type="button" class="btn btn-primary btn-launch">Launch</button>' +
+                '<button type="button" class="btn btn-edit">Edit</button>' +
+                '<button type="button" class="btn btn-ghost btn-del">Delete</button>' +
+              "</div>" +
+            "</article>"
+          );
+        }).join("") +
+        "</div>";
+    }
+
+    document.getElementById("btnNew").onclick = function () { openEditor(null); };
+    el.querySelectorAll(".card").forEach(function (card) {
+      var id = card.getAttribute("data-id");
+      var pack = state.packs.filter(function (p) { return p.id === id; })[0];
+      if (!pack) return;
+      card.querySelector(".btn-launch").onclick = function () { launchHost(pack); };
+      card.querySelector(".btn-edit").onclick = function () { openEditor(pack); };
+      card.querySelector(".btn-del").onclick = function () {
+        if (!confirm('Delete "' + pack.title + '"?')) return;
+        state.packs = state.packs.filter(function (p) { return p.id !== id; });
+        savePacks();
+        renderLibrary();
+        toast("Deleted");
+      };
+    });
+  }
+
+  function openEditor(pack) {
+    stopPoll();
+    state.editingId = pack ? pack.id : null;
+    show("viewEditor");
+    setTop('<button type="button" class="btn btn-ghost" id="btnCancelEdit">Cancel</button>');
+    $("viewEditor").innerHTML =
+      '<div class="hero" style="grid-template-columns:1fr"><div><h2>' +
+      (pack ? "Edit ticket" : "New ticket") +
+      "</h2><p>One prompt per line. Keep them short — pupils answer in up to " + MAX_CHARS + " characters.</p></div></div>" +
+      '<div class="form">' +
+        '<div><label for="edTitle">Title</label>' +
+        '<input id="edTitle" maxlength="80" value="' + esc(pack ? pack.title : "") + '" placeholder="e.g. Mime — Lesson 2 exit"></div>' +
+        '<div><label for="edPrompts">Prompts (max ' + MAX_PROMPTS + ')</label>' +
+        '<textarea id="edPrompts" placeholder="What went well in your group work today?&#10;Name one Drama word you used.">' +
+          esc(pack ? pack.prompts.join("\n") : "") +
+        "</textarea>" +
+        '<p class="hint">Answers are hidden from the board until you tap Show.</p></div>' +
+        '<div class="form-actions">' +
+          '<button type="button" class="btn btn-primary" id="btnSave">Save</button>' +
+          '<button type="button" class="btn" id="btnSaveLaunch">Save &amp; launch</button>' +
+        "</div>" +
+      "</div>";
+
+    document.getElementById("btnCancelEdit").onclick = renderLibrary;
+
+    function collect() {
+      var title = $("edTitle").value.trim() || "Untitled exit ticket";
+      var prompts = parsePrompts($("edPrompts").value);
+      if (!prompts.length) { toast("Add at least one prompt"); return null; }
+      return {
+        id: state.editingId || uid(),
+        title: title,
+        prompts: prompts,
+        updatedAt: Date.now()
+      };
+    }
+
+    function persist(andLaunch) {
+      var draft = collect();
+      if (!draft) return;
+      var idx = state.packs.findIndex(function (p) { return p.id === draft.id; });
+      if (idx >= 0) state.packs[idx] = draft;
+      else state.packs.unshift(draft);
+      savePacks();
+      toast("Saved");
+      if (andLaunch) launchHost(draft);
+      else renderLibrary();
+    }
+
+    document.getElementById("btnSave").onclick = function () { persist(false); };
+    document.getElementById("btnSaveLaunch").onclick = function () { persist(true); };
+  }
+
+  function createLiveSession(pack) {
+    if (!window.supabase || !window.supabase.auth) {
+      return Promise.reject(new Error("Phone join is not available right now"));
+    }
+    return window.supabase.auth.getSession().then(function (r) {
+      var session = r && r.data && r.data.session;
+      if (!session || !session.user) throw new Error("Sign in required for live phone play");
+      var pin = randomPin();
+      var payload = {
+        host_id: session.user.id,
+        pin: pin,
+        title: pack.title,
+        prompts_json: pack.prompts,
+        status: "lobby",
+        show_nicknames: false
+      };
+      return window.supabase.from("exit_ticket_sessions").insert(payload).select("*").single().then(function (res) {
+        if (res.error) {
+          payload.pin = randomPin();
+          return window.supabase.from("exit_ticket_sessions").insert(payload).select("*").single().then(function (res2) {
+            if (res2.error) throw res2.error;
+            return res2.data;
+          });
+        }
+        return res.data;
+      });
+    });
+  }
+
+  function patchSession(patch) {
+    var h = state.host;
+    if (!h || !h.sessionId || !window.supabase) return Promise.resolve();
+    return window.supabase
+      .from("exit_ticket_sessions")
+      .update(patch)
+      .eq("id", h.sessionId)
+      .eq("host_id", h.hostUserId)
+      .then(function (res) {
+        if (res.error) throw res.error;
+      });
+  }
+
+  function closeLiveSession() {
+    stopPoll();
+    var h = state.host;
+    if (!h || !h.sessionId || !window.supabase) return Promise.resolve();
+    return window.supabase
+      .from("exit_ticket_sessions")
+      .update({ status: "closed" })
+      .eq("id", h.sessionId)
+      .then(function () {});
+  }
+
+  function drawQr() {
+    var el = document.getElementById("hostQr");
+    var h = state.host;
+    if (!el || !h || !h.pin) return;
+    var url = joinUrlForPin(h.pin);
+    function setSrc(src) { el.src = src; }
+    function fallback() {
+      setSrc("https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&data=" + encodeURIComponent(url));
+    }
+    var lib = window.QRCode;
+    if (lib && typeof lib.toDataURL === "function") {
+      lib.toDataURL(url, {
+        width: 220, margin: 1,
+        color: { dark: "#081126", light: "#ffffff" }
+      }, function (err, dataUrl) {
+        if (err || !dataUrl) fallback();
+        else setSrc(dataUrl);
+      });
+      return;
+    }
+    fallback();
+  }
+
+  function launchHost(pack) {
+    show("viewHost");
+    setTop('<span class="meta">Starting live session…</span>');
+    $("viewHost").innerHTML = '<p class="meta">Connecting…</p>';
+    createLiveSession(pack).then(function (row) {
+      state.host = {
+        sessionId: row.id,
+        pin: row.pin,
+        hostUserId: row.host_id,
+        pack: pack,
+        status: row.status,
+        showNicknames: !!row.show_nicknames,
+        players: [],
+        responses: []
+      };
+      state.inboxFilter = "pending";
+      renderHost();
+      startPoll();
+    }).catch(function (err) {
+      toast((err && err.message) || "Could not start live session");
+      renderLibrary();
+    });
+  }
+
+  function startPoll() {
+    stopPoll();
+    refreshHost();
+    state.poll = setInterval(refreshHost, 1500);
+  }
+
+  function refreshHost() {
+    var h = state.host;
+    if (!h || !h.sessionId || !window.supabase) return;
+    window.supabase.rpc("exit_list_host_state", { p_session_id: h.sessionId }).then(function (res) {
+      if (res.error) return;
+      var data = res.data || {};
+      h.status = data.status;
+      h.showNicknames = !!data.show_nicknames;
+      h.players = Array.isArray(data.players) ? data.players : [];
+      h.responses = Array.isArray(data.responses) ? data.responses : [];
+      renderHostBody();
+    });
+  }
+
+  function renderHost() {
+    var h = state.host;
+    if (!h) return;
+    show("viewHost");
+    setTop(
+      '<button type="button" class="btn' + (h.showNicknames ? " on" : "") + '" id="btnNicks">Nicknames ' +
+        (h.showNicknames ? "on" : "off") + "</button>" +
+      '<button type="button" class="btn btn-ghost" id="btnEnd">End session</button>'
+    );
+    $("viewHost").innerHTML =
+      '<div class="host-grid">' +
+        '<div class="panel" id="hostLobby">' +
+          '<h3>' + esc(h.pack.title) + "</h3>" +
+          '<p class="meta" style="text-align:center;margin:0 0 4px">Game PIN</p>' +
+          '<div class="pin" id="hostPin">' + esc(h.pin) + "</div>" +
+          '<div class="qr-wrap"><img id="hostQr" alt="QR code" width="220" height="220"></div>' +
+          '<p class="meta" style="text-align:center">Pupils scan or enter the PIN — no sign-in</p>' +
+          '<div class="safety">Answers stay private until you tap <strong>Show</strong>. Inappropriate language is held back automatically.</div>' +
+          '<p class="meta" style="margin-top:12px"><span id="hostPlayerCount">0</span> joined</p>' +
+          '<div class="player-chips" id="hostPlayers"></div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px">' +
+            '<button type="button" class="btn btn-primary" id="btnOpen">Open submissions</button>' +
+            '<button type="button" class="btn" id="btnCopy">Copy link</button>' +
+          "</div>" +
+        "</div>" +
+        '<div>' +
+          '<div class="tabs" id="hostTabs"></div>' +
+          '<div class="panel"><h3>Inbox</h3><div class="inbox" id="hostInbox"></div></div>' +
+          '<div class="board"><h3>Board (approved only)</h3><div class="board-list" id="hostBoard"></div></div>' +
+        "</div>" +
+      "</div>";
+
+    drawQr();
+    wireHostChrome();
+    renderHostBody();
+  }
+
+  function wireHostChrome() {
+    var h = state.host;
+    document.getElementById("btnEnd").onclick = function () {
+      closeLiveSession().then(function () {
+        toast("Session ended");
+        renderLibrary();
+      });
+    };
+    document.getElementById("btnNicks").onclick = function () {
+      h.showNicknames = !h.showNicknames;
+      patchSession({ show_nicknames: h.showNicknames }).then(function () {
+        renderHost();
+        startPoll();
+      }).catch(function (err) { toast(err.message || "Could not update"); });
+    };
+    var openBtn = document.getElementById("btnOpen");
+    if (openBtn) {
+      openBtn.onclick = function () {
+        patchSession({ status: "open" }).then(function () {
+          h.status = "open";
+          toast("Pupils can submit now");
+          renderHostBody();
+        }).catch(function (err) { toast(err.message || "Could not open"); });
+      };
+    }
+    document.getElementById("btnCopy").onclick = function () {
+      var url = joinUrlForPin(h.pin);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(function () { toast("Link copied"); })
+          .catch(function () { prompt("Copy this link:", url); });
+      } else prompt("Copy this link:", url);
+    };
+  }
+
+  function renderHostBody() {
+    var h = state.host;
+    if (!h) return;
+    var count = document.getElementById("hostPlayerCount");
+    var players = document.getElementById("hostPlayers");
+    var inbox = document.getElementById("hostInbox");
+    var board = document.getElementById("hostBoard");
+    var tabs = document.getElementById("hostTabs");
+    var openBtn = document.getElementById("btnOpen");
+    if (!inbox) return;
+
+    if (count) count.textContent = String(h.players.length);
+    if (players) {
+      players.innerHTML = h.players.length
+        ? h.players.map(function (p) { return '<span class="chip">' + esc(p.nickname) + "</span>"; }).join("")
+        : '<span class="meta">Waiting for pupils…</span>';
+    }
+    if (openBtn) {
+      openBtn.disabled = h.status === "open" || h.status === "closed";
+      openBtn.textContent = h.status === "open" ? "Submissions open" : "Open submissions";
+    }
+
+    var filters = [
+      { id: "pending", label: "Pending" },
+      { id: "approved", label: "Approved" },
+      { id: "blocked", label: "Held back" },
+      { id: "all", label: "All" }
+    ];
+    var counts = { pending: 0, approved: 0, blocked: 0, hidden: 0 };
+    h.responses.forEach(function (r) {
+      if (counts[r.status] != null) counts[r.status] += 1;
+    });
+
+    if (tabs) {
+      tabs.innerHTML = filters.map(function (f) {
+        var n = f.id === "all" ? h.responses.length : (counts[f.id] || 0);
+        return '<button type="button" class="btn' + (state.inboxFilter === f.id ? " on" : "") +
+          '" data-filter="' + f.id + '">' + f.label + " (" + n + ")</button>";
+      }).join("") +
+        '<button type="button" class="btn btn-mint" id="btnApproveAll">Show all pending</button>';
+      tabs.querySelectorAll("[data-filter]").forEach(function (btn) {
+        btn.onclick = function () {
+          state.inboxFilter = btn.getAttribute("data-filter");
+          renderHostBody();
+        };
+      });
+      var approveAll = document.getElementById("btnApproveAll");
+      if (approveAll) {
+        approveAll.onclick = function () {
+          window.supabase.rpc("exit_approve_all_clean", { p_session_id: h.sessionId }).then(function (res) {
+            if (res.error) { toast(res.error.message); return; }
+            toast("Approved " + ((res.data && res.data.approved) || 0));
+            refreshHost();
+          });
+        };
+      }
+    }
+
+    var list = h.responses.filter(function (r) {
+      if (state.inboxFilter === "all") return true;
+      return r.status === state.inboxFilter;
+    });
+
+    var prompts = h.pack.prompts || [];
+    inbox.innerHTML = list.length ? list.map(function (r) {
+      var promptLabel = prompts[r.prompt_index] || ("Prompt " + (r.prompt_index + 1));
+      return (
+        '<article class="resp ' + esc(r.status) + '" data-id="' + esc(r.id) + '">' +
+          '<div class="who">' + esc(r.nickname) + " · Q" + (r.prompt_index + 1) + " · " + esc(r.status) + "</div>" +
+          '<div class="meta">' + esc(promptLabel) + "</div>" +
+          '<div class="body">' + esc(r.body) + "</div>" +
+          '<div class="actions">' +
+            (r.status !== "approved" ? '<button type="button" class="btn btn-mint btn-sm" data-act="approved">Show</button>' : "") +
+            (r.status !== "hidden" ? '<button type="button" class="btn btn-sm" data-act="hidden">Hide</button>' : "") +
+            (r.status === "hidden" || r.status === "approved" ? '<button type="button" class="btn btn-sm" data-act="pending">Back to pending</button>' : "") +
+          "</div>" +
+        "</article>"
+      );
+    }).join("") : '<p class="meta">No responses in this list yet.</p>';
+
+    inbox.querySelectorAll(".resp").forEach(function (card) {
+      var id = card.getAttribute("data-id");
+      card.querySelectorAll("[data-act]").forEach(function (btn) {
+        btn.onclick = function () {
+          var status = btn.getAttribute("data-act");
+          window.supabase.rpc("exit_set_response_status", {
+            p_response_id: id,
+            p_status: status
+          }).then(function (res) {
+            if (res.error) { toast(res.error.message); return; }
+            refreshHost();
+          });
+        };
+      });
+    });
+
+    var approved = h.responses.filter(function (r) { return r.status === "approved"; });
+    if (board) {
+      board.innerHTML = approved.length
+        ? approved.map(function (r) {
+            return (
+              '<div class="board-item">' +
+                (h.showNicknames ? '<span class="nick">' + esc(r.nickname) + "</span>" : "") +
+                esc(r.body) +
+              "</div>"
+            );
+          }).join("")
+        : '<p class="meta">Approved answers will appear here for the class.</p>';
+    }
+  }
+
+  function boot() {
+    loadPacks();
+    if (!state.packs.length) {
+      state.packs = [{
+        id: uid(),
+        title: "Drama reflection (sample)",
+        prompts: [
+          "What went well in your work today?",
+          "Name one Drama word you used, and what it means."
+        ],
+        updatedAt: Date.now()
+      }];
+      savePacks();
+    }
+    try {
+      var home = document.getElementById("homeLink");
+      if (home && (new URLSearchParams(location.search).get("embed") === "1" || sessionStorage.getItem("fh-embed") === "1")) {
+        home.href = "../classroom_toolkit.html?embed=1";
+      }
+    } catch (e) {}
+    renderLibrary();
+  }
+
+  // expose isBlocked for future client checks (unused but available)
+  window.__exitTicketIsBlocked = isBlocked;
+
+  whenAuthReady(boot);
+})();
+</script>
+</body>
+</html>

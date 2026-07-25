@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Join Exit Ticket — Classroom Toolkit</title>
+<script src="../app-version.js"></script>
+<script>(function(){if(window.ensureAppVersionInUrl)window.ensureAppVersionInUrl();})();</script>
+<script src="../config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../supabase-init.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://api.fontshare.com/v2/css?f[]=general-sans@500,600,700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#050B1D; --text:#F5F7FF; --text-2:#B6C0D9; --muted:#7D8AA8;
+  --line:rgba(124,148,205,.18); --magenta:#D843B2; --mint:#35C796; --amber:#F4A62A;
+  --font:"Inter",ui-sans-serif,system-ui,sans-serif;
+  --font-display:"General Sans","Inter",sans-serif;
+}
+*{box-sizing:border-box}
+html{color-scheme:dark}
+body{
+  margin:0;min-height:100vh;font-family:var(--font);color:var(--text);
+  background:
+    radial-gradient(circle at 20% 0%,rgba(216,67,178,.16),transparent 40%),
+    radial-gradient(circle at 90% 20%,rgba(59,108,255,.12),transparent 35%),
+    var(--bg);
+  -webkit-font-smoothing:antialiased;
+}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+.wrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px 16px 32px;gap:16px}
+.card{
+  width:min(440px,100%);border-radius:18px;padding:22px 18px;
+  background:linear-gradient(150deg,#0D1834,#081126);border:1px solid var(--line);
+  box-shadow:0 16px 40px rgba(0,0,0,.35);
+}
+.logo{display:block;width:min(260px,80%);height:auto;margin:0 auto 12px;filter:drop-shadow(0 0 16px rgba(216,67,178,.35))}
+h1{margin:0 0 6px;font:700 22px/1.2 var(--font-display);letter-spacing:-.02em;text-align:center}
+.sub{margin:0 0 18px;text-align:center;color:var(--muted);font:500 13.5px/1.45 var(--font)}
+label{display:block;font:600 11px/1 var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+input,textarea{
+  width:100%;border-radius:12px;border:1px solid var(--line);background:#0A142C;
+  padding:12px 14px;outline:none;margin-bottom:12px;font:600 16px/1.35 var(--font);
+}
+input{height:48px;letter-spacing:.04em}
+textarea{min-height:110px;resize:vertical;font-weight:500}
+input:focus,textarea:focus{border-color:rgba(216,67,178,.5);box-shadow:0 0 0 3px rgba(216,67,178,.14)}
+.btn{
+  width:100%;height:48px;border:none;border-radius:12px;font:700 15px/1 var(--font);
+  color:#fff;background:linear-gradient(135deg,#D843B2,#9B2F8A);
+  box-shadow:0 10px 24px -8px rgba(216,67,178,.55);margin-top:4px;
+}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-ghost{background:transparent;border:1px solid var(--line);box-shadow:none;color:var(--text-2)}
+.err{color:#FFB4B9;font:600 13px/1.4 var(--font);min-height:1.2em;margin:0 0 8px;text-align:center}
+.ok{color:#9FE7C8;font:600 13px/1.4 var(--font);text-align:center}
+.meta{text-align:center;color:var(--text-2);font:500 13px/1.4 var(--font)}
+.prompt{font:650 18px/1.35 var(--font-display);margin:0 0 12px}
+.char{text-align:right;color:var(--muted);font:500 12px/1 var(--font);margin:-6px 0 10px}
+.wait{text-align:center;padding:24px 8px;color:var(--text-2);font:500 15px/1.45 var(--font)}
+.hidden{display:none!important}
+.progress{display:flex;gap:6px;justify-content:center;margin:0 0 14px}
+.dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.15)}
+.dot.on{background:#D843B2;box-shadow:0 0 10px rgba(216,67,178,.55)}
+.dot.done{background:#35C796}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card" id="viewJoin">
+    <img class="logo" src="exit-tickets-logo.png" width="804" height="318" alt="Exit Tickets" decoding="async">
+    <h1>Join exit ticket</h1>
+    <p class="sub">Enter the PIN from the board and a nickname. Keep answers respectful.</p>
+    <p class="err" id="joinErr"></p>
+    <label for="pin">PIN</label>
+    <input id="pin" inputmode="numeric" maxlength="6" placeholder="6-digit PIN" autocomplete="one-time-code">
+    <label for="nick">Nickname</label>
+    <input id="nick" maxlength="24" placeholder="Your name" autocomplete="nickname">
+    <button type="button" class="btn" id="btnJoin">Join</button>
+  </div>
+
+  <div class="card hidden" id="viewPlay">
+    <p class="meta" id="playMeta"></p>
+    <div class="progress" id="playProgress"></div>
+    <div id="playBody"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var MAX_CHARS = 160;
+  var $ = function (id) { return document.getElementById(id); };
+  var state = {
+    pin: "",
+    token: "",
+    nickname: "",
+    poll: null,
+    submitting: false,
+    cache: null,
+    activeIndex: 0
+  };
+
+  var BLOCK = [
+    "fuck","fucking","fucked","shit","shitty","bitch","bastard","asshole","arsehole",
+    "cunt","cock","dick","piss","wank","wanker","slut","whore","nigger","nigga",
+    "faggot","retard","retarded","rape","rapist","kys"
+  ];
+
+  function isBlocked(text) {
+    var raw = String(text || "").toLowerCase();
+    var spaced = " " + raw.replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ") + " ";
+    var glued = raw.replace(/[^a-z]/g, "");
+    for (var i = 0; i < BLOCK.length; i++) {
+      var w = BLOCK[i];
+      if (spaced.indexOf(" " + w + " ") >= 0) return true;
+      if (w.length >= 4 && glued.indexOf(w) >= 0) return true;
+    }
+    if (raw.indexOf("kill yourself") >= 0) return true;
+    return false;
+  }
+
+  function tokenKey(pin) { return "tk_exit_player_" + pin; }
+
+  function getOrCreateToken(pin) {
+    var key = tokenKey(pin);
+    try {
+      var t = localStorage.getItem(key);
+      if (t && t.length >= 16) return t;
+    } catch (e) {}
+    var t2 = "p_" + Math.random().toString(36).slice(2) + Date.now().toString(36) + Math.random().toString(36).slice(2);
+    try { localStorage.setItem(key, t2); } catch (e2) {}
+    return t2;
+  }
+
+  function rpc(name, args) {
+    if (!window.supabase || !window.supabase.rpc) {
+      return Promise.reject(new Error("Connection not ready"));
+    }
+    return window.supabase.rpc(name, args).then(function (res) {
+      if (res.error) throw res.error;
+      return res.data;
+    });
+  }
+
+  function esc(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function showPlay() {
+    $("viewJoin").classList.add("hidden");
+    $("viewPlay").classList.remove("hidden");
+  }
+
+  function mineMap(data) {
+    var map = {};
+    var list = (data && data.my_responses) || [];
+    list.forEach(function (r) { map[r.prompt_index] = r; });
+    return map;
+  }
+
+  function nextOpenIndex(data) {
+    var prompts = Array.isArray(data.prompts) ? data.prompts : [];
+    var mine = mineMap(data);
+    for (var i = 0; i < prompts.length; i++) {
+      var r = mine[i];
+      if (!r || r.status === "blocked") return i;
+    }
+    return prompts.length;
+  }
+
+  function renderProgress(data) {
+    var count = data.prompt_count || ((data.prompts && data.prompts.length) || 0);
+    var mine = mineMap(data);
+    var html = "";
+    for (var i = 0; i < count; i++) {
+      var r = mine[i];
+      var cls = "dot";
+      if (r && r.status !== "blocked") cls += " done";
+      else if (i === state.activeIndex) cls += " on";
+      html += '<span class="' + cls + '"></span>';
+    }
+    $("playProgress").innerHTML = html;
+  }
+
+  function renderState(data) {
+    if (!data) return;
+    state.cache = data;
+    $("playMeta").textContent =
+      (data.title || "Exit ticket") + " · " + (state.nickname || data.nickname || "");
+
+    var body = $("playBody");
+    var status = data.status;
+
+    if (status === "lobby") {
+      body.innerHTML = '<div class="wait">You\'re in!<br>Waiting for the teacher to open submissions…</div>';
+      renderProgress(data);
+      return;
+    }
+    if (status === "closed") {
+      body.innerHTML = '<div class="wait"><strong>Thanks — you\'re done.</strong><br>You can put your phone away.</div>';
+      renderProgress(data);
+      return;
+    }
+
+    var prompts = Array.isArray(data.prompts) ? data.prompts : [];
+    var idx = nextOpenIndex(data);
+    state.activeIndex = idx;
+
+    if (idx >= prompts.length) {
+      body.innerHTML =
+        '<div class="wait"><strong>All submitted</strong><br>Hang tight — your teacher is reviewing answers.</div>';
+      renderProgress(data);
+      return;
+    }
+
+    var prompt = prompts[idx] || {};
+    var mine = mineMap(data)[idx];
+    var blockedMsg = mine && mine.status === "blocked"
+      ? '<p class="err">Please rewrite your answer using respectful language.</p>'
+      : "";
+
+    body.innerHTML =
+      '<p class="meta">Question ' + (idx + 1) + " of " + prompts.length + "</p>" +
+      '<p class="prompt">' + esc(prompt.text || "") + "</p>" +
+      blockedMsg +
+      '<label for="answer">Your answer</label>' +
+      '<textarea id="answer" maxlength="' + MAX_CHARS + '" placeholder="Keep it short and respectful"></textarea>' +
+      '<div class="char"><span id="charCount">0</span> / ' + MAX_CHARS + "</div>" +
+      '<p class="err" id="submitErr"></p>' +
+      '<button type="button" class="btn" id="btnSubmit">Submit</button>';
+
+    renderProgress(data);
+
+    var ta = $("answer");
+    var count = $("charCount");
+    ta.addEventListener("input", function () {
+      count.textContent = String(ta.value.length);
+    });
+    $("btnSubmit").addEventListener("click", function () { submitAnswer(idx, ta.value); });
+  }
+
+  function submitAnswer(promptIndex, raw) {
+    if (state.submitting) return;
+    var body = String(raw || "").trim();
+    var err = $("submitErr");
+    err.textContent = "";
+    if (!body) {
+      err.textContent = "Please write an answer.";
+      return;
+    }
+    if (body.length > MAX_CHARS) {
+      err.textContent = "Keep your answer under " + MAX_CHARS + " characters.";
+      return;
+    }
+    if (isBlocked(body)) {
+      err.textContent = "Please rewrite your answer using respectful language.";
+      return;
+    }
+    state.submitting = true;
+    var btn = $("btnSubmit");
+    if (btn) btn.disabled = true;
+    rpc("exit_submit_response", {
+      p_token: state.token,
+      p_prompt_index: promptIndex,
+      p_body: body
+    }).then(function (res) {
+      state.submitting = false;
+      if (res && res.blocked) {
+        err.textContent = (res.message) || "Please rewrite your answer using respectful language.";
+        if (btn) btn.disabled = false;
+        poll();
+        return;
+      }
+      poll();
+    }).catch(function (e) {
+      state.submitting = false;
+      if (btn) btn.disabled = false;
+      err.textContent = (e && e.message) ? e.message : "Could not submit. Try again.";
+    });
+  }
+
+  function poll() {
+    if (!state.pin || !state.token) return;
+    rpc("exit_get_session_state", { p_pin: state.pin, p_token: state.token })
+      .then(renderState)
+      .catch(function () {});
+  }
+
+  function startPolling() {
+    if (state.poll) clearInterval(state.poll);
+    poll();
+    state.poll = setInterval(poll, 1500);
+  }
+
+  function join() {
+    var pin = String($("pin").value || "").replace(/\D/g, "").slice(0, 6);
+    var nick = String($("nick").value || "").trim();
+    $("joinErr").textContent = "";
+    if (pin.length !== 6) {
+      $("joinErr").textContent = "Enter the 6-digit PIN from the board.";
+      return;
+    }
+    if (!nick) {
+      $("joinErr").textContent = "Enter a nickname.";
+      return;
+    }
+    if (isBlocked(nick)) {
+      $("joinErr").textContent = "Please choose a different nickname.";
+      return;
+    }
+    if (!window.supabase) {
+      $("joinErr").textContent = "Can't connect right now. Check the school network.";
+      return;
+    }
+    var token = getOrCreateToken(pin);
+    $("btnJoin").disabled = true;
+    rpc("exit_join_session", { p_pin: pin, p_nickname: nick, p_token: token })
+      .then(function (data) {
+        state.pin = pin;
+        state.token = token;
+        state.nickname = (data && data.nickname) || nick;
+        try {
+          sessionStorage.setItem("tk_exit_join_pin", pin);
+          sessionStorage.setItem("tk_exit_join_nick", state.nickname);
+        } catch (e) {}
+        showPlay();
+        startPolling();
+      })
+      .catch(function (err) {
+        $("btnJoin").disabled = false;
+        $("joinErr").textContent = (err && err.message) ? err.message : "Could not join. Check the PIN.";
+      });
+  }
+
+  $("btnJoin").addEventListener("click", join);
+  $("pin").addEventListener("keydown", function (e) { if (e.key === "Enter") join(); });
+  $("nick").addEventListener("keydown", function (e) { if (e.key === "Enter") join(); });
+
+  try {
+    var q = new URLSearchParams(location.search);
+    var c = q.get("c");
+    if (c && /^\d{6}$/.test(c)) $("pin").value = c;
+    var savedNick = sessionStorage.getItem("tk_exit_join_nick");
+    if (savedNick) $("nick").value = savedNick;
+  } catch (e) {}
+})();
+</script>
+</body>
+</html>
