@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Join Traffic Lights — Classroom Toolkit</title>
+<script src="../app-version.js"></script>
+<script>(function(){if(window.ensureAppVersionInUrl)window.ensureAppVersionInUrl();})();</script>
+<script src="../config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../supabase-init.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://api.fontshare.com/v2/css?f[]=general-sans@500,600,700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#030712; --text:#F5F7FF; --text-2:#B6C0D9; --muted:#7D8AA8;
+  --line:rgba(124,148,205,.18);
+  --red:#FF3B3B; --amber:#FFB020; --green:#2EE59D; --cyan:#3BD6FF;
+  --font:"Inter",ui-sans-serif,system-ui,sans-serif;
+  --font-display:"General Sans","Inter",sans-serif;
+  --ease:cubic-bezier(.2,.8,.2,1);
+}
+*{box-sizing:border-box}
+html{color-scheme:dark}
+body{
+  margin:0;min-height:100vh;font-family:var(--font);color:var(--text);
+  background:
+    radial-gradient(ellipse 55% 42% at 14% -8%,rgba(255,59,59,.28),transparent 50%),
+    radial-gradient(ellipse 48% 36% at 92% 8%,rgba(255,176,32,.18),transparent 45%),
+    radial-gradient(ellipse 50% 34% at 50% 110%,rgba(46,229,157,.16),transparent 50%),
+    var(--bg);
+  -webkit-font-smoothing:antialiased;overflow-x:hidden;
+}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+
+.sky{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.spark{
+  position:absolute;border-radius:50%;
+  background:radial-gradient(circle,#fff,rgba(255,120,120,.85) 40%,transparent 70%);
+  box-shadow:0 0 8px rgba(255,59,59,.7);
+  animation:twinkle ease-in-out infinite;
+}
+.spark.amber{
+  background:radial-gradient(circle,#fff,rgba(255,210,120,.85) 40%,transparent 70%);
+  box-shadow:0 0 8px rgba(255,176,32,.7);
+}
+.spark.green{
+  background:radial-gradient(circle,#fff,rgba(140,255,210,.85) 40%,transparent 70%);
+  box-shadow:0 0 8px rgba(46,229,157,.7);
+}
+@keyframes twinkle{
+  0%,100%{opacity:.2;transform:scale(.7)}
+  50%{opacity:1;transform:scale(1.25)}
+}
+.streak{
+  position:absolute;height:2px;border-radius:2px;opacity:0;
+  background:linear-gradient(90deg,transparent,rgba(59,214,255,.9),rgba(255,138,61,.75),transparent);
+  animation:streak linear infinite;
+}
+@keyframes streak{
+  0%{transform:translate3d(-25vw,0,0);opacity:0}
+  15%{opacity:.8}
+  100%{transform:translate3d(120vw,0,0);opacity:0}
+}
+
+.wrap{
+  position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;padding:20px 16px 32px;gap:16px;
+}
+.card{
+  width:min(440px,100%);border-radius:24px;padding:26px 18px;
+  background:linear-gradient(155deg,rgba(59,214,255,.1),#070f1e 52%);
+  border:1px solid rgba(59,214,255,.3);
+  box-shadow:0 20px 48px rgba(0,0,0,.4),0 0 48px rgba(59,214,255,.12);
+  animation:cardIn .6s var(--ease) both;
+}
+@keyframes cardIn{from{opacity:0;transform:translateY(18px) scale(.96)}to{opacity:1;transform:none}}
+.logo-wrap{
+  position:relative;width:min(320px,90%);margin:0 auto 12px;
+}
+.logo-wrap::before{
+  content:"";position:absolute;left:50%;top:50%;width:82%;aspect-ratio:1;
+  transform:translate(-50%,-50%);border-radius:50%;pointer-events:none;
+  background:
+    radial-gradient(circle at 30% 30%,rgba(255,59,59,.35),transparent 42%),
+    radial-gradient(circle at 70% 50%,rgba(255,176,32,.28),transparent 45%),
+    radial-gradient(circle at 50% 75%,rgba(46,229,157,.3),transparent 48%);
+  filter:blur(12px);animation:glowPulse 2.5s ease-in-out infinite alternate;
+}
+@keyframes glowPulse{to{opacity:.72;transform:translate(-50%,-50%) scale(1.14)}}
+.logo{
+  position:relative;display:block;width:100%;height:auto;
+  filter:drop-shadow(0 0 22px rgba(59,214,255,.5)) drop-shadow(0 0 26px rgba(255,138,61,.3));
+  animation:logoFloat 3.5s ease-in-out infinite;
+}
+@keyframes logoFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+
+h1{
+  margin:0 0 6px;font:800 24px/1.15 var(--font-display);letter-spacing:-.03em;text-align:center;
+  background:linear-gradient(100deg,#fff,#9FEFFF 50%,#FFD08A);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.sub{margin:0 0 18px;text-align:center;color:var(--muted);font:500 13.5px/1.45 var(--font)}
+label{display:block;font:700 11px/1 var(--font);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+input{
+  width:100%;height:50px;border-radius:14px;border:1px solid var(--line);background:#070f22;
+  padding:12px 14px;outline:none;margin-bottom:12px;font:650 16px/1.35 var(--font);letter-spacing:.04em;
+  transition:border-color .15s,box-shadow .15s;
+}
+input:focus{border-color:rgba(59,214,255,.55);box-shadow:0 0 0 3px rgba(59,214,255,.16)}
+.btn{
+  width:100%;height:52px;border:none;border-radius:16px;font:800 15px/1 var(--font);
+  color:#041018;
+  background:linear-gradient(135deg,#3BD6FF 0%,#2EE59D 55%,#FFB020 140%);
+  background-size:160% 160%;
+  box-shadow:0 12px 28px -8px rgba(59,214,255,.55);
+  margin-top:4px;
+  animation:btnGlow 2.3s ease-in-out infinite, btnShift 5s ease-in-out infinite;
+}
+@keyframes btnGlow{
+  0%,100%{box-shadow:0 12px 28px -8px rgba(59,214,255,.5)}
+  50%{box-shadow:0 14px 34px -6px rgba(46,229,157,.8),0 0 24px rgba(59,214,255,.3)}
+}
+@keyframes btnShift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+.btn:disabled{opacity:.45;cursor:not-allowed;animation:none}
+.btn-ghost{background:transparent;border:1px solid var(--line);box-shadow:none;color:var(--text-2);animation:none}
+.err{color:#FFB4B9;font:650 13px/1.4 var(--font);min-height:1.2em;margin:0 0 8px;text-align:center}
+.ok{
+  color:#9FE7C8;font:700 14px/1.4 var(--font);text-align:center;margin:14px 0 0;
+  text-shadow:0 0 16px rgba(46,229,157,.35);animation:okIn .45s var(--ease) both;
+}
+@keyframes okIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.meta{text-align:center;color:var(--text-2);font:500 13px/1.4 var(--font)}
+.prompt{font:750 19px/1.35 var(--font-display);margin:0 0 16px;text-align:center}
+.wait{text-align:center;padding:32px 10px;color:var(--text-2);font:500 15.5px/1.5 var(--font)}
+.hidden{display:none!important}
+.step{text-align:center;color:var(--muted);font:700 11px/1 var(--font);letter-spacing:.1em;text-transform:uppercase;margin:0 0 10px}
+
+.lights{display:grid;gap:12px;margin-top:4px}
+.light-btn{
+  min-height:84px;border-radius:20px;border:2px solid transparent;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+  font:800 20px/1 var(--font-display);position:relative;overflow:hidden;
+  transition:transform .14s,filter .14s,box-shadow .14s;
+  animation:lensIn .5s var(--ease) both;
+}
+.light-btn:nth-child(1){animation-delay:.05s}
+.light-btn:nth-child(2){animation-delay:.12s}
+.light-btn:nth-child(3){animation-delay:.2s}
+@keyframes lensIn{from{opacity:0;transform:translateY(14px) scale(.94)}to{opacity:1;transform:none}}
+.light-btn::before{
+  content:"";position:absolute;width:120px;height:120px;border-radius:50%;
+  top:50%;left:50%;transform:translate(-50%,-50%);opacity:.55;pointer-events:none;
+  filter:blur(2px);
+}
+.light-btn small{position:relative;font:650 12px/1.2 var(--font);opacity:.92;letter-spacing:.02em}
+.light-btn > span{position:relative}
+.light-btn.red{
+  background:radial-gradient(circle at 40% 30%,rgba(255,140,140,.28),rgba(255,59,59,.16) 60%);
+  border-color:rgba(255,59,59,.55);color:#FFB4B9;
+  box-shadow:0 0 22px rgba(255,59,59,.18);
+}
+.light-btn.red::before{background:radial-gradient(circle,rgba(255,80,80,.55),transparent 70%)}
+.light-btn.amber{
+  background:radial-gradient(circle at 40% 30%,rgba(255,220,140,.28),rgba(255,176,32,.16) 60%);
+  border-color:rgba(255,176,32,.55);color:#FFD899;
+  box-shadow:0 0 22px rgba(255,176,32,.18);
+}
+.light-btn.amber::before{background:radial-gradient(circle,rgba(255,190,60,.55),transparent 70%)}
+.light-btn.green{
+  background:radial-gradient(circle at 40% 30%,rgba(160,255,210,.28),rgba(46,229,157,.16) 60%);
+  border-color:rgba(46,229,157,.55);color:#9FE7C8;
+  box-shadow:0 0 22px rgba(46,229,157,.18);
+}
+.light-btn.green::before{background:radial-gradient(circle,rgba(60,230,160,.55),transparent 70%)}
+.light-btn:active{transform:scale(.97)}
+.light-btn.selected{
+  transform:scale(1.03);
+  filter:brightness(1.15);
+  animation:selectedPulse 1.6s ease-in-out infinite;
+}
+.light-btn.red.selected{box-shadow:0 0 0 3px rgba(255,255,255,.18),0 0 36px rgba(255,59,59,.45)}
+.light-btn.amber.selected{box-shadow:0 0 0 3px rgba(255,255,255,.18),0 0 36px rgba(255,176,32,.45)}
+.light-btn.green.selected{box-shadow:0 0 0 3px rgba(255,255,255,.18),0 0 36px rgba(46,229,157,.45)}
+@keyframes selectedPulse{
+  0%,100%{filter:brightness(1.12)}
+  50%{filter:brightness(1.28)}
+}
+.nav{display:flex;gap:8px;margin-top:14px}
+.nav .btn{flex:1;height:46px;font-size:14px}
+
+.mini-tower{
+  display:flex;justify-content:center;gap:10px;margin:0 0 14px;
+}
+.mini-lens{
+  width:14px;height:14px;border-radius:50%;opacity:.45;
+  box-shadow:inset 0 0 4px rgba(0,0,0,.5);
+}
+.mini-lens.r{background:#FF3B3B}
+.mini-lens.a{background:#FFB020}
+.mini-lens.g{background:#2EE59D}
+.mini-lens.on{opacity:1;animation:miniOn 1.8s ease-in-out infinite}
+.mini-lens.r.on{box-shadow:0 0 12px rgba(255,59,59,.8)}
+.mini-lens.a.on{box-shadow:0 0 12px rgba(255,176,32,.8);animation-delay:.2s}
+.mini-lens.g.on{box-shadow:0 0 12px rgba(46,229,157,.8);animation-delay:.4s}
+@keyframes miniOn{50%{transform:scale(1.25);filter:brightness(1.3)}}
+
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+<div class="sky" id="sky" aria-hidden="true"></div>
+<div class="wrap">
+  <div class="card" id="viewJoin">
+    <div class="logo-wrap">
+      <img class="logo" src="traffic-lights-logo.png" width="961" height="410" alt="Traffic Lights" decoding="async">
+    </div>
+    <div class="mini-tower" aria-hidden="true">
+      <span class="mini-lens r on"></span>
+      <span class="mini-lens a on"></span>
+      <span class="mini-lens g on"></span>
+    </div>
+    <h1>Join traffic lights</h1>
+    <p class="sub">Enter the PIN from the board, then tap red, amber or green.</p>
+    <p class="err" id="joinErr"></p>
+    <label for="pin">PIN</label>
+    <input id="pin" inputmode="numeric" maxlength="6" placeholder="6-digit PIN" autocomplete="one-time-code">
+    <label for="nick">Nickname</label>
+    <input id="nick" maxlength="24" placeholder="Your name" autocomplete="nickname">
+    <button type="button" class="btn" id="btnJoin">Join</button>
+  </div>
+
+  <div class="card hidden" id="viewPlay">
+    <div class="logo-wrap" style="width:min(220px,72%);margin-bottom:6px">
+      <img class="logo" src="traffic-lights-logo.png" width="961" height="410" alt="" decoding="async">
+    </div>
+    <p class="meta" id="playMeta"></p>
+    <div id="playBody"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var $ = function (id) { return document.getElementById(id); };
+  var TOKEN_KEY = "kss-lights-token";
+  var state = {
+    pin: "",
+    token: "",
+    nickname: "",
+    poll: null,
+    submitting: false,
+    cache: null,
+    step: 0,
+    votes: {}
+  };
+
+  function esc(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function buildSky() {
+    var sky = $("sky");
+    if (!sky || sky.dataset.ready) return;
+    sky.dataset.ready = "1";
+    var html = "";
+    var kinds = ["", " amber", " green"];
+    for (var i = 0; i < 28; i++) {
+      var size = 2 + Math.random() * 5;
+      html += '<span class="spark' + kinds[i % kinds.length] + '" style="width:' + size + "px;height:" + size +
+        "px;left:" + (Math.random() * 100) + "%;top:" + (Math.random() * 100) +
+        "%;animation-duration:" + (1.4 + Math.random() * 2.6) +
+        "s;animation-delay:" + (Math.random() * 3) + 's"></span>';
+    }
+    for (var s = 0; s < 4; s++) {
+      html += '<span class="streak" style="width:' + (16 + Math.random() * 26) +
+        "vw;top:" + (10 + Math.random() * 75) +
+        "%;animation-duration:" + (2 + Math.random() * 2.2) +
+        "s;animation-delay:" + (Math.random() * 3.5) + 's"></span>';
+    }
+    sky.innerHTML = html;
+  }
+
+  function getToken() {
+    try {
+      var t = localStorage.getItem(TOKEN_KEY);
+      if (t && t.length >= 16) return t;
+    } catch (e) {}
+    var fresh = "";
+    var chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    for (var i = 0; i < 24; i++) fresh += chars.charAt(Math.floor(Math.random() * chars.length));
+    try { localStorage.setItem(TOKEN_KEY, fresh); } catch (e2) {}
+    return fresh;
+  }
+
+  function show(view) {
+    $("viewJoin").classList.toggle("hidden", view !== "join");
+    $("viewPlay").classList.toggle("hidden", view !== "play");
+  }
+
+  function stopPoll() {
+    if (state.poll) { clearInterval(state.poll); state.poll = null; }
+  }
+
+  function startPoll() {
+    stopPoll();
+    refresh();
+    state.poll = setInterval(refresh, 1800);
+  }
+
+  function rpc(name, args) {
+    if (!window.supabase) return Promise.reject(new Error("Not connected"));
+    return window.supabase.rpc(name, args).then(function (res) {
+      if (res.error) throw res.error;
+      return res.data;
+    });
+  }
+
+  function join() {
+    var pin = String($("pin").value || "").replace(/\D/g, "").slice(0, 6);
+    var nick = String($("nick").value || "").trim();
+    $("joinErr").textContent = "";
+    if (pin.length !== 6) {
+      $("joinErr").textContent = "Enter the 6-digit PIN from the board.";
+      return;
+    }
+    if (!nick) {
+      $("joinErr").textContent = "Enter a nickname.";
+      return;
+    }
+    state.token = getToken();
+    $("btnJoin").disabled = true;
+    rpc("lights_join_session", {
+      p_pin: pin,
+      p_nickname: nick,
+      p_token: state.token
+    }).then(function (data) {
+      state.pin = pin;
+      state.nickname = data.nickname || nick;
+      show("play");
+      startPoll();
+    }).catch(function (err) {
+      $("joinErr").textContent = (err && err.message) || "Could not join";
+    }).then(function () {
+      $("btnJoin").disabled = false;
+    });
+  }
+
+  function refresh() {
+    if (!state.pin) return;
+    rpc("lights_get_session_state", {
+      p_pin: state.pin,
+      p_token: state.token
+    }).then(function (data) {
+      state.cache = data || {};
+      var mine = Array.isArray(state.cache.my_votes) ? state.cache.my_votes : [];
+      mine.forEach(function (v) {
+        state.votes[v.item_index] = v.colour;
+      });
+      renderPlay();
+    }).catch(function () {});
+  }
+
+  function itemsForSession(data) {
+    var criteria = Array.isArray(data.criteria) ? data.criteria : [];
+    var list = [{ index: 0, label: data.prompt || "How well do you understand today's learning?" }];
+    criteria.forEach(function (c, i) {
+      list.push({ index: i + 1, label: c });
+    });
+    return list;
+  }
+
+  function submitVote(itemIndex, colour) {
+    if (state.submitting) return;
+    state.submitting = true;
+    rpc("lights_submit_vote", {
+      p_token: state.token,
+      p_item_index: itemIndex,
+      p_colour: colour
+    }).then(function () {
+      state.votes[itemIndex] = colour;
+      renderPlay();
+    }).catch(function (err) {
+      alert((err && err.message) || "Could not save vote");
+    }).then(function () {
+      state.submitting = false;
+    });
+  }
+
+  function renderPlay() {
+    var data = state.cache;
+    if (!data) {
+      $("playBody").innerHTML = '<div class="wait">Connecting…</div>';
+      return;
+    }
+    $("playMeta").textContent = (data.nickname || state.nickname || "") +
+      (data.anonymous ? " · Anonymous" : "") +
+      " · " + (data.player_count || 0) + " joined";
+
+    if (data.status === "lobby") {
+      $("playBody").innerHTML =
+        '<div class="mini-tower" aria-hidden="true">' +
+          '<span class="mini-lens r on"></span><span class="mini-lens a on"></span><span class="mini-lens g on"></span>' +
+        "</div>" +
+        '<div class="wait">You\'re in!<br>Wait for your teacher to open voting.</div>';
+      return;
+    }
+    if (data.status === "closed") {
+      $("playBody").innerHTML =
+        '<div class="wait">This session has ended.<br>Look at the board with your class.</div>';
+      return;
+    }
+
+    var items = itemsForSession(data);
+    if (state.step >= items.length) state.step = items.length - 1;
+    if (state.step < 0) state.step = 0;
+    var item = items[state.step];
+    var selected = state.votes[item.index] || "";
+    var allDone = items.every(function (it) { return !!state.votes[it.index]; });
+
+    $("playBody").innerHTML =
+      '<p class="step">Check ' + (state.step + 1) + " of " + items.length + "</p>" +
+      '<p class="prompt">' + esc(item.label) + "</p>" +
+      '<div class="lights">' +
+        '<button type="button" class="light-btn red' + (selected === "red" ? " selected" : "") + '" data-c="red"><span>Red</span><small>Not yet</small></button>' +
+        '<button type="button" class="light-btn amber' + (selected === "amber" ? " selected" : "") + '" data-c="amber"><span>Amber</span><small>Getting there</small></button>' +
+        '<button type="button" class="light-btn green' + (selected === "green" ? " selected" : "") + '" data-c="green"><span>Green</span><small>Secure / ready</small></button>' +
+      "</div>" +
+      (items.length > 1
+        ? '<div class="nav">' +
+            '<button type="button" class="btn btn-ghost" id="btnPrev"' + (state.step === 0 ? " disabled" : "") + ">Back</button>" +
+            '<button type="button" class="btn" id="btnNext"' + (state.step >= items.length - 1 ? " disabled" : "") + ">Next</button>" +
+          "</div>"
+        : "") +
+      (allDone ? '<p class="ok">Thanks — look at the board with your class.</p>' : "");
+
+    $("playBody").querySelectorAll("[data-c]").forEach(function (btn) {
+      btn.onclick = function () {
+        submitVote(item.index, btn.getAttribute("data-c"));
+      };
+    });
+    var prev = document.getElementById("btnPrev");
+    var next = document.getElementById("btnNext");
+    if (prev) prev.onclick = function () { state.step -= 1; renderPlay(); };
+    if (next) next.onclick = function () { state.step += 1; renderPlay(); };
+  }
+
+  function boot() {
+    buildSky();
+    state.token = getToken();
+    try {
+      var pin = new URLSearchParams(location.search).get("c") || "";
+      pin = String(pin).replace(/\D/g, "").slice(0, 6);
+      if (pin) $("pin").value = pin;
+    } catch (e) {}
+    $("btnJoin").onclick = join;
+    $("pin").addEventListener("keydown", function (e) {
+      if (e.key === "Enter") join();
+    });
+    $("nick").addEventListener("keydown", function (e) {
+      if (e.key === "Enter") join();
+    });
+  }
+
+  boot();
+})();
+</script>
+</body>
+</html>

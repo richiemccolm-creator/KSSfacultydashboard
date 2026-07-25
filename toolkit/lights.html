@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Traffic Lights — Classroom Toolkit</title>
+<script src="../app-version.js"></script>
+<script>(function(){if(window.ensureAppVersionInUrl)window.ensureAppVersionInUrl();})();</script>
+<script src="../config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../supabase-init.js"></script>
+<script src="../allowlist-check.js"></script>
+<script>window.__authGuardLoginPath='../login.html';</script>
+<script src="../auth-guard.js"></script>
+<script src="../embed-chrome.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://api.fontshare.com/v2/css?f[]=general-sans@500,600,700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#030712; --surface:#0C1731;
+  --line:rgba(124,148,205,.16); --line-strong:rgba(129,156,224,.28);
+  --text:#F5F7FF; --text-2:#B6C0D9; --muted:#7D8AA8;
+  --red:#FF3B3B; --amber:#FFB020; --green:#2EE59D; --cyan:#3BD6FF; --orange:#FF8A3D;
+  --font:"Inter",ui-sans-serif,system-ui,sans-serif;
+  --font-display:"General Sans","Inter",sans-serif;
+  --ease:cubic-bezier(.2,.8,.2,1);
+}
+*{box-sizing:border-box}
+html{color-scheme:dark}
+body{
+  margin:0;font-family:var(--font);color:var(--text);min-height:100vh;
+  background:
+    radial-gradient(ellipse 50% 42% at 8% -6%,rgba(255,59,59,.28),transparent 55%),
+    radial-gradient(ellipse 46% 36% at 92% 0%,rgba(255,176,32,.18),transparent 52%),
+    radial-gradient(ellipse 48% 32% at 70% 100%,rgba(46,229,157,.14),transparent 55%),
+    radial-gradient(ellipse 40% 28% at 20% 90%,rgba(59,214,255,.1),transparent 50%),
+    var(--bg);
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:inherit;text-decoration:none}
+.hidden{display:none!important}
+
+.sky{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.sky::before{
+  content:"";position:absolute;inset:-20%;
+  background:
+    radial-gradient(circle at 22% 35%,rgba(255,59,59,.12),transparent 40%),
+    radial-gradient(circle at 78% 45%,rgba(46,229,157,.1),transparent 38%),
+    radial-gradient(circle at 55% 20%,rgba(59,214,255,.08),transparent 36%);
+  animation:skyPulse 7s ease-in-out infinite alternate;
+}
+@keyframes skyPulse{to{transform:scale(1.08);opacity:.82}}
+.spark{
+  position:absolute;border-radius:50%;
+  background:radial-gradient(circle,#fff,rgba(255,120,120,.85) 40%,transparent 70%);
+  box-shadow:0 0 8px rgba(255,59,59,.7);
+  animation:twinkle ease-in-out infinite;
+}
+.spark.amber{
+  background:radial-gradient(circle,#fff,rgba(255,210,120,.85) 40%,transparent 70%);
+  box-shadow:0 0 8px rgba(255,176,32,.7);
+}
+.spark.green{
+  background:radial-gradient(circle,#fff,rgba(140,255,210,.85) 40%,transparent 70%);
+  box-shadow:0 0 8px rgba(46,229,157,.7);
+}
+.spark.cyan{
+  background:radial-gradient(circle,#fff,rgba(140,230,255,.85) 40%,transparent 70%);
+  box-shadow:0 0 8px rgba(59,214,255,.7);
+}
+@keyframes twinkle{
+  0%,100%{opacity:.18;transform:scale(.65)}
+  50%{opacity:1;transform:scale(1.25)}
+}
+.streak{
+  position:absolute;height:2px;border-radius:2px;opacity:0;
+  background:linear-gradient(90deg,transparent,rgba(59,214,255,.95),rgba(255,138,61,.8),transparent);
+  animation:streak linear infinite;
+}
+@keyframes streak{
+  0%{transform:translate3d(-20vw,0,0);opacity:0}
+  12%{opacity:.85}
+  100%{transform:translate3d(110vw,0,0);opacity:0}
+}
+
+.app{position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column}
+.top{
+  display:flex;align-items:center;gap:14px;padding:14px 20px;
+  border-bottom:1px solid rgba(130,150,200,.14);
+  background:rgba(3,7,18,.82);backdrop-filter:blur(18px);position:sticky;top:0;z-index:20;
+}
+.back{
+  display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 12px;border-radius:10px;
+  border:1px solid var(--line);background:rgba(255,255,255,.02);color:var(--text-2);font:500 13px/1 var(--font);
+}
+.back:hover{color:#fff;border-color:var(--line-strong)}
+.top-brand{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:0}
+.top-logo{
+  display:block;height:clamp(48px,6.4vh,70px);width:auto;max-width:min(56vw,380px);
+  object-fit:contain;
+  filter:drop-shadow(0 0 16px rgba(59,214,255,.45)) drop-shadow(0 0 20px rgba(255,138,61,.28));
+  animation:logoFloat 3.6s ease-in-out infinite;
+}
+@keyframes logoFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+.top .sub{margin:0;font:500 12px/1.2 var(--font);color:var(--muted)}
+.top-actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+.btn{
+  height:40px;min-height:44px;padding:0 14px;border-radius:12px;border:1px solid var(--line);
+  background:#0D1831;color:var(--text-2);font:600 13.5px/1 var(--font);
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  transition:transform .12s,filter .15s,border-color .15s,color .15s,box-shadow .15s;
+}
+.btn:hover{color:#fff;border-color:var(--line-strong);transform:translateY(-1px)}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.btn-primary{
+  border:none;color:#041018;font-weight:800;
+  background:linear-gradient(135deg,#3BD6FF 0%,#2EE59D 55%,#FFB020 130%);
+  background-size:160% 160%;
+  box-shadow:0 10px 28px -8px rgba(59,214,255,.6);
+  animation:btnGlow 2.4s ease-in-out infinite, btnShift 5s ease-in-out infinite;
+}
+@keyframes btnGlow{
+  0%,100%{box-shadow:0 10px 28px -8px rgba(59,214,255,.5)}
+  50%{box-shadow:0 12px 34px -6px rgba(46,229,157,.75),0 0 24px rgba(59,214,255,.28)}
+}
+@keyframes btnShift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+.btn-ghost{background:transparent}
+.btn.on{color:#fff;border-color:rgba(59,214,255,.55);background:rgba(59,214,255,.2);box-shadow:0 0 18px rgba(59,214,255,.18)}
+
+.shell{flex:1;padding:22px 20px 40px;width:min(1160px,100%);margin:0 auto}
+.hero{
+  display:grid;grid-template-columns:minmax(0,1.05fr) minmax(240px,.95fr);gap:20px;align-items:center;
+  margin-bottom:24px;animation:riseIn .7s var(--ease) both;
+}
+@keyframes riseIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+.hero h2{
+  margin:0;font:800 clamp(32px,4.4vw,48px)/1.05 var(--font-display);letter-spacing:-.035em;
+  background:linear-gradient(100deg,#fff 10%,#9FEFFF 45%,#FFD08A 95%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.hero p{margin:10px 0 0;color:var(--text-2);font:500 15.5px/1.5 var(--font);max-width:36rem}
+.hero-visual{position:relative;display:grid;place-items:center;min-height:180px}
+.hero-visual::before{
+  content:"";position:absolute;width:min(84%,300px);aspect-ratio:1;border-radius:50%;
+  background:
+    radial-gradient(circle at 35% 30%,rgba(255,59,59,.35),transparent 42%),
+    radial-gradient(circle at 65% 55%,rgba(255,176,32,.28),transparent 45%),
+    radial-gradient(circle at 45% 75%,rgba(46,229,157,.3),transparent 48%);
+  filter:blur(12px);animation:glowPulse 2.8s ease-in-out infinite alternate;
+}
+@keyframes glowPulse{to{opacity:.7;transform:scale(1.14)}}
+.hero-logo{
+  position:relative;width:min(100%,460px);height:auto;
+  filter:drop-shadow(0 0 26px rgba(59,214,255,.5)) drop-shadow(0 0 32px rgba(255,138,61,.32)) drop-shadow(0 16px 30px rgba(0,0,0,.45));
+  animation:heroLogoIn .85s var(--ease) both, logoFloat 3.6s ease-in-out .85s infinite;
+}
+@keyframes heroLogoIn{from{opacity:0;transform:translateY(22px) scale(.9)}to{opacity:1;transform:none}}
+
+.tower{
+  position:absolute;left:8%;bottom:6%;width:54px;padding:8px 7px 10px;border-radius:18px;
+  background:linear-gradient(180deg,#1a2238,#070b16);border:1px solid rgba(255,255,255,.12);
+  box-shadow:0 12px 28px rgba(0,0,0,.45),0 0 24px rgba(59,214,255,.15);
+  display:grid;gap:7px;z-index:2;animation:towerIn .9s var(--ease) .2s both;
+}
+@keyframes towerIn{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+.lens{
+  width:100%;aspect-ratio:1;border-radius:50%;border:2px solid rgba(0,0,0,.45);
+  box-shadow:inset 0 0 10px rgba(0,0,0,.55);
+  animation:lensIdle 2.8s ease-in-out infinite;
+}
+.lens.r{background:radial-gradient(circle at 35% 30%,#ff9a9a,#FF3B3B 55%,#8b1010);animation-delay:0s}
+.lens.a{background:radial-gradient(circle at 35% 30%,#ffe2a0,#FFB020 55%,#8a5a08);animation-delay:.35s}
+.lens.g{background:radial-gradient(circle at 35% 30%,#b6ffdf,#2EE59D 55%,#0d6b48);animation-delay:.7s}
+@keyframes lensIdle{
+  0%,100%{filter:brightness(.55);box-shadow:inset 0 0 10px rgba(0,0,0,.55),0 0 0 transparent}
+  40%,55%{filter:brightness(1.35);box-shadow:inset 0 0 8px rgba(255,255,255,.25),0 0 18px currentColor}
+}
+.lens.r{color:rgba(255,59,59,.8)}
+.lens.a{color:rgba(255,176,32,.8)}
+.lens.g{color:rgba(46,229,157,.8)}
+
+@media(max-width:760px){
+  .hero{grid-template-columns:1fr}
+  .hero-visual{order:-1;min-height:0}
+  .hero-logo{width:min(100%,340px)}
+  .tower{display:none}
+}
+
+.legend{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+.legend span{
+  display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;
+  font:650 12.5px/1 var(--font);color:var(--text-2);
+  background:rgba(255,255,255,.04);border:1px solid var(--line);
+}
+.dot{width:11px;height:11px;border-radius:50%;animation:dotPulse 2s ease-in-out infinite}
+.dot.red{background:var(--red);box-shadow:0 0 12px rgba(255,59,59,.7)}
+.dot.amber{background:var(--amber);box-shadow:0 0 12px rgba(255,176,32,.7);animation-delay:.25s}
+.dot.green{background:var(--green);box-shadow:0 0 12px rgba(46,229,157,.7);animation-delay:.5s}
+@keyframes dotPulse{50%{transform:scale(1.2);filter:brightness(1.2)}}
+
+.form{
+  display:grid;gap:14px;max-width:660px;padding:20px;border-radius:20px;
+  border:1px solid rgba(59,214,255,.22);
+  background:linear-gradient(160deg,rgba(59,214,255,.08),rgba(8,17,38,.92) 48%);
+  box-shadow:0 18px 40px rgba(0,0,0,.28),0 0 40px rgba(59,214,255,.08);
+  animation:riseIn .75s var(--ease) .12s both;
+}
+label{display:block;font:700 11px/1 var(--font);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 7px}
+input,textarea{
+  width:100%;border-radius:14px;border:1px solid var(--line);background:#070f22;
+  padding:13px 15px;outline:none;transition:border-color .15s,box-shadow .15s;
+}
+input{height:48px}
+textarea{min-height:118px;resize:vertical;line-height:1.45}
+input:focus,textarea:focus{border-color:rgba(59,214,255,.55);box-shadow:0 0 0 3px rgba(59,214,255,.16)}
+.hint{margin:7px 0 0;color:var(--muted);font:500 12.5px/1.4 var(--font)}
+.form-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+
+.host-grid{display:grid;grid-template-columns:minmax(280px,350px) minmax(0,1fr);gap:18px;align-items:start}
+@media(max-width:900px){.host-grid{grid-template-columns:1fr}}
+.panel{
+  border-radius:20px;padding:18px;border:1px solid rgba(59,214,255,.2);
+  background:linear-gradient(165deg,rgba(16,28,56,.95),#070f1e);
+  box-shadow:0 16px 36px rgba(0,0,0,.28);
+  animation:riseIn .55s var(--ease) both;
+}
+.panel h3{margin:0 0 10px;font:750 15px/1.2 var(--font-display)}
+.host-brand{width:min(100%,300px);margin:0 auto 12px;position:relative}
+.host-brand::before{
+  content:"";position:absolute;inset:10% 8%;border-radius:50%;
+  background:radial-gradient(circle,rgba(59,214,255,.28),rgba(255,138,61,.12) 45%,transparent 70%);
+  filter:blur(10px);animation:glowPulse 2.6s ease-in-out infinite alternate;
+}
+.host-brand img{
+  position:relative;width:100%;height:auto;display:block;
+  filter:drop-shadow(0 0 22px rgba(59,214,255,.5)) drop-shadow(0 0 26px rgba(255,138,61,.3));
+  animation:logoFloat 3.5s ease-in-out infinite;
+}
+.pin{
+  font:800 clamp(44px,8.5vw,72px)/1 var(--font-display);letter-spacing:.14em;
+  text-align:center;
+  background:linear-gradient(180deg,#E8FBFF,#3BD6FF 55%,#FFB020);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 18px rgba(59,214,255,.45));
+  animation:pinPulse 2.4s ease-in-out infinite;
+}
+@keyframes pinPulse{50%{filter:drop-shadow(0 0 28px rgba(59,214,255,.75)) drop-shadow(0 0 10px rgba(255,176,32,.35))}}
+.qr-wrap{
+  text-align:center;margin:14px 0;padding:16px;border-radius:22px;position:relative;
+  border:1px solid rgba(59,214,255,.4);
+  background:
+    radial-gradient(circle at 50% 0%,rgba(59,214,255,.18),transparent 55%),
+    radial-gradient(circle at 80% 100%,rgba(255,138,61,.12),transparent 50%);
+  box-shadow:0 0 40px rgba(59,214,255,.16);
+  animation:qrGlow 2.5s ease-in-out infinite alternate;
+}
+@keyframes qrGlow{
+  to{box-shadow:0 0 54px rgba(255,138,61,.22),0 0 44px rgba(59,214,255,.28);border-color:rgba(255,176,32,.45)}
+}
+.qr-wrap::before{
+  content:"SCAN TO JOIN";display:block;margin:0 0 10px;
+  font:800 11px/1 var(--font);letter-spacing:.18em;color:#9FEFFF;
+  text-shadow:0 0 12px rgba(59,214,255,.5);
+}
+.qr-wrap img{
+  width:min(230px,100%);border-radius:16px;background:#fff;padding:12px;
+  box-shadow:0 0 0 4px rgba(59,214,255,.25),0 10px 28px rgba(0,0,0,.35);
+}
+.meta{color:var(--muted);font:500 13px/1.4 var(--font)}
+.player-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.chip{
+  padding:5px 10px;border-radius:999px;font:600 12px/1 var(--font);
+  background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--text-2);
+  animation:chipIn .35s var(--ease) both;
+}
+@keyframes chipIn{from{opacity:0;transform:scale(.8)}}
+
+.board{
+  border-radius:24px;padding:24px;position:relative;overflow:hidden;
+  border:1px solid rgba(59,214,255,.3);
+  background:
+    radial-gradient(circle at 12% 0%,rgba(255,59,59,.16),transparent 42%),
+    radial-gradient(circle at 50% -10%,rgba(255,176,32,.12),transparent 40%),
+    radial-gradient(circle at 88% 0%,rgba(46,229,157,.16),transparent 42%),
+    linear-gradient(165deg,#0E1A36,#060D1C);
+  min-height:300px;
+  box-shadow:0 0 48px rgba(59,214,255,.12),0 20px 50px rgba(0,0,0,.35);
+  animation:riseIn .6s var(--ease) .08s both;
+}
+.board::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(115deg,transparent 40%,rgba(255,255,255,.03) 50%,transparent 60%);
+  animation:sheen 5.5s linear infinite;
+}
+@keyframes sheen{0%{transform:translateX(-40%)}100%{transform:translateX(40%)}}
+.board-prompt{
+  margin:0 0 6px;font:800 clamp(24px,3.6vw,38px)/1.15 var(--font-display);letter-spacing:-.025em;
+  position:relative;z-index:1;
+}
+.board-sub{margin:0 0 16px;color:var(--text-2);font:500 14px/1.4 var(--font);position:relative;z-index:1}
+.readiness{
+  margin:0 0 18px;padding:14px 16px;border-radius:16px;font:700 16px/1.35 var(--font);
+  border:1px solid var(--line);background:rgba(255,255,255,.04);position:relative;z-index:1;
+  animation:readyIn .45s var(--ease) both;
+}
+@keyframes readyIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.readiness.go{
+  border-color:rgba(46,229,157,.5);background:rgba(46,229,157,.12);color:#9FE7C8;
+  box-shadow:0 0 28px rgba(46,229,157,.18);animation:readyPulseGreen 2.2s ease-in-out infinite;
+}
+.readiness.wait{
+  border-color:rgba(255,176,32,.5);background:rgba(255,176,32,.12);color:#FFD899;
+  box-shadow:0 0 28px rgba(255,176,32,.16);animation:readyPulseAmber 2.2s ease-in-out infinite;
+}
+.readiness.stop{
+  border-color:rgba(255,59,59,.5);background:rgba(255,59,59,.12);color:#FFB4B9;
+  box-shadow:0 0 28px rgba(255,59,59,.18);animation:readyPulseRed 2.2s ease-in-out infinite;
+}
+@keyframes readyPulseGreen{50%{box-shadow:0 0 40px rgba(46,229,157,.32)}}
+@keyframes readyPulseAmber{50%{box-shadow:0 0 40px rgba(255,176,32,.3)}}
+@keyframes readyPulseRed{50%{box-shadow:0 0 40px rgba(255,59,59,.32)}}
+
+.bars{display:grid;gap:16px;position:relative;z-index:1}
+.bar-row{display:grid;gap:8px}
+.bar-label{font:700 13.5px/1.3 var(--font);color:var(--text-2)}
+.bar-track{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;height:clamp(64px,11vh,100px)}
+.bar-seg{
+  border-radius:18px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:5px;font:800 clamp(22px,4vw,34px)/1 var(--font-display);border:1px solid transparent;
+  transition:transform .2s,filter .2s,box-shadow .2s;position:relative;overflow:hidden;
+  animation:segIn .5s var(--ease) both;
+}
+.bar-seg:nth-child(1){animation-delay:.05s}
+.bar-seg:nth-child(2){animation-delay:.12s}
+.bar-seg:nth-child(3){animation-delay:.2s}
+@keyframes segIn{from{opacity:0;transform:translateY(12px) scale(.94)}to{opacity:1;transform:none}}
+.bar-seg small{font:700 11px/1 var(--font);letter-spacing:.06em;text-transform:uppercase;opacity:.92}
+.bar-seg.red{
+  background:radial-gradient(circle at 40% 25%,rgba(255,140,140,.35),rgba(255,59,59,.2) 55%);
+  border-color:rgba(255,59,59,.5);color:#FFB4B9;
+  box-shadow:0 0 24px rgba(255,59,59,.18), inset 0 0 20px rgba(255,59,59,.08);
+}
+.bar-seg.amber{
+  background:radial-gradient(circle at 40% 25%,rgba(255,220,140,.35),rgba(255,176,32,.2) 55%);
+  border-color:rgba(255,176,32,.5);color:#FFD899;
+  box-shadow:0 0 24px rgba(255,176,32,.18), inset 0 0 20px rgba(255,176,32,.08);
+}
+.bar-seg.green{
+  background:radial-gradient(circle at 40% 25%,rgba(160,255,210,.35),rgba(46,229,157,.2) 55%);
+  border-color:rgba(46,229,157,.5);color:#9FE7C8;
+  box-shadow:0 0 24px rgba(46,229,157,.18), inset 0 0 20px rgba(46,229,157,.08);
+}
+.bar-seg.hot{animation:segHot .55s var(--ease)}
+@keyframes segHot{0%{transform:scale(1)}40%{transform:scale(1.06)}100%{transform:scale(1)}}
+.bar-seg.empty{opacity:.4;box-shadow:none}
+
+.detail{margin-top:16px}
+.vote-list{display:grid;gap:8px;max-height:min(36vh,360px);overflow:auto}
+.vote-item{
+  display:flex;align-items:center;justify-content:space-between;gap:10px;
+  padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:rgba(10,20,44,.75);
+  animation:chipIn .3s var(--ease) both;
+}
+.vote-item .who{font:650 14px/1.2 var(--font)}
+.badge{
+  display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:999px;
+  font:800 11px/1 var(--font);text-transform:uppercase;letter-spacing:.05em;
+}
+.badge.red{background:rgba(255,59,59,.22);color:#FFB4B9;box-shadow:0 0 12px rgba(255,59,59,.2)}
+.badge.amber{background:rgba(255,176,32,.22);color:#FFD899;box-shadow:0 0 12px rgba(255,176,32,.2)}
+.badge.green{background:rgba(46,229,157,.22);color:#9FE7C8;box-shadow:0 0 12px rgba(46,229,157,.2)}
+
+.toast{
+  position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);
+  background:linear-gradient(135deg,#152447,#0C1731);border:1px solid rgba(59,214,255,.35);color:var(--text);
+  padding:12px 18px;border-radius:999px;font:650 13.5px/1.3 var(--font);
+  box-shadow:0 12px 32px rgba(0,0,0,.4),0 0 24px rgba(59,214,255,.15);
+  opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:50;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+body.host-live .top .sub{display:none}
+body.host-live{
+  background:
+    radial-gradient(ellipse 55% 42% at 10% -8%,rgba(255,59,59,.32),transparent 55%),
+    radial-gradient(ellipse 48% 36% at 90% 0%,rgba(255,176,32,.22),transparent 52%),
+    radial-gradient(ellipse 50% 30% at 55% 110%,rgba(46,229,157,.16),transparent 55%),
+    var(--bg);
+}
+body.board-focus .top{display:none}
+body.board-focus .shell{padding:28px;width:min(1240px,100%)}
+body.board-focus .host-grid{grid-template-columns:1fr}
+body.board-focus #hostLobby,
+body.board-focus #hostDetail{display:none!important}
+body.board-focus .board{min-height:min(78vh,820px);padding:32px}
+body.board-focus .bar-track{height:clamp(88px,16vh,140px)}
+body.embedded .back{display:inline-flex}
+
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+<script>(function(){
+  try{
+    var q=new URLSearchParams(location.search);
+    if(q.get('embed')==='1'||q.get('embed')==='true'||sessionStorage.getItem('fh-embed')==='1'){
+      document.body.classList.add('embedded');
+    }
+  }catch(e){}
+})();</script>
+
+<div class="sky" id="sky" aria-hidden="true"></div>
+<div class="app">
+  <header class="top">
+    <a class="back" id="homeLink" href="../classroom_toolkit.html" title="Back to Classroom Toolkit">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V20h5v-5h4v5h5V9.5"/></svg>
+      Home
+    </a>
+    <div class="top-brand">
+      <img class="top-logo" src="traffic-lights-logo.png" width="961" height="410" alt="Traffic Lights" decoding="async">
+      <p class="sub">Class understanding check — ready to move on?</p>
+    </div>
+    <div class="top-actions" id="topActions"></div>
+  </header>
+  <main class="shell">
+    <section id="viewSetup"></section>
+    <section class="hidden" id="viewHost"></section>
+  </main>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var MAX_CRITERIA = 4;
+  var DEFAULT_PROMPT = "How well do you understand today's learning?";
+  var $ = function (id) { return document.getElementById(id); };
+  var state = {
+    host: null,
+    poll: null,
+    boardFocus: false,
+    boardSig: "",
+    lastCounts: null
+  };
+
+  function esc(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+
+  function toast(msg) {
+    var el = $("toast");
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(toast._t);
+    toast._t = setTimeout(function () { el.classList.remove("show"); }, 2200);
+  }
+
+  function buildSky() {
+    var sky = $("sky");
+    if (!sky || sky.dataset.ready) return;
+    sky.dataset.ready = "1";
+    var html = "";
+    var kinds = ["", " amber", " green", " cyan"];
+    for (var i = 0; i < 34; i++) {
+      var size = 2 + Math.random() * 5;
+      html += '<span class="spark' + kinds[i % kinds.length] + '" style="width:' + size + "px;height:" + size +
+        "px;left:" + (Math.random() * 100) + "%;top:" + (Math.random() * 100) +
+        "%;animation-duration:" + (1.4 + Math.random() * 2.8) +
+        "s;animation-delay:" + (Math.random() * 3) + 's"></span>';
+    }
+    for (var s = 0; s < 5; s++) {
+      html += '<span class="streak" style="width:' + (18 + Math.random() * 28) +
+        "vw;top:" + (8 + Math.random() * 80) +
+        "%;animation-duration:" + (2.2 + Math.random() * 2.4) +
+        "s;animation-delay:" + (Math.random() * 4) + 's"></span>';
+    }
+    sky.innerHTML = html;
+  }
+
+  function show(view) {
+    ["viewSetup", "viewHost"].forEach(function (id) {
+      $(id).classList.toggle("hidden", id !== view);
+    });
+    document.body.classList.toggle("host-live", view === "viewHost");
+  }
+
+  function setTop(html) {
+    $("topActions").innerHTML = html || "";
+  }
+
+  function stopPoll() {
+    if (state.poll) { clearInterval(state.poll); state.poll = null; }
+  }
+
+  function joinUrlForPin(pin) {
+    var base = location.href.replace(/[^/]*$/, "lights-join.html");
+    base = base.split("#")[0].split("?")[0];
+    if (window.withAppVersion) base = window.withAppVersion(base);
+    return base + (base.indexOf("?") >= 0 ? "&" : "?") + "c=" + encodeURIComponent(pin);
+  }
+
+  function randomPin() {
+    return String(Math.floor(100000 + Math.random() * 900000));
+  }
+
+  function whenAuthReady(cb) {
+    if (window.__authReady) cb();
+    else {
+      try { window.addEventListener("auth-guard-ready", cb, { once: true }); }
+      catch (e) { window.addEventListener("auth-guard-ready", cb); }
+      setTimeout(cb, 2500);
+    }
+  }
+
+  function parseCriteria(raw) {
+    return String(raw || "")
+      .split(/\n+/)
+      .map(function (s) { return s.replace(/^[\s•\-\d.]+/, "").trim(); })
+      .filter(Boolean)
+      .slice(0, MAX_CRITERIA);
+  }
+
+  function readinessFromCounts(c) {
+    if (!c || !c.total) {
+      return { cls: "", text: "Waiting for votes…" };
+    }
+    var g = c.green / c.total;
+    var r = c.red / c.total;
+    if (g >= 0.7) return { cls: "go", text: "Mostly green — the class looks ready to move on." };
+    if (r >= 0.35) return { cls: "stop", text: "Quite a few reds — pause and support before moving on." };
+    return { cls: "wait", text: "Mixed picture — some reteach or peer support before moving on." };
+  }
+
+  function renderSetup() {
+    stopPoll();
+    state.host = null;
+    state.boardFocus = false;
+    state.boardSig = "";
+    state.lastCounts = null;
+    document.body.classList.remove("board-focus");
+    show("viewSetup");
+    setTop("");
+    $("viewSetup").innerHTML =
+      '<div class="hero">' +
+        "<div><h2>Traffic Lights</h2>" +
+        "<p>Pupils scan a QR and tap red, amber or green so you can see how well the class understood the learning — and whether they are ready to move on.</p>" +
+        '<div class="legend">' +
+          '<span><i class="dot red"></i> Not yet</span>' +
+          '<span><i class="dot amber"></i> Getting there</span>' +
+          '<span><i class="dot green"></i> Secure / ready</span>' +
+        "</div></div>" +
+        '<div class="hero-visual">' +
+          '<div class="tower" aria-hidden="true"><div class="lens r"></div><div class="lens a"></div><div class="lens g"></div></div>' +
+          '<img class="hero-logo" src="traffic-lights-logo.png" width="961" height="410" alt="Traffic Lights" decoding="async">' +
+        "</div>" +
+      "</div>" +
+      '<div class="form">' +
+        '<div><label for="edTitle">Title (optional)</label>' +
+        '<input id="edTitle" maxlength="80" placeholder="e.g. Mime — Lesson 2 check"></div>' +
+        '<div><label for="edPrompt">Main question</label>' +
+        '<input id="edPrompt" maxlength="160" value="' + esc(DEFAULT_PROMPT) + '"></div>' +
+        '<div><label for="edCriteria">Success criteria (optional, one per line, max ' + MAX_CRITERIA + ')</label>' +
+        '<textarea id="edCriteria" placeholder="I can use gesture clearly&#10;I can hold a frozen image for 5 seconds"></textarea>' +
+        '<p class="hint">Leave blank for a simple overall check. If you add criteria, pupils also rate each one.</p></div>' +
+        '<div class="form-actions">' +
+          '<button type="button" class="btn btn-primary" id="btnLaunch">Launch live check</button>' +
+        "</div>" +
+      "</div>";
+
+    document.getElementById("btnLaunch").onclick = function () {
+      var title = $("edTitle").value.trim() || "Traffic Lights";
+      var prompt = $("edPrompt").value.trim() || DEFAULT_PROMPT;
+      var criteria = parseCriteria($("edCriteria").value);
+      launchHost({ title: title, prompt: prompt, criteria: criteria });
+    };
+  }
+
+  function createLiveSession(pack) {
+    if (!window.supabase || !window.supabase.auth) {
+      return Promise.reject(new Error("Phone join is not available right now"));
+    }
+    return window.supabase.auth.getSession().then(function (r) {
+      var session = r && r.data && r.data.session;
+      if (!session || !session.user) throw new Error("Sign in required for live phone play");
+      var pin = randomPin();
+      var payload = {
+        host_id: session.user.id,
+        pin: pin,
+        title: pack.title,
+        prompt: pack.prompt,
+        criteria_json: pack.criteria,
+        status: "lobby",
+        anonymous: true
+      };
+      return window.supabase.from("traffic_light_sessions").insert(payload).select("*").single().then(function (res) {
+        if (res.error) {
+          payload.pin = randomPin();
+          return window.supabase.from("traffic_light_sessions").insert(payload).select("*").single().then(function (res2) {
+            if (res2.error) throw res2.error;
+            return res2.data;
+          });
+        }
+        return res.data;
+      });
+    });
+  }
+
+  function patchSession(patch) {
+    var h = state.host;
+    if (!h || !h.sessionId || !window.supabase) return Promise.resolve();
+    return window.supabase
+      .from("traffic_light_sessions")
+      .update(patch)
+      .eq("id", h.sessionId)
+      .eq("host_id", h.hostUserId)
+      .then(function (res) {
+        if (res.error) throw res.error;
+      });
+  }
+
+  function closeLiveSession() {
+    stopPoll();
+    var h = state.host;
+    if (!h || !h.sessionId || !window.supabase) return Promise.resolve();
+    return window.supabase
+      .from("traffic_light_sessions")
+      .update({ status: "closed" })
+      .eq("id", h.sessionId)
+      .then(function () {});
+  }
+
+  function drawQr() {
+    var el = document.getElementById("hostQr");
+    var h = state.host;
+    if (!el || !h || !h.pin) return;
+    var url = joinUrlForPin(h.pin);
+    function setSrc(src) { el.src = src; }
+    function fallback() {
+      setSrc("https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&data=" + encodeURIComponent(url));
+    }
+    var lib = window.QRCode;
+    if (lib && typeof lib.toDataURL === "function") {
+      lib.toDataURL(url, {
+        width: 220, margin: 1,
+        color: { dark: "#081126", light: "#ffffff" }
+      }, function (err, dataUrl) {
+        if (err || !dataUrl) fallback();
+        else setSrc(dataUrl);
+      });
+      return;
+    }
+    fallback();
+  }
+
+  function launchHost(pack) {
+    show("viewHost");
+    setTop('<span class="meta">Starting live session…</span>');
+    $("viewHost").innerHTML = '<p class="meta">Connecting…</p>';
+    createLiveSession(pack).then(function (row) {
+      state.host = {
+        sessionId: row.id,
+        pin: row.pin,
+        hostUserId: row.host_id,
+        pack: pack,
+        status: row.status,
+        anonymous: row.anonymous !== false,
+        players: [],
+        votes: [],
+        counts: []
+      };
+      state.boardSig = "";
+      state.lastCounts = null;
+      renderHost();
+      startPoll();
+    }).catch(function (err) {
+      toast((err && err.message) || "Could not start live session");
+      renderSetup();
+    });
+  }
+
+  function startPoll() {
+    stopPoll();
+    refreshHost();
+    state.poll = setInterval(refreshHost, 1500);
+  }
+
+  function refreshHost() {
+    var h = state.host;
+    if (!h || !h.sessionId || !window.supabase) return;
+    window.supabase.rpc("lights_list_host_state", { p_session_id: h.sessionId }).then(function (res) {
+      if (res.error) return;
+      var data = res.data || {};
+      h.status = data.status;
+      h.anonymous = data.anonymous !== false;
+      h.players = Array.isArray(data.players) ? data.players : [];
+      h.votes = Array.isArray(data.votes) ? data.votes : [];
+      h.counts = Array.isArray(data.counts) ? data.counts : [];
+      h.pack.prompt = data.prompt || h.pack.prompt;
+      h.pack.criteria = Array.isArray(data.criteria) ? data.criteria : h.pack.criteria;
+      renderHostBody();
+    });
+  }
+
+  function itemLabel(index) {
+    var h = state.host;
+    if (!h) return "";
+    if (index === 0) return h.pack.prompt || DEFAULT_PROMPT;
+    var crit = h.pack.criteria || [];
+    return crit[index - 1] || ("Criterion " + index);
+  }
+
+  function renderBars(counts) {
+    var h = state.host;
+    if (!h) return "";
+    var items = counts && counts.length ? counts : [{ item_index: 0, red: 0, amber: 0, green: 0, total: 0 }];
+    return '<div class="bars">' + items.map(function (c) {
+      var empty = !c.total;
+      return (
+        '<div class="bar-row" data-item="' + c.item_index + '">' +
+          '<div class="bar-label">' + esc(itemLabel(c.item_index)) +
+            (c.item_index === 0 ? ' <span class="meta">(overall)</span>' : "") +
+          "</div>" +
+          '<div class="bar-track">' +
+            '<div class="bar-seg red' + (empty ? " empty" : "") + '" data-colour="red"><span class="n">' + (c.red || 0) + "</span><small>Red</small></div>" +
+            '<div class="bar-seg amber' + (empty ? " empty" : "") + '" data-colour="amber"><span class="n">' + (c.amber || 0) + "</span><small>Amber</small></div>" +
+            '<div class="bar-seg green' + (empty ? " empty" : "") + '" data-colour="green"><span class="n">' + (c.green || 0) + "</span><small>Green</small></div>" +
+          "</div>" +
+        "</div>"
+      );
+    }).join("") + "</div>";
+  }
+
+  function renderHost() {
+    var h = state.host;
+    if (!h) return;
+    show("viewHost");
+    setTop(
+      '<button type="button" class="btn' + (h.anonymous ? " on" : "") + '" id="btnAnon">Anonymous ' +
+        (h.anonymous ? "on" : "off") + "</button>" +
+      '<button type="button" class="btn" id="btnFocus">Board focus</button>' +
+      '<button type="button" class="btn btn-ghost" id="btnEnd">End session</button>'
+    );
+    $("viewHost").innerHTML =
+      '<div class="host-grid">' +
+        '<div class="panel" id="hostLobby">' +
+          '<div class="host-brand"><img src="traffic-lights-logo.png" width="961" height="410" alt="Traffic Lights" decoding="async"></div>' +
+          '<h3 style="text-align:center">' + esc(h.pack.title) + "</h3>" +
+          '<p class="meta" style="text-align:center;margin:0 0 4px">Game PIN</p>' +
+          '<div class="pin" id="hostPin">' + esc(h.pin) + "</div>" +
+          '<div class="qr-wrap"><img id="hostQr" alt="QR code" width="220" height="220"></div>' +
+          '<p class="meta" style="text-align:center">Pupils scan on iPad or phone — no sign-in</p>' +
+          '<p class="meta" style="margin-top:12px"><span id="hostPlayerCount">0</span> joined · <span id="hostVoteCount">0</span> voted</p>' +
+          '<div class="player-chips" id="hostPlayers"></div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px">' +
+            '<button type="button" class="btn btn-primary" id="btnOpen">Open voting</button>' +
+            '<button type="button" class="btn" id="btnCopy">Copy link</button>' +
+          "</div>" +
+        "</div>" +
+        '<div>' +
+          '<div class="board" id="hostBoard"></div>' +
+          '<div class="panel detail" id="hostDetail"><h3>Who voted what</h3><div class="vote-list" id="hostVoteList"></div></div>' +
+        "</div>" +
+      "</div>";
+
+    state.boardSig = "";
+    drawQr();
+    wireHostChrome();
+    renderHostBody();
+  }
+
+  function wireHostChrome() {
+    var h = state.host;
+    var endBtn = document.getElementById("btnEnd");
+    if (endBtn) {
+      endBtn.onclick = function () {
+        closeLiveSession().then(function () {
+          toast("Session ended");
+          renderSetup();
+        });
+      };
+    }
+    var anonBtn = document.getElementById("btnAnon");
+    if (anonBtn) {
+      anonBtn.onclick = function () {
+        h.anonymous = !h.anonymous;
+        patchSession({ anonymous: h.anonymous }).then(function () {
+          renderHost();
+          startPoll();
+        }).catch(function (err) { toast(err.message || "Could not update"); });
+      };
+    }
+    var focusBtn = document.getElementById("btnFocus");
+    if (focusBtn) {
+      focusBtn.onclick = function () {
+        state.boardFocus = !state.boardFocus;
+        document.body.classList.toggle("board-focus", state.boardFocus);
+        if (state.boardFocus) {
+          setTop(
+            '<button type="button" class="btn" id="btnFocus">Exit board focus</button>' +
+            '<button type="button" class="btn btn-ghost" id="btnEnd">End session</button>'
+          );
+          wireHostChrome();
+        } else {
+          renderHost();
+          startPoll();
+        }
+      };
+    }
+    var openBtn = document.getElementById("btnOpen");
+    if (openBtn) {
+      openBtn.onclick = function () {
+        patchSession({ status: "open" }).then(function () {
+          h.status = "open";
+          toast("Voting is open");
+          renderHostBody();
+        }).catch(function (err) { toast(err.message || "Could not open"); });
+      };
+    }
+    var copyBtn = document.getElementById("btnCopy");
+    if (copyBtn) {
+      copyBtn.onclick = function () {
+        var url = joinUrlForPin(h.pin);
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(url).then(function () { toast("Link copied"); })
+            .catch(function () { prompt("Copy this link:", url); });
+        } else prompt("Copy this link:", url);
+      };
+    }
+  }
+
+  function updateBarCounts(counts) {
+    var board = document.getElementById("hostBoard");
+    if (!board) return;
+    (counts || []).forEach(function (c) {
+      var row = board.querySelector('.bar-row[data-item="' + c.item_index + '"]');
+      if (!row) return;
+      ["red", "amber", "green"].forEach(function (col) {
+        var seg = row.querySelector('.bar-seg[data-colour="' + col + '"]');
+        if (!seg) return;
+        var n = seg.querySelector(".n");
+        var next = c[col] || 0;
+        var prev = n ? parseInt(n.textContent, 10) || 0 : 0;
+        if (n && prev !== next) {
+          n.textContent = String(next);
+          seg.classList.remove("hot");
+          void seg.offsetWidth;
+          seg.classList.add("hot");
+        }
+        seg.classList.toggle("empty", !c.total);
+      });
+    });
+  }
+
+  function renderHostBody() {
+    var h = state.host;
+    if (!h) return;
+    var count = document.getElementById("hostPlayerCount");
+    var voteCount = document.getElementById("hostVoteCount");
+    var players = document.getElementById("hostPlayers");
+    var board = document.getElementById("hostBoard");
+    var voteList = document.getElementById("hostVoteList");
+    var detail = document.getElementById("hostDetail");
+    var openBtn = document.getElementById("btnOpen");
+    var anonBtn = document.getElementById("btnAnon");
+
+    if (count) count.textContent = String(h.players.length);
+    var overallVoted = (h.votes || []).filter(function (v) { return v.item_index === 0; }).length;
+    if (voteCount) voteCount.textContent = String(overallVoted);
+
+    if (players) {
+      if (h.anonymous) {
+        players.innerHTML = '<span class="meta">Anonymous mode — names hidden</span>';
+      } else if (h.players.length) {
+        players.innerHTML = h.players.map(function (p) {
+          return '<span class="chip">' + esc(p.nickname) + "</span>";
+        }).join("");
+      } else {
+        players.innerHTML = '<span class="meta">Waiting for pupils…</span>';
+      }
+    }
+
+    if (openBtn) {
+      openBtn.disabled = h.status === "open" || h.status === "closed";
+      openBtn.textContent = h.status === "open" ? "Voting open" : "Open voting";
+    }
+    if (anonBtn) {
+      anonBtn.classList.toggle("on", !!h.anonymous);
+      anonBtn.textContent = "Anonymous " + (h.anonymous ? "on" : "off");
+    }
+
+    var overall = (h.counts || []).filter(function (c) { return c.item_index === 0; })[0] ||
+      { item_index: 0, red: 0, amber: 0, green: 0, total: 0 };
+    var ready = readinessFromCounts(overall);
+    var sig = [h.status, h.anonymous ? 1 : 0, h.pack.prompt, (h.pack.criteria || []).join("|"), ready.cls, ready.text, (h.counts || []).length].join("::");
+
+    if (board) {
+      if (sig !== state.boardSig) {
+        board.innerHTML =
+          '<p class="board-prompt">' + esc(h.pack.prompt || DEFAULT_PROMPT) + "</p>" +
+          '<p class="board-sub">' + esc(h.pack.title) +
+            (h.status === "lobby" ? " · Lobby — open voting when ready" :
+              h.status === "open" ? " · Live votes" : " · Closed") +
+            (h.anonymous ? " · Anonymous" : "") +
+          "</p>" +
+          '<div class="readiness ' + ready.cls + '" id="hostReady">' + esc(ready.text) + "</div>" +
+          renderBars(h.counts);
+        state.boardSig = sig;
+        state.lastCounts = h.counts;
+      } else {
+        var readyEl = document.getElementById("hostReady");
+        if (readyEl) {
+          readyEl.className = "readiness " + ready.cls;
+          readyEl.textContent = ready.text;
+        }
+        updateBarCounts(h.counts);
+      }
+    }
+
+    if (detail) {
+      detail.classList.toggle("hidden", !!h.anonymous);
+    }
+    if (voteList) {
+      if (h.anonymous) {
+        voteList.innerHTML = "";
+      } else {
+        var overallVotes = (h.votes || []).filter(function (v) { return v.item_index === 0; });
+        voteList.innerHTML = overallVotes.length
+          ? overallVotes.map(function (v) {
+              return (
+                '<div class="vote-item">' +
+                  '<span class="who">' + esc(v.nickname) + "</span>" +
+                  '<span class="badge ' + esc(v.colour) + '">' + esc(v.colour) + "</span>" +
+                "</div>"
+              );
+            }).join("")
+          : '<p class="meta">No votes yet.</p>';
+      }
+    }
+  }
+
+  function boot() {
+    buildSky();
+    try {
+      var home = document.getElementById("homeLink");
+      if (home && (new URLSearchParams(location.search).get("embed") === "1" || sessionStorage.getItem("fh-embed") === "1")) {
+        home.href = "../classroom_toolkit.html?embed=1";
+      }
+    } catch (e) {}
+    renderSetup();
+  }
+
+  whenAuthReady(boot);
+})();
+</script>
+</body>
+</html>
