@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Faculty Hub">
+<link rel="apple-touch-icon" href="faculty-hub-logo.png" sizes="180x180">
+<link rel="icon" type="image/png" href="faculty-hub-logo.png">
+<title>Classroom Toolkit — Expressive Arts Faculty</title>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://api.fontshare.com/v2/css?f[]=clash-display@500,600,700&f[]=general-sans@500,600,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="design-tokens.css">
+<style>
+/* ============================================================
+   Classroom Toolkit — "the fun wing of the Faculty Hub"
+   Dark gallery-arcade aesthetic: navy ink base, vivid tool hues,
+   squircle icon tiles, staggered reveals. No cheese.
+   ============================================================ */
+:root{
+  --tk-bg:#0b1220;
+  --tk-bg-2:#0f1a30;
+  --tk-surface:#141f38;
+  --tk-surface-2:#182544;
+  --tk-line:rgba(201,210,224,.10);
+  --tk-line-strong:rgba(201,210,224,.18);
+  --tk-text:#eef2f9;
+  --tk-text-dim:#9aa8c0;
+  --tk-text-faint:#5f6f8d;
+  --font-display:"Clash Display","General Sans",sans-serif;
+
+  --hue-coral:#ff6b57;   --hue-coral-soft:rgba(255,107,87,.16);
+  --hue-amber:#ffb03a;   --hue-amber-soft:rgba(255,176,58,.16);
+  --hue-mint:#3ddc97;    --hue-mint-soft:rgba(61,220,151,.15);
+  --hue-sky:#4da3ff;     --hue-sky-soft:rgba(77,163,255,.16);
+  --hue-violet:#9d7bff;  --hue-violet-soft:rgba(157,123,255,.17);
+  --hue-rose:#ff6fa5;    --hue-rose-soft:rgba(255,111,165,.16);
+  --hue-cyan:#2fd4d4;    --hue-cyan-soft:rgba(47,212,212,.15);
+  --hue-lime:#b8e04a;    --hue-lime-soft:rgba(184,224,74,.15);
+}
+*{box-sizing:border-box}
+html{color-scheme:dark}
+body{
+  margin:0;
+  font-family:"Inter",ui-sans-serif,system-ui,sans-serif;
+  background:var(--tk-bg);
+  color:var(--tk-text);
+  line-height:1.55;
+  min-height:100vh;
+  overflow-x:hidden;
+}
+/* --- atmosphere: dot grid + radial glows + grain --- */
+.tk-atmos{position:fixed;inset:0;pointer-events:none;z-index:0}
+.tk-atmos::before{
+  content:"";position:absolute;inset:0;
+  background-image:radial-gradient(rgba(201,210,224,.07) 1px,transparent 1px);
+  background-size:26px 26px;
+  mask-image:radial-gradient(ellipse 90% 70% at 50% 0%,#000 30%,transparent 75%);
+}
+.tk-atmos::after{
+  content:"";position:absolute;inset:0;opacity:.5;
+  background:
+    radial-gradient(600px 420px at 12% -8%, rgba(77,163,255,.14), transparent 65%),
+    radial-gradient(560px 400px at 88% -6%, rgba(157,123,255,.12), transparent 65%),
+    radial-gradient(700px 500px at 55% 118%, rgba(255,107,87,.07), transparent 60%);
+}
+.tk-grain{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.05;mix-blend-mode:overlay;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+.tk-page{position:relative;z-index:2;max-width:1180px;margin:0 auto;padding:0 clamp(16px,4vw,40px) 96px}
+
+/* --- top bar --- */
+.tk-topbar{display:flex;align-items:center;gap:14px;padding:22px 0 0}
+.tk-back{
+  display:inline-flex;align-items:center;gap:8px;
+  color:var(--tk-text-dim);text-decoration:none;font:500 .85rem/1 "Inter",sans-serif;
+  padding:9px 14px;border:1px solid var(--tk-line);border-radius:999px;
+  background:rgba(20,31,56,.6);backdrop-filter:blur(6px);
+  transition:color .15s,border-color .15s,transform .15s;
+}
+.tk-back:hover{color:var(--tk-text);border-color:var(--tk-line-strong);transform:translateX(-2px)}
+.tk-topbar .spacer{flex:1}
+.tk-count{font:600 .78rem/1 "Inter",sans-serif;color:var(--tk-text-faint);letter-spacing:.06em;text-transform:uppercase}
+body.embedded .tk-topbar{display:none}
+
+/* --- hero --- */
+.tk-hero{padding:clamp(36px,7vh,72px) 0 8px;position:relative}
+.tk-kicker{
+  display:inline-flex;align-items:center;gap:8px;
+  font:600 .74rem/1 "Inter",sans-serif;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--hue-amber);
+  animation:rise .6s var(--ease,cubic-bezier(.2,.7,.2,1)) both;
+}
+.tk-kicker::before{content:"";width:22px;height:1.5px;background:var(--hue-amber);border-radius:2px}
+.tk-title{
+  margin:.35em 0 .18em;
+  font:600 clamp(2.6rem,7vw,4.6rem)/1.02 var(--font-display);
+  letter-spacing:-.02em;
+  animation:rise .6s .07s var(--ease,cubic-bezier(.2,.7,.2,1)) both;
+}
+.tk-title .tilt{
+  display:inline-block;
+  background:linear-gradient(100deg,var(--hue-sky),var(--hue-violet) 55%,var(--hue-rose));
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.tk-sub{
+  max-width:560px;color:var(--tk-text-dim);font-size:1.02rem;margin:0 0 4px;
+  animation:rise .6s .14s var(--ease,cubic-bezier(.2,.7,.2,1)) both;
+}
+/* floating glyphs behind hero */
+.tk-hero .glyph{position:absolute;color:var(--tk-text);opacity:.055;pointer-events:none;user-select:none}
+.tk-hero .glyph svg{width:100%;height:100%}
+.glyph.g1{width:120px;height:120px;right:4%;top:6%;transform:rotate(12deg);animation:float 7s ease-in-out infinite}
+.glyph.g2{width:78px;height:78px;right:20%;top:52%;transform:rotate(-9deg);animation:float 9s .8s ease-in-out infinite}
+.glyph.g3{width:95px;height:95px;right:38%;top:12%;transform:rotate(6deg);animation:float 8s .4s ease-in-out infinite}
+@keyframes float{0%,100%{translate:0 0}50%{translate:0 -12px}}
+@keyframes rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+
+/* --- controls row --- */
+.tk-controls{
+  display:flex;flex-wrap:wrap;align-items:center;gap:10px;
+  margin:30px 0 26px;
+  animation:rise .6s .2s var(--ease,cubic-bezier(.2,.7,.2,1)) both;
+}
+.tk-search{
+  flex:0 1 280px;min-width:200px;display:flex;align-items:center;gap:8px;
+  background:var(--tk-surface);border:1px solid var(--tk-line);border-radius:12px;
+  padding:10px 14px;transition:border-color .15s,box-shadow .15s;
+}
+.tk-search:focus-within{border-color:var(--hue-sky);box-shadow:0 0 0 3px rgba(77,163,255,.18)}
+.tk-search svg{flex:none;color:var(--tk-text-faint)}
+.tk-search input{
+  all:unset;flex:1;color:var(--tk-text);font:500 .9rem/1.2 "Inter",sans-serif;min-width:0;
+}
+.tk-search input::placeholder{color:var(--tk-text-faint)}
+.tk-pills{display:flex;flex-wrap:wrap;gap:8px}
+.tk-pill{
+  font:600 .8rem/1 "Inter",sans-serif;color:var(--tk-text-dim);
+  background:transparent;border:1px solid var(--tk-line);border-radius:999px;
+  padding:9px 15px;cursor:pointer;
+  transition:color .15s,border-color .15s,background .15s,transform .1s;
+}
+.tk-pill:hover{color:var(--tk-text);border-color:var(--tk-line-strong)}
+.tk-pill:active{transform:scale(.96)}
+.tk-pill.on{color:#0b1220;background:var(--tk-text);border-color:var(--tk-text)}
+
+/* --- section headers --- */
+.tk-sechead{
+  display:flex;align-items:baseline;gap:12px;margin:38px 0 16px;
+}
+.tk-sechead h2{
+  margin:0;font:600 1.28rem/1.2 var(--font-display);letter-spacing:-.01em;
+}
+.tk-sechead .rule{flex:1;height:1px;background:var(--tk-line);transform:translateY(-4px)}
+.tk-sechead .hint{font:500 .8rem/1 "Inter",sans-serif;color:var(--tk-text-faint)}
+
+/* --- featured row --- */
+.tk-featured{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+@media(max-width:900px){.tk-featured{grid-template-columns:1fr}}
+.tk-feat-card{
+  position:relative;overflow:hidden;border-radius:20px;
+  border:1px solid var(--tk-line);
+  background:linear-gradient(160deg,var(--tk-surface-2),var(--tk-surface) 70%);
+  padding:22px 20px 20px;cursor:pointer;text-align:left;color:inherit;text-decoration:none;display:block;
+  transition:transform .22s var(--ease,cubic-bezier(.2,.7,.2,1)),border-color .2s,box-shadow .22s;
+  opacity:0;animation:rise .55s both;
+}
+.tk-feat-card:hover{transform:translateY(-5px);border-color:var(--hc,var(--tk-line-strong));box-shadow:0 18px 44px -18px var(--hs,rgba(0,0,0,.5))}
+.tk-feat-card::before{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(320px 180px at 85% -20%,var(--hs),transparent 70%);
+}
+.tk-feat-card .badge-feat{
+  position:absolute;top:16px;right:16px;
+  font:700 .64rem/1 "Inter",sans-serif;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--hc);border:1px solid var(--hc);border-radius:999px;padding:5px 9px;opacity:.9;
+}
+.tk-feat-card .tile{margin-bottom:36px}
+.tk-feat-card h3{margin:0 0 4px;font:600 1.22rem/1.2 var(--font-display)}
+.tk-feat-card p{margin:0;color:var(--tk-text-dim);font-size:.88rem;max-width:34ch}
+.tk-feat-card .go{
+  margin-top:16px;display:inline-flex;align-items:center;gap:7px;
+  font:600 .82rem/1 "Inter",sans-serif;color:var(--hc);
+}
+.tk-feat-card .go svg{transition:transform .18s}
+.tk-feat-card:hover .go svg{transform:translateX(3px)}
+
+/* --- icon tile (shared) --- */
+.tile{
+  width:54px;height:54px;border-radius:17px;flex:none;
+  display:grid;place-items:center;color:var(--hc);
+  background:var(--hb);
+  border:1px solid color-mix(in srgb,var(--hc) 28%,transparent);
+  box-shadow:0 6px 18px -8px var(--hs);
+  transition:transform .22s var(--ease,cubic-bezier(.2,.7,.2,1));
+}
+.tk-feat-card:hover .tile,.tk-card:hover .tile{transform:rotate(-6deg) scale(1.07)}
+
+/* --- main grid --- */
+.tk-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:14px}
+.tk-card{
+  position:relative;display:flex;flex-direction:column;gap:14px;
+  border-radius:18px;border:1px solid var(--tk-line);
+  background:var(--tk-surface);
+  padding:18px;cursor:pointer;text-align:left;color:inherit;text-decoration:none;
+  transition:transform .2s var(--ease,cubic-bezier(.2,.7,.2,1)),border-color .18s,box-shadow .2s,background .18s;
+  opacity:0;animation:rise .5s both;
+}
+.tk-card:hover{
+  transform:translateY(-4px);
+  background:var(--tk-surface-2);
+  border-color:color-mix(in srgb,var(--hc) 45%,transparent);
+  box-shadow:0 14px 34px -16px var(--hs);
+}
+.tk-card .head{display:flex;align-items:center;gap:14px}
+.tk-card h3{margin:0;font:600 1.02rem/1.25 var(--font-display);letter-spacing:.005em}
+.tk-card .cat{font:600 .68rem/1 "Inter",sans-serif;letter-spacing:.1em;text-transform:uppercase;color:var(--tk-text-faint);margin-top:3px}
+.tk-card p{margin:0;color:var(--tk-text-dim);font-size:.85rem;flex:1}
+.tk-card .foot{display:flex;align-items:center;justify-content:space-between}
+.tk-card .launch{
+  display:inline-flex;align-items:center;gap:6px;
+  font:600 .78rem/1 "Inter",sans-serif;color:var(--hc);
+}
+.tk-card .launch svg{transition:transform .18s}
+.tk-card:hover .launch svg{transform:translateX(3px)}
+.chip-soon{
+  font:700 .62rem/1 "Inter",sans-serif;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--tk-text-faint);border:1px dashed var(--tk-line-strong);
+  border-radius:999px;padding:5px 9px;
+}
+.tk-card.soon{cursor:default}
+.tk-card.soon:hover{transform:none;box-shadow:none;background:var(--tk-surface)}
+.tk-card.soon:hover .tile{transform:none}
+.tk-card.soon .tile{filter:saturate(.55);opacity:.75}
+
+/* empty state */
+.tk-empty{
+  display:none;padding:60px 20px;text-align:center;color:var(--tk-text-faint);
+  border:1px dashed var(--tk-line-strong);border-radius:18px;
+}
+.tk-empty.show{display:block}
+.tk-empty strong{color:var(--tk-text-dim);font-family:var(--font-display);font-weight:600;display:block;font-size:1.1rem;margin-bottom:4px}
+
+/* toast */
+.tk-toast{
+  position:fixed;left:50%;bottom:28px;transform:translate(-50%,20px);
+  background:var(--tk-text);color:#0b1220;
+  font:600 .85rem/1 "Inter",sans-serif;padding:12px 18px;border-radius:12px;
+  box-shadow:0 12px 32px rgba(0,0,0,.4);opacity:0;pointer-events:none;
+  transition:opacity .25s,transform .25s;z-index:50;
+}
+.tk-toast.show{opacity:1;transform:translate(-50%,0)}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-delay:0ms!important;transition-duration:.01ms!important}
+  .tk-card,.tk-feat-card{opacity:1}
+}
+</style>
+</head>
+<body>
+<script>(function(){if(new URLSearchParams(location.search).get('embed')==='1')document.body.classList.add('embedded');})();</script>
+
+<div class="tk-atmos"></div>
+<div class="tk-grain"></div>
+
+<div class="tk-page">
+  <div class="tk-topbar">
+    <a class="tk-back" href="faculty-hub.html">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      Faculty Hub
+    </a>
+    <div class="spacer"></div>
+    <div class="tk-count" id="tkCount"></div>
+  </div>
+
+  <header class="tk-hero">
+    <span class="glyph g1"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="8.5" cy="8.5" r="1.4" fill="currentColor" stroke="none"/><circle cx="15.5" cy="15.5" r="1.4" fill="currentColor" stroke="none"/><circle cx="15.5" cy="8.5" r="1.4" fill="currentColor" stroke="none"/><circle cx="8.5" cy="15.5" r="1.4" fill="currentColor" stroke="none"/></svg></span>
+    <span class="glyph g2"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M10 2h4"/></svg></span>
+    <span class="glyph g3"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1"><path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18.5" r="2.5"/><circle cx="16.5" cy="16.5" r="2.5"/></svg></span>
+
+    <span class="tk-kicker">Expressive Arts Faculty</span>
+    <h1 class="tk-title">Classroom <span class="tilt">Toolkit</span></h1>
+    <p class="tk-sub">Quick tools for the classroom — timers, randomisers, quizzes and more. Pick one, put it on the big screen, go.</p>
+  </header>
+
+  <div class="tk-controls">
+    <label class="tk-search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+      <input type="search" id="tkSearch" placeholder="Search tools…" autocomplete="off">
+    </label>
+    <div class="tk-pills" id="tkPills"></div>
+  </div>
+
+  <section id="featSection">
+    <div class="tk-sechead"><h2>Staff picks</h2><div class="rule"></div><span class="hint">Most useful on day one</span></div>
+    <div class="tk-featured" id="tkFeatured"></div>
+  </section>
+
+  <div class="tk-sechead"><h2>All tools</h2><div class="rule"></div></div>
+  <div class="tk-grid" id="tkGrid"></div>
+  <div class="tk-empty" id="tkEmpty"><strong>Nothing matches</strong>Try a different search or category.</div>
+</div>
+
+<div class="tk-toast" id="tkToast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  var HUES = {
+    coral:{c:"var(--hue-coral)",b:"var(--hue-coral-soft)",s:"rgba(255,107,87,.35)"},
+    amber:{c:"var(--hue-amber)",b:"var(--hue-amber-soft)",s:"rgba(255,176,58,.35)"},
+    mint:{c:"var(--hue-mint)",b:"var(--hue-mint-soft)",s:"rgba(61,220,151,.33)"},
+    sky:{c:"var(--hue-sky)",b:"var(--hue-sky-soft)",s:"rgba(77,163,255,.35)"},
+    violet:{c:"var(--hue-violet)",b:"var(--hue-violet-soft)",s:"rgba(157,123,255,.36)"},
+    rose:{c:"var(--hue-rose)",b:"var(--hue-rose-soft)",s:"rgba(255,111,165,.35)"},
+    cyan:{c:"var(--hue-cyan)",b:"var(--hue-cyan-soft)",s:"rgba(47,212,212,.33)"},
+    lime:{c:"var(--hue-lime)",b:"var(--hue-lime-soft)",s:"rgba(184,224,74,.32)"}
+  };
+
+  function icon(name){
+    var I = {
+      timer:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 1.5M9.5 2h5"/></svg>',
+      shuffle:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7h3l4 5 4 5h5"/><path d="M3 17h3l2-2.5"/><path d="M13.5 9.5L15 7h4"/><path d="M17 4l3 3-3 3M17 14l3 3-3 3"/></svg>',
+      wheel:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.2"/><path d="M12 3v5.8M12 15.2V21M3 12h5.8M15.2 12H21"/></svg>',
+      quiz:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11a8 8 0 11-4-6.9"/><path d="M9.5 11.5L11.5 13.5 16 9"/><path d="M21 4l-1 1"/></svg>',
+      noise:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5L6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 010 7M18.5 6a9 9 0 010 12"/></svg>',
+      dice:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="4"/><circle cx="8.7" cy="8.7" r="1.15" fill="currentColor" stroke="none"/><circle cx="15.3" cy="8.7" r="1.15" fill="currentColor" stroke="none"/><circle cx="8.7" cy="15.3" r="1.15" fill="currentColor" stroke="none"/><circle cx="15.3" cy="15.3" r="1.15" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.15" fill="currentColor" stroke="none"/></svg>',
+      ticket:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8a2 2 0 002-2h14a2 2 0 002 2v2a2 2 0 000 4v2a2 2 0 00-2 2H5a2 2 0 00-2-2v-2a2 2 0 000-4z"/><path d="M13 6v2M13 11v2M13 16v2"/></svg>',
+      seats:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg>',
+      trophy:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 01-8 0z"/><path d="M8 5H5a3 3 0 003 4M16 5h3a3 3 0 01-3 4"/><path d="M12 13v3M8.5 20h7M10 16.5h4"/></svg>',
+      box:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8L12 3.5 20.5 8 12 12.5z"/><path d="M3.5 8v8L12 20.5 20.5 16V8"/><path d="M12 12.5v8"/></svg>',
+      lights:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="2.5" width="8" height="19" rx="4"/><circle cx="12" cy="7" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="17" r="1.5"/></svg>',
+      qr:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M14 14h3v3h-3zM19 14h2M14 19h2M19 19h2v2M16 21h1"/></svg>',
+      headsup:'<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="16" rx="2"/><path d="M11 18v2M9 20h6"/><circle cx="12" cy="8" r="1.5"/><path d="M9.5 12.5c.8 1.2 1.7 1.8 2.5 1.8s1.7-.6 2.5-1.8"/></svg>'
+    };
+    return I[name] || I.box;
+  }
+
+  var TOOLS = [
+    {id:"timer",      name:"Big Timer",         cat:"Timing",  hue:"coral",  icon:"timer",   featured:true,  live:false, href:"toolkit/timer.html",
+      desc:"Full-screen countdown and stopwatch. Big enough to read from the back row."},
+    {id:"groups",     name:"Group Randomiser",  cat:"Groups",  hue:"sky",    icon:"shuffle", featured:true,  live:false, href:"toolkit/groups.html",
+      desc:"Paste a class list, pick group sizes, get fair random groups in one tap."},
+    {id:"quiz",       name:"Quiz Builder",      cat:"Quiz",    hue:"violet", icon:"quiz",    featured:true,  live:false, href:"toolkit/quiz.html",
+      desc:"Build quick quizzes and run them live on the board with team scoring."},
+    {id:"headsup",    name:"Heads Up",          cat:"Quiz",    hue:"amber",  icon:"headsup", featured:true,  live:false, href:"toolkit/heads-up.html",
+      desc:"Paste vocab, launch a QR, pairs play on one phone — no login needed."},
+    {id:"picker",     name:"Name Picker",       cat:"Groups",  hue:"amber",  icon:"wheel",   live:false, href:"toolkit/picker.html",
+      desc:"Spin the wheel to pick a pupil at random. No repeats until everyone's had a turn."},
+    {id:"noise",      name:"Noise Meter",       cat:"Focus",   hue:"mint",   icon:"noise",   live:false, href:"toolkit/noise.html",
+      desc:"Live volume meter with a settable limit — the class polices itself."},
+    {id:"dice",       name:"Dice Roller",       cat:"Chance",  hue:"rose",   icon:"dice",    live:false, href:"toolkit/dice.html",
+      desc:"Roll one or many dice on screen. Great for drama prompts and games."},
+    {id:"exit",       name:"Exit Tickets",      cat:"Quiz",    hue:"cyan",   icon:"ticket",  live:false, href:"toolkit/exit.html",
+      desc:"One-question check-outs at the end of a lesson. See who got it."},
+    {id:"seats",      name:"Seating Shuffler",  cat:"Groups",  hue:"lime",   icon:"seats",   live:false, href:"toolkit/seats.html",
+      desc:"Generate a random seating plan from your class list, with pin and avoid rules."},
+    {id:"scoreboard", name:"Team Scoreboard",   cat:"Rewards", hue:"amber",  icon:"trophy",  live:false, href:"toolkit/scoreboard.html",
+      desc:"Points for teams or houses, with satisfying +1 animations."},
+    {id:"mystery",    name:"Mystery Box",       cat:"Chance",  hue:"violet", icon:"box",     live:false, href:"toolkit/mystery.html",
+      desc:"Random discussion questions, drama prompts and challenges from a themed box."},
+    {id:"lights",     name:"Traffic Lights",    cat:"Focus",   hue:"coral",  icon:"lights",  live:false, href:"toolkit/lights.html",
+      desc:"Whole-class self-assessment: red, amber, green at a glance."},
+    {id:"qr",         name:"QR Maker",          cat:"Utility", hue:"sky",    icon:"qr",      live:false, href:"toolkit/qr.html",
+      desc:"Turn any link into a big scannable QR code for the board."}
+  ];
+
+  var state = {cat:"All", q:""};
+  var CATS = ["All"].concat(TOOLS.map(function(t){return t.cat}).filter(function(v,i,a){return a.indexOf(v)===i}));
+
+  var $grid = document.getElementById("tkGrid");
+  var $feat = document.getElementById("tkFeatured");
+  var $pills = document.getElementById("tkPills");
+  var $empty = document.getElementById("tkEmpty");
+  var $count = document.getElementById("tkCount");
+  var $featSection = document.getElementById("featSection");
+  var $toast = document.getElementById("tkToast");
+  var toastTimer = null;
+
+  $count.textContent = TOOLS.length + " tools";
+
+  function toast(msg){
+    $toast.textContent = msg;
+    $toast.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ $toast.classList.remove("show"); }, 2200);
+  }
+
+  function hueStyle(t){
+    var h = HUES[t.hue] || HUES.sky;
+    return "--hc:"+h.c+";--hb:"+h.b+";--hs:"+h.s;
+  }
+
+  function open(t){
+    if (t.live) { window.location.href = t.href; return; }
+    toast(t.name + " is coming soon — watch this space");
+  }
+
+  function tileHTML(t){
+    return '<span class="tile">'+icon(t.icon)+'</span>';
+  }
+
+  function arrow(){
+    return '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+  }
+
+  function matches(t){
+    if (state.cat !== "All" && t.cat !== state.cat) return false;
+    if (state.q && (t.name+" "+t.desc+" "+t.cat).toLowerCase().indexOf(state.q) === -1) return false;
+    return true;
+  }
+
+  function render(){
+    var visible = TOOLS.filter(matches);
+    var showFeat = state.cat === "All" && !state.q;
+    $featSection.style.display = showFeat ? "" : "none";
+
+    if (showFeat){
+      $feat.innerHTML = TOOLS.filter(function(t){return t.featured}).map(function(t,i){
+        return '<a class="tk-feat-card" style="'+hueStyle(t)+';animation-delay:'+(0.25+i*0.08)+'s" data-id="'+t.id+'" href="'+(t.live?t.href:"#")+'">'
+          + '<span class="badge-feat">'+(t.live?"Staff pick":"Soon")+'</span>'
+          + tileHTML(t)
+          + '<h3>'+t.name+'</h3><p>'+t.desc+'</p>'
+          + '<span class="go">'+(t.live?"Launch":"Preview")+' '+arrow()+'</span>'
+          + '</a>';
+      }).join("");
+    }
+
+    $grid.innerHTML = visible.map(function(t,i){
+      return '<a class="tk-card'+(t.live?"":" soon")+'" style="'+hueStyle(t)+';animation-delay:'+(0.3+i*0.05)+'s" data-id="'+t.id+'" href="'+(t.live?t.href:"#")+'">'
+        + '<span class="head">'+tileHTML(t)+'<span><h3>'+t.name+'</h3><span class="cat">'+t.cat+'</span></span></span>'
+        + '<p>'+t.desc+'</p>'
+        + '<span class="foot">'
+        +   (t.live ? '<span class="launch">Launch '+arrow()+'</span>' : '<span class="chip-soon">Coming soon</span>')
+        + '</span>'
+        + '</a>';
+    }).join("");
+
+    $empty.classList.toggle("show", visible.length === 0);
+  }
+
+  $pills.innerHTML = CATS.map(function(c){
+    return '<button class="tk-pill'+(c===state.cat?" on":"")+'" data-cat="'+c+'">'+c+'</button>';
+  }).join("");
+
+  $pills.addEventListener("click", function(e){
+    var b = e.target.closest(".tk-pill"); if (!b) return;
+    state.cat = b.dataset.cat;
+    $pills.querySelectorAll(".tk-pill").forEach(function(p){ p.classList.toggle("on", p.dataset.cat===state.cat); });
+    render();
+  });
+
+  document.getElementById("tkSearch").addEventListener("input", function(e){
+    state.q = e.target.value.trim().toLowerCase();
+    render();
+  });
+
+  document.addEventListener("click", function(e){
+    var card = e.target.closest("[data-id]"); if (!card) return;
+    var t = TOOLS.filter(function(x){return x.id===card.dataset.id})[0];
+    if (t && !t.live){ e.preventDefault(); open(t); }
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

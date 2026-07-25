@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#050B1D">
+<title>Heads Up — Play</title>
+<script src="../app-version.js"></script>
+<script>(function(){if(window.ensureAppVersionInUrl)window.ensureAppVersionInUrl();})();</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://api.fontshare.com/v2/css?f[]=general-sans@500,600,700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#050B1D; --text:#F5F7FF; --text-2:#B6C0D9; --muted:#7D8AA8;
+  --line:rgba(124,148,205,.18); --coral:#F45E68; --amber:#F4A62A; --mint:#35C796; --blue:#3B6CFF;
+  --font:"Inter",ui-sans-serif,system-ui,sans-serif;
+  --font-display:"General Sans","Inter",sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;overflow:hidden;color-scheme:dark}
+body{
+  font-family:var(--font);color:var(--text);
+  background:
+    radial-gradient(circle at 30% 0%,rgba(244,166,42,.18),transparent 42%),
+    radial-gradient(circle at 90% 80%,rgba(59,108,255,.12),transparent 40%),
+    var(--bg);
+  -webkit-font-smoothing:antialiased;touch-action:manipulation;
+  user-select:none;-webkit-user-select:none;
+}
+button{font:inherit;color:inherit;cursor:pointer;border:none}
+.hidden{display:none!important}
+.screen{
+  position:fixed;inset:0;display:flex;flex-direction:column;
+  padding:max(16px,env(safe-area-inset-top)) 18px max(18px,env(safe-area-inset-bottom));
+}
+.center{align-items:center;justify-content:center;text-align:center;gap:14px}
+h1{margin:0;font:700 clamp(28px,8vw,40px)/1.15 var(--font-display);letter-spacing:-.03em}
+.sub{margin:0;max-width:28rem;color:var(--text-2);font:500 15px/1.45 var(--font)}
+.steps{margin:8px 0 0;padding:0;list-style:none;width:min(360px,100%);text-align:left}
+.steps li{
+  display:flex;gap:12px;align-items:flex-start;padding:10px 0;
+  border-bottom:1px solid rgba(130,150,200,.1);font:500 14px/1.4 var(--font);color:var(--text-2);
+}
+.steps li:last-child{border-bottom:none}
+.steps .n{
+  flex:none;width:26px;height:26px;border-radius:8px;display:grid;place-items:center;
+  background:rgba(244,166,42,.16);color:#F8D48A;font:700 12px/1 var(--font);
+}
+.btn{
+  width:min(320px,100%);height:54px;border-radius:14px;font:700 16px/1 var(--font);
+  color:#1a1205;background:linear-gradient(135deg,#F4A62A,#E08E12);
+  box-shadow:0 12px 28px -10px rgba(244,166,42,.55);
+}
+.btn-ghost{
+  width:min(320px,100%);height:48px;border-radius:14px;margin-top:8px;
+  background:transparent;border:1px solid var(--line);color:var(--text-2);font:600 14px/1 var(--font);
+  box-shadow:none;
+}
+.err{color:#FFB4B9;font:600 14px/1.4 var(--font);max-width:22rem}
+.countdown-num{
+  font:700 clamp(96px,28vw,160px)/1 var(--font-display);letter-spacing:-.04em;
+  text-shadow:0 0 40px rgba(244,166,42,.35);
+}
+.play-top{
+  display:flex;justify-content:space-between;align-items:center;gap:12px;
+  font:650 14px/1 var(--font);color:var(--text-2);
+}
+.timer{
+  font:700 clamp(28px,7vw,40px)/1 var(--font-display);font-variant-numeric:tabular-nums;
+  color:#F8D48A;
+}
+.timer.warn{color:#FFB4B9;animation:pulse .7s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.55}}
+.word-wrap{
+  flex:1;display:flex;align-items:center;justify-content:center;padding:12px 4px;min-height:0;
+}
+.word{
+  font:700 clamp(36px,11vw,72px)/1.1 var(--font-display);letter-spacing:-.03em;
+  text-align:center;word-break:break-word;max-width:100%;
+  transition:transform .18s ease,opacity .18s ease;
+}
+.word.flash-ok{color:#9FE7C8}
+.word.flash-pass{color:#F8D48A;opacity:.75}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.act{
+  min-height:72px;border-radius:18px;font:700 18px/1 var(--font-display);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;
+}
+.act span{font:600 11px/1 var(--font);letter-spacing:.06em;text-transform:uppercase;opacity:.75}
+.act.pass{background:linear-gradient(135deg,#F4A62A,#C87810);color:#1a1205}
+.act.got{background:linear-gradient(135deg,#35C796,#1F9A70);color:#fff}
+.act:active{filter:brightness(.92);transform:scale(.98)}
+.score-big{font:700 clamp(56px,16vw,96px)/1 var(--font-display);color:#9FE7C8}
+.meta{color:var(--muted);font:500 14px/1.4 var(--font)}
+.chip-row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;max-width:360px}
+.chip{
+  padding:6px 10px;border-radius:999px;font:600 12px/1 var(--font);
+  background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--text-2);
+}
+.chip.ok{background:rgba(53,199,150,.14);border-color:rgba(53,199,150,.35);color:#9FE7C8}
+.flash-overlay{
+  pointer-events:none;position:fixed;inset:0;opacity:0;transition:opacity .12s;
+}
+.flash-overlay.on{opacity:1}
+.flash-overlay.ok{background:rgba(53,199,150,.22)}
+.flash-overlay.pass{background:rgba(244,166,42,.18)}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+<div class="flash-overlay" id="flash"></div>
+
+<section class="screen center" id="viewBoot">
+  <p class="sub">Loading…</p>
+</section>
+
+<section class="screen center hidden" id="viewErr">
+  <h1>No pack found</h1>
+  <p class="err">Scan the QR code from the board again, or ask your teacher to relaunch Heads Up.</p>
+</section>
+
+<section class="screen center hidden" id="viewReady">
+  <h1 id="readyTitle">Heads Up</h1>
+  <p class="sub" id="readySub">One phone per pair. Hold it on your forehead so your partner can see the word.</p>
+  <ol class="steps">
+    <li><span class="n">1</span><span>Partner describes the word (no saying it).</span></li>
+    <li><span class="n">2</span><span>You guess out loud.</span></li>
+    <li><span class="n">3</span><span>Partner taps <strong>Got it</strong> or <strong>Pass</strong>.</span></li>
+  </ol>
+  <p class="meta" id="readyMeta"></p>
+  <button type="button" class="btn" id="btnStart">Start round</button>
+</section>
+
+<section class="screen center hidden" id="viewCount">
+  <div class="countdown-num" id="countNum">3</div>
+  <p class="sub">Hold the phone to your forehead</p>
+</section>
+
+<section class="screen hidden" id="viewPlay">
+  <div class="play-top">
+    <span id="playProgress">1 / 10</span>
+    <span class="timer" id="playTimer">0:60</span>
+  </div>
+  <div class="word-wrap"><div class="word" id="playWord">—</div></div>
+  <div class="actions">
+    <button type="button" class="act pass" id="btnPass">Pass<span>skip</span></button>
+    <button type="button" class="act got" id="btnGot">Got it<span>correct</span></button>
+  </div>
+</section>
+
+<section class="screen center hidden" id="viewDone">
+  <p class="meta" id="doneTitle">Round over</p>
+  <div class="score-big" id="doneScore">0</div>
+  <p class="sub" id="doneSub">words correct</p>
+  <div class="chip-row" id="doneChips"></div>
+  <button type="button" class="btn" id="btnAgain" style="margin-top:18px">Play again</button>
+  <button type="button" class="btn-ghost" id="btnHow">How to play</button>
+</section>
+
+<script>
+(function () {
+  "use strict";
+
+  var $ = function (id) { return document.getElementById(id); };
+  var pack = null;
+  var deck = [];
+  var index = 0;
+  var correct = [];
+  var passed = [];
+  var secondsLeft = 60;
+  var timerId = null;
+  var countId = null;
+  var locking = false;
+
+  function show(id) {
+    ["viewBoot", "viewErr", "viewReady", "viewCount", "viewPlay", "viewDone"].forEach(function (v) {
+      $(v).classList.toggle("hidden", v !== id);
+    });
+  }
+
+  function b64urlDecode(str) {
+    var s = String(str || "").replace(/-/g, "+").replace(/_/g, "/");
+    while (s.length % 4) s += "=";
+    var bin = atob(s);
+    try {
+      return decodeURIComponent(Array.prototype.map.call(bin, function (c) {
+        return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
+      }).join(""));
+    } catch (e) {
+      return bin;
+    }
+  }
+
+  function parsePack() {
+    var raw = "";
+    try {
+      var hash = (location.hash || "").replace(/^#/, "");
+      if (hash.indexOf("p=") === 0) raw = hash.slice(2);
+      else if (hash) raw = hash;
+      if (!raw) {
+        var q = new URLSearchParams(location.search);
+        raw = q.get("p") || "";
+      }
+    } catch (e) {}
+    if (!raw) return null;
+    try {
+      var data = JSON.parse(b64urlDecode(raw));
+      var words = Array.isArray(data.w) ? data.w : [];
+      words = words.map(function (w) { return String(w || "").trim(); }).filter(Boolean);
+      if (!words.length) return null;
+      var secs = parseInt(data.s, 10);
+      if (!isFinite(secs) || secs < 15) secs = 60;
+      if (secs > 180) secs = 180;
+      return {
+        title: String(data.t || "Heads Up").trim() || "Heads Up",
+        seconds: secs,
+        words: words
+      };
+    } catch (e2) {
+      return null;
+    }
+  }
+
+  function shuffle(arr) {
+    var a = arr.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1));
+      var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  function fmt(sec) {
+    var m = Math.floor(sec / 60);
+    var s = sec % 60;
+    return m + ":" + (s < 10 ? "0" : "") + s;
+  }
+
+  function stopTimer() {
+    if (timerId) { clearInterval(timerId); timerId = null; }
+    if (countId) { clearInterval(countId); countId = null; }
+  }
+
+  function flash(kind) {
+    var el = $("flash");
+    el.className = "flash-overlay on " + kind;
+    setTimeout(function () { el.className = "flash-overlay"; }, 160);
+  }
+
+  function renderReady() {
+    $("readyTitle").textContent = pack.title;
+    $("readyMeta").textContent = pack.words.length + " words · " + pack.seconds + " seconds";
+    show("viewReady");
+  }
+
+  function startCountdown() {
+    stopTimer();
+    show("viewCount");
+    var n = 3;
+    $("countNum").textContent = String(n);
+    countId = setInterval(function () {
+      n -= 1;
+      if (n <= 0) {
+        clearInterval(countId);
+        countId = null;
+        beginPlay();
+        return;
+      }
+      $("countNum").textContent = String(n);
+    }, 800);
+  }
+
+  function beginPlay() {
+    deck = shuffle(pack.words);
+    index = 0;
+    correct = [];
+    passed = [];
+    locking = false;
+    secondsLeft = pack.seconds;
+    show("viewPlay");
+    showWord();
+    $("playTimer").textContent = fmt(secondsLeft);
+    $("playTimer").classList.remove("warn");
+    stopTimer();
+    timerId = setInterval(function () {
+      secondsLeft -= 1;
+      $("playTimer").textContent = fmt(Math.max(0, secondsLeft));
+      if (secondsLeft <= 10) $("playTimer").classList.add("warn");
+      if (secondsLeft <= 0) endRound();
+    }, 1000);
+  }
+
+  function showWord() {
+    if (index >= deck.length) {
+      endRound();
+      return;
+    }
+    $("playProgress").textContent = (index + 1) + " / " + deck.length;
+    var w = $("playWord");
+    w.className = "word";
+    w.textContent = deck[index];
+  }
+
+  function advance(gotIt) {
+    if (locking || $("viewPlay").classList.contains("hidden")) return;
+    locking = true;
+    var word = deck[index];
+    if (gotIt) {
+      correct.push(word);
+      flash("ok");
+      $("playWord").className = "word flash-ok";
+    } else {
+      passed.push(word);
+      flash("pass");
+      $("playWord").className = "word flash-pass";
+    }
+    setTimeout(function () {
+      index += 1;
+      locking = false;
+      if (index >= deck.length || secondsLeft <= 0) endRound();
+      else showWord();
+    }, 220);
+  }
+
+  function endRound() {
+    stopTimer();
+    $("doneTitle").textContent = pack.title;
+    $("doneScore").textContent = String(correct.length);
+    $("doneSub").textContent = correct.length === 1 ? "word correct" : "words correct";
+    var chips = correct.slice(0, 24).map(function (w) {
+      return '<span class="chip ok">' + esc(w) + "</span>";
+    }).join("");
+    if (passed.length) {
+      chips += passed.slice(0, 12).map(function (w) {
+        return '<span class="chip">' + esc(w) + "</span>";
+      }).join("");
+    }
+    $("doneChips").innerHTML = chips || '<span class="meta">No words this round</span>';
+    show("viewDone");
+  }
+
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c];
+    });
+  }
+
+  // Optional tilt controls (same idea as Heads Up): tip forward = pass, tip back = got it
+  var tiltReady = false;
+  var lastTilt = 0;
+  function onOrient(e) {
+    if ($("viewPlay").classList.contains("hidden") || locking) return;
+    var beta = e.beta;
+    if (beta == null) return;
+    var now = Date.now();
+    if (now - lastTilt < 900) return;
+    if (!tiltReady) {
+      if (Math.abs(beta) < 25) tiltReady = true;
+      return;
+    }
+    if (beta > 55) {
+      lastTilt = now;
+      tiltReady = false;
+      advance(true);
+    } else if (beta < -35) {
+      lastTilt = now;
+      tiltReady = false;
+      advance(false);
+    }
+  }
+
+  function tryEnableTilt() {
+    if (typeof DeviceOrientationEvent === "undefined") return;
+    var start = function () {
+      window.addEventListener("deviceorientation", onOrient, true);
+    };
+    if (typeof DeviceOrientationEvent.requestPermission === "function") {
+      DeviceOrientationEvent.requestPermission().then(function (state) {
+        if (state === "granted") start();
+      }).catch(function () {});
+    } else {
+      start();
+    }
+  }
+
+  $("btnStart").addEventListener("click", function () {
+    tryEnableTilt();
+    startCountdown();
+  });
+  $("btnGot").addEventListener("click", function () { advance(true); });
+  $("btnPass").addEventListener("click", function () { advance(false); });
+  $("btnAgain").addEventListener("click", startCountdown);
+  $("btnHow").addEventListener("click", renderReady);
+
+  pack = parsePack();
+  if (!pack) show("viewErr");
+  else renderReady();
+})();
+</script>
+</body>
+</html>

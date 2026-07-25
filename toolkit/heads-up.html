@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Heads Up — Classroom Toolkit</title>
+<script src="../app-version.js"></script>
+<script>(function(){if(window.ensureAppVersionInUrl)window.ensureAppVersionInUrl();})();</script>
+<script src="../config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../supabase-init.js"></script>
+<script src="../allowlist-check.js"></script>
+<script>window.__authGuardLoginPath='../login.html';</script>
+<script src="../auth-guard.js"></script>
+<script src="../embed-chrome.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://api.fontshare.com/v2/css?f[]=general-sans@500,600,700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#050B1D; --bg-2:#081126; --surface:#0C1731;
+  --line:rgba(124,148,205,.16); --line-strong:rgba(129,156,224,.28);
+  --text:#F5F7FF; --text-2:#B6C0D9; --muted:#7D8AA8;
+  --amber:#F4A62A; --coral:#F45E68; --mint:#35C796; --blue:#3B6CFF;
+  --font:"Inter",ui-sans-serif,system-ui,sans-serif;
+  --font-display:"General Sans","Inter",sans-serif;
+}
+*{box-sizing:border-box}
+html{color-scheme:dark}
+body{
+  margin:0;font-family:var(--font);color:var(--text);min-height:100vh;
+  background:
+    radial-gradient(circle at 18% 0%,rgba(244,166,42,.14),transparent 40%),
+    radial-gradient(circle at 92% 20%,rgba(59,108,255,.10),transparent 34%),
+    var(--bg);
+  -webkit-font-smoothing:antialiased;
+}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:inherit;text-decoration:none}
+.hidden{display:none!important}
+
+.app{min-height:100vh;display:flex;flex-direction:column}
+.top{
+  display:flex;align-items:center;gap:14px;padding:14px 20px;
+  border-bottom:1px solid rgba(130,150,200,.14);
+  background:rgba(5,11,29,.9);backdrop-filter:blur(16px);position:sticky;top:0;z-index:20;
+}
+.back{
+  display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 12px;border-radius:10px;
+  border:1px solid var(--line);background:rgba(255,255,255,.02);color:var(--text-2);font:500 13px/1 var(--font);
+}
+.back:hover{color:#fff;border-color:var(--line-strong)}
+.top h1{margin:0;font:650 17px/1.2 var(--font-display);letter-spacing:-.02em}
+.top .sub{margin:0;font:500 12px/1.2 var(--font);color:var(--muted)}
+.top-actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+.btn{
+  height:40px;min-height:44px;padding:0 14px;border-radius:10px;border:1px solid var(--line);
+  background:#0D1831;color:var(--text-2);font:600 13.5px/1 var(--font);
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+}
+.btn:hover{color:#fff;border-color:var(--line-strong)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-primary{
+  border:none;color:#1a1205;
+  background:linear-gradient(135deg,#F4A62A,#E08E12);
+  box-shadow:0 8px 20px -8px rgba(244,166,42,.5);
+}
+.btn-primary:hover{filter:brightness(1.06);color:#1a1205}
+.btn-danger{border-color:rgba(244,94,104,.4);color:#FFB4B9}
+.btn-ghost{background:transparent}
+
+.shell{flex:1;padding:22px 20px 40px;width:min(920px,100%);margin:0 auto}
+.hero{
+  display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:14px;
+  margin-bottom:18px;
+}
+.hero h2{margin:0;font:700 26px/1.15 var(--font-display);letter-spacing:-.03em}
+.hero p{margin:6px 0 0;color:var(--muted);font:500 14px/1.4 var(--font);max-width:36rem}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
+.card{
+  border-radius:16px;padding:16px;border:1px solid var(--line);
+  background:linear-gradient(150deg,#0D1834,#081126);
+  display:flex;flex-direction:column;gap:10px;min-height:150px;
+}
+.card h3{margin:0;font:650 17px/1.25 var(--font-display)}
+.card .meta{color:var(--muted);font:500 12.5px/1.35 var(--font)}
+.card .row{display:flex;gap:8px;margin-top:auto;flex-wrap:wrap}
+.empty{
+  border:1px dashed rgba(130,150,200,.28);border-radius:16px;padding:36px 20px;
+  text-align:center;color:var(--muted);font:500 14px/1.45 var(--font);
+}
+
+.form{display:grid;gap:14px}
+label{display:block;font:600 11px/1 var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+input,textarea,select{
+  width:100%;border-radius:12px;border:1px solid var(--line);background:#0A142C;
+  padding:12px 14px;outline:none;
+}
+input,select{height:46px}
+textarea{min-height:220px;resize:vertical;line-height:1.45}
+input:focus,textarea:focus,select:focus{border-color:rgba(244,166,42,.5);box-shadow:0 0 0 3px rgba(244,166,42,.14)}
+.hint{margin:6px 0 0;color:var(--muted);font:500 12.5px/1.4 var(--font)}
+.warn{color:#F8D48A;font:600 13px/1.4 var(--font);margin:0}
+.form-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+
+.lobby{
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,320px);gap:24px;align-items:start;
+}
+@media(max-width:760px){.lobby{grid-template-columns:1fr}}
+.lobby-copy h2{margin:0 0 8px;font:700 clamp(28px,5vw,40px)/1.1 var(--font-display)}
+.lobby-copy p{margin:0 0 12px;color:var(--text-2);font:500 15px/1.45 var(--font)}
+.lobby-steps{margin:0;padding:0;list-style:none}
+.lobby-steps li{
+  display:flex;gap:12px;padding:10px 0;border-bottom:1px solid rgba(130,150,200,.1);
+  color:var(--text-2);font:500 14px/1.4 var(--font);
+}
+.lobby-steps .n{
+  flex:none;width:28px;height:28px;border-radius:8px;display:grid;place-items:center;
+  background:rgba(244,166,42,.16);color:#F8D48A;font:700 12px/1 var(--font);
+}
+.qr-panel{
+  border-radius:20px;padding:18px;border:1px solid var(--line);
+  background:linear-gradient(160deg,#101B38,#081126);text-align:center;
+}
+.qr-panel img{
+  width:min(240px,100%);height:auto;border-radius:12px;background:#fff;padding:10px;
+  display:block;margin:0 auto 12px;
+}
+.join-url{font:500 12px/1.4 var(--font);color:var(--muted);word-break:break-all}
+.toast{
+  position:fixed;bottom:22px;left:50%;transform:translateX(-50%);
+  background:#122048;border:1px solid var(--line-strong);color:#fff;
+  padding:10px 16px;border-radius:999px;font:600 13px/1 var(--font);
+  box-shadow:0 12px 30px rgba(0,0,0,.35);z-index:50;opacity:0;pointer-events:none;
+  transition:opacity .2s;
+}
+.toast.on{opacity:1}
+body.embedded .back{display:none}
+body.lobby-fs .top,body.lobby-fs .shell > .hero{display:none}
+body.lobby-fs .shell{width:min(1100px,100%);padding-top:28px}
+</style>
+</head>
+<body>
+<script>(function(){
+  try{
+    var q=new URLSearchParams(location.search);
+    if(q.get('embed')==='1'||q.get('embed')==='true'||sessionStorage.getItem('fh-embed')==='1'){
+      document.body.classList.add('embedded');
+    }
+  }catch(e){}
+})();</script>
+
+<div class="app">
+  <header class="top">
+    <a class="back" href="../classroom_toolkit.html">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      Toolkit
+    </a>
+    <div>
+      <h1>Heads Up</h1>
+      <p class="sub">Vocab on phones — pairs scan and play</p>
+    </div>
+    <div class="top-actions" id="topActions"></div>
+  </header>
+
+  <main class="shell">
+    <section id="viewLibrary"></section>
+    <section class="hidden" id="viewEditor"></section>
+    <section class="hidden" id="viewLobby"></section>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  var STORE_KEY = "tk_heads_up_packs_v1";
+  var MAX_QR_CHARS = 1600;
+  var state = { packs: [], editingId: null, launchPack: null };
+  var toastTimer = null;
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
+      return ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c];
+    });
+  }
+
+  function uid() {
+    return "p_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+
+  function toast(msg) {
+    var el = $("toast");
+    el.textContent = msg;
+    el.classList.add("on");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { el.classList.remove("on"); }, 2200);
+  }
+
+  function loadPacks() {
+    try {
+      var raw = JSON.parse(localStorage.getItem(STORE_KEY) || "[]");
+      state.packs = Array.isArray(raw) ? raw : [];
+    } catch (e) {
+      state.packs = [];
+    }
+  }
+
+  function savePacks() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(state.packs)); } catch (e) {}
+  }
+
+  function parseWords(text) {
+    return String(text || "")
+      .split(/[\n,;]+/)
+      .map(function (w) { return w.trim(); })
+      .filter(Boolean)
+      .filter(function (w, i, a) { return a.indexOf(w) === i; });
+  }
+
+  function b64urlEncode(str) {
+    var utf8 = unescape(encodeURIComponent(str));
+    var b64 = btoa(utf8);
+    return b64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  }
+
+  function encodePack(pack) {
+    var payload = JSON.stringify({
+      t: pack.title,
+      s: pack.seconds || 60,
+      w: pack.words
+    });
+    return b64urlEncode(payload);
+  }
+
+  function playUrlForPack(pack) {
+    var base = location.href.replace(/[^/]*$/, "heads-up-play.html");
+    base = base.split("#")[0].split("?")[0];
+    if (window.withAppVersion) base = window.withAppVersion(base);
+    return base + "#p=" + encodePack(pack);
+  }
+
+  function show(view) {
+    ["viewLibrary", "viewEditor", "viewLobby"].forEach(function (id) {
+      $(id).classList.toggle("hidden", id !== view);
+    });
+    document.body.classList.toggle("lobby-fs", view === "viewLobby");
+  }
+
+  function setTop(html) {
+    $("topActions").innerHTML = html || "";
+  }
+
+  function renderLibrary() {
+    show("viewLibrary");
+    setTop('<button type="button" class="btn btn-primary" id="btnNew">New pack</button>');
+    var el = $("viewLibrary");
+    el.innerHTML =
+      '<div class="hero">' +
+        "<div><h2>Word packs</h2>" +
+        "<p>Build a vocabulary list, launch on the board, and pupils scan the QR to play in pairs — no login, no website browsing.</p></div>" +
+      "</div>";
+
+    if (!state.packs.length) {
+      el.innerHTML +=
+        '<div class="empty">No packs yet. Create one with your lesson vocabulary, then launch it for the class.</div>';
+    } else {
+      el.innerHTML +=
+        '<div class="grid">' +
+        state.packs.map(function (p) {
+          return (
+            '<article class="card" data-id="' + esc(p.id) + '">' +
+              "<h3>" + esc(p.title) + "</h3>" +
+              '<p class="meta">' + p.words.length + " words · " + (p.seconds || 60) + "s rounds</p>" +
+              '<div class="row">' +
+                '<button type="button" class="btn btn-primary btn-launch">Launch</button>' +
+                '<button type="button" class="btn btn-edit">Edit</button>' +
+                '<button type="button" class="btn btn-ghost btn-del">Delete</button>' +
+              "</div>" +
+            "</article>"
+          );
+        }).join("") +
+        "</div>";
+    }
+
+    var btnNew = document.getElementById("btnNew");
+    if (btnNew) btnNew.onclick = function () { openEditor(null); };
+
+    el.querySelectorAll(".card").forEach(function (card) {
+      var id = card.getAttribute("data-id");
+      var pack = state.packs.filter(function (p) { return p.id === id; })[0];
+      if (!pack) return;
+      card.querySelector(".btn-launch").onclick = function () { openLobby(pack); };
+      card.querySelector(".btn-edit").onclick = function () { openEditor(pack); };
+      card.querySelector(".btn-del").onclick = function () {
+        if (!confirm('Delete "' + pack.title + '"?')) return;
+        state.packs = state.packs.filter(function (p) { return p.id !== id; });
+        savePacks();
+        renderLibrary();
+        toast("Pack deleted");
+      };
+    });
+  }
+
+  function openEditor(pack) {
+    state.editingId = pack ? pack.id : null;
+    show("viewEditor");
+    setTop('<button type="button" class="btn btn-ghost" id="btnCancelEdit">Cancel</button>');
+    var wordsText = pack ? pack.words.join("\n") : "";
+    $("viewEditor").innerHTML =
+      '<div class="hero"><div><h2>' + (pack ? "Edit pack" : "New pack") + "</h2>" +
+      "<p>One word or phrase per line. Pupils will see these on their phone during the round.</p></div></div>" +
+      '<div class="form">' +
+        '<div><label for="edTitle">Title</label>' +
+        '<input id="edTitle" maxlength="80" placeholder="e.g. Drama keywords — Unit 2" value="' + esc(pack ? pack.title : "") + '"></div>' +
+        '<div><label for="edSecs">Round length</label>' +
+        '<select id="edSecs">' +
+          [30, 45, 60, 90, 120].map(function (s) {
+            var sel = (pack ? pack.seconds : 60) === s ? " selected" : "";
+            return '<option value="' + s + '"' + sel + ">" + s + " seconds</option>";
+          }).join("") +
+        "</select></div>" +
+        '<div><label for="edWords">Vocabulary</label>' +
+        '<textarea id="edWords" placeholder="motif&#10;blocking&#10;aside&#10;proxemics">' + esc(wordsText) + "</textarea>" +
+        '<p class="hint">Commas or new lines both work. Duplicates are removed automatically.</p></div>' +
+        '<p class="warn hidden" id="edWarn"></p>' +
+        '<div class="form-actions">' +
+          '<button type="button" class="btn btn-primary" id="btnSave">Save pack</button>' +
+          '<button type="button" class="btn" id="btnSaveLaunch">Save &amp; launch</button>' +
+        "</div>" +
+      "</div>";
+
+    document.getElementById("btnCancelEdit").onclick = renderLibrary;
+
+    function collect() {
+      var title = $("edTitle").value.trim() || "Untitled pack";
+      var seconds = parseInt($("edSecs").value, 10) || 60;
+      var words = parseWords($("edWords").value);
+      if (words.length < 3) {
+        toast("Add at least 3 words");
+        return null;
+      }
+      var draft = {
+        id: state.editingId || uid(),
+        title: title,
+        seconds: seconds,
+        words: words,
+        updatedAt: Date.now()
+      };
+      var url = playUrlForPack(draft);
+      var warn = $("edWarn");
+      if (url.length > MAX_QR_CHARS) {
+        warn.classList.remove("hidden");
+        warn.textContent = "This list is quite long for a QR code (" + words.length + " words). Shorten it a little if phones struggle to scan.";
+      } else {
+        warn.classList.add("hidden");
+      }
+      return draft;
+    }
+
+    function persist(andLaunch) {
+      var draft = collect();
+      if (!draft) return;
+      var idx = state.packs.findIndex(function (p) { return p.id === draft.id; });
+      if (idx >= 0) state.packs[idx] = draft;
+      else state.packs.unshift(draft);
+      savePacks();
+      toast("Pack saved");
+      if (andLaunch) openLobby(draft);
+      else renderLibrary();
+    }
+
+    document.getElementById("btnSave").onclick = function () { persist(false); };
+    document.getElementById("btnSaveLaunch").onclick = function () { persist(true); };
+  }
+
+  function drawQr(url) {
+    var img = document.getElementById("lobbyQr");
+    if (!img) return;
+
+    function fallback() {
+      img.src = "https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=8&data=" + encodeURIComponent(url);
+    }
+
+    var lib = window.QRCode;
+    if (lib && typeof lib.toDataURL === "function") {
+      lib.toDataURL(url, {
+        width: 240,
+        margin: 1,
+        color: { dark: "#081126", light: "#ffffff" }
+      }, function (err, dataUrl) {
+        if (err || !dataUrl) fallback();
+        else img.src = dataUrl;
+      });
+      return;
+    }
+    fallback();
+  }
+
+  function openLobby(pack) {
+    state.launchPack = pack;
+    var url = playUrlForPack(pack);
+    show("viewLobby");
+    setTop(
+      '<button type="button" class="btn" id="btnCopy">Copy link</button>' +
+      '<button type="button" class="btn btn-ghost" id="btnCloseLobby">Close</button>'
+    );
+    $("viewLobby").innerHTML =
+      '<div class="lobby">' +
+        '<div class="lobby-copy">' +
+          "<h2>" + esc(pack.title) + "</h2>" +
+          "<p>One phone per pair. Scan the QR — the game opens straight away. No sign-in.</p>" +
+          '<ul class="lobby-steps">' +
+            "<li><span class=\"n\">1</span><span>Guesser holds the phone to their forehead.</span></li>" +
+            "<li><span class=\"n\">2</span><span>Partner sees the word and describes it.</span></li>" +
+            "<li><span class=\"n\">3</span><span>Tap <strong>Got it</strong> or <strong>Pass</strong> until the timer ends.</span></li>" +
+          "</ul>" +
+          '<p class="hint" style="margin-top:16px">' + pack.words.length + " words · " + (pack.seconds || 60) + " second rounds</p>" +
+          (url.length > MAX_QR_CHARS
+            ? '<p class="warn">QR is dense — if scanning fails, tap Copy link and share it another way, or shorten the word list.</p>'
+            : "") +
+        "</div>" +
+        '<div class="qr-panel">' +
+          '<img id="lobbyQr" alt="QR code to play Heads Up" width="240" height="240">' +
+          '<p class="join-url">' + esc(url) + "</p>" +
+        "</div>" +
+      "</div>";
+
+    drawQr(url);
+    document.getElementById("btnCloseLobby").onclick = renderLibrary;
+    document.getElementById("btnCopy").onclick = function () {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(function () { toast("Link copied"); }).catch(function () {
+          prompt("Copy this link:", url);
+        });
+      } else {
+        prompt("Copy this link:", url);
+      }
+    };
+  }
+
+  function boot() {
+    loadPacks();
+    if (!state.packs.length) {
+      state.packs = [{
+        id: uid(),
+        title: "Drama keywords (sample)",
+        seconds: 60,
+        words: ["motif", "blocking", "aside", "proxemics", "tableau", "monologue", "status", "gesture", "pace", "tension"],
+        updatedAt: Date.now()
+      }];
+      savePacks();
+    }
+    renderLibrary();
+  }
+
+  if (window.__authReady) boot();
+  else {
+    try { window.addEventListener("auth-guard-ready", boot, { once: true }); }
+    catch (e) { window.addEventListener("auth-guard-ready", boot); }
+    setTimeout(boot, 2500);
+  }
+})();
+</script>
+</body>
+</html>
