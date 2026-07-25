@@ -32,8 +32,9 @@ html{color-scheme:dark}
 body{
   margin:0;font-family:var(--font);color:var(--text);min-height:100vh;
   background:
-    radial-gradient(circle at 18% 0%,rgba(244,166,42,.14),transparent 40%),
-    radial-gradient(circle at 92% 20%,rgba(59,108,255,.10),transparent 34%),
+    radial-gradient(ellipse 50% 36% at 12% -8%,rgba(59,108,255,.26),transparent 55%),
+    radial-gradient(ellipse 46% 32% at 92% 0%,rgba(244,166,42,.2),transparent 52%),
+    radial-gradient(ellipse 55% 28% at 50% 108%,rgba(53,199,150,.1),transparent 55%),
     var(--bg);
   -webkit-font-smoothing:antialiased;
 }
@@ -42,11 +43,39 @@ button{cursor:pointer}
 a{color:inherit;text-decoration:none}
 .hidden{display:none!important}
 
-.app{min-height:100vh;display:flex;flex-direction:column}
+.sky{
+  position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;
+}
+.spark{
+  position:absolute;border-radius:50%;
+  background:radial-gradient(circle,#fff,rgba(255,210,120,.8) 40%,transparent 70%);
+  box-shadow:0 0 8px rgba(244,166,42,.65);
+  animation:twinkle ease-in-out infinite;
+}
+.spark.blue{
+  background:radial-gradient(circle,#fff,rgba(120,180,255,.85) 40%,transparent 70%);
+  box-shadow:0 0 8px rgba(59,108,255,.65);
+}
+@keyframes twinkle{
+  0%,100%{opacity:.2;transform:scale(.7)}
+  50%{opacity:1;transform:scale(1.2)}
+}
+.shoot{
+  position:absolute;width:2px;height:56px;border-radius:2px;
+  background:linear-gradient(to bottom,transparent,rgba(255,220,140,.95),transparent);
+  animation:shoot linear infinite;opacity:0;
+}
+@keyframes shoot{
+  0%{transform:translate3d(0,-8vh,0) rotate(22deg);opacity:0}
+  10%{opacity:.85}
+  100%{transform:translate3d(20vw,110vh,0) rotate(22deg);opacity:0}
+}
+
+.app{position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column}
 .top{
   display:flex;align-items:center;gap:14px;padding:14px 20px;
   border-bottom:1px solid rgba(130,150,200,.14);
-  background:rgba(5,11,29,.9);backdrop-filter:blur(16px);position:sticky;top:0;z-index:20;
+  background:rgba(5,11,29,.88);backdrop-filter:blur(16px);position:sticky;top:0;z-index:20;
 }
 .back{
   display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 12px;border-radius:10px;
@@ -57,10 +86,12 @@ a{color:inherit;text-decoration:none}
 .top .sub{margin:0;font:500 12px/1.2 var(--font);color:var(--muted)}
 .top-brand{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:0}
 .top-logo{
-  display:block;height:clamp(40px,5.5vh,56px);width:auto;max-width:min(46vw,300px);
+  display:block;height:clamp(44px,6vh,62px);width:auto;max-width:min(52vw,340px);
   object-fit:contain;
-  filter:drop-shadow(0 0 14px rgba(244,166,42,.35));
+  filter:drop-shadow(0 0 16px rgba(244,166,42,.4)) drop-shadow(0 0 18px rgba(59,108,255,.3));
+  animation:logoFloat 3.8s ease-in-out infinite;
 }
+@keyframes logoFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
 .top-actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 
 .btn{
@@ -79,19 +110,44 @@ a{color:inherit;text-decoration:none}
 .btn-danger{border-color:rgba(244,94,104,.4);color:#FFB4B9}
 .btn-ghost{background:transparent}
 
-.shell{flex:1;padding:22px 20px 40px;width:min(920px,100%);margin:0 auto}
+.shell{flex:1;padding:22px 20px 40px;width:min(980px,100%);margin:0 auto}
 .hero{
-  display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:14px;
-  margin-bottom:18px;
+  display:grid;grid-template-columns:minmax(0,1.1fr) minmax(220px,.9fr);gap:18px;
+  align-items:center;margin-bottom:22px;
 }
-.hero h2{margin:0;font:700 26px/1.15 var(--font-display);letter-spacing:-.03em}
-.hero p{margin:6px 0 0;color:var(--muted);font:500 14px/1.4 var(--font);max-width:36rem}
+.hero h2{margin:0;font:800 clamp(28px,4vw,40px)/1.1 var(--font-display);letter-spacing:-.03em}
+.hero p{margin:8px 0 0;color:var(--muted);font:500 15px/1.45 var(--font);max-width:36rem}
+.hero-visual{
+  position:relative;display:grid;place-items:center;min-height:160px;
+}
+.hero-visual::before{
+  content:"";position:absolute;width:min(78%,280px);aspect-ratio:1;border-radius:50%;
+  background:radial-gradient(circle,rgba(244,166,42,.32),rgba(59,108,255,.14) 45%,transparent 70%);
+  filter:blur(10px);animation:glowPulse 2.6s ease-in-out infinite alternate;
+}
+@keyframes glowPulse{to{opacity:.75;transform:scale(1.1)}}
+.hero-logo{
+  position:relative;width:min(100%,420px);height:auto;
+  filter:drop-shadow(0 0 24px rgba(56,189,248,.4)) drop-shadow(0 0 28px rgba(244,166,42,.35)) drop-shadow(0 14px 28px rgba(0,0,0,.4));
+  animation:heroLogoIn .75s cubic-bezier(.2,.8,.2,1) both, logoFloat 3.8s ease-in-out 0.75s infinite;
+}
+@keyframes heroLogoIn{from{opacity:0;transform:translateY(16px) scale(.92)}to{opacity:1;transform:none}}
+@media(max-width:760px){
+  .hero{grid-template-columns:1fr;gap:12px}
+  .hero-visual{order:-1;min-height:0}
+  .hero-logo{width:min(100%,340px)}
+}
 
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px}
 .card{
   border-radius:16px;padding:16px;border:1px solid var(--line);
-  background:linear-gradient(150deg,#0D1834,#081126);
+  background:linear-gradient(150deg,rgba(244,166,42,.08),#081126 55%);
   display:flex;flex-direction:column;gap:10px;min-height:150px;
+  transition:transform .16s,border-color .16s,box-shadow .16s;
+}
+.card:hover{
+  transform:translateY(-3px);border-color:rgba(244,166,42,.4);
+  box-shadow:0 12px 28px -14px rgba(244,166,42,.45);
 }
 .card h3{margin:0;font:650 17px/1.25 var(--font-display)}
 .card .meta{color:var(--muted);font:500 12.5px/1.35 var(--font)}
@@ -115,29 +171,51 @@ input:focus,textarea:focus,select:focus{border-color:rgba(244,166,42,.5);box-sha
 .form-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
 
 .lobby{
-  display:grid;grid-template-columns:minmax(0,1fr) minmax(260px,320px);gap:24px;align-items:start;
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(280px,360px);gap:28px;align-items:center;
 }
 @media(max-width:760px){.lobby{grid-template-columns:1fr}}
-.lobby-copy h2{margin:0 0 8px;font:700 clamp(28px,5vw,40px)/1.1 var(--font-display)}
-.lobby-copy p{margin:0 0 12px;color:var(--text-2);font:500 15px/1.45 var(--font)}
+.lobby-brand{width:min(380px,100%);margin:0 0 14px;position:relative}
+.lobby-brand img{
+  width:100%;height:auto;display:block;
+  filter:drop-shadow(0 0 26px rgba(56,189,248,.45)) drop-shadow(0 0 30px rgba(244,166,42,.4));
+  animation:logoFloat 3.5s ease-in-out infinite;
+}
+.lobby-copy h2{
+  margin:0 0 8px;font:800 clamp(30px,5vw,48px)/1.05 var(--font-display);
+  letter-spacing:-.03em;
+  text-shadow:0 0 24px rgba(244,166,42,.2);
+}
+.lobby-copy p{margin:0 0 12px;color:var(--text-2);font:500 16px/1.45 var(--font)}
 .lobby-steps{margin:0;padding:0;list-style:none}
 .lobby-steps li{
   display:flex;gap:12px;padding:10px 0;border-bottom:1px solid rgba(130,150,200,.1);
-  color:var(--text-2);font:500 14px/1.4 var(--font);
+  color:var(--text-2);font:500 15px/1.4 var(--font);
 }
 .lobby-steps .n{
   flex:none;width:28px;height:28px;border-radius:8px;display:grid;place-items:center;
   background:rgba(244,166,42,.16);color:#F8D48A;font:700 12px/1 var(--font);
 }
 .qr-panel{
-  border-radius:20px;padding:18px;border:1px solid var(--line);
-  background:linear-gradient(160deg,#101B38,#081126);text-align:center;
+  position:relative;border-radius:24px;padding:22px;border:1px solid rgba(244,166,42,.35);
+  background:
+    radial-gradient(circle at 50% 0%,rgba(244,166,42,.16),transparent 55%),
+    linear-gradient(160deg,#101B38,#081126);
+  text-align:center;
+  box-shadow:0 0 40px rgba(244,166,42,.15),0 20px 40px rgba(0,0,0,.35);
+  animation:qrGlow 2.4s ease-in-out infinite alternate;
+}
+@keyframes qrGlow{
+  to{box-shadow:0 0 54px rgba(59,108,255,.22),0 0 40px rgba(244,166,42,.2),0 20px 40px rgba(0,0,0,.35)}
+}
+.qr-panel::before{
+  content:"SCAN TO PLAY";display:block;margin:0 0 12px;
+  font:800 12px/1 var(--font);letter-spacing:.18em;color:#F8D48A;
 }
 .qr-panel img{
-  width:min(240px,100%);height:auto;border-radius:12px;background:#fff;padding:10px;
-  display:block;margin:0 auto 12px;
+  width:min(260px,100%);height:auto;border-radius:14px;background:#fff;padding:12px;
+  display:block;margin:0 auto;
+  box-shadow:0 0 0 4px rgba(244,166,42,.2);
 }
-.join-url{font:500 12px/1.4 var(--font);color:var(--muted);word-break:break-all}
 .toast{
   position:fixed;bottom:22px;left:50%;transform:translateX(-50%);
   background:#122048;border:1px solid var(--line-strong);color:#fff;
@@ -149,6 +227,15 @@ input:focus,textarea:focus,select:focus{border-color:rgba(244,166,42,.5);box-sha
 body.embedded .back{display:inline-flex}
 body.lobby-fs .top .sub{display:none}
 body.lobby-fs .shell{width:min(1100px,100%);padding-top:20px}
+body.lobby-fs{
+  background:
+    radial-gradient(ellipse 55% 40% at 15% -10%,rgba(59,108,255,.32),transparent 55%),
+    radial-gradient(ellipse 50% 36% at 90% 0%,rgba(244,166,42,.28),transparent 52%),
+    var(--bg);
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
 </style>
 </head>
 <body>
@@ -161,6 +248,7 @@ body.lobby-fs .shell{width:min(1100px,100%);padding-top:20px}
   }catch(e){}
 })();</script>
 
+<div class="sky" id="sky" aria-hidden="true"></div>
 <div class="app">
   <header class="top">
     <a class="back" id="homeLink" href="../classroom_toolkit.html" title="Back to Classroom Toolkit">
@@ -188,11 +276,149 @@ body.lobby-fs .shell{width:min(1100px,100%);padding-top:20px}
   "use strict";
 
   var STORE_KEY = "tk_heads_up_packs_v1";
+  var SOUND_KEY = "tk_heads_up_host_sound";
   var MAX_QR_CHARS = 1600;
-  var state = { packs: [], editingId: null, launchPack: null };
+  var state = { packs: [], editingId: null, launchPack: null, sound: true, view: "library" };
   var toastTimer = null;
+  var loopTimer = null;
 
   var $ = function (id) { return document.getElementById(id); };
+
+  try { state.sound = localStorage.getItem(SOUND_KEY) !== "0"; } catch (e0) {}
+
+  function buildSky() {
+    var sky = $("sky");
+    if (!sky || sky.dataset.ready) return;
+    sky.dataset.ready = "1";
+    var html = "";
+    for (var i = 0; i < 32; i++) {
+      var size = 2 + Math.random() * 5;
+      html += '<span class="spark' + (Math.random() > 0.5 ? " blue" : "") +
+        '" style="width:' + size + "px;height:" + size + "px;left:" + (Math.random() * 100) +
+        "%;top:" + (Math.random() * 100) + "%;animation-duration:" + (1.5 + Math.random() * 2.8) +
+        "s;animation-delay:" + (Math.random() * 3) + 's"></span>';
+    }
+    for (var s = 0; s < 5; s++) {
+      html += '<span class="shoot" style="left:' + (8 + Math.random() * 75) +
+        "%;animation-duration:" + (2 + Math.random() * 2) +
+        "s;animation-delay:" + (Math.random() * 4) + 's"></span>';
+    }
+    sky.innerHTML = html;
+  }
+
+  function getAudioCtx() {
+    if (!getAudioCtx._ctx) {
+      var Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return null;
+      var ctx = new Ctx();
+      var master = ctx.createGain();
+      master.gain.value = 1;
+      master.connect(ctx.destination);
+      var bed = ctx.createGain();
+      bed.gain.value = 0;
+      bed.connect(master);
+      getAudioCtx._ctx = ctx;
+      getAudioCtx._master = master;
+      getAudioCtx._bed = bed;
+    }
+    var ctx = getAudioCtx._ctx;
+    if (ctx.state === "suspended") {
+      try { ctx.resume(); } catch (e) {}
+    }
+    return ctx;
+  }
+
+  function stopBed() {
+    if (loopTimer) { clearInterval(loopTimer); loopTimer = null; }
+    try {
+      var ctx = getAudioCtx._ctx;
+      var bed = getAudioCtx._bed;
+      if (!ctx || !bed) return;
+      var now = ctx.currentTime;
+      bed.gain.cancelScheduledValues(now);
+      bed.gain.setValueAtTime(Math.max(0.0001, bed.gain.value), now);
+      bed.gain.linearRampToValueAtTime(0.0001, now + 0.45);
+    } catch (e) {}
+  }
+
+  function startBed() {
+    if (!state.sound || state.view !== "lobby") { stopBed(); return; }
+    try {
+      var ctx = getAudioCtx();
+      if (!ctx) return;
+      var bed = getAudioCtx._bed;
+      var now = ctx.currentTime;
+      bed.gain.cancelScheduledValues(now);
+      bed.gain.setValueAtTime(Math.max(0.0001, bed.gain.value), now);
+      bed.gain.linearRampToValueAtTime(0.07, now + 0.6);
+      if (loopTimer) return;
+      var step = 0;
+      var pattern = [
+        [262, 330, 392],
+        [294, 370, 440],
+        [330, 415, 494],
+        [294, 370, 440]
+      ];
+      function pulse() {
+        if (!state.sound || state.view !== "lobby") { stopBed(); return; }
+        var c = getAudioCtx();
+        if (!c) return;
+        var t = c.currentTime;
+        var chord = pattern[step % pattern.length];
+        chord.forEach(function (freq, i) {
+          var o = c.createOscillator();
+          var g = c.createGain();
+          o.type = i === 0 ? "triangle" : "sine";
+          o.frequency.value = freq * (i === 0 ? 0.5 : 1);
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.exponentialRampToValueAtTime(i === 0 ? 0.03 : 0.015, t + 0.02);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + 0.28);
+          o.connect(g);
+          g.connect(bed);
+          o.start(t);
+          o.stop(t + 0.32);
+        });
+        if (step % 2 === 0) {
+          var click = c.createOscillator();
+          var cg = c.createGain();
+          click.type = "square";
+          click.frequency.value = 920;
+          cg.gain.setValueAtTime(0.0001, t);
+          cg.gain.exponentialRampToValueAtTime(0.01, t + 0.005);
+          cg.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+          click.connect(cg);
+          cg.connect(bed);
+          click.start(t);
+          click.stop(t + 0.07);
+        }
+        step += 1;
+      }
+      pulse();
+      loopTimer = setInterval(pulse, 280);
+    } catch (e2) {}
+  }
+
+  function soundBtnHtml() {
+    return '<button type="button" class="btn' + (state.sound ? " btn-primary" : "") +
+      '" id="btnSound" title="Music">' + (state.sound ? "Music on" : "Music off") + "</button>";
+  }
+
+  function wireSoundBtn() {
+    var btn = document.getElementById("btnSound");
+    if (!btn) return;
+    btn.onclick = function () {
+      state.sound = !state.sound;
+      try { localStorage.setItem(SOUND_KEY, state.sound ? "1" : "0"); } catch (e) {}
+      btn.textContent = state.sound ? "Music on" : "Music off";
+      btn.classList.toggle("btn-primary", state.sound);
+      if (state.sound) {
+        getAudioCtx();
+        startBed();
+      } else {
+        stopBed();
+      }
+    };
+  }
 
   function esc(s) {
     return String(s == null ? "" : s).replace(/[&<>"']/g, function (c) {
@@ -256,10 +482,13 @@ body.lobby-fs .shell{width:min(1100px,100%);padding-top:20px}
   }
 
   function show(view) {
+    state.view = view === "viewLobby" ? "lobby" : (view === "viewEditor" ? "editor" : "library");
     ["viewLibrary", "viewEditor", "viewLobby"].forEach(function (id) {
       $(id).classList.toggle("hidden", id !== view);
     });
     document.body.classList.toggle("lobby-fs", view === "viewLobby");
+    if (state.view === "lobby") startBed();
+    else stopBed();
   }
 
   function setTop(html) {
@@ -268,12 +497,14 @@ body.lobby-fs .shell{width:min(1100px,100%);padding-top:20px}
 
   function renderLibrary() {
     show("viewLibrary");
-    setTop('<button type="button" class="btn btn-primary" id="btnNew">New pack</button>');
+    setTop(soundBtnHtml() + '<button type="button" class="btn btn-primary" id="btnNew">New pack</button>');
+    wireSoundBtn();
     var el = $("viewLibrary");
     el.innerHTML =
       '<div class="hero">' +
         "<div><h2>Word packs</h2>" +
         "<p>Build a vocabulary list, launch on the board, and pupils scan the QR to play in pairs — no login, no website browsing.</p></div>" +
+        '<div class="hero-visual"><img class="hero-logo" src="heads-up-logo.png" width="804" height="279" alt="Heads Up" decoding="async"></div>' +
       "</div>";
 
     if (!state.packs.length) {
@@ -305,7 +536,10 @@ body.lobby-fs .shell{width:min(1100px,100%);padding-top:20px}
       var id = card.getAttribute("data-id");
       var pack = state.packs.filter(function (p) { return p.id === id; })[0];
       if (!pack) return;
-      card.querySelector(".btn-launch").onclick = function () { openLobby(pack); };
+      card.querySelector(".btn-launch").onclick = function () {
+        getAudioCtx();
+        openLobby(pack);
+      };
       card.querySelector(".btn-edit").onclick = function () { openEditor(pack); };
       card.querySelector(".btn-del").onclick = function () {
         if (!confirm('Delete "' + pack.title + '"?')) return;
@@ -394,13 +628,13 @@ body.lobby-fs .shell{width:min(1100px,100%);padding-top:20px}
     if (!img) return;
 
     function fallback() {
-      img.src = "https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=8&data=" + encodeURIComponent(url);
+      img.src = "https://api.qrserver.com/v1/create-qr-code/?size=260x260&margin=8&data=" + encodeURIComponent(url);
     }
 
     var lib = window.QRCode;
     if (lib && typeof lib.toDataURL === "function") {
       lib.toDataURL(url, {
-        width: 240,
+        width: 260,
         margin: 1,
         color: { dark: "#081126", light: "#ffffff" }
       }, function (err, dataUrl) {
@@ -417,13 +651,16 @@ body.lobby-fs .shell{width:min(1100px,100%);padding-top:20px}
     var url = playUrlForPack(pack);
     show("viewLobby");
     setTop(
+      soundBtnHtml() +
       '<a class="btn" id="btnHomeLobby" href="../classroom_toolkit.html">Home</a>' +
       '<button type="button" class="btn" id="btnCopy">Copy link</button>' +
       '<button type="button" class="btn btn-ghost" id="btnCloseLobby">Close</button>'
     );
+    wireSoundBtn();
     $("viewLobby").innerHTML =
       '<div class="lobby">' +
         '<div class="lobby-copy">' +
+          '<div class="lobby-brand"><img src="heads-up-logo.png" width="804" height="279" alt="Heads Up" decoding="async"></div>' +
           "<h2>" + esc(pack.title) + "</h2>" +
           "<p>One phone per pair. Scan the QR — the game opens straight away. No sign-in.</p>" +
           '<ul class="lobby-steps">' +
@@ -437,11 +674,13 @@ body.lobby-fs .shell{width:min(1100px,100%);padding-top:20px}
             : "") +
         "</div>" +
         '<div class="qr-panel">' +
-          '<img id="lobbyQr" alt="QR code to play Heads Up" width="240" height="240">' +
+          '<img id="lobbyQr" alt="QR code to play Heads Up" width="260" height="260">' +
         "</div>" +
       "</div>";
 
     drawQr(url);
+    getAudioCtx();
+    startBed();
     document.getElementById("btnCloseLobby").onclick = renderLibrary;
     var homeLobby = document.getElementById("btnHomeLobby");
     if (homeLobby) {
@@ -463,6 +702,7 @@ body.lobby-fs .shell{width:min(1100px,100%);padding-top:20px}
   }
 
   function boot() {
+    buildSky();
     loadPacks();
     if (!state.packs.length) {
       state.packs = [{
