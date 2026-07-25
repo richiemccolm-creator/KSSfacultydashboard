@@ -55,6 +55,12 @@ a{color:inherit;text-decoration:none}
 .back:hover{color:#fff;border-color:var(--line-strong)}
 .top h1{margin:0;font:650 17px/1.2 var(--font-display);letter-spacing:-.02em}
 .top .sub{margin:0;font:500 12px/1.2 var(--font);color:var(--muted)}
+.top-brand{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:0}
+.top-logo{
+  display:block;height:clamp(40px,5.5vh,56px);width:auto;max-width:min(46vw,300px);
+  object-fit:contain;
+  filter:drop-shadow(0 0 14px rgba(244,166,42,.35));
+}
 .top-actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 
 .btn{
@@ -140,9 +146,9 @@ input:focus,textarea:focus,select:focus{border-color:rgba(244,166,42,.5);box-sha
   transition:opacity .2s;
 }
 .toast.on{opacity:1}
-body.embedded .back{display:none}
-body.lobby-fs .top,body.lobby-fs .shell > .hero{display:none}
-body.lobby-fs .shell{width:min(1100px,100%);padding-top:28px}
+body.embedded .back{display:inline-flex}
+body.lobby-fs .top .sub{display:none}
+body.lobby-fs .shell{width:min(1100px,100%);padding-top:20px}
 </style>
 </head>
 <body>
@@ -157,12 +163,12 @@ body.lobby-fs .shell{width:min(1100px,100%);padding-top:28px}
 
 <div class="app">
   <header class="top">
-    <a class="back" href="../classroom_toolkit.html">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
-      Toolkit
+    <a class="back" id="homeLink" href="../classroom_toolkit.html" title="Back to Classroom Toolkit">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V20h5v-5h4v5h5V9.5"/></svg>
+      Home
     </a>
-    <div>
-      <h1>Heads Up</h1>
+    <div class="top-brand">
+      <img class="top-logo" src="heads-up-logo.png" width="804" height="279" alt="Heads Up" decoding="async">
       <p class="sub">Vocab on phones — pairs scan and play</p>
     </div>
     <div class="top-actions" id="topActions"></div>
@@ -411,6 +417,7 @@ body.lobby-fs .shell{width:min(1100px,100%);padding-top:28px}
     var url = playUrlForPack(pack);
     show("viewLobby");
     setTop(
+      '<a class="btn" id="btnHomeLobby" href="../classroom_toolkit.html">Home</a>' +
       '<button type="button" class="btn" id="btnCopy">Copy link</button>' +
       '<button type="button" class="btn btn-ghost" id="btnCloseLobby">Close</button>'
     );
@@ -431,12 +438,19 @@ body.lobby-fs .shell{width:min(1100px,100%);padding-top:28px}
         "</div>" +
         '<div class="qr-panel">' +
           '<img id="lobbyQr" alt="QR code to play Heads Up" width="240" height="240">' +
-          '<p class="join-url">' + esc(url) + "</p>" +
         "</div>" +
       "</div>";
 
     drawQr(url);
     document.getElementById("btnCloseLobby").onclick = renderLibrary;
+    var homeLobby = document.getElementById("btnHomeLobby");
+    if (homeLobby) {
+      try {
+        if (new URLSearchParams(location.search).get("embed") === "1" || sessionStorage.getItem("fh-embed") === "1") {
+          homeLobby.href = "../classroom_toolkit.html?embed=1";
+        }
+      } catch (e) {}
+    }
     document.getElementById("btnCopy").onclick = function () {
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(url).then(function () { toast("Link copied"); }).catch(function () {
@@ -460,6 +474,12 @@ body.lobby-fs .shell{width:min(1100px,100%);padding-top:28px}
       }];
       savePacks();
     }
+    try {
+      var home = document.getElementById("homeLink");
+      if (home && (new URLSearchParams(location.search).get("embed") === "1" || sessionStorage.getItem("fh-embed") === "1")) {
+        home.href = "../classroom_toolkit.html?embed=1";
+      }
+    } catch (e) {}
     renderLibrary();
   }
 
