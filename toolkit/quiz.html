@@ -185,6 +185,31 @@ a{color:inherit;text-decoration:none}
 .host-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:8px}
 .end-stat{font:500 15px/1.5 var(--font);color:var(--text-2)}
 
+/* AI import modal */
+.modal-backdrop{
+  position:fixed;inset:0;z-index:50;background:rgba(2,6,18,.72);backdrop-filter:blur(8px);
+  display:flex;align-items:center;justify-content:center;padding:18px;
+}
+.modal{
+  width:min(560px,100%);max-height:min(88vh,720px);overflow:auto;
+  border-radius:18px;border:1px solid rgba(140,160,220,.28);
+  background:linear-gradient(160deg,#122047,#0A142C);
+  box-shadow:0 24px 60px rgba(0,0,0,.45);padding:22px 22px 18px;
+}
+.modal h2{margin:0 0 8px;font:700 22px/1.15 var(--font-display);letter-spacing:-.02em}
+.modal .steps{margin:0 0 14px;padding-left:18px;color:var(--text-2);font:400 13.5px/1.5 var(--font)}
+.modal .steps li{margin:4px 0}
+.modal .import-actions{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.modal label{display:block;font:600 11px/1 var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:10px 0 6px}
+.modal textarea{
+  width:100%;min-height:180px;border-radius:12px;border:1px solid rgba(132,153,207,.22);
+  background:#0A142C;padding:12px;outline:none;color:var(--text);resize:vertical;line-height:1.45;
+  font:400 13px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+.modal textarea:focus{border-color:rgba(244,94,104,.5);box-shadow:0 0 0 3px rgba(244,94,104,.14)}
+.modal-foot{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:14px}
+.modal .err{margin:8px 0 0;color:#FFB4B9;font:500 13px/1.4 var(--font);min-height:1.2em}
+
 .toast{
   position:fixed;left:50%;bottom:24px;transform:translate(-50%,16px);z-index:60;
   background:#fff;color:#081126;font:600 13.5px/1 var(--font);padding:12px 18px;border-radius:12px;
@@ -272,6 +297,29 @@ body.hosting .top .sub{display:none}
     <section class="view hidden" id="viewEditor"></section>
     <section class="view hidden" id="viewHost"></section>
   </main>
+</div>
+
+
+<div class="modal-backdrop hidden" id="importModal" role="dialog" aria-modal="true" aria-labelledby="importTitle">
+  <div class="modal">
+    <h2 id="importTitle">Import from AI</h2>
+    <ol class="steps">
+      <li>Download the template (opens in Word / Notes / Docs).</li>
+      <li>Copy the ChatGPT section into your AI and ask it to fill the quiz.</li>
+      <li>Paste the AI’s quiz text below and click Import.</li>
+    </ol>
+    <div class="import-actions">
+      <a class="btn" id="btnDownloadTemplate" href="quiz-ai-template.txt" download="quiz-ai-template.txt">Download template</a>
+      <button type="button" class="btn" id="btnCopyPrompt">Copy ChatGPT prompt</button>
+    </div>
+    <label for="importPaste">Paste quiz text</label>
+    <textarea id="importPaste" placeholder="Title: My quiz&#10;Description: …&#10;&#10;Q1. …&#10;A) … *&#10;B) …&#10;C) …&#10;D) …&#10;Time: 20" spellcheck="false"></textarea>
+    <div class="err" id="importErr"></div>
+    <div class="modal-foot">
+      <button type="button" class="btn btn-ghost" id="btnImportCancel">Cancel</button>
+      <button type="button" class="btn btn-primary" id="btnImportGo">Import</button>
+    </div>
+  </div>
 </div>
 
 <div class="toast" id="toast" role="status"></div>
@@ -711,6 +759,7 @@ body.hosting .top .sub{display:none}
       actions.innerHTML =
         '<button type="button" class="btn btn-ghost' + (state.sound ? " on" : "") + '" id="btnSound" title="Sound">' +
         (state.sound ? "Sound on" : "Sound off") + "</button>" +
+        '<button type="button" class="btn" id="btnImportAI">Import from AI</button>' +
         '<button type="button" class="btn btn-primary" id="btnNew">New quiz</button>';
     } else if (state.view === "editor") {
       title.textContent = "Edit quiz";
@@ -756,7 +805,7 @@ body.hosting .top .sub{display:none}
     root.innerHTML =
       '<div class="lib-head">' +
         "<div><h2>Your quizzes</h2>" +
-        "<p>Build multiple-choice quizzes, host on the classroom screen, and let pupils join on their phones with a PIN or QR.</p></div>" +
+        "<p>Build multiple-choice quizzes, host on the classroom screen, and let pupils join on their phones with a PIN or QR. Or download the AI template, generate questions in ChatGPT, and paste them back in.</p></div>" +
       "</div>" +
       '<div class="grid">' + cards + "</div>" +
       '<div class="soon-note">Pupils can join on their phones with a PIN / QR from Host mode. Apply the quiz live Supabase migration if join is unavailable.</div>';
@@ -1199,6 +1248,205 @@ body.hosting .top .sub{display:none}
     }
   }
 
+
+  var AI_PROMPT_QUIZ =
+    "Create a multiple-choice classroom quiz for Scottish secondary pupils.\n\n" +
+    "Subject: [e.g. Drama / Art & Design]\n" +
+    "Level: [e.g. BGE S1–S3 / National 5]\n" +
+    "Topic: [e.g. theatre keywords / elements of art]\n" +
+    "Number of questions: [e.g. 8]\n\n" +
+    "Rules:\n" +
+    "- Return ONLY the quiz in the exact format below. No markdown, no introduction, no closing notes.\n" +
+    "- Exactly 4 options per question (A–D).\n" +
+    "- Mark the single correct option with an asterisk * at the end of that line.\n" +
+    "- Keep questions clear and suitable for a quick plenary.\n" +
+    "- Include a Time: value in seconds (usually 20).\n\n" +
+    "Use this format exactly:\n\n" +
+    "Title: [quiz title]\n" +
+    "Description: [one short sentence]\n\n" +
+    "Q1. [question text]\n" +
+    "A) [option]\n" +
+    "B) [option] *\n" +
+    "C) [option]\n" +
+    "D) [option]\n" +
+    "Time: 20\n\n" +
+    "Q2. [question text]\n" +
+    "A) [option]\n" +
+    "B) [option]\n" +
+    "C) [option] *\n" +
+    "D) [option]\n" +
+    "Time: 20";
+
+  function openImportModal() {
+    $("importErr").textContent = "";
+    $("importPaste").value = "";
+    $("importModal").classList.remove("hidden");
+    setTimeout(function () { $("importPaste").focus(); }, 50);
+  }
+
+  function closeImportModal() {
+    $("importModal").classList.add("hidden");
+  }
+
+  function copyText(str) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(str);
+    }
+    return new Promise(function (resolve, reject) {
+      var ta = document.createElement("textarea");
+      ta.value = str;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand("copy");
+        resolve();
+      } catch (err) {
+        reject(err);
+      }
+      document.body.removeChild(ta);
+    });
+  }
+
+  function stripSmartPunct(s) {
+    return String(s || "")
+      .replace(/[\u2018\u2019\u201A\u201B]/g, "'")
+      .replace(/[\u201C\u201D\u201E\u201F]/g, '"')
+      .replace(/\u2026/g, "...")
+      .replace(/\u00A0/g, " ");
+  }
+
+  function parseQuizFromText(raw) {
+    var text = stripSmartPunct(raw).replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
+    if (!text) return { error: "Paste the quiz text first" };
+
+    text = text.replace(/^```[a-zA-Z]*\n?/, "").replace(/\n?```$/, "").trim();
+
+    var title = "";
+    var description = "";
+    var lines = text.split("\n");
+    var i = 0;
+
+    while (i < lines.length) {
+      var peek = lines[i].trim();
+      if (/^title\s*:/i.test(peek) || /^q\s*\d+[\.\)\:\-]/i.test(peek) || /^\d+[\.\)]\s+/.test(peek)) break;
+      i++;
+    }
+    if (i >= lines.length) return { error: "Could not find a Title or Q1 line" };
+
+    function takeMeta(re) {
+      var m = lines[i] && lines[i].trim().match(re);
+      if (m) { i++; return m[1].trim(); }
+      return null;
+    }
+
+    var t = takeMeta(/^title\s*:\s*(.+)$/i);
+    if (t) title = t;
+    var d = takeMeta(/^description\s*:\s*(.*)$/i);
+    if (d != null) description = d;
+
+    while (i < lines.length && !lines[i].trim()) i++;
+
+    var questions = [];
+    var qRe = /^(?:q\s*)?(\d+)[\.\)\:\-]\s*(.+)$/i;
+    var optRe = /^([A-Da-d])[\.\)\:\-]\s*(.+)$/;
+    var timeRe = /^time\s*:\s*(\d+)\s*$/i;
+
+    while (i < lines.length) {
+      while (i < lines.length && !lines[i].trim()) i++;
+      if (i >= lines.length) break;
+
+      var line = lines[i].trim();
+      var qm = line.match(qRe);
+      if (!qm) {
+        qm = line.match(/^question\s*(\d+)\s*[:.\-]\s*(.+)$/i);
+      }
+      if (!qm) {
+        if (questions.length) break;
+        return { error: "Expected a question like Q1. … (near: " + line.slice(0, 40) + ")" };
+      }
+      i++;
+      var prompt = qm[2].trim();
+      var options = [];
+      var correct = -1;
+      var timeLimit = DEFAULT_TIME;
+
+      while (i < lines.length) {
+        var L = lines[i].trim();
+        if (!L) { i++; continue; }
+        if (qRe.test(L) || /^question\s*\d+/i.test(L)) break;
+        var tm = L.match(timeRe);
+        if (tm) {
+          timeLimit = parseInt(tm[1], 10) || DEFAULT_TIME;
+          i++;
+          continue;
+        }
+        var om = L.match(optRe);
+        if (!om) {
+          if (!options.length) {
+            prompt += " " + L;
+            i++;
+            continue;
+          }
+          break;
+        }
+        i++;
+        var body = om[2].trim();
+        var isCorrect = false;
+        if (/\*\s*$/.test(body) || /\(correct\)\s*$/i.test(body) || /✓\s*$/.test(body)) {
+          isCorrect = true;
+          body = body.replace(/\*\s*$/, "").replace(/\(correct\)\s*$/i, "").replace(/✓\s*$/, "").trim();
+        }
+        if (/^\*\s*/.test(body)) {
+          isCorrect = true;
+          body = body.replace(/^\*\s*/, "").trim();
+        }
+        options.push(body);
+        if (isCorrect) correct = options.length - 1;
+      }
+
+      if (options.length < 2) {
+        return { error: "Question needs at least 2 options: " + prompt.slice(0, 50) };
+      }
+      if (options.length > 4) options = options.slice(0, 4);
+      if (correct < 0) correct = 0;
+      if (correct >= options.length) correct = 0;
+      questions.push({ prompt: prompt, options: options, correct: correct, timeLimit: timeLimit });
+    }
+
+    if (!questions.length) return { error: "No questions found in the pasted text" };
+    if (!title) title = "Imported quiz";
+
+    return {
+      quiz: normalizeQuiz({
+        id: uid(),
+        title: title,
+        description: description,
+        builtIn: false,
+        updatedAt: new Date().toISOString(),
+        questions: questions
+      })
+    };
+  }
+
+  function importQuizFromPaste() {
+    var raw = $("importPaste").value;
+    var result = parseQuizFromText(raw);
+    if (result.error) {
+      $("importErr").textContent = result.error;
+      return;
+    }
+    var quiz = result.quiz;
+    state.quizzes.unshift(quiz);
+    saveQuizzes();
+    closeImportModal();
+    openEditor(quiz);
+    toast("Imported " + quiz.questions.length + " question" + (quiz.questions.length === 1 ? "" : "s"));
+  }
+
+
   // events
   document.addEventListener("click", function (e) {
     var t = e.target.closest("button, [data-host], [data-edit]");
@@ -1209,6 +1457,26 @@ body.hosting .top .sub{display:none}
       saveSound();
       renderChrome();
       toast(state.sound ? "Sound on" : "Sound off");
+      return;
+    }
+    if (t.id === "btnImportAI") {
+      openImportModal();
+      return;
+    }
+    if (t.id === "btnImportCancel") {
+      closeImportModal();
+      return;
+    }
+    if (t.id === "btnImportGo") {
+      importQuizFromPaste();
+      return;
+    }
+    if (t.id === "btnCopyPrompt") {
+      copyText(AI_PROMPT_QUIZ).then(function () {
+        toast("Prompt copied — paste into ChatGPT");
+      }).catch(function () {
+        toast("Could not copy — download the template instead");
+      });
       return;
     }
     if (t.id === "btnNew") {
@@ -1397,6 +1665,11 @@ body.hosting .top .sub{display:none}
   });
 
   document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && !$("importModal").classList.contains("hidden")) {
+      e.preventDefault();
+      closeImportModal();
+      return;
+    }
     var tag = (e.target && e.target.tagName) || "";
     if (tag === "INPUT" || tag === "TEXTAREA") return;
 
@@ -1431,6 +1704,11 @@ body.hosting .top .sub{display:none}
       }
     } catch (e) {}
   })();
+
+
+  $("importModal").addEventListener("click", function (e) {
+    if (e.target === $("importModal")) closeImportModal();
+  });
 
   state.sound = loadSound();
   state.quizzes = loadQuizzes();

@@ -254,6 +254,31 @@ a{color:inherit;text-decoration:none}
 }
 .win-card h2{margin:0 0 8px;font:700 30px/1.1 var(--font-display)}
 .win-card p{margin:0 0 18px;color:var(--text-2)}
+/* AI import modal */
+.modal-backdrop{
+  position:fixed;inset:0;z-index:50;background:rgba(2,6,18,.72);backdrop-filter:blur(8px);
+  display:flex;align-items:center;justify-content:center;padding:18px;
+}
+.modal{
+  width:min(560px,100%);max-height:min(88vh,720px);overflow:auto;
+  border-radius:18px;border:1px solid rgba(140,160,220,.28);
+  background:linear-gradient(160deg,#122047,#0A142C);
+  box-shadow:0 24px 60px rgba(0,0,0,.45);padding:22px 22px 18px;
+}
+.modal h2{margin:0 0 8px;font:700 22px/1.15 var(--font-display);letter-spacing:-.02em}
+.modal .steps{margin:0 0 14px;padding-left:18px;color:var(--text-2);font:400 13.5px/1.5 var(--font)}
+.modal .steps li{margin:4px 0}
+.modal .import-actions{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.modal label{display:block;font:600 11px/1 var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:10px 0 6px}
+.modal textarea{
+  width:100%;min-height:180px;border-radius:12px;border:1px solid rgba(132,153,207,.22);
+  background:#0A142C;padding:12px;outline:none;color:var(--text);resize:vertical;line-height:1.45;
+  font:400 13px/1.45 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+.modal textarea:focus{border-color:rgba(59,108,255,.55);box-shadow:0 0 0 3px rgba(59,108,255,.16)}
+.modal-foot{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:14px}
+.modal .err{margin:8px 0 0;color:#FFB4B9;font:500 13px/1.4 var(--font);min-height:1.2em}
+
 .toast{
   position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);
   background:#121F3D;border:1px solid var(--line-strong);color:#fff;padding:11px 16px;border-radius:12px;
@@ -308,6 +333,29 @@ a{color:inherit;text-decoration:none}
     </div>
   </div>
 </div>
+
+<div class="modal-backdrop hidden" id="importModal" role="dialog" aria-modal="true" aria-labelledby="importTitle">
+  <div class="modal">
+    <h2 id="importTitle">Import from AI</h2>
+    <ol class="steps">
+      <li>Download the template (opens in Word / Notes / Docs).</li>
+      <li>Copy the ChatGPT section into your AI and ask it to fill all 20 Q&amp;As.</li>
+      <li>Paste the AI’s board text below and click Import.</li>
+    </ol>
+    <div class="import-actions">
+      <a class="btn" id="btnDownloadTemplate" href="quiz-busters-ai-template.txt" download="quiz-busters-ai-template.txt">Download template</a>
+      <button type="button" class="btn" id="btnCopyPrompt">Copy ChatGPT prompt</button>
+    </div>
+    <label for="importPaste">Paste board text</label>
+    <textarea id="importPaste" placeholder="Title: My board&#10;&#10;1. Q: What is …? | A: Script&#10;2. Q: … | A: …" spellcheck="false"></textarea>
+    <div class="err" id="importErr"></div>
+    <div class="modal-foot">
+      <button type="button" class="btn btn-ghost" id="btnImportCancel">Cancel</button>
+      <button type="button" class="btn btn-primary" id="btnImportGo">Import</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
@@ -501,7 +549,9 @@ a{color:inherit;text-decoration:none}
         '<button class="btn" id="btnEditFromPlay">Edit</button>' +
         '<button class="btn btn-ghost" id="btnExitPlay">Library</button>';
     } else {
-      actions = '<button class="btn btn-primary" id="btnNewBoard">New board</button>';
+      actions =
+        '<button class="btn" id="btnImportAI">Import from AI</button>' +
+        '<button class="btn btn-primary" id="btnNewBoard">New board</button>';
     }
     $("pageTitle").textContent = title;
     $("pageSub").textContent = sub;
@@ -527,10 +577,11 @@ a{color:inherit;text-decoration:none}
     $("viewLibrary").innerHTML =
       '<div class="hero-card">' +
         "<h2>Quiz Busters</h2>" +
-        "<p>Two teams race to link opposite sides of the board. Click a letter, ask the question, then award the tile to the team that answers first.</p>" +
+        "<p>Two teams race to link opposite sides of the board. Click a letter, ask the question, then award the tile to the team that answers first. Or download the AI template, generate 20 Q&As in ChatGPT, and paste them back in.</p>" +
         '<div class="hero-actions">' +
           '<button class="btn btn-primary" id="heroPlaySample">Play sample board</button>' +
           '<button class="btn" id="heroNew">Create your own</button>' +
+          '<button class="btn" id="heroImportAI">Import from AI</button>' +
         "</div>" +
       "</div>" +
       '<div class="section-label"><span>Your boards</span></div>' +
@@ -839,11 +890,207 @@ a{color:inherit;text-decoration:none}
     return state.boards.filter(function (b) { return b.id === id; })[0] || null;
   }
 
+
+  var AI_PROMPT_BUSTERS =
+    "Create a Quiz Busters (Blockbusters-style) board for Scottish secondary pupils.\n\n" +
+    "Subject: [e.g. Drama / Art & Design]\n" +
+    "Level: [e.g. BGE S1–S3 / National 5]\n" +
+    "Topic: [e.g. theatre keywords / art processes]\n\n" +
+    "Rules:\n" +
+    "- Return ONLY the board in the exact format below. No markdown, no introduction, no closing notes.\n" +
+    "- Exactly 20 question-and-answer pairs (the board is 5 x 4).\n" +
+    "- Each answer should be a short word or phrase.\n" +
+    "- Vary the FIRST LETTER of answers across the alphabet so the board has mixed tiles.\n" +
+    "- Questions should be short plenary-style prompts.\n\n" +
+    "Use this format exactly:\n\n" +
+    "Title: [board title]\n\n" +
+    "1. Q: [question] | A: [answer]\n" +
+    "2. Q: [question] | A: [answer]\n" +
+    "(…continue through 20.)";
+
+  function openImportModal() {
+    $("importErr").textContent = "";
+    $("importPaste").value = "";
+    $("importModal").classList.remove("hidden");
+    setTimeout(function () { $("importPaste").focus(); }, 50);
+  }
+
+  function closeImportModal() {
+    $("importModal").classList.add("hidden");
+  }
+
+  function copyText(str) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(str);
+    }
+    return new Promise(function (resolve, reject) {
+      var ta = document.createElement("textarea");
+      ta.value = str;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.left = "-9999px";
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand("copy");
+        resolve();
+      } catch (err) {
+        reject(err);
+      }
+      document.body.removeChild(ta);
+    });
+  }
+
+  function stripSmartPunct(s) {
+    return String(s || "")
+      .replace(/[\u2018\u2019\u201A\u201B]/g, "'")
+      .replace(/[\u201C\u201D\u201E\u201F]/g, '"')
+      .replace(/\u2026/g, "...")
+      .replace(/\u00A0/g, " ");
+  }
+
+  function parseBoardFromText(raw) {
+    var text = stripSmartPunct(raw).replace(/\r\n/g, "\n").replace(/\r/g, "\n").trim();
+    if (!text) return { error: "Paste the board text first" };
+
+    text = text.replace(/^```[a-zA-Z]*\n?/, "").replace(/\n?```$/, "").trim();
+
+    var lines = text.split("\n");
+    var i = 0;
+    while (i < lines.length) {
+      var peek = lines[i].trim();
+      if (/^title\s*:/i.test(peek) || /^\d+[\.\)\:\-]/.test(peek) || /^q\s*:/i.test(peek)) break;
+      i++;
+    }
+    if (i >= lines.length) return { error: "Could not find a Title or numbered Q&A line" };
+
+    var title = "Imported board";
+    var tm = lines[i].trim().match(/^title\s*:\s*(.+)$/i);
+    if (tm) {
+      title = tm[1].trim() || title;
+      i++;
+    }
+
+    var items = [];
+    // Patterns:
+    // 1. Q: question | A: answer
+    // 1. question | answer
+    // Q: question
+    // A: answer
+    var lineRe = /^\d+[\.\)\:\-]?\s*(?:Q\s*:\s*)?(.+?)\s*\|\s*(?:A\s*:\s*)?(.+)\s*$/i;
+    var qOnlyRe = /^(?:\d+[\.\)\:\-]?\s*)?Q\s*:\s*(.+)$/i;
+    var aOnlyRe = /^A\s*:\s*(.+)$/i;
+    // Also: "A - Script | What do we call..." letter-first style
+    var letterFirstRe = /^[A-Za-z]\s*[-–—:]\s*(.+?)\s*\|\s*(.+)\s*$/;
+
+    while (i < lines.length && items.length < CELL_COUNT) {
+      while (i < lines.length && !lines[i].trim()) i++;
+      if (i >= lines.length) break;
+      var line = lines[i].trim();
+
+      var m = line.match(lineRe);
+      if (m) {
+        var q = m[1].trim();
+        var a = m[2].trim();
+        // If AI put answer first after letter pattern without Q:/A:
+        // "1. Script | What do we call..." — prefer longer side as question when one side looks like a short answer
+        if (/^Q\s*:/i.test(line) === false && q.length < a.length && q.split(/\s+/).length <= 4) {
+          // keep as-is if Q: was present; lineRe already stripped optional Q:/A:
+        }
+        // Strip leading "Q:" leftovers
+        q = q.replace(/^Q\s*:\s*/i, "").trim();
+        a = a.replace(/^A\s*:\s*/i, "").trim();
+        items.push({ q: q, a: a });
+        i++;
+        continue;
+      }
+
+      var lf = line.match(letterFirstRe);
+      if (lf) {
+        // "S - Script | What do we call the written text of a play?"
+        items.push({ q: lf[2].trim(), a: lf[1].trim() });
+        i++;
+        continue;
+      }
+
+      var qm = line.match(qOnlyRe);
+      if (qm) {
+        var qText = qm[1].trim();
+        i++;
+        while (i < lines.length && !lines[i].trim()) i++;
+        if (i >= lines.length) break;
+        var am = lines[i].trim().match(aOnlyRe);
+        if (!am) {
+          return { error: "Expected A: after Q: (near: " + qText.slice(0, 40) + ")" };
+        }
+        items.push({ q: qText, a: am[1].trim() });
+        i++;
+        continue;
+      }
+
+      // Skip leftover instruction lines once we have some items
+      if (items.length) break;
+      i++;
+    }
+
+    items = items.filter(function (it) { return it.q && it.a; });
+    if (!items.length) return { error: "No Q&A pairs found. Use: 1. Q: … | A: …" };
+    if (items.length < CELL_COUNT) {
+      return {
+        error: "Found " + items.length + " of " + CELL_COUNT + " questions. Need exactly " + CELL_COUNT + "."
+      };
+    }
+    items = items.slice(0, CELL_COUNT);
+
+    return {
+      board: {
+        id: uid(),
+        title: title,
+        builtIn: false,
+        items: normalizeItems(items)
+      }
+    };
+  }
+
+  function importBoardFromPaste() {
+    var raw = $("importPaste").value;
+    var result = parseBoardFromText(raw);
+    if (result.error) {
+      $("importErr").textContent = result.error;
+      return;
+    }
+    var board = result.board;
+    closeImportModal();
+    openEditor(board, true);
+    toast("Imported " + CELL_COUNT + " questions — review and save");
+  }
+
+
   // ---------- events ----------
   document.addEventListener("click", function (e) {
     var t = e.target.closest("[data-play],[data-edit],[data-del],[data-cell],button,a");
     if (!t) return;
 
+    if (t.id === "btnImportAI" || t.id === "heroImportAI") {
+      openImportModal();
+      return;
+    }
+    if (t.id === "btnImportCancel") {
+      closeImportModal();
+      return;
+    }
+    if (t.id === "btnImportGo") {
+      importBoardFromPaste();
+      return;
+    }
+    if (t.id === "btnCopyPrompt") {
+      copyText(AI_PROMPT_BUSTERS).then(function () {
+        toast("Prompt copied — paste into ChatGPT");
+      }).catch(function () {
+        toast("Could not copy — download the template instead");
+      });
+      return;
+    }
     if (t.id === "btnNewBoard" || t.id === "heroNew") {
       openEditor({ id: uid(), title: "New Quiz Busters board", items: [] }, true);
       return;
@@ -944,6 +1191,19 @@ a{color:inherit;text-decoration:none}
       }
     } catch (e) {}
   })();
+
+
+  $("importModal").addEventListener("click", function (e) {
+    if (e.target === $("importModal")) closeImportModal();
+  });
+
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && !$("importModal").classList.contains("hidden")) {
+      e.preventDefault();
+      closeImportModal();
+    }
+  });
+
 
   state.sound = loadSound();
   state.boards = loadBoards();
