@@ -255,11 +255,16 @@ button{font-family:inherit}
 .filter.on{background:linear-gradient(135deg,#3768FF,#4457D8);color:#fff;border-color:var(--line-blue);box-shadow:0 6px 18px -8px rgba(55,104,255,.6)}
 
 /* section head */
-.sec-head{display:flex;align-items:center;gap:10px;margin:28px 0 14px}
+.sec-head{display:flex;align-items:center;gap:10px;margin:28px 0 14px;flex-wrap:wrap}
 .sec-head h2{margin:0;font:700 19px/1.2 var(--font-display);letter-spacing:-.02em;color:#EEF2FF}
 .sec-head .spark{color:var(--violet)}
 .sec-head .viewall{margin-left:auto;font:600 13px/1 var(--font);color:var(--blue);cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:gap .15s}
 .sec-head .viewall:hover{gap:9px}
+.sec-head .sec-sub{margin-left:auto;font:500 12.5px/1.3 var(--font);color:var(--muted)}
+.sec-head-soon{margin-top:40px;padding-top:8px;border-top:1px solid var(--divider)}
+.sec-head-soon .spark{color:var(--amber)}
+.grid-soon .tool{opacity:.78}
+.grid-soon .tool:hover{opacity:1}
 
 /* staff picks */
 .picks{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
@@ -666,8 +671,14 @@ body.embedded .side-left,body.embedded .side-right{top:var(--header-h);height:ca
       </div>
       <div class="picks" id="picks"></div>
 
-      <div class="sec-head" id="allHead"><h2 id="allHeadTitle">All tools</h2></div>
+      <div class="sec-head" id="allHead"><h2 id="allHeadTitle">Ready to use</h2></div>
       <div class="grid" id="grid"></div>
+      <div class="sec-head sec-head-soon" id="soonHead">
+        <span class="spark"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span>
+        <h2 id="soonHeadTitle">Coming soon</h2>
+        <span class="sec-sub" id="soonSub">In development — available shortly</span>
+      </div>
+      <div class="grid grid-soon" id="soonGrid"></div>
       <div class="empty" id="empty"><strong>Nothing matches</strong>Try a different search or category.</div>
     </main>
 
@@ -799,7 +810,7 @@ body.embedded .side-left,body.embedded .side-right{top:var(--header-h);height:ca
     {label:"Cover / sub plans", c:"var(--coral)"}
   ];
 
-  var QUICK = ["busters","timer","picker","groups","dice"];
+  var QUICK = ["busters","timer","exit","quiz","headsup","picker","groups","dice"];
 
   // ---------- state ----------
   var favs = loadFavs();
@@ -815,10 +826,11 @@ body.embedded .side-left,body.embedded .side-right{top:var(--header-h);height:ca
     return "--tc:"+h.c+";--tc2:"+h.c2+";--tg:"+h.g+";--tl:"+h.l+";--tglow:"+h.glow; }
 
   var $ = function(id){ return document.getElementById(id); };
-  var grid=$("grid"), picks=$("picks"), filters=$("filters"),
+  var grid=$("grid"), soonGrid=$("soonGrid"), picks=$("picks"), filters=$("filters"),
       navP=$("navPrimary"), navPl=$("navPlaylists"), quick=$("quickLaunch"),
       empty=$("empty"), toastEl=$("toast");
   var picksHead=$("picksHead"), allHead=$("allHead"), allHeadTitle=$("allHeadTitle");
+  var soonHead=$("soonHead"), soonHeadTitle=$("soonHeadTitle"), soonSub=$("soonSub");
   var menuBtn=$("menuBtn"), sideLeft=$("sideLeft"), navBackdrop=$("navBackdrop");
   var toastT=null;
 
@@ -904,7 +916,10 @@ body.embedded .side-left,body.embedded .side-right{top:var(--header-h);height:ca
   }
 
   quick.innerHTML = QUICK.map(function(id){
-    var t = TOOLS.filter(function(x){return x.id===id})[0];
+    return TOOLS.filter(function(x){return x.id===id})[0];
+  }).filter(Boolean).sort(function(a,b){
+    return (b.live?1:0)-(a.live?1:0);
+  }).slice(0,5).map(function(t){
     return '<div class="ql-row" style="'+hue(t)+'" data-launch="'+t.id+'">'
       + toolTile(t, true)
       + '<span class="qn-wrap"><span class="qn">'+t.name+'</span>'+(t.live?"":devBadge())+'</span>'
@@ -919,36 +934,57 @@ body.embedded .side-left,body.embedded .side-right{top:var(--header-h);height:ca
     return true;
   }
 
+  function toolCard(t){
+    return '<div class="tool'+(t.logo?" is-brand":"")+'" style="'+hue(t)+'" data-open="'+t.id+'">'
+      + '<span class="tfav'+(isFav(t.id)?" on":"")+'" data-fav="'+t.id+'" aria-label="Favourite">'+starIcon()+'</span>'
+      + toolTile(t, false)
+      + '<div class="ttxt"><h3>'+t.name+'</h3><p>'+t.desc+'</p>'+(t.live?"":devBadge())+'</div></div>';
+  }
+
   function render(){
     var showPicks = state.view==="toolkit" && state.cat==="All" && !state.q;
     picksHead.style.display = showPicks?"":"none";
     picks.style.display = showPicks?"":"none";
-    allHead.style.display = "";
-    if(allHeadTitle) allHeadTitle.textContent = state.view==="favourites" ? "Favourites" : "All tools";
 
     if(showPicks){
-      picks.innerHTML = TOOLS.filter(function(t){return t.featured}).map(function(t){
+      picks.innerHTML = TOOLS.filter(function(t){return t.featured && t.live}).map(function(t){
         return '<div class="pick" style="'+hue(t)+'" data-open="'+t.id+'">'
           + '<div class="ptop'+(t.logo?" is-brand":"")+'">'+toolTile(t, false)
-          +   '<div class="ptxt"><h3>'+t.name+'</h3><p>'+t.desc+'</p>'+(t.live?"":devBadge())+'</div></div>'
+          +   '<div class="ptxt"><h3>'+t.name+'</h3><p>'+t.desc+'</p></div></div>'
           + '<div class="prow">'
-          +   '<button type="button" class="launch-btn" data-launch="'+t.id+'">'+(t.live?"Launch ":"Preview ")+arrow()+'</button>'
+          +   '<button type="button" class="launch-btn" data-launch="'+t.id+'">Launch '+arrow()+'</button>'
           +   '<button type="button" class="fav'+(isFav(t.id)?" on":"")+'" data-fav="'+t.id+'" aria-label="Favourite">'+starIcon()+'</button>'
           + '</div></div>';
       }).join("");
     }
 
     var visible = TOOLS.filter(matches);
-    grid.innerHTML = visible.map(function(t){
-      return '<div class="tool'+(t.logo?" is-brand":"")+'" style="'+hue(t)+'" data-open="'+t.id+'">'
-        + '<span class="tfav'+(isFav(t.id)?" on":"")+'" data-fav="'+t.id+'" aria-label="Favourite">'+starIcon()+'</span>'
-        + toolTile(t, false)
-        + '<div class="ttxt"><h3>'+t.name+'</h3><p>'+t.desc+'</p>'+(t.live?"":devBadge())+'</div></div>';
-    }).join("");
+    var liveTools = visible.filter(function(t){ return t.live; });
+    var soonTools = visible.filter(function(t){ return !t.live; });
+    var isFavView = state.view==="favourites";
+
+    if(allHeadTitle){
+      allHeadTitle.textContent = isFavView ? "Favourites" : "Ready to use";
+    }
+    allHead.style.display = liveTools.length ? "" : "none";
+    grid.innerHTML = liveTools.map(toolCard).join("");
+
+    if(soonHead){
+      soonHead.style.display = soonTools.length ? "" : "none";
+      if(soonHeadTitle){
+        soonHeadTitle.textContent = isFavView ? "Favourites in development" : "Coming soon";
+      }
+      if(soonSub){
+        soonSub.textContent = isFavView
+          ? "Saved tools that are still being built"
+          : "In development — available shortly";
+      }
+    }
+    if(soonGrid) soonGrid.innerHTML = soonTools.map(toolCard).join("");
 
     if(visible.length===0){
       empty.classList.add("show");
-      empty.innerHTML = state.view==="favourites"
+      empty.innerHTML = isFavView
         ? "<strong>No favourites yet</strong>Tap the star on a tool to save it here."
         : "<strong>Nothing matches</strong>Try a different search or category.";
     } else {
