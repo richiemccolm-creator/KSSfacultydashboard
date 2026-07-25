@@ -260,6 +260,27 @@ button{font-family:inherit}
 .pick:hover .tile,.tool:hover .tile{transform:translateY(-1px) scale(1.04)}
 .tile.sm{width:38px;height:38px;border-radius:11px}
 .tile.sm svg{width:19px;height:19px}
+.tile.brand{
+  width:auto;min-width:56px;height:56px;padding:4px 6px;
+  background:rgba(0,0,0,.22);border-color:var(--tl);
+  box-shadow:0 0 18px var(--tglow);
+}
+.tile.brand img{
+  display:block;height:44px;width:auto;max-width:120px;object-fit:contain;
+  filter:drop-shadow(0 0 10px var(--tglow));
+}
+.tile.brand.sm{
+  width:auto;min-width:38px;height:38px;padding:3px 5px;border-radius:11px;
+}
+.tile.brand.sm img{height:28px;max-width:72px}
+.pick .tile.brand{
+  height:auto;min-height:64px;padding:6px 8px;border-radius:16px;
+  background:rgba(0,0,0,.28);border-color:var(--tl);
+  box-shadow:0 0 24px var(--tglow);
+}
+.pick .tile.brand img{
+  height:clamp(52px,5.5vw,70px);max-width:min(160px,28vw);
+}
 
 /* tool grid */
 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
@@ -604,12 +625,15 @@ body.embedded .side-left,body.embedded .side-right{top:var(--header-h);height:ca
 
   var TOOLS = [
     {id:"timer",      name:"Big Timer",        cat:"Timing", hue:"blue",    icon:"timer",      featured:true, live:true,  href:"toolkit/timer.html",
+      logo:"toolkit/big-timer-logo.png",
       desc:"Huge, clear countdowns perfect for any activity."},
     {id:"groups",     name:"Group Randomiser", cat:"Groups", hue:"violet",  icon:"groups",     featured:true, live:false, href:"toolkit/groups.html",
       desc:"Create balanced groups in seconds."},
     {id:"quiz",       name:"Quiz Builder",     cat:"Quiz",   hue:"coral",   icon:"quiz",       featured:true,  live:true,  href:"toolkit/quiz.html",
+      logo:"toolkit/quiz-builder-logo.png",
       desc:"Interactive quizzes that get everyone involved."},
     {id:"busters",    name:"Quiz Busters",     cat:"Quiz",   hue:"amber",   icon:"busters",    featured:true, live:true,  href:"toolkit/quiz-busters.html",
+      logo:"toolkit/quiz-busters-logo.png",
       desc:"Blockbusters-style letter board for two teams."},
     {id:"picker",     name:"Name Picker",      cat:"Groups", hue:"mint",    icon:"picker",     live:false, href:"toolkit/picker.html",
       desc:"Spin to select a random pupil or group."},
@@ -742,10 +766,17 @@ body.embedded .side-left,body.embedded .side-right{top:var(--header-h);height:ca
     return '<button type="button" class="filter'+(c===state.cat?" on":"")+'" data-cat="'+c+'">'+c+'</button>';
   }).join("");
 
+  function toolTile(t, sm){
+    if(t.logo){
+      return '<span class="tile brand'+(sm?" sm":"")+'"><img src="'+t.logo+'" alt="" width="804" height="318" decoding="async"></span>';
+    }
+    return '<span class="tile'+(sm?" sm":"")+'">'+(ICONS[t.icon]||"")+'</span>';
+  }
+
   quick.innerHTML = QUICK.map(function(id){
     var t = TOOLS.filter(function(x){return x.id===id})[0];
     return '<div class="ql-row" style="'+hue(t)+'" data-launch="'+t.id+'">'
-      + '<span class="tile sm">'+ICONS[t.icon]+'</span>'
+      + toolTile(t, true)
       + '<span class="qn-wrap"><span class="qn">'+t.name+'</span>'+(t.live?"":devBadge())+'</span>'
       + '<span class="qchev">'+chev()+'</span></div>';
   }).join("");
@@ -768,7 +799,7 @@ body.embedded .side-left,body.embedded .side-right{top:var(--header-h);height:ca
     if(showPicks){
       picks.innerHTML = TOOLS.filter(function(t){return t.featured}).map(function(t){
         return '<div class="pick" style="'+hue(t)+'" data-open="'+t.id+'">'
-          + '<div class="ptop"><span class="tile">'+ICONS[t.icon]+'</span>'
+          + '<div class="ptop">'+toolTile(t, false)
           +   '<div class="ptxt"><h3>'+t.name+'</h3><p>'+t.desc+'</p>'+(t.live?"":devBadge())+'</div></div>'
           + '<div class="prow">'
           +   '<button type="button" class="launch-btn" data-launch="'+t.id+'">'+(t.live?"Launch ":"Preview ")+arrow()+'</button>'
@@ -781,7 +812,7 @@ body.embedded .side-left,body.embedded .side-right{top:var(--header-h);height:ca
     grid.innerHTML = visible.map(function(t){
       return '<div class="tool" style="'+hue(t)+'" data-open="'+t.id+'">'
         + '<span class="tfav'+(isFav(t.id)?" on":"")+'" data-fav="'+t.id+'" aria-label="Favourite">'+starIcon()+'</span>'
-        + '<span class="tile">'+ICONS[t.icon]+'</span>'
+        + toolTile(t, false)
         + '<div class="ttxt"><h3>'+t.name+'</h3><p>'+t.desc+'</p>'+(t.live?"":devBadge())+'</div></div>';
     }).join("");
 

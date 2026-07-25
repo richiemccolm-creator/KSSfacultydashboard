@@ -43,6 +43,10 @@ button,input,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 a{color:inherit;text-decoration:none}
 .hidden{display:none!important}
+.sr-only{
+  position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;
+  clip:rect(0,0,0,0);white-space:nowrap;border:0;
+}
 
 .app{min-height:100vh;display:flex;flex-direction:column}
 .top{
@@ -87,9 +91,43 @@ a{color:inherit;text-decoration:none}
 .view.hidden{display:none!important}
 
 /* library */
+.lib-hero{
+  border-radius:22px;padding:clamp(22px,3vw,36px);margin-bottom:22px;
+  border:1px solid rgba(244,94,104,.32);
+  background:
+    radial-gradient(ellipse 48% 70% at 92% 42%,rgba(244,94,104,.18),transparent 58%),
+    radial-gradient(ellipse 40% 55% at 8% 20%,rgba(59,108,255,.14),transparent 55%),
+    linear-gradient(145deg,#0e1a36 0%,#081126 55%,#0a1428 100%);
+  box-shadow:0 16px 40px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.05);
+  overflow:hidden;position:relative;
+}
+.lib-hero-grid{
+  display:grid;grid-template-columns:minmax(0,1.05fr) minmax(200px,.95fr);
+  gap:clamp(16px,3vw,28px);align-items:center;
+}
+.lib-hero-copy{position:relative;z-index:1;min-width:0}
+.lib-hero-copy p{margin:0;max-width:34rem;color:var(--muted);font:400 clamp(14px,1.4vw,16px)/1.55 var(--font)}
+.lib-hero-visual{
+  position:relative;z-index:1;display:flex;align-items:center;justify-content:center;
+  min-height:clamp(120px,18vw,200px);
+}
+.lib-hero-visual::before{
+  content:"";position:absolute;width:min(78%,260px);aspect-ratio:1;border-radius:50%;
+  background:radial-gradient(circle,rgba(244,94,104,.28),rgba(59,108,255,.1) 45%,transparent 70%);
+  filter:blur(8px);pointer-events:none;
+}
+.lib-hero-logo{
+  position:relative;display:block;width:min(100%,400px);height:auto;
+  filter:drop-shadow(0 0 22px rgba(244,94,104,.35)) drop-shadow(0 12px 28px rgba(0,0,0,.45));
+}
 .lib-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px}
 .lib-head h2{margin:0;font:700 22px/1.2 var(--font-display);letter-spacing:-.02em}
 .lib-head p{margin:6px 0 0;font:400 13.5px/1.45 var(--font);color:var(--muted);max-width:520px}
+@media(max-width:720px){
+  .lib-hero-grid{grid-template-columns:1fr;gap:18px}
+  .lib-hero-visual{order:-1;min-height:0}
+  .lib-hero-logo{width:min(100%,320px)}
+}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px}
 .card{
   border:1px solid var(--line);border-radius:16px;padding:18px;
@@ -867,11 +905,21 @@ body.hosting .top .sub{display:none}
     }).join("");
 
     root.innerHTML =
-      '<div class="lib-head">' +
-        "<div><h2>Your quizzes</h2>" +
-        "<p>Build multiple-choice quizzes, host on the classroom screen, and let pupils join on their phones with a PIN or QR. Or answer a few questions, copy an AI prompt, and paste the quiz back in.</p></div>" +
+      '<div class="lib-hero">' +
+        '<div class="lib-hero-grid">' +
+          '<div class="lib-hero-copy">' +
+            '<h2 class="sr-only">Quiz Builder</h2>' +
+            "<p>Build multiple-choice quizzes, host on the classroom screen, and let pupils join on their phones with a PIN or QR. Or answer a few questions, copy an AI prompt, and paste the quiz back in.</p>" +
+          "</div>" +
+          '<div class="lib-hero-visual">' +
+            '<img class="lib-hero-logo" src="quiz-builder-logo.png" width="796" height="268" alt="Quiz Builder" decoding="async">' +
+          "</div>" +
+        "</div>" +
       "</div>" +
-      '<div class="grid">' + cards + '</div>';
+      '<div class="lib-head">' +
+        "<div><h2>Your quizzes</h2></div>" +
+      "</div>" +
+      '<div class="grid">' + cards + "</div>";
   }
 
   function esc(s) {
