@@ -58,6 +58,9 @@
     document.querySelectorAll('.qs-hub-manage-only').forEach(function (el) {
       el.classList.toggle('hidden', !manage);
     });
+    if (window.QSAttainment && window.QSAttainment.syncHeaderMenuVisibility) {
+      window.QSAttainment.syncHeaderMenuVisibility();
+    }
   }
 
   function payloadFromState() {
@@ -99,21 +102,16 @@
       window.__qsLoadingFromCloud = false;
     }
     var meta = row.metadata || {};
-    var banner = $('hubCloudBanner');
-    if (banner) {
-      banner.classList.remove('hidden');
-      banner.innerHTML =
-        'Saved in Faculty Hub · <b>' +
-        escapeHtml(row.school_year) +
-        '</b> · ' +
-        (meta.pupil_count != null ? meta.pupil_count + ' pupils · ' : '') +
-        'updated ' +
-        escapeHtml(fmtDate(row.updated_at || row.created_at)) +
-        ' · use the Years bar to switch sessions';
-    }
     highlightYears();
     syncManagerUi();
-    setStatus('Loaded ' + row.school_year + ' from the hub.', 'ok');
+    setStatus(
+      'Hub · ' +
+        row.school_year +
+        (meta.pupil_count != null ? ' · ' + meta.pupil_count + ' pupils' : '') +
+        ' · updated ' +
+        fmtDate(row.updated_at || row.created_at),
+      'ok'
+    );
   }
 
   function renderLibrary(rows) {
@@ -344,17 +342,9 @@
       .then(function (row) {
         currentCloudYear = row.school_year || schoolYear;
         setStatus(
-          'Saved ' + currentCloudYear + ' — switch years anytime from the Years bar.',
+          'Saved ' + currentCloudYear + ' to hub · switch years in the bar above.',
           'ok'
         );
-        var banner = $('hubCloudBanner');
-        if (banner) {
-          banner.classList.remove('hidden');
-          banner.innerHTML =
-            'Saved in Faculty Hub · <b>' +
-            escapeHtml(currentCloudYear) +
-            '</b> · just now · use the Years bar to switch sessions';
-        }
         syncManagerUi();
         return refreshLibrary(currentCloudYear);
       })
@@ -383,8 +373,6 @@
       .then(function () {
         setStatus('Deleted ' + deleted + '.', 'ok');
         currentCloudYear = null;
-        var banner = $('hubCloudBanner');
-        if (banner) banner.classList.add('hidden');
         syncManagerUi();
         return refreshLibrary().then(function (rows) {
           if (rows && rows.length) openYear(rows[0].school_year);
@@ -401,17 +389,11 @@
   function onDataLoaded() {
     if (!window.__qsLoadingFromCloud) {
       currentCloudYear = null;
-      var banner = $('hubCloudBanner');
-      if (banner) {
-        banner.classList.remove('hidden');
-        banner.innerHTML =
-          'Local workbook loaded — <b>not saved to the hub yet</b>. Check <b>Save as</b> in the Years bar, then Save to Hub. Other years stay intact.';
-      }
       highlightYears();
     }
     syncManagerUi();
     if (canManage() && saveBtn && !window.__qsLoadingFromCloud) {
-      setStatus('Data ready — confirm the year in Save as, then Save to Hub.', 'ok');
+      setStatus('Local data — set Save as, then Save to Hub when ready.', 'ok');
     }
   }
 
