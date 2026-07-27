@@ -290,15 +290,18 @@ header::after{
 .kpis{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px; margin-bottom:22px}
 .kpi{
   background:var(--card); border:1px solid var(--line); border-radius:var(--radius);
-  padding:16px 18px 14px; box-shadow:var(--shadow); position:relative; overflow:hidden;
+  padding:16px 18px 14px; box-shadow:var(--shadow); position:relative; overflow:visible;
 }
 .kpi::before{
   content:''; position:absolute; top:0; left:0; right:0; height:3px;
   background:linear-gradient(90deg,var(--gold),var(--gold-soft));
+  border-radius:var(--radius) var(--radius) 0 0;
   opacity:0; transition:opacity .2s;
 }
 .kpi:hover::before{opacity:1}
-.kpi .label{font-size:10px; font-weight:800; letter-spacing:.13em; text-transform:uppercase; color:var(--ink-3)}
+.kpi:has(.info:hover),
+.kpi:has(.info:focus){z-index:40}
+.kpi .label{font-size:10px; font-weight:800; letter-spacing:.13em; text-transform:uppercase; color:var(--ink-3); padding-right:22px}
 .kpi .value{
   font-family:var(--serif); font-size:31px; font-weight:600; color:var(--navy-ink);
   line-height:1.15; margin-top:5px; font-variant-numeric:tabular-nums;
@@ -306,6 +309,11 @@ header::after{
 .kpi .value small{font-size:16px; color:var(--ink-3); font-weight:500}
 .kpi .foot{font-size:11px; color:var(--ink-3); margin-top:3px; font-weight:500}
 .kpi .foot.good{color:var(--green)} .kpi .foot.bad{color:var(--red)}
+.kpi .info{top:10px; right:10px; width:17px; height:17px; font-size:10px}
+.kpi .info::after{
+  width:min(300px, calc(100vw - 48px)); top:24px; right:0; left:auto;
+  max-width:min(300px, 72vw);
+}
 
 /* Cards & grids */
 .grid{display:grid; gap:16px; margin-bottom:16px}
@@ -1193,6 +1201,10 @@ function renderAll(){
   renderTeacher();
 }
 /* ============================ 01 OVERVIEW ============================ */
+function kpiHtml(k){
+  const tip=k.tip? '<span class="info" tabindex="0" role="note" aria-label="About '+esc(k.label)+'" data-tip="'+esc(k.tip)+'">?</span>' : '';
+  return '<div class="kpi">'+tip+'<div class="label">'+k.label+'</div><div class="value">'+k.value+'</div><div class="foot '+(k.cls||'')+'">'+k.foot+'</div></div>';
+}
 function renderOverview(rows){
   const g = gradeable(rows);
   const ac = acRate(rows), ab = avgBand(rows);
@@ -1202,26 +1214,26 @@ function renderOverview(rows){
   const attained = state.preResults ? null : pct(withPred.filter(r=>r.band<=r.pred).length, withPred.length);
   const aRate = pct(g.filter(r=>bandOf(r)<=2).length, g.length);
   const kpis = [
-    {label:'Pupils in view', value:String(rows.length), foot:[...new Set(rows.map(r=>r.subject))].length+' subjects · '+[...new Set(rows.map(r=>r.teacher))].length+' teachers'},
-    {label:'A–C rate'+estTag(), value:fmtPct(ac), foot:g.length+' graded entries'},
-    {label:'A rate'+estTag(), value:fmtPct(aRate), foot:'bands 1–2'},
-    {label:'Average band'+estTag(), value:fmt1(ab), foot:'1 = A1 · excludes DNA'},
-    {label:'Avg attendance', value:attAvg===null?'—':attAvg.toFixed(1)+'<small>%</small>', foot:attVals.filter(v=>v<80).length+' pupils below 80%', cls:attAvg!==null&&attAvg<90?'bad':'good'},
-    {label:'Attained potential', value:attained===null?'—':fmtPct(attained), foot:state.preResults?'unlocks on results day':'National 5 · vs CEM prediction'},
+    {label:'Pupils in view', value:String(rows.length), foot:[...new Set(rows.map(r=>r.subject))].length+' subjects · '+[...new Set(rows.map(r=>r.teacher))].length+' teachers', tip:'How many faculty entries match the current Subject / Level / Teacher / SIMD filters. Reset filters to see the full cohort.'},
+    {label:'A–C rate'+estTag(), value:fmtPct(ac), foot:g.length+' graded entries', tip:'Share of graded entries awarded A–C (bands 1–6). In pre-results mode this uses teacher estimates instead of awarded grades.'},
+    {label:'A rate'+estTag(), value:fmtPct(aRate), foot:'bands 1–2', tip:'Share of graded entries awarded an A (bands A1–A2). In pre-results mode this uses teacher estimates.'},
+    {label:'Average band'+estTag(), value:fmt1(ab), foot:'1 = A1 · excludes DNA', tip:'Mean SQA band for graded entries in view. Lower is better: 1 = A1, 6 = C6, 7 = D. DNA / Did Not Attempt is excluded.'},
+    {label:'Avg attendance', value:attAvg===null?'—':attAvg.toFixed(1)+'<small>%</small>', foot:attVals.filter(v=>v<80).length+' pupils below 80%', cls:attAvg!==null&&attAvg<90?'bad':'good', tip:'Mean attendance % for pupils in the current filter who have an attendance figure recorded.'},
+    {label:'Attained potential', value:attained===null?'—':fmtPct(attained), foot:state.preResults?'unlocks on results day':'National 5 · vs CEM prediction', tip:'National 5 only: % of pupils whose awarded band was equal to or better than their CEM predicted band. CEM is an approximate baseline for value-added context, not an official QS predictor.'},
   ];
   if(schoolRankReady()){
     const sr=tallySchoolRankRows(rows.filter(r=>r.level!=='NPA'));
     if(sr.n){
       kpis.push(
-        {label:'Highest attainment', value:fmtPct(rankPct(sr,'hi')), foot:sr.hi+' of '+sr.n+' comparable pupils', cls:'good'},
-        {label:'Equal highest', value:fmtPct(rankPct(sr,'eq')), foot:sr.eq+' pupils · vs other subjects', cls:''},
-        {label:'Lowest attainment', value:fmtPct(rankPct(sr,'lo')), foot:sr.lo+' of '+sr.n+' comparable', cls:sr.lo>sr.hi?'bad':''},
+        {label:'Highest attainment', value:fmtPct(rankPct(sr,'hi')), foot:sr.hi+' of '+sr.n+' comparable pupils', cls:'good', tip:'Uses attached whole-school results. Of comparable pupils (those with at least one other subject in the school file), the % for whom this faculty course had a higher Insight-style tariff than every other subject they sat. Needs awarded grades.'},
+        {label:'Equal highest', value:fmtPct(rankPct(sr,'eq')), foot:sr.eq+' pupils · vs other subjects', cls:'', tip:'Uses attached whole-school results. % of comparable pupils for whom this course tied for their best attainment (same tariff as their highest other subject). Compares across levels using simplified Insight-style points.'},
+        {label:'Lowest attainment', value:fmtPct(rankPct(sr,'lo')), foot:sr.lo+' of '+sr.n+' comparable', cls:sr.lo>sr.hi?'bad':'', tip:'Uses attached whole-school results. % of comparable pupils for whom this faculty course was their weakest attainment vs every other subject they sat in the school-wide file.'},
       );
     } else {
-      kpis.push({label:'School comparison', value:'—', foot:'No comparable pupils in filter', cls:''});
+      kpis.push({label:'School comparison', value:'—', foot:'No comparable pupils in filter', tip:'Whole-school data is attached, but no pupil in this filter has another subject in that file to compare against. Widen filters or check name matching.'});
     }
   }
-  $('kpiStrip').innerHTML = kpis.map(k=>'<div class="kpi"><div class="label">'+k.label+'</div><div class="value">'+k.value+'</div><div class="foot '+(k.cls||'')+'">'+k.foot+'</div></div>').join('');
+  $('kpiStrip').innerHTML = kpis.map(kpiHtml).join('');
 
   /* Grade distribution */
   $('hGradeDist').textContent = state.preResults? 'Estimated grade distribution' : 'Grade distribution';
@@ -1887,14 +1899,14 @@ function renderTeacher(){
   const att=wp.length? pct(wp.filter(r=>r.band<=r.pred).length,wp.length):null;
   const cemAvg=avg(rows.map(r=>r.cem).filter(v=>v!==null));
   const kpis=[
-    {label:'Pupils',value:String(rows.length),foot:(n=>n+' class'+(n===1?'':'es'))([...new Set(rows.map(r=>r.subject+' '+r.level))].length)},
-    {label:'A–C rate'+e,value:fmtPct(ac),foot:facAC!==null&&ac!==null?((ac-facAC>=0?'+':'')+(ac-facAC).toFixed(1)+' pts vs faculty'):'',cls:ac!==null&&facAC!==null?(ac>=facAC?'good':'bad'):''},
-    {label:'Avg band'+e,value:fmt1(ab),foot:'1 = A1'},
-    {label:'Avg CEM score',value:cemAvg===null?'—':cemAvg.toFixed(1),foot:'cohort baseline · 100 ≈ average'},
-    {label:'Attained potential',value:att===null?'—':fmtPct(att),foot:state.preResults?'unlocks on results day':'National 5 · vs CEM prediction'},
-    {label:'Avg attendance',value:attAvg===null?'—':attAvg.toFixed(1)+'<small>%</small>',foot:rows.filter(r=>r.attendance!==null&&r.attendance<80).length+' below 80%'},
+    {label:'Pupils',value:String(rows.length),foot:(n=>n+' class'+(n===1?'':'es'))([...new Set(rows.map(r=>r.subject+' '+r.level))].length),tip:'Pupils taught by this teacher for the subject/level selection above.'},
+    {label:'A–C rate'+e,value:fmtPct(ac),foot:facAC!==null&&ac!==null?((ac-facAC>=0?'+':'')+(ac-facAC).toFixed(1)+' pts vs faculty'):'',cls:ac!==null&&facAC!==null?(ac>=facAC?'good':'bad'):'',tip:'Share of this teacher’s graded entries awarded A–C, compared with the whole faculty rate.'},
+    {label:'Avg band'+e,value:fmt1(ab),foot:'1 = A1',tip:'Mean SQA band for this selection. Lower is better (1 = A1).'},
+    {label:'Avg CEM score',value:cemAvg===null?'—':cemAvg.toFixed(1),foot:'cohort baseline · 100 ≈ average',tip:'Average CEM score for these pupils. 100 ≈ national average ability baseline — read outcomes against this starting point.'},
+    {label:'Attained potential',value:att===null?'—':fmtPct(att),foot:state.preResults?'unlocks on results day':'National 5 · vs CEM prediction',tip:'National 5 only: % of this teacher’s pupils whose awarded band met or beat their CEM prediction.'},
+    {label:'Avg attendance',value:attAvg===null?'—':attAvg.toFixed(1)+'<small>%</small>',foot:rows.filter(r=>r.attendance!==null&&r.attendance<80).length+' below 80%',tip:'Mean attendance % for pupils in this teacher selection who have attendance recorded.'},
   ];
-  $('tKpis').innerHTML=kpis.map(k=>'<div class="kpi"><div class="label">'+k.label+'</div><div class="value">'+k.value+'</div><div class="foot '+(k.cls||'')+'">'+k.foot+'</div></div>').join('');
+  $('tKpis').innerHTML=kpis.map(kpiHtml).join('');
 
   $('hTGrades').textContent=(state.preResults?'Estimated grade distribution — ':'Grade distribution — ')+t+(scopeLabel!=='all classes'?' · '+scopeLabel:'');
   if(g.length){ unhideCanvas('chTGrades');
@@ -2452,6 +2464,9 @@ const CHART_TIPS={
   chTAvgBand:'Average awarded band per class. Read alongside the CEM chart: a modest band from a class with a low baseline can still represent strong value added.',
   chTEstComp:'For each class, how many pupils finished above, below or equal to their estimate — a quick check on estimate accuracy class by class.',
   chTComps:'This teacher’s class average per component (gold) against the national average (grey), built from the component records — only components that actually exist for the course appear. National bars show once QS publish the averages (or via the marks report / combined sheet).',
+  chSchoolRankSubject:'Uses attached whole-school results. For each faculty subject, the % of comparable pupils for whom that course was their highest, equal-highest or lowest attainment vs every other subject they sat (Insight-style tariff). Comparable = at least one other subject in the school file.',
+  chSchoolRankLevel:'Same whole-school comparison as the subject chart, broken down by level (National 5 / Higher / Advanced Higher) for the current filter.',
+  chTSchoolRank:'For this teacher’s classes, % of comparable pupils for whom the faculty course was highest, equal-highest or lowest vs their other school subjects. Needs whole-school results attached and awarded grades.',
   tblClass:'Every pupil in the selection. “Vs estimate” compares the awarded grade with the teacher’s estimate — the key moderation signal. “Vs CEM (N5)” compares with the CEM prediction, National 5 only.',
 };
 Object.entries(CHART_TIPS).forEach(([id,tip])=>{
