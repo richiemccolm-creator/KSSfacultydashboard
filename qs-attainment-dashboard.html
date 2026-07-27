@@ -1892,7 +1892,6 @@ function renderTeacher(){
   const scopeLabel=(ts==='All'&&tl==='All')?'all classes':[ts,tl].filter(v=>v!=='All').join(' · ');
   $('tCount').innerHTML='<b style="font-family:var(--serif);font-size:14px;color:var(--navy)">'+rows.length+'</b> pupils · '+esc(t)+' · '+esc(scopeLabel);
   const g=gradeable(rows); const e=estTag();
-  const facAC=acRate(state.rows);
   const ac=acRate(rows), ab=avgBand(rows);
   const attAvg=avg(rows.map(r=>r.attendance).filter(v=>v!==null));
   const wp=state.preResults? [] : vaSet(g);
@@ -1900,7 +1899,7 @@ function renderTeacher(){
   const cemAvg=avg(rows.map(r=>r.cem).filter(v=>v!==null));
   const kpis=[
     {label:'Pupils',value:String(rows.length),foot:(n=>n+' class'+(n===1?'':'es'))([...new Set(rows.map(r=>r.subject+' '+r.level))].length),tip:'Pupils taught by this teacher for the subject/level selection above.'},
-    {label:'A–C rate'+e,value:fmtPct(ac),foot:facAC!==null&&ac!==null?((ac-facAC>=0?'+':'')+(ac-facAC).toFixed(1)+' pts vs faculty'):'',cls:ac!==null&&facAC!==null?(ac>=facAC?'good':'bad'):'',tip:'Share of this teacher’s graded entries awarded A–C, compared with the whole faculty rate.'},
+    {label:'A–C rate'+e,value:fmtPct(ac),foot:g.length+' graded entries',tip:'Share of this teacher’s graded entries awarded A–C (bands 1–6). Shown for this selection only — not compared with other teachers.'},
     {label:'Avg band'+e,value:fmt1(ab),foot:'1 = A1',tip:'Mean SQA band for this selection. Lower is better (1 = A1).'},
     {label:'Avg CEM score',value:cemAvg===null?'—':cemAvg.toFixed(1),foot:'cohort baseline · 100 ≈ average',tip:'Average CEM score for these pupils. 100 ≈ national average ability baseline — read outcomes against this starting point.'},
     {label:'Attained potential',value:att===null?'—':fmtPct(att),foot:state.preResults?'unlocks on results day':'National 5 · vs CEM prediction',tip:'National 5 only: % of this teacher’s pupils whose awarded band met or beat their CEM prediction.'},
@@ -2005,12 +2004,11 @@ function renderTeacher(){
 }
 function teacherPriorities(rows,t){
   const P=[]; const g=gradeable(rows); const e=estTag();
-  const ac=acRate(rows), facAC=acRate(state.rows);
-  if(ac!==null&&facAC!==null){
-    const d=ac-facAC;
-    if(d>=3) P.push({tag:'str',tagLabel:'Strength',text:'A–C rate'+e+' of <b>'+fmtPct(ac)+'</b> sits '+d.toFixed(1)+' points above the faculty figure.'});
-    else if(d<=-5) P.push({tag:'dev',tagLabel:'Develop',text:'A–C rate'+e+' of <b>'+fmtPct(ac)+'</b> is '+Math.abs(d).toFixed(1)+' points below faculty — review borderline C/D pupils early.'});
-  }
+  const ac=acRate(rows);
+  if(ac!==null&&ac<70&&g.length>=5)
+    P.push({tag:'dev',tagLabel:'Develop',text:'A–C rate'+e+' of <b>'+fmtPct(ac)+'</b> — review borderline C/D pupils early and check course demands against baseline evidence.'});
+  else if(ac!==null&&ac>=85&&g.length>=5)
+    P.push({tag:'str',tagLabel:'Strength',text:'Strong A–C rate'+e+' of <b>'+fmtPct(ac)+'</b> across '+g.length+' graded entries.'});
   if(!state.preResults){
     const wp=vaSet(g);
     if(wp.length){ const va=avg(wp.map(r=>r.pred-r.band));
