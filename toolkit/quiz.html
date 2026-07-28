@@ -18,6 +18,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link href="https://api.fontshare.com/v2/css?f[]=general-sans@500,600,700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bungee&display=swap" rel="stylesheet">
 <style>
 :root{
   --bg:#050B1D; --surface:#0C1731; --surface-2:#111F3D;
@@ -89,6 +90,8 @@ a{color:inherit;text-decoration:none}
 
 .shell{flex:1;padding:20px 22px 40px;width:100%;max-width:1100px;margin:0 auto}
 .view.hidden{display:none!important}
+.view{animation:viewIn .38s var(--ease)}
+@keyframes viewIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 
 /* library */
 .lib-hero{
@@ -101,11 +104,27 @@ a{color:inherit;text-decoration:none}
   box-shadow:0 16px 40px rgba(0,0,0,.28),inset 0 1px 0 rgba(255,255,255,.05);
   overflow:hidden;position:relative;
 }
+.lib-hero::after{
+  content:"";position:absolute;inset:-40% -15% auto;height:65%;
+  background:linear-gradient(110deg,transparent 20%,rgba(255,255,255,.14) 50%,transparent 78%);
+  transform:translateX(-60%) rotate(-8deg);
+  animation:heroSweep 5.5s linear infinite;
+  pointer-events:none;
+}
+@keyframes heroSweep{
+  0%{transform:translateX(-60%) rotate(-8deg)}
+  100%{transform:translateX(140%) rotate(-8deg)}
+}
 .lib-hero-grid{
   display:grid;grid-template-columns:minmax(0,1.05fr) minmax(200px,.95fr);
   gap:clamp(16px,3vw,28px);align-items:center;
 }
 .lib-hero-copy{position:relative;z-index:1;min-width:0}
+.lib-hero-copy p strong{
+  display:block;margin-bottom:8px;
+  font:400 clamp(24px,3.2vw,40px)/.95 "Bungee",var(--font-display);
+  color:#fff;letter-spacing:.02em;text-transform:uppercase;
+}
 .lib-hero-copy p{margin:0;max-width:34rem;color:var(--muted);font:400 clamp(14px,1.4vw,16px)/1.55 var(--font)}
 .lib-hero-visual{
   position:relative;z-index:1;display:flex;align-items:center;justify-content:center;
@@ -119,6 +138,41 @@ a{color:inherit;text-decoration:none}
 .lib-hero-logo{
   position:relative;display:block;width:min(100%,400px);height:auto;
   filter:drop-shadow(0 0 22px rgba(244,94,104,.35)) drop-shadow(0 12px 28px rgba(0,0,0,.45));
+  animation:logoFloat 4.2s ease-in-out infinite;
+}
+@keyframes logoFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+.lib-sparks{position:absolute;inset:0;z-index:0;pointer-events:none}
+.lib-spark{
+  position:absolute;width:7px;height:7px;border-radius:50%;opacity:.35;
+  background:radial-gradient(circle,#fff 0%,rgba(255,255,255,.1) 55%,transparent 100%);
+  box-shadow:0 0 12px currentColor;
+  animation:libSpark ease-in-out infinite;
+}
+.lib-spark::before,.lib-spark::after{
+  content:"";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  background:currentColor;border-radius:2px;opacity:.75;
+}
+.lib-spark::before{width:2px;height:16px}
+.lib-spark::after{width:16px;height:2px}
+@keyframes libSpark{
+  0%,100%{transform:scale(.72);opacity:.18}
+  45%{transform:scale(1.22);opacity:.95}
+}
+.host{
+  min-height:calc(100vh - 72px);display:flex;flex-direction:column;position:relative;overflow:hidden;
+}
+.host::before{
+  content:"";position:absolute;inset:-10% -10% auto;height:72%;
+  background:
+    radial-gradient(circle at 18% 28%,rgba(244,94,104,.26),transparent 30%),
+    radial-gradient(circle at 80% 16%,rgba(59,108,255,.26),transparent 32%),
+    radial-gradient(circle at 52% 0%,rgba(134,88,245,.22),transparent 26%);
+  filter:blur(0);animation:hostSky 8s ease-in-out infinite alternate;pointer-events:none;
+}
+.host > .host-stage{position:relative;z-index:1}
+@keyframes hostSky{
+  0%{transform:translateY(-8px) scale(1)}
+  100%{transform:translateY(8px) scale(1.06)}
 }
 .lib-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:18px}
 .lib-head h2{margin:0;font:700 22px/1.2 var(--font-display);letter-spacing:-.02em}
@@ -261,6 +315,9 @@ a{color:inherit;text-decoration:none}
   box-shadow:0 14px 34px rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;
 }
 .toast.show{opacity:1;transform:translate(-50%,0)}
+#fxCanvas{
+  position:fixed;inset:0;z-index:58;pointer-events:none;display:block;
+}
 
 body.hosting .shell{max-width:none;padding:0}
 body.hosting .top .sub{display:none}
@@ -425,6 +482,7 @@ body.hosting .top .sub{display:none}
 </div>
 
 <div class="toast" id="toast" role="status"></div>
+<canvas id="fxCanvas" aria-hidden="true"></canvas>
 
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
 <script>
@@ -435,6 +493,11 @@ body.hosting .top .sub{display:none}
   var SOUND_KEY = "tk_quiz_builder_sound";
   var LETTERS = ["A", "B", "C", "D"];
   var DEFAULT_TIME = 20;
+  var prefersReducedMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var fxCanvas = null;
+  var fxCtx = null;
+  var fxParticles = [];
+  var fxAnim = 0;
 
   var SAMPLE = {
     id: "sample-art-drama-bge",
@@ -906,10 +969,11 @@ body.hosting .top .sub{display:none}
 
     root.innerHTML =
       '<div class="lib-hero">' +
+        '<div class="lib-sparks" id="libSparks"></div>' +
         '<div class="lib-hero-grid">' +
           '<div class="lib-hero-copy">' +
             '<h2 class="sr-only">Quiz Builder</h2>' +
-            "<p>Build multiple-choice quizzes, host on the classroom screen, and let pupils join on their phones with a PIN or QR. Or answer a few questions, copy an AI prompt, and paste the quiz back in.</p>" +
+            "<p><strong>Quiz Builder</strong>Build multiple-choice quizzes, host on the classroom screen, and let pupils join on their phones with a PIN or QR. Or answer a few questions, copy an AI prompt, and paste the quiz back in.</p>" +
           "</div>" +
           '<div class="lib-hero-visual">' +
             '<img class="lib-hero-logo" src="quiz-builder-logo.png" width="796" height="268" alt="Quiz Builder" decoding="async">' +
@@ -920,6 +984,102 @@ body.hosting .top .sub{display:none}
         "<div><h2>Your quizzes</h2></div>" +
       "</div>" +
       '<div class="grid">' + cards + "</div>";
+    hydrateHeroSparks();
+  }
+
+  function ensureFxCanvas() {
+    if (fxCanvas) return;
+    fxCanvas = $("fxCanvas");
+    if (!fxCanvas) return;
+    fxCtx = fxCanvas.getContext("2d");
+    resizeFxCanvas();
+    window.addEventListener("resize", resizeFxCanvas, { passive: true });
+  }
+
+  function resizeFxCanvas() {
+    if (!fxCanvas) return;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var w = Math.max(1, window.innerWidth);
+    var h = Math.max(1, window.innerHeight);
+    fxCanvas.width = Math.floor(w * dpr);
+    fxCanvas.height = Math.floor(h * dpr);
+    fxCanvas.style.width = w + "px";
+    fxCanvas.style.height = h + "px";
+    if (fxCtx) fxCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function burstFireworks(opts) {
+    if (prefersReducedMotion) return;
+    ensureFxCanvas();
+    if (!fxCtx) return;
+    var count = (opts && opts.count) || 120;
+    var spread = (opts && opts.spread) || 130;
+    var cx = (opts && opts.x != null) ? opts.x : window.innerWidth * (0.2 + Math.random() * 0.6);
+    var cy = (opts && opts.y != null) ? opts.y : window.innerHeight * (0.2 + Math.random() * 0.45);
+    var palette = (opts && opts.palette) || ["#ff6b9a", "#5ea2ff", "#ffd166", "#44e0a6", "#e8ecff"];
+    for (var i = 0; i < count; i++) {
+      var a = Math.random() * Math.PI * 2;
+      var sp = 1.2 + Math.random() * spread / 52;
+      fxParticles.push({
+        x: cx,
+        y: cy,
+        vx: Math.cos(a) * sp,
+        vy: Math.sin(a) * sp,
+        g: 0.035 + Math.random() * 0.035,
+        life: 36 + Math.random() * 42,
+        max: 36 + Math.random() * 42,
+        size: 1.8 + Math.random() * 3.2,
+        color: palette[(Math.random() * palette.length) | 0]
+      });
+    }
+    if (!fxAnim) fxAnim = requestAnimationFrame(runFxFrame);
+  }
+
+  function runFxFrame() {
+    if (!fxCtx || !fxCanvas) { fxAnim = 0; return; }
+    fxCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+    for (var i = fxParticles.length - 1; i >= 0; i--) {
+      var p = fxParticles[i];
+      p.life -= 1;
+      if (p.life <= 0) { fxParticles.splice(i, 1); continue; }
+      p.vy += p.g;
+      p.x += p.vx;
+      p.y += p.vy;
+      var alpha = p.life / p.max;
+      fxCtx.globalAlpha = alpha;
+      fxCtx.fillStyle = p.color;
+      fxCtx.beginPath();
+      fxCtx.arc(p.x, p.y, p.size * (0.6 + alpha * 0.7), 0, Math.PI * 2);
+      fxCtx.fill();
+    }
+    fxCtx.globalAlpha = 1;
+    if (fxParticles.length) fxAnim = requestAnimationFrame(runFxFrame);
+    else fxAnim = 0;
+  }
+
+  function megaCelebrate() {
+    if (prefersReducedMotion) return;
+    var w = window.innerWidth;
+    var h = window.innerHeight;
+    burstFireworks({ x: w * 0.22, y: h * 0.32, count: 90, spread: 150 });
+    burstFireworks({ x: w * 0.5, y: h * 0.2, count: 110, spread: 170 });
+    burstFireworks({ x: w * 0.78, y: h * 0.36, count: 90, spread: 150 });
+  }
+
+  function hydrateHeroSparks() {
+    if (prefersReducedMotion) return;
+    var root = $("libSparks");
+    if (!root) return;
+    var out = "";
+    for (var i = 0; i < 18; i++) {
+      var left = (Math.random() * 100).toFixed(2);
+      var top = (Math.random() * 100).toFixed(2);
+      var dur = (1.2 + Math.random() * 2.4).toFixed(2);
+      var delay = (Math.random() * 2.8).toFixed(2);
+      var hue = [350, 210, 42, 154][i % 4];
+      out += '<span class="lib-spark" style="left:' + left + '%;top:' + top + '%;animation-duration:' + dur + 's;animation-delay:' + delay + 's;color:hsl(' + hue + ' 98% 72%);"></span>';
+    }
+    root.innerHTML = out;
   }
 
   function esc(s) {
@@ -1169,6 +1329,7 @@ body.hosting .top .sub{display:none}
     state.host.phase = "reveal";
     state.host.remaining = 0;
     playCorrect();
+    burstFireworks({ count: 80, spread: 130, y: window.innerHeight * 0.35 });
     syncSessionPatch({
       status: "reveal",
       question_index: state.host.index
@@ -1179,6 +1340,7 @@ body.hosting .top .sub{display:none}
   function finishHost() {
     if (!state.host) return;
     state.host.phase = "end";
+    megaCelebrate();
     syncSessionPatch({ status: "end" }).then(function () { refreshPlayers(); });
     renderHost();
   }
@@ -1650,6 +1812,7 @@ body.hosting .top .sub{display:none}
       state.quizzes.unshift(nq);
       saveQuizzes();
       openEditor(nq);
+      burstFireworks({ count: 70, spread: 120, y: window.innerHeight * 0.45 });
       return;
     }
     if (t.id === "btnEditorBack") {
@@ -1788,6 +1951,7 @@ body.hosting .top .sub{display:none}
       if (t.id === "hostAgain") {
         var againQuiz = state.host && state.host.quiz;
         var againMode = state.host && state.host.playMode;
+        megaCelebrate();
         closeLiveSession().then(function () {
           if (againQuiz) {
             startHost(againQuiz);
@@ -1803,6 +1967,7 @@ body.hosting .top .sub{display:none}
         finishHost();
         return;
       }
+      if (t.id === "hostStart") burstFireworks({ count: 100, spread: 170, y: window.innerHeight * 0.38 });
       nextHostStep();
       return;
     }
