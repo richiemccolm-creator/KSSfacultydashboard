@@ -36,6 +36,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link href="https://api.fontshare.com/v2/css?f[]=general-sans@500,600,700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="design-tokens.css">
+<link rel="stylesheet" href="teacher-planner-redesign.css">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -911,7 +912,6 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
   .pulse-right{text-align:left}
 }
 </style>
-<link rel="stylesheet" href="teacher-planner-redesign.css">
 </head>
 <body>
 <script>
@@ -967,7 +967,7 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
 
 <!-- Today dashboard -->
 <div id="panel-today" class="planner-panel panel active">
-  <div id="todayDashboardRoot" class="today-page">
+  <div id="todayDashboardRoot" class="today-dashboard">
     <div class="rd-empty" id="todayLoadingState">Loading today’s lessons…</div>
   </div>
 </div>
@@ -2117,10 +2117,7 @@ function syncTopbarMeta() {
       if (document.getElementById('panel-today') && document.getElementById('panel-today').classList.contains('active')) {
         // Refresh greeting name only once teacher identity resolves
         var heading = document.querySelector('#todayDashboardRoot .today-heading');
-        if (heading) {
-          var first = fullName.trim().split(/\s+/)[0] || fullName;
-          heading.textContent = greetingForHour(new Date().getHours()) + ', ' + first;
-        }
+        if (heading) heading.textContent = greetingForHour(new Date().getHours()) + ', ' + fullName + '.';
       }
     }).catch(function() {});
   }
@@ -2733,12 +2730,6 @@ function formatTodayClock(dateObj) {
 var _todayCalendarEventsCache = [];
 var _todayClockTimer = null;
 
-function teacherFirstName() {
-  var full = getTeacherDisplayName() || 'Teacher';
-  var first = String(full).trim().split(/\s+/)[0];
-  return first || 'Teacher';
-}
-
 function buildTodayDashboardModel() {
   syncTopbarMeta();
   var now = new Date();
@@ -2760,15 +2751,13 @@ function buildTodayDashboardModel() {
     } else if (lesson && lesson.n5CiSession) {
       unit = 'N5 Creative Industries';
     }
-    var subject = row.slot.subject || '';
     return {
       period: row.period,
       slotKey: row.slotKey,
       dateStr: dateStr,
       timeLabel: periodTimeLabel(row.period) || '—',
-      className: row.slot.className || subjectLabel(subject) || 'Class',
-      subject: subject,
-      subjectLabel: subjectLabel(subject) || '',
+      classLabel: (row.slot.className || subjectLabel(row.slot.subject) || 'Class') +
+        (row.slot.subject ? ' · ' + subjectLabel(row.slot.subject) : ''),
       title: lesson ? (lesson.title || 'Untitled') : 'No lesson plan yet',
       unit: unit,
       status: st
@@ -2778,7 +2767,7 @@ function buildTodayDashboardModel() {
   var needPlanning = lessonRows.filter(function(r) { return r.status === 'needs-planning'; }).length;
   var weekStats = getWeekPlanningStats(weekStart);
   var firstUnplanned = lessonRows.find(function(r) { return r.status === 'needs-planning'; }) || null;
-  var focus = firstUnplanned || getFocusLessonRow(lessonRows) || null;
+  var focus = getFocusLessonRow(lessonRows) || firstUnplanned || null;
 
   var allEvents = Array.isArray(_todayCalendarEventsCache) ? _todayCalendarEventsCache : [];
   var weekEnd = new Date(weekStart);
@@ -2800,41 +2789,29 @@ function buildTodayDashboardModel() {
   if (needPlanning > 0) {
     attention.push({
       kind: 'warn',
-      title: needPlanning + ' lesson' + (needPlanning === 1 ? '' : 's') + ' need planning',
-      detail: 'Today · open Plan missing lesson to start'
+      text: needPlanning + ' lesson' + (needPlanning === 1 ? '' : 's') + ' need' + (needPlanning === 1 ? 's' : '') + ' planning today'
     });
   }
-  lessonRows.filter(function(r) { return r.status === 'draft'; }).slice(0, 2).forEach(function(r) {
-    attention.push({
-      kind: 'info',
-      title: 'Finish draft · P' + r.period + ' ' + r.className,
-      detail: r.title || 'Draft lesson',
-      dateStr: r.dateStr,
-      slotKey: r.slotKey
-    });
-  });
   if (assessments.length) {
     attention.push({
       kind: 'assess',
-      title: assessments.length + ' assessment' + (assessments.length === 1 ? '' : 's') + ' this week',
-      detail: 'Review deadlines in Events'
+      text: assessments.length + ' assessment' + (assessments.length === 1 ? '' : 's') + ' due this week'
     });
   }
   weekEvents.filter(function(e) {
     return String(e.category || '').toLowerCase() === 'meeting';
   }).slice(0, 2).forEach(function(e) {
-    attention.push({
-      kind: 'info',
-      title: e.title || 'Meeting',
-      detail: e.date ? e.date.slice(5) : 'This week'
-    });
+    attention.push({ kind: 'info', text: (e.title || 'Meeting') + (e.date ? ' · ' + e.date.slice(5) : '') });
   });
 
+  var who = getTeacherDisplayName();
+  var greeting = greetingForHour(now.getHours()) + ', ' + who + '.';
   var dayNote = PS.getDayNote ? PS.getDayNote(dateStr) : '';
   var planPct = weekStats.teaching ? Math.round((weekStats.planned / weekStats.teaching) * 100) : 0;
-  var firstName = teacherFirstName();
-  var greeting = greetingForHour(now.getHours()) + ', ' + firstName;
-  var fullDate = now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  var summary = lessonRows.length
+    ? ('You have ' + lessonRows.length + ' lesson' + (lessonRows.length === 1 ? '' : 's') + ' today' +
+      (needPlanning ? ('. ' + needPlanning + ' still need' + (needPlanning === 1 ? 's' : '') + ' planning.') : '. All planned.'))
+    : 'No teaching periods on the timetable today. Open Timetable if that looks wrong.';
 
   var dayOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
   var todayStr = dateStr;
@@ -2863,73 +2840,54 @@ function buildTodayDashboardModel() {
         dateStr: ds,
         slotKey: k,
         label: slot.className || subjectLabel(slot.subject) || 'Class',
-        subject: slot.subject || '',
         status: st,
         isToday: ds === todayStr
       });
     });
   }
 
-  var eventItems = upcoming.map(function(e) {
-    var cat = String(e.category || '').toLowerCase();
-    var kind = (cat === 'assessment' || cat === 'exam') ? 'assess' : 'info';
-    return {
-      kind: kind,
-      title: e.title || 'Event',
-      detail: e.date || ''
-    };
-  });
-
   return {
     now: now,
     dateStr: dateStr,
     weekStart: weekStart,
+    eyebrow: today.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }),
     heading: greeting,
+    summary: summary,
     school: ((document.querySelector('.topbar-school-chip') || {}).textContent || 'School').trim(),
     clock: formatTodayClock(now),
-    fullDate: fullDate,
     room: getRoomDisplayName(),
     focusLesson: focus,
     firstUnplanned: firstUnplanned,
-    needPlanning: needPlanning,
     dayNote: dayNote,
     metrics: [
-      { action: 'scroll-lessons', tone: 'blue', icon: 'calendar', value: String(lessonRows.length), label: 'Lessons today', link: "View today's lessons" },
-      { action: 'plan-missing', tone: 'red', icon: 'alert', value: String(needPlanning), label: 'Need planning', link: 'Plan missing lesson' },
-      { action: 'view-week', tone: 'green', icon: 'chart', value: weekStats.planned + ' / ' + weekStats.teaching, label: 'This week planned', link: 'View weekly overview' },
-      { action: 'scroll-events', tone: 'purple', icon: 'clipboard', value: String(assessments.length), label: 'Assessments due', link: 'View deadlines' }
+      { action: 'scroll-lessons', tone: 'blue', icon: 'calendar', value: String(lessonRows.length), label: 'Lessons today', link: "View today's lessons →" },
+      { action: 'plan-missing', tone: 'red', icon: 'alert', value: String(needPlanning), label: 'Need planning', link: 'Plan missing lesson →' },
+      { action: 'view-week', tone: 'green', icon: 'chart', value: weekStats.planned + ' / ' + weekStats.teaching, label: 'This week planned', link: 'View weekly overview →' },
+      { action: 'scroll-events', tone: 'purple', icon: 'clipboard', value: String(assessments.length), label: 'Assessments due', link: 'View deadlines →' }
     ],
     lessons: lessonRows,
     weekDays: dayOrder.map(function(d) { return d.slice(0, 3).toUpperCase(); }),
     weekCells: weekCells,
-    attention: attention.slice(0, 6),
-    events: eventItems.slice(0, 6),
-    progress: {
-      planned: weekStats.planned,
-      teaching: weekStats.teaching,
-      unplanned: Math.max(0, weekStats.teaching - weekStats.planned),
-      pct: planPct
-    }
+    attention: attention,
+    progress: { planned: weekStats.planned, teaching: weekStats.teaching, pct: planPct },
+    events: upcoming
   };
 }
 
 function createTodayDashboardMarkup(model) {
-  var firstUnplanned = model.firstUnplanned;
-  var planLabel = firstUnplanned ? 'Plan missing lesson' : 'All lessons planned';
-  var planDisabled = firstUnplanned ? '' : ' disabled';
-  var lessonsCount = model.lessons.length;
-  var needN = model.needPlanning || 0;
-  var panelSummary = lessonsCount
-    ? (lessonsCount + ' on the timetable · ' + needN + ' need' + (needN === 1 ? 's' : '') + ' planning')
-    : 'No teaching periods scheduled today';
+  var focus = model.focusLesson;
+  var planLabel = focus
+    ? (focus.status === 'needs-planning' ? 'Plan missing lesson' : 'Open next lesson')
+    : 'All clear';
+  var planDisabled = focus ? '' : ' disabled';
 
   var metricsHtml = model.metrics.map(function(m) {
     return (
-      '<button type="button" class="today-metric-card today-metric-' + escHtml(m.tone) + '" data-today-action="' + escHtml(m.action) + '">' +
-        '<span class="today-metric-icon" aria-hidden="true">' + todayMetricIcon(m.icon) + '</span>' +
-        '<span class="today-metric-copy">' +
-          '<span class="today-metric-label">' + escHtml(m.label) + '</span>' +
+      '<button type="button" class="today-metric-card" data-today-action="' + escHtml(m.action) + '">' +
+        '<span class="today-metric-icon tone-' + escHtml(m.tone) + '" aria-hidden="true">' + todayMetricIcon(m.icon) + '</span>' +
+        '<span>' +
           '<span class="today-metric-value">' + escHtml(m.value) + '</span>' +
+          '<span class="today-metric-label">' + escHtml(m.label) + '</span>' +
           '<span class="today-metric-link">' + escHtml(m.link) + '</span>' +
         '</span>' +
       '</button>'
@@ -2941,28 +2899,26 @@ function createTodayDashboardMarkup(model) {
     lessonsHtml = '<p class="today-empty">No lessons scheduled today. Open Timetable if that looks wrong.</p>';
   } else {
     lessonsHtml = model.lessons.map(function(r) {
-      var subj = r.subject || 'other';
-      var actionLabel = r.status === 'needs-planning' ? 'Plan now' : (r.status === 'complete' ? 'View summary' : 'View plan');
-      var actionCls = r.status === 'needs-planning' ? 'today-lesson-action is-plan' : 'today-lesson-action is-view';
+      var statusHtml = '<span class="today-lesson-status is-' + r.status + '">' + escHtml(statusLabel(r.status)) + '</span>';
+      var actionHtml = r.status === 'needs-planning'
+        ? '<button type="button" class="today-lesson-plan" data-date="' + r.dateStr + '" data-slot="' + r.slotKey + '">Plan now</button>'
+        : '<span class="today-lesson-action-spacer" aria-hidden="true"></span>';
       return (
-        '<div class="today-lesson-item is-' + r.status + ' subj-' + escHtml(subj) + '" data-date="' + r.dateStr + '" data-slot="' + r.slotKey + '" role="button" tabindex="0">' +
-          '<span class="today-lesson-period" aria-label="Period ' + r.period + '">P' + r.period + '</span>' +
-          '<div class="today-lesson-meta">' +
-            '<span class="today-lesson-time">' + escHtml(r.timeLabel) + '</span>' +
-            '<span class="today-lesson-class">' + escHtml(r.className) + '</span>' +
-          '</div>' +
-          '<div class="today-lesson-detail">' +
-            '<strong class="today-lesson-title">' + escHtml(r.title) + '</strong>' +
-            '<span class="today-lesson-unit">' + escHtml(r.unit || '—') + '</span>' +
-          '</div>' +
-          '<span class="today-lesson-status is-' + r.status + '">' + escHtml(statusLabel(r.status)) + '</span>' +
-          '<button type="button" class="' + actionCls + '" data-date="' + r.dateStr + '" data-slot="' + r.slotKey + '">' + actionLabel + '</button>' +
+        '<div class="today-lesson-item is-' + r.status + '" data-date="' + r.dateStr + '" data-slot="' + r.slotKey + '" role="button" tabindex="0">' +
+          '<span class="today-lesson-period">P' + r.period + '</span>' +
+          '<span class="today-lesson-time">' + escHtml(r.timeLabel) + '</span>' +
+          '<span class="today-lesson-copy">' +
+            '<strong>' + escHtml(r.classLabel) + '</strong>' +
+            '<span>' + escHtml(r.title) + (r.unit ? ' · ' + escHtml(r.unit) : '') + '</span>' +
+          '</span>' +
+          statusHtml +
+          actionHtml +
         '</div>'
       );
     }).join('');
   }
 
-  var weekHead = '<div class="today-week-corner" aria-hidden="true"></div>' + model.weekDays.map(function(d) {
+  var weekHead = '<div class="today-week-head"></div>' + model.weekDays.map(function(d) {
     return '<div class="today-week-head">' + d + '</div>';
   }).join('');
   var weekBody = '';
@@ -2970,140 +2926,110 @@ function createTodayDashboardMarkup(model) {
     weekBody += '<div class="today-week-period">P' + p + '</div>';
     model.weekCells.filter(function(c) { return c.period === p; }).forEach(function(c) {
       if (c.kind === 'empty') {
-        weekBody += '<div class="today-week-cell is-empty" aria-hidden="true"></div>';
+        weekBody += '<div class="today-week-cell" aria-hidden="true"></div>';
         return;
       }
       if (c.kind === 'free') {
-        weekBody += '<div class="today-week-cell is-free' + (c.isToday ? ' is-today-col' : '') + '">Free</div>';
+        weekBody += '<div class="today-week-cell' + (c.isToday ? ' is-today-col' : '') + '">Free</div>';
         return;
       }
       weekBody +=
-        '<button type="button" class="today-week-cell has-slot st-' + c.status + ' subj-' + escHtml(c.subject || 'other') + (c.isToday ? ' is-today-col' : '') + '" data-date="' + c.dateStr + '" data-slot="' + c.slotKey + '">' +
+        '<button type="button" class="today-week-cell has-slot st-' + c.status + (c.isToday ? ' is-today-col' : '') + '" data-date="' + c.dateStr + '" data-slot="' + c.slotKey + '">' +
           escHtml(c.label) +
         '</button>';
     });
   }
 
-  function weekListHtml(items, emptyText) {
-    if (!items.length) return '<p class="today-empty">' + escHtml(emptyText) + '</p>';
-    return '<ul class="today-week-list">' + items.map(function(it) {
-      var openAttr = (it.dateStr && it.slotKey)
-        ? (' data-date="' + it.dateStr + '" data-slot="' + it.slotKey + '"')
-        : '';
-      return (
-        '<li class="today-week-list-item"' + openAttr + '>' +
-          '<span class="today-week-list-icon is-' + escHtml(it.kind || 'info') + '" aria-hidden="true"></span>' +
-          '<span class="today-week-list-copy">' +
-            '<strong>' + escHtml(it.title) + '</strong>' +
-            '<span>' + escHtml(it.detail || '') + '</span>' +
-          '</span>' +
-          '<span class="today-week-list-chevron" aria-hidden="true">›</span>' +
-        '</li>'
-      );
-    }).join('') + '</ul>';
-  }
+  var attentionHtml = model.attention.length
+    ? '<ul class="today-attn-list">' + model.attention.map(function(it) {
+        return '<li><span class="today-attn-dot ' + escHtml(it.kind || 'info') + '" aria-hidden="true">!</span><span>' + escHtml(it.text) + '</span></li>';
+      }).join('') + '</ul>'
+    : '<p class="today-empty">Nothing needing attention this week.</p>';
 
-  var attentionHtml = weekListHtml(model.attention, 'Nothing needing attention this week.');
-  var eventsHtml = weekListHtml(model.events, 'No upcoming events recorded.');
-  var pct = model.progress.pct;
-  var ringStyle = 'background: conic-gradient(var(--today-green) 0 ' + pct + '%, rgba(21,152,120,0.15) ' + pct + '% 100%);';
+  var eventsHtml = model.events.length
+    ? '<ul class="today-events-list">' + model.events.map(function(e) {
+        var kind = (String(e.category || '').toLowerCase() === 'assessment' || String(e.category || '').toLowerCase() === 'exam') ? 'assess' : 'info';
+        return '<li><span class="today-attn-dot ' + kind + '" aria-hidden="true">•</span><span><strong>' + escHtml((e.date || '').slice(5)) + '</strong> — ' + escHtml(e.title || 'Event') + '</span></li>';
+      }).join('') + '</ul>'
+    : '<p class="today-empty">No upcoming assessments recorded.</p>';
 
-  var summaryHtml =
-    '<span>' + lessonsCount + ' lessons today · </span>' +
-    '<span class="today-summary-alert">' + needN + ' needs planning</span>';
+  var lessonsCount = model.lessons ? model.lessons.length : 0;
+  var needPlanningCount = (model.metrics && model.metrics[1] && model.metrics[1].value != null)
+    ? model.metrics[1].value
+    : '0';
+  var heroSummary = lessonsCount + ' lessons today · ' + needPlanningCount + ' need planning';
 
   return (
+    '<div class="today-page">' +
       '<section class="today-hero">' +
-        '<div class="today-hero-main">' +
-          '<div class="today-eyebrow">TODAY</div>' +
+        '<div class="today-hero-content">' +
+          '<div class="today-eyebrow">Today</div>' +
           '<h1 class="today-heading">' + escHtml(model.heading) + '</h1>' +
-          '<p class="today-summary">' + summaryHtml + '</p>' +
+          '<p class="today-summary">' + escHtml(heroSummary) + '</p>' +
           '<div class="today-hero-actions">' +
-            '<button type="button" id="todayPlanMissing" class="today-action today-action-primary"' + planDisabled + '>' + escHtml(planLabel) + '</button>' +
-            '<button type="button" id="todayOpenBank" class="today-action today-action-secondary">Open lesson bank</button>' +
-            '<button type="button" id="todayAddNote" class="today-action today-action-secondary">Add note</button>' +
-            '<button type="button" id="todayViewWeek" class="today-action today-action-secondary">View week</button>' +
+            '<button type="button" class="today-hero-primary" id="todayPlanMissing"' + planDisabled + '>' + escHtml(planLabel) + '</button>' +
+            '<button type="button" id="todayOpenBank">Open lesson bank</button>' +
+            '<button type="button" id="todayAddNote">Add a note</button>' +
+            '<button type="button" id="todayViewWeek">View week</button>' +
           '</div>' +
         '</div>' +
-        '<aside class="today-hero-meta">' +
-          '<div class="today-time-panel">' +
-            '<time class="today-clock" datetime="' + escHtml(model.dateStr) + '">' + escHtml(model.clock) + '</time>' +
-            '<div class="today-full-date">' + escHtml(model.fullDate) + '</div>' +
-            '<div class="today-time-divider"></div>' +
-            '<div class="today-room">' + escHtml(model.room) + '</div>' +
-            '<div class="today-school">' + escHtml(model.school) + '</div>' +
-          '</div>' +
-        '</aside>' +
+        '<div class="today-hero-meta">' +
+          '<time class="today-clock" datetime="' + escHtml(model.dateStr) + '">' + escHtml(model.clock) + '</time>' +
+          '<div class="today-room">' + escHtml(model.room) + '</div>' +
+          '<div class="today-school">' + escHtml(model.school) + '</div>' +
+        '</div>' +
       '</section>' +
       '<section class="today-metrics">' + metricsHtml + '</section>' +
       '<div class="today-dashboard-grid">' +
         '<main class="today-main-column">' +
           '<section class="today-panel today-lessons-panel" id="todayLessonsCard">' +
-            '<header class="today-panel-header">' +
-              '<div><h2>Today’s lessons</h2><p class="today-panel-summary">' + escHtml(panelSummary) + '</p></div>' +
-            '</header>' +
-            '<div class="today-lessons-table">' +
-              '<div class="today-lessons-columns" aria-hidden="true">' +
-                '<span>Period</span><span>Time</span><span>Class</span><span>Lesson</span><span>Status</span><span>Action</span>' +
-              '</div>' +
-              '<div class="today-lessons-list" id="todayLessonList">' + lessonsHtml + '</div>' +
-            '</div>' +
+            '<header class="today-panel-header"><h3>Today’s lessons</h3></header>' +
+            '<div class="today-lessons-list" id="todayLessonList">' + lessonsHtml + '</div>' +
           '</section>' +
           '<section class="today-panel today-week-panel">' +
-            '<header class="today-panel-header">' +
-              '<div><h2>Weekly overview</h2></div>' +
-              '<button type="button" id="todayViewFullWeek" class="today-panel-link">View full timetable</button>' +
-            '</header>' +
+            '<header class="today-panel-header"><h3>This week</h3></header>' +
+            '<div class="today-week-legend">' +
+              '<span class="lg-planned">Planned</span>' +
+              '<span class="lg-draft">Draft</span>' +
+              '<span class="lg-needs">Needs planning</span>' +
+              '<span class="lg-free">Free</span>' +
+            '</div>' +
             '<div class="today-week-scroll">' +
               '<div class="today-week-grid" role="grid" aria-label="Weekly timetable overview">' + weekHead + weekBody + '</div>' +
             '</div>' +
           '</section>' +
         '</main>' +
         '<aside class="today-sidebar">' +
-          '<section class="today-panel today-this-week-panel" id="todayAttentionCard">' +
-            '<header class="today-panel-header"><h2>This week</h2></header>' +
-            '<div class="today-week-tabs" role="tablist" aria-label="This week">' +
-              '<button type="button" class="today-week-tab is-active" role="tab" aria-selected="true" data-week-tab="attention" id="todayTabAttention">Attention</button>' +
-              '<button type="button" class="today-week-tab" role="tab" aria-selected="false" data-week-tab="events" id="todayTabEvents">Events</button>' +
-            '</div>' +
-            '<div class="today-this-week-list" id="todayWeekTabAttention" role="tabpanel" aria-labelledby="todayTabAttention">' + attentionHtml + '</div>' +
-            '<div class="today-this-week-list" id="todayWeekTabEvents" role="tabpanel" aria-labelledby="todayTabEvents" hidden>' + eventsHtml + '</div>' +
+          '<section class="today-panel today-attention-panel" id="todayAttentionCard">' +
+            '<header class="today-panel-header"><h3>Needs attention</h3></header>' +
+            attentionHtml +
           '</section>' +
           '<section class="today-panel today-progress-panel">' +
-            '<header class="today-panel-header"><h2>Weekly progress</h2></header>' +
-            '<div class="today-progress-layout">' +
-              '<div class="today-progress-ring" style="' + ringStyle + '" role="img" aria-label="' + pct + ' percent of lessons planned this week">' +
-                '<div class="today-progress-ring-inner"><strong>' + pct + '%</strong><span>planned</span></div>' +
-              '</div>' +
-              '<div class="today-progress-details">' +
-                '<strong class="today-progress-heading">' + model.progress.planned + ' of ' + model.progress.teaching + ' lessons planned</strong>' +
-                '<div class="today-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '"><span style="width:' + pct + '%"></span></div>' +
-                '<div class="today-progress-legend">' +
-                  '<span class="lg-planned">Planned ' + model.progress.planned + '</span>' +
-                  '<span class="lg-needs">Unplanned ' + model.progress.unplanned + '</span>' +
-                '</div>' +
-              '</div>' +
-            '</div>' +
+            '<header class="today-panel-header"><h3>Weekly progress</h3></header>' +
+            '<div class="today-progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + model.progress.pct + '"><span style="width:' + model.progress.pct + '%"></span></div>' +
+            '<div class="today-progress-label">' + model.progress.planned + ' / ' + model.progress.teaching + ' lessons planned (' + model.progress.pct + '%)</div>' +
           '</section>' +
           '<section class="today-panel today-notes-panel">' +
-            '<header class="today-panel-header">' +
-              '<h2>Quick notes</h2>' +
-              '<button type="button" id="todayNewNote" class="today-panel-link">New note</button>' +
-            '</header>' +
-            '<div class="today-note-card">' +
+            '<header class="today-panel-header"><h3>Quick notes</h3><button type="button" id="todayFocusNoteBtn">+ Note</button></header>' +
+            '<div class="today-notes-wrap">' +
               '<label class="sr-only" for="todayQuickNote">Day notes</label>' +
-              '<textarea id="todayQuickNote" data-date="' + escHtml(model.dateStr) + '" placeholder="Reminders for today…" rows="4">' + escHtml(model.dayNote) + '</textarea>' +
-              '<div class="today-note-meta">Saves with your day notes</div>' +
+              '<textarea id="todayQuickNote" data-date="' + escHtml(model.dateStr) + '" placeholder="Reminders for today…">' + escHtml(model.dayNote) + '</textarea>' +
+              '<div class="today-notes-meta">Saves with your day notes</div>' +
             '</div>' +
           '</section>' +
+          '<section class="today-panel today-events-panel" id="todayEventsCard">' +
+            '<header class="today-panel-header"><h3>Upcoming</h3></header>' +
+            eventsHtml +
+          '</section>' +
         '</aside>' +
-      '</div>'
+      '</div>' +
+    '</div>'
   );
 }
 
 function bindTodayDashboardEvents(root, model) {
   if (!root) return;
-  var firstUnplanned = (model && model.firstUnplanned) || null;
+  var focusLesson = (model && model.focusLesson) || (model && model.firstUnplanned) || null;
 
   if (_todayClockTimer) {
     clearInterval(_todayClockTimer);
@@ -3130,21 +3056,19 @@ function bindTodayDashboardEvents(root, model) {
   }
 
   var planBtn = root.querySelector('#todayPlanMissing');
-  if (planBtn && firstUnplanned && !planBtn.disabled) {
+  if (planBtn && focusLesson && !planBtn.disabled) {
     planBtn.addEventListener('click', function() {
-      openLessonModal(firstUnplanned.dateStr, firstUnplanned.slotKey);
+      openLessonModal(focusLesson.dateStr, focusLesson.slotKey);
     });
   }
   var bankBtn = root.querySelector('#todayOpenBank');
   if (bankBtn) bankBtn.addEventListener('click', function() { switchPlannerTab('bank'); });
   var weekBtn = root.querySelector('#todayViewWeek');
   if (weekBtn) weekBtn.addEventListener('click', function() { switchPlannerTab('week'); });
-  var fullWeekBtn = root.querySelector('#todayViewFullWeek');
-  if (fullWeekBtn) fullWeekBtn.addEventListener('click', function() { switchPlannerTab('week'); });
   var addNoteBtn = root.querySelector('#todayAddNote');
   if (addNoteBtn) addNoteBtn.addEventListener('click', focusNote);
-  var newNoteBtn = root.querySelector('#todayNewNote');
-  if (newNoteBtn) newNoteBtn.addEventListener('click', focusNote);
+  var focusNoteBtn = root.querySelector('#todayFocusNoteBtn');
+  if (focusNoteBtn) focusNoteBtn.addEventListener('click', focusNote);
 
   var quickNote = root.querySelector('#todayQuickNote');
   if (quickNote) {
@@ -3159,47 +3083,19 @@ function bindTodayDashboardEvents(root, model) {
     });
   }
 
-  function showWeekTab(name) {
-    var tabs = root.querySelectorAll('.today-week-tab');
-    tabs.forEach(function(tab) {
-      var on = tab.getAttribute('data-week-tab') === name;
-      tab.classList.toggle('is-active', on);
-      tab.setAttribute('aria-selected', on ? 'true' : 'false');
-    });
-    var attn = root.querySelector('#todayWeekTabAttention');
-    var ev = root.querySelector('#todayWeekTabEvents');
-    if (attn) attn.hidden = name !== 'attention';
-    if (ev) ev.hidden = name !== 'events';
-  }
-
-  root.querySelectorAll('.today-week-tab').forEach(function(tab) {
-    tab.addEventListener('click', function() {
-      showWeekTab(tab.getAttribute('data-week-tab') || 'attention');
-    });
-    tab.addEventListener('keydown', function(e) {
-      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
-      e.preventDefault();
-      var tabs = Array.prototype.slice.call(root.querySelectorAll('.today-week-tab'));
-      var i = tabs.indexOf(tab);
-      var next = e.key === 'ArrowRight' ? tabs[(i + 1) % tabs.length] : tabs[(i - 1 + tabs.length) % tabs.length];
-      if (next) { next.focus(); showWeekTab(next.getAttribute('data-week-tab') || 'attention'); }
-    });
-  });
-
   root.querySelectorAll('[data-today-action]').forEach(function(btn) {
     btn.addEventListener('click', function() {
       var act = btn.getAttribute('data-today-action');
       if (act === 'scroll-lessons') {
         var el = root.querySelector('#todayLessonsCard');
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      } else if (act === 'plan-missing' && firstUnplanned) {
-        openLessonModal(firstUnplanned.dateStr, firstUnplanned.slotKey);
+      } else if (act === 'plan-missing' && focusLesson) {
+        openLessonModal(focusLesson.dateStr, focusLesson.slotKey);
       } else if (act === 'view-week') {
         switchPlannerTab('week');
       } else if (act === 'scroll-events') {
-        showWeekTab('events');
-        var panel = root.querySelector('#todayAttentionCard');
-        if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        var ev = root.querySelector('#todayEventsCard');
+        if (ev) ev.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     });
   });
@@ -3207,18 +3103,18 @@ function bindTodayDashboardEvents(root, model) {
   root.querySelectorAll('.today-lesson-item[data-date][data-slot]').forEach(function(row) {
     function openRow() { openLessonModal(row.dataset.date, row.dataset.slot); }
     row.addEventListener('click', function(e) {
-      if (e.target.closest('.today-lesson-action')) return;
+      if (e.target.closest('.today-lesson-plan')) return;
       openRow();
     });
     row.addEventListener('keydown', function(e) {
-      if (e.target.closest('.today-lesson-action')) return;
+      if (e.target.closest('.today-lesson-plan')) return;
       if (e.key === 'Enter' || e.key === ' ') {
         e.preventDefault();
         openRow();
       }
     });
   });
-  root.querySelectorAll('.today-lesson-action').forEach(function(btn) {
+  root.querySelectorAll('.today-lesson-plan').forEach(function(btn) {
     btn.addEventListener('click', function(e) {
       e.stopPropagation();
       openLessonModal(btn.dataset.date, btn.dataset.slot);
@@ -3229,18 +3125,12 @@ function bindTodayDashboardEvents(root, model) {
       openLessonModal(cell.dataset.date, cell.dataset.slot);
     });
   });
-  root.querySelectorAll('.today-week-list-item[data-date][data-slot]').forEach(function(item) {
-    item.addEventListener('click', function() {
-      openLessonModal(item.dataset.date, item.dataset.slot);
-    });
-  });
 }
 
 function renderTodayDashboard() {
   var model = buildTodayDashboardModel();
   var root = document.getElementById('todayDashboardRoot');
   if (!root) return;
-  root.classList.add('today-page');
   root.innerHTML = createTodayDashboardMarkup(model);
   bindTodayDashboardEvents(root, model);
 
