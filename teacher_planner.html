@@ -36,6 +36,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link href="https://api.fontshare.com/v2/css?f[]=general-sans@500,600,700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="design-tokens.css">
+<link rel="stylesheet" href="teacher-planner-redesign.css">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -913,49 +914,85 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
 </style>
 </head>
 <body>
-<div class="planner-app">
+<script>
+(function () {
+  var isEmbedded = window.self !== window.top ||
+    (typeof URLSearchParams !== 'undefined' && new URLSearchParams(window.location.search).get('embed') === '1');
+  document.documentElement.classList.toggle('is-embedded', isEmbedded);
+  document.addEventListener('DOMContentLoaded', function () {
+    document.body.classList.toggle('is-embedded', isEmbedded);
+  });
+  if (document.body) document.body.classList.toggle('is-embedded', isEmbedded);
+})();
+</script>
+<div class="planner-app planner-redesign">
 
 <header class="topbar">
-  <div class="topbar-left">
+  <div class="topbar-left topbar-brand">
     <a href="faculty-hub.html" class="topbar-logo-wrap">
       <img src="faculty-hub-logo.png" alt="Faculty Hub" class="topbar-logo-img">
     </a>
+    <span class="topbar-app-title">Teacher Planner</span>
   </div>
   <div class="topbar-meta">
-    <span class="meta-badge teacher" id="topbarTeacherName">R. McColm</span>
-    <span class="meta-badge" id="topbarRoom">Drama Studio</span>
+    <span class="topbar-school-chip">Knightswood Secondary</span>
+    <span class="meta-badge teacher" id="topbarTeacherName">Teacher</span>
+    <span class="meta-badge" id="topbarRoom">Teaching Space</span>
     <span class="meta-badge is-clickable" id="topbarAcademicYear" title="Click to change academic year">2025–26</span>
   </div>
 </header>
 
-<nav class="tabs-bar">
+<nav class="tabs-bar" aria-label="Planner sections">
   <div class="tabs-inner">
-    <button class="tab-btn planner-tab active" data-tab="timetable">My Timetable</button>
-    <button class="tab-btn planner-tab" data-tab="week">Week View</button>
-    <button class="tab-btn planner-tab" data-tab="day">Day View</button>
-    <button class="tab-btn planner-tab" data-tab="month">Month View</button>
-    <button class="tab-btn planner-tab" data-tab="bank">Lesson Bank</button>
-    <button class="tab-btn planner-tab" data-tab="schemes">Schemes of Work</button>
+    <button type="button" class="tab-btn planner-tab active" data-tab="today">Today</button>
+    <button type="button" class="tab-btn planner-tab" data-tab="week">Week</button>
+    <button type="button" class="tab-btn planner-tab" data-tab="timetable">Timetable</button>
+    <button type="button" class="tab-btn planner-tab" data-tab="bank">Lesson Bank</button>
+    <button type="button" class="tab-btn planner-tab" data-tab="schemes">Schemes of Work</button>
+    <!-- Day/Month remain as panels; opened via Week sub-nav -->
+    <button type="button" class="tab-btn planner-tab" data-tab="day" hidden aria-hidden="true">Day View</button>
+    <button type="button" class="tab-btn planner-tab" data-tab="month" hidden aria-hidden="true">Month View</button>
+    <div class="tabs-meta" aria-hidden="true"></div>
   </div>
 </nav>
 
 <main class="content">
-<section id="plannerPulse" class="planner-pulse"></section>
+<section id="plannerPulse" class="planner-pulse" aria-hidden="true"></section>
+
+<nav class="planner-subnav" id="calendarSubnav" aria-label="Calendar view">
+  <button type="button" class="planner-subnav-btn is-active" data-calendar-view="week">Week</button>
+  <button type="button" class="planner-subnav-btn" data-calendar-view="day">Day</button>
+  <button type="button" class="planner-subnav-btn" data-calendar-view="month">Month</button>
+</nav>
+
+<!-- Today dashboard -->
+<div id="panel-today" class="planner-panel panel active">
+  <div id="todayDashboardRoot" class="today-dashboard">
+    <div class="rd-empty" id="todayLoadingState">Loading today’s lessons…</div>
+  </div>
+</div>
 
 <!-- Timetable panel -->
-<div id="panel-timetable" class="planner-panel panel active">
-  <div id="plannerInsights" class="stat-row"></div>
-  <div id="timetableDisplaySection" class="timetable-section" style="display:none">
-    <div class="timetable-display-header">
-      <span class="timetable-display-title">My weekly timetable</span>
-      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+<div id="panel-timetable" class="planner-panel panel">
+  <div id="timetableSummaryRow" class="tt-summary-row" aria-live="polite"></div>
+  <div class="tt-actions-row">
+    <button type="button" class="rd-btn rd-btn-outline" id="editTimetableBtn">Edit timetable</button>
+    <button type="button" class="rd-btn rd-btn-outline" id="printTimetableBtn">Print timetable</button>
+    <details class="tt-settings-details" id="timetableSettingsDetails">
+      <summary>Timetable settings</summary>
+      <div class="tt-settings-body">
         <button type="button" class="btn-primary" id="importFacultyTtBtn" title="Fill your weekly timetable from the faculty timetable">Import faculty timetable</button>
         <button type="button" class="btn-primary" id="importN5CiBtn" title="Place all N5 Creative Industries sessions into your Tue/Wed/Fri periods">Import N5 CI sessions</button>
-        <button type="button" class="btn-edit-timetable" id="editTimetableBtn">Edit timetable</button>
         <button type="button" class="btn-new-year" id="newAcademicYearBtn" title="Clear timetable to enter your new year schedule">Start new academic year</button>
       </div>
+    </details>
+  </div>
+  <div id="plannerInsights" class="stat-row" hidden></div>
+  <div id="timetableDisplaySection" class="timetable-section" style="display:none">
+    <div class="timetable-display-header">
+      <span class="timetable-display-title">Weekly timetable</span>
     </div>
-    <div id="timetableDisplayGrid" class="timetable-display-grid"></div>
+    <div id="timetableDisplayGrid" class="timetable-display-grid planner-scroll-region"></div>
   </div>
   <div id="timetableEditSection" class="timetable-section">
     <div class="timetable-header">Weekly timetable — enter your teaching slots</div>
@@ -967,7 +1004,7 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
         </div>
       </details>
     </div>
-    <div class="timetable-grid">
+    <div class="timetable-grid planner-scroll-region">
       <table class="timetable-table">
         <thead>
           <tr>
@@ -983,33 +1020,39 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
       </table>
     </div>
     <div style="padding:1rem 1.25rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
-      <button class="btn-save-timetable" id="saveTimetable">Save Timetable</button>
+      <button class="btn-save-timetable" id="saveTimetable">Save changes</button>
+      <button type="button" class="rd-btn rd-btn-outline" id="cancelTimetableEditBtn">Cancel</button>
       <button type="button" class="btn-primary" id="importFacultyTtBtnEdit" title="Fill your weekly timetable from the faculty timetable">Import faculty timetable</button>
       <button type="button" class="btn-primary" id="importN5CiBtnEdit" title="Place N5 CI sessions into your Tue/Wed/Fri periods">Import N5 CI sessions</button>
       <button type="button" class="btn-new-year" id="newAcademicYearBtnEdit" title="Clear and start fresh for the new academic year">Start new academic year</button>
     </div>
   </div>
+  <div id="timetableFooterInsights" class="tt-footer-insights"></div>
 </div>
 
 <!-- Week view panel -->
 <div id="panel-week" class="planner-panel panel">
+  <div id="weekHeroBanner"></div>
   <div class="nav-row">
-    <button class="nav-btn" id="weekPrev">&#9664;</button>
+    <button type="button" class="nav-btn" id="weekPrev" aria-label="Previous week">&#9664;</button>
     <div class="nav-label" id="weekDisplay"></div>
-    <button class="nav-btn" id="weekNext">&#9654;</button>
-    <button class="nav-today" id="weekToday">Today</button>
+    <button type="button" class="nav-btn" id="weekNext" aria-label="Next week">&#9654;</button>
+    <button type="button" class="nav-today" id="weekToday">Today</button>
     <button type="button" class="nav-today" id="weekCourseStart" title="Jump to N5 Creative Industries course start week">CI start</button>
   </div>
-  <div id="weekGridWrap"></div>
+  <div class="week-layout">
+    <div id="weekGridWrap" class="planner-scroll-region"></div>
+    <aside id="weekSidebarRoot" class="week-sidebar-root" aria-label="Week sidebar"></aside>
+  </div>
 </div>
 
 <!-- Day view panel -->
 <div id="panel-day" class="planner-panel panel">
   <div class="nav-row">
-    <button class="nav-btn" id="dayPrev">&#9664;</button>
+    <button type="button" class="nav-btn" id="dayPrev" aria-label="Previous day">&#9664;</button>
     <div class="day-date-title" id="dayViewDisplay"></div>
-    <button class="nav-btn" id="dayNext">&#9654;</button>
-    <button class="nav-today" id="dayViewToday">Today</button>
+    <button type="button" class="nav-btn" id="dayNext" aria-label="Next day">&#9654;</button>
+    <button type="button" class="nav-today" id="dayViewToday">Today</button>
     <button type="button" class="nav-today" id="dayCourseStart" title="Jump to N5 Creative Industries course start">CI start</button>
   </div>
   <div class="day-notes-panel">
@@ -1023,46 +1066,100 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
 <!-- Month view panel -->
 <div id="panel-month" class="planner-panel panel">
   <div class="nav-row">
-    <button class="nav-btn" id="monthPrev">&#9664;</button>
+    <button type="button" class="nav-btn" id="monthPrev" aria-label="Previous month">&#9664;</button>
     <div class="nav-label" id="monthDisplay"></div>
-    <button class="nav-btn" id="monthNext">&#9654;</button>
-    <button class="nav-today" id="monthToday">Today</button>
+    <button type="button" class="nav-btn" id="monthNext" aria-label="Next month">&#9654;</button>
+    <button type="button" class="nav-today" id="monthToday">Today</button>
     <button type="button" class="nav-today" id="monthCourseStart" title="Jump to N5 Creative Industries course start month">CI start</button>
   </div>
-  <div id="monthGridWrap" class="month-wrap"></div>
+  <div id="monthGridWrap" class="month-wrap planner-scroll-region"></div>
 </div>
 
 <!-- Lesson Bank panel -->
 <div id="panel-bank" class="planner-panel panel">
-  <div class="filter-row">
-    <span class="filter-lbl">Subject</span>
-    <button class="f-chip active bank-chip" data-subject="all">All</button>
-    <button class="f-chip bank-chip" data-subject="drama">Drama</button>
-    <button class="f-chip bank-chip" data-subject="art">Art</button>
-    <button class="f-chip bank-chip" data-subject="photography">Photography</button>
-    <input type="text" class="search-box" id="lessonBankSearch" placeholder="Search lessons...">
-    <button type="button" class="btn-primary" id="createNewLessonBtn" style="margin-left:auto">+ New lesson</button>
-    <input type="file" id="templateImportFile" accept=".json,application/json,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style="display:none">
-    <button type="button" class="btn-secondary" id="templateDownloadBtn">Download template</button>
-    <button type="button" class="btn-secondary" id="templateImportBtn">Import lesson</button>
-    <select class="form-select" id="lessonBankFilterSubject" style="display:none">
-      <option value="">All subjects</option>
-      <option value="drama">Drama</option>
-      <option value="art">Art & Design</option>
-      <option value="photography">Photography</option>
-    </select>
-  </div>
-  <div id="templatesList" class="lesson-grid"></div>
-  <div id="templatesEmpty" class="empty-state" style="display:none">
-    <strong>No lessons yet</strong><br>Click &quot;Create new lesson&quot; to build your first lesson plan. Once saved, it becomes a lesson card you can apply to classes.
+  <div class="bank-layout">
+    <aside class="bank-sidebar" id="lessonBankSidebar" aria-label="Lesson bank filters">
+      <div class="bank-side-section">
+        <div class="rd-card-head">
+          <h3>Saved filters</h3>
+        </div>
+        <div id="bankSavedFilters"></div>
+      </div>
+      <div class="bank-side-section">
+        <div class="rd-card-head">
+          <h3>Recent units</h3>
+        </div>
+        <div id="bankRecentUnits" class="rd-empty">No recent units yet.</div>
+      </div>
+      <div class="bank-side-section">
+        <div class="rd-card-head">
+          <h3>Resources attached</h3>
+        </div>
+        <div id="bankResourceStats" class="rd-empty">No resources counted yet.</div>
+      </div>
+    </aside>
+    <div class="bank-main">
+      <div class="schemes-page-head" style="margin-bottom:.75rem">
+        <h2 style="font-size:1.35rem;color:var(--planner-navy);margin:0">Lesson bank</h2>
+      </div>
+      <div class="bank-toolbar filter-row">
+        <input type="text" class="search-box" id="lessonBankSearch" placeholder="Search lessons, units or keywords" aria-label="Search lessons">
+        <select class="form-select" id="lessonBankFilterSubject" aria-label="Subject filter">
+          <option value="">Subject</option>
+          <option value="drama">Drama</option>
+          <option value="art">Art & Design</option>
+          <option value="photography">Photography</option>
+        </select>
+        <select id="lessonBankFilterYear" aria-label="Year group filter">
+          <option value="">Year group</option>
+          <option value="s1">S1</option>
+          <option value="s2">S2</option>
+          <option value="s3">S3</option>
+          <option value="s4">S4</option>
+          <option value="s5">S5</option>
+          <option value="s6">S6</option>
+        </select>
+        <select id="lessonBankFilterStatus" aria-label="Status filter">
+          <option value="">Status</option>
+          <option value="planned">Planned</option>
+          <option value="draft">Draft</option>
+          <option value="complete">Complete</option>
+        </select>
+        <select id="lessonBankFilterResources" aria-label="Resources filter">
+          <option value="">Resources</option>
+          <option value="with">Has resources</option>
+          <option value="without">No resources</option>
+        </select>
+        <button type="button" class="btn-primary" id="createNewLessonBtn">+ Add lesson</button>
+        <input type="file" id="templateImportFile" accept=".json,application/json,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style="display:none">
+        <button type="button" class="btn-secondary" id="templateDownloadBtn">Download template</button>
+        <button type="button" class="btn-secondary" id="templateImportBtn">Import lesson</button>
+      </div>
+      <div class="bank-chip-row" hidden>
+        <button class="f-chip active bank-chip" data-subject="all">All</button>
+        <button class="f-chip bank-chip" data-subject="drama">Drama</button>
+        <button class="f-chip bank-chip" data-subject="art">Art</button>
+        <button class="f-chip bank-chip" data-subject="photography">Photography</button>
+      </div>
+      <div id="lessonBankStatRow" class="rd-stat-row" style="grid-template-columns:repeat(3,minmax(0,1fr))"></div>
+      <div id="templatesList" class="lesson-grid"></div>
+      <div id="templatesEmpty" class="empty-state" style="display:none">
+        <strong>No lessons yet</strong><br>Click &quot;Add lesson&quot; to build your first lesson plan. Once saved, it becomes a lesson card you can apply to classes.
+      </div>
+    </div>
   </div>
 </div>
 
 <!-- Schemes of work panel -->
 <div id="panel-schemes" class="planner-panel panel">
+  <div class="schemes-page-head">
+    <h2>Schemes of work</h2>
+    <p>Organise units, track progress and plan learning sequences.</p>
+  </div>
+  <div id="schemesSummaryRow" class="rd-stat-row"></div>
   <div class="timetable-section">
     <div class="timetable-header scheme-schemes-header-row">
-      <span class="scheme-schemes-header-title">Schemes of work</span>
+      <span class="scheme-schemes-header-title">Units</span>
       <button type="button" class="btn-primary" id="schemeAddUnitHeaderBtn" style="font-size:.78rem;padding:.5rem 1rem;white-space:nowrap">+ Add unit</button>
     </div>
     <div style="padding:1rem 1.25rem">
@@ -2009,6 +2106,11 @@ function syncTopbarMeta() {
       if (!fullName && user && user.email) fullName = String(user.email).split('@')[0];
       if (fullName) teacherEl.textContent = fullName;
       renderPlannerPulse();
+      if (document.getElementById('panel-today') && document.getElementById('panel-today').classList.contains('active')) {
+        // Refresh greeting name only once teacher identity resolves
+        var heading = document.querySelector('#todayDashboardRoot .rd-hero h2');
+        if (heading) heading.textContent = greetingForHour(new Date().getHours()) + ', ' + fullName + '.';
+      }
     }).catch(function() {});
   }
 }
@@ -2019,44 +2121,717 @@ function greetingForHour(h) {
   return 'Good evening';
 }
 
+/** Derive visual planning status without writing new fields. */
+function deriveLessonStatus(lesson) {
+  if (!lesson) return 'needs-planning';
+  if (lesson.status === 'complete') return 'complete';
+  if (lesson.status === 'draft') return 'draft';
+  if (lesson.status === 'planned') return 'planned';
+  if (lesson.title && String(lesson.title).trim()) return 'planned';
+  return 'draft';
+}
+
+function statusLabel(status) {
+  if (status === 'needs-planning') return 'Needs planning';
+  if (status === 'complete') return 'Complete';
+  if (status === 'draft') return 'Draft';
+  return 'Planned';
+}
+
+function periodTimeLabel(period) {
+  var state = PS.getState();
+  var pt = (state && state.timetable && state.timetable.periodTimes) || {};
+  var p = pt[period];
+  if (!p) return '';
+  var bits = [];
+  if (p.start) bits.push(p.start);
+  if (p.end) bits.push(p.end);
+  return bits.join(' – ');
+}
+
+function getTeacherDisplayName() {
+  var el = document.getElementById('topbarTeacherName');
+  return (el && el.textContent && el.textContent.trim()) || 'Teacher';
+}
+
+function getRoomDisplayName() {
+  var el = document.getElementById('topbarRoom');
+  return (el && el.textContent && el.textContent.trim()) || 'Teaching Space';
+}
+
+function loadPlannerCalendarEvents() {
+  var loadCal = (window.DataService && window.DataService.getCalendarMerged)
+    ? DataService.getCalendarMerged()
+    : Promise.resolve([]);
+  return loadCal.catch(function() { return []; }).then(function(allEvents) {
+    if (!allEvents || !Array.isArray(allEvents) || allEvents.length === 0) {
+      var fallback = (window.DataService && DataService.get)
+        ? DataService.get('academicCalendarEvents')
+        : Promise.resolve(null);
+      return fallback.then(function(stored) {
+        if (stored && Array.isArray(stored) && stored.length > 0) return stored;
+        if (window.DataService && window.DataService.isUsingCloud && window.DataService.isUsingCloud()) return [];
+        try {
+          var raw = localStorage.getItem('academicCalendarEvents');
+          var parsed = raw ? JSON.parse(raw) : null;
+          return (parsed && Array.isArray(parsed)) ? parsed : [];
+        } catch (e) { return []; }
+      });
+    }
+    return allEvents;
+  }).then(function(allEvents) {
+    if (!Array.isArray(allEvents)) allEvents = (allEvents && allEvents.events) ? allEvents.events : [];
+    if (!allEvents || allEvents.length === 0) {
+      allEvents = CAL_DEFAULT_EVENTS.slice();
+    } else {
+      var titlesMap = {};
+      allEvents.forEach(function(e) { titlesMap[(e.title || '') + (e.date || '')] = true; });
+      CAL_DEFAULT_EVENTS.forEach(function(ev) {
+        if (!titlesMap[(ev.title || '') + (ev.date || '')]) {
+          allEvents.push({ title: ev.title, date: ev.date, category: ev.category || 'general' });
+        }
+      });
+    }
+    return allEvents;
+  });
+}
+
+function getSlotsForDate(dateObj) {
+  var state = PS.getState();
+  var slots = (state && state.timetable && state.timetable.slots) || [];
+  var dayName = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][dateObj.getDay()];
+  var maxP = periodsForWeekday(dayName);
+  var byKey = {};
+  slots.forEach(function(s) {
+    byKey[slotKey((s.day || '').toLowerCase(), s.period)] = s;
+  });
+  var out = [];
+  for (var p = 1; p <= maxP; p++) {
+    var k = slotKey(dayName, p);
+    var slot = byKey[k];
+    if (!slot) continue;
+    out.push({ period: p, slotKey: k, slot: slot });
+  }
+  return out;
+}
+
+function getWeekPlanningStats(weekStart) {
+  var start = weekStart || PS.getCurrentWeekStart() || PS.getWeekStart(new Date());
+  var teaching = 0;
+  var planned = 0;
+  for (var j = 0; j < 5; j++) {
+    var d2 = new Date(start);
+    d2.setDate(d2.getDate() + j);
+    var ds = getDateStr(d2);
+    getSlotsForDate(d2).forEach(function(row) {
+      teaching++;
+      if (deriveLessonStatus(PS.getLessonFor(ds, row.slotKey)) !== 'needs-planning') planned++;
+    });
+  }
+  return { teaching: teaching, planned: planned };
+}
+
+function updateCalendarSubnav(activeView) {
+  var sub = document.getElementById('calendarSubnav');
+  if (!sub) return;
+  var calendarViews = { week: 1, day: 1, month: 1 };
+  var show = !!calendarViews[activeView];
+  sub.classList.toggle('is-visible', show);
+  sub.querySelectorAll('[data-calendar-view]').forEach(function(btn) {
+    btn.classList.toggle('is-active', btn.getAttribute('data-calendar-view') === activeView);
+  });
+}
+
+function activatePlannerPanel(tabName) {
+  document.querySelectorAll('.planner-tab').forEach(function(t) {
+    var dt = t.getAttribute('data-tab');
+    if (tabName === 'week' || tabName === 'day' || tabName === 'month') {
+      t.classList.toggle('active', dt === 'week');
+    } else {
+      t.classList.toggle('active', dt === tabName);
+    }
+  });
+  document.querySelectorAll('.planner-panel').forEach(function(p) {
+    p.classList.toggle('active', p.id === 'panel-' + tabName);
+  });
+  updateCalendarSubnav(tabName);
+}
+
+function switchPlannerTab(tabName) {
+  activatePlannerPanel(tabName);
+  var weekStart = PS.getCurrentWeekStart && PS.getCurrentWeekStart();
+  if (tabName === 'today') renderTodayDashboard();
+  if (tabName === 'week') renderWeekView();
+  if (tabName === 'month') {
+    if (weekStart) syncDayAndMonthFromWeekStart(weekStart);
+    renderMonthView();
+  }
+  if (tabName === 'day') {
+    if (weekStart) syncDayAndMonthFromWeekStart(weekStart);
+    renderDayView();
+  }
+  if (tabName === 'timetable') {
+    renderTimetableDisplay();
+  }
+  if (tabName === 'bank') renderTemplatesList();
+  if (tabName === 'schemes') renderSchemesPanel();
+}
+
+function renderTodayInsights(stats) {
+  return (
+    '<div class="rd-stat-row">' +
+      '<button type="button" class="rd-stat-card" data-today-action="scroll-lessons">' +
+        '<div class="rd-stat-num">' + stats.lessonsToday + '</div>' +
+        '<div class="rd-stat-label">Lessons today</div>' +
+        '<span class="rd-stat-link">View lessons →</span>' +
+      '</button>' +
+      '<button type="button" class="rd-stat-card" data-today-action="plan-missing">' +
+        '<div class="rd-stat-num">' + stats.needPlanning + '</div>' +
+        '<div class="rd-stat-label">Need planning</div>' +
+        '<span class="rd-stat-link">Plan now →</span>' +
+      '</button>' +
+      '<button type="button" class="rd-stat-card" data-today-action="view-week">' +
+        '<div class="rd-stat-num">' + stats.weekPlanned + ' / ' + stats.weekTeaching + '</div>' +
+        '<div class="rd-stat-label">This week planned</div>' +
+        '<span class="rd-stat-link">View week →</span>' +
+      '</button>' +
+      '<button type="button" class="rd-stat-card" data-today-action="scroll-events">' +
+        '<div class="rd-stat-num">' + stats.assessmentsDue + '</div>' +
+        '<div class="rd-stat-label">Assessments due</div>' +
+        '<span class="rd-stat-link">View events →</span>' +
+      '</button>' +
+    '</div>'
+  );
+}
+
+function renderTodayLessonRows(rows) {
+  if (!rows.length) {
+    return '<div class="rd-empty">No lessons scheduled today.</div>';
+  }
+  return '<div class="today-lesson-list" id="todayLessonList">' + rows.map(function(r) {
+    var st = r.status;
+    var planBtn = st === 'needs-planning'
+      ? '<button type="button" class="rd-btn rd-btn-primary today-plan-now" data-date="' + r.dateStr + '" data-slot="' + r.slotKey + '">Plan now</button>'
+      : '<span class="rd-status rd-status-' + st + '">' + statusLabel(st) + '</span>';
+    return (
+      '<button type="button" class="today-lesson-row' + (st === 'needs-planning' ? ' is-needs-planning' : '') + '" data-date="' + r.dateStr + '" data-slot="' + r.slotKey + '">' +
+        '<span class="today-period">P' + r.period + '</span>' +
+        '<span class="today-time">' + escHtml(r.timeLabel || '—') + '</span>' +
+        '<span class="today-lesson-main">' +
+          '<strong>' + escHtml(r.classLabel) + '</strong>' +
+          '<span>' + escHtml(r.title) + (r.unit ? ' · ' + r.unit : '') + '</span>' +
+        '</span>' +
+        planBtn +
+      '</button>'
+    );
+  }).join('') + '</div>';
+}
+
+function renderAttentionItems(items) {
+  if (!items.length) return '<p class="rd-empty">Nothing needing attention this week.</p>';
+  return '<ul class="today-sidebar-list">' + items.map(function(it) {
+    return '<li><span class="today-attn-icon ' + (it.kind || 'info') + '" aria-hidden="true">!</span><span>' + escHtml(it.text) + '</span></li>';
+  }).join('') + '</ul>';
+}
+
+function renderCompactTimetable(weekStart) {
+  var dayOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+  var maxPeriod = 7;
+  var todayStr = getDateStr(new Date());
+  var html = '<div class="compact-tt planner-scroll-region" role="grid" aria-label="Weekly timetable overview">';
+  html += '<div class="compact-tt-head"></div>';
+  for (var i = 0; i < 5; i++) {
+    var d = new Date(weekStart);
+    d.setDate(d.getDate() + i);
+    html += '<div class="compact-tt-head">' + dayOrder[i].slice(0, 3).toUpperCase() + '</div>';
+  }
+  for (var p = 1; p <= maxPeriod; p++) {
+    html += '<div class="compact-tt-period">P' + p + '</div>';
+    dayOrder.forEach(function(dayName, di) {
+      var d2 = new Date(weekStart);
+      d2.setDate(d2.getDate() + di);
+      var dateStr = getDateStr(d2);
+      if (p > (PERIODS_BY_DAY[dayName] || 0)) {
+        html += '<div class="compact-tt-cell" aria-hidden="true"></div>';
+        return;
+      }
+      var k = slotKey(dayName, p);
+      var slot = PS.getSlot(dayName, p);
+      if (!slot) {
+        html += '<div class="compact-tt-cell">Free</div>';
+        return;
+      }
+      var lesson = PS.getLessonFor(dateStr, k);
+      var st = deriveLessonStatus(lesson);
+      html += '<button type="button" class="compact-tt-cell has-slot st-' + st + '" data-date="' + dateStr + '" data-slot="' + k + '">' +
+        escHtml(slot.className || subjectLabel(slot.subject) || 'Class') +
+      '</button>';
+    });
+  }
+  html += '</div>';
+  html += '<div class="compact-legend">' +
+    '<span class="lg-planned">Planned</span>' +
+    '<span class="lg-draft">Draft</span>' +
+    '<span class="lg-needs">Needs planning</span>' +
+    '<span class="lg-free">Free</span>' +
+  '</div>';
+  return html;
+}
+
+function renderTodayDashboard() {
+  var root = document.getElementById('todayDashboardRoot');
+  if (!root) return;
+  syncTopbarMeta();
+  var now = new Date();
+  var today = snapToWeekday(now);
+  var dateStr = getDateStr(today);
+  var weekStart = PS.getWeekStart(today);
+  PS.setCurrentWeekStart(weekStart);
+  PS.setCurrentDayViewDate(today);
+  syncDayNotesPanel(dateStr);
+
+  var slotRows = getSlotsForDate(today);
+  var lessonRows = slotRows.map(function(row) {
+    var lesson = PS.getLessonFor(dateStr, row.slotKey);
+    var st = deriveLessonStatus(lesson);
+    var unit = '';
+    if (lesson && lesson.unitKey && window.getUnitFromKey) {
+      var u = window.getUnitFromKey(lesson.unitKey);
+      if (u && u.unit) unit = u.unit;
+    } else if (lesson && lesson.n5CiSession) {
+      unit = 'N5 Creative Industries';
+    }
+    return {
+      period: row.period,
+      slotKey: row.slotKey,
+      dateStr: dateStr,
+      timeLabel: periodTimeLabel(row.period),
+      classLabel: (row.slot.className || subjectLabel(row.slot.subject) || 'Class') +
+        (row.slot.subject ? ' · ' + subjectLabel(row.slot.subject) : ''),
+      title: lesson ? (lesson.title || 'Untitled') : 'No lesson plan yet',
+      unit: unit,
+      status: st,
+      lesson: lesson
+    };
+  });
+
+  var needPlanning = lessonRows.filter(function(r) { return r.status === 'needs-planning'; }).length;
+  var weekStats = getWeekPlanningStats(weekStart);
+  var firstUnplanned = lessonRows.find(function(r) { return r.status === 'needs-planning'; });
+
+  loadPlannerCalendarEvents().then(function(allEvents) {
+    var weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+    var weekStartStr = getDateStr(weekStart);
+    var weekEndStr = getDateStr(weekEnd);
+    var weekEvents = (allEvents || []).filter(function(e) {
+      return e.date && e.date >= weekStartStr && e.date <= weekEndStr;
+    });
+    var assessments = weekEvents.filter(function(e) {
+      var cat = String(e.category || '').toLowerCase();
+      return cat === 'assessment' || cat === 'exam' || /assessment|exam/i.test(e.title || '');
+    });
+    var upcoming = (allEvents || []).filter(function(e) {
+      return e.date && e.date >= dateStr;
+    }).sort(function(a, b) { return (a.date || '').localeCompare(b.date || ''); }).slice(0, 5);
+
+    var attention = [];
+    if (needPlanning > 0) {
+      attention.push({ kind: 'warn', text: needPlanning + ' lesson' + (needPlanning === 1 ? '' : 's') + ' need' + (needPlanning === 1 ? 's' : '') + ' planning today' });
+    }
+    if (assessments.length) {
+      attention.push({ kind: 'assess', text: assessments.length + ' assessment' + (assessments.length === 1 ? '' : 's') + ' due this week' });
+    }
+    weekEvents.filter(function(e) {
+      return String(e.category || '').toLowerCase() === 'meeting';
+    }).slice(0, 2).forEach(function(e) {
+      attention.push({ kind: 'info', text: (e.title || 'Meeting') + (e.date ? ' · ' + e.date.slice(5) : '') });
+    });
+
+    var who = getTeacherDisplayName();
+    var greeting = greetingForHour(now.getHours()) + ', ' + who + '.';
+    var summaryLine = 'You have ' + lessonRows.length + ' lesson' + (lessonRows.length === 1 ? '' : 's') + ' today.' +
+      (needPlanning ? (' ' + needPlanning + ' still need' + (needPlanning === 1 ? 's' : '') + ' planned.') : ' All lessons have a plan.');
+    var timeTxt = now.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit' });
+    var dayNote = PS.getDayNote ? PS.getDayNote(dateStr) : '';
+    var planPct = weekStats.teaching ? Math.round((weekStats.planned / weekStats.teaching) * 100) : 0;
+
+    var planBtnLabel = firstUnplanned ? 'Plan missing lesson' : 'All lessons planned';
+    var planBtnDisabled = firstUnplanned ? '' : ' disabled';
+    var planBadge = needPlanning ? '<span class="rd-badge-count">' + needPlanning + '</span>' : '';
+
+    root.innerHTML =
+      '<div class="rd-hero">' +
+        '<div>' +
+          '<h2>' + escHtml(greeting) + '</h2>' +
+          '<p>' + escHtml(summaryLine) + '</p>' +
+          '<div class="rd-hero-actions">' +
+            '<button type="button" class="rd-btn rd-btn-ghost" id="todayPlanMissingBtn"' + planBtnDisabled + '>' + planBtnLabel + ' ' + planBadge + '</button>' +
+            '<button type="button" class="rd-btn rd-btn-ghost" id="todayOpenBankBtn">Open lesson bank</button>' +
+            '<button type="button" class="rd-btn rd-btn-ghost" id="todayAddNoteBtn">Add note</button>' +
+            '<button type="button" class="rd-btn rd-btn-ghost" id="todayViewWeekBtn">View week</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="rd-hero-meta">' +
+          '<div>Knightswood Secondary</div>' +
+          '<div class="rd-time">' + escHtml(timeTxt) + '</div>' +
+          '<div>' + escHtml(getRoomDisplayName()) + '</div>' +
+        '</div>' +
+      '</div>' +
+      '<div class="rd-layout">' +
+        '<div>' +
+          renderTodayInsights({
+            lessonsToday: lessonRows.length,
+            needPlanning: needPlanning,
+            weekPlanned: weekStats.planned,
+            weekTeaching: weekStats.teaching,
+            assessmentsDue: assessments.length
+          }) +
+          '<div class="rd-card" id="todayLessonsCard">' +
+            '<div class="rd-card-head"><h3>Today’s lessons</h3></div>' +
+            renderTodayLessonRows(lessonRows) +
+          '</div>' +
+          '<div class="rd-card">' +
+            '<div class="rd-card-head"><h3>Weekly timetable overview</h3></div>' +
+            renderCompactTimetable(weekStart) +
+          '</div>' +
+        '</div>' +
+        '<aside>' +
+          '<div class="rd-card" id="todayAttentionCard">' +
+            '<div class="rd-card-head"><h3>Attention this week</h3></div>' +
+            renderAttentionItems(attention) +
+          '</div>' +
+          '<div class="rd-card">' +
+            '<div class="rd-card-head"><h3>Weekly progress</h3></div>' +
+            '<div class="rd-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + planPct + '"><span style="width:' + planPct + '%"></span></div>' +
+            '<div class="rd-progress-label">' + weekStats.planned + ' / ' + weekStats.teaching + ' lessons planned (' + planPct + '%)</div>' +
+          '</div>' +
+          '<div class="rd-card">' +
+            '<div class="rd-card-head"><h3>Quick notes</h3><button type="button" class="rd-link" id="todayFocusNoteBtn">+ New note</button></div>' +
+            '<div class="today-note-card">' +
+              '<label class="sr-only" for="todayQuickNote">Day notes</label>' +
+              '<textarea id="todayQuickNote" data-date="' + dateStr + '" placeholder="Reminders for today…">' + escHtml(dayNote) + '</textarea>' +
+              '<div class="today-note-meta">Saves with your day notes</div>' +
+            '</div>' +
+          '</div>' +
+          '<div class="rd-card" id="todayEventsCard">' +
+            '<div class="rd-card-head"><h3>Upcoming events</h3></div>' +
+            (upcoming.length
+              ? '<ul class="today-sidebar-list">' + upcoming.map(function(e) {
+                  return '<li><span class="today-attn-icon ' + (String(e.category || '').toLowerCase() === 'assessment' || String(e.category || '').toLowerCase() === 'exam' ? 'assess' : 'info') + '" aria-hidden="true">•</span><span><strong>' + escHtml((e.date || '').slice(5)) + '</strong> — ' + escHtml(e.title || 'Event') + '</span></li>';
+                }).join('') + '</ul>'
+              : '<p class="rd-empty">No upcoming assessments recorded.</p>') +
+          '</div>' +
+        '</aside>' +
+      '</div>';
+
+    bindTodayDashboardEvents(firstUnplanned);
+  }).catch(function(err) {
+    console.error('Today dashboard failed', err);
+    root.innerHTML = '<div class="rd-empty">Unable to load today’s view. <button type="button" class="rd-link" id="todayRetryBtn">Retry</button></div>';
+    var retry = document.getElementById('todayRetryBtn');
+    if (retry) retry.addEventListener('click', renderTodayDashboard);
+  });
+}
+
+function bindTodayDashboardEvents(firstUnplanned) {
+  var planBtn = document.getElementById('todayPlanMissingBtn');
+  if (planBtn && firstUnplanned) {
+    planBtn.addEventListener('click', function() {
+      openLessonModal(firstUnplanned.dateStr, firstUnplanned.slotKey);
+    });
+  }
+  var bankBtn = document.getElementById('todayOpenBankBtn');
+  if (bankBtn) bankBtn.addEventListener('click', function() { switchPlannerTab('bank'); });
+  var weekBtn = document.getElementById('todayViewWeekBtn');
+  if (weekBtn) weekBtn.addEventListener('click', function() { switchPlannerTab('week'); });
+  function focusNote() {
+    var ta = document.getElementById('todayQuickNote');
+    if (ta) { ta.focus(); ta.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+  }
+  var addNote = document.getElementById('todayAddNoteBtn');
+  if (addNote) addNote.addEventListener('click', focusNote);
+  var focusNoteBtn = document.getElementById('todayFocusNoteBtn');
+  if (focusNoteBtn) focusNoteBtn.addEventListener('click', focusNote);
+
+  var quickNote = document.getElementById('todayQuickNote');
+  if (quickNote) {
+    quickNote.addEventListener('blur', function() {
+      var ds = quickNote.dataset.date;
+      if (!ds) return;
+      PS.setDayNote(ds, quickNote.value);
+      PS.saveDayNotes().then(function() {
+        syncDayNotesPanel(ds);
+        showToast('Day notes saved');
+      }).catch(function() {});
+    });
+  }
+
+  document.querySelectorAll('[data-today-action]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var act = btn.getAttribute('data-today-action');
+      if (act === 'scroll-lessons') {
+        var el = document.getElementById('todayLessonsCard');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } else if (act === 'plan-missing' && firstUnplanned) {
+        openLessonModal(firstUnplanned.dateStr, firstUnplanned.slotKey);
+      } else if (act === 'view-week') {
+        switchPlannerTab('week');
+      } else if (act === 'scroll-events') {
+        var ev = document.getElementById('todayEventsCard');
+        if (ev) ev.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  });
+
+  document.querySelectorAll('.today-lesson-row[data-date][data-slot]').forEach(function(row) {
+    row.addEventListener('click', function(e) {
+      if (e.target.closest('.today-plan-now')) return;
+      openLessonModal(row.dataset.date, row.dataset.slot);
+    });
+  });
+  document.querySelectorAll('.today-plan-now').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      openLessonModal(btn.dataset.date, btn.dataset.slot);
+    });
+  });
+  document.querySelectorAll('.compact-tt-cell.has-slot[data-date][data-slot]').forEach(function(cell) {
+    cell.addEventListener('click', function() {
+      openLessonModal(cell.dataset.date, cell.dataset.slot);
+    });
+  });
+}
+
+function renderTimetableSummary() {
+  var el = document.getElementById('timetableSummaryRow');
+  if (!el) return;
+  var state = PS.getState();
+  var slots = (state && state.timetable && state.timetable.slots) || [];
+  var classes = {};
+  var rooms = {};
+  slots.forEach(function(s) {
+    var name = String((s && s.className) || '').trim();
+    if (name) classes[name.toLowerCase()] = true;
+    var room = String((s && s.room) || '').trim();
+    if (room) rooms[room.toLowerCase()] = true;
+  });
+  var todaySlots = getSlotsForDate(new Date());
+  var freeToday = 0;
+  var dayName = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][new Date().getDay()];
+  var maxP = periodsForWeekday(dayName);
+  var taught = {};
+  todaySlots.forEach(function(r) { taught[r.period] = true; });
+  for (var p = 1; p <= maxP; p++) {
+    if (!taught[p]) freeToday++;
+  }
+  el.innerHTML =
+    '<div class="rd-stat-card" style="cursor:default"><div class="rd-stat-num">' + slots.length + '</div><div class="rd-stat-label">Periods this week</div></div>' +
+    '<div class="rd-stat-card" style="cursor:default"><div class="rd-stat-num">' + Object.keys(classes).length + '</div><div class="rd-stat-label">Classes this week</div></div>' +
+    '<div class="rd-stat-card" style="cursor:default"><div class="rd-stat-num">' + Object.keys(rooms).length + '</div><div class="rd-stat-label">Rooms used</div></div>' +
+    '<button type="button" class="rd-stat-card" id="ttFreeSlotsCard"><div class="rd-stat-num">' + freeToday + '</div><div class="rd-stat-label">Free slots today</div><span class="rd-stat-link">View today →</span></button>';
+  var freeCard = document.getElementById('ttFreeSlotsCard');
+  if (freeCard) freeCard.addEventListener('click', function() { switchPlannerTab('today'); });
+
+  var foot = document.getElementById('timetableFooterInsights');
+  if (foot) {
+    var byDay = { monday: 0, tuesday: 0, wednesday: 0, thursday: 0, friday: 0 };
+    slots.forEach(function(s) {
+      var d = String(s.day || '').toLowerCase();
+      if (byDay[d] != null) byDay[d]++;
+    });
+    var busiest = 'monday';
+    var busiestN = 0;
+    Object.keys(byDay).forEach(function(d) {
+      if (byDay[d] > busiestN) { busiestN = byDay[d]; busiest = d; }
+    });
+    foot.innerHTML =
+      '<div class="rd-card"><h3>Class key / filters</h3><p class="rd-empty">Use Edit timetable to change subjects, classes and rooms.</p></div>' +
+      '<div class="rd-card"><h3>At a glance</h3><div class="tt-glance">' +
+        ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map(function(label, i) {
+          var key = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'][i];
+          return '<span class="tt-glance-pill">' + label + ' (' + byDay[key] + ')</span>';
+        }).join('') +
+      '</div></div>' +
+      '<div class="rd-card"><h3>Busiest day</h3><p><strong>' + busiest.charAt(0).toUpperCase() + busiest.slice(1) + '</strong> — ' + busiestN + ' lesson' + (busiestN === 1 ? '' : 's') + ' scheduled.</p></div>';
+  }
+}
+
+function renderWeekHeroAndSidebar(start, weekEvents) {
+  var hero = document.getElementById('weekHeroBanner');
+  var side = document.getElementById('weekSidebarRoot');
+  if (!hero || !side) return;
+  var end = new Date(start);
+  end.setDate(end.getDate() + 4);
+  var rangeLabel = start.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) +
+    ' – ' + end.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+  var stats = getWeekPlanningStats(start);
+  var assessments = (weekEvents || []).filter(function(e) {
+    var cat = String(e.category || '').toLowerCase();
+    return cat === 'assessment' || cat === 'exam' || /assessment|exam/i.test(e.title || '');
+  });
+  hero.innerHTML =
+    '<div class="rd-hero">' +
+      '<div>' +
+        '<h2>Week overview</h2>' +
+        '<p>' + escHtml(rangeLabel) + '</p>' +
+        '<div class="week-hero-summary">' + stats.teaching + ' teaching periods · ' + stats.planned + ' lessons planned · ' + assessments.length + ' assessments</div>' +
+        '<div class="rd-hero-actions">' +
+          '<button type="button" class="rd-btn rd-btn-ghost" id="weekAddLessonBtn">+ Add lesson</button>' +
+          '<button type="button" class="rd-btn rd-btn-ghost" id="weekCopyPrevBtn" disabled title="Coming after data migration review">Copy previous week</button>' +
+          '<button type="button" class="rd-btn rd-btn-ghost" id="weekViewCalBtn">View calendar</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="rd-hero-meta">' +
+        '<div>Knightswood Secondary</div>' +
+        '<div class="rd-time">' + escHtml(new Date().toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit' })) + '</div>' +
+        '<div>' + escHtml(getRoomDisplayName()) + '</div>' +
+      '</div>' +
+    '</div>';
+
+  var weekStartStr = getDateStr(start);
+  var note = PS.getWeekNote ? PS.getWeekNote(weekStartStr) : '';
+  var priorities = [];
+  // Unplanned this week
+  for (var i = 0; i < 5; i++) {
+    var d = new Date(start);
+    d.setDate(d.getDate() + i);
+    var ds = getDateStr(d);
+    getSlotsForDate(d).forEach(function(row) {
+      if (deriveLessonStatus(PS.getLessonFor(ds, row.slotKey)) === 'needs-planning') {
+        priorities.push({
+          kind: 'warn',
+          text: 'Plan ' + (row.slot.className || 'class') + ' P' + row.period + ' (' + ds.slice(5) + ')'
+        });
+      }
+    });
+  }
+  (weekEvents || []).slice(0, 4).forEach(function(e) {
+    priorities.push({
+      kind: String(e.category || '').toLowerCase() === 'assessment' ? 'assess' : 'info',
+      text: (e.title || 'Event') + (e.date ? ' · ' + e.date.slice(5) : '')
+    });
+  });
+
+  side.innerHTML =
+    '<div class="week-side-panel"><h3>Week priorities</h3>' + renderAttentionItems(priorities.slice(0, 6)) + '</div>' +
+    '<div class="week-side-panel"><h3>Upcoming deadlines</h3>' +
+      ((weekEvents || []).length
+        ? '<ul class="today-sidebar-list">' + (weekEvents || []).slice(0, 6).map(function(e) {
+            return '<li><span class="today-attn-icon info" aria-hidden="true">•</span><span><strong>' + escHtml((e.date || '').slice(5)) + '</strong> — ' + escHtml(e.title || 'Event') + '</span></li>';
+          }).join('') + '</ul>'
+        : '<p class="rd-empty">No upcoming assessments recorded.</p>') +
+    '</div>' +
+    '<div class="week-side-panel"><h3>Notes for this week</h3>' +
+      '<label class="sr-only" for="weekNotesInput">Week notes</label>' +
+      '<textarea class="week-notes-textarea" id="weekNotesInput" data-week="' + weekStartStr + '" placeholder="Meeting notes, reminders, priorities…">' + escHtml(note) + '</textarea>' +
+    '</div>';
+
+  var addLessonBtn = document.getElementById('weekAddLessonBtn');
+  if (addLessonBtn) {
+    addLessonBtn.addEventListener('click', function() {
+      var createBtn = document.getElementById('createNewLessonBtn');
+      if (createBtn) createBtn.click();
+      else openLessonModalForLibrary(null);
+    });
+  }
+  var viewCal = document.getElementById('weekViewCalBtn');
+  if (viewCal) viewCal.addEventListener('click', function() { switchPlannerTab('month'); });
+  bindWeekSidebarEvents(weekStartStr);
+}
+
+function calculateSchemeProgress(schemeLessons) {
+  if (!schemeLessons || !schemeLessons.length) return 0;
+  var completed = schemeLessons.filter(function(lesson) {
+    return deriveLessonStatus(lesson) === 'complete';
+  }).length;
+  return Math.round((completed / schemeLessons.length) * 100);
+}
+
+function renderSchemesSummary() {
+  var el = document.getElementById('schemesSummaryRow');
+  if (!el) return;
+  var units = PS.getSchemeUnits ? PS.getSchemeUnits() : [];
+  var lessonCount = 0;
+  var needingReview = 0;
+  var courses = {};
+  units.forEach(function(u) {
+    lessonCount += (u.lessons || []).length;
+    var yg = String(u.yearGroup || '').toLowerCase();
+    if (yg) courses[yg] = true;
+    var pct = calculateSchemeProgress(u.lessons || []);
+    if ((u.lessons || []).length && pct < 100) needingReview++;
+  });
+  el.innerHTML =
+    '<div class="rd-stat-card" style="cursor:default"><div class="rd-stat-num">' + units.length + '</div><div class="rd-stat-label">Schemes</div></div>' +
+    '<div class="rd-stat-card" style="cursor:default"><div class="rd-stat-num">' + lessonCount + '</div><div class="rd-stat-label">Lessons</div></div>' +
+    '<div class="rd-stat-card" style="cursor:default"><div class="rd-stat-num">' + Object.keys(courses).length + '</div><div class="rd-stat-label">Active courses</div></div>' +
+    '<div class="rd-stat-card" style="cursor:default"><div class="rd-stat-num">' + needingReview + '</div><div class="rd-stat-label">Needing review</div></div>';
+}
+
+function renderLessonBankSidebar(allTemplates, filteredCount) {
+  var filtersEl = document.getElementById('bankSavedFilters');
+  var unitsEl = document.getElementById('bankRecentUnits');
+  var resEl = document.getElementById('bankResourceStats');
+  var statsEl = document.getElementById('lessonBankStatRow');
+  if (filtersEl) {
+    var planned = allTemplates.filter(function(t) { return deriveLessonStatus(t) === 'planned'; }).length;
+    var draft = allTemplates.filter(function(t) { return deriveLessonStatus(t) === 'draft'; }).length;
+    var complete = allTemplates.filter(function(t) { return deriveLessonStatus(t) === 'complete'; }).length;
+    filtersEl.innerHTML =
+      '<button type="button" class="bank-filter-btn is-active" data-bank-quick="all"><span>All lessons</span><span class="bank-filter-count">' + allTemplates.length + '</span></button>' +
+      '<button type="button" class="bank-filter-btn" data-bank-quick="planned"><span>Planned lessons</span><span class="bank-filter-count">' + planned + '</span></button>' +
+      '<button type="button" class="bank-filter-btn" data-bank-quick="draft"><span>Draft lessons</span><span class="bank-filter-count">' + draft + '</span></button>' +
+      '<button type="button" class="bank-filter-btn" data-bank-quick="complete"><span>Complete</span><span class="bank-filter-count">' + complete + '</span></button>';
+    filtersEl.querySelectorAll('[data-bank-quick]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var statusSel = document.getElementById('lessonBankFilterStatus');
+        var q = btn.getAttribute('data-bank-quick');
+        if (statusSel) statusSel.value = q === 'all' ? '' : q;
+        filtersEl.querySelectorAll('.bank-filter-btn').forEach(function(b) { b.classList.remove('is-active'); });
+        btn.classList.add('is-active');
+        renderTemplatesList();
+      });
+    });
+  }
+  if (unitsEl) {
+    var unitCounts = {};
+    allTemplates.forEach(function(t) {
+      var label = '';
+      if (t.unitKey && window.getUnitFromKey) {
+        var u = window.getUnitFromKey(t.unitKey);
+        label = (u && u.unit) || t.unitKey;
+      }
+      if (!label) return;
+      unitCounts[label] = (unitCounts[label] || 0) + 1;
+    });
+    var entries = Object.keys(unitCounts).map(function(k) { return { label: k, n: unitCounts[k] }; })
+      .sort(function(a, b) { return b.n - a.n; }).slice(0, 6);
+    unitsEl.innerHTML = entries.length
+      ? entries.map(function(e) {
+          return '<div style="display:flex;justify-content:space-between;gap:.5rem;font-size:.82rem;padding:.35rem 0"><span>' + escHtml(e.label) + '</span><span class="bank-filter-count">' + e.n + '</span></div>';
+        }).join('')
+      : '<div class="rd-empty">No recent units yet.</div>';
+  }
+  if (resEl) {
+    var withRes = allTemplates.filter(function(t) {
+      return Array.isArray(t.resources) ? t.resources.length > 0 : !!(t.resources && String(t.resources).trim());
+    }).length;
+    resEl.innerHTML = '<div style="font-size:.82rem">' + withRes + ' lesson' + (withRes === 1 ? '' : 's') + ' with resources attached</div>';
+  }
+  if (statsEl) {
+    statsEl.innerHTML =
+      '<div class="rd-stat-card" style="cursor:default"><div class="rd-stat-num">' + allTemplates.length + '</div><div class="rd-stat-label">Lessons saved</div></div>' +
+      '<div class="rd-stat-card" style="cursor:default"><div class="rd-stat-num">' + filteredCount + '</div><div class="rd-stat-label">Showing</div></div>' +
+      '<div class="rd-stat-card" style="cursor:default"><div class="rd-stat-num">' + allTemplates.filter(function(t){return deriveLessonStatus(t)==='draft';}).length + '</div><div class="rd-stat-label">Drafts</div></div>';
+  }
+}
+
 function renderPlannerPulse() {
   var el = document.getElementById('plannerPulse');
   if (!el) return;
-  var now = new Date();
-  var today = getDateStr(now);
-  var weekdayDate = now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' }).toUpperCase();
-  var who = (document.getElementById('topbarTeacherName') && document.getElementById('topbarTeacherName').textContent) || 'Teacher';
-  var greeting = greetingForHour(now.getHours()) + ', ' + who;
-  var timeTxt = now.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit' });
-
-  var upcoming = PS.getUpcomingLessonsPreview ? PS.getUpcomingLessonsPreview({ limit: 2, maxDays: 14, todayStr: today }) : [];
-  var upcomingTxt = 'No lessons scheduled soon — add plans from Week View.';
-  if (upcoming.length) {
-    upcomingTxt = upcoming.map(function(r) {
-      var dd = '';
-      if (r.date) {
-        var p = r.date.split('-');
-        if (p.length === 3) {
-          var d = new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10));
-          dd = d.toLocaleDateString('en-GB', { weekday: 'short' });
-        }
-      }
-      var cls = r.className ? (' ' + r.className) : '';
-      return (dd ? dd + ' ' : '') + 'P' + (r.period || '—') + cls + ': ' + (r.title || 'Untitled');
-    }).join(' · ');
-  }
-
-  el.innerHTML =
-    '<div class="pulse-left">' +
-      '<div class="pulse-eyebrow">' + escHtml(weekdayDate) + '</div>' +
-      '<h2 class="pulse-heading">' + escHtml(greeting) + '</h2>' +
-      '<div class="pulse-copy">Upcoming lessons: ' + escHtml(upcomingTxt) + '</div>' +
-    '</div>' +
-    '<div class="pulse-right">' +
-      '<div class="pulse-school">Knightswood Secondary</div>' +
-      '<div class="pulse-time">' + escHtml(timeTxt) + '</div>' +
-      '<div class="pulse-meta">' + escHtml(((document.getElementById('topbarRoom') && document.getElementById('topbarRoom').textContent) || 'Teaching Space')) + '</div>' +
-    '</div>';
+  // Legacy pulse kept in DOM for compatibility; Today dashboard replaces it visually.
+  el.innerHTML = '';
 }
 
 // ── Timetable UI ──
@@ -2088,6 +2863,7 @@ function renderTimetable() {
 
 function renderTimetableDisplay() {
   renderPlannerInsights();
+  renderTimetableSummary();
   var state = PS.getState();
   var slots = state.timetable.slots || [];
   var displaySection = document.getElementById('timetableDisplaySection');
@@ -2235,11 +3011,10 @@ function buildWeekSidebar(weekStartStr, weekEvents, upcomingEvents) {
 function bindWeekSidebarEvents(weekStartStr) {
   var ta = document.getElementById('weekNotesInput');
   if (!ta) return;
-  var saveNotes = function() {
+  ta.onblur = function() {
     PS.setWeekNote(weekStartStr, ta.value);
     PS.saveWeekNotes().then(function() { showToast('Week notes saved'); }).catch(function() {});
   };
-  ta.addEventListener('blur', saveNotes);
 }
 
 function bindDaySlotNoteEvents() {
@@ -2278,35 +3053,7 @@ function renderWeekView() {
   var start = PS.getCurrentWeekStart();
   var weekEnd = new Date(start);
   weekEnd.setDate(weekEnd.getDate() + 6);
-  var loadCal = (window.DataService && window.DataService.getCalendarMerged) ? DataService.getCalendarMerged() : Promise.resolve([]);
-  loadCal.catch(function() { return []; }).then(function(allEvents) {
-    if (!allEvents || !Array.isArray(allEvents) || allEvents.length === 0) {
-      var fallback = (window.DataService && DataService.get) ? DataService.get('academicCalendarEvents') : Promise.resolve(null);
-      return fallback.then(function(stored) {
-        if (stored && Array.isArray(stored) && stored.length > 0) return stored;
-        // When cloud is available, never use localStorage — only use DataService data
-        if (window.DataService && window.DataService.isUsingCloud && window.DataService.isUsingCloud()) return [];
-        try {
-          var raw = localStorage.getItem('academicCalendarEvents');
-          var parsed = raw ? JSON.parse(raw) : null;
-          return (parsed && Array.isArray(parsed)) ? parsed : [];
-        } catch (e) { return []; }
-      });
-    }
-    return allEvents;
-  }).then(function(allEvents) {
-    if (!Array.isArray(allEvents)) allEvents = (allEvents && allEvents.events) ? allEvents.events : [];
-    if (!allEvents || allEvents.length === 0) {
-      allEvents = CAL_DEFAULT_EVENTS.slice();
-    } else {
-      var titlesMap = {};
-      allEvents.forEach(function(e) { titlesMap[(e.title||'')+(e.date||'')] = true; });
-      CAL_DEFAULT_EVENTS.forEach(function(ev) {
-        if (!titlesMap[(ev.title||'')+(ev.date||'')]) allEvents.push({ title: ev.title, date: ev.date, category: ev.category || 'general' });
-      });
-    }
-    return allEvents;
-  }).then(function(allEvents) {
+  loadPlannerCalendarEvents().then(function(allEvents) {
     var weekStartStr = getDateStr(start);
     var weekEndStr = getDateStr(weekEnd);
     var weekEvents = (allEvents || []).filter(function(e) {
@@ -2329,7 +3076,7 @@ function renderWeekView() {
     var infoBar = '';
     if (weekEvents.length > 0) {
       var firstEvent = weekEvents[0];
-      infoBar = '<div class="info-bar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>This week — <strong>' + escHtml(firstEvent.title || 'Calendar event') + '</strong></span></div>';
+      infoBar = '<div class="info-bar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>This week — <strong>' + escHtml(firstEvent.title || 'Calendar event') + '</strong></span></div>';
     }
     var html = infoBar + '<div class="week-grid" id="weekGrid">';
     html += '<div class="wg-corner"></div>';
@@ -2354,12 +3101,14 @@ function renderWeekView() {
         }
         var lesson = PS.getLessonFor(dateStr, k);
         var st = slotChipStyle(slot);
-        html += '<div class="wg-cell" data-date="' + dateStr + '" data-slot="' + k + '"><div class="wg-card" style="background:' + st.bg + ';border:1.5px solid ' + (slot.color || st.ac) + '"><div class="wg-card-cls" style="color:' + st.dk + '">' + escHtml(slot.className || subjectLabel(slot.subject) || 'Class') + '</div>';
+        var planStatus = deriveLessonStatus(lesson);
+        html += '<div class="wg-cell" data-date="' + dateStr + '" data-slot="' + k + '" role="button" tabindex="0"><div class="wg-card" style="background:' + st.bg + ';border:1.5px solid ' + (slot.color || st.ac) + '"><div class="wg-card-cls" style="color:' + st.dk + '">' + escHtml(slot.className || subjectLabel(slot.subject) || 'Class') + '</div>';
         if (lesson) {
           html += '<div class="wg-card-title" style="color:' + st.dk + '">' + escHtml(lesson.title || 'Untitled') + '</div>';
-          html += '<div class="wg-card-status st-' + lessonStatusBadgeClass(lesson) + '">' + lessonStatusBadgeClass(lesson) + '</div>';
+          html += '<div class="wg-card-status st-' + planStatus + '"><span class="rd-status rd-status-' + planStatus + '">' + statusLabel(planStatus) + '</span></div>';
         } else {
           html += '<div class="wg-card-title" style="color:' + st.dk + ';opacity:.55;font-style:italic">No lesson plan yet</div>';
+          html += '<div class="wg-card-status"><span class="rd-status rd-status-needs-planning">' + statusLabel('needs-planning') + '</span></div>';
         }
         html += '</div></div>';
       });
@@ -2367,9 +3116,12 @@ function renderWeekView() {
     html += '</div>';
     document.getElementById('weekGridWrap').innerHTML = html;
     document.getElementById('weekDisplay').textContent = PS.formatWeekLabel(start);
+    renderWeekHeroAndSidebar(start, weekEvents);
     document.querySelectorAll('.wg-cell[data-date][data-slot]').forEach(function(card) {
-      card.addEventListener('click', function() {
-        openLessonModal(card.dataset.date, card.dataset.slot);
+      function openCard() { openLessonModal(card.dataset.date, card.dataset.slot); }
+      card.addEventListener('click', openCard);
+      card.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openCard(); }
       });
     });
   });
@@ -2485,6 +3237,9 @@ function renderTemplatesList() {
   renderPlannerInsights();
   var allTemplates = PS.getTemplates ? PS.getTemplates() : [];
   var subjectFilter = (document.getElementById('lessonBankFilterSubject') || {}).value || '';
+  var yearFilter = ((document.getElementById('lessonBankFilterYear') || {}).value || '').toLowerCase();
+  var statusFilter = ((document.getElementById('lessonBankFilterStatus') || {}).value || '').toLowerCase();
+  var resourcesFilter = ((document.getElementById('lessonBankFilterResources') || {}).value || '').toLowerCase();
   document.querySelectorAll('.bank-chip').forEach(function(ch) {
     var chipVal = ch.getAttribute('data-subject') || 'all';
     var active = (!subjectFilter && chipVal === 'all') || chipVal === subjectFilter;
@@ -2493,13 +3248,23 @@ function renderTemplatesList() {
   var searchQ = ((document.getElementById('lessonBankSearch') || {}).value || '').toLowerCase().trim();
   var templates = allTemplates.filter(function(t) {
     if (subjectFilter && (t.subject || '') !== subjectFilter) return false;
+    if (statusFilter && deriveLessonStatus(t) !== statusFilter) return false;
+    var hasRes = Array.isArray(t.resources) ? t.resources.length > 0 : !!(t.resources && String(t.resources).trim());
+    if (resourcesFilter === 'with' && !hasRes) return false;
+    if (resourcesFilter === 'without' && hasRes) return false;
+    if (yearFilter) {
+      var hay = ((t.name || '') + ' ' + (t.title || '') + ' ' + (t.unitKey || '')).toLowerCase();
+      if (hay.indexOf(yearFilter) === -1) return false;
+    }
     if (searchQ) {
       var title = (t.name || t.title || '').toLowerCase();
       var unit = (t.unitKey && window.getUnitFromKey ? (window.getUnitFromKey(t.unitKey) || {}).unit : '') || '';
-      if (title.indexOf(searchQ) === -1 && unit.toLowerCase().indexOf(searchQ) === -1) return false;
+      var bodyBits = lessonBodyPlainText(t.body || '').toLowerCase();
+      if (title.indexOf(searchQ) === -1 && unit.toLowerCase().indexOf(searchQ) === -1 && bodyBits.indexOf(searchQ) === -1) return false;
     }
     return true;
   });
+  renderLessonBankSidebar(allTemplates, templates.length);
   var listEl = document.getElementById('templatesList');
   var emptyEl = document.getElementById('templatesEmpty');
   if (!listEl || !emptyEl) return;
@@ -2507,7 +3272,7 @@ function renderTemplatesList() {
     listEl.innerHTML = '';
     emptyEl.style.display = 'block';
     emptyEl.innerHTML = allTemplates.length === 0
-      ? '<strong>No lessons yet</strong><br>Click &quot;Create new lesson&quot; to build your first lesson plan. Once saved, it becomes a lesson card you can apply to classes.'
+      ? '<strong>No lessons yet</strong><br>Click &quot;Add lesson&quot; to build your first lesson plan. Once saved, it becomes a lesson card you can apply to classes.'
       : '<strong>No matching lessons</strong><br>Try changing the filter or search.';
     return;
   }
@@ -2516,14 +3281,16 @@ function renderTemplatesList() {
   templates.forEach(function(t) {
     var u = t.unitKey && window.getUnitFromKey ? window.getUnitFromKey(t.unitKey) : null;
     var preview = '';
-    if (t.body) preview = lessonBodyPlainText(t.body).slice(0, 100);
-    else preview = (t.learningIntentions || t.successCriteria || t.activity || t.notes || '').toString().slice(0, 100);
+    if (t.body) preview = lessonBodyPlainText(t.body).slice(0, 120);
+    else preview = (t.learningIntentions || t.successCriteria || t.activity || t.notes || '').toString().slice(0, 120);
     if (preview) preview = preview.replace(/</g, '&lt;');
     var subj = t.subject || '';
     var subLabel = subjectLabel(t.subject || '') || 'Lesson';
     var subCls = subj === 'drama' ? 'drama-t' : (subj === 'art' ? 'art-t' : (subj === 'photography' ? 'photo-t' : ''));
     var bCls = subj === 'drama' ? 'drama-b' : (subj === 'art' ? 'art-b' : (subj === 'photography' ? 'photo-b' : ''));
     var chipCls = subj === 'drama' ? 'drama-chip-s' : (subj === 'art' ? 'art-chip-s' : (subj === 'photography' ? 'photo-chip-s' : ''));
+    var st = deriveLessonStatus(t);
+    var resCount = Array.isArray(t.resources) ? t.resources.length : (t.resources && String(t.resources).trim() ? 1 : 0);
     html += '<div class="lesson-card ' + bCls + '" data-template-id="' + (t.id || '') + '" data-subject="' + subj + '">';
     html += '<div class="lc-subject ' + subCls + '">' + escHtml(subLabel) + '</div>';
     html += '<div class="lc-title">' + (t.name || t.title || 'Untitled').replace(/</g, '&lt;') + '</div>';
@@ -2531,10 +3298,13 @@ function renderTemplatesList() {
     if (preview) html += '<div class="lc-preview">' + preview + '</div>';
     html += '<div class="lc-footer">';
     html += '<span class="lc-tag ' + chipCls + '">' + escHtml(subj || 'lesson') + '</span>';
-    html += '<button type="button" class="btn-sm lesson-card-apply-btn">Apply →</button>';
-    html += '<button type="button" class="btn-secondary lesson-card-edit-btn">Edit</button>';
-    html += '<button type="button" class="btn-secondary lesson-card-export-btn">Export</button>';
-    html += '<button type="button" class="btn-remove-resource lesson-card-delete-btn">Delete</button>';
+    html += '<span class="rd-status rd-status-' + st + '">' + statusLabel(st) + '</span>';
+    if (resCount) html += '<span class="lc-tag">' + resCount + ' resource' + (resCount === 1 ? '' : 's') + '</span>';
+    html += '<button type="button" class="btn-sm lesson-card-edit-btn">Open</button>';
+    html += '<button type="button" class="btn-secondary lesson-card-duplicate-btn">Duplicate</button>';
+    html += '<button type="button" class="btn-sm lesson-card-apply-btn">Schedule</button>';
+    html += '<button type="button" class="btn-secondary lesson-card-export-btn" aria-label="Export lesson">Export</button>';
+    html += '<button type="button" class="btn-remove-resource lesson-card-delete-btn" aria-label="Delete lesson">Delete</button>';
     html += '</div></div>';
   });
   listEl.innerHTML = html;
@@ -2543,6 +3313,25 @@ function renderTemplatesList() {
   });
   listEl.querySelectorAll('.lesson-card-edit-btn').forEach(function(btn) {
     btn.addEventListener('click', function(e) { e.stopPropagation(); openLessonModalForLibrary(btn.closest('.lesson-card').dataset.templateId); });
+  });
+  listEl.querySelectorAll('.lesson-card-duplicate-btn').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var id = btn.closest('.lesson-card').dataset.templateId;
+      var src = (PS.getTemplates() || []).find(function(x) { return x.id === id; });
+      if (!src || !PS.saveTemplate) return;
+      var copy = JSON.parse(JSON.stringify(src));
+      delete copy.id;
+      delete copy.createdAt;
+      delete copy.updatedAt;
+      copy.name = (src.name || src.title || 'Lesson') + ' Copy';
+      if (copy.title && copy.title === src.title) copy.title = copy.name;
+      PS.saveTemplate(copy).then(function() {
+        renderTemplatesList();
+        populateApplyTemplateDropdown();
+        showToast('Lesson duplicated');
+      }).catch(function() { showToast('Could not duplicate lesson'); });
+    });
   });
   listEl.querySelectorAll('.lesson-card-export-btn').forEach(function(btn) {
     btn.addEventListener('click', function(e) {
@@ -2564,7 +3353,7 @@ function renderTemplatesList() {
       e.stopPropagation();
       var id = btn.closest('.lesson-card').dataset.templateId;
       if (!id) return;
-      if (!confirm('Delete this lesson from your bank?')) return;
+      if (!confirm('Delete this lesson?\nThis cannot be undone.')) return;
       PS.deleteTemplate(id).then(function() {
         renderTemplatesList();
         populateApplyTemplateDropdown();
@@ -2854,6 +3643,7 @@ function openSchemeLessonModal(unitId, lessonId) {
 
 function renderSchemesPanel() {
   renderPlannerInsights();
+  renderSchemesSummary();
   var units = PS.getSchemeUnits ? PS.getSchemeUnits() : [];
   var grid = document.getElementById('schemeCardsGrid');
   var empty = document.getElementById('schemeEmptyState');
@@ -2866,14 +3656,20 @@ function renderSchemesPanel() {
     var bCls = subj === 'drama' ? 'drama-b' : (subj === 'art' ? 'art-b' : (subj === 'photography' ? 'photo-b' : ''));
     var chipCls = subj === 'drama' ? 'drama-chip-s' : (subj === 'art' ? 'art-chip-s' : (subj === 'photography' ? 'photo-chip-s' : ''));
     var lessons = (unit.lessons || []).slice().sort(function(a, b) { return (a.order || 0) - (b.order || 0); });
+    var pct = calculateSchemeProgress(lessons);
+    var completeN = lessons.filter(function(l) { return deriveLessonStatus(l) === 'complete'; }).length;
     html += '<div class="scheme-card ' + bCls + (idx === 0 ? ' open' : '') + '" data-unit-id="' + escAttr(unit.id) + '" data-scheme-subject="' + escAttr(subj) + '" data-scheme-yg="' + escAttr(ygKey) + '">';
-    html += '<div class="scheme-head"><div class="scheme-meta"><div class="scheme-title">' + escHtmlFromStoredText(unit.title || 'Untitled Unit') + '</div><div class="scheme-sub">' + escHtml((yearGroupDisplayLabel(unit.yearGroup) || unit.yearGroup || 'Custom') + ' · ' + lessons.length + ' lessons') + '</div></div>';
-    html += '<div class="scheme-chips"><span class="scheme-chip ' + chipCls + '">' + escHtml(subjectLabel(subj)) + '</span></div>';
-    html += '<span class="scheme-count">' + lessons.length + ' lessons</span><span class="scheme-chevron">›</span></div>';
+    html += '<div class="scheme-head"><div class="scheme-meta"><div class="scheme-title">' + escHtmlFromStoredText(unit.title || 'Untitled Unit') + '</div><div class="scheme-sub">' + escHtml((yearGroupDisplayLabel(unit.yearGroup) || unit.yearGroup || 'Custom') + ' · ' + lessons.length + ' lessons') + '</div>';
+    if (unit.overview) html += '<div class="scheme-sub" style="margin-top:.25rem">' + escHtmlFromStoredText(String(unit.overview).slice(0, 140)) + (String(unit.overview).length > 140 ? '…' : '') + '</div>';
+    html += '<div class="scheme-progress-bar" role="progressbar" aria-valuenow="' + pct + '" aria-valuemin="0" aria-valuemax="100" aria-label="Scheme progress"><span style="width:' + pct + '%"></span></div>';
+    html += '<div class="scheme-sub">' + completeN + ' / ' + lessons.length + ' complete (' + pct + '%)</div>';
+    html += '</div>';
+    html += '<div class="scheme-chips"><span class="scheme-chip ' + chipCls + '">' + escHtml(subjectLabel(subj)) + '</span><span class="scheme-chip">' + escHtml(yearGroupDisplayLabel(unit.yearGroup) || unit.yearGroup || 'Custom') + '</span></div>';
+    html += '<span class="scheme-count">' + lessons.length + '</span><span class="scheme-chevron">›</span></div>';
     html += '<div class="scheme-body">';
     lessons.forEach(function(lesson, i) {
       var st = schemeLessonEffectiveStatus(lesson);
-      html += '<div class="scheme-row"><div class="scheme-num">' + (i + 1) + '</div><div class="scheme-lesson-title">' + escHtmlFromStoredText(lesson.title || 'Untitled lesson') + '</div><span class="scheme-status st-' + st + '">' + st + '</span></div>';
+      html += '<div class="scheme-row"><div class="scheme-num">' + (i + 1) + '</div><div class="scheme-lesson-title">' + escHtmlFromStoredText(lesson.title || 'Untitled lesson') + '</div><span class="scheme-status st-' + st + '"><span class="rd-status rd-status-' + st + '">' + schemeStatusBadgeLabel(st) + '</span></span></div>';
     });
     html += '<div style="display:flex;gap:.5rem;margin-top:.7rem;flex-wrap:wrap"><button type="button" class="btn-secondary scheme-add-lesson-btn">Add lesson</button><button type="button" class="btn-secondary scheme-edit-unit-btn">Edit unit</button></div>';
     html += '</div></div>';
@@ -3043,11 +3839,7 @@ function switchToDayViewForDate(d) {
   PS.setCurrentWeekStart(PS.getWeekStart(d2));
   PS.setCurrentMonthStart(PS.getMonthStart(d2));
   document.getElementById('dayViewDate').value = getDateStr(d2);
-  document.querySelectorAll('.planner-tab').forEach(function(t) { t.classList.remove('active'); });
-  document.querySelectorAll('.planner-panel').forEach(function(p) { p.classList.remove('active'); });
-  document.querySelector('.planner-tab[data-tab="day"]').classList.add('active');
-  document.getElementById('panel-day').classList.add('active');
-  renderDayView();
+  switchPlannerTab('day');
 }
 
 function renderMonthView() {
@@ -3647,23 +4439,36 @@ if (monthCourseStartBtn) monthCourseStartBtn.addEventListener('click', goToCours
 
 document.querySelectorAll('.planner-tab').forEach(function(tab) {
   tab.addEventListener('click', function() {
-    document.querySelectorAll('.planner-tab').forEach(function(t){t.classList.remove('active')});
-    document.querySelectorAll('.planner-panel').forEach(function(p){p.classList.remove('active')});
-    tab.classList.add('active');
-    document.getElementById('panel-' + tab.dataset.tab).classList.add('active');
-    var weekStart = PS.getCurrentWeekStart();
-    if (tab.dataset.tab === 'week') renderWeekView();
-    if (tab.dataset.tab === 'month') {
-      if (weekStart) syncDayAndMonthFromWeekStart(weekStart);
-      renderMonthView();
-    }
-    if (tab.dataset.tab === 'day') {
-      if (weekStart) syncDayAndMonthFromWeekStart(weekStart);
-      renderDayView();
-    }
-    if (tab.dataset.tab === 'bank') renderTemplatesList();
-    if (tab.dataset.tab === 'schemes') renderSchemesPanel();
+    if (tab.hasAttribute('hidden')) return;
+    switchPlannerTab(tab.dataset.tab);
   });
+});
+
+document.querySelectorAll('#calendarSubnav [data-calendar-view]').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    switchPlannerTab(btn.getAttribute('data-calendar-view'));
+  });
+});
+
+var cancelTimetableEditBtn = document.getElementById('cancelTimetableEditBtn');
+if (cancelTimetableEditBtn) {
+  cancelTimetableEditBtn.addEventListener('click', function() {
+    renderTimetable();
+    renderTimetableDisplay();
+    showToast('Edit cancelled');
+  });
+}
+
+var printTimetableBtn = document.getElementById('printTimetableBtn');
+if (printTimetableBtn) {
+  printTimetableBtn.addEventListener('click', function() {
+    window.print();
+  });
+}
+
+['lessonBankFilterYear', 'lessonBankFilterStatus', 'lessonBankFilterResources'].forEach(function(id) {
+  var el = document.getElementById(id);
+  if (el) el.addEventListener('change', function() { renderTemplatesList(); });
 });
 
 var dayNotesInput = document.getElementById('dayNotesInput');
@@ -4165,15 +4970,6 @@ document.getElementById('applyToTimetableModal').addEventListener('click', funct
   }
 });
 
-function switchPlannerTab(tabName) {
-  document.querySelectorAll('.planner-tab').forEach(function (t) {
-    t.classList.toggle('active', t.getAttribute('data-tab') === tabName);
-  });
-  document.querySelectorAll('.planner-panel').forEach(function (p) {
-    p.classList.toggle('active', p.id === 'panel-' + tabName);
-  });
-}
-
 /** Keep day + month views aligned with the week currently shown in Week View. */
 function syncDayAndMonthFromWeekStart(weekStart) {
   if (!weekStart) return;
@@ -4206,13 +5002,16 @@ function goToCourseStartDate() {
   PS.setCurrentWeekStart(weekStart);
   PS.setCurrentDayViewDate(snapToWeekday(d));
   PS.setCurrentMonthStart(PS.getMonthStart(d));
-  var activeTab = document.querySelector('.planner-tab.active');
-  var tab = activeTab ? activeTab.getAttribute('data-tab') : 'week';
-  if (tab === 'day') renderDayView();
-  else if (tab === 'month') renderMonthView();
-  else {
+  var activePanel = document.querySelector('.planner-panel.active');
+  var tab = activePanel && activePanel.id ? activePanel.id.replace('panel-', '') : 'week';
+  if (tab === 'day') {
+    activatePlannerPanel('day');
+    renderDayView();
+  } else if (tab === 'month') {
+    activatePlannerPanel('month');
+    renderMonthView();
+  } else {
     switchPlannerTab('week');
-    renderWeekView();
   }
 }
 
@@ -4531,6 +5330,7 @@ PS.load().then(function() {
   renderWeekView();
   renderMonthView();
   renderSchemesPanel();
+  switchPlannerTab('today');
 });
 
 })();
