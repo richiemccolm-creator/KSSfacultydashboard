@@ -1,12 +1,30 @@
 /**
  * Home dashboard widget — private sticky notes (remind myself).
+ * Hide preference is local to this browser so notes can be covered quickly.
  */
 (function() {
+  var HIDDEN_KEY = 'stickyNotesHiddenV1';
+
   function esc(s) {
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
       .replace(/"/g, '&quot;');
+  }
+
+  function isHidden() {
+    try {
+      return localStorage.getItem(HIDDEN_KEY) === '1';
+    } catch (e) {
+      return false;
+    }
+  }
+
+  function setHidden(hidden) {
+    try {
+      if (hidden) localStorage.setItem(HIDDEN_KEY, '1');
+      else localStorage.removeItem(HIDDEN_KEY);
+    } catch (e) {}
   }
 
   function colorDotsHtml(activeColor) {
@@ -94,6 +112,79 @@
     }
   }
 
+  function bindChrome(el) {
+    var hideBtn = el.querySelector('.home-sticky-hide');
+    var showBtn = el.querySelector('.home-sticky-show');
+    var addBtn = el.querySelector('.home-sticky-add');
+
+    if (hideBtn) {
+      hideBtn.onclick = function() {
+        setHidden(true);
+        window.StickyNotesHome.render({ force: true });
+      };
+    }
+    if (showBtn) {
+      showBtn.onclick = function() {
+        setHidden(false);
+        window.StickyNotesHome.render({ force: true });
+      };
+    }
+    if (addBtn) {
+      addBtn.onclick = function() {
+        if (addBtn.disabled || !window.StickyNotesService) return;
+        StickyNotesService.addNote({ text: '' }).then(function() {
+          window.StickyNotesHome.render({ force: true });
+          var cards = el.querySelectorAll('.home-sticky-note');
+          var last = cards[cards.length - 1];
+          if (last) {
+            var ta = last.querySelector('.home-sticky-text');
+            if (ta) ta.focus();
+          }
+        }).catch(function(err) {
+          alert((err && err.message) || 'Could not add note.');
+        });
+      };
+    }
+  }
+
+  function renderHiddenShell(el, noteCount) {
+    var countLabel = noteCount === 1 ? '1 note hidden' : noteCount + ' notes hidden';
+    el.classList.add('is-hidden');
+    el.innerHTML =
+      '<div class="home-sticky-board-head home-sticky-board-head--collapsed">' +
+        '<div>' +
+          '<div class="home-sticky-title">Sticky notes</div>' +
+          '<div class="home-sticky-sub">' + esc(countLabel) + ' — tap Show when you are alone</div>' +
+        '</div>' +
+        '<button type="button" class="home-sticky-show" aria-expanded="false" title="Show sticky notes">' +
+          '<i class="ti ti-eye" aria-hidden="true"></i> Show' +
+        '</button>' +
+      '</div>';
+    bindChrome(el);
+  }
+
+  function renderVisibleShell(el) {
+    el.classList.remove('is-hidden');
+    el.innerHTML =
+      '<div class="home-sticky-board-head">' +
+        '<div>' +
+          '<div class="home-sticky-title">Sticky notes</div>' +
+          '<div class="home-sticky-sub">Private reminders — hide these if someone is nearby</div>' +
+        '</div>' +
+        '<div class="home-sticky-head-actions">' +
+          '<button type="button" class="home-sticky-hide" aria-expanded="true" title="Hide sticky notes from view">' +
+            '<i class="ti ti-eye-off" aria-hidden="true"></i> Hide' +
+          '</button>' +
+          '<button type="button" class="home-sticky-add">' +
+            '<i class="ti ti-plus" aria-hidden="true"></i> Add note' +
+          '</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="home-sticky-board" aria-label="Your sticky notes"></div>';
+    bindChrome(el);
+    return el.querySelector('.home-sticky-board');
+  }
+
   window.StickyNotesHome = {
     render: function(opts) {
       opts = opts || {};
@@ -111,45 +202,19 @@
       StickyNotesService.load().then(function() {
         var notes = StickyNotesService.getNotes();
         var atLimit = notes.length >= StickyNotesService.MAX_NOTES;
+        var hidden = isHidden();
 
-        var head = el.querySelector('.home-sticky-board-head');
-        var board = el.querySelector('.home-sticky-board');
-        var addBtn = el.querySelector('.home-sticky-add');
-
-        if (!board) {
-          el.innerHTML =
-            '<div class="home-sticky-board-head">' +
-              '<div>' +
-                '<div class="home-sticky-title">Sticky notes</div>' +
-                '<div class="home-sticky-sub">Private reminders — only you can see these</div>' +
-              '</div>' +
-              '<button type="button" class="home-sticky-add">' +
-                '<i class="ti ti-plus" aria-hidden="true"></i> Add note' +
-              '</button>' +
-            '</div>' +
-            '<div class="home-sticky-board" aria-label="Your sticky notes"></div>';
-          board = el.querySelector('.home-sticky-board');
-          addBtn = el.querySelector('.home-sticky-add');
-          head = el.querySelector('.home-sticky-board-head');
+        if (hidden) {
+          // Notes are not rendered at all while hidden — nothing to shoulder-surf.
+          renderHiddenShell(el, notes.length);
+          return;
         }
 
+        var board = renderVisibleShell(el);
+        var addBtn = el.querySelector('.home-sticky-add');
         if (addBtn) {
           addBtn.disabled = atLimit;
           addBtn.title = atLimit ? 'Maximum of ' + StickyNotesService.MAX_NOTES + ' notes' : 'Add a sticky note';
-          addBtn.onclick = function() {
-            if (addBtn.disabled) return;
-            StickyNotesService.addNote({ text: '' }).then(function() {
-              window.StickyNotesHome.render({ force: true });
-              var cards = el.querySelectorAll('.home-sticky-note');
-              var last = cards[cards.length - 1];
-              if (last) {
-                var ta = last.querySelector('.home-sticky-text');
-                if (ta) ta.focus();
-              }
-            }).catch(function(err) {
-              alert((err && err.message) || 'Could not add note.');
-            });
-          };
         }
 
         if (notes.length === 0) {
@@ -163,6 +228,7 @@
         board.innerHTML = notes.map(noteCardHtml).join('');
         board.querySelectorAll('.home-sticky-note').forEach(bindNote);
       }).catch(function() {
+        el.classList.remove('is-hidden');
         el.innerHTML = '<div class="home-dash-empty">Could not load sticky notes.</div>';
       });
     }
