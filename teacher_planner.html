@@ -1035,10 +1035,10 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
   <div id="weekHeroBanner" hidden aria-hidden="true"></div>
   <div class="nav-row week-nav-row">
     <button type="button" class="nav-btn" id="weekPrev" aria-label="Previous week">&#9664;</button>
-    <div class="nav-label" id="weekDisplay"></div>
-    <button type="button" class="nav-btn" id="weekNext" aria-label="Next week">&#9654;</button>
     <button type="button" class="nav-today" id="weekToday">Today</button>
+    <button type="button" class="nav-btn" id="weekNext" aria-label="Next week">&#9654;</button>
     <button type="button" class="nav-today" id="weekCourseStart" title="Jump to N5 Creative Industries course start week">CI start</button>
+    <div class="nav-label" id="weekDisplay" hidden aria-hidden="true"></div>
   </div>
   <div id="weekDashboardRoot" class="week-page">
     <div class="rd-empty">Loading week…</div>
@@ -3668,6 +3668,33 @@ function plannerCalendarTooltipAttr(e) {
   return combined.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+function isoWeekNumber(dateObj) {
+  var d = new Date(Date.UTC(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate()));
+  var dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  var yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+}
+
+function calendarEventPriorityRank(e) {
+  var cat = String((e && e.category) || '').toLowerCase();
+  var title = String((e && e.title) || '').toLowerCase();
+  if (cat === 'assessment' || cat === 'exam' || /assessment|exam/i.test(title)) return 1;
+  if (cat === 'reporting' || /report|reporting|deadline/i.test(title)) return 2;
+  if (cat === 'meeting' || /meeting/i.test(title)) return 3;
+  return 4;
+}
+
+function calendarEventTag(e) {
+  var cat = String((e && e.category) || '').toLowerCase();
+  var title = String((e && e.title) || '').toLowerCase();
+  if (cat === 'assessment' || cat === 'exam' || /assessment|exam/i.test(title)) return 'Assessment';
+  if (cat === 'reporting' || /report|reporting|deadline/i.test(title)) return 'Reporting';
+  if (cat === 'meeting' || /meeting/i.test(title)) return 'Meeting';
+  if (cat === 'holiday') return 'Holiday';
+  return 'Event';
+}
+
 function buildWeekDashboardModel() {
   var now = new Date();
   var state = PS.getState();
@@ -3680,11 +3707,7 @@ function buildWeekDashboardModel() {
   var endFri = new Date(start);
   endFri.setDate(endFri.getDate() + 4);
   var rangeLabel = start.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) +
-    '–' + endFri.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
-  var rangeHeading = start.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' }).replace(/(\d+)/, function(m) {
-    return m;
-  });
-  // Prefer "Week of 12–16 May" style
+    ' – ' + endFri.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
   var monthEnd = endFri.toLocaleDateString('en-GB', { month: 'long' });
   var monthStart = start.toLocaleDateString('en-GB', { month: 'long' });
   var headingRange = (monthStart === monthEnd)
@@ -3697,12 +3720,11 @@ function buildWeekDashboardModel() {
     return e.date && e.date >= weekStartStr && e.date <= weekEndStr;
   });
   var assessments = weekEvents.filter(function(e) {
-    var cat = String(e.category || '').toLowerCase();
-    return cat === 'assessment' || cat === 'exam' || /assessment|exam/i.test(e.title || '');
+    return calendarEventPriorityRank(e) === 1;
   });
-  var upcomingDeadlines = allEvents.filter(function(e) {
+  var upcomingDates = allEvents.filter(function(e) {
     return e.date && e.date >= weekStartStr;
-  }).sort(function(a, b) { return (a.date || '').localeCompare(b.date || ''); }).slice(0, 6);
+  }).sort(function(a, b) { return (a.date || '').localeCompare(b.date || ''); }).slice(0, 3);
 
   var slots = (state.timetable && state.timetable.slots) || [];
   var byKey = {};
@@ -3719,7 +3741,7 @@ function buildWeekDashboardModel() {
 
   var statusCounts = { planned: 0, draft: 0, complete: 0, 'needs-planning': 0 };
   var cells = [];
-  var priorities = [];
+  var needsPriorities = [];
   var maxPeriod = 7;
 
   for (var p = 1; p <= maxPeriod; p++) {
@@ -3739,18 +3761,11 @@ function buildWeekDashboardModel() {
       var st = deriveLessonStatus(lesson);
       statusCounts[st] = (statusCounts[st] || 0) + 1;
       if (st === 'needs-planning') {
-        priorities.push({
+        needsPriorities.push({
           kind: 'warn',
+          rank: 0,
           title: 'Plan ' + (slot.className || subjectLabel(slot.subject) || 'class') + ' · P' + p,
           detail: weekDays[di].toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }),
-          dateStr: dateStr,
-          slotKey: k
-        });
-      } else if (st === 'draft') {
-        priorities.push({
-          kind: 'info',
-          title: 'Finish draft · P' + p + ' ' + (slot.className || 'class'),
-          detail: lesson && lesson.title ? lesson.title : 'Draft lesson',
           dateStr: dateStr,
           slotKey: k
         });
@@ -3770,16 +3785,26 @@ function buildWeekDashboardModel() {
     });
   }
 
-  assessments.slice(0, 3).forEach(function(e) {
-    priorities.push({
-      kind: 'assess',
-      title: e.title || 'Assessment',
-      detail: e.date ? e.date : 'This week'
-    });
-  });
+  var eventPriorities = allEvents.filter(function(e) {
+    return e.date && e.date >= weekStartStr && e.date <= weekEndStr;
+  }).map(function(e) {
+    var rank = calendarEventPriorityRank(e);
+    var kind = rank === 1 ? 'assess' : (rank === 2 ? 'report' : (rank === 3 ? 'meet' : 'info'));
+    return {
+      kind: kind,
+      rank: rank,
+      title: e.title || 'Event',
+      detail: e.date || 'This week'
+    };
+  }).sort(function(a, b) { return a.rank - b.rank; });
+
+  var priorities = needsPriorities.concat(eventPriorities).slice(0, 4);
 
   var planPct = stats.teaching ? Math.round((stats.planned / stats.teaching) * 100) : 0;
   var note = PS.getWeekNote ? PS.getWeekNote(weekStartStr) : '';
+  var weekNum = isoWeekNumber(start);
+  var yearLabel = (PS.getAcademicYearLabel && PS.getAcademicYearLabel(start)) ||
+    ((document.getElementById('topbarAcademicYear') || {}).textContent || '').trim();
 
   return {
     now: now,
@@ -3787,8 +3812,8 @@ function buildWeekDashboardModel() {
     weekStartStr: weekStartStr,
     heading: 'Week of ' + headingRange,
     rangeLabel: rangeLabel,
-    clock: formatTodayClock(now),
-    fullDate: now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
+    weekMetaPrimary: rangeLabel,
+    weekMetaSecondary: 'Week ' + weekNum + (yearLabel ? (' · ' + yearLabel) : ''),
     room: getRoomDisplayName(),
     school: ((document.querySelector('.topbar-school-chip') || {}).textContent || 'School').trim(),
     teaching: stats.teaching,
@@ -3808,17 +3833,17 @@ function buildWeekDashboardModel() {
     }),
     maxPeriod: maxPeriod,
     cells: cells,
-    priorities: priorities.slice(0, 6),
-    deadlines: upcomingDeadlines.map(function(e) {
-      var cat = String(e.category || 'general').toLowerCase();
+    priorities: priorities,
+    upcomingDates: upcomingDates.map(function(e) {
+      var tag = calendarEventTag(e);
       var d = e.date ? new Date(e.date + 'T12:00:00') : null;
       return {
         title: e.title || 'Event',
         date: e.date || '',
         month: d ? d.toLocaleDateString('en-GB', { month: 'short' }).toUpperCase() : '',
         day: d ? String(d.getDate()) : '',
-        category: cat,
-        tag: (cat === 'assessment' || cat === 'exam') ? 'Assessment' : (cat === 'meeting' ? 'Meeting' : 'Planning')
+        category: String(e.category || 'general').toLowerCase(),
+        tag: tag
       };
     }),
     note: note,
@@ -3877,20 +3902,27 @@ function createWeekDashboardMarkup(model) {
   grid += '</div>';
 
   var prioritiesHtml = model.priorities.length
-    ? '<ul class="week-priorities-list">' + model.priorities.map(function(it) {
-        var open = (it.dateStr && it.slotKey) ? (' data-date="' + it.dateStr + '" data-slot="' + it.slotKey + '"') : '';
+    ? '<div class="week-priorities-list">' + model.priorities.map(function(it) {
+        if (it.dateStr && it.slotKey) {
+          return (
+            '<button type="button" class="week-priority-item is-action" data-date="' + it.dateStr + '" data-slot="' + it.slotKey + '">' +
+              '<span class="week-priority-icon is-' + escHtml(it.kind || 'info') + '" aria-hidden="true"></span>' +
+              '<span class="week-priority-copy"><strong>' + escHtml(it.title) + '</strong><span>' + escHtml(it.detail || '') + '</span></span>' +
+            '</button>'
+          );
+        }
         return (
-          '<li class="week-priority-item"' + open + '>' +
+          '<div class="week-priority-item">' +
             '<span class="week-priority-icon is-' + escHtml(it.kind || 'info') + '" aria-hidden="true"></span>' +
             '<span class="week-priority-copy"><strong>' + escHtml(it.title) + '</strong><span>' + escHtml(it.detail || '') + '</span></span>' +
-          '</li>'
+          '</div>'
         );
-      }).join('') + '</ul>'
+      }).join('') + '</div>'
     : '<p class="week-empty">No urgent priorities this week.</p>';
 
-  var deadlinesHtml = model.deadlines.length
-    ? '<ul class="week-deadlines-list">' + model.deadlines.map(function(d) {
-        var tagClass = (d.tag === 'Assessment') ? 'is-assess' : (d.tag === 'Meeting' ? 'is-meet' : 'is-plan');
+  var upcomingHtml = model.upcomingDates.length
+    ? '<ul class="week-deadlines-list">' + model.upcomingDates.map(function(d) {
+        var tagClass = (d.tag === 'Assessment') ? 'is-assess' : (d.tag === 'Meeting' ? 'is-meet' : (d.tag === 'Reporting' ? 'is-report' : 'is-plan'));
         return (
           '<li class="week-deadline-item">' +
             '<div class="week-deadline-date" aria-hidden="true"><span>' + escHtml(d.month) + '</span><strong>' + escHtml(d.day) + '</strong></div>' +
@@ -3899,8 +3931,9 @@ function createWeekDashboardMarkup(model) {
           '</li>'
         );
       }).join('') + '</ul>'
-    : '<p class="week-empty">No upcoming deadlines recorded.</p>';
+    : '<p class="week-empty">No upcoming dates recorded.</p>';
 
+  var filterLabel = model.unfinishedOnly ? 'Show all lessons' : 'Show unfinished only';
   var sc = model.statusCounts;
   var ringStyle = 'background: conic-gradient(var(--week-green) 0 ' + model.planPct + '%, rgba(21,152,120,0.15) ' + model.planPct + '% 100%);';
 
@@ -3911,15 +3944,15 @@ function createWeekDashboardMarkup(model) {
         '<h1 class="week-heading">' + escHtml(model.heading) + '</h1>' +
         '<p class="week-summary">' + escHtml(summary) + '</p>' +
         '<div class="week-hero-actions">' +
-          '<button type="button" id="weekAddLessonAction" class="week-action week-action-primary">Add lesson</button>' +
+          '<button type="button" id="weekAddLessonAction" class="week-action week-action-primary">Create lesson</button>' +
           '<button type="button" id="weekViewMonthAction" class="week-action week-action-secondary">View month</button>' +
           '<button type="button" id="weekCopyPreviousAction" class="week-action week-action-secondary" disabled title="Copying will be added after the current save model is reviewed.">Copy previous week</button>' +
         '</div>' +
       '</div>' +
       '<aside class="week-hero-meta">' +
         '<div class="week-time-panel">' +
-          '<time class="week-clock" datetime="' + escHtml(model.weekStartStr) + '">' + escHtml(model.clock) + '</time>' +
-          '<div class="week-full-date">' + escHtml(model.fullDate) + '</div>' +
+          '<div class="week-meta-range">' + escHtml(model.weekMetaPrimary) + '</div>' +
+          '<div class="week-meta-extra">' + escHtml(model.weekMetaSecondary) + '</div>' +
           '<div class="week-time-divider"></div>' +
           '<div class="week-room">' + escHtml(model.room) + '</div>' +
           '<div class="week-school">' + escHtml(model.school) + '</div>' +
@@ -3932,7 +3965,7 @@ function createWeekDashboardMarkup(model) {
           '<header class="week-panel-header">' +
             '<div><h2>This week’s timetable</h2><p class="week-panel-summary">' + escHtml(panelSummary) + '</p></div>' +
             '<div class="week-panel-actions">' +
-              '<button type="button" id="weekFilterButton" class="week-panel-control' + (model.unfinishedOnly ? ' is-on' : '') + '" aria-pressed="' + (model.unfinishedOnly ? 'true' : 'false') + '">Filter</button>' +
+              '<button type="button" id="weekFilterButton" class="week-panel-control' + (model.unfinishedOnly ? ' is-on' : '') + '" aria-pressed="' + (model.unfinishedOnly ? 'true' : 'false') + '">' + escHtml(filterLabel) + '</button>' +
               '<button type="button" id="weekViewOptionsButton" class="week-panel-control" disabled title="View options are not yet active">View options</button>' +
             '</div>' +
           '</header>' +
@@ -3957,8 +3990,8 @@ function createWeekDashboardMarkup(model) {
           prioritiesHtml +
         '</section>' +
         '<section class="week-panel week-deadlines-panel">' +
-          '<header class="week-panel-header"><h2>Upcoming deadlines</h2><button type="button" id="weekViewAllDeadlines" class="week-panel-link">View all</button></header>' +
-          deadlinesHtml +
+          '<header class="week-panel-header"><h2>Upcoming dates</h2><button type="button" id="weekViewAllDeadlines" class="week-panel-link">View all</button></header>' +
+          upcomingHtml +
         '</section>' +
         '<section class="week-panel week-progress-panel">' +
           '<header class="week-panel-header"><h2>Weekly progress</h2></header>' +
@@ -3982,7 +4015,7 @@ function createWeekDashboardMarkup(model) {
           '<header class="week-panel-header"><h2>Weekly notes</h2><button type="button" id="weekSaveNoteAction" class="week-panel-link">Save note</button></header>' +
           '<div class="week-note-card">' +
             '<label class="sr-only" for="weekNotesRedesign">Weekly notes</label>' +
-            '<textarea id="weekNotesRedesign" data-week="' + escHtml(model.weekStartStr) + '" placeholder="Meeting notes, reminders, priorities…" rows="5">' + escHtml(model.note) + '</textarea>' +
+            '<textarea id="weekNotesRedesign" data-week="' + escHtml(model.weekStartStr) + '" placeholder="Meeting notes, reminders, priorities…" rows="4">' + escHtml(model.note) + '</textarea>' +
             '<div class="week-note-meta">Saves with your week notes</div>' +
           '</div>' +
         '</section>' +
@@ -3997,17 +4030,6 @@ function bindWeekDashboardEvents(root, model) {
   if (_weekClockTimer) {
     clearInterval(_weekClockTimer);
     _weekClockTimer = null;
-  }
-  var clockEl = root.querySelector('.week-clock');
-  if (clockEl) {
-    _weekClockTimer = setInterval(function() {
-      if (!document.body.contains(clockEl)) {
-        clearInterval(_weekClockTimer);
-        _weekClockTimer = null;
-        return;
-      }
-      clockEl.textContent = formatTodayClock(new Date());
-    }, 30000);
   }
 
   var addBtn = root.querySelector('#weekAddLessonAction');
@@ -4049,7 +4071,7 @@ function bindWeekDashboardEvents(root, model) {
       openLessonModal(cell.dataset.date, cell.dataset.slot);
     });
   });
-  root.querySelectorAll('.week-priority-item[data-date][data-slot]').forEach(function(item) {
+  root.querySelectorAll('.week-priority-item.is-action[data-date][data-slot]').forEach(function(item) {
     item.addEventListener('click', function() {
       openLessonModal(item.dataset.date, item.dataset.slot);
     });
