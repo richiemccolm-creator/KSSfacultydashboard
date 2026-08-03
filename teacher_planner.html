@@ -2312,12 +2312,14 @@ function scheduleTemplateToSlot(templateId, dateStr, slotKeyStr, opts) {
     updatedAt: new Date().toISOString()
   };
   var created = PS.upsertLesson(payload, existing ? existing.id : null);
+  var saved = PS.getLessonFor(dateStr, slotKeyStr);
   return PS.saveLessons().then(function() {
     lastScheduledUndo = {
-      createdId: created && created.id,
+      createdId: saved && saved.id,
       previous: previous,
       dateStr: dateStr,
-      slotKey: slotKeyStr
+      slotKey: slotKeyStr,
+      wasReplace: !!previous
     };
     showToast('Scheduled · ' + (t.title || t.name || 'Lesson'), {
       undoLabel: 'Undo',
