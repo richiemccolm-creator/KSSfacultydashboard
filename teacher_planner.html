@@ -1099,11 +1099,19 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
       </div>
     </aside>
     <div class="bank-main">
-      <div class="schemes-page-head" style="margin-bottom:.75rem">
+      <div class="schemes-page-head" style="margin-bottom:.35rem">
         <h2 style="font-size:1.35rem;color:var(--planner-navy);margin:0">Lesson bank</h2>
+        <p style="margin:.25rem 0 0;color:var(--planner-text-muted);font-size:.9rem">Find a lesson. Schedule it in one tap.</p>
       </div>
-      <div class="bank-toolbar filter-row">
+      <div class="bank-toolbar-slim">
         <input type="text" class="search-box" id="lessonBankSearch" placeholder="Search lessons, units or keywords" aria-label="Search lessons">
+        <button type="button" class="btn-primary" id="createNewLessonBtn">+ Add lesson</button>
+        <input type="file" id="templateImportFile" accept=".json,application/json,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style="display:none">
+        <button type="button" class="btn-secondary" id="templateDownloadBtn" title="Download blank template">Template</button>
+        <button type="button" class="btn-secondary" id="templateImportBtn">Import</button>
+      </div>
+      <div class="bank-intent" id="bankIntentChips" role="toolbar" aria-label="Quick filters"></div>
+      <div class="bank-hidden-filters" aria-hidden="true">
         <select class="form-select" id="lessonBankFilterSubject" aria-label="Subject filter">
           <option value="">Subject</option>
           <option value="drama">Drama</option>
@@ -1124,16 +1132,13 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
           <option value="planned">Planned</option>
           <option value="draft">Draft</option>
           <option value="complete">Complete</option>
+          <option value="needs-planning">Needs planning</option>
         </select>
         <select id="lessonBankFilterResources" aria-label="Resources filter">
           <option value="">Resources</option>
           <option value="with">Has resources</option>
           <option value="without">No resources</option>
         </select>
-        <button type="button" class="btn-primary" id="createNewLessonBtn">+ Add lesson</button>
-        <input type="file" id="templateImportFile" accept=".json,application/json,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style="display:none">
-        <button type="button" class="btn-secondary" id="templateDownloadBtn">Download template</button>
-        <button type="button" class="btn-secondary" id="templateImportBtn">Import lesson</button>
       </div>
       <div class="bank-chip-row" hidden>
         <button class="f-chip active bank-chip" data-subject="all">All</button>
@@ -1149,6 +1154,8 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
     </div>
   </div>
 </div>
+
+<div class="qs-pop" id="quickSchedulePopover" role="dialog" aria-label="Schedule lesson" hidden></div>
 
 <!-- Schemes of work panel -->
 <div id="panel-schemes" class="planner-panel panel">
@@ -2204,6 +2211,276 @@ function guessYearGroupLabel(template, unit) {
   return '';
 }
 
+var weekUnfinishedOnly = false;
+var bankFavKey = 'plannerBankFavourites';
+var lastScheduledUndo = null;
+
+function getBankFavourites() {
+  try {
+    var raw = localStorage.getItem(bankFavKey);
+    var arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr : [];
+  } catch (e) { return []; }
+}
+
+function setBankFavourites(ids) {
+  try { localStorage.setItem(bankFavKey, JSON.stringify(ids || [])); } catch (e) {}
+}
+
+function toggleBankFavourite(id) {
+  if (!id) return false;
+  var favs = getBankFavourites();
+  var i = favs.indexOf(id);
+  if (i >= 0) favs.splice(i, 1);
+  else favs.push(id);
+  setBankFavourites(favs);
+  return favs.indexOf(id) >= 0;
+}
+
+function getFocusLessonRow(lessonRows) {
+  if (!lessonRows || !lessonRows.length) return null;
+  var unplanned = lessonRows.filter(function(r) { return r.status === 'needs-planning'; });
+  if (unplanned.length) return unplanned[0];
+  var now = new Date();
+  var mins = now.getHours() * 60 + now.getMinutes();
+  var best = lessonRows[0];
+  for (var i = 0; i < lessonRows.length; i++) {
+    var label = lessonRows[i].timeLabel || '';
+    var m = String(label).match(/(\d{1,2}):(\d{2})/);
+    if (!m) continue;
+    var t = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+    if (t >= mins - 10) { best = lessonRows[i]; break; }
+  }
+  return best;
+}
+
+function collectScheduleSlots(opts) {
+  opts = opts || {};
+  var subject = opts.subject || '';
+  var start = PS.getCurrentWeekStart ? PS.getCurrentWeekStart() : PS.getWeekStart(new Date());
+  if (!start) start = PS.getWeekStart(new Date());
+  var out = [];
+  var dayOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
+  for (var i = 0; i < 10; i++) {
+    var d = new Date(start);
+    d.setDate(d.getDate() + i);
+    if (d.getDay() === 0 || d.getDay() === 6) continue;
+    var dateStr = getDateStr(d);
+    getSlotsForDate(d).forEach(function(row) {
+      if (subject && row.slot.subject && row.slot.subject !== subject) return;
+      var existing = PS.getLessonFor(dateStr, row.slotKey);
+      var empty = !existing;
+      out.push({
+        dateStr: dateStr,
+        slotKey: row.slotKey,
+        period: row.period,
+        slot: row.slot,
+        empty: empty,
+        dayLabel: d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }),
+        classLabel: row.slot.className || subjectLabel(row.slot.subject) || 'Class',
+        timeLabel: periodTimeLabel(row.period)
+      });
+    });
+    if (out.length >= 18) break;
+  }
+  out.sort(function(a, b) {
+    if (a.empty !== b.empty) return a.empty ? -1 : 1;
+    return (a.dateStr + a.slotKey).localeCompare(b.dateStr + b.slotKey);
+  });
+  return out.slice(0, 12);
+}
+
+function scheduleTemplateToSlot(templateId, dateStr, slotKeyStr, opts) {
+  opts = opts || {};
+  var t = PS.getTemplateById && PS.getTemplateById(templateId);
+  if (!t) { showToast('Lesson not found'); return Promise.reject(); }
+  if (!dateStr || !slotKeyStr) { showToast('Pick a slot'); return Promise.reject(); }
+  var existing = PS.getLessonFor(dateStr, slotKeyStr);
+  var previous = existing ? JSON.parse(JSON.stringify(existing)) : null;
+  var payload = {
+    date: dateStr,
+    slotKey: slotKeyStr,
+    subject: t.subject,
+    unitKey: t.unitKey,
+    title: t.title || t.name,
+    lessonNumber: (t.lessonNumber && String(t.lessonNumber).trim()) || '',
+    body: lessonRecordToBodyHtml(t),
+    notes: t.notes || lessonBodyPlainText(lessonRecordToBodyHtml(t)),
+    resources: t.resources || [],
+    todos: (t.todos || []).map(function(x) { return { id: PS.id(), text: x.text || '', done: false }; }),
+    status: 'planned',
+    updatedAt: new Date().toISOString()
+  };
+  var created = PS.upsertLesson(payload, existing ? existing.id : null);
+  return PS.saveLessons().then(function() {
+    lastScheduledUndo = {
+      createdId: created && created.id,
+      previous: previous,
+      dateStr: dateStr,
+      slotKey: slotKeyStr
+    };
+    showToast('Scheduled · ' + (t.title || t.name || 'Lesson'), {
+      undoLabel: 'Undo',
+      onUndo: function() {
+        if (!lastScheduledUndo) return;
+        if (lastScheduledUndo.previous) {
+          PS.upsertLesson(lastScheduledUndo.previous, lastScheduledUndo.previous.id);
+        } else if (lastScheduledUndo.createdId && PS.removeLesson) {
+          PS.removeLesson(lastScheduledUndo.createdId);
+        }
+        PS.saveLessons().then(function() {
+          lastScheduledUndo = null;
+          showToast('Schedule undone');
+          if (document.getElementById('panel-week') && document.getElementById('panel-week').classList.contains('active')) renderWeekView();
+          if (document.getElementById('panel-today') && document.getElementById('panel-today').classList.contains('active')) renderTodayDashboard();
+          if (document.getElementById('panel-day') && document.getElementById('panel-day').classList.contains('active')) renderDayView();
+        });
+      }
+    });
+    closeQuickSchedule();
+    if (document.getElementById('panel-week') && document.getElementById('panel-week').classList.contains('active')) renderWeekView();
+    if (document.getElementById('panel-today') && document.getElementById('panel-today').classList.contains('active')) renderTodayDashboard();
+    if (document.getElementById('panel-day') && document.getElementById('panel-day').classList.contains('active')) renderDayView();
+    if (document.getElementById('panel-month') && document.getElementById('panel-month').classList.contains('active')) renderMonthView();
+  });
+}
+
+function closeQuickSchedule() {
+  var pop = document.getElementById('quickSchedulePopover');
+  if (!pop) return;
+  pop.classList.remove('is-open');
+  pop.hidden = true;
+  pop.innerHTML = '';
+}
+
+function openQuickSchedule(templateId, anchorEl) {
+  var t = PS.getTemplateById && PS.getTemplateById(templateId);
+  if (!t) { showToast('Lesson not found'); return; }
+  var pop = document.getElementById('quickSchedulePopover');
+  if (!pop) return;
+  var slots = collectScheduleSlots({ subject: t.subject || '' });
+  var html = '<h4>Schedule “' + escHtml(t.name || t.title || 'Lesson') + '”</h4>';
+  html += '<p>Pick a teaching slot this week. Empty slots are listed first.</p>';
+  if (!slots.length) {
+    html += '<p class="rd-empty">No teaching slots found. Set up your timetable first.</p>';
+  } else {
+    html += '<div class="qs-slots">';
+    slots.forEach(function(s) {
+      html += '<button type="button" class="qs-slot" data-date="' + s.dateStr + '" data-slot="' + s.slotKey + '">';
+      html += escHtml(s.dayLabel + ' · P' + s.period + ' · ' + s.classLabel);
+      html += '<small>' + (s.empty ? 'Empty — ready to schedule' : 'Has a plan — will replace') + (s.timeLabel ? ' · ' + escHtml(s.timeLabel) : '') + '</small>';
+      html += '</button>';
+    });
+    html += '</div>';
+  }
+  html += '<div class="qs-foot"><button type="button" class="rd-link" id="qsAdvanced">More options…</button><button type="button" class="rd-btn rd-btn-outline" id="qsClose">Close</button></div>';
+  pop.innerHTML = html;
+  pop.hidden = false;
+  pop.classList.add('is-open');
+  var rect = anchorEl && anchorEl.getBoundingClientRect ? anchorEl.getBoundingClientRect() : null;
+  var top = rect ? Math.min(window.innerHeight - 24, rect.bottom + 8) : 80;
+  var left = rect ? Math.min(window.innerWidth - 360, Math.max(12, rect.left - 80)) : 24;
+  if (rect && rect.bottom + 320 > window.innerHeight) top = Math.max(12, rect.top - 320);
+  pop.style.top = top + 'px';
+  pop.style.left = left + 'px';
+  pop.querySelectorAll('.qs-slot').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      scheduleTemplateToSlot(templateId, btn.dataset.date, btn.dataset.slot);
+    });
+  });
+  var closeBtn = document.getElementById('qsClose');
+  if (closeBtn) closeBtn.addEventListener('click', closeQuickSchedule);
+  var adv = document.getElementById('qsAdvanced');
+  if (adv) adv.addEventListener('click', function() {
+    closeQuickSchedule();
+    openApplyToTimetableModal(templateId);
+  });
+}
+
+function syncBankIntentChips(allTemplates) {
+  var wrap = document.getElementById('bankIntentChips');
+  if (!wrap) return;
+  var favs = getBankFavourites();
+  var counts = {
+    all: allTemplates.length,
+    draft: 0,
+    planned: 0,
+    complete: 0,
+    drama: 0,
+    art: 0,
+    photography: 0,
+    with: 0,
+    fav: 0
+  };
+  allTemplates.forEach(function(t) {
+    var st = deriveLessonStatus(t);
+    if (counts[st] != null) counts[st]++;
+    if (t.subject && counts[t.subject] != null) counts[t.subject]++;
+    var hasRes = Array.isArray(t.resources) ? t.resources.length > 0 : !!(t.resources && String(t.resources).trim());
+    if (hasRes) counts.with++;
+    if (favs.indexOf(t.id) >= 0) counts.fav++;
+  });
+  var subject = (document.getElementById('lessonBankFilterSubject') || {}).value || '';
+  var status = (document.getElementById('lessonBankFilterStatus') || {}).value || '';
+  var resources = (document.getElementById('lessonBankFilterResources') || {}).value || '';
+  var favOnly = wrap.dataset.favOnly === '1';
+  function chip(key, label, on, extraClass, count) {
+    return '<button type="button" class="bank-intent-chip' + (on ? ' is-on' : '') + (extraClass ? ' ' + extraClass : '') + '" data-chip="' + key + '">' + label + ' <span class="n">' + count + '</span></button>';
+  }
+  wrap.innerHTML =
+    chip('all', 'All', !subject && !status && !resources && !favOnly, '', counts.all) +
+    chip('draft', 'Drafts', status === 'draft', 'is-warn', counts.draft) +
+    chip('planned', 'Planned', status === 'planned', '', counts.planned) +
+    chip('drama', 'Drama', subject === 'drama', '', counts.drama) +
+    chip('art', 'Art', subject === 'art', '', counts.art) +
+    chip('photography', 'Photo', subject === 'photography', '', counts.photography) +
+    chip('with', 'Has resources', resources === 'with', '', counts.with) +
+    chip('fav', 'Favourites', favOnly, '', counts.fav) +
+    '<button type="button" class="bank-intent-clear" id="bankClearFilters">Clear</button>';
+  wrap.querySelectorAll('[data-chip]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var key = btn.getAttribute('data-chip');
+      var subjEl = document.getElementById('lessonBankFilterSubject');
+      var statusEl = document.getElementById('lessonBankFilterStatus');
+      var resEl = document.getElementById('lessonBankFilterResources');
+      if (key === 'all') {
+        if (subjEl) subjEl.value = '';
+        if (statusEl) statusEl.value = '';
+        if (resEl) resEl.value = '';
+        wrap.dataset.favOnly = '0';
+      } else if (key === 'draft' || key === 'planned' || key === 'complete') {
+        if (statusEl) statusEl.value = statusEl.value === key ? '' : key;
+        wrap.dataset.favOnly = '0';
+      } else if (key === 'drama' || key === 'art' || key === 'photography') {
+        if (subjEl) subjEl.value = subjEl.value === key ? '' : key;
+        wrap.dataset.favOnly = '0';
+      } else if (key === 'with') {
+        if (resEl) resEl.value = resEl.value === 'with' ? '' : 'with';
+        wrap.dataset.favOnly = '0';
+      } else if (key === 'fav') {
+        wrap.dataset.favOnly = wrap.dataset.favOnly === '1' ? '0' : '1';
+      }
+      renderTemplatesList();
+    });
+  });
+  var clear = document.getElementById('bankClearFilters');
+  if (clear) clear.addEventListener('click', function() {
+    var subjEl = document.getElementById('lessonBankFilterSubject');
+    var statusEl = document.getElementById('lessonBankFilterStatus');
+    var resEl = document.getElementById('lessonBankFilterResources');
+    var yearEl = document.getElementById('lessonBankFilterYear');
+    var search = document.getElementById('lessonBankSearch');
+    if (subjEl) subjEl.value = '';
+    if (statusEl) statusEl.value = '';
+    if (resEl) resEl.value = '';
+    if (yearEl) yearEl.value = '';
+    if (search) search.value = '';
+    wrap.dataset.favOnly = '0';
+    renderTemplatesList();
+  });
+}
+
+
 function periodTimeLabel(period) {
   var state = PS.getState();
   var pt = (state && state.timetable && state.timetable.periodTimes) || {};
@@ -2354,18 +2631,19 @@ function renderTodayInsights(stats) {
   );
 }
 
-function renderTodayLessonRows(rows) {
+function renderTodayLessonRows(rows, focusKey) {
   if (!rows.length) {
-    return '<div class="rd-empty">No lessons scheduled today.</div>';
+    return '<div class="rd-empty">No lessons scheduled today. Open Timetable if that looks wrong.</div>';
   }
-  return '<div class="today-lesson-list" id="todayLessonList">' + rows.map(function(r) {
+  return '<div class="today-timeline" id="todayLessonList">' + rows.map(function(r) {
     var st = r.status;
     var statusIcon = st === 'needs-planning' ? rdIcon('alert') : (st === 'draft' ? rdIcon('pencil') : rdIcon('check'));
     var planBtn = st === 'needs-planning'
       ? '<button type="button" class="rd-btn rd-btn-primary today-plan-now" data-date="' + r.dateStr + '" data-slot="' + r.slotKey + '">Plan now</button>'
       : '<span class="today-status-wrap is-' + st + '">' + statusIcon + '<span class="rd-status rd-status-' + st + '">' + statusLabel(st) + '</span></span>';
+    var isFocus = focusKey && (r.dateStr + '|' + r.slotKey) === focusKey;
     return (
-      '<button type="button" class="today-lesson-row is-' + st + '" data-date="' + r.dateStr + '" data-slot="' + r.slotKey + '">' +
+      '<button type="button" class="today-timeline-item is-' + st + (isFocus ? ' is-focus' : '') + '" data-date="' + r.dateStr + '" data-slot="' + r.slotKey + '">' +
         '<span class="today-period">P' + r.period + '</span>' +
         '<span class="today-time">' + escHtml(r.timeLabel || '—') + '</span>' +
         '<span class="today-lesson-main">' +
@@ -2500,38 +2778,44 @@ function renderTodayDashboard() {
     });
 
     var who = getTeacherDisplayName();
-    var greeting = greetingForHour(now.getHours()) + ', ' + who + '.';
-    var summaryLine = 'You have ' + lessonRows.length + ' lesson' + (lessonRows.length === 1 ? '' : 's') + ' today.' +
-      (needPlanning ? (' ' + needPlanning + ' still need' + (needPlanning === 1 ? 's' : '') + ' planned.') : ' All lessons have a plan.');
-    var timeTxt = now.toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit' });
+    var greeting = greetingForHour(now.getHours()) + ', ' + who;
     var dayNote = PS.getDayNote ? PS.getDayNote(dateStr) : '';
     var planPct = weekStats.teaching ? Math.round((weekStats.planned / weekStats.teaching) * 100) : 0;
+    var focus = getFocusLessonRow(lessonRows) || firstUnplanned || null;
+    var focusKey = focus ? (focus.dateStr + '|' + focus.slotKey) : '';
+    var cmdTitle = focus ? ('P' + focus.period + ' · ' + focus.classLabel) : 'No teaching periods today';
+    var cmdSub = focus
+      ? ((focus.status === 'needs-planning' ? 'Needs planning' : statusLabel(focus.status)) + ' · ' + focus.title)
+      : 'Open Week to plan ahead, or Lesson Bank to build materials.';
+    var cmdMeta = lessonRows.length
+      ? (lessonRows.length + ' today' + (needPlanning ? (' · ' + needPlanning + ' unfinished') : ' · all planned'))
+      : 'Nothing on the timetable';
 
-    var planBtnLabel = firstUnplanned ? 'Plan missing lesson' : 'All lessons planned';
-    var planBtnDisabled = firstUnplanned ? '' : ' disabled';
-    var planBadge = needPlanning ? '<span class="rd-badge-count">' + needPlanning + '</span>' : '';
-    var hour = now.getHours();
-    var heroTone = hour < 12 ? 'is-morning' : (hour < 18 ? 'is-afternoon' : 'is-evening');
+    var clearItems = [];
+    if (firstUnplanned) {
+      clearItems.push({ label: 'Plan ' + firstUnplanned.classLabel + ' P' + firstUnplanned.period, action: 'plan-focus', warn: true });
+    }
+    lessonRows.filter(function(r) { return r.status === 'draft'; }).slice(0, 2).forEach(function(r) {
+      clearItems.push({ label: 'Finish draft · P' + r.period + ' ' + r.classLabel, action: 'open:' + r.dateStr + '|' + r.slotKey });
+    });
+    if (assessments.length) {
+      clearItems.push({ label: assessments.length + ' assessment' + (assessments.length === 1 ? '' : 's') + ' this week', action: 'scroll-events' });
+    }
 
     root.innerHTML =
-      '<div class="rd-hero ' + heroTone + '">' +
-        '<div class="rd-hero-main">' +
-          '<div class="rd-hero-art" aria-hidden="true">' + rdIcon('sun') + '</div>' +
-          '<div>' +
-            '<h2>' + escHtml(greeting) + '</h2>' +
-            '<p>' + escHtml(summaryLine) + '</p>' +
-            '<div class="rd-hero-actions">' +
-              '<button type="button" class="rd-btn rd-btn-ghost" id="todayPlanMissingBtn"' + planBtnDisabled + '>' + rdIcon('plan') + ' ' + planBtnLabel + ' ' + planBadge + '</button>' +
-              '<button type="button" class="rd-btn rd-btn-ghost" id="todayOpenBankBtn">' + rdIcon('book') + ' Open lesson bank</button>' +
-              '<button type="button" class="rd-btn rd-btn-ghost" id="todayAddNoteBtn">' + rdIcon('note') + ' Add note</button>' +
-              '<button type="button" class="rd-btn rd-btn-ghost" id="todayViewWeekBtn">' + rdIcon('calendar') + ' View week</button>' +
-            '</div>' +
-          '</div>' +
+      '<div class="cmd-strip">' +
+        '<div>' +
+          '<div class="cmd-kicker">Next up · ' + escHtml(greeting) + '</div>' +
+          '<h2 class="cmd-title">' + escHtml(cmdTitle) + '</h2>' +
+          '<p class="cmd-sub">' + escHtml(cmdSub) + '</p>' +
+          '<p class="cmd-sub" style="opacity:.75;margin-top:.15rem">' + escHtml(cmdMeta) + '</p>' +
         '</div>' +
-        '<div class="rd-hero-meta">' +
-          '<div class="rd-hero-meta-row">Knightswood Secondary</div>' +
-          '<div class="rd-time">' + escHtml(timeTxt) + '</div>' +
-          '<div class="rd-hero-meta-row">' + rdIcon('pin') + ' ' + escHtml(getRoomDisplayName()) + '</div>' +
+        '<div class="cmd-actions">' +
+          (focus
+            ? '<button type="button" class="cmd-primary" id="todayPlanMissingBtn">' + (focus.status === 'needs-planning' ? 'Plan this lesson' : 'Open lesson') + '</button>'
+            : '<button type="button" class="cmd-primary" id="todayPlanMissingBtn" disabled>All clear</button>') +
+          '<button type="button" class="cmd-secondary" id="todayOpenBankBtn">Lesson bank</button>' +
+          '<button type="button" class="cmd-secondary" id="todayViewWeekBtn">Week</button>' +
         '</div>' +
       '</div>' +
       '<div class="rd-layout">' +
@@ -2544,18 +2828,22 @@ function renderTodayDashboard() {
             assessmentsDue: assessments.length
           }) +
           '<div class="rd-card" id="todayLessonsCard">' +
-            '<div class="rd-card-head"><h3>Today’s lessons</h3></div>' +
-            renderTodayLessonRows(lessonRows) +
+            '<div class="rd-card-head"><h3>Today’s timeline</h3></div>' +
+            renderTodayLessonRows(lessonRows, focusKey) +
           '</div>' +
           '<div class="rd-card">' +
-            '<div class="rd-card-head"><h3>Weekly timetable overview</h3></div>' +
+            '<div class="rd-card-head"><h3>Week readiness</h3></div>' +
             renderCompactTimetable(weekStart) +
           '</div>' +
         '</div>' +
         '<aside>' +
           '<div class="rd-card" id="todayAttentionCard">' +
-            '<div class="rd-card-head"><h3>Attention this week</h3></div>' +
-            renderAttentionItems(attention) +
+            '<div class="rd-card-head"><h3>Clear these</h3></div>' +
+            (clearItems.length
+              ? '<ul class="clear-list">' + clearItems.map(function(it) {
+                  return '<li class="clear-item"><span>' + escHtml(it.label) + '</span><button type="button" class="rd-btn ' + (it.warn ? 'rd-btn-primary' : 'rd-btn-outline') + ' clear-action" data-clear="' + escHtml(it.action) + '" style="min-height:36px;padding:.35rem .7rem;font-size:.75rem">' + (it.warn ? 'Do it' : 'Open') + '</button></li>';
+                }).join('') + '</ul>'
+              : '<p class="rd-empty">Nothing urgent — nice work.</p>') +
           '</div>' +
           '<div class="rd-card">' +
             '<div class="rd-card-head"><h3>Weekly progress</h3></div>' +
@@ -2563,7 +2851,7 @@ function renderTodayDashboard() {
             '<div class="rd-progress-label">' + weekStats.planned + ' / ' + weekStats.teaching + ' lessons planned (' + planPct + '%)</div>' +
           '</div>' +
           '<div class="rd-card">' +
-            '<div class="rd-card-head"><h3>Quick notes</h3><button type="button" class="rd-link" id="todayFocusNoteBtn">+ New note</button></div>' +
+            '<div class="rd-card-head"><h3>Quick notes</h3><button type="button" class="rd-link" id="todayFocusNoteBtn">+ Note</button></div>' +
             '<div class="today-note-card">' +
               '<label class="sr-only" for="todayQuickNote">Day notes</label>' +
               '<textarea id="todayQuickNote" data-date="' + dateStr + '" placeholder="Reminders for today…">' + escHtml(dayNote) + '</textarea>' +
@@ -2571,7 +2859,7 @@ function renderTodayDashboard() {
             '</div>' +
           '</div>' +
           '<div class="rd-card" id="todayEventsCard">' +
-            '<div class="rd-card-head"><h3>Upcoming events</h3></div>' +
+            '<div class="rd-card-head"><h3>Upcoming</h3></div>' +
             (upcoming.length
               ? '<ul class="today-sidebar-list">' + upcoming.map(function(e) {
                   return '<li><span class="today-attn-icon ' + (String(e.category || '').toLowerCase() === 'assessment' || String(e.category || '').toLowerCase() === 'exam' ? 'assess' : 'info') + '" aria-hidden="true">•</span><span><strong>' + escHtml((e.date || '').slice(5)) + '</strong> — ' + escHtml(e.title || 'Event') + '</span></li>';
@@ -2581,7 +2869,8 @@ function renderTodayDashboard() {
         '</aside>' +
       '</div>';
 
-    bindTodayDashboardEvents(firstUnplanned);
+    bindTodayDashboardEvents(focus || firstUnplanned);
+
   }).catch(function(err) {
     console.error('Today dashboard failed', err);
     root.innerHTML = '<div class="rd-empty">Unable to load today’s view. <button type="button" class="rd-link" id="todayRetryBtn">Retry</button></div>';
@@ -2590,11 +2879,11 @@ function renderTodayDashboard() {
   });
 }
 
-function bindTodayDashboardEvents(firstUnplanned) {
+function bindTodayDashboardEvents(focusLesson) {
   var planBtn = document.getElementById('todayPlanMissingBtn');
-  if (planBtn && firstUnplanned) {
+  if (planBtn && focusLesson && !planBtn.disabled) {
     planBtn.addEventListener('click', function() {
-      openLessonModal(firstUnplanned.dateStr, firstUnplanned.slotKey);
+      openLessonModal(focusLesson.dateStr, focusLesson.slotKey);
     });
   }
   var bankBtn = document.getElementById('todayOpenBankBtn');
@@ -2605,11 +2894,8 @@ function bindTodayDashboardEvents(firstUnplanned) {
     var ta = document.getElementById('todayQuickNote');
     if (ta) { ta.focus(); ta.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
   }
-  var addNote = document.getElementById('todayAddNoteBtn');
-  if (addNote) addNote.addEventListener('click', focusNote);
   var focusNoteBtn = document.getElementById('todayFocusNoteBtn');
   if (focusNoteBtn) focusNoteBtn.addEventListener('click', focusNote);
-
   var quickNote = document.getElementById('todayQuickNote');
   if (quickNote) {
     quickNote.addEventListener('blur', function() {
@@ -2622,15 +2908,14 @@ function bindTodayDashboardEvents(firstUnplanned) {
       }).catch(function() {});
     });
   }
-
   document.querySelectorAll('[data-today-action]').forEach(function(btn) {
     btn.addEventListener('click', function() {
       var act = btn.getAttribute('data-today-action');
       if (act === 'scroll-lessons') {
         var el = document.getElementById('todayLessonsCard');
         if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      } else if (act === 'plan-missing' && firstUnplanned) {
-        openLessonModal(firstUnplanned.dateStr, firstUnplanned.slotKey);
+      } else if (act === 'plan-missing' && focusLesson) {
+        openLessonModal(focusLesson.dateStr, focusLesson.slotKey);
       } else if (act === 'view-week') {
         switchPlannerTab('week');
       } else if (act === 'scroll-events') {
@@ -2639,8 +2924,21 @@ function bindTodayDashboardEvents(firstUnplanned) {
       }
     });
   });
-
-  document.querySelectorAll('.today-lesson-row[data-date][data-slot]').forEach(function(row) {
+  document.querySelectorAll('.clear-action').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var act = btn.getAttribute('data-clear') || '';
+      if (act === 'plan-focus' && focusLesson) openLessonModal(focusLesson.dateStr, focusLesson.slotKey);
+      else if (act.indexOf('open:') === 0) {
+        var parts = act.slice(5).split('|');
+        if (parts.length === 2) openLessonModal(parts[0], parts[1]);
+      } else if (act === 'scroll-events') {
+        var ev2 = document.getElementById('todayEventsCard');
+        if (ev2) ev2.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  });
+  document.querySelectorAll('.today-timeline-item[data-date][data-slot], .today-lesson-row[data-date][data-slot]').forEach(function(row) {
     row.addEventListener('click', function(e) {
       if (e.target.closest('.today-plan-now')) return;
       openLessonModal(row.dataset.date, row.dataset.slot);
@@ -2726,25 +3024,18 @@ function renderWeekHeroAndSidebar(start, weekEvents) {
     var cat = String(e.category || '').toLowerCase();
     return cat === 'assessment' || cat === 'exam' || /assessment|exam/i.test(e.title || '');
   });
+  var unfinished = Math.max(0, stats.teaching - stats.planned);
   hero.innerHTML =
-    '<div class="rd-hero">' +
-      '<div class="rd-hero-main">' +
-        '<div class="rd-hero-art" aria-hidden="true">' + rdIcon('calendar') + '</div>' +
-        '<div>' +
-          '<h2>Week overview</h2>' +
-          '<p>' + escHtml(rangeLabel) + '</p>' +
-          '<div class="week-hero-summary">' + stats.teaching + ' teaching periods · ' + stats.planned + ' lessons planned · ' + assessments.length + ' assessments</div>' +
-          '<div class="rd-hero-actions">' +
-            '<button type="button" class="rd-btn rd-btn-ghost" id="weekAddLessonBtn">' + rdIcon('book') + ' + Add lesson</button>' +
-            '<button type="button" class="rd-btn rd-btn-ghost" id="weekCopyPrevBtn" disabled title="Coming after data migration review">' + rdIcon('copy') + ' Copy previous week</button>' +
-            '<button type="button" class="rd-btn rd-btn-ghost" id="weekViewCalBtn">' + rdIcon('calendar') + ' View calendar</button>' +
-          '</div>' +
-        '</div>' +
+    '<div class="cmd-strip">' +
+      '<div>' +
+        '<div class="cmd-kicker">This week</div>' +
+        '<h2 class="cmd-title">' + escHtml(rangeLabel) + '</h2>' +
+        '<p class="cmd-sub">' + stats.teaching + ' periods · ' + stats.planned + ' planned · ' + unfinished + ' unfinished · ' + assessments.length + ' assessments</p>' +
       '</div>' +
-      '<div class="rd-hero-meta">' +
-        '<div class="rd-hero-meta-row">Knightswood Secondary</div>' +
-        '<div class="rd-time">' + escHtml(new Date().toLocaleTimeString('en-GB', { hour: 'numeric', minute: '2-digit' })) + '</div>' +
-        '<div class="rd-hero-meta-row">' + rdIcon('pin') + ' ' + escHtml(getRoomDisplayName()) + '</div>' +
+      '<div class="cmd-actions">' +
+        '<button type="button" class="cmd-primary" id="weekAddLessonBtn">+ Add lesson</button>' +
+        '<button type="button" class="cmd-secondary" id="weekViewCalBtn">Month</button>' +
+        '<button type="button" class="cmd-secondary" id="weekCopyPrevBtn" disabled title="Coming after data migration review">Copy week</button>' +
       '</div>' +
     '</div>';
 
@@ -3172,21 +3463,28 @@ function renderWeekView() {
         var lesson = PS.getLessonFor(dateStr, k);
         var st = slotChipStyle(slot);
         var planStatus = deriveLessonStatus(lesson);
-        html += '<div class="wg-cell" data-date="' + dateStr + '" data-slot="' + k + '" role="button" tabindex="0"><div class="wg-card" style="background:' + st.bg + ';border:1.5px solid ' + (slot.color || st.ac) + '"><div class="wg-card-cls" style="color:' + st.dk + '">' + escHtml(slot.className || subjectLabel(slot.subject) || 'Class') + '</div>';
+        html += '<div class="wg-cell" data-date="' + dateStr + '" data-slot="' + k + '" data-plan="' + planStatus + '" role="button" tabindex="0"><div class="wg-card"><div class="wg-card-cls">' + escHtml(slot.className || subjectLabel(slot.subject) || 'Class') + '</div>';
         if (lesson) {
-          html += '<div class="wg-card-title" style="color:' + st.dk + '">' + escHtml(lesson.title || 'Untitled') + '</div>';
+          html += '<div class="wg-card-title">' + escHtml(lesson.title || 'Untitled') + '</div>';
           html += '<div class="wg-card-status st-' + planStatus + '"><span class="rd-status rd-status-' + planStatus + '">' + statusLabel(planStatus) + '</span></div>';
         } else {
-          html += '<div class="wg-card-title" style="color:' + st.dk + ';opacity:.55;font-style:italic">No lesson plan yet</div>';
+          html += '<div class="wg-card-title" style="opacity:.7;font-style:italic">Needs planning</div>';
           html += '<div class="wg-card-status"><span class="rd-status rd-status-needs-planning">' + statusLabel('needs-planning') + '</span></div>';
         }
         html += '</div></div>';
       });
     }
     html += '</div>';
-    document.getElementById('weekGridWrap').innerHTML = html;
+    var tools = '<div class="week-tools"><button type="button" class="week-tool-toggle' + (weekUnfinishedOnly ? ' is-on' : '') + '" id="weekUnfinishedToggle" aria-pressed="' + (weekUnfinishedOnly ? 'true' : 'false') + '">Show unfinished only</button><span class="rd-empty" style="padding:0;font-size:.78rem">Coral = needs planning · Purple = draft · Green = ready</span></div>';
+    document.getElementById('weekGridWrap').innerHTML = tools + html;
     document.getElementById('weekDisplay').textContent = PS.formatWeekLabel(start);
+    document.querySelector('.planner-redesign').classList.toggle('week-unfinished-only', !!weekUnfinishedOnly);
     renderWeekHeroAndSidebar(start, weekEvents);
+    var unfinishedBtn = document.getElementById('weekUnfinishedToggle');
+    if (unfinishedBtn) unfinishedBtn.addEventListener('click', function() {
+      weekUnfinishedOnly = !weekUnfinishedOnly;
+      renderWeekView();
+    });
     document.querySelectorAll('.wg-cell[data-date][data-slot]').forEach(function(card) {
       function openCard() { openLessonModal(card.dataset.date, card.dataset.slot); }
       card.addEventListener('click', openCard);
@@ -3316,7 +3614,10 @@ function renderTemplatesList() {
     ch.classList.toggle('active', !!active);
   });
   var searchQ = ((document.getElementById('lessonBankSearch') || {}).value || '').toLowerCase().trim();
+  var favOnly = (document.getElementById('bankIntentChips') || {}).dataset && document.getElementById('bankIntentChips').dataset.favOnly === '1';
+  var favs = getBankFavourites();
   var templates = allTemplates.filter(function(t) {
+    if (favOnly && favs.indexOf(t.id) === -1) return false;
     if (subjectFilter && (t.subject || '') !== subjectFilter) return false;
     if (statusFilter && deriveLessonStatus(t) !== statusFilter) return false;
     var hasRes = Array.isArray(t.resources) ? t.resources.length > 0 : !!(t.resources && String(t.resources).trim());
@@ -3334,6 +3635,7 @@ function renderTemplatesList() {
     }
     return true;
   });
+  syncBankIntentChips(allTemplates);
   renderLessonBankSidebar(allTemplates, templates.length);
   var listEl = document.getElementById('templatesList');
   var emptyEl = document.getElementById('templatesEmpty');
@@ -3351,8 +3653,8 @@ function renderTemplatesList() {
   templates.forEach(function(t) {
     var u = t.unitKey && window.getUnitFromKey ? window.getUnitFromKey(t.unitKey) : null;
     var preview = '';
-    if (t.body) preview = lessonBodyPlainText(t.body).slice(0, 140);
-    else preview = (t.learningIntentions || t.successCriteria || t.activity || t.notes || '').toString().slice(0, 140);
+    if (t.body) preview = lessonBodyPlainText(t.body).slice(0, 120);
+    else preview = (t.learningIntentions || t.successCriteria || t.activity || t.notes || '').toString().slice(0, 120);
     var subj = t.subject || '';
     var subLabel = subjectLabel(t.subject || '') || 'Lesson';
     var st = deriveLessonStatus(t);
@@ -3362,23 +3664,22 @@ function renderTemplatesList() {
     var metaBits = [];
     if (yg) metaBits.push(yg);
     if (unitLabel) metaBits.push(unitLabel);
-    else if (t.unitKey) metaBits.push(String(t.unitKey));
-    var duration = '50 mins';
-    html += '<article class="lb-card" data-template-id="' + (t.id || '') + '" data-subject="' + escHtml(subj) + '">';
+    var isFav = favs.indexOf(t.id) >= 0;
+    html += '<article class="lb-card' + (isFav ? ' is-fav' : '') + '" data-template-id="' + (t.id || '') + '" data-subject="' + escHtml(subj) + '" tabindex="0">';
     html += '<div class="lb-card-top"><span class="lb-badge" aria-hidden="true">' + escHtml(badge) + '</span>';
     html += '<div class="lb-card-copy"><h3 class="lb-title">' + escHtml(t.name || t.title || 'Untitled') + '</h3>';
-    html += '<div class="lb-meta">' + escHtml(metaBits.join(' | ') || subLabel) + '</div></div></div>';
+    html += '<div class="lb-meta">' + escHtml(metaBits.join(' · ') || subLabel) + '</div></div></div>';
     if (preview) html += '<p class="lb-preview">' + escHtml(preview) + '</p>';
     html += '<div class="lb-tags">';
     html += '<span class="lb-chip subj-' + escHtml(subj || 'other') + '">' + escHtml(subLabel) + '</span>';
     if (yg) html += '<span class="lb-chip">' + escHtml(yg) + '</span>';
     html += '<span class="rd-status rd-status-' + st + '">' + statusLabel(st) + '</span>';
-    html += '<span class="lb-duration">' + duration + '</span>';
     html += '</div>';
     html += '<div class="lb-actions">';
-    html += '<button type="button" class="lb-action lesson-card-edit-btn">' + rdIcon('open') + ' Open</button>';
-    html += '<button type="button" class="lb-action lesson-card-duplicate-btn">' + rdIcon('copy') + ' Duplicate</button>';
-    html += '<button type="button" class="lb-action lesson-card-apply-btn">' + rdIcon('calendar') + ' Schedule</button>';
+    html += '<button type="button" class="lb-action lb-card-secondary lesson-card-edit-btn">' + rdIcon('open') + ' Open</button>';
+    html += '<button type="button" class="lb-action lb-card-secondary lesson-card-duplicate-btn">' + rdIcon('copy') + ' Duplicate</button>';
+    html += '<button type="button" class="lb-action lb-card-secondary lesson-card-fav-btn" aria-label="Favourite">' + (isFav ? '★' : '☆') + '</button>';
+    html += '<button type="button" class="lb-action lb-action-primary lesson-card-apply-btn">' + rdIcon('calendar') + ' Schedule</button>';
     html += '<div class="lb-action-more"><button type="button" class="lb-action lesson-card-more-btn" aria-label="More lesson actions" aria-haspopup="true" aria-expanded="false">' + rdIcon('more') + '</button>';
     html += '<div class="lb-more-menu" role="menu">';
     html += '<button type="button" class="lesson-card-export-btn" role="menuitem">Export</button>';
@@ -3402,7 +3703,28 @@ function renderTemplatesList() {
     });
   });
   listEl.querySelectorAll('.lesson-card-apply-btn').forEach(function(btn) {
-    btn.addEventListener('click', function(e) { e.stopPropagation(); openApplyToTimetableModal(btn.closest('.lb-card').dataset.templateId); });
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      openQuickSchedule(btn.closest('.lb-card').dataset.templateId, btn);
+    });
+  });
+  listEl.querySelectorAll('.lb-card').forEach(function(card) {
+    card.addEventListener('click', function(e) {
+      if (e.target.closest('button') || e.target.closest('.lb-action-more')) return;
+      openLessonModalForLibrary(card.dataset.templateId);
+    });
+    card.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' && !e.target.closest('button')) openLessonModalForLibrary(card.dataset.templateId);
+    });
+  });
+  listEl.querySelectorAll('.lesson-card-fav-btn').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var id = btn.closest('.lb-card').dataset.templateId;
+      var on = toggleBankFavourite(id);
+      showToast(on ? 'Added to favourites' : 'Removed from favourites');
+      renderTemplatesList();
+    });
   });
   listEl.querySelectorAll('.lesson-card-edit-btn').forEach(function(btn) {
     btn.addEventListener('click', function(e) { e.stopPropagation(); openLessonModalForLibrary(btn.closest('.lb-card').dataset.templateId); });
@@ -4430,17 +4752,34 @@ document.getElementById('modalClose').addEventListener('click', function() {
   document.getElementById('lessonModal').classList.remove('visible');
 });
 
-function showToast(msg) {
+function showToast(msg, opts) {
+  opts = opts || {};
   var t = document.getElementById('plannerToast');
   if (!t) {
     t = document.createElement('div');
     t.id = 'plannerToast';
-    t.style.cssText = 'position:fixed;bottom:1.5rem;right:1.5rem;background:var(--navy);color:white;padding:.75rem 1.25rem;border-radius:6px;font-size:.82rem;z-index:9999;opacity:0;transition:opacity .25s';
+    t.style.cssText = 'position:fixed;bottom:1.5rem;right:1.5rem;background:var(--navy,#172d56);color:white;padding:.75rem 1.25rem;border-radius:10px;font-size:.82rem;z-index:9999;opacity:0;transition:opacity .25s';
     document.body.appendChild(t);
   }
-  t.textContent = msg;
+  t.className = opts.onUndo ? 'planner-toast-rich' : '';
+  t.innerHTML = '';
+  var span = document.createElement('span');
+  span.textContent = msg;
+  t.appendChild(span);
+  if (opts.onUndo) {
+    var undo = document.createElement('button');
+    undo.type = 'button';
+    undo.className = 'toast-undo';
+    undo.textContent = opts.undoLabel || 'Undo';
+    undo.addEventListener('click', function() {
+      opts.onUndo();
+      t.style.opacity = '0';
+    });
+    t.appendChild(undo);
+  }
   t.style.opacity = '1';
-  setTimeout(function() { t.style.opacity = '0'; }, 2000);
+  clearTimeout(t._hideTimer);
+  t._hideTimer = setTimeout(function() { t.style.opacity = '0'; }, opts.onUndo ? 5000 : 2200);
 }
 
 document.getElementById('saveTimetable').addEventListener('click', function() {
@@ -5423,6 +5762,12 @@ document.addEventListener('click', function(e) {
     var b = w.querySelector('.lesson-card-more-btn');
     if (b) b.setAttribute('aria-expanded', 'false');
   });
+  if (!(e.target.closest && e.target.closest('#quickSchedulePopover')) && !(e.target.closest && e.target.closest('.lesson-card-apply-btn'))) {
+    closeQuickSchedule();
+  }
+});
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeQuickSchedule();
 });
 PS.load().then(function() {
   bindSchemesPanelEvents();
