@@ -61,8 +61,9 @@
 
   function buildLessonPayload(entry, meta, slotKeyVal) {
     var resources = [];
-    if (meta && meta.slides) {
-      resources.push({ label: 'Lesson slides (S' + entry.session + ')', url: slidesUrl(meta.slides) });
+    var slidesFile = meta && meta.slides ? String(meta.slides) : '';
+    if (slidesFile) {
+      resources.push({ label: 'Lesson slides (S' + entry.session + ')', url: slidesUrl(slidesFile) });
     }
     return {
       date: entry.date,
@@ -76,6 +77,12 @@
       resources: resources,
       todos: [],
       status: 'planned',
+      slidesSubject: slidesFile ? 'drama' : '',
+      slidesUnitId: meta ? (meta.unitId || '') : '',
+      slidesLessonId: meta && meta.session != null ? String(meta.session) : '',
+      slidesFile: slidesFile,
+      slidesTitle: meta ? meta.title : ('Session ' + entry.session),
+      slidesIsHub: false,
       n5CiSession: entry.session,
       n5CiUnit: meta ? meta.unitId : '',
       n5CiImportedAt: new Date().toISOString()

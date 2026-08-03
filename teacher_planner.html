@@ -24,7 +24,10 @@
 <script src="auth-guard.js"></script>
 <script src="data-service.js"></script>
 <script src="curriculum-units.js"></script>
+<script src="drama-curriculum-manifest.js"></script>
 <script src="n5-ci-curriculum-manifest.js"></script>
+<script src="ah-drama-curriculum-manifest.js"></script>
+<script src="lesson-slides-catalog.js"></script>
 <script src="n5-ci-schedule.js"></script>
 <script src="n5-ci-planner-import.js"></script>
 <script src="faculty-timetable-data.js"></script>
@@ -304,6 +307,31 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
 .resources-list{margin-top:.5rem}
 .resource-row{display:flex;gap:.5rem;margin-bottom:.5rem;align-items:center}
 .resource-row input{flex:1}
+.lesson-slides-attach{margin:0 0 1rem;padding:.75rem .85rem;border:1px solid var(--border);border-radius:8px;background:var(--bg)}
+.lesson-slides-attach-label{font-size:.72rem;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.45rem}
+.lesson-slides-attach-row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+.lesson-slides-attach-meta{flex:1;min-width:160px;font-size:.85rem;color:var(--text);line-height:1.35}
+.lesson-slides-attach-meta.empty{color:var(--text3)}
+.lesson-slides-attach-meta strong{font-weight:600}
+.lesson-slides-attach-actions{display:flex;gap:.4rem;flex-wrap:wrap}
+.slides-picker-filters{display:grid;grid-template-columns:1fr 1fr auto;gap:.65rem;margin-bottom:.85rem;align-items:end}
+@media (max-width:640px){.slides-picker-filters{grid-template-columns:1fr}}
+.slides-picker-list{max-height:320px;overflow:auto;border:1px solid var(--border);border-radius:8px;background:var(--white)}
+.slides-picker-item{display:flex;align-items:center;justify-content:space-between;gap:.75rem;width:100%;text-align:left;padding:.7rem .85rem;border:0;border-bottom:1px solid var(--border);background:transparent;cursor:pointer;font:inherit;color:inherit}
+.slides-picker-item:last-child{border-bottom:0}
+.slides-picker-item:hover{background:#f1f5f9}
+.slides-picker-item-title{font-size:.88rem;font-weight:600;color:var(--text)}
+.slides-picker-item-meta{font-size:.75rem;color:var(--text3);margin-top:.15rem}
+.slides-picker-item-badge{font-size:.68rem;font-weight:700;padding:.2rem .45rem;border-radius:999px;background:#e7f7f1;color:#15966f;flex-shrink:0}
+.slides-picker-empty{padding:1.25rem;text-align:center;color:var(--text3);font-size:.85rem}
+.today-lesson-actions{display:flex;gap:.35rem;flex-wrap:wrap;justify-content:flex-end}
+.today-lesson-action.is-slides{background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe}
+.today-lesson-action.is-slides:hover{background:#dbeafe}
+.day-slides-btn{margin-top:.35rem;font-size:.72rem;font-weight:600;padding:.35rem .6rem;border-radius:6px;border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;cursor:pointer}
+.day-slides-btn:hover{background:#dbeafe}
+.week-lesson-cell{position:relative}
+.week-slides-btn{position:absolute;right:.35rem;bottom:.35rem;z-index:2;font-size:.62rem;font-weight:700;padding:.18rem .4rem;border-radius:4px;border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;cursor:pointer;line-height:1.2}
+.week-slides-btn:hover{background:#dbeafe}
 .btn-add-resource,.btn-remove-resource{
   padding:.35rem .65rem;font-size:.72rem;border-radius:4px;cursor:pointer;border:1px solid var(--border2);
   background:var(--white);color:var(--text2)
@@ -1529,6 +1557,23 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
           <input type="text" class="form-input" id="lessonNumber" placeholder="e.g. 3, L5, Week 2 — shown on week &amp; day cards" maxlength="24">
         </div>
       </div>
+      <div class="lesson-slides-attach" id="lessonSlidesAttach">
+        <div class="lesson-slides-attach-label">Lesson slides</div>
+        <input type="hidden" id="lessonSlidesSubject" value="">
+        <input type="hidden" id="lessonSlidesUnitId" value="">
+        <input type="hidden" id="lessonSlidesLessonId" value="">
+        <input type="hidden" id="lessonSlidesFile" value="">
+        <input type="hidden" id="lessonSlidesTitle" value="">
+        <input type="hidden" id="lessonSlidesIsHub" value="">
+        <div class="lesson-slides-attach-row">
+          <div class="lesson-slides-attach-meta empty" id="lessonSlidesMeta">No slides linked</div>
+          <div class="lesson-slides-attach-actions">
+            <button type="button" class="btn-add-resource" id="lessonSlidesOpenBtn" style="display:none">Open slides</button>
+            <button type="button" class="btn-add-resource" id="lessonSlidesPickBtn">Attach slides</button>
+            <button type="button" class="btn-add-resource" id="lessonSlidesClearBtn" style="display:none">Clear</button>
+          </div>
+        </div>
+      </div>
       <div class="lesson-body-editor-wrap">
         <label class="form-label">Lesson plan</label>
         <div class="lesson-body-editor-toolbar" id="lessonBodyToolbar">
@@ -1577,6 +1622,43 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
       <button type="button" class="btn-secondary" id="lessonDownloadDocx" style="display:none" title="Download a formatted Word copy for your records">Download lesson plan</button>
       <button class="btn-secondary" id="lessonCancel">Cancel</button>
       <button class="btn-primary" id="lessonSave">Save Lesson</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="slidesPickerModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 class="modal-title">Select lesson slides</h2>
+      <button type="button" class="modal-close" id="slidesPickerClose">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:.82rem;color:var(--text2);margin:0 0 .85rem;line-height:1.45">Filter by subject and unit, then pick a ready deck. Art and Photography catalogs will appear here when slides are published.</p>
+      <div class="slides-picker-filters">
+        <div class="form-group" style="margin:0">
+          <label class="form-label" for="slidesPickerSubject">Subject</label>
+          <select class="form-select" id="slidesPickerSubject"></select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label" for="slidesPickerUnit">Unit</label>
+          <select class="form-select" id="slidesPickerUnit">
+            <option value="">— Select unit —</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin:0">
+          <label class="form-label" for="slidesPickerReadyOnly">&nbsp;</label>
+          <label style="display:flex;align-items:center;gap:.4rem;font-size:.82rem;color:var(--text2);padding:.55rem 0">
+            <input type="checkbox" id="slidesPickerReadyOnly" checked>
+            Ready only
+          </label>
+        </div>
+      </div>
+      <div class="slides-picker-list" id="slidesPickerList">
+        <div class="slides-picker-empty">Choose a subject and unit to see lesson slides.</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn-secondary" id="slidesPickerCancel">Cancel</button>
     </div>
   </div>
 </div>
@@ -1652,6 +1734,10 @@ function subjectLabel(s) {
 
 function escHtml(s) {
   return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function escAttr(s) {
+  return escHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 /** Decode once so titles stored as e.g. &amp; don’t double-escape; repair stray &; from bad imports */
@@ -2317,6 +2403,12 @@ function scheduleTemplateToSlot(templateId, dateStr, slotKeyStr, opts) {
     resources: t.resources || [],
     todos: (t.todos || []).map(function(x) { return { id: PS.id(), text: x.text || '', done: false }; }),
     status: 'planned',
+    slidesSubject: t.slidesSubject || '',
+    slidesUnitId: t.slidesUnitId || '',
+    slidesLessonId: t.slidesLessonId || '',
+    slidesFile: t.slidesFile || '',
+    slidesTitle: t.slidesTitle || '',
+    slidesIsHub: !!t.slidesIsHub,
     updatedAt: new Date().toISOString()
   };
   var created = PS.upsertLesson(payload, existing ? existing.id : null);
@@ -2765,6 +2857,13 @@ function buildTodayDashboardModel() {
       unit = 'N5 Creative Industries';
     }
     var subject = row.slot.subject || '';
+    var slidesAtt = window.LessonSlidesCatalog
+      ? window.LessonSlidesCatalog.getAttachmentFromLesson(lesson)
+      : (lesson && lesson.slidesFile ? {
+          slidesFile: lesson.slidesFile,
+          slidesTitle: lesson.slidesTitle || 'Lesson slides',
+          slidesIsHub: !!lesson.slidesIsHub
+        } : null);
     return {
       period: row.period,
       slotKey: row.slotKey,
@@ -2775,7 +2874,8 @@ function buildTodayDashboardModel() {
       subjectLabel: subjectLabel(subject) || '',
       title: lesson ? (lesson.title || 'Untitled') : 'No lesson plan yet',
       unit: unit,
-      status: st
+      status: st,
+      slides: slidesAtt
     };
   });
 
@@ -2948,6 +3048,9 @@ function createTodayDashboardMarkup(model) {
       var subj = r.subject || 'other';
       var actionLabel = r.status === 'needs-planning' ? 'Plan now' : (r.status === 'complete' ? 'View summary' : 'View plan');
       var actionCls = r.status === 'needs-planning' ? 'today-lesson-action is-plan' : 'today-lesson-action is-view';
+      var slidesBtn = (r.slides && r.slides.slidesFile)
+        ? '<button type="button" class="today-lesson-action is-slides" data-slides-file="' + escAttr(r.slides.slidesFile) + '" data-slides-title="' + escAttr(r.slides.slidesTitle || '') + '" data-slides-hub="' + (r.slides.slidesIsHub ? '1' : '') + '" title="Open lesson slides">Slides</button>'
+        : '';
       return (
         '<div class="today-lesson-item is-' + r.status + ' subj-' + escHtml(subj) + '" data-date="' + r.dateStr + '" data-slot="' + r.slotKey + '" role="button" tabindex="0">' +
           '<span class="today-lesson-period" aria-label="Period ' + r.period + '">P' + r.period + '</span>' +
@@ -2960,7 +3063,10 @@ function createTodayDashboardMarkup(model) {
             '<span class="today-lesson-unit">' + escHtml(r.unit || '—') + '</span>' +
           '</div>' +
           '<span class="today-lesson-status is-' + r.status + '">' + escHtml(statusLabel(r.status)) + '</span>' +
-          '<button type="button" class="' + actionCls + '" data-date="' + r.dateStr + '" data-slot="' + r.slotKey + '">' + actionLabel + '</button>' +
+          '<div class="today-lesson-actions">' +
+            slidesBtn +
+            '<button type="button" class="' + actionCls + '" data-date="' + r.dateStr + '" data-slot="' + r.slotKey + '">' + actionLabel + '</button>' +
+          '</div>' +
         '</div>'
       );
     }).join('');
@@ -3222,7 +3328,17 @@ function bindTodayDashboardEvents(root, model) {
       }
     });
   });
-  root.querySelectorAll('.today-lesson-action').forEach(function(btn) {
+  root.querySelectorAll('.today-lesson-action.is-slides').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      launchLessonSlides({
+        slidesFile: btn.dataset.slidesFile || '',
+        slidesTitle: btn.dataset.slidesTitle || '',
+        slidesIsHub: btn.dataset.slidesHub === '1'
+      });
+    });
+  });
+  root.querySelectorAll('.today-lesson-action:not(.is-slides)').forEach(function(btn) {
     btn.addEventListener('click', function(e) {
       e.stopPropagation();
       openLessonModal(btn.dataset.date, btn.dataset.slot);
@@ -3780,7 +3896,14 @@ function buildWeekDashboardModel() {
         subject: slot.subject || '',
         title: lesson ? (lesson.title || 'Untitled') : 'Needs planning',
         status: st,
-        isToday: dateStr === todayStr
+        isToday: dateStr === todayStr,
+        slides: window.LessonSlidesCatalog
+          ? window.LessonSlidesCatalog.getAttachmentFromLesson(lesson)
+          : (lesson && lesson.slidesFile ? {
+              slidesFile: lesson.slidesFile,
+              slidesTitle: lesson.slidesTitle || 'Lesson slides',
+              slidesIsHub: !!lesson.slidesIsHub
+            } : null)
       });
     });
   }
@@ -3889,14 +4012,18 @@ function createWeekDashboardMarkup(model) {
         return;
       }
       var hide = model.unfinishedOnly && (c.status === 'planned' || c.status === 'complete');
+      var slidesBtn = (c.slides && c.slides.slidesFile)
+        ? '<button type="button" class="week-slides-btn" data-slides-file="' + escAttr(c.slides.slidesFile) + '" data-slides-title="' + escAttr(c.slides.slidesTitle || '') + '" data-slides-hub="' + (c.slides.slidesIsHub ? '1' : '') + '" title="Open lesson slides">Slides</button>'
+        : '';
       grid +=
-        '<button type="button" class="week-lesson-cell is-' + c.status + ' subj-' + escHtml(c.subject || 'other') + (c.isToday ? ' is-today-col' : '') + (hide ? ' is-filtered-out' : '') + '" data-date="' + c.dateStr + '" data-slot="' + c.slotKey + '" data-plan="' + c.status + '">' +
+        '<div class="week-lesson-cell is-' + c.status + ' subj-' + escHtml(c.subject || 'other') + (c.isToday ? ' is-today-col' : '') + (hide ? ' is-filtered-out' : '') + '" data-date="' + c.dateStr + '" data-slot="' + c.slotKey + '" data-plan="' + c.status + '" role="button" tabindex="0">' +
           '<div class="week-lesson-card">' +
             '<strong class="week-lesson-class">' + escHtml(c.className) + '</strong>' +
             '<span class="week-lesson-title">' + escHtml(c.title) + '</span>' +
             '<span class="week-status is-' + c.status + '">' + escHtml(statusLabel(c.status)) + '</span>' +
           '</div>' +
-        '</button>';
+          slidesBtn +
+        '</div>';
     });
   }
   grid += '</div>';
@@ -4067,8 +4194,27 @@ function bindWeekDashboardEvents(root, model) {
   bindWeekSidebarEvents(model.weekStartStr);
 
   root.querySelectorAll('.week-lesson-cell[data-date][data-slot]').forEach(function(cell) {
-    cell.addEventListener('click', function() {
-      openLessonModal(cell.dataset.date, cell.dataset.slot);
+    function openCell() { openLessonModal(cell.dataset.date, cell.dataset.slot); }
+    cell.addEventListener('click', function(e) {
+      if (e.target.closest('.week-slides-btn')) return;
+      openCell();
+    });
+    cell.addEventListener('keydown', function(e) {
+      if (e.target.closest('.week-slides-btn')) return;
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openCell();
+      }
+    });
+  });
+  root.querySelectorAll('.week-slides-btn').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      launchLessonSlides({
+        slidesFile: btn.dataset.slidesFile || '',
+        slidesTitle: btn.dataset.slidesTitle || '',
+        slidesIsHub: btn.dataset.slidesHub === '1'
+      });
     });
   });
   root.querySelectorAll('.week-priority-item.is-action[data-date][data-slot]').forEach(function(item) {
@@ -4850,6 +4996,16 @@ function renderDayView() {
     html += '<div class="day-card-side">';
     html += '<textarea class="day-slot-note" data-date="' + dateStr + '" data-slot="' + k + '" rows="2" placeholder="Quick notes…">' + escHtml(slotNote) + '</textarea>';
     if (lesson) html += '<span class="wg-card-status st-' + lessonStatusBadgeClass(lesson) + '">' + lessonStatusBadgeClass(lesson) + '</span>';
+    var daySlides = window.LessonSlidesCatalog
+      ? window.LessonSlidesCatalog.getAttachmentFromLesson(lesson)
+      : (lesson && lesson.slidesFile ? {
+          slidesFile: lesson.slidesFile,
+          slidesTitle: lesson.slidesTitle || 'Lesson slides',
+          slidesIsHub: !!lesson.slidesIsHub
+        } : null);
+    if (daySlides && daySlides.slidesFile) {
+      html += '<button type="button" class="day-slides-btn" data-slides-file="' + escAttr(daySlides.slidesFile) + '" data-slides-title="' + escAttr(daySlides.slidesTitle || '') + '" data-slides-hub="' + (daySlides.slidesIsHub ? '1' : '') + '">Open slides</button>';
+    }
     html += '</div>';
     html += '</div>';
   }
@@ -4857,8 +5013,19 @@ function renderDayView() {
   listEl.innerHTML = html;
   bindDaySlotNoteEvents();
   listEl.querySelectorAll('.day-card[data-date][data-slot]').forEach(function(card) {
-    card.addEventListener('click', function() {
+    card.addEventListener('click', function(e) {
+      if (e.target.closest('.day-slot-note') || e.target.closest('.day-slides-btn')) return;
       openLessonModal(card.dataset.date, card.dataset.slot);
+    });
+  });
+  listEl.querySelectorAll('.day-slides-btn').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      launchLessonSlides({
+        slidesFile: btn.dataset.slidesFile || '',
+        slidesTitle: btn.dataset.slidesTitle || '',
+        slidesIsHub: btn.dataset.slidesHub === '1'
+      });
     });
   });
 }
@@ -4997,6 +5164,213 @@ function isLibraryMode() {
   return !!PS.getEditingTemplateId && PS.getEditingTemplateId();
 }
 
+function getSlidesAttachmentFromFields() {
+  var file = (document.getElementById('lessonSlidesFile') || {}).value || '';
+  if (!file) return null;
+  return {
+    slidesSubject: (document.getElementById('lessonSlidesSubject') || {}).value || '',
+    slidesUnitId: (document.getElementById('lessonSlidesUnitId') || {}).value || '',
+    slidesLessonId: (document.getElementById('lessonSlidesLessonId') || {}).value || '',
+    slidesFile: file,
+    slidesTitle: (document.getElementById('lessonSlidesTitle') || {}).value || 'Lesson slides',
+    slidesIsHub: ((document.getElementById('lessonSlidesIsHub') || {}).value || '') === '1'
+  };
+}
+
+function setSlidesAttachmentFields(att) {
+  var empty = !att || !att.slidesFile;
+  document.getElementById('lessonSlidesSubject').value = empty ? '' : (att.slidesSubject || '');
+  document.getElementById('lessonSlidesUnitId').value = empty ? '' : (att.slidesUnitId || '');
+  document.getElementById('lessonSlidesLessonId').value = empty ? '' : (att.slidesLessonId || '');
+  document.getElementById('lessonSlidesFile').value = empty ? '' : (att.slidesFile || '');
+  document.getElementById('lessonSlidesTitle').value = empty ? '' : (att.slidesTitle || '');
+  document.getElementById('lessonSlidesIsHub').value = (!empty && att.slidesIsHub) ? '1' : '';
+  renderSlidesAttachUi();
+}
+
+function renderSlidesAttachUi() {
+  var att = getSlidesAttachmentFromFields();
+  var meta = document.getElementById('lessonSlidesMeta');
+  var openBtn = document.getElementById('lessonSlidesOpenBtn');
+  var pickBtn = document.getElementById('lessonSlidesPickBtn');
+  var clearBtn = document.getElementById('lessonSlidesClearBtn');
+  if (!meta) return;
+  if (att && att.slidesFile) {
+    meta.classList.remove('empty');
+    meta.innerHTML = '<strong>' + escHtml(att.slidesTitle || 'Lesson slides') + '</strong>';
+    if (openBtn) openBtn.style.display = '';
+    if (clearBtn) clearBtn.style.display = '';
+    if (pickBtn) pickBtn.textContent = 'Change';
+  } else {
+    meta.classList.add('empty');
+    meta.textContent = 'No slides linked';
+    if (openBtn) openBtn.style.display = 'none';
+    if (clearBtn) clearBtn.style.display = 'none';
+    if (pickBtn) pickBtn.textContent = 'Attach slides';
+  }
+}
+
+function clearSlidesAttachmentAndResource() {
+  var prev = getSlidesAttachmentFromFields();
+  setSlidesAttachmentFields(null);
+  if (!window.LessonSlidesCatalog) return;
+  var resources = [];
+  document.querySelectorAll('#resourcesList .resource-row').forEach(function(r) {
+    var lbl = r.querySelector('.res-label');
+    var url = r.querySelector('.res-url');
+    resources.push({ label: lbl ? lbl.value : '', url: url ? url.value : '' });
+  });
+  var next = window.LessonSlidesCatalog.syncResourcesWithSlides(resources, null);
+  // Also strip previous file match
+  if (prev && prev.slidesFile) {
+    next = next.filter(function(r) {
+      var url = String((r && r.url) || '');
+      return url.indexOf(prev.slidesFile) === -1;
+    });
+  }
+  renderResourcesList(next);
+}
+
+function applySlidesAttachmentToModal(att) {
+  setSlidesAttachmentFields(att);
+  if (!window.LessonSlidesCatalog) return;
+  var resources = [];
+  document.querySelectorAll('#resourcesList .resource-row').forEach(function(r) {
+    var lbl = r.querySelector('.res-label');
+    var url = r.querySelector('.res-url');
+    if (url && url.value) resources.push({ label: lbl ? lbl.value : '', url: url.value });
+  });
+  renderResourcesList(window.LessonSlidesCatalog.syncResourcesWithSlides(resources, att));
+}
+
+function launchLessonSlides(att) {
+  if (!att || !att.slidesFile) {
+    showToast('No slides linked');
+    return;
+  }
+  if (window.LessonSlidesCatalog && window.LessonSlidesCatalog.launch(att)) return;
+  var url = att.slidesFile;
+  if (window.withAppVersion) url = window.withAppVersion(url);
+  window.open(url, '_blank', 'noopener');
+}
+
+function populateSlidesPickerSubjects(preferred) {
+  var sel = document.getElementById('slidesPickerSubject');
+  if (!sel || !window.LessonSlidesCatalog) return;
+  var subjects = window.LessonSlidesCatalog.SUBJECTS || [];
+  sel.innerHTML = subjects.map(function(s) {
+    var has = window.LessonSlidesCatalog.subjectHasCatalog(s.id);
+    return '<option value="' + escHtml(s.id) + '">' + escHtml(s.label) + (has ? '' : ' (none yet)') + '</option>';
+  }).join('');
+  var pref = preferred || 'drama';
+  if (subjects.some(function(s) { return s.id === pref; })) sel.value = pref;
+  else if (subjects.length) sel.value = subjects[0].id;
+}
+
+function populateSlidesPickerUnits() {
+  var unitSel = document.getElementById('slidesPickerUnit');
+  var subject = (document.getElementById('slidesPickerSubject') || {}).value || '';
+  var readyOnly = !!(document.getElementById('slidesPickerReadyOnly') || {}).checked;
+  if (!unitSel || !window.LessonSlidesCatalog) return;
+  var prev = unitSel.value;
+  unitSel.innerHTML = '<option value="">— Select unit —</option>';
+  if (!subject || !window.LessonSlidesCatalog.subjectHasCatalog(subject)) {
+    renderSlidesPickerList([]);
+    return;
+  }
+  var units = window.LessonSlidesCatalog.listUnits(subject, { readyOnly: readyOnly });
+  units.forEach(function(u) {
+    var opt = document.createElement('option');
+    opt.value = u.key;
+    opt.textContent = u.label + (u.readyCount ? (' · ' + u.readyCount + ' ready') : '');
+    unitSel.appendChild(opt);
+  });
+  if (prev && Array.prototype.some.call(unitSel.options, function(o) { return o.value === prev; })) {
+    unitSel.value = prev;
+  }
+  renderSlidesPickerLessons();
+}
+
+function renderSlidesPickerList(lessons, emptyMsg) {
+  var list = document.getElementById('slidesPickerList');
+  if (!list) return;
+  if (!lessons || !lessons.length) {
+    list.innerHTML = '<div class="slides-picker-empty">' + escHtml(emptyMsg || 'No lesson slides for this filter.') + '</div>';
+    return;
+  }
+  list.innerHTML = lessons.map(function(l) {
+    var num = l.session != null ? ('Session ' + l.session) : ('Lesson ' + l.id);
+    var meta = [num, l.year, l.course].filter(Boolean).join(' · ');
+    return '<button type="button" class="slides-picker-item" data-lesson-id="' + escAttr(l.id) + '" data-slides="' + escAttr(l.slides) + '" data-title="' + escAttr(l.title) + '" data-hub="' + (l.isHub ? '1' : '') + '">' +
+      '<span><span class="slides-picker-item-title">' + escHtml(l.title) + '</span>' +
+      (meta ? '<span class="slides-picker-item-meta">' + escHtml(meta) + '</span>' : '') +
+      '</span>' +
+      '<span class="slides-picker-item-badge">' + (l.isHub ? 'Hub' : 'Ready') + '</span>' +
+      '</button>';
+  }).join('');
+  list.querySelectorAll('.slides-picker-item').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var subject = document.getElementById('slidesPickerSubject').value;
+      var unitKey = document.getElementById('slidesPickerUnit').value;
+      var att = {
+        slidesSubject: subject,
+        slidesUnitId: unitKey,
+        slidesLessonId: btn.dataset.lessonId || '',
+        slidesFile: btn.dataset.slides || '',
+        slidesTitle: btn.dataset.title || 'Lesson slides',
+        slidesIsHub: btn.dataset.hub === '1'
+      };
+      applySlidesAttachmentToModal(att);
+      closeSlidesPickerModal();
+      showToast('Slides linked — save the lesson to keep them');
+    });
+  });
+}
+
+function renderSlidesPickerLessons() {
+  var subject = (document.getElementById('slidesPickerSubject') || {}).value || '';
+  var unitKey = (document.getElementById('slidesPickerUnit') || {}).value || '';
+  var readyOnly = !!(document.getElementById('slidesPickerReadyOnly') || {}).checked;
+  if (!window.LessonSlidesCatalog) {
+    renderSlidesPickerList([], 'Lesson slides catalog not loaded.');
+    return;
+  }
+  if (!subject) {
+    renderSlidesPickerList([], 'Choose a subject.');
+    return;
+  }
+  if (!window.LessonSlidesCatalog.subjectHasCatalog(subject)) {
+    var label = subjectLabel(subject) || subject;
+    renderSlidesPickerList([], 'No lesson slides catalog for ' + label + ' yet.');
+    return;
+  }
+  if (!unitKey) {
+    renderSlidesPickerList([], 'Choose a unit to see lesson slides.');
+    return;
+  }
+  var lessons = window.LessonSlidesCatalog.listLessons(subject, unitKey, { readyOnly: readyOnly });
+  renderSlidesPickerList(lessons, readyOnly ? 'No ready slides in this unit yet.' : 'No lessons in this unit.');
+}
+
+function openSlidesPickerModal() {
+  var preferred = document.getElementById('lessonSubject').value ||
+    (document.getElementById('lessonSlidesSubject').value) || 'drama';
+  populateSlidesPickerSubjects(preferred);
+  populateSlidesPickerUnits();
+  var currentUnit = document.getElementById('lessonSlidesUnitId').value;
+  var unitSel = document.getElementById('slidesPickerUnit');
+  if (currentUnit && unitSel && Array.prototype.some.call(unitSel.options, function(o) { return o.value === currentUnit; })) {
+    unitSel.value = currentUnit;
+    renderSlidesPickerLessons();
+  }
+  document.getElementById('slidesPickerModal').classList.add('visible');
+}
+
+function closeSlidesPickerModal() {
+  var modal = document.getElementById('slidesPickerModal');
+  if (modal) modal.classList.remove('visible');
+}
+
 function openLessonModal(dateStr, slotKey) {
   PS.setEditingTemplateId(null);
   PS.setEditingLessonId(null);
@@ -5012,6 +5386,17 @@ function openLessonModal(dateStr, slotKey) {
   populateUnitDropdown(document.getElementById('lessonSubject').value);
   renderResourcesList(lesson ? (lesson.resources || []) : []);
   renderTodosList(lesson ? (lesson.todos || []) : []);
+  var slidesAtt = window.LessonSlidesCatalog
+    ? window.LessonSlidesCatalog.getAttachmentFromLesson(lesson)
+    : (lesson && lesson.slidesFile ? {
+        slidesSubject: lesson.slidesSubject || '',
+        slidesUnitId: lesson.slidesUnitId || '',
+        slidesLessonId: lesson.slidesLessonId || '',
+        slidesFile: lesson.slidesFile,
+        slidesTitle: lesson.slidesTitle || '',
+        slidesIsHub: !!lesson.slidesIsHub
+      } : null);
+  setSlidesAttachmentFields(slidesAtt);
   var extras = document.querySelector('.lesson-modal-extras');
   if (extras) extras.open = lesson && ((lesson.todos && lesson.todos.length) || (lesson.resources && lesson.resources.length));
   if (lesson) PS.setEditingLessonId(lesson.id);
@@ -5042,6 +5427,17 @@ function openLessonModalForLibrary(templateId) {
   populateUnitDropdown(document.getElementById('lessonSubject').value);
   renderResourcesList(template ? (template.resources || []) : []);
   renderTodosList(template ? (template.todos || []) : []);
+  var slidesAtt = window.LessonSlidesCatalog
+    ? window.LessonSlidesCatalog.getAttachmentFromLesson(template)
+    : (template && template.slidesFile ? {
+        slidesSubject: template.slidesSubject || '',
+        slidesUnitId: template.slidesUnitId || '',
+        slidesLessonId: template.slidesLessonId || '',
+        slidesFile: template.slidesFile,
+        slidesTitle: template.slidesTitle || '',
+        slidesIsHub: !!template.slidesIsHub
+      } : null);
+  setSlidesAttachmentFields(slidesAtt);
   var extrasLib = document.querySelector('.lesson-modal-extras');
   if (extrasLib) extrasLib.open = template && ((template.todos && template.todos.length) || (template.resources && template.resources.length));
   document.getElementById('lessonDelete').style.display = template ? 'block' : 'none';
@@ -5075,6 +5471,17 @@ function applyTemplateToModal(template) {
   setLessonBodyEditor(lessonRecordToBodyHtml(template));
   renderResourcesList(template.resources || []);
   renderTodosList(template.todos || []);
+  var slidesAtt = window.LessonSlidesCatalog
+    ? window.LessonSlidesCatalog.getAttachmentFromLesson(template)
+    : (template.slidesFile ? {
+        slidesSubject: template.slidesSubject || '',
+        slidesUnitId: template.slidesUnitId || '',
+        slidesLessonId: template.slidesLessonId || '',
+        slidesFile: template.slidesFile,
+        slidesTitle: template.slidesTitle || '',
+        slidesIsHub: !!template.slidesIsHub
+      } : null);
+  setSlidesAttachmentFields(slidesAtt);
 }
 
 function populateUnitDropdown(subject) {
@@ -5182,6 +5589,48 @@ document.getElementById('lessonSubject').addEventListener('change', function() {
   populateUnitDropdown(this.value);
 });
 
+(function bindLessonSlidesUi() {
+  var pickBtn = document.getElementById('lessonSlidesPickBtn');
+  var openBtn = document.getElementById('lessonSlidesOpenBtn');
+  var clearBtn = document.getElementById('lessonSlidesClearBtn');
+  var closeBtn = document.getElementById('slidesPickerClose');
+  var cancelBtn = document.getElementById('slidesPickerCancel');
+  var modal = document.getElementById('slidesPickerModal');
+  var subjectSel = document.getElementById('slidesPickerSubject');
+  var unitSel = document.getElementById('slidesPickerUnit');
+  var readyCb = document.getElementById('slidesPickerReadyOnly');
+  if (pickBtn) pickBtn.addEventListener('click', openSlidesPickerModal);
+  if (openBtn) {
+    openBtn.addEventListener('click', function() {
+      launchLessonSlides(getSlidesAttachmentFromFields());
+    });
+  }
+  if (clearBtn) {
+    clearBtn.addEventListener('click', function() {
+      clearSlidesAttachmentAndResource();
+      showToast('Slides unlinked');
+    });
+  }
+  if (closeBtn) closeBtn.addEventListener('click', closeSlidesPickerModal);
+  if (cancelBtn) cancelBtn.addEventListener('click', closeSlidesPickerModal);
+  if (modal) {
+    modal.addEventListener('click', function(e) {
+      if (e.target === modal) closeSlidesPickerModal();
+    });
+  }
+  if (subjectSel) {
+    subjectSel.addEventListener('change', function() {
+      populateSlidesPickerUnits();
+    });
+  }
+  if (unitSel) unitSel.addEventListener('change', renderSlidesPickerLessons);
+  if (readyCb) {
+    readyCb.addEventListener('change', function() {
+      populateSlidesPickerUnits();
+    });
+  }
+})();
+
 function collectLessonPayloadFromModal(overrides) {
   overrides = overrides || {};
   var resourceRows = document.querySelectorAll('#resourcesList .resource-row');
@@ -5194,6 +5643,10 @@ function collectLessonPayloadFromModal(overrides) {
   var todos = collectTodosFromModal();
   var bodyHtml = getLessonBodyEditorHtml();
   var bodyText = lessonBodyPlainText(bodyHtml);
+  var slidesAtt = getSlidesAttachmentFromFields();
+  if (window.LessonSlidesCatalog) {
+    resources = window.LessonSlidesCatalog.syncResourcesWithSlides(resources, slidesAtt);
+  }
   return Object.assign({
     date: document.getElementById('lessonDate').value,
     slotKey: document.getElementById('lessonSlotKey').value,
@@ -5212,6 +5665,12 @@ function collectLessonPayloadFromModal(overrides) {
     digitalTechnologies: '',
     resources: resources,
     todos: todos,
+    slidesSubject: slidesAtt ? (slidesAtt.slidesSubject || '') : '',
+    slidesUnitId: slidesAtt ? (slidesAtt.slidesUnitId || '') : '',
+    slidesLessonId: slidesAtt ? (slidesAtt.slidesLessonId || '') : '',
+    slidesFile: slidesAtt ? (slidesAtt.slidesFile || '') : '',
+    slidesTitle: slidesAtt ? (slidesAtt.slidesTitle || '') : '',
+    slidesIsHub: slidesAtt ? !!slidesAtt.slidesIsHub : false,
     updatedAt: new Date().toISOString()
   }, overrides);
 }
@@ -5261,7 +5720,13 @@ document.getElementById('lessonSaveAsTemplate').addEventListener('click', functi
     body: payload.body || '',
     notes: payload.notes || '',
     resources: payload.resources || [],
-    todos: payload.todos || []
+    todos: payload.todos || [],
+    slidesSubject: payload.slidesSubject || '',
+    slidesUnitId: payload.slidesUnitId || '',
+    slidesLessonId: payload.slidesLessonId || '',
+    slidesFile: payload.slidesFile || '',
+    slidesTitle: payload.slidesTitle || '',
+    slidesIsHub: !!payload.slidesIsHub
   };
   PS.saveTemplate(template).then(function() {
     showToast('Template saved');
@@ -5292,6 +5757,7 @@ document.getElementById('lessonSave').addEventListener('click', function() {
   PS.saveLessons().then(function() {
     document.getElementById('lessonModal').classList.remove('visible');
     renderWeekView();
+    if (document.getElementById('panel-today') && document.getElementById('panel-today').classList.contains('active')) renderTodayDashboard();
     if (document.getElementById('panel-day').classList.contains('active')) renderDayView();
     if (document.getElementById('panel-month').classList.contains('active')) renderMonthView();
   });
@@ -5320,6 +5786,7 @@ document.getElementById('lessonDelete').addEventListener('click', function() {
   PS.saveLessons().then(function() {
     document.getElementById('lessonModal').classList.remove('visible');
     renderWeekView();
+    if (document.getElementById('panel-today') && document.getElementById('panel-today').classList.contains('active')) renderTodayDashboard();
     if (document.getElementById('panel-day').classList.contains('active')) renderDayView();
     if (document.getElementById('panel-month').classList.contains('active')) renderMonthView();
     showToast('Lesson deleted');
