@@ -754,6 +754,7 @@ html.qs-embed.qs-analysis .analysis-chrome{margin-left:-16px; margin-right:-16px
 <div id="snapshotBanner" class="hidden">📌 <b>Snapshot report</b> — data embedded <span id="snapshotMeta"></span>. This copy opens without the Excel file.</div>
 <div id="sqaNatBanner" class="qs-nat-banner"></div>
 <div id="histCompBanner" class="qs-hist-banner"></div>
+<div id="attBanner" class="qs-nat-banner warn"></div>
 
 <input type="file" id="fileInput" accept=".xlsx,.xlsm,.xls,.csv" class="hidden">
 <input type="file" id="sqaNatInput" accept=".xlsx,.xlsm,.xls" class="hidden">
@@ -1121,8 +1122,12 @@ function parseResultRows(json){
     const level = normLevel(pick(r,m,'level'));
     let cem = toNum(pick(r,m,'cemscore','cem'));
     if(cem===0) cem = null;
-    let attendance = toNum(pick(r,m,'attendance','attendancerate'));
+    let attRaw = pick(r,m,'attendance','attendancerate');
+    /* SheetJS leaves unevaluated Excel formulas as strings — treat as missing */
+    if(typeof attRaw==='string' && /^\s*=/.test(attRaw)) attRaw = null;
+    let attendance = toNum(attRaw);
     if(attendance!==null && attendance<=1.5) attendance = attendance*100;
+    if(attendance!==null && (attendance<0 || attendance>100)) attendance = null;
     const gradeRaw = pick(r,m,'sqagrade','grade');
     let band = gradeToBand(pick(r,m,'sqaresultband','resultband','sqaresults','sqaresult'));
     if(band===null) band = gradeToBand(gradeRaw);
@@ -1168,6 +1173,7 @@ function parseAttendanceLookup(wb){
     let rate = toNum(pick(r,m,'attendancerate','attendance','attendancepct','attendancepercent'));
     if(rate===null) continue;
     if(rate<=1.5) rate = rate*100;
+    if(rate<0 || rate>100) continue;
     const f = String(fore||'').trim(), s = String(sur||'').trim();
     map.set(key(f,s), rate);
     const first = f.split(/\s+/)[0];
@@ -1175,12 +1181,18 @@ function parseAttendanceLookup(wb){
   }
   return map.size ? map : null;
 }
+function attendanceNeedsFill(v){
+  if(v===null || v===undefined || v==='') return true;
+  if(typeof v==='string' && /^\s*=/.test(v)) return true;
+  if(typeof v==='number' && (isNaN(v) || v<0 || v>100)) return true;
+  return false;
+}
 function applyAttendanceLookup(rows, map){
   if(!map || !rows || !rows.length) return 0;
   const key = (f,s)=>String((f||'')+(s||'')).toLowerCase().replace(/[^a-z]/g,'');
   let filled = 0;
   rows.forEach(r=>{
-    if(r.attendance!==null && r.attendance!==undefined) return;
+    if(!attendanceNeedsFill(r.attendance)) return;
     const f = r.fore || String(r.name||'').trim().split(/\s+/).slice(0,-1).join(' ');
     const s = r.sur || String(r.name||'').trim().split(/\s+/).slice(-1)[0] || '';
     let rate = map.get(key(f,s));
@@ -1193,6 +1205,45 @@ function applyAttendanceLookup(rows, map){
     filled++;
   });
   return filled;
+}
+function attendanceCoverage(){
+  const n = (state.rows||[]).length;
+  if(!n) return {n:0, withAtt:0, pct:null};
+  const withAtt = state.rows.filter(r=>!attendanceNeedsFill(r.attendance)).length;
+  return {n, withAtt, pct: pct(withAtt, n)};
+}
+function setAttendanceBanner(html, warn){
+  const el=$('attBanner'); if(!el) return;
+  if(!html){ el.classList.remove('on','warn'); el.innerHTML=''; return; }
+  el.classList.add('on');
+  el.classList.toggle('warn', !!warn);
+  el.innerHTML=html;
+}
+function refreshAttendanceBanner(meta){
+  const cov=attendanceCoverage();
+  if(!cov.n){ setAttendanceBanner('', false); return; }
+  if(cov.withAtt===0){
+    setAttendanceBanner(
+      'No attendance % on this session — Hub snapshots only keep what was saved. Use <b>Replace this year</b> and drop <b>KSS SQA Data 25-26.xlsx</b> (Attendance Data sheet is joined in the browser), then <b>Save to Hub</b>.',
+      true
+    );
+    return;
+  }
+  if(meta && meta.filled){
+    setAttendanceBanner(
+      'Attendance joined from workbook — matched <b>'+meta.filled+'</b> of '+cov.n+' pupil rows'+(cov.withAtt<cov.n? ' ('+(cov.n-cov.withAtt)+' unmatched names)':'')+'. Save to Hub to keep these figures.',
+      false
+    );
+    return;
+  }
+  if(cov.withAtt < cov.n){
+    setAttendanceBanner(
+      'Attendance on <b>'+cov.withAtt+'</b> / '+cov.n+' rows ('+fmtPct(cov.pct)+'). Unmatched names usually mean Known As differs from Forename in the MIS export.',
+      true
+    );
+    return;
+  }
+  setAttendanceBanner('', false);
 }
 
 function parseCompRows(json){
@@ -1676,13 +1727,15 @@ function parseWorkbook(wb, filename){
   else for(const n of compNames) comps = comps.concat(parseCompRows(sheetToObjects(wb.Sheets[n])));
 
   /* Fill Attendance % from the Attendance Data sheet (Excel formulas are not evaluated in-browser) */
-  const attFilled = applyAttendanceLookup(best.rows, parseAttendanceLookup(wb));
-  if(attFilled) best.attFilled = attFilled;
+  const attMap = parseAttendanceLookup(wb);
+  const attFilled = applyAttendanceLookup(best.rows, attMap);
+  state._attJoinMeta = attMap ? {filled:attFilled, lookup:attMap.size} : null;
 
   /* Fresh master workbook: clear attachments tied to the previous dataset */
   state.school=[]; state.compReport=null;
   setSchoolStatusMessage(schoolStatusDefaultText(), false);
   loadData(best.rows, comps, filename, best.name);
+  refreshAttendanceBanner(state._attJoinMeta);
 }
 
 /* ---------- state & boot ---------- */
@@ -1722,6 +1775,10 @@ function loadData(rows, comps, filename, sheetName){
   else setSchoolStatusMessage(schoolStatusDefaultText(), false);
   if(window.QSAttainment && typeof window.QSAttainment._notifyLoaded==='function') window.QSAttainment._notifyLoaded();
   if(!fromCloud) setTimeout(offerHubHistoryCarryForward, 120);
+  else {
+    state._attJoinMeta = null;
+    refreshAttendanceBanner(null);
+  }
 }
 
 function buildFilterOptions(){
@@ -2387,7 +2444,7 @@ function renderAttendance(rows){
     ]},options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>{const d=c.raw;return d.name? d.name+' · '+d.subj+' — '+d.x.toFixed(1)+'% · '+BAND_LABEL[d.b]:'';}}}},
       scales:{x:{title:{display:true,text:'Attendance %'},grid:{drawTicks:false},border:{display:false}},
               y:{title:{display:true,text:'Band'+e},min:0,max:9,reverse:true,ticks:{stepSize:1,callback:v=>BAND_LABEL[v]||''},grid:{drawTicks:false},border:{display:false}}}}});
-  } else emptyChart('chAttScatter','Need attendance data plus grades'+(state.preResults?' / estimates':''));
+  } else emptyChart('chAttScatter','Need attendance + grades — Replace with the faculty workbook (Attendance Data sheet is joined automatically), then Save to Hub');
 
   const bands=[['High · ≥90%',r=>r.attendance>=90,'#e3b04b'],['Medium · 80–90%',r=>r.attendance>=80&&r.attendance<90,'#ce8147'],['Low · <80%',r=>r.attendance<80,'#c23b2e']];
   const withAtt=rows.filter(r=>r.attendance!==null);
@@ -2396,7 +2453,7 @@ function renderAttendance(rows){
   if(withAtt.length){ unhideCanvas('chAcAttBand');
     makeChart('chAcAttBand',{type:'bar',data:{labels:bands.map(b=>b[0]),datasets:[{data:vals,backgroundColor:bands.map(b=>b[2]),borderRadius:5,maxBarThickness:60}]},
       options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmtPct(c.parsed.x)+' A–C · '+ns[c.dataIndex]+' pupils'}}},scales:{x:pctAxis(),y:noGridX}}});
-  } else emptyChart('chAcAttBand','No attendance data — paste the MIS export into the Attendance Data sheet');
+  } else emptyChart('chAcAttBand','No attendance in this Hub save — Replace with KSS SQA Data 25-26.xlsx, then Save to Hub');
 }
 /* ============================ 06 COMPONENTS ============================ */
 function buildComponentControls(){
