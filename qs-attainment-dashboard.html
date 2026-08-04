@@ -793,7 +793,7 @@ html.qs-embed.qs-analysis .analysis-chrome{margin-left:-16px; margin-right:-16px
       <button id="resetFilters">✕ Reset</button>
       <button type="button" class="school-attach-btn" id="schoolBtnBar" title="School-wide results for comparative attainment">School data…</button>
       <button type="button" class="school-attach-btn" id="sqaNatBtnBar" title="SQA assessment-marks tables (national component means)">SQA national avgs…</button>
-      <button type="button" class="school-attach-btn" id="histHubBtnBar" title="Copy prior years’ component marks from saved Hub sessions">Hub history…</button>
+      <button type="button" class="school-attach-btn" id="histHubBtnBar" title="Copy prior years’ component marks from saved Hub sessions (does not add this year’s marks)">Hub history…</button>
     </div>
     <div class="filterbar-meta">
       <span id="schoolStatusBar" class="status-chip" aria-live="polite" title="" hidden></span>
@@ -888,6 +888,7 @@ html.qs-embed.qs-analysis .analysis-chrome{margin-left:-16px; margin-right:-16px
   <!-- 06 COMPONENTS -->
   <section class="panel" id="panel-components">
     <div class="section-head"><h2>Components</h2><span class="desc">Year-on-year component marks vs national averages</span></div>
+    <div id="compSessionWarn" class="qs-nat-banner warn" style="margin:0 0 14px;border-radius:8px;display:none"></div>
     <div class="inline-controls">
       <div class="filter"><label>Course</label><select id="cSubject"></select></div>
       <div class="filter"><label>Level</label><select id="cLevel"></select></div>
@@ -1510,10 +1511,14 @@ function mergeCompReport(json, filename){
       mark, band});
   }
   if(!entries.length) throw new Error('No component mark rows found in the QS report.');
-  let year=state.session || ($('ySessionBar')&&$('ySessionBar').value) || ($('ySession')&&$('ySession').value) || '';
-  if(!year) year=sessionYearFromFilename(filename);
+  /* Filename year wins (Aug 2026 → 25-26) so marks are not stamped onto an older Hub session */
+  let year=sessionYearFromFilename(filename)
+    || state.session
+    || ($('ySessionBar')&&$('ySessionBar').value)
+    || ($('ySession')&&$('ySession').value)
+    || '';
   if(!year) year='this session';
-  if(!state.session && year && year!=='this session'){
+  if(year && year!=='this session'){
     state.session=year;
     if($('ySession')) $('ySession').value=year;
     if($('ySessionBar')) $('ySessionBar').value=year;
@@ -2216,6 +2221,20 @@ function compFiltered(){
 }
 function renderComponents(){
   const c=compFiltered();
+  const warn=$('compSessionWarn');
+  if(warn){
+    const sess=sessionKey(state.session||'');
+    const hasSess=sess && state.comps.some(r=>sessionKey(r.year)===sess && r.mark!==null);
+    if(sess && state.comps.length && !hasSess){
+      warn.style.display='block';
+      warn.classList.add('on','warn');
+      warn.innerHTML='No <b>'+esc(sess)+'</b> cohort component marks in this session yet — Hub history only brings <i>prior</i> years. Drop <b>SQA Component Marks Aug 2026.xlsx</b> (or re-upload the updated faculty workbook) to add 25–26, then Save to Hub.';
+    } else {
+      warn.style.display='none';
+      warn.classList.remove('on','warn');
+      warn.innerHTML='';
+    }
+  }
   if(!state.comps.length){
     emptyChart('chCompYoY','No “Component Marks Combined” sheet found — the rest of the dashboard is unaffected');
     emptyChart('chCompDev','Add the sheet to unlock year-on-year trends');

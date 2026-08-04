@@ -804,7 +804,7 @@ html.qs-embed.qs-analysis .analysis-chrome{margin-left:-16px; margin-right:-16px
       <button id="resetFilters">✕ Reset</button>
       <button type="button" class="school-attach-btn" id="schoolBtnBar" title="School-wide results for comparative attainment">School data…</button>
       <button type="button" class="school-attach-btn" id="sqaNatBtnBar" title="SQA assessment-marks tables (national component means)">SQA national avgs…</button>
-      <button type="button" class="school-attach-btn" id="histHubBtnBar" title="Copy prior years’ component marks from saved Hub sessions">Hub history…</button>
+      <button type="button" class="school-attach-btn" id="histHubBtnBar" title="Copy prior years’ component marks from saved Hub sessions (does not add this year’s marks)">Hub history…</button>
     </div>
     <div class="filterbar-meta">
       <span id="schoolStatusBar" class="status-chip" aria-live="polite" title="" hidden></span>
@@ -899,6 +899,7 @@ html.qs-embed.qs-analysis .analysis-chrome{margin-left:-16px; margin-right:-16px
   <!-- 06 COMPONENTS -->
   <section class="panel" id="panel-components">
     <div class="section-head"><h2>Components</h2><span class="desc">Year-on-year component marks vs national averages</span></div>
+    <div id="compSessionWarn" class="qs-nat-banner warn" style="margin:0 0 14px;border-radius:8px;display:none"></div>
     <div class="inline-controls">
       <div class="filter"><label>Course</label><select id="cSubject"></select></div>
       <div class="filter"><label>Level</label><select id="cLevel"></select></div>
@@ -1156,7 +1157,7 @@ function parseCompRows(json){
   return out;
 }
 
-/* ---------- SQA Assessment & Component Marks tables (national means) — DEV ---------- */
+/* ---------- SQA Assessment & Component Marks tables (national means) ---------- */
 const normCompKey = s => String(s||'').toLowerCase().replace(/&/g,' and ').replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim();
 
 function isSqaAssessmentMarksWb(wb){
@@ -1330,7 +1331,7 @@ function handleSqaNatFile(file){
   reader.readAsArrayBuffer(file);
 }
 
-/* ---------- Hub historical component carry-forward — DEV ---------- */
+/* ---------- Hub historical component carry-forward ---------- */
 function sessionKey(y){
   if(y===null||y===undefined||y==='') return '';
   const Svc=window.QsAttainmentService;
@@ -1521,10 +1522,14 @@ function mergeCompReport(json, filename){
       mark, band});
   }
   if(!entries.length) throw new Error('No component mark rows found in the QS report.');
-  let year=state.session || ($('ySessionBar')&&$('ySessionBar').value) || ($('ySession')&&$('ySession').value) || '';
-  if(!year) year=sessionYearFromFilename(filename);
+  /* Filename year wins (Aug 2026 → 25-26) so marks are not stamped onto an older Hub session */
+  let year=sessionYearFromFilename(filename)
+    || state.session
+    || ($('ySessionBar')&&$('ySessionBar').value)
+    || ($('ySession')&&$('ySession').value)
+    || '';
   if(!year) year='this session';
-  if(!state.session && year && year!=='this session'){
+  if(year && year!=='this session'){
     state.session=year;
     if($('ySession')) $('ySession').value=year;
     if($('ySessionBar')) $('ySessionBar').value=year;
@@ -1553,11 +1558,11 @@ function mergeCompReport(json, filename){
   const bySub={};
   facRows.forEach(r=>{ bySub[r.subject]=(bySub[r.subject]||0)+1; });
   const subLines=Object.keys(bySub).sort().map(s=>'· '+s+': '+bySub[s]).join('\n');
-  alert('QS Component Marks Report added for '+year+':\n· '+facRows.length+' Art / Drama / Photography component marks\n'+subLines+'\n· whole-school attainment attached for the departmental review questions.\n\nNext: drop assessment-marks-tables to fill national averages (DEV), or paste them into Component Marks Combined.');
+  alert('QS Component Marks Report added for '+year+':\n· '+facRows.length+' Art / Drama / Photography component marks\n'+subLines+'\n· whole-school attainment attached for the departmental review questions.\n\nNext: drop assessment-marks-tables to fill national averages, or paste them into Component Marks Combined.');
 }
 
 function parseWorkbook(wb, filename){
-  /* DEV: SQA Assessment & Component Marks tables → fill national averages */
+  /* SQA Assessment & Component Marks tables → fill national averages */
   if(isSqaAssessmentMarksWb(wb)){
     if(!state.rows.length && !state.comps.length)
       throw new Error('Upload the faculty QS data workbook first, then drop the SQA assessment-marks tables file to fill national averages.');
@@ -2227,6 +2232,20 @@ function compFiltered(){
 }
 function renderComponents(){
   const c=compFiltered();
+  const warn=$('compSessionWarn');
+  if(warn){
+    const sess=sessionKey(state.session||'');
+    const hasSess=sess && state.comps.some(r=>sessionKey(r.year)===sess && r.mark!==null);
+    if(sess && state.comps.length && !hasSess){
+      warn.style.display='block';
+      warn.classList.add('on','warn');
+      warn.innerHTML='No <b>'+esc(sess)+'</b> cohort component marks in this session yet — Hub history only brings <i>prior</i> years. Drop <b>SQA Component Marks Aug 2026.xlsx</b> (or re-upload the updated faculty workbook) to add 25–26, then Save to Hub.';
+    } else {
+      warn.style.display='none';
+      warn.classList.remove('on','warn');
+      warn.innerHTML='';
+    }
+  }
   if(!state.comps.length){
     emptyChart('chCompYoY','No “Component Marks Combined” sheet found — the rest of the dashboard is unaffected');
     emptyChart('chCompDev','Add the sheet to unlock year-on-year trends');
@@ -3355,6 +3374,7 @@ if(window.__SNAPSHOT__){
 })();
 </script>
 <script src="qs-attainment-hub.js"></script>
+
 <script>
 /* DEV only: block Hub writes so live snapshots stay safe */
 (function () {
