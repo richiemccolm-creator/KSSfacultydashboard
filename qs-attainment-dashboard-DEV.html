@@ -1067,7 +1067,8 @@ function sheetToObjects(ws){
   for(let i=0; i<Math.min(arr.length,15); i++){
     const cells = (arr[i]||[]).map(v=>String(v??'').trim().toLowerCase());
     const has = k => cells.some(c=>c===k);
-    if((has('forename')&&has('surname')) || (has('year')&&has('mark')&&has('component'))){ hi=i; break; }
+    const hasName = has('forename') || has('known as') || has('knownas') || has('first name') || has('firstname');
+    if((hasName&&has('surname')) || (has('year')&&has('mark')&&has('component'))){ hi=i; break; }
   }
   if(hi<0) return [];
   const seen={};
@@ -1113,6 +1114,8 @@ function parseResultRows(json){
     const nat = i => { let v = toNum(pick(r,m,'nationalavgc'+i,'nationalaveragec'+i)); if(v===null && natKeys[i-1]!==undefined) v = toNum(r[natKeys[i-1]]); return v; };
     rows.push({
       name: [fore,sur].filter(Boolean).join(' '),
+      fore: String(fore||'').trim(),
+      sur: String(sur||'').trim(),
       teacher: String(pick(r,m,'teacher')||'—').trim() || '—',
       subject: normSubject(subject),
       level, cem, pred, attendance, est, band,
@@ -1125,6 +1128,50 @@ function parseResultRows(json){
     });
   }
   return rows;
+}
+
+/* Browser XLSX does not evaluate Excel formulas — Attendance % on the results
+   sheet is usually a SUMPRODUCT into “Attendance Data”. Join that sheet here. */
+function parseAttendanceLookup(wb){
+  const name = (wb.SheetNames||[]).find(n=>/attendance/i.test(n));
+  if(!name) return null;
+  const json = sheetToObjects(wb.Sheets[name]);
+  if(!json.length) return null;
+  const m = headerMap(json[0]);
+  const key = (f,s)=>String((f||'')+(s||'')).toLowerCase().replace(/[^a-z]/g,'');
+  const map = new Map();
+  for(const r of json){
+    const fore = pick(r,m,'knownas','forename','firstname','preferredname');
+    const sur = pick(r,m,'surname','lastname');
+    if(!fore && !sur) continue;
+    let rate = toNum(pick(r,m,'attendancerate','attendance','attendancepct','attendancepercent'));
+    if(rate===null) continue;
+    if(rate<=1.5) rate = rate*100;
+    const f = String(fore||'').trim(), s = String(sur||'').trim();
+    map.set(key(f,s), rate);
+    const first = f.split(/\s+/)[0];
+    if(first && first!==f) map.set(key(first,s), rate);
+  }
+  return map.size ? map : null;
+}
+function applyAttendanceLookup(rows, map){
+  if(!map || !rows || !rows.length) return 0;
+  const key = (f,s)=>String((f||'')+(s||'')).toLowerCase().replace(/[^a-z]/g,'');
+  let filled = 0;
+  rows.forEach(r=>{
+    if(r.attendance!==null && r.attendance!==undefined) return;
+    const f = r.fore || String(r.name||'').trim().split(/\s+/).slice(0,-1).join(' ');
+    const s = r.sur || String(r.name||'').trim().split(/\s+/).slice(-1)[0] || '';
+    let rate = map.get(key(f,s));
+    if(rate===undefined && f){
+      const first = String(f).split(/\s+/)[0];
+      rate = map.get(key(first,s));
+    }
+    if(rate===undefined) return;
+    r.attendance = rate;
+    filled++;
+  });
+  return filled;
 }
 
 function parseCompRows(json){
@@ -1606,6 +1653,10 @@ function parseWorkbook(wb, filename){
   const combined = compNames.find(n=>/combined/i.test(n));
   if(combined) comps = parseCompRows(sheetToObjects(wb.Sheets[combined]));
   else for(const n of compNames) comps = comps.concat(parseCompRows(sheetToObjects(wb.Sheets[n])));
+
+  /* Fill Attendance % from the Attendance Data sheet (Excel formulas are not evaluated in-browser) */
+  const attFilled = applyAttendanceLookup(best.rows, parseAttendanceLookup(wb));
+  if(attFilled) best.attFilled = attFilled;
 
   /* Fresh master workbook: clear attachments tied to the previous dataset */
   state.school=[]; state.compReport=null;
