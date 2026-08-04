@@ -941,7 +941,7 @@ html.qs-embed.qs-analysis .analysis-chrome{margin-left:-16px; margin-right:-16px
     <div class="card"><h3>Component breakdown by year <span class="hint">average mark per component — cohort (solid) vs national (faded) · use the Course &amp; Level filters above</span></h3><div class="chart-wrap tall"><canvas id="chTrendCompDev"></canvas></div></div>
 
     <div class="school-rank-block" id="artPathwayBlock">
-      <div class="section-head" style="margin-top:8px"><h2>Art pathway · Higher → Advanced Higher</h2><span class="desc">Decision check: after dropping Higher Art, how do Advanced Higher outcomes and entry numbers compare with the last Higher years? · Insight tariff used for cross-level fairness · raw bands are not equated</span></div>
+      <div class="section-head" style="margin-top:8px"><h2>Art pathway · Higher → Advanced Higher</h2><span class="desc">Decision check: after dropping Higher Art, how do Advanced Higher outcomes and entry numbers compare with the last Higher years? · one pupil per year (Expressive / Design / plain Art collapsed) · Insight tariff for cross-level fairness</span></div>
       <div class="grid c2">
         <div class="card"><h3>Entries by year <span class="hint">Higher vs Advanced Higher Art</span></h3><div class="chart-wrap"><canvas id="chArtPathEntries"></canvas></div></div>
         <div class="card"><h3>A–C rate by year <span class="hint">same level over time · not a like-for-like grade comparison</span></h3><div class="chart-wrap"><canvas id="chArtPathAC"></canvas></div></div>
@@ -2641,12 +2641,22 @@ function trendBands(){
   if(sess && !state.preResults){
     for(const r of state.rows){
       if(r.band===null || r.level==='NPA') continue;
-      const nk=nameKey(r.name||'', '');
-      const k=[sess, nk, r.subject, r.level].join('¦');
+      const nk=nameKey(r.fore||'', r.sur||'') || nameKey(r.name||'', '');
+      if(!nk) continue;
+      /* Prefer merging onto an existing Art & Design (Expressive/Design) key for same pupil·level */
+      let k=[sess, nk, r.subject, r.level].join('¦');
+      if(!groups.has(k) && isArtDesignSubject(r.subject)){
+        const alt=[...groups.keys()].find(key=>{
+          const p=key.split('¦');
+          return p[0]===sess && p[1]===nk && p[3]===r.level && isArtDesignSubject(p[2]);
+        });
+        if(alt) k=alt;
+      }
       if(groups.has(k)){
-        if(groups.get(k).band===null) groups.get(k).band=r.band;
+        const g=groups.get(k);
+        if(g.band===null || g.estimated){ g.band=r.band; g.estimated=false; }
       } else {
-        groups.set(k,{year:sess, subject:r.subject, level:r.level, band:r.band, marks:[], nComp:0, nk});
+        groups.set(k,{year:sess, subject:r.subject, level:r.level, band:r.band, marks:[], nComp:0, nk, estimated:false});
       }
     }
   }
@@ -2663,7 +2673,7 @@ function trendBands(){
     g.estimated=true;
   }
   return [...groups.values()].filter(g=>g.band!==null).map(g=>({
-    year:g.year, subject:g.subject, level:g.level, band:g.band, estimated:!!g.estimated
+    year:g.year, subject:g.subject, level:g.level, band:g.band, estimated:!!g.estimated, nk:g.nk||''
   }));
 }
 const LEVEL_SHORT={'National 5':'N5','Higher':'Higher','Advanced Higher':'Adv H'};
@@ -2789,12 +2799,34 @@ function trendHeadlines(rows,years,compRows,cYears){
 
 /* Art pathway decision: Higher Art retired → S5/S6 Advanced Higher */
 function isArtDesignSubject(s){ return /^Art & Design/i.test(String(s||'')); }
+/* One headcount per pupil per year per level — collapse Expressive / Design / plain Art & Design */
+function dedupeArtPathwayRows(all){
+  const art=(all||[]).filter(r=>isArtDesignSubject(r.subject) && (r.level==='Higher' || r.level==='Advanced Higher') && r.band!==null && r.band<=8);
+  const by=new Map();
+  const subjectRank=s=>{
+    if(s==='Art & Design') return 3; /* results-sheet title */
+    if(/expressive/i.test(s)) return 2;
+    if(/design/i.test(s)) return 2;
+    return 1;
+  };
+  for(const r of art){
+    const nk=r.nk || '';
+    if(!nk) continue;
+    const k=[r.year, nk, r.level].join('¦');
+    const prev=by.get(k);
+    if(!prev){ by.set(k, r); continue; }
+    if(prev.estimated && !r.estimated){ by.set(k, r); continue; }
+    if(!prev.estimated && r.estimated) continue;
+    if(subjectRank(r.subject)>subjectRank(prev.subject)) by.set(k, r);
+  }
+  return [...by.values()];
+}
 function artPathwayYearStats(all){
-  const art=(all||[]).filter(r=>isArtDesignSubject(r.subject) && (r.level==='Higher' || r.level==='Advanced Higher') && r.band!==null);
+  const art=dedupeArtPathwayRows(all);
   const years=[...new Set(art.map(r=>r.year))].sort();
   return years.map(y=>{
-    const h=art.filter(r=>r.year===y&&r.level==='Higher'&&r.band<=8);
-    const ah=art.filter(r=>r.year===y&&r.level==='Advanced Higher'&&r.band<=8);
+    const h=art.filter(r=>r.year===y&&r.level==='Higher');
+    const ah=art.filter(r=>r.year===y&&r.level==='Advanced Higher');
     const pack = (rows) => ({
       n:rows.length,
       ac:pct(rows.filter(r=>r.band<=6).length, rows.length),
@@ -3481,7 +3513,7 @@ const CHART_TIPS={
   chTrendGrades:'The grade profile of the current selection each year, as percentages. Growing gold (A) and shrinking red (No Award) means the profile is strengthening.',
   chTrendAC:'The headline measures over time: solid gold = % awarded A–C, dashed = % awarded an A. Up and to the right is good.',
   chTrendCompDev:'For each component, cohort average (solid) vs national average (faded), year by year — shows whether each component is gaining ground on the country.',
-  chArtPathEntries:'Counts Art & Design Higher vs Advanced Higher entries each year. Use this to see the pathway switch (Higher declining / AH rising) after Higher Art was withdrawn.',
+  chArtPathEntries:'Counts Art Higher vs Advanced Higher pupils each year (one headcount per pupil — Expressive, Design and plain Art & Design are not double-counted). Use this to see the pathway switch after Higher Art was withdrawn.',
   chArtPathAC:'A–C and A rates within each level over time. Do not read Higher A–C and AH A–C as equivalent grades — compare each line to its own history; use the tariff chart for a fairer cross-level signal.',
   chArtPathTariff:'Average Insight-style tariff points per entry (Higher A≈66, Advanced Higher A≈88). Better for judging whether AH outcomes compensate for dropping Higher than raw band or A–C alone.',
   chTGrades:'This teacher’s results by grade cluster, for the classes currently selected above.',
