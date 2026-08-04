@@ -780,7 +780,7 @@ html.qs-embed.qs-analysis .analysis-chrome{margin-left:-16px; margin-right:-16px
 
 <div id="app" class="hidden">
   <div id="preResultsBanner">⏳ <span><b>Pre-results mode</b> — no awarded grades detected yet. Analysis below uses <b>teacher estimates</b> where marked <i>(est.)</i>; value-added charts unlock when the QS Grade column is filled in after results day.</span></div>
-  <div id="schoolRankBanner">🏫 <span id="schoolRankBannerText"><b>Whole-school results not attached</b> — attach a school-wide results file to unlock highest / equal / lowest attainment charts on Overview, Attainment and Teacher.</span></div>
+  <div id="schoolRankBanner">🏫 <span id="schoolRankBannerText"><b>Whole-school results not attached</b> — attach a school-wide results file to unlock highest / equal / lowest attainment charts and the subject league table on Overview, Attainment and Teacher.</span></div>
 
   <div class="analysis-chrome" id="analysisChrome">
   <div class="filterbar">
@@ -843,6 +843,27 @@ html.qs-embed.qs-analysis .analysis-chrome{margin-left:-16px; margin-right:-16px
         <div class="card"><h3 id="hSchoolRankLevel">Comparative attainment by level</h3><div class="chart-wrap"><canvas id="chSchoolRankLevel"></canvas></div></div>
       </div>
       <div class="card"><h3>Counts in view <span class="hint">same questions as the departmental review</span></h3><div class="tbl-wrap"><table id="tblSchoolRank"></table></div></div>
+
+      <div class="section-head" style="margin-top:28px"><h2>Subjects across the school</h2><span class="desc">A–C rates for every subject in the attached whole-school file · Art / Drama / Photography highlighted against the rest of the school</span></div>
+      <div class="inline-controls">
+        <div class="filter"><label>Level</label>
+          <select id="schoolCmpLevel">
+            <option value="All">All levels</option>
+            <option value="National 5">National 5</option>
+            <option value="Higher">Higher</option>
+            <option value="Advanced Higher">Advanced Higher</option>
+          </select>
+        </div>
+        <div class="filter"><label>Sort</label>
+          <select id="schoolCmpSort">
+            <option value="ac">A–C rate (high → low)</option>
+            <option value="n">Entries (high → low)</option>
+            <option value="name">Subject name</option>
+          </select>
+        </div>
+      </div>
+      <div class="card"><h3 id="hSchoolSubjectAc">A–C rate by school subject <span class="hint">gold / cream / copper = faculty · grey = other subjects</span></h3><div class="chart-wrap tall"><canvas id="chSchoolSubjectAc"></canvas></div></div>
+      <div class="card"><h3>Subject league table <span class="hint">whole-school file · faculty rows marked</span></h3><div class="tbl-wrap"><table id="tblSchoolSubjectAc"></table></div></div>
     </div>
   </section>
 
@@ -1986,6 +2007,7 @@ function renderSchoolRankAttainment(rows){
     emptyChart('chSchoolRankSubject','Attach whole-school results and enter awarded grades to unlock.');
     emptyChart('chSchoolRankLevel','Attach whole-school results and enter awarded grades to unlock.');
     $('tblSchoolRank').innerHTML='<tbody><tr><td class="s">—</td><td colspan="6">'+esc(schoolStatusDefaultText())+'</td></tr></tbody>';
+    renderSchoolSubjectCompare();
     return;
   }
   const subT=subs.map(s=>tallySchoolRankRows(rows.filter(r=>r.subject===s),s));
@@ -2008,6 +2030,106 @@ function renderSchoolRankAttainment(rows){
     '<td class="r">'+all.eq+(all.n?' ('+fmtPct(rankPct(all,'eq'))+')':'')+'</td>'+
     '<td class="r">'+all.lo+(all.n?' ('+fmtPct(rankPct(all,'lo'))+')':'')+'</td></tr></tbody>';
   $('tblSchoolRank').innerHTML=html;
+  renderSchoolSubjectCompare();
+}
+
+/* Whole-school subject league: A–C / A rate for every subject in state.school */
+function schoolSubjectCompareStats(level){
+  const src=(state.school||[]).filter(r=>{
+    if(r.band===null||r.band===undefined) return false;
+    if(r.level==='NPA') return false;
+    if(level && level!=='All' && r.level!==level) return false;
+    return true;
+  });
+  const by=new Map();
+  for(const r of src){
+    const s=r.subject||'—';
+    if(!by.has(s)) by.set(s,{subject:s, n:0, ac:0, a:0, bandSum:0, bandN:0, faculty:isFacultySubject(s)});
+    const o=by.get(s);
+    o.n++;
+    if(r.band<=6) o.ac++;
+    if(r.band<=2) o.a++;
+    if(r.band<=8){ o.bandSum+=r.band; o.bandN++; }
+  }
+  return [...by.values()].map(o=>({
+    subject:o.subject,
+    faculty:o.faculty,
+    n:o.n,
+    ac:pct(o.ac,o.n),
+    aRate:pct(o.a,o.n),
+    avgBand:o.bandN? o.bandSum/o.bandN : null
+  }));
+}
+function facultySubjectColor(subject){
+  if(SUBJ_COLOR[subject]) return SUBJ_COLOR[subject];
+  if(/^Art & Design/i.test(subject||'')) return '#e3b04b';
+  if(/^Drama/i.test(subject||'')) return '#ddd8c0';
+  if(/^Photography/i.test(subject||'')) return '#c96b31';
+  return null;
+}
+function renderSchoolSubjectCompare(){
+  const levelEl=$('schoolCmpLevel'), sortEl=$('schoolCmpSort');
+  const level=levelEl? levelEl.value : 'All';
+  const sort=sortEl? sortEl.value : 'ac';
+  const title=$('hSchoolSubjectAc');
+  if(title) title.innerHTML='A–C rate by school subject <span class="hint">'+(level==='All'?'all levels':'· '+esc(level))+' · gold / cream / copper = faculty</span>';
+  const tbl=$('tblSchoolSubjectAc');
+  if(!schoolRankReady()){
+    emptyChart('chSchoolSubjectAc','Attach whole-school results and enter awarded grades to unlock.');
+    const wrap0=$('chSchoolSubjectAc')&&$('chSchoolSubjectAc').parentElement; if(wrap0) wrap0.style.height='';
+    if(tbl) tbl.innerHTML='<tbody><tr><td class="s">—</td><td colspan="5">'+esc(schoolStatusDefaultText())+'</td></tr></tbody>';
+    return;
+  }
+  let stats=schoolSubjectCompareStats(level);
+  if(!stats.length){
+    emptyChart('chSchoolSubjectAc','No graded rows in the whole-school file for this level.');
+    const wrap1=$('chSchoolSubjectAc')&&$('chSchoolSubjectAc').parentElement; if(wrap1) wrap1.style.height='';
+    if(tbl) tbl.innerHTML='<tbody><tr><td class="s">—</td><td colspan="5">No graded subject rows for this level filter.</td></tr></tbody>';
+    return;
+  }
+  if(sort==='n') stats.sort((a,b)=>b.n-a.n || a.subject.localeCompare(b.subject));
+  else if(sort==='name') stats.sort((a,b)=>a.subject.localeCompare(b.subject));
+  else stats.sort((a,b)=>(b.ac??-1)-(a.ac??-1) || b.n-a.n);
+
+  const labels=stats.map(s=>s.subject);
+  const vals=stats.map(s=>s.ac);
+  const cols=stats.map(s=>facultySubjectColor(s.subject)||'rgba(154,160,168,.55)');
+  unhideCanvas('chSchoolSubjectAc');
+  const barH=Math.max(280, Math.min(720, 18+stats.length*18));
+  const wrap=$('chSchoolSubjectAc')&&$('chSchoolSubjectAc').parentElement;
+  if(wrap) wrap.style.height=barH+'px';
+  makeChart('chSchoolSubjectAc',{type:'bar',data:{labels,datasets:[{data:vals,backgroundColor:cols,borderRadius:3,maxBarThickness:16}]},
+    options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{
+      label:c=>{
+        const s=stats[c.dataIndex];
+        return 'A–C '+fmtPct(c.parsed.x)+' · A '+fmtPct(s.aRate)+' · n='+s.n+(s.faculty?' · faculty':'');
+      }
+    }}},scales:{x:pctAxis(),y:{...noGridX,ticks:{autoSkip:false,font:{size:10}}}}}});
+
+  const allSrc=(state.school||[]).filter(r=>r.band!==null&&r.level!=='NPA'&&(level==='All'||r.level===level));
+  const schoolWideAc=pct(allSrc.filter(r=>r.band<=6).length, allSrc.length);
+  const facRaw=allSrc.filter(r=>isFacultySubject(r.subject));
+  const facWideAc=facRaw.length? pct(facRaw.filter(r=>r.band<=6).length, facRaw.length) : null;
+
+  let html='<thead><tr><th></th><th>Subject</th><th class="r">Entries</th><th class="r">A rate</th><th class="r">A–C rate</th><th class="r">Avg band</th><th class="r">Δ vs school A–C</th></tr></thead><tbody>';
+  stats.forEach((s,i)=>{
+    const rank=i+1;
+    const delta=s.ac!==null&&schoolWideAc!==null? s.ac-schoolWideAc : null;
+    const dCls=delta===null?'':(delta>1?'delta-up':delta<-1?'delta-dn':'delta-eq');
+    const dTxt=delta===null?'—':'<span class="'+dCls+'">'+(delta>=0?'+':'')+delta.toFixed(1)+' pp</span>';
+    const mark=s.faculty? '<span style="color:#e3b04b;font-weight:700">●</span>' : '';
+    html+='<tr'+(s.faculty?' class="strong"':'')+'><td class="r" style="color:var(--ink-3)">'+rank+'</td><td>'+mark+' '+esc(s.subject)+'</td><td class="r">'+s.n+'</td>'+
+      '<td class="r">'+fmtPct(s.aRate)+'</td><td class="r">'+pillPct(s.ac)+'</td><td class="r">'+fmt1(s.avgBand)+'</td><td class="r">'+dTxt+'</td></tr>';
+  });
+  html+='<tr class="total"><td></td><td>Whole school'+(level==='All'?'':' · '+esc(level))+'</td><td class="r">'+allSrc.length+'</td><td class="r">'+fmtPct(pct(allSrc.filter(r=>r.band<=2).length,allSrc.length))+'</td><td class="r">'+fmtPct(schoolWideAc)+'</td><td class="r">'+fmt1(avg(allSrc.filter(r=>r.band<=8).map(r=>r.band)))+'</td><td class="r">—</td></tr>';
+  if(facRaw.length){
+    html+='<tr class="total"><td></td><td>Faculty (Art / Drama / Photography)</td><td class="r">'+facRaw.length+'</td><td class="r">'+fmtPct(pct(facRaw.filter(r=>r.band<=2).length,facRaw.length))+'</td><td class="r">'+fmtPct(facWideAc)+'</td><td class="r">'+fmt1(avg(facRaw.filter(r=>r.band<=8).map(r=>r.band)))+'</td><td class="r">'+(
+      facWideAc!==null&&schoolWideAc!==null
+        ? '<span class="'+(facWideAc-schoolWideAc>1?'delta-up':facWideAc-schoolWideAc<-1?'delta-dn':'delta-eq')+'">'+(facWideAc-schoolWideAc>=0?'+':'')+(facWideAc-schoolWideAc).toFixed(1)+' pp</span>'
+        : '—'
+    )+'</td></tr>';
+  }
+  if(tbl) tbl.innerHTML=html+'</tbody>';
 }
 function renderSchoolRankTeacher(rows){
   if(!schoolRankReady()){
@@ -2061,6 +2183,13 @@ function buildHeadlines(rows){
       const subj=state.filters.subject!=='All'? ' for <b>'+esc(state.filters.subject)+'</b>' : '';
       H.push('Whole-school context'+subj+': <b>'+fmtPct(rankPct(sr,'hi'))+'</b> of '+sr.n+' comparable pupils had this course as their <b>highest</b> attainment; <b>'+fmtPct(rankPct(sr,'lo'))+'</b> as their <b>lowest</b>.');
     } else H.push('Whole-school data is attached, but <b>no comparable pupils</b> in this filter (need at least one other subject per pupil in the school file).');
+    const cmp=schoolSubjectCompareStats('All').filter(s=>s.faculty&&s.ac!==null).sort((a,b)=>b.ac-a.ac);
+    const schoolAll=(state.school||[]).filter(r=>r.band!==null&&r.level!=='NPA');
+    const schoolAc=pct(schoolAll.filter(r=>r.band<=6).length, schoolAll.length);
+    if(cmp.length && schoolAc!==null){
+      const top=cmp[0];
+      H.push('Against other school subjects, <b>'+esc(top.subject)+'</b> sits at <b>'+fmtPct(top.ac)+'</b> A–C (school average '+fmtPct(schoolAc)+') — see Attainment → Subjects across the school.');
+    }
   }
   return H;
 }
@@ -3178,6 +3307,7 @@ const CHART_TIPS={
   chTComps:'This teacher’s class average per component (gold) against the national average (grey), built from the component records — only components that actually exist for the course appear. National bars show once QS publish the averages (or via the marks report / combined sheet).',
   chSchoolRankSubject:'Uses attached whole-school results. For each faculty subject, the % of comparable pupils for whom that course was their highest, equal-highest or lowest attainment vs every other subject they sat (Insight-style tariff). Comparable = at least one other subject in the school file.',
   chSchoolRankLevel:'Same whole-school comparison as the subject chart, broken down by level (National 5 / Higher / Advanced Higher) for the current filter.',
+  chSchoolSubjectAc:'A–C rate for every subject in the attached whole-school results file. Faculty courses (Art & Design, Drama, Photography) are coloured; other subjects are grey. Use the Level control to compare like-for-like (e.g. all National 5).',
   chTSchoolRank:'For this teacher’s classes, % of comparable pupils for whom the faculty course was highest, equal-highest or lowest vs their other school subjects. Needs whole-school results attached and awarded grades.',
   tblClass:'Every pupil in the selection. “Vs estimate” compares the awarded grade with the teacher’s estimate — the key moderation signal. “Vs CEM (N5)” compares with the CEM prediction, National 5 only.',
 };
@@ -3257,6 +3387,9 @@ $('resetFilters').addEventListener('click',()=>{
 });
 ['cSubject','cLevel','cComponent'].forEach(id=>$(id).addEventListener('change',renderComponents));
 ['trSubject','trLevel'].forEach(id=>$(id).addEventListener('change',renderTrends));
+['schoolCmpLevel','schoolCmpSort'].forEach(id=>{
+  const el=$(id); if(el) el.addEventListener('change',renderSchoolSubjectCompare);
+});
 $('vaExtToggle').addEventListener('change',()=>{ state.vaExt=$('vaExtToggle').checked; renderValue(filtered()); });
 $('repFacultyBtn').addEventListener('click',()=>runReport('faculty'));
 $('repSubjectBtn').addEventListener('click',()=>runReport('subject',$('repSubjectSel').value));
