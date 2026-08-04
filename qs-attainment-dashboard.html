@@ -941,7 +941,7 @@ html.qs-embed.qs-analysis .analysis-chrome{margin-left:-16px; margin-right:-16px
     <div class="card"><h3>Component breakdown by year <span class="hint">average mark per component — cohort (solid) vs national (faded) · use the Course &amp; Level filters above</span></h3><div class="chart-wrap tall"><canvas id="chTrendCompDev"></canvas></div></div>
 
     <div class="school-rank-block" id="artPathwayBlock">
-      <div class="section-head" style="margin-top:8px"><h2>Art pathway · Higher → Advanced Higher</h2><span class="desc">Decision check: after dropping Higher Art, how do Advanced Higher outcomes and entry numbers compare with the last Higher years? · one pupil per year (Expressive / Design / plain Art collapsed) · Insight tariff for cross-level fairness</span></div>
+      <div class="section-head" style="margin-top:8px"><h2>Art pathway · Higher → Advanced Higher</h2><span class="desc">Decision check: after dropping Higher Art, how do Advanced Higher outcomes and entry numbers compare with the last Higher years? · <span style="color:#e3b04b">● Higher</span> · <span style="color:#5fb8c9">● Advanced Higher</span> · Insight tariff for cross-level fairness</span></div>
       <div class="grid c2">
         <div class="card"><h3>Entries by year <span class="hint">Higher vs Advanced Higher Art</span></h3><div class="chart-wrap"><canvas id="chArtPathEntries"></canvas></div></div>
         <div class="card"><h3>A–C rate by year <span class="hint">same level over time · not a like-for-like grade comparison</span></h3><div class="chart-wrap"><canvas id="chArtPathAC"></canvas></div></div>
@@ -2806,6 +2806,8 @@ function trendHeadlines(rows,years,compRows,cYears){
 }
 
 /* Art pathway decision: Higher Art retired → S5/S6 Advanced Higher */
+/* Warm gold = Higher · cool teal = Advanced Higher (deliberately unalike on dark charts) */
+const ART_PATH_H='#e3b04b', ART_PATH_AH='#5fb8c9', ART_PATH_H_SOFT='#efe9d0', ART_PATH_AH_SOFT='#a8d4dc';
 function isArtDesignSubject(s){ return /^Art & Design/i.test(String(s||'')); }
 /* First forename token + surname — collapses “Ava C Burns” ↔ “Ava Burns” */
 function softNameKey(fore, sur){
@@ -2943,24 +2945,24 @@ function renderArtPathway(all){
   }
   unhideCanvas('chArtPathEntries');
   makeChart('chArtPathEntries',{type:'bar',data:{labels:years,datasets:[
-    {label:'Higher Art',data:stats.map(s=>s.higher.n||null),backgroundColor:'#e3b04b',borderRadius:4,maxBarThickness:36},
-    {label:'Advanced Higher Art',data:stats.map(s=>s.ah.n||null),backgroundColor:'#a8802f',borderRadius:4,maxBarThickness:36}
+    {label:'Higher Art',data:stats.map(s=>s.higher.n||null),backgroundColor:ART_PATH_H,borderRadius:4,maxBarThickness:36},
+    {label:'Advanced Higher Art',data:stats.map(s=>s.ah.n||null),backgroundColor:ART_PATH_AH,borderRadius:4,maxBarThickness:36}
   ]},options:{plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+(c.parsed.y||0)+' entries'}}},
     scales:{x:noGridX,y:{...gridY,beginAtZero:true,ticks:{precision:0},title:{display:true,text:'entries'}}}}});
 
   unhideCanvas('chArtPathAC');
   makeChart('chArtPathAC',{type:'line',data:{labels:years,datasets:[
-    {label:'Higher A–C',data:stats.map(s=>s.higher.n?s.higher.ac:null),borderColor:'#e3b04b',backgroundColor:'#e3b04b',borderWidth:2.5,pointRadius:4,tension:.25,spanGaps:true},
-    {label:'Advanced Higher A–C',data:stats.map(s=>s.ah.n?s.ah.ac:null),borderColor:'#a8802f',backgroundColor:'#a8802f',borderWidth:2.5,pointRadius:4,tension:.25,spanGaps:true},
-    {label:'Higher A rate',data:stats.map(s=>s.higher.n?s.higher.aRate:null),borderColor:'#ddd8c0',backgroundColor:'#ddd8c0',borderWidth:1.5,borderDash:[6,4],pointRadius:3,tension:.25,spanGaps:true},
-    {label:'AH A rate',data:stats.map(s=>s.ah.n?s.ah.aRate:null),borderColor:'#8a6d2a',backgroundColor:'#8a6d2a',borderWidth:1.5,borderDash:[6,4],pointRadius:3,tension:.25,spanGaps:true}
+    {label:'Higher A–C',data:stats.map(s=>s.higher.n?s.higher.ac:null),borderColor:ART_PATH_H,backgroundColor:ART_PATH_H,borderWidth:2.5,pointRadius:4,tension:.25,spanGaps:true},
+    {label:'Advanced Higher A–C',data:stats.map(s=>s.ah.n?s.ah.ac:null),borderColor:ART_PATH_AH,backgroundColor:ART_PATH_AH,borderWidth:2.5,pointRadius:4,tension:.25,spanGaps:true},
+    {label:'Higher A rate',data:stats.map(s=>s.higher.n?s.higher.aRate:null),borderColor:ART_PATH_H_SOFT,backgroundColor:ART_PATH_H_SOFT,borderWidth:1.5,borderDash:[6,4],pointRadius:3,tension:.25,spanGaps:true},
+    {label:'AH A rate',data:stats.map(s=>s.ah.n?s.ah.aRate:null),borderColor:ART_PATH_AH_SOFT,backgroundColor:ART_PATH_AH_SOFT,borderWidth:1.5,borderDash:[6,4],pointRadius:3,tension:.25,spanGaps:true}
   ]},options:{plugins:{legend:{position:'bottom',labels:{boxWidth:12}},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmtPct(c.parsed.y)}}},
     scales:{x:noGridX,y:pctAxis()}}});
 
   unhideCanvas('chArtPathTariff');
   makeChart('chArtPathTariff',{type:'line',data:{labels:years,datasets:[
-    {label:'Higher avg tariff',data:stats.map(s=>s.higher.n?s.higher.tariff:null),borderColor:'#e3b04b',backgroundColor:'#e3b04b',borderWidth:2.5,pointRadius:4,tension:.25,spanGaps:true},
-    {label:'Advanced Higher avg tariff',data:stats.map(s=>s.ah.n?s.ah.tariff:null),borderColor:'#a8802f',backgroundColor:'#a8802f',borderWidth:2.5,pointRadius:4,tension:.25,spanGaps:true}
+    {label:'Higher avg tariff',data:stats.map(s=>s.higher.n?s.higher.tariff:null),borderColor:ART_PATH_H,backgroundColor:ART_PATH_H,borderWidth:2.5,pointRadius:4,tension:.25,spanGaps:true},
+    {label:'Advanced Higher avg tariff',data:stats.map(s=>s.ah.n?s.ah.tariff:null),borderColor:ART_PATH_AH,backgroundColor:ART_PATH_AH,borderWidth:2.5,pointRadius:4,tension:.25,spanGaps:true}
   ]},options:{plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+(c.parsed.y===null?'—':c.parsed.y.toFixed(1))+' pts'}}},
     scales:{x:noGridX,y:{...gridY,beginAtZero:true,title:{display:true,text:'Insight-style points'}}}}});
 
