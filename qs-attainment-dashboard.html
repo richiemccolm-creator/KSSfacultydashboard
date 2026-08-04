@@ -2628,9 +2628,11 @@ function trendBands(){
     const year=(typeof sessionKey==='function'? sessionKey(r.year): '') || String(r.year||'').trim();
     if(!/^\d{2}-\d{2}$/.test(year)) continue;
     if(r.level==='NPA') continue;
-    const nk=nameKey(r.fore,r.sur);
+    const fore=String(r.fore||'').trim(), sur=String(r.sur||'').trim();
+    const nk=nameKey(fore,sur);
+    const sk=softNameKey(fore,sur) || nk;
     const k=[year, nk, r.subject, r.level].join('¦');
-    if(!groups.has(k)) groups.set(k,{year, subject:r.subject, level:r.level, band:null, marks:[], nComp:0, nk});
+    if(!groups.has(k)) groups.set(k,{year, subject:r.subject, level:r.level, band:null, marks:[], nComp:0, nk, sk, fore, sur});
     const g=groups.get(k);
     g.nComp++;
     if(r.band!==null && g.band===null) g.band=r.band;
@@ -2641,22 +2643,27 @@ function trendBands(){
   if(sess && !state.preResults){
     for(const r of state.rows){
       if(r.band===null || r.level==='NPA') continue;
-      const nk=nameKey(r.fore||'', r.sur||'') || nameKey(r.name||'', '');
-      if(!nk) continue;
-      /* Prefer merging onto an existing Art & Design (Expressive/Design) key for same pupil·level */
+      const fore=String(r.fore||'').trim(), sur=String(r.sur||'').trim();
+      const nk=nameKey(fore,sur) || nameKey(r.name||'', '');
+      const sk=softNameKey(fore,sur) || nk;
+      if(!nk && !sk) continue;
+      /* Prefer merging onto an existing Art key for same pupil·level (soft name match) */
       let k=[sess, nk, r.subject, r.level].join('¦');
       if(!groups.has(k) && isArtDesignSubject(r.subject)){
-        const alt=[...groups.keys()].find(key=>{
-          const p=key.split('¦');
-          return p[0]===sess && p[1]===nk && p[3]===r.level && isArtDesignSubject(p[2]);
-        });
-        if(alt) k=alt;
+        const alt=[...groups.values()].find(g=>
+          g.year===sess && g.level===r.level && isArtDesignSubject(g.subject) &&
+          ((sk && g.sk===sk) || (nk && g.nk===nk))
+        );
+        if(alt) k=[alt.year, alt.nk, alt.subject, alt.level].join('¦');
       }
       if(groups.has(k)){
         const g=groups.get(k);
         if(g.band===null || g.estimated){ g.band=r.band; g.estimated=false; }
+        if(!g.fore && fore) g.fore=fore;
+        if(!g.sur && sur) g.sur=sur;
+        if(sk) g.sk=sk;
       } else {
-        groups.set(k,{year:sess, subject:r.subject, level:r.level, band:r.band, marks:[], nComp:0, nk, estimated:false});
+        groups.set(k,{year:sess, subject:r.subject, level:r.level, band:r.band, marks:[], nComp:0, nk, sk, fore, sur, estimated:false});
       }
     }
   }
@@ -2673,7 +2680,8 @@ function trendBands(){
     g.estimated=true;
   }
   return [...groups.values()].filter(g=>g.band!==null).map(g=>({
-    year:g.year, subject:g.subject, level:g.level, band:g.band, estimated:!!g.estimated, nk:g.nk||''
+    year:g.year, subject:g.subject, level:g.level, band:g.band, estimated:!!g.estimated,
+    nk:g.nk||'', sk:g.sk||'', fore:g.fore||'', sur:g.sur||''
   }));
 }
 const LEVEL_SHORT={'National 5':'N5','Higher':'Higher','Advanced Higher':'Adv H'};
@@ -2799,6 +2807,18 @@ function trendHeadlines(rows,years,compRows,cYears){
 
 /* Art pathway decision: Higher Art retired → S5/S6 Advanced Higher */
 function isArtDesignSubject(s){ return /^Art & Design/i.test(String(s||'')); }
+/* First forename token + surname — collapses “Ava C Burns” ↔ “Ava Burns” */
+function softNameKey(fore, sur){
+  const first=String(fore||'').trim().split(/\s+/)[0] || '';
+  const s=String(sur||'').trim();
+  if(!first && !s) return '';
+  return nameKey(first, s);
+}
+function pathwayPupilKey(r){
+  const sk=r.sk || softNameKey(r.fore, r.sur);
+  if(sk) return sk;
+  return r.nk || nameKey(r.fore, r.sur) || '';
+}
 /* One headcount per pupil per year per level — collapse Expressive / Design / plain Art & Design */
 function dedupeArtPathwayRows(all){
   const art=(all||[]).filter(r=>isArtDesignSubject(r.subject) && (r.level==='Higher' || r.level==='Advanced Higher') && r.band!==null && r.band<=8);
@@ -2810,9 +2830,9 @@ function dedupeArtPathwayRows(all){
     return 1;
   };
   for(const r of art){
-    const nk=r.nk || '';
-    if(!nk) continue;
-    const k=[r.year, nk, r.level].join('¦');
+    const pk=pathwayPupilKey(r);
+    if(!pk) continue;
+    const k=[r.year, pk, r.level].join('¦');
     const prev=by.get(k);
     if(!prev){ by.set(k, r); continue; }
     if(prev.estimated && !r.estimated){ by.set(k, r); continue; }
@@ -2821,9 +2841,36 @@ function dedupeArtPathwayRows(all){
   }
   return [...by.values()];
 }
+/* Current session: results sheet is the authoritative Art Higher / AH roster */
+function artPathwayRowsFromResults(level){
+  const sess=state.session || '';
+  if(!sess || state.preResults) return [];
+  return (state.rows||[]).filter(r=>
+    isArtDesignSubject(r.subject) && r.level===level && r.band!==null && r.band<=8
+  ).map(r=>{
+    const fore=String(r.fore||'').trim(), sur=String(r.sur||'').trim();
+    return {
+      year:sess, subject:r.subject, level:r.level, band:r.band, estimated:false,
+      fore, sur, nk:nameKey(fore,sur), sk:softNameKey(fore,sur), fromResults:true
+    };
+  });
+}
 function artPathwayYearStats(all){
-  const art=dedupeArtPathwayRows(all);
-  const years=[...new Set(art.map(r=>r.year))].sort();
+  const sess=state.session || '';
+  let art=dedupeArtPathwayRows(all);
+  /* Replace this session’s Higher/AH with results-sheet pupils when present (avoids MIS vs Known-As splits) */
+  if(sess && !state.preResults){
+    const resH=artPathwayRowsFromResults('Higher');
+    const resAH=artPathwayRowsFromResults('Advanced Higher');
+    if(resH.length || resAH.length){
+      art=art.filter(r=>r.year!==sess);
+      art=art.concat(dedupeArtPathwayRows(resH.concat(resAH)));
+    }
+  }
+  const years=[...new Set([
+    ...art.map(r=>r.year),
+    ...(all||[]).filter(r=>isArtDesignSubject(r.subject)&&(r.level==='Higher'||r.level==='Advanced Higher')).map(r=>r.year)
+  ])].filter(Boolean).sort();
   return years.map(y=>{
     const h=art.filter(r=>r.year===y&&r.level==='Higher');
     const ah=art.filter(r=>r.year===y&&r.level==='Advanced Higher');
@@ -2835,7 +2882,7 @@ function artPathwayYearStats(all){
       tariff:avg(rows.map(r=>tariff(r.level,r.band)).filter(v=>v!==null))
     });
     return {year:y, higher:pack(h), ah:pack(ah)};
-  });
+  }).filter(s=>s.higher.n||s.ah.n);
 }
 function artPathwayHeadlines(stats){
   const H=[];
@@ -3513,7 +3560,7 @@ const CHART_TIPS={
   chTrendGrades:'The grade profile of the current selection each year, as percentages. Growing gold (A) and shrinking red (No Award) means the profile is strengthening.',
   chTrendAC:'The headline measures over time: solid gold = % awarded A–C, dashed = % awarded an A. Up and to the right is good.',
   chTrendCompDev:'For each component, cohort average (solid) vs national average (faded), year by year — shows whether each component is gaining ground on the country.',
-  chArtPathEntries:'Counts Art Higher vs Advanced Higher pupils each year (one headcount per pupil — Expressive, Design and plain Art & Design are not double-counted). Use this to see the pathway switch after Higher Art was withdrawn.',
+  chArtPathEntries:'Counts Art Higher vs Advanced Higher pupils each year. One headcount per pupil (Expressive/Design collapsed). For the open exam session, the results sheet roster is used so MIS Known-As spelling does not inflate the count.',
   chArtPathAC:'A–C and A rates within each level over time. Do not read Higher A–C and AH A–C as equivalent grades — compare each line to its own history; use the tariff chart for a fairer cross-level signal.',
   chArtPathTariff:'Average Insight-style tariff points per entry (Higher A≈66, Advanced Higher A≈88). Better for judging whether AH outcomes compensate for dropping Higher than raw band or A–C alone.',
   chTGrades:'This teacher’s results by grade cluster, for the classes currently selected above.',
