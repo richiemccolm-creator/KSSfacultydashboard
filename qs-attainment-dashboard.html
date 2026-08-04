@@ -939,6 +939,19 @@ html.qs-embed.qs-analysis .analysis-chrome{margin-left:-16px; margin-right:-16px
       <div class="card"><h3>A and A–C rate by year</h3><div class="chart-wrap"><canvas id="chTrendAC"></canvas></div></div>
     </div>
     <div class="card"><h3>Component breakdown by year <span class="hint">average mark per component — cohort (solid) vs national (faded) · use the Course &amp; Level filters above</span></h3><div class="chart-wrap tall"><canvas id="chTrendCompDev"></canvas></div></div>
+
+    <div class="school-rank-block" id="artPathwayBlock">
+      <div class="section-head" style="margin-top:8px"><h2>Art pathway · Higher → Advanced Higher</h2><span class="desc">Decision check: after dropping Higher Art, how do Advanced Higher outcomes and entry numbers compare with the last Higher years? · Insight tariff used for cross-level fairness · raw bands are not equated</span></div>
+      <div class="grid c2">
+        <div class="card"><h3>Entries by year <span class="hint">Higher vs Advanced Higher Art</span></h3><div class="chart-wrap"><canvas id="chArtPathEntries"></canvas></div></div>
+        <div class="card"><h3>A–C rate by year <span class="hint">same level over time · not a like-for-like grade comparison</span></h3><div class="chart-wrap"><canvas id="chArtPathAC"></canvas></div></div>
+      </div>
+      <div class="grid c21">
+        <div class="card"><h3>Average Insight tariff by year <span class="hint">fairer cross-level signal · Higher A≈66 · Adv H A≈88</span></h3><div class="chart-wrap"><canvas id="chArtPathTariff"></canvas></div></div>
+        <div class="card"><h3>Pathway reading <span class="hint">auto-generated</span></h3><ul class="headlines" id="artPathHeadlines"></ul></div>
+      </div>
+      <div class="card"><h3>Year-by-year table <span class="hint">Art &amp; Design family only</span></h3><div class="tbl-wrap"><table id="tblArtPath"></table></div></div>
+    </div>
   </section>
 
   <!-- 09 REPORTS -->
@@ -2676,6 +2689,7 @@ function renderTrends(){
     emptyChart('chTrendBand','No multi-year band data yet — Component Marks Combined needs marks (bands are estimated from SQA grade boundaries when Band is blank)');
     emptyChart('chTrendGrades',''); emptyChart('chTrendAC',''); emptyChart('chTrendCompDev','');
     $('trendHeadlines').innerHTML='<li><b>No historical records found.</b> Keep pasting each year\'s component data into the combined sheet and this section builds itself.</li>';
+    renderArtPathway([]);
     return;
   }
   const ts=$('trSubject').value||'All', tl=$('trLevel').value||'All';
@@ -2738,6 +2752,7 @@ function renderTrends(){
   } else emptyChart('chTrendCompDev','No component marks for this selection');
 
   $('trendHeadlines').innerHTML=trendHeadlines(rows,years,compRows,cYears).map(h=>'<li>'+h+'</li>').join('');
+  renderArtPathway(all);
 }
 function trendHeadlines(rows,years,compRows,cYears){
   const H=[];
@@ -2770,6 +2785,116 @@ function trendHeadlines(rows,years,compRows,cYears){
     }
   }
   return H;
+}
+
+/* Art pathway decision: Higher Art retired → S5/S6 Advanced Higher */
+function isArtDesignSubject(s){ return /^Art & Design/i.test(String(s||'')); }
+function artPathwayYearStats(all){
+  const art=(all||[]).filter(r=>isArtDesignSubject(r.subject) && (r.level==='Higher' || r.level==='Advanced Higher') && r.band!==null);
+  const years=[...new Set(art.map(r=>r.year))].sort();
+  return years.map(y=>{
+    const h=art.filter(r=>r.year===y&&r.level==='Higher'&&r.band<=8);
+    const ah=art.filter(r=>r.year===y&&r.level==='Advanced Higher'&&r.band<=8);
+    const pack = (rows) => ({
+      n:rows.length,
+      ac:pct(rows.filter(r=>r.band<=6).length, rows.length),
+      aRate:pct(rows.filter(r=>r.band<=2).length, rows.length),
+      avgBand:avg(rows.map(r=>r.band)),
+      tariff:avg(rows.map(r=>tariff(r.level,r.band)).filter(v=>v!==null))
+    });
+    return {year:y, higher:pack(h), ah:pack(ah)};
+  });
+}
+function artPathwayHeadlines(stats){
+  const H=[];
+  if(!stats.length){
+    H.push('No Art Higher / Advanced Higher band history yet — once Combined marks (or results) include those levels, this pathway view builds itself.');
+    return H;
+  }
+  const withH=stats.filter(s=>s.higher.n>0);
+  const withAH=stats.filter(s=>s.ah.n>0);
+  const lastH=withH.length? withH[withH.length-1] : null;
+  const firstAH=withAH.length? withAH[0] : null;
+  const latest=stats[stats.length-1];
+  if(lastH){
+    H.push('Last Higher Art cohort in view: <b>'+esc(lastH.year)+'</b> — <b>'+lastH.higher.n+'</b> entries, A–C <b>'+fmtPct(lastH.higher.ac)+'</b>, avg Insight tariff <b>'+fmt1(lastH.higher.tariff)+'</b>.');
+  } else {
+    H.push('No Higher Art entries in the historical file — the switch may already be complete for the years loaded.');
+  }
+  if(latest.ah.n){
+    H.push('Latest Advanced Higher Art (<b>'+esc(latest.year)+'</b>): <b>'+latest.ah.n+'</b> entries, A–C <b>'+fmtPct(latest.ah.ac)+'</b>, avg tariff <b>'+fmt1(latest.ah.tariff)+'</b>'+(latest.higher.n? ' · Higher still present this year ('+latest.higher.n+')':' · no Higher entries this year')+'.');
+  } else if(latest.higher.n){
+    H.push('Latest year still shows Higher Art only — Advanced Higher Art entries are not yet in this dataset for <b>'+esc(latest.year)+'</b>.');
+  }
+  if(lastH && latest.ah.n){
+    const dAc=(latest.ah.ac??null)!==null&&(lastH.higher.ac??null)!==null? latest.ah.ac-lastH.higher.ac : null;
+    const dTar=(latest.ah.tariff??null)!==null&&(lastH.higher.tariff??null)!==null? latest.ah.tariff-lastH.higher.tariff : null;
+    const dN=latest.ah.n-lastH.higher.n;
+    H.push('<b>Read carefully:</b> A–C is within-level (do not treat Higher and AH grades as equivalent). Tariff is the fairer cross-level signal — latest AH tariff is <b>'+fmt1(latest.ah.tariff)+'</b> vs last Higher <b>'+fmt1(lastH.higher.tariff)+'</b>'+(dTar!==null? ' ('+(dTar>=0?'+':'')+dTar.toFixed(1)+')':'')+'.');
+    if(dAc!==null){
+      H.push('A–C gap (AH now vs last Higher): <b>'+(dAc>=0?'+':'')+dAc.toFixed(1)+' pp</b>. Entry change: <b>'+(dN>=0?'+':'')+dN+'</b> (Higher '+lastH.higher.n+' → AH '+latest.ah.n+').');
+    }
+    if(dTar!==null && dTar>=0 && latest.ah.n >= Math.max(3, Math.round(lastH.higher.n*0.6))){
+      H.push('Early reading: AH tariff is holding or better than the last Higher cohort with a viable entry size — consistent with the pathway decision so far.');
+    } else if(dTar!==null && dTar<0){
+      H.push('Early reading: AH average tariff sits below the last Higher cohort — check whether the AH cohort includes a wider ability range (S5 + S6) than the old Higher group.');
+    }
+  }
+  if(firstAH && lastH && firstAH.year > lastH.year){
+    H.push('Switch timing in this file: Higher last appears in <b>'+esc(lastH.year)+'</b>; Advanced Higher continues from <b>'+esc(firstAH.year)+'</b> onward.');
+  }
+  H.push('Tip: set Over Time Course to an Art &amp; Design row and Level to Advanced Higher to inspect AH grade profile and components in the charts above.');
+  return H;
+}
+function renderArtPathway(all){
+  const block=$('artPathwayBlock');
+  const stats=artPathwayYearStats(all);
+  const hasAny=stats.some(s=>s.higher.n||s.ah.n);
+  if(block) block.style.display = (hasAny || (all&&all.length)) ? '' : 'none';
+  const years=stats.map(s=>s.year);
+  const hl=$('artPathHeadlines');
+  const tbl=$('tblArtPath');
+  if(!hasAny){
+    emptyChart('chArtPathEntries','No Art Higher / Advanced Higher rows in the multi-year band set yet');
+    emptyChart('chArtPathAC','');
+    emptyChart('chArtPathTariff','');
+    if(hl) hl.innerHTML=artPathwayHeadlines([]).map(h=>'<li>'+h+'</li>').join('');
+    if(tbl) tbl.innerHTML='';
+    return;
+  }
+  unhideCanvas('chArtPathEntries');
+  makeChart('chArtPathEntries',{type:'bar',data:{labels:years,datasets:[
+    {label:'Higher Art',data:stats.map(s=>s.higher.n||null),backgroundColor:'#e3b04b',borderRadius:4,maxBarThickness:36},
+    {label:'Advanced Higher Art',data:stats.map(s=>s.ah.n||null),backgroundColor:'#a8802f',borderRadius:4,maxBarThickness:36}
+  ]},options:{plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+(c.parsed.y||0)+' entries'}}},
+    scales:{x:noGridX,y:{...gridY,beginAtZero:true,ticks:{precision:0},title:{display:true,text:'entries'}}}}});
+
+  unhideCanvas('chArtPathAC');
+  makeChart('chArtPathAC',{type:'line',data:{labels:years,datasets:[
+    {label:'Higher A–C',data:stats.map(s=>s.higher.n?s.higher.ac:null),borderColor:'#e3b04b',backgroundColor:'#e3b04b',borderWidth:2.5,pointRadius:4,tension:.25,spanGaps:true},
+    {label:'Advanced Higher A–C',data:stats.map(s=>s.ah.n?s.ah.ac:null),borderColor:'#a8802f',backgroundColor:'#a8802f',borderWidth:2.5,pointRadius:4,tension:.25,spanGaps:true},
+    {label:'Higher A rate',data:stats.map(s=>s.higher.n?s.higher.aRate:null),borderColor:'#ddd8c0',backgroundColor:'#ddd8c0',borderWidth:1.5,borderDash:[6,4],pointRadius:3,tension:.25,spanGaps:true},
+    {label:'AH A rate',data:stats.map(s=>s.ah.n?s.ah.aRate:null),borderColor:'#8a6d2a',backgroundColor:'#8a6d2a',borderWidth:1.5,borderDash:[6,4],pointRadius:3,tension:.25,spanGaps:true}
+  ]},options:{plugins:{legend:{position:'bottom',labels:{boxWidth:12}},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmtPct(c.parsed.y)}}},
+    scales:{x:noGridX,y:pctAxis()}}});
+
+  unhideCanvas('chArtPathTariff');
+  makeChart('chArtPathTariff',{type:'line',data:{labels:years,datasets:[
+    {label:'Higher avg tariff',data:stats.map(s=>s.higher.n?s.higher.tariff:null),borderColor:'#e3b04b',backgroundColor:'#e3b04b',borderWidth:2.5,pointRadius:4,tension:.25,spanGaps:true},
+    {label:'Advanced Higher avg tariff',data:stats.map(s=>s.ah.n?s.ah.tariff:null),borderColor:'#a8802f',backgroundColor:'#a8802f',borderWidth:2.5,pointRadius:4,tension:.25,spanGaps:true}
+  ]},options:{plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+(c.parsed.y===null?'—':c.parsed.y.toFixed(1))+' pts'}}},
+    scales:{x:noGridX,y:{...gridY,beginAtZero:true,title:{display:true,text:'Insight-style points'}}}}});
+
+  if(hl) hl.innerHTML=artPathwayHeadlines(stats).map(h=>'<li>'+h+'</li>').join('');
+
+  let html='<thead><tr><th>Year</th><th class="r">Higher n</th><th class="r">Higher A–C</th><th class="r">Higher A</th><th class="r">Higher tariff</th><th class="r">AH n</th><th class="r">AH A–C</th><th class="r">AH A</th><th class="r">AH tariff</th></tr></thead><tbody>';
+  stats.forEach(s=>{
+    const cell=(n,v,fmt)=>n? fmt(v) : '—';
+    html+='<tr><td class="strong">'+esc(s.year)+'</td>'+
+      '<td class="r">'+(s.higher.n||'—')+'</td><td class="r">'+cell(s.higher.n,s.higher.ac,fmtPct)+'</td><td class="r">'+cell(s.higher.n,s.higher.aRate,fmtPct)+'</td><td class="r">'+cell(s.higher.n,s.higher.tariff,fmt1)+'</td>'+
+      '<td class="r">'+(s.ah.n||'—')+'</td><td class="r">'+cell(s.ah.n,s.ah.ac,fmtPct)+'</td><td class="r">'+cell(s.ah.n,s.ah.aRate,fmtPct)+'</td><td class="r">'+cell(s.ah.n,s.ah.tariff,fmt1)+'</td></tr>';
+  });
+  if(tbl) tbl.innerHTML=html+'</tbody>';
 }
 
 /* ============================ 08 TEACHER ============================ */
@@ -3356,6 +3481,9 @@ const CHART_TIPS={
   chTrendGrades:'The grade profile of the current selection each year, as percentages. Growing gold (A) and shrinking red (No Award) means the profile is strengthening.',
   chTrendAC:'The headline measures over time: solid gold = % awarded A–C, dashed = % awarded an A. Up and to the right is good.',
   chTrendCompDev:'For each component, cohort average (solid) vs national average (faded), year by year — shows whether each component is gaining ground on the country.',
+  chArtPathEntries:'Counts Art & Design Higher vs Advanced Higher entries each year. Use this to see the pathway switch (Higher declining / AH rising) after Higher Art was withdrawn.',
+  chArtPathAC:'A–C and A rates within each level over time. Do not read Higher A–C and AH A–C as equivalent grades — compare each line to its own history; use the tariff chart for a fairer cross-level signal.',
+  chArtPathTariff:'Average Insight-style tariff points per entry (Higher A≈66, Advanced Higher A≈88). Better for judging whether AH outcomes compensate for dropping Higher than raw band or A–C alone.',
   chTGrades:'This teacher’s results by grade cluster, for the classes currently selected above.',
   chTEstPie:'Of this teacher’s pupils, the share awarded a better grade than estimated (above), worse (below) or exactly as estimated (equal).',
   chTCem:'The ability baseline of each class — average CEM score, where 100 ≈ the national average. Read results in the context of this starting point.',
