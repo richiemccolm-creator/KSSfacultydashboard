@@ -849,7 +849,7 @@ html.qs-embed.qs-analysis .analysis-chrome{margin-left:-16px; margin-right:-16px
     </div>
     <div class="card"><h3>Subject × level breakdown</h3><div class="tbl-wrap"><table id="tblBreakdown"></table></div></div>
     <div class="school-rank-block needs-school-rank">
-      <div class="section-head"><h2>Whole-school context</h2><span class="desc">Was this faculty course the pupil’s highest, equal highest or lowest attainment vs their other subjects? · Insight-style tariff · comparable pupils only</span></div>
+      <div class="section-head"><h2>Whole-school context</h2><span class="desc">Was this faculty course the pupil’s highest, equal highest or lowest attainment vs their other subjects? · Insight National Course tariff · comparable pupils only</span></div>
       <div class="grid c2">
         <div class="card"><h3 id="hSchoolRankSubject">Comparative attainment by subject</h3><div class="chart-wrap"><canvas id="chSchoolRankSubject"></canvas></div></div>
         <div class="card"><h3 id="hSchoolRankLevel">Comparative attainment by level</h3><div class="chart-wrap"><canvas id="chSchoolRankLevel"></canvas></div></div>
@@ -952,13 +952,13 @@ html.qs-embed.qs-analysis .analysis-chrome{margin-left:-16px; margin-right:-16px
     <div class="card"><h3>Component breakdown by year <span class="hint">average mark per component — cohort (solid) vs national (faded) · use the Course &amp; Level filters above</span></h3><div class="chart-wrap tall"><canvas id="chTrendCompDev"></canvas></div></div>
 
     <div class="school-rank-block" id="artPathwayBlock">
-      <div class="section-head" style="margin-top:8px"><h2>Art pathway · Higher → Advanced Higher</h2><span class="desc">Decision check: after dropping Higher Art, how do Advanced Higher outcomes and entry numbers compare with the last Higher years? · <span style="color:#e3b04b">● Higher</span> · <span style="color:#5fb8c9">● Advanced Higher</span> · Insight tariff for cross-level fairness</span></div>
+      <div class="section-head" style="margin-top:8px"><h2>Art pathway · Higher → Advanced Higher</h2><span class="desc">Decision check: after dropping Higher Art, how do Advanced Higher outcomes and entry numbers compare with the last Higher years? · <span style="color:#e3b04b">● Higher</span> · <span style="color:#5fb8c9">● Advanced Higher</span> · Insight National Course tariff for cross-level fairness</span></div>
       <div class="grid c2">
         <div class="card"><h3>Entries by year <span class="hint">Higher vs Advanced Higher Art</span></h3><div class="chart-wrap"><canvas id="chArtPathEntries"></canvas></div></div>
         <div class="card"><h3>A–C rate by year <span class="hint">same level over time · not a like-for-like grade comparison</span></h3><div class="chart-wrap"><canvas id="chArtPathAC"></canvas></div></div>
       </div>
       <div class="grid c21">
-        <div class="card"><h3>Average Insight tariff by year <span class="hint">fairer cross-level signal · Higher A≈66 · Adv H A≈88</span></h3><div class="chart-wrap"><canvas id="chArtPathTariff"></canvas></div></div>
+        <div class="card"><h3>Average Insight tariff by year <span class="hint">National Course ready reckoner · Higher A=204 · Adv H A=480</span></h3><div class="chart-wrap"><canvas id="chArtPathTariff"></canvas></div></div>
         <div class="card"><h3>Pathway reading <span class="hint">auto-generated</span></h3><ul class="headlines" id="artPathHeadlines"></ul></div>
       </div>
       <div class="card"><h3>Year-by-year table <span class="hint">Art &amp; Design family only</span></h3><div class="tbl-wrap"><table id="tblArtPath"></table></div></div>
@@ -1907,8 +1907,8 @@ function renderOverview(rows){
     const sr=tallySchoolRankRows(rows.filter(r=>r.level!=='NPA'));
     if(sr.n){
       kpis.push(
-        {label:'Highest attainment', value:fmtPct(rankPct(sr,'hi')), foot:sr.hi+' of '+sr.n+' comparable pupils', cls:'good', tip:'Uses attached whole-school results. Of comparable pupils (those with at least one other subject in the school file), the % for whom this faculty course had a higher Insight-style tariff than every other subject they sat. Needs awarded grades.'},
-        {label:'Equal highest', value:fmtPct(rankPct(sr,'eq')), foot:sr.eq+' pupils · vs other subjects', cls:'', tip:'Uses attached whole-school results. % of comparable pupils for whom this course tied for their best attainment (same tariff as their highest other subject). Compares across levels using simplified Insight-style points.'},
+        {label:'Highest attainment', value:fmtPct(rankPct(sr,'hi')), foot:sr.hi+' of '+sr.n+' comparable pupils', cls:'good', tip:'Uses attached whole-school results. Of comparable pupils (those with at least one other subject in the school file), the % for whom this faculty course had a higher Insight National Course tariff than every other subject they sat. Needs awarded grades.'},
+        {label:'Equal highest', value:fmtPct(rankPct(sr,'eq')), foot:sr.eq+' pupils · vs other subjects', cls:'', tip:'Uses attached whole-school results. % of comparable pupils for whom this course tied for their best attainment (same tariff as their highest other subject). Compares across levels using Insight National Course ready-reckoner points (N5 A=84, Higher A=204, AH A=480).'},
         {label:'Lowest attainment', value:fmtPct(rankPct(sr,'lo')), foot:sr.lo+' of '+sr.n+' comparable', cls:sr.lo>sr.hi?'bad':'', tip:'Uses attached whole-school results. % of comparable pupils for whom this faculty course was their weakest attainment vs every other subject they sat in the school-wide file.'},
       );
     } else {
@@ -1944,10 +1944,13 @@ function renderOverview(rows){
 }
 function clusterOf(b){ if(b===null)return null; if(b<=2)return 'A'; if(b<=4)return 'B'; if(b<=6)return 'C'; if(b===7)return 'D'; if(b===8)return 'No Award'; return 'DNA'; }
 
-/* ---------- Whole-school comparative attainment (Insight-style tariff) ---------- */
+/* ---------- Whole-school comparative attainment (Insight National Course tariff) ----------
+   Points from ScotXed Insight Tariff Ready Reckoner for graded National Courses:
+   N5 SCQF5 24cr · Higher SCQF6 24cr · AH SCQF7 32cr. Bands within a grade share points.
+   Local use only — not complementary/total leaver measures or unit/NPA awards. */
 const nameKey = (f,s)=>String((f||'')+(s||'')).toLowerCase().replace(/[^a-z]/g,'');
 const pupilNameKey = name=>String(name||'').toLowerCase().replace(/[^a-z]/g,'');
-const TARIFF={'National 5':{A:33,B:27,C:21,D:15},'Higher':{A:66,B:54,C:42,D:30},'Advanced Higher':{A:88,B:72,C:56,D:40}};
+const TARIFF={'National 5':{A:84,B:74,C:64,D:59},'Higher':{A:204,B:182,C:160,D:149},'Advanced Higher':{A:480,B:440,C:400,D:380}};
 const RANK_COLORS={highest:'#e3b04b',equal:'#b5b8a8',lowest:'#c23b2e'};
 function tariff(level,band){ if(band===null) return null; if(band>=8) return 0; const t=TARIFF[level]; if(!t) return null; return t[clusterOf(band)]??0; }
 function schoolRankReady(){ return !!(state.school&&state.school.length)&&!state.preResults; }
@@ -2975,7 +2978,7 @@ function renderArtPathway(all){
     {label:'Higher avg tariff',data:stats.map(s=>s.higher.n?s.higher.tariff:null),borderColor:ART_PATH_H,backgroundColor:ART_PATH_H,borderWidth:2.5,pointRadius:4,tension:.25,spanGaps:true},
     {label:'Advanced Higher avg tariff',data:stats.map(s=>s.ah.n?s.ah.tariff:null),borderColor:ART_PATH_AH,backgroundColor:ART_PATH_AH,borderWidth:2.5,pointRadius:4,tension:.25,spanGaps:true}
   ]},options:{plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+(c.parsed.y===null?'—':c.parsed.y.toFixed(1))+' pts'}}},
-    scales:{x:noGridX,y:{...gridY,beginAtZero:true,title:{display:true,text:'Insight-style points'}}}}});
+    scales:{x:noGridX,y:{...gridY,beginAtZero:true,title:{display:true,text:'Insight tariff points'}}}}});
 
   if(hl) hl.innerHTML=artPathwayHeadlines(stats).map(h=>'<li>'+h+'</li>').join('');
 
@@ -3530,7 +3533,7 @@ function reviewReport(subject){
     h+='</tbody></table>';
   }
   h+='<h2>Component analysis</h2>'+box('What actions are you taking in light of your component mark analysis?','Type here…');
-  h+='<div class="foot" style="text-align:left">Method notes: “predicted attainment” = teacher estimate (band). Highest / lowest attainment compares this subject against every other subject the pupil sat, using simplified Insight-style tariff points (so a Higher award outranks the same grade at National 5); pupils are only counted when whole-school data contains at least one other subject for them.</div>';
+  h+='<div class="foot" style="text-align:left">Method notes: “predicted attainment” = teacher estimate (band). Highest / lowest attainment compares this subject against every other subject the pupil sat, using Insight National Course ready-reckoner tariff points (N5 A=84, Higher A=204, AH A=480 — so a Higher award outranks the same grade at National 5); pupils are only counted when whole-school data contains at least one other subject for them. This is not Insight complementary/total leaver tariff.</div>';
   return h+repFoot;
 }
 
@@ -3575,14 +3578,14 @@ const CHART_TIPS={
   chTrendCompDev:'For each component, cohort average (solid) vs national average (faded), year by year — shows whether each component is gaining ground on the country.',
   chArtPathEntries:'Counts Art Higher vs Advanced Higher pupils each year. One headcount per pupil (Expressive/Design collapsed). For the open exam session, the results sheet roster is used so MIS Known-As spelling does not inflate the count.',
   chArtPathAC:'A–C and A rates within each level over time. Do not read Higher A–C and AH A–C as equivalent grades — compare each line to its own history; use the tariff chart for a fairer cross-level signal.',
-  chArtPathTariff:'Average Insight-style tariff points per entry (Higher A≈66, Advanced Higher A≈88). Better for judging whether AH outcomes compensate for dropping Higher than raw band or A–C alone.',
+  chArtPathTariff:'Average Insight National Course tariff per entry (ready reckoner: Higher A=204, Advanced Higher A=480). Better for judging whether AH outcomes compensate for dropping Higher than raw band or A–C alone. Not complementary/total leaver measures.',
   chTGrades:'This teacher’s results by grade cluster, for the classes currently selected above.',
   chTEstPie:'Of this teacher’s pupils, the share awarded a better grade than estimated (above), worse (below) or exactly as estimated (equal).',
   chTCem:'The ability baseline of each class — average CEM score, where 100 ≈ the national average. Read results in the context of this starting point.',
   chTAvgBand:'Average awarded band per class. Read alongside the CEM chart: a modest band from a class with a low baseline can still represent strong value added.',
   chTEstComp:'For each class, how many pupils finished above, below or equal to their estimate — a quick check on estimate accuracy class by class.',
   chTComps:'This teacher’s class average per component (gold) against the national average (grey), built from the component records — only components that actually exist for the course appear. National bars show once QS publish the averages (or via the marks report / combined sheet).',
-  chSchoolRankSubject:'Uses attached whole-school results. For each faculty subject, the % of comparable pupils for whom that course was their highest, equal-highest or lowest attainment vs every other subject they sat (Insight-style tariff). Comparable = at least one other subject in the school file.',
+  chSchoolRankSubject:'Uses attached whole-school results. For each faculty subject, the % of comparable pupils for whom that course was their highest, equal-highest or lowest attainment vs every other subject they sat (Insight National Course tariff). Comparable = at least one other subject in the school file.',
   chSchoolRankLevel:'Same whole-school comparison as the subject chart, broken down by level (National 5 / Higher / Advanced Higher) for the current filter.',
   chSchoolSubjectAc:'A–C rate for every subject in the attached whole-school results file. Faculty courses (Art & Design, Drama, Photography) are coloured; other subjects are grey. Use the Level control to compare like-for-like (e.g. all National 5).',
   chTSchoolRank:'For this teacher’s classes, % of comparable pupils for whom the faculty course was highest, equal-highest or lowest vs their other school subjects. Needs whole-school results attached and awarded grades.',
