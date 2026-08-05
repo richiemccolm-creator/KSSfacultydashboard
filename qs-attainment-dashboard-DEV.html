@@ -9,8 +9,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Archivo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script>
-  window.QS_DEV = true;
-  document.documentElement.classList.add('qs-dev');
   window.QS_EMBED = new URLSearchParams(window.location.search).get('embed') === '1';
   if (window.QS_EMBED) {
     document.documentElement.classList.add('qs-embed');
@@ -782,6 +780,7 @@ html.qs-embed.qs-analysis .analysis-chrome{margin-left:-16px; margin-right:-16px
 <div id="snapshotBanner" class="hidden">📌 <b>Snapshot report</b> — data embedded <span id="snapshotMeta"></span>. This copy opens without the Excel file.</div>
 <div id="sqaNatBanner" class="qs-nat-banner"></div>
 <div id="histCompBanner" class="qs-hist-banner"></div>
+<div id="compScnBanner" class="qs-nat-banner warn"></div>
 <div id="attBanner" class="qs-nat-banner warn"></div>
 
 <input type="file" id="fileInput" accept=".xlsx,.xlsm,.xls,.csv" class="hidden">
@@ -1133,6 +1132,95 @@ const fmtPct = v => v===null?'—':v.toFixed(1)+'%';
 const fmt1 = v => v===null?'—':v.toFixed(1);
 const avg = arr => arr.length? arr.reduce((a,b)=>a+b,0)/arr.length : null;
 const esc = s => String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const nameKey = (f,s)=>String((f||'')+(s||'')).toLowerCase().replace(/[^a-z]/g,'');
+const pupilNameKey = name=>String(name||'').toLowerCase().replace(/[^a-z]/g,'');
+function normalizeScn(v){
+  if(v===null||v===undefined||v==='') return '';
+  const s=String(v).trim().replace(/\D/g,'');
+  return s.length>=6 ? s : '';
+}
+function pickScn(row,map){
+  return normalizeScn(pick(row,map,'scn','candidatenumber','candidateno','scottishcandidatenumber','candidateid','candidate'));
+}
+function pupilSoftKey(r){
+  const first=String(r.fore||'').trim().split(/\s+/)[0]||'';
+  const sur=String(r.sur||'').trim();
+  if(!first && !sur) return pupilNameKey(r.name);
+  return nameKey(first, sur);
+}
+function buildScnLookup(rows){
+  const byScn=new Map(), nameToScn=new Map(), softToScn=new Map();
+  for(const r of rows||[]){
+    const scn=normalizeScn(r.scn);
+    if(!scn) continue;
+    byScn.set(scn, r);
+    const nk=nameKey(r.fore,r.sur);
+    if(nk) nameToScn.set(nk, scn);
+    const pk=pupilNameKey(r.name);
+    if(pk) nameToScn.set(pk, scn);
+    const sk=pupilSoftKey(r);
+    if(sk) softToScn.set(sk, scn);
+  }
+  return {byScn, nameToScn, softToScn};
+}
+function attachScnToComps(comps, lookup){
+  let attached=0, hadScn=0;
+  if(!lookup) return {attached:0, hadScn:0, total:(comps||[]).length};
+  (comps||[]).forEach(c=>{
+    if(normalizeScn(c.scn)){ hadScn++; return; }
+    const nk=nameKey(c.fore,c.sur);
+    let scn=lookup.nameToScn.get(nk);
+    if(!scn) scn=lookup.softToScn.get(pupilSoftKey({fore:c.fore,sur:c.sur}));
+    if(scn){ c.scn=scn; attached++; }
+  });
+  return {attached, hadScn, total:(comps||[]).length};
+}
+function pupilMatchesComp(pupil, comp){
+  if(!pupil||!comp) return false;
+  const ps=normalizeScn(pupil.scn), cs=normalizeScn(comp.scn);
+  if(ps && cs) return ps===cs;
+  const nkP=nameKey(pupil.fore,pupil.sur)||pupilNameKey(pupil.name);
+  const nkC=nameKey(comp.fore,comp.sur);
+  const skP=pupilSoftKey(pupil), skC=pupilSoftKey({fore:comp.fore,sur:comp.sur});
+  if(nkP && nkC && nkP===nkC) return true;
+  if(skP && skC && skP===skC) return true;
+  return false;
+}
+function resolveCompScnLinks(){
+  const lookup=buildScnLookup(state.rows);
+  state._compScnMeta=attachScnToComps(state.comps, lookup);
+  refreshCompScnBanner();
+}
+function compLinkStats(){
+  const sess=state.session||'';
+  const rows=state.rows||[];
+  const comps=(state.comps||[]).filter(c=>!sess || c.year===sess || sessionKey(c.year)===sessionKey(sess));
+  const pupilsWithScn=rows.filter(r=>normalizeScn(r.scn)).length;
+  const compsWithScn=comps.filter(c=>normalizeScn(c.scn)).length;
+  const linkedComps=comps.filter(c=>rows.some(r=>pupilMatchesComp(r,c))).length;
+  const pupilsMissingComps=rows.filter(r=>!comps.some(c=>pupilMatchesComp(r,c))).length;
+  return {pupilsWithScn, compsWithScn, linkedComps, totalComps:comps.length, totalRows:rows.length, pupilsMissingComps, orphanComps:comps.length-linkedComps};
+}
+function refreshCompScnBanner(){
+  const el=$('compScnBanner'); if(!el) return;
+  const s=compLinkStats();
+  if(!s.totalRows && !s.totalComps){ el.classList.remove('on','warn'); el.innerHTML=''; return; }
+  if(s.totalComps===0){
+    el.classList.add('on'); el.classList.remove('warn');
+    el.innerHTML='No component marks loaded for this session — Combined sheet or QS marks report needed for component charts.';
+    return;
+  }
+  let html='Component links: <b>'+s.linkedComps+'</b> / '+s.totalComps+' rows matched to results';
+  html+=' · SCN on <b>'+s.pupilsWithScn+'</b> / '+s.totalRows+' results, <b>'+s.compsWithScn+'</b> / '+s.totalComps+' component rows';
+  if(state._compScnMeta && state._compScnMeta.attached){
+    html+=' · <b>'+state._compScnMeta.attached+'</b> component rows got SCN from results name lookup';
+  }
+  const warn=s.orphanComps>0 || s.pupilsMissingComps>0;
+  if(s.pupilsMissingComps) html+=' · <b>'+s.pupilsMissingComps+'</b> results pupils with no component rows';
+  if(s.orphanComps) html+=' · <b>'+s.orphanComps+'</b> component rows not matched to results';
+  el.classList.add('on'); el.classList.toggle('warn', warn);
+  el.innerHTML=html+(warn? ' — check names or add SCN to Component Marks Combined.':'')+'. Save to Hub after Replace.';
+}
 
 function headerMap(json0){ const map={}; Object.keys(json0||{}).forEach(k=>map[k.toLowerCase().replace(/[^a-z0-9]/g,'')]=k); return map; }
 function pick(row,map,...cands){ for(const c of cands){ const key=map[c]; if(key!==undefined && row[key]!==undefined && row[key]!=='') return row[key]; } return null; }
@@ -1208,6 +1296,7 @@ function parseResultRows(json){
     const asnRaw = String(pick(r,m,'asn')||'').trim();
     const nat = i => { let v = toNum(pick(r,m,'nationalavgc'+i,'nationalaveragec'+i)); if(v===null && natKeys[i-1]!==undefined) v = toNum(r[natKeys[i-1]]); return v; };
     rows.push({
+      scn: pickScn(r,m),
       name: [fore,sur].filter(Boolean).join(' '),
       fore: String(fore||'').trim(),
       sur: String(sur||'').trim(),
@@ -1333,6 +1422,7 @@ function parseCompRows(json){
     if(mark===null && band===null) continue;
     out.push({
       year,
+      scn: pickScn(r,cm),
       fore: String(pick(r,cm,'forename')||'').trim(),
       sur: String(pick(r,cm,'surname')||'').trim(),
       subject: normSubject(pick(r,cm,'coursetitle','course','subject')),
@@ -1532,7 +1622,8 @@ function sessionKey(y){
   return s;
 }
 function compHistoryKey(r){
-  return [sessionKey(r.year), nameKey(r.fore,r.sur), r.subject||'', r.level||'', String(r.component||''), String(r.title||'')].join('¦');
+  const id=normalizeScn(r.scn)||nameKey(r.fore,r.sur);
+  return [sessionKey(r.year), id, r.subject||'', r.level||'', String(r.component||''), String(r.title||'')].join('¦');
 }
 function setHistBanner(html, on){
   const el=$('histCompBanner');
@@ -1551,6 +1642,7 @@ function mergeHistoricalComps(historyRows, meta){
     existing.add(k);
     state.comps.push({
       year:String(r.year||'').trim(),
+      scn: normalizeScn(r.scn)||'',
       fore:String(r.fore||'').trim(),
       sur:String(r.sur||'').trim(),
       subject:r.subject,
@@ -1704,7 +1796,7 @@ function mergeCompReport(json, filename){
     let mark=toNum(pick(r,m,'mark')); if(mark!==null&&mark>=999) mark=null;
     const band=gradeToBand(pick(r,m,'band'));
     if(mark===null&&band===null) continue;
-    entries.push({fore:String(fore).trim(), sur:String(sur).trim(),
+    entries.push({fore:String(fore).trim(), sur:String(sur).trim(), scn:pickScn(r,m),
       subject:normSubject(pick(r,m,'coursetitle')), level:normLevel(pick(r,m,'level')),
       component:String(pick(r,m,'component')||'').trim(), title:String(pick(r,m,'title')||'').trim(),
       mark, band});
@@ -1728,21 +1820,22 @@ function mergeCompReport(json, filename){
   const facRows=entries.filter(r=>isFacultySubject(r.subject));
   if(!facRows.length) throw new Error('No Art, Drama or Photography component rows found in that report.');
   state.comps=state.comps.filter(r=>!(r.year===year && isFacultySubject(r.subject)));
-  facRows.forEach(r=>state.comps.push({year, fore:r.fore, sur:r.sur, subject:r.subject, level:r.level, component:r.component, title:r.title, mark:r.mark, band:r.band, nat:null}));
+  facRows.forEach(r=>state.comps.push({year, scn:normalizeScn(r.scn)||'', fore:r.fore, sur:r.sur, subject:r.subject, level:r.level, component:r.component, title:r.title, mark:r.mark, band:r.band, nat:null}));
   /* Every subject → whole-school attainment (one band per pupil per course) */
   const seen=new Set(), school=[];
   for(const r of entries){
     if(r.band===null) continue;
-    const k=nameKey(r.fore,r.sur)+'¦'+r.subject;
+    const pid=normalizeScn(r.scn)||nameKey(r.fore,r.sur);
+    const k=pid+'¦'+r.subject;
     if(seen.has(k)) continue; seen.add(k);
-    school.push({key:nameKey(r.fore,r.sur), subject:r.subject, level:r.level, band:r.band});
+    school.push({key:pid, scn:normalizeScn(r.scn)||'', subject:r.subject, level:r.level, band:r.band});
   }
   state.school=school;
   state.compReport={filename, year, fac:facRows.length, all:entries.length};
   $('fileChipMeta').textContent='· '+state.rows.length+' pupils · '+state.comps.length+' component records · marks report ✓'+(state.sheetName?' · sheet: '+state.sheetName:'');
   if(state.filename) updateFileChipDisplay(state.filename, state.rows.length, state.comps.length, state.sheetName||'');
   setSchoolStatusMessage(schoolStatusAttachedMessage('from QS Component Marks Report'), true);
-  buildComponentControls(); buildTrendControls(); renderAll();
+  buildComponentControls(); buildTrendControls(); resolveCompScnLinks(); renderAll();
   const bySub={};
   facRows.forEach(r=>{ bySub[r.subject]=(bySub[r.subject]||0)+1; });
   const subLines=Object.keys(bySub).sort().map(s=>'· '+s+': '+bySub[s]).join('\n');
@@ -1838,6 +1931,7 @@ function loadData(rows, comps, filename, sheetName){
   buildTrendControls();
   buildTeacherControl();
   buildReportControls();
+  resolveCompScnLinks();
   renderAll();
   window.scrollTo({top:0});
   if(state.school&&state.school.length) setSchoolStatusMessage(schoolStatusAttachedMessage(), true);
@@ -1934,20 +2028,11 @@ const noGridX = {grid:{display:false}, border:{display:false}};
 const pctAxis = max => ({beginAtZero:true, max:max||100, ticks:{callback:v=>v+'%'}, grid:{drawTicks:false}, border:{display:false}});
 
 /* ---------- chart drill-down (click a bar/point → pupil list) ---------- */
-function pupilSoftKey(r){
-  const first=String(r.fore||'').trim().split(/\s+/)[0]||'';
-  const sur=String(r.sur||'').trim();
-  if(!first && !sur) return pupilNameKey(r.name);
-  return nameKey(first, sur);
-}
 function compsForPupil(r){
-  const nk=nameKey(r.fore,r.sur)||pupilNameKey(r.name);
-  const sk=pupilSoftKey(r);
   const subBase=String(r.subject||'').replace(/\s*\([^)]*\)\s*$/,'').trim();
   return (state.comps||[]).filter(c=>{
     if(c.level!==r.level) return false;
-    const ck=nameKey(c.fore,c.sur);
-    if(ck!==nk && ck!==sk) return false;
+    if(!pupilMatchesComp(r,c)) return false;
     const cs=String(c.subject||'');
     return cs===r.subject || cs.startsWith(subBase) || r.subject.startsWith(cs.replace(/\s*\([^)]*\)\s*$/,'').trim());
   });
@@ -1969,13 +2054,13 @@ function formatCompCell(r){
 }
 function renderDrillTable(rows){
   const sorted=[...rows].sort((a,b)=>(a.name||'').localeCompare(b.name||'')||a.subject.localeCompare(b.subject)||LEVEL_ORDER.indexOf(a.level)-LEVEL_ORDER.indexOf(b.level));
-  let html='<thead><tr><th>Pupil</th><th>Subject</th><th>Level</th><th class="r">Awarded</th><th class="r">Estimate</th><th class="r">CEM pred</th><th class="r">Attendance</th><th class="r">SIMD</th><th class="r">Quintile</th><th>Components</th><th>Teacher</th></tr></thead><tbody>';
+  let html='<thead><tr><th>Pupil</th><th class="r">SCN</th><th>Subject</th><th>Level</th><th class="r">Awarded</th><th class="r">Estimate</th><th class="r">CEM pred</th><th class="r">Attendance</th><th class="r">SIMD</th><th class="r">Quintile</th><th>Components</th><th>Teacher</th></tr></thead><tbody>';
   if(!sorted.length){
-    html+='<tr><td colspan="11" style="padding:24px;text-align:center;color:var(--ink-3)">No pupils in this selection.</td></tr></tbody>';
+    html+='<tr><td colspan="12" style="padding:24px;text-align:center;color:var(--ink-3)">No pupils in this selection.</td></tr></tbody>';
     return html;
   }
   for(const r of sorted){
-    html+='<tr><td class="strong">'+esc(r.name||'—')+'</td><td>'+esc(r.subject)+'</td><td>'+esc(r.level)+'</td>'+
+    html+='<tr><td class="strong">'+esc(r.name||'—')+'</td><td class="r">'+esc(normalizeScn(r.scn)||'—')+'</td><td>'+esc(r.subject)+'</td><td>'+esc(r.level)+'</td>'+
       '<td class="r">'+(r.gradeRaw!==null?esc(r.gradeRaw):(r.band!==null?BAND_LABEL[r.band]:'—'))+'</td>'+
       '<td class="r">'+(r.est!==null?BAND_LABEL[r.est]:'—')+'</td>'+
       '<td class="r">'+(r.pred!==null?BAND_LABEL[r.pred]:'—')+'</td>'+
@@ -2016,6 +2101,7 @@ function enrichTrendRows(trRows){
   return (trRows||[]).map(tr=>{
     const m=state.rows.find(r=>
       r.subject===tr.subject && r.level===tr.level && (
+        (tr.scn && normalizeScn(r.scn)===normalizeScn(tr.scn)) ||
         (tr.nk && (nameKey(r.fore,r.sur)===tr.nk || pupilNameKey(r.name)===tr.nk)) ||
         (tr.sk && pupilSoftKey(r)===tr.sk)
       )
@@ -2130,8 +2216,6 @@ function clusterOf(b){ if(b===null)return null; if(b<=2)return 'A'; if(b<=4)retu
    Points from ScotXed Insight Tariff Ready Reckoner for graded National Courses:
    N5 SCQF5 24cr · Higher SCQF6 24cr · AH SCQF7 32cr. Bands within a grade share points.
    Local use only — not complementary/total leaver measures or unit/NPA awards. */
-const nameKey = (f,s)=>String((f||'')+(s||'')).toLowerCase().replace(/[^a-z]/g,'');
-const pupilNameKey = name=>String(name||'').toLowerCase().replace(/[^a-z]/g,'');
 const TARIFF={'National 5':{A:84,B:74,C:64,D:59},'Higher':{A:204,B:182,C:160,D:149},'Advanced Higher':{A:480,B:440,C:400,D:380}};
 const RANK_COLORS={highest:'#e3b04b',equal:'#b5b8a8',lowest:'#c23b2e'};
 function tariff(level,band){ if(band===null) return null; if(band>=8) return 0; const t=TARIFF[level]; if(!t) return null; return t[clusterOf(band)]??0; }
@@ -2150,7 +2234,8 @@ function classifySchoolRank(row, subject){
   if(state.preResults||row.band===null||row.band>=8) return 'no_grade';
   const byPupil=buildSchoolPupilMap(); if(!byPupil) return 'no_school';
   const our=tariff(row.level,row.band); if(our===null) return 'no_grade';
-  const entries=(byPupil.get(pupilNameKey(row.name))||[]).filter(e=>e.subject!==subject&&!e.subject.startsWith(subject));
+  const pid=normalizeScn(row.scn)||nameKey(row.fore,row.sur)||pupilNameKey(row.name);
+  const entries=(byPupil.get(pid)||byPupil.get(pupilNameKey(row.name))||[]).filter(e=>e.subject!==subject&&!e.subject.startsWith(subject));
   if(!entries.length) return 'uncomparable';
   const maxO=Math.max(...entries.map(e=>e.pts)), minO=Math.min(...entries.map(e=>e.pts));
   if(our>maxO) return 'highest';
@@ -2842,12 +2927,14 @@ function trendBands(){
     if(!/^\d{2}-\d{2}$/.test(year)) continue;
     if(r.level==='NPA') continue;
     const fore=String(r.fore||'').trim(), sur=String(r.sur||'').trim();
+    const scn=normalizeScn(r.scn);
     const nk=nameKey(fore,sur);
     const sk=softNameKey(fore,sur) || nk;
     const k=[year, nk, r.subject, r.level].join('¦');
-    if(!groups.has(k)) groups.set(k,{year, subject:r.subject, level:r.level, band:null, marks:[], nComp:0, nk, sk, fore, sur});
+    if(!groups.has(k)) groups.set(k,{year, subject:r.subject, level:r.level, band:null, marks:[], nComp:0, nk, sk, scn, fore, sur});
     const g=groups.get(k);
     g.nComp++;
+    if(scn && !g.scn) g.scn=scn;
     if(r.band!==null && g.band===null) g.band=r.band;
     if(r.mark!==null) g.marks.push(r.mark);
   }
@@ -2857,26 +2944,34 @@ function trendBands(){
     for(const r of state.rows){
       if(r.band===null || r.level==='NPA') continue;
       const fore=String(r.fore||'').trim(), sur=String(r.sur||'').trim();
+      const scn=normalizeScn(r.scn);
       const nk=nameKey(fore,sur) || nameKey(r.name||'', '');
       const sk=softNameKey(fore,sur) || nk;
-      if(!nk && !sk) continue;
-      /* Prefer merging onto an existing Art key for same pupil·level (soft name match) */
-      let k=[sess, nk, r.subject, r.level].join('¦');
-      if(!groups.has(k) && isArtDesignSubject(r.subject)){
-        const alt=[...groups.values()].find(g=>
-          g.year===sess && g.level===r.level && isArtDesignSubject(g.subject) &&
-          ((sk && g.sk===sk) || (nk && g.nk===nk))
-        );
-        if(alt) k=[alt.year, alt.nk, alt.subject, alt.level].join('¦');
+      if(!nk && !sk && !scn) continue;
+      let g=null;
+      if(scn){
+        g=[...groups.values()].find(x=>
+          x.year===sess && x.level===r.level && normalizeScn(x.scn)===scn &&
+          (x.subject===r.subject || (isArtDesignSubject(r.subject) && isArtDesignSubject(x.subject)))
+        ) || null;
       }
-      if(groups.has(k)){
-        const g=groups.get(k);
+      let k=[sess, nk, r.subject, r.level].join('¦');
+      if(!g && !groups.has(k) && isArtDesignSubject(r.subject)){
+        g=[...groups.values()].find(x=>
+          x.year===sess && x.level===r.level && isArtDesignSubject(x.subject) &&
+          ((sk && x.sk===sk) || (nk && x.nk===nk) || (scn && normalizeScn(x.scn)===scn))
+        ) || null;
+        if(g) k=[g.year, g.nk, g.subject, g.level].join('¦');
+      }
+      if(!g && groups.has(k)) g=groups.get(k);
+      if(g){
         if(g.band===null || g.estimated){ g.band=r.band; g.estimated=false; }
         if(!g.fore && fore) g.fore=fore;
         if(!g.sur && sur) g.sur=sur;
+        if(scn) g.scn=scn;
         if(sk) g.sk=sk;
       } else {
-        groups.set(k,{year:sess, subject:r.subject, level:r.level, band:r.band, marks:[], nComp:0, nk, sk, fore, sur, estimated:false});
+        groups.set(k,{year:sess, subject:r.subject, level:r.level, band:r.band, marks:[], nComp:0, nk, sk, scn, fore, sur, estimated:false});
       }
     }
   }
@@ -2894,7 +2989,7 @@ function trendBands(){
   }
   return [...groups.values()].filter(g=>g.band!==null).map(g=>({
     year:g.year, subject:g.subject, level:g.level, band:g.band, estimated:!!g.estimated,
-    nk:g.nk||'', sk:g.sk||'', fore:g.fore||'', sur:g.sur||''
+    scn:g.scn||'', nk:g.nk||'', sk:g.sk||'', fore:g.fore||'', sur:g.sur||''
   }));
 }
 const LEVEL_SHORT={'National 5':'N5','Higher':'Higher','Advanced Higher':'Adv H'};
@@ -3036,6 +3131,8 @@ function softNameKey(fore, sur){
   return nameKey(first, s);
 }
 function pathwayPupilKey(r){
+  const scn=normalizeScn(r.scn);
+  if(scn) return 'scn:'+scn;
   const sk=r.sk || softNameKey(r.fore, r.sur);
   if(sk) return sk;
   return r.nk || nameKey(r.fore, r.sur) || '';
@@ -3080,7 +3177,8 @@ function enrichPathwayRows(pathRows){
   return (pathRows||[]).map(pr=>{
     const m=state.rows.find(r=>
       isArtDesignSubject(r.subject) && r.level===pr.level &&
-      ((pr.nk && (nameKey(r.fore,r.sur)===pr.nk || pupilNameKey(r.name)===pr.nk)) ||
+      ((pr.scn && normalizeScn(r.scn)===normalizeScn(pr.scn)) ||
+       (pr.nk && (nameKey(r.fore,r.sur)===pr.nk || pupilNameKey(r.name)===pr.nk)) ||
        (pr.sk && softNameKey(r.fore,r.sur)===pr.sk))
     );
     if(m) return m;
@@ -3104,7 +3202,7 @@ function artPathwayRowsFromResults(level){
     const fore=String(r.fore||'').trim(), sur=String(r.sur||'').trim();
     return {
       year:sess, subject:r.subject, level:r.level, band:r.band, estimated:false,
-      fore, sur, nk:nameKey(fore,sur), sk:softNameKey(fore,sur), fromResults:true
+      scn:normalizeScn(r.scn), fore, sur, nk:nameKey(fore,sur), sk:softNameKey(fore,sur), fromResults:true
     };
   });
 }
@@ -3325,8 +3423,7 @@ function renderTeacher(){
      so only real components appear and national averages come from the combined sheet */
   $('hTComps').innerHTML='Component marks vs national <span class="hint">'+esc(t)+' · '+esc(scopeLabel)+' · current session</span>';
   const sessYear=state.session;
-  const nameSet=new Set(rows.map(r=>r.name.toLowerCase().replace(/[^a-z]/g,'')));
-  const crows=state.comps.filter(r=>r.year===sessYear && nameSet.has(nameKey(r.fore,r.sur)) && (ts==='All'||r.subject.startsWith(ts)) && (tl==='All'||r.level===tl));
+  const crows=state.comps.filter(c=>c.year===sessYear && rows.some(r=>pupilMatchesComp(r,c)) && (ts==='All'||c.subject.startsWith(ts)) && (tl==='All'||c.level===tl));
   if(crows.length){
     const keys=[...new Set(crows.map(r=>r.subject+'¦'+r.level+'¦'+r.component+'¦'+(r.title||('Component '+r.component))))].sort();
     const of=k=>{const[s,l,c,ti]=k.split('¦');return crows.filter(r=>r.subject===s&&r.level===l&&String(r.component)===c);};
@@ -3701,7 +3798,7 @@ function parseSchoolRows(json){
     let band=gradeToBand(pick(r,m,'sqaresultband','resultband','band','sqaresults','sqaresult'));
     if(band===null) band=gradeToBand(pick(r,m,'sqagrade','grade','award','result'));
     if(band===null) continue;
-    out.push({key:nameKey(fore,sur), subject:normSubject(subj), level:normLevel(pick(r,m,'level')), band});
+    out.push({key:normalizeScn(pickScn(r,m))||nameKey(fore,sur), scn:normalizeScn(pickScn(r,m))||'', subject:normSubject(subj), level:normLevel(pick(r,m,'level')), band});
   }
   return out;
 }
