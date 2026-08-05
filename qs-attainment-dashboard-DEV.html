@@ -62,6 +62,46 @@ body{
 }
 .qs-hist-banner.on{display:block}
 
+.qs-comp-link-panel{
+  display:none; background:var(--bg); border-bottom:1px solid var(--line);
+  padding:0 32px 16px; font-size:12.5px;
+}
+.qs-comp-link-panel.on{display:block}
+.qs-comp-link-bar{
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  padding:10px 0 8px;
+}
+.qs-comp-link-hint{color:var(--ink-3); font-size:12px}
+.btn-comp-link-toggle{
+  font-family:var(--sans); font-size:12px; font-weight:700; color:var(--navy-ink);
+  background:var(--card); border:1px solid var(--line); border-radius:8px;
+  padding:7px 12px; cursor:pointer;
+}
+.btn-comp-link-toggle:hover{border-color:var(--gold); color:var(--gold)}
+.btn-comp-link-toggle[aria-expanded="true"]{border-color:var(--gold); color:var(--gold)}
+.qs-comp-link-body{padding-bottom:4px}
+.qs-comp-link-section{margin-top:14px}
+.qs-comp-link-section h4{
+  font-size:12px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+  color:var(--ink-2); margin:0 0 8px;
+}
+.qs-comp-link-actions{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px}
+.btn-comp-link-sm{
+  font-family:var(--sans); font-size:11.5px; font-weight:700; color:var(--ink-2);
+  background:var(--card); border:1px solid var(--line); border-radius:6px;
+  padding:5px 10px; cursor:pointer;
+}
+.btn-comp-link-sm:hover{border-color:var(--gold); color:var(--gold)}
+.qs-comp-link-table-wrap{max-height:220px; overflow:auto; border:1px solid var(--line); border-radius:8px; background:var(--card)}
+.qs-comp-link-table{width:100%; border-collapse:collapse; font-size:12px}
+.qs-comp-link-table th,.qs-comp-link-table td{padding:7px 10px; border-bottom:1px solid var(--line); text-align:left; white-space:nowrap}
+.qs-comp-link-table th{
+  position:sticky; top:0; background:var(--bg); font-size:10.5px; font-weight:700;
+  letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3);
+}
+.qs-comp-link-table tr:last-child td{border-bottom:none}
+.qs-comp-link-empty{padding:14px; color:var(--ink-3); text-align:center}
+
 /* ---------- Header ---------- */
 header{
   background:linear-gradient(135deg,#16191e 0%,#1d222a 65%,#242b35 100%);
@@ -781,6 +821,32 @@ html.qs-embed.qs-analysis .analysis-chrome{margin-left:-16px; margin-right:-16px
 <div id="sqaNatBanner" class="qs-nat-banner"></div>
 <div id="histCompBanner" class="qs-hist-banner"></div>
 <div id="compScnBanner" class="qs-nat-banner warn"></div>
+<div id="compLinkPanel" class="qs-comp-link-panel">
+  <div class="qs-comp-link-bar">
+    <button type="button" class="btn-comp-link-toggle" id="compLinkToggle" aria-expanded="false">Show lists to fix in Excel</button>
+    <span class="qs-comp-link-hint">Add missing rows to <b>Component Marks Combined</b> (include SCN where possible), then Replace the workbook.</span>
+  </div>
+  <div id="compLinkPanelBody" class="qs-comp-link-body hidden">
+    <div class="qs-comp-link-section">
+      <h4>Results with no component rows (<span id="compLinkMissingCount">0</span>)</h4>
+      <p class="qs-comp-link-hint" style="margin:0 0 8px">These pupils appear on the results sheet but have no matching name/SCN on Component Marks Combined for this session.</p>
+      <div class="qs-comp-link-actions">
+        <button type="button" class="btn-comp-link-sm" id="compLinkMissingCsv">Download CSV</button>
+        <button type="button" class="btn-comp-link-sm" id="compLinkMissingCopy">Copy for Excel</button>
+      </div>
+      <div class="qs-comp-link-table-wrap"><table class="qs-comp-link-table" id="compLinkMissingTable"></table></div>
+    </div>
+    <div class="qs-comp-link-section">
+      <h4>Component rows not on results (<span id="compLinkOrphanCount">0</span>)</h4>
+      <p class="qs-comp-link-hint" style="margin:0 0 8px">These Combined-sheet rows do not match any results pupil — check forename, surname, SCN, or year.</p>
+      <div class="qs-comp-link-actions">
+        <button type="button" class="btn-comp-link-sm" id="compLinkOrphanCsv">Download CSV</button>
+        <button type="button" class="btn-comp-link-sm" id="compLinkOrphanCopy">Copy for Excel</button>
+      </div>
+      <div class="qs-comp-link-table-wrap"><table class="qs-comp-link-table" id="compLinkOrphanTable"></table></div>
+    </div>
+  </div>
+</div>
 <div id="attBanner" class="qs-nat-banner warn"></div>
 
 <input type="file" id="fileInput" accept=".xlsx,.xlsm,.xls,.csv" class="hidden">
@@ -1201,13 +1267,100 @@ function compLinkStats(){
   const pupilsMissingComps=rows.filter(r=>!comps.some(c=>pupilMatchesComp(r,c))).length;
   return {pupilsWithScn, compsWithScn, linkedComps, totalComps:comps.length, totalRows:rows.length, pupilsMissingComps, orphanComps:comps.length-linkedComps};
 }
+function compLinkLists(){
+  const sess=state.session||'';
+  const rows=state.rows||[];
+  const comps=(state.comps||[]).filter(c=>!sess || c.year===sess || sessionKey(c.year)===sessionKey(sess));
+  return {
+    sess,
+    missingResults: rows.filter(r=>!comps.some(c=>pupilMatchesComp(r,c))),
+    orphanComps: comps.filter(c=>!rows.some(r=>pupilMatchesComp(r,c)))
+  };
+}
+function compLinkCsvPack(type){
+  const {sess, missingResults, orphanComps}=compLinkLists();
+  if(type==='missing'){
+    return {
+      filename:'missing-component-candidates-'+(sess||'session')+'.csv',
+      header:['SCN','Forename','Surname','Subject','Level','Teacher','Session'],
+      rows:missingResults.map(r=>[normalizeScn(r.scn), r.fore||'', r.sur||'', r.subject||'', r.level||'', r.teacher||'', sess])
+    };
+  }
+  return {
+    filename:'orphan-component-rows-'+(sess||'session')+'.csv',
+    header:['SCN','Forename','Surname','Subject','Level','Component','Title','Mark','Year'],
+    rows:orphanComps.map(c=>[normalizeScn(c.scn), c.fore||'', c.sur||'', c.subject||'', c.level||'', c.component||'', c.title||'', c.mark??'', c.year||''])
+  };
+}
+function csvEscapeCell(v){
+  return '"'+String(v??'').replace(/"/g,'""')+'"';
+}
+function compLinkCsvText(pack){
+  return [pack.header.map(csvEscapeCell).join(','), ...pack.rows.map(r=>r.map(csvEscapeCell).join(','))].join('\n');
+}
+function downloadCompLinkCsv(type){
+  const pack=compLinkCsvPack(type);
+  if(!pack.rows.length) return;
+  const blob=new Blob([compLinkCsvText(pack)],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download=pack.filename;
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 4000);
+}
+async function copyCompLinkCsv(type){
+  const pack=compLinkCsvPack(type);
+  if(!pack.rows.length) return;
+  const text=compLinkCsvText(pack);
+  try{
+    await navigator.clipboard.writeText(text);
+    alert('Copied '+pack.rows.length+' row'+(pack.rows.length===1?'':'s')+' — paste into Excel or Component Marks Combined.');
+  }catch(e){
+    downloadCompLinkCsv(type);
+  }
+}
+function renderCompLinkTable(tableId, header, rows){
+  const el=$(tableId); if(!el) return;
+  if(!rows.length){
+    el.innerHTML='<caption class="qs-comp-link-empty">None — all linked for this session.</caption>';
+    return;
+  }
+  let html='<thead><tr>'+header.map(h=>'<th>'+esc(h)+'</th>').join('')+'</tr></thead><tbody>';
+  for(const row of rows){
+    html+='<tr>'+row.map(c=>'<td>'+esc(c)+'</td>').join('')+'</tr>';
+  }
+  el.innerHTML=html+'</tbody>';
+}
+function renderCompLinkPanel(){
+  const panel=$('compLinkPanel'); if(!panel) return;
+  const stats=compLinkStats();
+  const {sess, missingResults, orphanComps}=compLinkLists();
+  const show=stats.totalComps>0 && (missingResults.length || orphanComps.length);
+  panel.classList.toggle('on', show);
+  if(!show){
+    const body=$('compLinkPanelBody'); if(body) body.classList.add('hidden');
+    const toggle=$('compLinkToggle'); if(toggle) toggle.setAttribute('aria-expanded','false');
+    return;
+  }
+  $('compLinkMissingCount').textContent=String(missingResults.length);
+  $('compLinkOrphanCount').textContent=String(orphanComps.length);
+  renderCompLinkTable('compLinkMissingTable',
+    ['SCN','Forename','Surname','Subject','Level','Teacher'],
+    missingResults.map(r=>[normalizeScn(r.scn)||'—', r.fore||'', r.sur||'', r.subject||'', r.level||'', r.teacher||''])
+  );
+  renderCompLinkTable('compLinkOrphanTable',
+    ['SCN','Forename','Surname','Subject','Level','Component','Title','Mark','Year'],
+    orphanComps.map(c=>[normalizeScn(c.scn)||'—', c.fore||'', c.sur||'', c.subject||'', c.level||'', c.component||'', c.title||'', c.mark??'—', c.year||sess])
+  );
+}
 function refreshCompScnBanner(){
   const el=$('compScnBanner'); if(!el) return;
   const s=compLinkStats();
-  if(!s.totalRows && !s.totalComps){ el.classList.remove('on','warn'); el.innerHTML=''; return; }
+  if(!s.totalRows && !s.totalComps){ el.classList.remove('on','warn'); el.innerHTML=''; renderCompLinkPanel(); return; }
   if(s.totalComps===0){
     el.classList.add('on'); el.classList.remove('warn');
     el.innerHTML='No component marks loaded for this session — Combined sheet or QS marks report needed for component charts.';
+    renderCompLinkPanel();
     return;
   }
   let html='Component links: <b>'+s.linkedComps+'</b> / '+s.totalComps+' rows matched to results';
@@ -1219,7 +1372,8 @@ function refreshCompScnBanner(){
   if(s.pupilsMissingComps) html+=' · <b>'+s.pupilsMissingComps+'</b> results pupils with no component rows';
   if(s.orphanComps) html+=' · <b>'+s.orphanComps+'</b> component rows not matched to results';
   el.classList.add('on'); el.classList.toggle('warn', warn);
-  el.innerHTML=html+(warn? ' — check names or add SCN to Component Marks Combined.':'')+'. Save to Hub after Replace.';
+  el.innerHTML=html+(warn? ' — use the fix list below, or add SCN to Component Marks Combined.':'')+'. Save to Hub after Replace.';
+  renderCompLinkPanel();
 }
 
 function headerMap(json0){ const map={}; Object.keys(json0||{}).forEach(k=>map[k.toLowerCase().replace(/[^a-z0-9]/g,'')]=k); return map; }
@@ -4006,6 +4160,25 @@ $('resetFilters').addEventListener('click',()=>{
   state.filters={subject:'All',level:'All',teacher:'All',quintile:'All'};
   renderAll();
 });
+(function initCompLinkPanel(){
+  const toggle=$('compLinkToggle'), body=$('compLinkPanelBody');
+  if(toggle && body && !toggle._bound){
+    toggle._bound=true;
+    toggle.addEventListener('click',()=>{
+      body.classList.toggle('hidden');
+      const showing=!body.classList.contains('hidden');
+      toggle.setAttribute('aria-expanded', String(showing));
+      toggle.textContent=showing?'Hide fix lists':'Show lists to fix in Excel';
+    });
+  }
+  if($('compLinkMissingCsv') && !$('compLinkMissingCsv')._bound){
+    $('compLinkMissingCsv')._bound=true;
+    $('compLinkMissingCsv').addEventListener('click',()=>downloadCompLinkCsv('missing'));
+    $('compLinkMissingCopy').addEventListener('click',()=>copyCompLinkCsv('missing'));
+    $('compLinkOrphanCsv').addEventListener('click',()=>downloadCompLinkCsv('orphan'));
+    $('compLinkOrphanCopy').addEventListener('click',()=>copyCompLinkCsv('orphan'));
+  }
+})();
 ['cSubject','cLevel','cComponent'].forEach(id=>$(id).addEventListener('change',renderComponents));
 ['trSubject','trLevel'].forEach(id=>$(id).addEventListener('change',renderTrends));
 ['schoolCmpLevel','schoolCmpSort'].forEach(id=>{
