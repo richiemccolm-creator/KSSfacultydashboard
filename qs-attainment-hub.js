@@ -114,6 +114,26 @@
     );
   }
 
+  /* Open a snapshot without letting chart/render errors wipe the Years bar */
+  function safeApplySnapshot(row) {
+    try {
+      applySnapshot(row);
+      return true;
+    } catch (err) {
+      highlightYears();
+      syncManagerUi();
+      setStatus(
+        'Opened ' +
+          ((row && row.school_year) || 'session') +
+          ' but charts hit an error: ' +
+          ((err && err.message) || err),
+        'err'
+      );
+      console.error('QS Attainment applySnapshot failed', err);
+      return false;
+    }
+  }
+
   function renderLibrary(rows) {
     if (!libraryEl) return;
     if (!rows || !rows.length) {
@@ -203,7 +223,7 @@
           setStatus('No data found for ' + year, 'err');
           return;
         }
-        applySnapshot(row);
+        safeApplySnapshot(row);
         refreshLibrary(year);
       })
       .catch(function (err) {
@@ -229,27 +249,39 @@
             ? savedRows.length + ' saved year' + (savedRows.length === 1 ? '' : 's') + ' — click to switch'
             : 'No saved years yet — upload and Save to Hub'
         );
+        highlightYears();
+        /* Auto-open latest year separately — never clear chips if charts throw */
         if (!preferYear && !currentCloudYear && savedRows.length && !window.__SNAPSHOT__) {
           var hero = $('uploadHero');
           if (hero && !hero.classList.contains('hidden')) {
-            return Svc.getSnapshot(savedRows[0].school_year).then(function (full) {
-              if (full) applySnapshot(full);
-            });
+            return Svc.getSnapshot(savedRows[0].school_year)
+              .then(function (full) {
+                if (full) safeApplySnapshot(full);
+                return savedRows;
+              })
+              .catch(function (err) {
+                setStatus(
+                  'Years loaded, but could not open the latest: ' + ((err && err.message) || err),
+                  'err'
+                );
+                return savedRows;
+              });
           }
         }
-        highlightYears();
         return savedRows;
       })
       .catch(function (err) {
+        /* Only wipe chips when the Hub list itself failed — not when opening a year */
         var msg = (err && err.message) || String(err);
         if (/relation .* does not exist|qs_attainment_snapshots/i.test(msg)) {
           setStatus('Cloud table not set up yet — run the qs_attainment_snapshots migration.', 'err');
         } else {
           setStatus('Could not load saved sessions: ' + msg, 'err');
         }
-        savedRows = [];
-        renderLibrary([]);
-        renderChips([]);
+        if (!savedRows.length) {
+          renderLibrary([]);
+          renderChips([]);
+        }
       });
   }
 
