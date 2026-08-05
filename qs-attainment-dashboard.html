@@ -399,6 +399,31 @@ header::after{
 .art-path-note b{color:var(--ink-2); font-weight:600}
 #tblArtPath th .hint{font-size:10px; font-weight:500; color:var(--ink-3); display:block; letter-spacing:0}
 
+/* Chart drill-down panel */
+.qs-drill{position:fixed; inset:0; z-index:200; display:flex; justify-content:flex-end; pointer-events:none}
+.qs-drill.hidden{display:none !important}
+.qs-drill:not(.hidden){pointer-events:auto}
+.qs-drill-backdrop{position:absolute; inset:0; background:rgba(10,12,15,.62); backdrop-filter:blur(2px)}
+.qs-drill-sheet{
+  position:relative; width:min(980px,96vw); height:100%; max-height:100vh;
+  background:var(--card); border-left:1px solid var(--line); box-shadow:-12px 0 40px rgba(0,0,0,.4);
+  display:flex; flex-direction:column; animation:qsDrillIn .22s ease;
+}
+@keyframes qsDrillIn{from{transform:translateX(100%); opacity:.6} to{transform:translateX(0); opacity:1}}
+.qs-drill-head{
+  display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+  padding:18px 22px; border-bottom:1px solid var(--line-soft); flex:none;
+}
+.qs-drill-head h2{font-family:var(--serif); font-size:20px; font-weight:600; color:var(--navy-ink); margin:0}
+.qs-drill-head p{margin:4px 0 0; font-size:12.5px; color:var(--ink-3)}
+.qs-drill-close{flex:none; color:var(--ink-2) !important; border-color:var(--line) !important}
+.qs-drill-body{flex:1; overflow:auto; padding:12px 22px 22px}
+.qs-drill-hint{font-size:11.5px; color:var(--ink-3); margin:0 0 10px}
+.qs-drill-table-wrap{max-height:none}
+.qs-drill-table-wrap table{font-size:12px}
+.qs-drill-table-wrap td.comp-cell{max-width:220px; font-size:11px; color:var(--ink-2); line-height:1.45}
+.card h3 .drill-tip{color:var(--gold-soft); font-weight:600}
+
 /* Tables */
 .tbl-wrap{overflow-x:auto; margin-top:14px}
 table{width:100%; border-collapse:collapse; font-size:12.5px}
@@ -960,6 +985,7 @@ html.qs-embed.qs-analysis .analysis-chrome{margin-left:-16px; margin-right:-16px
           <li><b>Chart 1 — How many pupils?</b> Gold bars should shrink; teal bars should grow as Higher is withdrawn.</li>
           <li><b>Chart 2 — Are they passing?</b> Solid lines = % who got A, B or C. Compare gold to gold, teal to teal — not gold to teal.</li>
           <li><b>Chart 3 — How strong are the grades?</b> Average Insight points per pupil. Higher numbers = stronger grades. Teal uses a higher scale than gold — compare each line to its own past, not to the other colour.</li>
+          <li><b>Click any bar</b> on these charts (or grade bars elsewhere) to open a pupil list with grades, components, attendance and SIMD.</li>
         </ul>
       </div>
       <div class="grid c2">
@@ -1044,6 +1070,23 @@ html.qs-embed.qs-analysis .analysis-chrome{margin-left:-16px; margin-right:-16px
     </div>
   </section>
 
+</div>
+
+<div id="qsDrillPanel" class="qs-drill hidden" aria-hidden="true">
+  <div class="qs-drill-backdrop" id="qsDrillBackdrop"></div>
+  <div class="qs-drill-sheet" role="dialog" aria-modal="true" aria-labelledby="qsDrillTitle">
+    <div class="qs-drill-head">
+      <div>
+        <h2 id="qsDrillTitle">Pupils</h2>
+        <p id="qsDrillSub"></p>
+      </div>
+      <button type="button" class="btn btn-ghost qs-drill-close" id="qsDrillClose">Close</button>
+    </div>
+    <div class="qs-drill-body">
+      <p class="qs-drill-hint">Scroll for component marks · reflects current Subject / Level / Teacher / SIMD filters unless noted</p>
+      <div class="tbl-wrap qs-drill-table-wrap"><table id="qsDrillTable"></table></div>
+    </div>
+  </div>
 </div>
 
 <footer>
@@ -1854,6 +1897,21 @@ Chart.defaults.animation.duration = 500;
 function makeChart(id, cfg){
   const el = $(id); if(!el) return;
   if(charts[id]) charts[id].destroy();
+  if(cfg._drill){
+    const drillFn = cfg._drill;
+    delete cfg._drill;
+    cfg.options = cfg.options || {};
+    const prevClick = cfg.options.onClick;
+    const prevHover = cfg.options.onHover;
+    cfg.options.onHover = function(evt, els, chart){
+      if(prevHover) prevHover.call(this, evt, els, chart);
+      if(chart.canvas) chart.canvas.style.cursor = els.length ? 'pointer' : 'default';
+    };
+    cfg.options.onClick = function(evt, els, chart){
+      if(prevClick) prevClick.call(this, evt, els, chart);
+      if(els.length) drillFn(els, chart, evt);
+    };
+  }
   charts[id] = new Chart(el, cfg);
 }
 function emptyChart(id, msg){
@@ -1872,6 +1930,115 @@ function unhideCanvas(id){
 const gridY = {grid:{drawTicks:false}, border:{display:false}};
 const noGridX = {grid:{display:false}, border:{display:false}};
 const pctAxis = max => ({beginAtZero:true, max:max||100, ticks:{callback:v=>v+'%'}, grid:{drawTicks:false}, border:{display:false}});
+
+/* ---------- chart drill-down (click a bar/point → pupil list) ---------- */
+function pupilSoftKey(r){
+  const first=String(r.fore||'').trim().split(/\s+/)[0]||'';
+  const sur=String(r.sur||'').trim();
+  if(!first && !sur) return pupilNameKey(r.name);
+  return nameKey(first, sur);
+}
+function compsForPupil(r){
+  const nk=nameKey(r.fore,r.sur)||pupilNameKey(r.name);
+  const sk=pupilSoftKey(r);
+  const subBase=String(r.subject||'').replace(/\s*\([^)]*\)\s*$/,'').trim();
+  return (state.comps||[]).filter(c=>{
+    if(c.level!==r.level) return false;
+    const ck=nameKey(c.fore,c.sur);
+    if(ck!==nk && ck!==sk) return false;
+    const cs=String(c.subject||'');
+    return cs===r.subject || cs.startsWith(subBase) || r.subject.startsWith(cs.replace(/\s*\([^)]*\)\s*$/,'').trim());
+  });
+}
+function formatCompCell(r){
+  const parts=[];
+  const push=(label,mark,nat)=>{
+    if(mark===null) return;
+    parts.push(label+': '+mark+(nat!==null?' <span style="color:var(--ink-3)">(nat '+fmt1(nat)+')</span>':''));
+  };
+  push('C1', r.c1, r.n1); push('C2', r.c2, r.n2); push('C3', r.c3, r.n3);
+  compsForPupil(r).forEach(c=>{
+    if(c.mark===null) return;
+    const t=compTitle(c);
+    if(parts.some(p=>p.startsWith(t+':'))) return;
+    parts.push(esc(t)+': '+c.mark+(c.nat!==null?' <span style="color:var(--ink-3)">(nat '+fmt1(c.nat)+')</span>':''));
+  });
+  return parts.length ? parts.join('<br>') : '—';
+}
+function renderDrillTable(rows){
+  const sorted=[...rows].sort((a,b)=>(a.name||'').localeCompare(b.name||'')||a.subject.localeCompare(b.subject)||LEVEL_ORDER.indexOf(a.level)-LEVEL_ORDER.indexOf(b.level));
+  let html='<thead><tr><th>Pupil</th><th>Subject</th><th>Level</th><th class="r">Awarded</th><th class="r">Estimate</th><th class="r">CEM pred</th><th class="r">Attendance</th><th class="r">SIMD</th><th class="r">Quintile</th><th>Components</th><th>Teacher</th></tr></thead><tbody>';
+  if(!sorted.length){
+    html+='<tr><td colspan="11" style="padding:24px;text-align:center;color:var(--ink-3)">No pupils in this selection.</td></tr></tbody>';
+    return html;
+  }
+  for(const r of sorted){
+    html+='<tr><td class="strong">'+esc(r.name||'—')+'</td><td>'+esc(r.subject)+'</td><td>'+esc(r.level)+'</td>'+
+      '<td class="r">'+(r.gradeRaw!==null?esc(r.gradeRaw):(r.band!==null?BAND_LABEL[r.band]:'—'))+'</td>'+
+      '<td class="r">'+(r.est!==null?BAND_LABEL[r.est]:'—')+'</td>'+
+      '<td class="r">'+(r.pred!==null?BAND_LABEL[r.pred]:'—')+'</td>'+
+      '<td class="r">'+(r.attendance!==null?r.attendance.toFixed(1)+'%':'—')+'</td>'+
+      '<td class="r">'+(r.decile!==null?r.decile:'—')+'</td>'+
+      '<td class="r">'+(r.quintile!==null?'Q'+r.quintile:'—')+'</td>'+
+      '<td class="comp-cell">'+formatCompCell(r)+'</td>'+
+      '<td>'+esc(r.teacher||'—')+'</td></tr>';
+  }
+  return html+'</tbody>';
+}
+function openDrillPanel(title, subtitle, rows){
+  const panel=$('qsDrillPanel');
+  if(!panel) return;
+  $('qsDrillTitle').textContent=title||'Pupils';
+  $('qsDrillSub').textContent=(subtitle||'')+(rows&&rows.length? ' · '+rows.length+' row'+(rows.length===1?'':'s'):'');
+  $('qsDrillTable').innerHTML=renderDrillTable(rows||[]);
+  panel.classList.remove('hidden');
+  panel.setAttribute('aria-hidden','false');
+  document.body.style.overflow='hidden';
+}
+function closeDrillPanel(){
+  const panel=$('qsDrillPanel');
+  if(!panel) return;
+  panel.classList.add('hidden');
+  panel.setAttribute('aria-hidden','true');
+  document.body.style.overflow='';
+}
+function drillByCluster(cluster, rows){
+  return gradeable(rows).filter(r=>clusterOf(bandOf(r))===cluster);
+}
+function drillByBand(band, rows, extra){
+  let g=gradeable(rows).filter(r=>bandOf(r)===band);
+  if(extra) g=g.filter(extra);
+  return g;
+}
+function enrichTrendRows(trRows){
+  return (trRows||[]).map(tr=>{
+    const m=state.rows.find(r=>
+      r.subject===tr.subject && r.level===tr.level && (
+        (tr.nk && (nameKey(r.fore,r.sur)===tr.nk || pupilNameKey(r.name)===tr.nk)) ||
+        (tr.sk && pupilSoftKey(r)===tr.sk)
+      )
+    );
+    if(m) return m;
+    return {
+      name:[tr.fore,tr.sur].filter(Boolean).join(' ')||'—',
+      fore:tr.fore||'', sur:tr.sur||'',
+      subject:tr.subject, level:tr.level, band:tr.band,
+      gradeRaw: tr.band!==null&&tr.band<=8?BAND_LABEL[tr.band]:null,
+      teacher:'—', attendance:null, decile:null, quintile:null, pred:null, est:null,
+      c1:null,c2:null,c3:null,n1:null,n2:null,n3:null
+    };
+  });
+}
+(function initDrillPanel(){
+  function bind(){
+    const close=$('qsDrillClose'), back=$('qsDrillBackdrop');
+    if(close && !close._drillBound){ close._drillBound=true; close.addEventListener('click', closeDrillPanel); }
+    if(back && !back._drillBound){ back._drillBound=true; back.addEventListener('click', closeDrillPanel); }
+  }
+  bind();
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeDrillPanel(); });
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', bind);
+})();
 
 /* ---------- render orchestration ---------- */
 function renderAll(){
@@ -1933,7 +2100,8 @@ function renderOverview(rows){
   const counts = CLUSTERS.map(c => g.filter(r=>clusterOf(bandOf(r))===c).length);
   if(g.length){ unhideCanvas('chGradeDist');
     makeChart('chGradeDist',{type:'bar',data:{labels:CLUSTERS,datasets:[{data:counts,backgroundColor:CLUSTERS.map(c=>CLUSTER_COLOR[c]),borderRadius:5,maxBarThickness:56}]},
-      options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.y+' pupils ('+fmtPct(pct(c.parsed.y,g.length))+')'}}},scales:{x:noGridX,y:{...gridY,beginAtZero:true,ticks:{precision:0}}}}});
+      _drill:(els)=>{ const cl=CLUSTERS[els[0].index]; openDrillPanel(cl+' grades', 'Click a bar to see pupils · current filters', drillByCluster(cl, rows)); },
+      options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.y+' pupils ('+fmtPct(pct(c.parsed.y,g.length))+') · click to list'}}},scales:{x:noGridX,y:{...gridY,beginAtZero:true,ticks:{precision:0}}}}});
   } else emptyChart('chGradeDist','No graded entries for this filter');
 
   /* A–C by subject */
@@ -1942,7 +2110,8 @@ function renderOverview(rows){
   const acVals = subs.map(s=>acRate(rows.filter(r=>r.subject===s)));
   if(subs.length && acVals.some(v=>v!==null)){ unhideCanvas('chAcBySubject');
     makeChart('chAcBySubject',{type:'bar',data:{labels:subs,datasets:[{data:acVals,backgroundColor:subs.map((s,i)=>SUBJ_COLOR[s]||PALETTE[i%PALETTE.length]),borderRadius:5,maxBarThickness:64}]},
-      options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmtPct(c.parsed.y)+' A–C'}}},scales:{x:noGridX,y:pctAxis()}}});
+      _drill:(els,chart)=>{ const sub=chart.data.labels[els[0].index]; openDrillPanel(sub+' · all levels', 'Every graded entry for this subject', gradeable(rows.filter(r=>r.subject===sub))); },
+      options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmtPct(c.parsed.y)+' A–C · click to list pupils'}}},scales:{x:noGridX,y:pctAxis()}}});
   } else emptyChart('chAcBySubject','Awaiting graded entries');
 
   /* Cohort stacked by level */
@@ -2297,7 +2466,8 @@ function renderAttainment(rows){
   const subs=[...new Set(rows.map(r=>r.subject))].sort();
   if(g.length){ unhideCanvas('chBandProfile');
     makeChart('chBandProfile',{type:'bar',data:{labels:subs,datasets:[1,2,3,4,5,6,7,8,9].map(b=>({label:BAND_LABEL[b],data:subs.map(s=>{const sg=g.filter(r=>r.subject===s);return pct(sg.filter(r=>bandOf(r)===b).length,sg.length)||0;}),backgroundColor:BAND_COLOR[b],maxBarThickness:34}))},
-      options:{indexAxis:'y',plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmtPct(c.parsed.x)}}},scales:{x:{...pctAxis(100),stacked:true},y:{...noGridX,stacked:true}}}});
+      _drill:(els,chart)=>{ const band=els[0].datasetIndex+1; const sub=chart.data.labels[els[0].index]; openDrillPanel(BAND_LABEL[band]+' · '+sub, 'Awarded at this band', drillByBand(band, rows, r=>r.subject===sub)); },
+      options:{indexAxis:'y',plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmtPct(c.parsed.x)+' · click to list'}}},scales:{x:{...pctAxis(100),stacked:true},y:{...noGridX,stacked:true}}}});
   } else emptyChart('chBandProfile','No graded entries for this filter');
 
   const lvls=[...new Set(g.map(r=>r.level))].sort((a,b)=>LEVEL_ORDER.indexOf(a)-LEVEL_ORDER.indexOf(b));
@@ -2336,11 +2506,17 @@ function renderValue(rows){
   const jit=()=> (Math.random()-.5)*.5;
   if(g.length){ unhideCanvas('chVaScatter');
     makeChart('chVaScatter',{type:'scatter',data:{datasets:[
-      {label:'Pupils',data:g.map(r=>({x:r.pred+jit(),y:r.band+jit(),name:r.name,subj:r.subject,lvl:r.level,p:r.pred,b:r.band})),
+      {label:'Pupils',data:g.map(r=>({x:r.pred+jit(),y:r.band+jit(),name:r.name,subj:r.subject,lvl:r.level,p:r.pred,b:r.band,row:r})),
        pointStyle:g.map(r=>r.level==='National 5'?'circle':'triangle'),
        backgroundColor:g.map(r=> r.band<r.pred?'rgba(240,196,74,.85)': r.band>r.pred?'rgba(214,80,66,.85)':'rgba(232,230,223,.55)'),pointRadius:4.5,pointHoverRadius:6},
       {label:'Prediction line',type:'line',data:[{x:1,y:1},{x:8,y:8}],borderColor:'#f0c04a',borderWidth:1.5,borderDash:[6,4],pointRadius:0,fill:false}
-    ]},options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>{const d=c.raw; return d.name? d.name+' · '+d.subj+' '+(d.lvl==='National 5'?'':'('+d.lvl+', extrapolated) ')+'— predicted '+BAND_LABEL[d.p]+', awarded '+BAND_LABEL[d.b] : '';}}}},
+    ]},
+      _drill:(els,chart)=>{
+        if(els[0].datasetIndex!==0) return;
+        const d=chart.data.datasets[0].data[els[0].index];
+        openDrillPanel(d.name||'Pupil', 'CEM predicted '+BAND_LABEL[d.p]+' · awarded '+BAND_LABEL[d.b], d.row?[d.row]:[]);
+      },
+      options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>{const d=c.raw; return d.name? d.name+' · '+d.subj+' '+(d.lvl==='National 5'?'':'('+d.lvl+', extrapolated) ')+'— predicted '+BAND_LABEL[d.p]+', awarded '+BAND_LABEL[d.b]+' · click for details' : '';}}}},
       scales:{x:{title:{display:true,text:'CEM predicted band'},min:0,max:9,ticks:{stepSize:1,callback:v=>BAND_LABEL[v]||''},grid:{drawTicks:false},border:{display:false}},
               y:{title:{display:true,text:'Awarded band'},min:0,max:10,reverse:true,ticks:{stepSize:1,callback:v=>BAND_LABEL[v]||''},grid:{drawTicks:false},border:{display:false}}}}});
   } else emptyChart('chVaScatter', ext? 'No pupils with both a CEM baseline and an awarded grade' : 'No National 5 pupils with both a CEM baseline and an awarded grade — use the toggle above to include extrapolated levels');
@@ -2363,7 +2539,8 @@ function renderValue(rows){
   const counts=[0,0,0,0,0,0,0]; diffs.forEach(d=>counts[binIdx(d)]++);
   if(we.length){ unhideCanvas('chEstAcc');
     makeChart('chEstAcc',{type:'bar',data:{labels:bins,datasets:[{data:counts,backgroundColor:bins.map((b,i)=>i===3?'#e3b04b':Math.abs(i-3)===1?'#d8cf9e':'#c23b2e'),borderRadius:5,maxBarThickness:52}]},
-      options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.y+' pupils ('+fmtPct(pct(c.parsed.y,we.length))+')'}}},
+      _drill:(els)=>{ const i=els[0].index; const picked=we.filter(r=>binIdx(r.est-r.band)===i); openDrillPanel('Estimate accuracy · '+bins[i], 'Awarded vs teacher estimate', picked); },
+      options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.y+' pupils ('+fmtPct(pct(c.parsed.y,we.length))+') · click to list'}}},
         scales:{x:{...noGridX,title:{display:true,text:'estimate optimistic ← 0 → estimate cautious'}},y:{...gridY,beginAtZero:true,ticks:{precision:0}}}}});
   } else emptyChart('chEstAcc','No pupils with both an estimate and an awarded grade');
 
@@ -2394,7 +2571,8 @@ function renderEquity(rows){
   const qData=qs.map(q=>{const qr=rows.filter(r=>r.quintile===q);return {q, n:qr.length, ac:acRate(qr)};});
   if(qData.some(d=>d.n>0)){ unhideCanvas('chAcQuintile');
     makeChart('chAcQuintile',{type:'bar',data:{labels:qs.map(q=>'Q'+q),datasets:[{data:qData.map(d=>d.ac),backgroundColor:['#c23b2e','#ce8147','#e3b04b','#d8cf9e','#efe9d0'],borderRadius:5,maxBarThickness:56}]},
-      options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmtPct(c.parsed.y)+' A–C · '+qData[c.dataIndex].n+' pupils'}}},scales:{x:{...noGridX,title:{display:true,text:'Q1 most deprived → Q5 least deprived'+(simdMiss? ' · '+simdN+' of '+rows.length+' with SIMD':'')}},y:pctAxis()}}});
+      _drill:(els)=>{ const q=qs[els[0].index]; openDrillPanel('SIMD Q'+q, 'Q1 most deprived → Q5 least deprived', rows.filter(r=>r.quintile===q)); },
+      options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmtPct(c.parsed.y)+' A–C · '+qData[c.dataIndex].n+' pupils · click to list'}}},scales:{x:{...noGridX,title:{display:true,text:'Q1 most deprived → Q5 least deprived'+(simdMiss? ' · '+simdN+' of '+rows.length+' with SIMD':'')}},y:pctAxis()}}});
   } else emptyChart('chAcQuintile', noSimdMsg);
 
   const subs=[...new Set(rows.map(r=>r.subject))].sort();
@@ -2446,7 +2624,8 @@ function renderEquity(rows){
   const decs=[...new Set(gD.map(r=>r.decile))].sort((a,b)=>a-b);
   if(gD.length){ unhideCanvas('chSimdProfile');
     makeChart('chSimdProfile',{type:'bar',data:{labels:decs.map(d=>String(d)),datasets:[1,2,3,4,5,6,7,8,9].map(b=>({label:BAND_LABEL[b],data:decs.map(d=>{const dg=gD.filter(r=>r.decile===d);return pct(dg.filter(r=>bandOf(r)===b).length,dg.length)||0;}),backgroundColor:BAND_COLOR[b],maxBarThickness:44}))},
-      options:{plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmtPct(c.parsed.y)}}},
+      _drill:(els,chart)=>{ const band=els[0].datasetIndex+1; const dec=parseInt(chart.data.labels[els[0].index],10); openDrillPanel('SIMD decile '+dec+' · '+BAND_LABEL[band], 'Band profile drill-down', drillByBand(band, rows, r=>r.decile===dec)); },
+      options:{plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmtPct(c.parsed.y)+' · click to list'}}},
         scales:{x:{...noGridX,stacked:true,title:{display:true,text:'SIMD decile'}},y:{...pctAxis(100),stacked:true}}}});
   } else emptyChart('chSimdProfile','No SIMD data for this filter');
 }
@@ -2465,10 +2644,16 @@ function renderAttendance(rows){
     const slope=den?num/den:0, icept=my-slope*mx;
     const x0=Math.min(...xs), x1=Math.max(...xs);
     makeChart('chAttScatter',{type:'scatter',data:{datasets:[
-      {label:'Pupils',data:g.map(r=>({x:r.attendance,y:bandOf(r)+(Math.random()-.5)*.4,name:r.name,subj:r.subject,b:bandOf(r)})),
+      {label:'Pupils',data:g.map(r=>({x:r.attendance,y:bandOf(r)+(Math.random()-.5)*.4,name:r.name,subj:r.subject,b:bandOf(r),row:r})),
        backgroundColor:g.map(r=>r.attendance<80?'rgba(214,80,66,.8)':r.attendance<90?'rgba(206,129,71,.8)':'rgba(232,230,223,.45)'),pointRadius:4.5,pointHoverRadius:6},
       {label:'Trend',type:'line',data:[{x:x0,y:slope*x0+icept},{x:x1,y:slope*x1+icept}],borderColor:'#f0c04a',borderWidth:2,borderDash:[6,4],pointRadius:0}
-    ]},options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>{const d=c.raw;return d.name? d.name+' · '+d.subj+' — '+d.x.toFixed(1)+'% · '+BAND_LABEL[d.b]:'';}}}},
+    ]},
+      _drill:(els,chart)=>{
+        if(els[0].datasetIndex!==0) return;
+        const d=chart.data.datasets[0].data[els[0].index];
+        openDrillPanel(d.name||'Pupil', d.subj+' · attendance '+d.x.toFixed(1)+'% · '+BAND_LABEL[d.b], d.row?[d.row]:[]);
+      },
+      options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>{const d=c.raw;return d.name? d.name+' · '+d.subj+' — '+d.x.toFixed(1)+'% · '+BAND_LABEL[d.b]+' · click for details':'';}}}},
       scales:{x:{title:{display:true,text:'Attendance %'},grid:{drawTicks:false},border:{display:false}},
               y:{title:{display:true,text:'Band'+e},min:0,max:9,reverse:true,ticks:{stepSize:1,callback:v=>BAND_LABEL[v]||''},grid:{drawTicks:false},border:{display:false}}}}});
   } else emptyChart('chAttScatter','Need attendance + grades — Replace with the faculty workbook (Attendance Data sheet is joined automatically), then Save to Hub');
@@ -2479,7 +2664,8 @@ function renderAttendance(rows){
   const ns=bands.map(([l,f])=>withAtt.filter(f).length);
   if(withAtt.length){ unhideCanvas('chAcAttBand');
     makeChart('chAcAttBand',{type:'bar',data:{labels:bands.map(b=>b[0]),datasets:[{data:vals,backgroundColor:bands.map(b=>b[2]),borderRadius:5,maxBarThickness:60}]},
-      options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmtPct(c.parsed.x)+' A–C · '+ns[c.dataIndex]+' pupils'}}},scales:{x:pctAxis(),y:noGridX}}});
+      _drill:(els)=>{ const f=bands[els[0].index][1]; openDrillPanel(bands[els[0].index][0], 'Attendance band · current filters', withAtt.filter(f)); },
+      options:{indexAxis:'y',plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmtPct(c.parsed.x)+' A–C · '+ns[c.dataIndex]+' pupils · click to list'}}},scales:{x:pctAxis(),y:noGridX}}});
   } else emptyChart('chAcAttBand','No attendance in this Hub save — Replace with KSS SQA Data 25-26.xlsx, then Save to Hub');
 }
 /* ============================ 06 COMPONENTS ============================ */
@@ -2760,7 +2946,13 @@ function renderTrends(){
   makeChart('chTrendGrades',{type:'bar',data:{labels:years,datasets:gClusters.map(cl=>({label:cl,
     data:years.map(y=>pct(rows.filter(r=>r.year===y&&clusterOf(r.band)===cl).length,yearN(y))),
     backgroundColor:CLUSTER_COLOR[cl],borderRadius:3,maxBarThickness:30}))},
-    options:{plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmtPct(c.parsed.y)}}},
+    _drill:(els,chart)=>{
+      const year=chart.data.labels[els[0].index];
+      const cluster=gClusters[els[0].datasetIndex];
+      const trRows=rows.filter(r=>r.year===year&&clusterOf(r.band)===cluster);
+      openDrillPanel(cluster+' · '+year+' · '+ts+' · '+tl, 'Over-time grade profile · matched to results where possible', enrichTrendRows(trRows));
+    },
+    options:{plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmtPct(c.parsed.y)+' · click to list'}}},
       scales:{x:noGridX,y:pctAxis(null)}}});
 
   /* A and A–C rate by year */
@@ -2868,6 +3060,38 @@ function dedupeArtPathwayRows(all){
   }
   return [...by.values()];
 }
+function getArtPathwayArtRows(){
+  const all=trendBands();
+  const sess=state.session||'';
+  let art=dedupeArtPathwayRows(all);
+  if(sess && !state.preResults){
+    const resH=artPathwayRowsFromResults('Higher');
+    const resAH=artPathwayRowsFromResults('Advanced Higher');
+    if(resH.length||resAH.length){
+      art=art.filter(r=>r.year!==sess);
+      art=art.concat(dedupeArtPathwayRows(resH.concat(resAH)));
+    }
+  }
+  return art;
+}
+function enrichPathwayRows(pathRows){
+  return (pathRows||[]).map(pr=>{
+    const m=state.rows.find(r=>
+      isArtDesignSubject(r.subject) && r.level===pr.level &&
+      ((pr.nk && (nameKey(r.fore,r.sur)===pr.nk || pupilNameKey(r.name)===pr.nk)) ||
+       (pr.sk && softNameKey(r.fore,r.sur)===pr.sk))
+    );
+    if(m) return m;
+    return {
+      name:[pr.fore,pr.sur].filter(Boolean).join(' ')||'—',
+      fore:pr.fore||'', sur:pr.sur||'',
+      subject:pr.subject, level:pr.level, band:pr.band,
+      gradeRaw: pr.band!==null&&pr.band<=8?BAND_LABEL[pr.band]:null,
+      teacher:'—', attendance:null, decile:null, quintile:null, pred:null, est:null,
+      c1:null,c2:null,c3:null,n1:null,n2:null,n3:null
+    };
+  });
+}
 /* Current session: results sheet is the authoritative Art Higher / AH roster */
 function artPathwayRowsFromResults(level){
   const sess=state.session || '';
@@ -2971,7 +3195,14 @@ function renderArtPathway(all){
   makeChart('chArtPathEntries',{type:'bar',data:{labels:years,datasets:[
     {label:'Higher — pupils',data:stats.map(s=>s.higher.n||null),backgroundColor:ART_PATH_H,borderRadius:4,maxBarThickness:36},
     {label:'Advanced Higher — pupils',data:stats.map(s=>s.ah.n||null),backgroundColor:ART_PATH_AH,borderRadius:4,maxBarThickness:36}
-  ]},options:{plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+(c.parsed.y||0)+' pupils'}}},
+  ]},
+    _drill:(els,chart)=>{
+      const year=chart.data.labels[els[0].index];
+      const level=els[0].datasetIndex===0?'Higher':'Advanced Higher';
+      const raw=getArtPathwayArtRows().filter(r=>r.year===year&&r.level===level);
+      openDrillPanel(level+' Art · '+year, 'Pathway entry drill-down', enrichPathwayRows(raw));
+    },
+    options:{plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+(c.parsed.y||0)+' pupils · click to list'}}},
     scales:{x:noGridX,y:{...gridY,beginAtZero:true,ticks:{precision:0},title:{display:true,text:'Number of pupils'}}}}});
 
   unhideCanvas('chArtPathAC');
@@ -3041,7 +3272,8 @@ function renderTeacher(){
   if(g.length){ unhideCanvas('chTGrades');
     const counts=CLUSTERS.map(cl=>g.filter(r=>clusterOf(bandOf(r))===cl).length);
     makeChart('chTGrades',{type:'bar',data:{labels:CLUSTERS,datasets:[{data:counts,backgroundColor:CLUSTERS.map(cl=>CLUSTER_COLOR[cl]),borderRadius:5,maxBarThickness:52}]},
-      options:{plugins:{legend:{display:false}},scales:{x:noGridX,y:{...gridY,beginAtZero:true,ticks:{precision:0}}}}});
+      _drill:(els)=>{ const cl=CLUSTERS[els[0].index]; openDrillPanel(cl+' grades · '+t, scopeLabel, drillByCluster(cl, rows)); },
+      options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.y+' pupils · click to list'}}},scales:{x:noGridX,y:{...gridY,beginAtZero:true,ticks:{precision:0}}}}});
   } else emptyChart('chTGrades','No graded entries yet');
 
   /* Estimates outcome doughnut — selected teacher */
@@ -3562,7 +3794,7 @@ function runReport(kind,arg){
 
 /* ============================ Chart reading guides ============================ */
 const CHART_TIPS={
-  chGradeDist:'Counts every graded entry by final grade cluster. Taller bars towards the left (A, B) = stronger results. DNA = did not attempt.',
+  chGradeDist:'Counts every graded entry by final grade cluster. Taller bars towards the left (A, B) = stronger results. DNA = did not attempt. Click a bar to list those pupils with full detail.',
   chAcBySubject:'The percentage of each subject’s entries awarded A–C (bands 1–6). Use it to compare subjects at a glance — hover a bar for the exact figure.',
   chCohort:'How many entries each subject presents, stacked by course level. This shows the size and shape of the cohort — not results.',
   chBandProfile:'Splits each subject’s results into the nine QS bands as percentages. More gold (A bands) at the left of each bar is better; red is No Award, grey is DNA.',
