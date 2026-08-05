@@ -1075,7 +1075,7 @@ html.qs-embed.qs-analysis .analysis-chrome{margin-left:-16px; margin-right:-16px
     <div class="grid c2">
       <div class="card">
         <h3>Faculty report</h3>
-        <p class="rep-desc">The complete picture: whole-faculty summary, attainment by level, equity, value added, multi-year trends, areas for development for the <b>faculty improvement plan</b>, plus a section per subject.</p>
+        <p class="rep-desc">The complete picture: whole-faculty summary, attainment by level, equity, value added, multi-year trends, areas for development for the <b>faculty improvement plan</b>, plus a section per subject with its own attainment-over-time charts and departmental review questions (predicted attainment, comparative rank, components vs national).</p>
         <button class="btn btn-gold" id="repFacultyBtn">Generate faculty report</button>
       </div>
       <div class="card">
@@ -3833,7 +3833,59 @@ function openReportWindow(title){
   w.document.close();
   return w;
 }
-function subjectSection(subject, mini){
+/* Per-level departmental review Q&A tables (predicted attainment, comparative rank, components vs national). */
+function reviewQaTables(subject, opts){
+  const o=opts||{};
+  const pageBreak=!!o.pageBreak;
+  const rowsAll=state.rows.filter(r=>r.subject===subject);
+  if(!rowsAll.length) return '';
+  const e=estTag();
+  const lvls=[...new Set(rowsAll.map(r=>r.level))].filter(l=>l!=='NPA').sort((a,b)=>LEVEL_ORDER.indexOf(a)-LEVEL_ORDER.indexOf(b));
+  const qa=(q,a)=>'<tr><td class="s" style="width:62%">'+q+'</td><td>'+a+'</td></tr>';
+  let h='';
+  for(let li=0; li<lvls.length; li++){
+    const l=lvls[li];
+    const rows=rowsAll.filter(r=>r.level===l);
+    if(pageBreak) h+='<div class="pb"></div>';
+    h+='<'+(pageBreak?'h2':'h3')+'>'+esc(subject)+' — '+esc(l)+' <span style="font-size:10px;color:#7c8794;text-transform:none;letter-spacing:.02em;font-weight:500">('+rows.length+' pupils)</span></'+(pageBreak?'h2':'h3')+'>';
+    h+='<table><thead><tr><th>Question</th><th>Answer</th></tr></thead><tbody>';
+    const we=gradeable(rows).filter(r=>r.est!==null&&bandOf(r)!==null);
+    const exc=we.filter(r=>bandOf(r)<r.est).length, mat=we.filter(r=>bandOf(r)===r.est).length, low=we.filter(r=>bandOf(r)>r.est).length;
+    const p=(x)=>we.length? x+' &nbsp;<span style="color:#7c8794">('+fmtPct(pct(x,we.length))+' of '+we.length+')</span>' : 'No estimates recorded';
+    h+=qa('How many / what % of young people <b>exceeded</b> their predicted attainment?'+e, we.length?p(exc):'—');
+    h+=qa('How many / what % of young people <b>matched</b> their predicted attainment?'+e, we.length?p(mat):'—');
+    h+=qa('How many / what % of young people attained <b>lower</b> than their predicted attainment?'+e, we.length?p(low):'—');
+    const rk=state.preResults? null : rankStats(rows,subject);
+    const rkAns=(x)=>rk? x+' &nbsp;<span style="color:#7c8794">('+fmtPct(pct(x,rk.n))+' of '+rk.n+' comparable pupils)</span>' : '<span style="color:#9a7a1a">Awaiting whole-school data upload</span>';
+    h+=qa('For how many / what % of young people was '+esc(subject)+' their <b>highest</b> attainment?', rkAns(rk?rk.hi:0));
+    h+=qa('…their <b>equal highest</b> attainment?', rkAns(rk?rk.eq:0));
+    h+=qa('…their <b>lowest</b> attainment?', rkAns(rk?rk.lo:0));
+    const latestYear=[...new Set(state.comps.map(r=>r.year))].sort().pop();
+    for(const i of [1,2,3]){
+      const ck='c'+i, nk='n'+i;
+      let kss=avg(rows.map(r=>r[ck]).filter(v=>v!==null)), nat=avg(rows.map(r=>r[nk]).filter(v=>v!==null)), title='';
+      if((kss===null||nat===null) && latestYear){
+        const cr=state.comps.filter(r=>r.year===latestYear&&r.subject.startsWith(subject)&&r.level===l&&String(r.component)===String(i));
+        if(cr.length){
+          if(kss===null) kss=avg(cr.filter(r=>r.mark!==null).map(r=>r.mark));
+          if(nat===null) nat=avg(cr.filter(r=>r.nat!==null).map(r=>r.nat));
+          title=cr[0].title;
+        }
+      }
+      let ans='Not yet entered';
+      if(kss!==null&&nat!==null){ const d=kss-nat;
+        ans='Cohort '+kss.toFixed(1)+' vs national '+nat.toFixed(1)+' — <b>'+Math.abs(d).toFixed(1)+' marks '+(d>=0?'above':'below')+'</b>';
+      } else if(kss!==null) ans='Cohort '+kss.toFixed(1)+' — national average not entered';
+      h+=qa('How did your component marks compare to the national average? <b>Component '+i+(title?' · '+esc(title):'')+'</b>', ans);
+    }
+    h+='</tbody></table>';
+  }
+  return h;
+}
+const REVIEW_METHOD_NOTES='<div class="foot" style="text-align:left">Method notes: “predicted attainment” = teacher estimate (band). Highest / lowest attainment compares this subject against every other subject the pupil sat, using Insight National Course ready-reckoner tariff points (N5 A=84, Higher A=204, AH A=480 — so a Higher award outranks the same grade at National 5); pupils are only counted when whole-school data contains at least one other subject for them. This is not Insight complementary/total leaver tariff.</div>';
+function subjectSection(subject, opts){
+  const o=(opts===true||opts===false)? {mini:opts} : (opts||{});
+  const withReview=!!o.withReview;
   const rows=state.rows.filter(r=>r.subject===subject);
   if(!rows.length) return '';
   const comps=state.comps.filter(r=>r.subject.startsWith(subject));
@@ -3842,11 +3894,17 @@ function subjectSection(subject, mini){
   h+='<h3>Attainment by level</h3>'+repLevelTables(rows,false);
   h+='<div class="two"><div class="card"><div class="ct">Grade distribution'+estTag()+'</div>'+chartImg(repCfg.gradeDist(rows),230)+'</div>';
   h+='<div class="card"><div class="ct">A–C rate by SIMD quintile'+estTag()+'</div>'+chartImg(repCfg.quintile(rows),230)+'</div></div>';
-  if(!mini){
-    if(tr.length && [...new Set(tr.map(r=>r.year))].length>1)
-      h+='<div class="card"><div class="ct">Average band by year — lower is better</div>'+chartImg(repCfg.trendBand(tr),260)+'</div>';
-    if(comps.some(r=>r.mark!==null))
-      h+='<div class="card"><div class="ct">Component breakdown by year — cohort (solid) vs national (faded)</div>'+chartImg(repCfg.compBreak(comps),290)+'</div>';
+  if(tr.length && [...new Set(tr.map(r=>r.year))].length>1){
+    h+='<h3>Attainment over time — '+esc(subject)+'</h3>';
+    h+='<div class="card"><div class="ct">A and A–C rate by year</div>'+chartImg(repCfg.trendAC(tr),240)+'</div>';
+    h+='<div class="card"><div class="ct">Average band by year — lower is better</div>'+chartImg(repCfg.trendBand(tr),260)+'</div>';
+  }
+  if(comps.some(r=>r.mark!==null))
+    h+='<div class="card"><div class="ct">Component breakdown by year — cohort (solid) vs national (faded)</div>'+chartImg(repCfg.compBreak(comps),290)+'</div>';
+  if(withReview){
+    h+='<h3>Departmental review questions — '+esc(subject)+'</h3>';
+    if(state.preResults) h+='<div class="card" style="border-left:3px solid #b8912f"><div class="de"><b>Pre-results:</b> prediction-outcome questions below use teacher estimates only and will finalise once awarded grades are entered.</div></div>';
+    h+=reviewQaTables(subject);
   }
   h+='<h3>Areas for development — '+esc(subject)+'</h3>'+devAreasHtml(rows,comps,subject);
   return h;
@@ -3865,18 +3923,20 @@ function facultyReport(){
   if(!state.preResults) h+='<h2>Value added</h2><div class="card"><div class="ct">Average bands vs CEM prediction, by teacher — National 5 pupils only (CEM predictions are not validated beyond N5)</div>'+chartImg(repCfg.vaTeacher(rows),260)+'</div>';
   const tr=trendBands();
   if(tr.length && [...new Set(tr.map(r=>r.year))].length>1){
-    h+='<div class="pb"></div><h2>Attainment over time</h2>';
+    h+='<div class="pb"></div><h2>Attainment over time — faculty overview</h2>';
     h+='<div class="card"><div class="ct">A and A–C rate by year</div>'+chartImg(repCfg.trendAC(tr),240)+'</div>';
-    h+='<div class="card"><div class="ct">Average band by year — lower is better</div>'+chartImg(repCfg.trendBand(tr),280)+'</div>';
+    h+='<div class="card"><div class="ct">Average band by year — lower is better · all subjects</div>'+chartImg(repCfg.trendBand(tr),280)+'</div>';
     const cYears=[...new Set(state.comps.filter(r=>r.mark!==null&&r.nat!==null).map(r=>r.year))].sort();
     h+='<div class="card"><div class="ct">Trend analysis</div><ul class="heads">'+trendHeadlines(tr,[...new Set(tr.map(r=>r.year))].sort(),state.comps.filter(r=>r.mark!==null),cYears).map(x=>'<li>'+x+'</li>').join('')+'</ul></div>';
+    h+='<div class="de" style="margin-top:6px">Per-subject trend charts and review questions appear in each subject section below.</div>';
   }
   h+='<div class="pb"></div><h2>Areas for development — faculty improvement plan</h2>'+devAreasHtml(rows,state.comps,'the faculty');
-  for(const s of [...new Set(rows.map(r=>r.subject))].sort()) h+='<div class="pb"></div>'+subjectSection(s,true);
+  for(const s of [...new Set(rows.map(r=>r.subject))].sort()) h+='<div class="pb"></div>'+subjectSection(s,{withReview:true});
+  h+=REVIEW_METHOD_NOTES;
   return h+repFoot;
 }
 function subjectReport(subject){
-  return repHead(subject+' — Subject Report')+subjectSection(subject,false)+repFoot;
+  return repHead(subject+' — Subject Report')+subjectSection(subject)+repFoot;
 }
 function teacherReport(t){
   const rows=state.rows.filter(r=>r.teacher===t);
@@ -3973,7 +4033,6 @@ function handleSchoolFile(file){
 }
 function reviewReport(subject){
   const rowsAll=state.rows.filter(r=>r.subject===subject);
-  const e=estTag();
   let h=repHead('Departmental Review — '+subject);
   h+='<div class="card"><table><tbody>'+
     '<tr><td class="s" style="width:30%">Department</td><td>Faculty of Art &amp; Drama</td></tr>'+
@@ -3987,48 +4046,9 @@ function reviewReport(subject){
   h+=box('What went well this session?','Type here…');
   h+=box('What was tricky?','Type here…');
   h+=box('What do you plan to change for next session?','Type here…');
-  const lvls=[...new Set(rowsAll.map(r=>r.level))].filter(l=>l!=='NPA').sort((a,b)=>LEVEL_ORDER.indexOf(a)-LEVEL_ORDER.indexOf(b));
-  const qa=(q,a)=>'<tr><td class="s" style="width:62%">'+q+'</td><td>'+a+'</td></tr>';
-  for(const l of lvls){
-    const rows=rowsAll.filter(r=>r.level===l);
-    h+='<div class="pb"></div><h2>'+esc(subject)+' — '+esc(l)+' <span style="font-size:10px;color:#7c8794;text-transform:none;letter-spacing:.02em">('+rows.length+' pupils)</span></h2>';
-    h+='<table><thead><tr><th>Question</th><th>Answer</th></tr></thead><tbody>';
-    /* predicted attainment = teacher estimate */
-    const we=gradeable(rows).filter(r=>r.est!==null&&bandOf(r)!==null);
-    const exc=we.filter(r=>bandOf(r)<r.est).length, mat=we.filter(r=>bandOf(r)===r.est).length, low=we.filter(r=>bandOf(r)>r.est).length;
-    const p=(x)=>we.length? x+' &nbsp;<span style="color:#7c8794">('+fmtPct(pct(x,we.length))+' of '+we.length+')</span>' : 'No estimates recorded';
-    h+=qa('How many / what % of young people <b>exceeded</b> their predicted attainment?'+e, we.length?p(exc):'—');
-    h+=qa('How many / what % of young people <b>matched</b> their predicted attainment?'+e, we.length?p(mat):'—');
-    h+=qa('How many / what % of young people attained <b>lower</b> than their predicted attainment?'+e, we.length?p(low):'—');
-    /* highest / lowest attainment — whole-school comparison */
-    const rk=state.preResults? null : rankStats(rows,subject);
-    const rkAns=(x)=>rk? x+' &nbsp;<span style="color:#7c8794">('+fmtPct(pct(x,rk.n))+' of '+rk.n+' comparable pupils)</span>' : '<span style="color:#9a7a1a">Awaiting whole-school data upload</span>';
-    h+=qa('For how many / what % of young people was '+esc(subject)+' their <b>highest</b> attainment?', rkAns(rk?rk.hi:0));
-    h+=qa('…their <b>equal highest</b> attainment?', rkAns(rk?rk.eq:0));
-    h+=qa('…their <b>lowest</b> attainment?', rkAns(rk?rk.lo:0));
-    /* components vs national */
-    const latestYear=[...new Set(state.comps.map(r=>r.year))].sort().pop();
-    for(const i of [1,2,3]){
-      const ck='c'+i, nk='n'+i;
-      let kss=avg(rows.map(r=>r[ck]).filter(v=>v!==null)), nat=avg(rows.map(r=>r[nk]).filter(v=>v!==null)), title='';
-      if((kss===null||nat===null) && latestYear){
-        const cr=state.comps.filter(r=>r.year===latestYear&&r.subject.startsWith(subject)&&r.level===l&&String(r.component)===String(i));
-        if(cr.length){
-          if(kss===null) kss=avg(cr.filter(r=>r.mark!==null).map(r=>r.mark));
-          if(nat===null) nat=avg(cr.filter(r=>r.nat!==null).map(r=>r.nat));
-          title=cr[0].title;
-        }
-      }
-      let ans='Not yet entered';
-      if(kss!==null&&nat!==null){ const d=kss-nat;
-        ans='Cohort '+kss.toFixed(1)+' vs national '+nat.toFixed(1)+' — <b>'+Math.abs(d).toFixed(1)+' marks '+(d>=0?'above':'below')+'</b>';
-      } else if(kss!==null) ans='Cohort '+kss.toFixed(1)+' — national average not entered';
-      h+=qa('How did your component marks compare to the national average? <b>Component '+i+(title?' · '+esc(title):'')+'</b>', ans);
-    }
-    h+='</tbody></table>';
-  }
+  h+=reviewQaTables(subject,{pageBreak:true});
   h+='<h2>Component analysis</h2>'+box('What actions are you taking in light of your component mark analysis?','Type here…');
-  h+='<div class="foot" style="text-align:left">Method notes: “predicted attainment” = teacher estimate (band). Highest / lowest attainment compares this subject against every other subject the pupil sat, using Insight National Course ready-reckoner tariff points (N5 A=84, Higher A=204, AH A=480 — so a Higher award outranks the same grade at National 5); pupils are only counted when whole-school data contains at least one other subject for them. This is not Insight complementary/total leaver tariff.</div>';
+  h+=REVIEW_METHOD_NOTES;
   return h+repFoot;
 }
 
