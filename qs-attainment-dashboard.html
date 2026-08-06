@@ -1631,17 +1631,20 @@ function makeHistAward(year, r){
 function mergeHistAwards(incoming){
   if(!incoming||!incoming.length) return 0;
   if(!state.histAwards) state.histAwards=[];
+  const open=sessionKey(state.session||'');
   const map=new Map(state.histAwards.map(a=>[histAwardKey(a), a]));
   let added=0;
   incoming.forEach(a=>{
     if(!a || a.band===null || a.band===undefined) return;
+    const yk=sessionKey(a.year);
+    if(open && yk && !sessionIsBefore(yk, open)) return; /* never import open/later years as "history" */
     const k=histAwardKey(a);
     if(!k || k.startsWith('¦')) return;
     if(!map.has(k)) added++;
     map.set(k, a);
   });
   state.histAwards=[...map.values()];
-  stampAwardsOntoComps(incoming);
+  stampAwardsOntoComps(incoming.filter(a=>a && (!open || sessionIsBefore(a.year, open))));
   return added;
 }
 function stampAwardsOntoComps(awards){
@@ -1665,7 +1668,12 @@ function stampCurrentSessionAwardsOntoComps(){
   const sess=sessionKey(state.session||'');
   if(!sess || state.preResults) return 0;
   const awards=(state.rows||[]).map(r=>makeHistAward(sess, r)).filter(Boolean);
-  mergeHistAwards(awards.filter(a=>a.year===sess)); /* keep current-year awards in hist store too for save/reload consistency */
+  if(!awards.length) return 0;
+  /* Keep this session’s awards in histAwards for Save/reload — Hub history merge stays prior-years only */
+  if(!state.histAwards) state.histAwards=[];
+  const map=new Map(state.histAwards.map(a=>[histAwardKey(a), a]));
+  awards.forEach(a=>{ if(a) map.set(histAwardKey(a), a); });
+  state.histAwards=[...map.values()];
   return stampAwardsOntoComps(awards);
 }
 
@@ -1855,6 +1863,48 @@ function sessionKey(y){
   if(m) return m[1]+'-'+m[2];
   return s;
 }
+/* True if year A is strictly before year B (e.g. 24-25 before 25-26). Lexicographic works for YY-YY. */
+function sessionIsBefore(a, b){
+  const A=sessionKey(a), B=sessionKey(b);
+  if(!A || !B) return false;
+  return A < B;
+}
+function sessionIsAfter(a, b){
+  const A=sessionKey(a), B=sessionKey(b);
+  if(!A || !B) return false;
+  return A > B;
+}
+/* Drop comps / histAwards from years after the open session (fixes polluted Hub saves). */
+function scrubFutureYearsFromSession(sess, opts){
+  opts=opts||{};
+  const open=sessionKey(sess||state.session||'');
+  if(!open) return {comps:0, awards:0, years:[]};
+  const badYears=new Set();
+  const beforeC=(state.comps||[]).length;
+  state.comps=(state.comps||[]).filter(c=>{
+    const y=sessionKey(c.year);
+    if(y && sessionIsAfter(y, open)){ badYears.add(y); return false; }
+    return true;
+  });
+  const beforeA=(state.histAwards||[]).length;
+  state.histAwards=(state.histAwards||[]).filter(a=>{
+    const y=sessionKey(a.year);
+    if(y && sessionIsAfter(y, open)){ badYears.add(y); return false; }
+    return true;
+  });
+  const removed={
+    comps: beforeC - state.comps.length,
+    awards: beforeA - (state.histAwards||[]).length,
+    years: [...badYears].sort()
+  };
+  if((removed.comps||removed.awards) && !opts.silent){
+    setHistBanner(
+      'Removed <b>'+(removed.comps+removed.awards)+'</b> row(s) from later year(s) <b>'+removed.years.map(esc).join(', ')+'</b> — this session is <b>'+esc(open)+'</b> and must not include future data. <b>Save to Hub</b> to keep this clean.',
+      true
+    );
+  }
+  return removed;
+}
 function compHistoryKey(r){
   const id=normalizeScn(r.scn)||nameKey(r.fore,r.sur);
   return [sessionKey(r.year), id, r.subject||'', r.level||'', String(r.component||''), String(r.title||'')].join('¦');
@@ -1867,11 +1917,15 @@ function setHistBanner(html, on){
 }
 function mergeHistoricalComps(historyRows, meta){
   if(!historyRows||!historyRows.length) return {added:0, upgraded:0, years:[]};
+  const open=sessionKey(state.session||'');
   const existingMap=new Map();
   state.comps.forEach(c=>existingMap.set(compHistoryKey(c), c));
   let added=0, upgraded=0;
   const years=new Set();
   historyRows.forEach(r=>{
+    const yk=sessionKey(r.year);
+    /* Never import the open year or any later year into this session */
+    if(open && yk && !sessionIsBefore(yk, open)) return;
     const k=compHistoryKey(r);
     const existing=existingMap.get(k);
     if(existing){
@@ -1883,12 +1937,12 @@ function mergeHistoricalComps(historyRows, meta){
         existing.nat=r.nat;
       }
       if(!normalizeScn(existing.scn) && normalizeScn(r.scn)) existing.scn=normalizeScn(r.scn);
-      if(r.year) years.add(sessionKey(r.year)||String(r.year));
+      if(r.year) years.add(yk||String(r.year));
       return;
     }
     existingMap.set(k, true);
     state.comps.push({
-      year:String(r.year||'').trim(),
+      year:yk||String(r.year||'').trim(),
       scn: normalizeScn(r.scn)||'',
       fore:String(r.fore||'').trim(),
       sur:String(r.sur||'').trim(),
@@ -1901,7 +1955,7 @@ function mergeHistoricalComps(historyRows, meta){
       nat:r.nat!==undefined?r.nat:null
     });
     added++;
-    if(r.year) years.add(sessionKey(r.year)||String(r.year));
+    if(yk) years.add(yk);
   });
   if(added||upgraded){
     state.hubHistory=Object.assign({}, meta||{}, {added, upgraded, years:[...years].sort()});
@@ -1939,31 +1993,34 @@ function fetchHubComponentHistory(excludeSession){
           row.school_year ||
           ''
         );
+        /* Skip whole snapshots from this session or any later year */
+        if(exclude && snapYear && !sessionIsBefore(snapYear, exclude)) return;
         const comps=row.data.comps||[];
         let used=0;
         comps.forEach(function(c){
           const yk=sessionKey(c.year);
-          if(exclude && yk===exclude) return;
+          /* Only years strictly before the open session */
+          if(exclude && (!yk || !sessionIsBefore(yk, exclude))) return;
           const k=compHistoryKey(c);
           byKey.set(k, c); /* newer snapshots overwrite same key */
           used++;
         });
         /* Official awards from this Hub year's results sheet */
-        if(snapYear && !(exclude && snapYear===exclude)){
+        if(snapYear && (!exclude || sessionIsBefore(snapYear, exclude))){
           (row.data.rows||[]).forEach(function(r){
             const a=makeHistAward(snapYear, r);
             if(a) awardsByKey.set(histAwardKey(a), a);
           });
         }
-        /* Nested histAwards already carried into that snapshot */
+        /* Nested histAwards already carried into that snapshot — still filter to prior years only */
         (row.data.histAwards||[]).forEach(function(a){
           if(!a) return;
           const yk=sessionKey(a.year);
-          if(exclude && yk===exclude) return;
+          if(exclude && (!yk || !sessionIsBefore(yk, exclude))) return;
           const full=makeHistAward(a.year, a);
           if(full) awardsByKey.set(histAwardKey(full), full);
         });
-        if(used || (snapYear && snapYear!==exclude)) sources.push(row.school_year||row.session_label||'?');
+        if(used || (snapYear && (!exclude || sessionIsBefore(snapYear, exclude)))) sources.push(row.school_year||row.session_label||'?');
       });
       return {comps:[...byKey.values()], awards:[...awardsByKey.values()], sources, exclude};
     });
@@ -1997,13 +2054,14 @@ function bringForwardHubHistory(opts){
         '· '+(pack.awards||[]).length+' awarded grade(s) for Over Time\n'+
         'Years: '+(years.join(', ')||'—')+
         '\nSources: '+(pack.sources.join(', ')||'—')+
-        (pack.exclude? '\nExcluding current session: '+pack.exclude:'')+
+        (pack.exclude? '\nOnly years before: '+pack.exclude:'')+
         '\n\nRows already in your upload are kept; blank bands are upgraded from Hub awards.';
       if(!confirm(msg)){ setHistBanner('', false); return null; }
     }
     const result=mergeHistoricalComps(pack.comps, {sources:pack.sources, exclude:pack.exclude});
     const awardsAdded=mergeHistAwards(pack.awards||[]);
     stampCurrentSessionAwardsOntoComps();
+    scrubFutureYearsFromSession(sessionKey(sess), {silent:true});
     propagateCompBands(state.comps);
     buildComponentControls(); buildTrendControls(); resolveCompScnLinks(); renderAll();
     if(!result.added && !result.upgraded && !awardsAdded){
@@ -4433,6 +4491,7 @@ if(window.__SNAPSHOT__){
   loadData(snap.rows, snap.comps||[], snap.filename, snap.sheetName||'');
   if(state.histAwards && state.histAwards.length) stampAwardsOntoComps(state.histAwards);
   propagateCompBands(state.comps);
+  scrubFutureYearsFromSession(state.session||snap.session||'');
 }
 
 /* Expose API for Faculty Hub cloud bridge */
@@ -4445,6 +4504,8 @@ if(window.__SNAPSHOT__){
   window.QSAttainment = {
     getPayload: function(){
       const sess = state.session || ($('ySessionBar') && $('ySessionBar').value) || ($('ySession') && $('ySession').value) || '';
+      /* Ensure Saves never persist future-year pollution */
+      scrubFutureYearsFromSession(sess, {silent:true});
       return {
         rows: state.rows,
         comps: state.comps,
@@ -4507,26 +4568,30 @@ if(window.__SNAPSHOT__){
         state.preResults = payload.preResults;
         $('preResultsBanner').classList.toggle('on', state.preResults);
       }
+      const sess=sessionKey(state.session||'');
       /* Re-stamp after preResults flag is known */
       stampCurrentSessionAwardsOntoComps();
       if(state.histAwards && state.histAwards.length) stampAwardsOntoComps(state.histAwards);
       propagateCompBands(state.comps);
+      /* Strip any later-year rows already saved into this Hub year (e.g. 25-26 inside 24-25) */
+      const scrubbed=scrubFutureYearsFromSession(sess);
       buildTrendControls();
       renderAll();
-      /* Older Hub saves may lack histAwards — quietly pull official grades from other years */
-      const sess=sessionKey(state.session||'');
-      const hasPrior=(state.comps||[]).some(c=>sessionKey(c.year)&&sessionKey(c.year)!==sess);
-      const priorAwardYears=new Set((state.histAwards||[]).map(a=>sessionKey(a.year)).filter(y=>y&&y!==sess));
+      /* Older Hub saves may lack histAwards — quietly pull official grades from prior years only */
+      const priorAwardYears=new Set((state.histAwards||[]).map(a=>sessionKey(a.year)).filter(y=>y&&sessionIsBefore(y, sess)));
+      const hasPrior=(state.comps||[]).some(c=>{ const y=sessionKey(c.year); return y && sessionIsBefore(y, sess); });
       if(hasPrior && priorAwardYears.size===0){
         fetchHubComponentHistory(sess).then(function(pack){
           if(!pack||!pack.awards||!pack.awards.length) return;
-          const n=mergeHistAwards(pack.awards);
-          if(!n && !(pack.awards||[]).length) return;
+          mergeHistAwards(pack.awards);
+          scrubFutureYearsFromSession(sess, {silent:true});
           propagateCompBands(state.comps);
           buildTrendControls();
           renderAll();
           setHistBanner('Over Time — loaded <b>'+pack.awards.length+'</b> official award'+(pack.awards.length===1?'':'s')+' from Hub for prior years. <b>Save to Hub</b> to keep them with this session.', true);
         }).catch(function(){ /* ignore */ });
+      } else if(scrubbed.comps||scrubbed.awards){
+        /* Banner already set by scrubFutureYearsFromSession */
       }
     },
     onDataLoaded: function(fn){ if(typeof fn==='function') listeners.push(fn); },
