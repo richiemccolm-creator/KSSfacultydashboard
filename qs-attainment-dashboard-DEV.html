@@ -1039,7 +1039,7 @@ html.qs-embed.qs-analysis .analysis-chrome{margin-left:-16px; margin-right:-16px
       <div class="card"><h3>How are we doing? <span class="hint">auto-generated trend analysis</span></h3><ul class="headlines" id="trendHeadlines"></ul></div>
     </div>
     <div class="grid c2">
-      <div class="card"><h3>Grades by year comparison <span class="hint">% of graded entries</span></h3><div class="chart-wrap"><canvas id="chTrendGrades"></canvas></div></div>
+      <div class="card"><h3>Grades by year comparison <span class="hint">% of graded entries · No Award includes DNA</span></h3><div class="chart-wrap"><canvas id="chTrendGrades"></canvas></div></div>
       <div class="card"><h3>A and A–C rate by year</h3><div class="chart-wrap"><canvas id="chTrendAC"></canvas></div></div>
     </div>
     <div class="card"><h3>Component breakdown by year <span class="hint">average mark per component — cohort (solid) vs national (faded) · use the Course &amp; Level filters above</span></h3><div class="chart-wrap tall"><canvas id="chTrendCompDev"></canvas></div></div>
@@ -2533,9 +2533,9 @@ function renderOverview(rows){
   const aRate = pct(g.filter(r=>bandOf(r)<=2).length, g.length);
   const kpis = [
     {label:'Pupils in view', value:String(rows.length), foot:[...new Set(rows.map(r=>r.subject))].length+' subjects · '+[...new Set(rows.map(r=>r.teacher))].length+' teachers', tip:'How many faculty entries match the current Subject / Level / Teacher / SIMD filters. Reset filters to see the full cohort.'},
-    {label:'A–C rate'+estTag(), value:fmtPct(ac), foot:g.length+' graded entries', tip:'Share of graded entries awarded A–C (bands 1–6). In pre-results mode this uses teacher estimates instead of awarded grades.'},
-    {label:'A rate'+estTag(), value:fmtPct(aRate), foot:'bands 1–2', tip:'Share of graded entries awarded an A (bands A1–A2). In pre-results mode this uses teacher estimates.'},
-    {label:'Average band'+estTag(), value:fmt1(ab), foot:'1 = A1 · excludes DNA', tip:'Mean SQA band for graded entries in view. Lower is better: 1 = A1, 6 = C6, 7 = D. DNA / Did Not Attempt is excluded.'},
+    {label:'A–C rate'+estTag(), value:fmtPct(ac), foot:g.length+' graded entries', tip:'Share of graded entries awarded A–C (bands 1–6). DNA / Did Not Attempt is in the denominator (counts with No Award — pupil did not sit the exam). In pre-results mode this uses teacher estimates instead of awarded grades.'},
+    {label:'A rate'+estTag(), value:fmtPct(aRate), foot:'bands 1–2', tip:'Share of graded entries awarded an A (bands A1–A2). DNA is included in the denominator. In pre-results mode this uses teacher estimates.'},
+    {label:'Average band'+estTag(), value:fmt1(ab), foot:'1 = A1 · excludes DNA', tip:'Mean SQA band for graded entries in view. Lower is better: 1 = A1, 6 = C6, 7 = D. DNA is excluded from the average (still counts in A–C / No Award rates).'},
     {label:'Avg attendance', value:attAvg===null?'—':attAvg.toFixed(1)+'<small>%</small>', foot:attVals.filter(v=>v<80).length+' pupils below 80%', cls:attAvg!==null&&attAvg<90?'bad':'good', tip:'Mean attendance % for pupils in the current filter who have an attendance figure recorded.'},
     {label:'Attained potential', value:attained===null?'—':fmtPct(attained), foot:state.preResults?'unlocks on results day':'National 5 · vs CEM prediction', tip:'National 5 only: % of pupils whose awarded band was equal to or better than their CEM predicted band. CEM is an approximate baseline for value-added context, not an official QS predictor.'},
   ];
@@ -2581,6 +2581,9 @@ function renderOverview(rows){
   $('headlines').innerHTML = buildHeadlines(rows).map(h=>'<li>'+h+'</li>').join('');
 }
 function clusterOf(b){ if(b===null)return null; if(b<=2)return 'A'; if(b<=4)return 'B'; if(b<=6)return 'C'; if(b===7)return 'D'; if(b===8)return 'No Award'; return 'DNA'; }
+/* DNA (band 9) = did not sit the exam → counts with No Award for A–C / profile rates. Overview grade dist still shows DNA separately for analysis. */
+const isNoAwardBand = b => b!==null && b>=8;
+function rateClusterOf(b){ if(b===null)return null; if(b<=2)return 'A'; if(b<=4)return 'B'; if(b<=6)return 'C'; if(b===7)return 'D'; return 'No Award'; }
 
 /* ---------- Whole-school comparative attainment (Insight National Course tariff) ----------
    Points from ScotXed Insight Tariff Ready Reckoner for graded National Courses:
@@ -3410,7 +3413,7 @@ function renderTrends(){
   const rows=all.filter(r=>(ts==='All'||r.subject===ts)&&(tl==='All'||r.level===tl));
   const years=[...new Set(rows.map(r=>r.year))].sort();
 
-  /* Average band by year — line per course·level */
+  /* Average band by year — line per course·level (DNA excluded from mean, same as Overview) */
   const series=[...new Set(rows.map(r=>r.subject+'¦'+r.level))]
     .sort((a,b)=>{const[sa,la]=a.split('¦'),[sb,lb]=b.split('¦');return sa.localeCompare(sb)||LEVEL_ORDER.indexOf(la)-LEVEL_ORDER.indexOf(lb);});
   unhideCanvas('chTrendBand');
@@ -3418,31 +3421,31 @@ function renderTrends(){
     const[s,l]=k.split('¦');
     const col=trendColor(s,l,i);
     return {label:s+' · '+(LEVEL_SHORT[l]||l),
-      data:years.map(y=>{const yr=rows.filter(r=>r.year===y&&r.subject===s&&r.level===l);return yr.length?avg(yr.map(r=>r.band)):null;}),
+      data:years.map(y=>{const yr=rows.filter(r=>r.year===y&&r.subject===s&&r.level===l&&r.band!==null&&r.band<=8);return yr.length?avg(yr.map(r=>r.band)):null;}),
       borderColor:col,backgroundColor:col,pointRadius:3.5,pointHoverRadius:5,borderWidth:2,tension:.25,spanGaps:true};
   })},options:{plugins:{legend:{position:'right',labels:{boxWidth:14,boxHeight:3}},
       tooltip:{callbacks:{label:c=>c.dataset.label+': avg band '+(c.parsed.y===null?'—':c.parsed.y.toFixed(2))}}},
-    scales:{x:noGridX,y:{...gridY,min:1,max:9,reverse:true,title:{display:true,text:'average band · A1 at top'},ticks:{stepSize:1,callback:v=>BAND_LABEL[v]||''}}}}});
+    scales:{x:noGridX,y:{...gridY,min:1,max:8,reverse:true,title:{display:true,text:'average band · A1 at top · DNA excluded'},ticks:{stepSize:1,callback:v=>BAND_LABEL[v]||''}}}}});
 
-  /* Grades by year — grouped % bars */
+  /* Grades by year — grouped % bars (DNA folded into No Award) */
   const gClusters=['A','B','C','D','No Award'];
-  const yearN=y=>rows.filter(r=>r.year===y&&r.band<=8).length;
+  const yearN=y=>rows.filter(r=>r.year===y&&r.band!==null).length;
   unhideCanvas('chTrendGrades');
   makeChart('chTrendGrades',{type:'bar',data:{labels:years,datasets:gClusters.map(cl=>({label:cl,
-    data:years.map(y=>pct(rows.filter(r=>r.year===y&&clusterOf(r.band)===cl).length,yearN(y))),
+    data:years.map(y=>pct(rows.filter(r=>r.year===y&&rateClusterOf(r.band)===cl).length,yearN(y))),
     backgroundColor:CLUSTER_COLOR[cl],borderRadius:3,maxBarThickness:30}))},
     _drill:(els,chart)=>{
       const year=chart.data.labels[els[0].index];
       const cluster=gClusters[els[0].datasetIndex];
-      const trRows=rows.filter(r=>r.year===year&&clusterOf(r.band)===cluster);
-      openDrillPanel(cluster+' · '+year+' · '+ts+' · '+tl, 'Over-time grade profile · matched to results where possible', enrichTrendRows(trRows));
+      const trRows=rows.filter(r=>r.year===year&&rateClusterOf(r.band)===cluster);
+      openDrillPanel(cluster+' · '+year+' · '+ts+' · '+tl, cluster==='No Award'?'Includes DNA (did not sit) · matched to results where possible':'Over-time grade profile · matched to results where possible', enrichTrendRows(trRows));
     },
-    options:{plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmtPct(c.parsed.y)+' · click to list'}}},
+    options:{plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:c=>c.dataset.label+': '+fmtPct(c.parsed.y)+(c.dataset.label==='No Award'?' (incl. DNA)':'')+' · click to list'}}},
       scales:{x:noGridX,y:pctAxis(null)}}});
 
-  /* A and A–C rate by year */
-  const aRateY=years.map(y=>{const g=rows.filter(r=>r.year===y&&r.band<=8);return pct(g.filter(r=>r.band<=2).length,g.length);});
-  const acRateY=years.map(y=>{const g=rows.filter(r=>r.year===y&&r.band<=8);return pct(g.filter(r=>r.band<=6).length,g.length);});
+  /* A and A–C rate by year — DNA in denominator (with No Award), same as Overview */
+  const aRateY=years.map(y=>{const g=rows.filter(r=>r.year===y&&r.band!==null);return pct(g.filter(r=>r.band<=2).length,g.length);});
+  const acRateY=years.map(y=>{const g=rows.filter(r=>r.year===y&&r.band!==null);return pct(g.filter(r=>r.band<=6).length,g.length);});
   unhideCanvas('chTrendAC');
   makeChart('chTrendAC',{type:'line',data:{labels:years,datasets:[
     {label:'A–C rate',data:acRateY,borderColor:'#e3b04b',backgroundColor:'#e3b04b',borderWidth:2.5,pointRadius:4,tension:.25},
@@ -3478,11 +3481,11 @@ function trendHeadlines(rows,years,compRows,cYears){
   const H=[];
   if(years.length<2){ H.push('Only one year of data in view — trends appear once a second year is added.'); return H; }
   const y0=years[0], yPrev=years[years.length-2], yNow=years[years.length-1];
-  const stat=(y,f)=>{const g=rows.filter(r=>r.year===y&&r.band<=8);return f(g);};
+  const stat=(y,f)=>{const g=rows.filter(r=>r.year===y&&r.band!==null);return f(g);};
   const acY=y=>stat(y,g=>pct(g.filter(r=>r.band<=6).length,g.length));
   const aY=y=>stat(y,g=>pct(g.filter(r=>r.band<=2).length,g.length));
-  const naY=y=>stat(y,g=>pct(g.filter(r=>r.band===8).length,g.length));
-  const abY=y=>stat(y,g=>avg(g.map(r=>r.band)));
+  const naY=y=>stat(y,g=>pct(g.filter(r=>isNoAwardBand(r.band)).length,g.length));
+  const abY=y=>{const g=rows.filter(r=>r.year===y&&r.band!==null&&r.band<=8);return avg(g.map(r=>r.band));};
   const d=(a,b)=>a!==null&&b!==null? a-b : null;
   const dir=(v,inv)=>v===null?'':(inv?v<0:v>0)?'up':'down';
   const acD=d(acY(yNow),acY(yPrev)), acD0=d(acY(yNow),acY(y0));
@@ -3491,8 +3494,8 @@ function trendHeadlines(rows,years,compRows,cYears){
   if(aD!==null) H.push('The <b>A rate</b> sits at <b>'+fmtPct(aY(yNow))+'</b> — '+dir(aD)+' '+Math.abs(aD).toFixed(1)+' points on '+yPrev+'.');
   const nas=years.map(y=>({y,v:naY(y)})).filter(x=>x.v!==null);
   if(nas.length>1){ const best=nas.reduce((a,b)=>b.v<=a.v?b:a);
-    if(best.y===yNow) H.push('<b>No Awards are at their lowest level in '+years.length+' years</b> ('+fmtPct(naY(yNow))+' of entries).');
-    else H.push('No Awards: '+fmtPct(naY(yNow))+' of entries in '+yNow+' (best was '+best.y+' at '+fmtPct(best.v)+').');
+    if(best.y===yNow) H.push('<b>No Awards (incl. DNA) are at their lowest level in '+years.length+' years</b> ('+fmtPct(naY(yNow))+' of entries).');
+    else H.push('No Awards (incl. DNA): '+fmtPct(naY(yNow))+' of entries in '+yNow+' (best was '+best.y+' at '+fmtPct(best.v)+').');
   }
   const abD=d(abY(yNow),abY(y0));
   if(abD!==null) H.push('Average band has '+(abD<0?'<b>improved</b> by ':'slipped by ')+Math.abs(abD).toFixed(2)+' since '+y0+' ('+fmt1(abY(y0))+' → '+fmt1(abY(yNow))+', lower is better).');
@@ -4001,7 +4004,7 @@ const repCfg={
   quintile(rows){ const qs=[1,2,3,4,5]; return {type:'bar',data:{labels:qs.map(q=>'Q'+q),datasets:[{data:qs.map(q=>acRate(rows.filter(r=>r.quintile===q))),backgroundColor:['#c23b2e','#ce8147','#e3b04b','#d8cf9e','#efe9d0'],borderRadius:4,maxBarThickness:52}]},options:{plugins:{legend:{display:false}},scales:{x:{...noGridX,title:{display:true,text:'Q1 most deprived → Q5 least deprived'}},y:pctAxis()}}}; },
   attBand(rows){ const bands=[['High · ≥90%',r=>r.attendance>=90,'#e3b04b'],['Medium · 80–90%',r=>r.attendance>=80&&r.attendance<90,'#ce8147'],['Low · <80%',r=>r.attendance<80,'#c23b2e']]; const wa=rows.filter(r=>r.attendance!==null); return {type:'bar',data:{labels:bands.map(b=>b[0]),datasets:[{data:bands.map(([l,f])=>acRate(wa.filter(f))),backgroundColor:bands.map(b=>b[2]),borderRadius:4,maxBarThickness:44}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:pctAxis(),y:noGridX}}}; },
   vaTeacher(rows){ const g=rows.filter(r=>predEligible(r)&&r.band!==null&&r.band<=8); const tchs=[...new Set(g.map(r=>r.teacher))].sort(); const va=tchs.map(t=>avg(g.filter(r=>r.teacher===t).map(r=>r.pred-r.band))); const m=Math.max(.5,...va.map(v=>Math.abs(v)))*1.15; return {type:'bar',data:{labels:tchs,datasets:[{data:va,backgroundColor:va.map(v=>v>=0?'#e3b04b':'#c23b2e'),borderRadius:4,maxBarThickness:30}]},options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{min:-m,max:m,title:{display:true,text:'← below prediction · above prediction →'},grid:{drawTicks:false},border:{display:false}},y:noGridX}}}; },
-  trendAC(tr){ const years=[...new Set(tr.map(r=>r.year))].sort(); const f=(y,b)=>{const g=tr.filter(r=>r.year===y&&r.band<=8);return pct(g.filter(r=>r.band<=b).length,g.length);}; return {type:'line',data:{labels:years,datasets:[{label:'A–C rate',data:years.map(y=>f(y,6)),borderColor:'#e3b04b',backgroundColor:'#e3b04b',borderWidth:2.5,pointRadius:4,tension:.25},{label:'A rate',data:years.map(y=>f(y,2)),borderColor:'#ddd8c0',backgroundColor:'#ddd8c0',borderWidth:2,borderDash:[6,4],pointRadius:4,tension:.25}]},options:{plugins:{legend:{position:'bottom'}},scales:{x:noGridX,y:pctAxis()}}}; },
+  trendAC(tr){ const years=[...new Set(tr.map(r=>r.year))].sort(); const f=(y,b)=>{const g=tr.filter(r=>r.year===y&&r.band!==null);return pct(g.filter(r=>r.band<=b).length,g.length);}; return {type:'line',data:{labels:years,datasets:[{label:'A–C rate',data:years.map(y=>f(y,6)),borderColor:'#e3b04b',backgroundColor:'#e3b04b',borderWidth:2.5,pointRadius:4,tension:.25},{label:'A rate',data:years.map(y=>f(y,2)),borderColor:'#ddd8c0',backgroundColor:'#ddd8c0',borderWidth:2,borderDash:[6,4],pointRadius:4,tension:.25}]},options:{plugins:{legend:{position:'bottom'}},scales:{x:noGridX,y:pctAxis()}}}; },
   trendBand(tr){ const years=[...new Set(tr.map(r=>r.year))].sort(); const series=[...new Set(tr.map(r=>r.subject+'¦'+r.level))].sort((a,b)=>{const[sa,la]=a.split('¦'),[sb,lb]=b.split('¦');return sa.localeCompare(sb)||LEVEL_ORDER.indexOf(la)-LEVEL_ORDER.indexOf(lb);}); return {type:'line',data:{labels:years,datasets:series.map((k,i)=>{const[s,l]=k.split('¦');const col=trendColor(s,l,i);return {label:s+' · '+(LEVEL_SHORT[l]||l),data:years.map(y=>{const yr=tr.filter(r=>r.year===y&&r.subject===s&&r.level===l);return yr.length?avg(yr.map(r=>r.band)):null;}),borderColor:col,backgroundColor:col,borderWidth:2,pointRadius:3,tension:.25,spanGaps:true};})},options:{plugins:{legend:{position:'bottom',labels:{boxWidth:12,boxHeight:3}}},scales:{x:noGridX,y:{...gridY,min:1,max:9,reverse:true,ticks:{stepSize:1,callback:v=>BAND_LABEL[v]||''}}}}}; },
   compBreak(comps){ const cy=[...new Set(comps.map(r=>r.year))].sort(); const COMP_COLS=['#e3b04b','#ddd8c0','#c96b31','#c23b2e','#9aa0a8','#8fb8b6','#b5825f','#7d5ba6']; const fade=hex=>{const n=parseInt(hex.slice(1),16);return 'rgba('+(n>>16&255)+','+(n>>8&255)+','+(n&255)+',.38)';}; const titles=[...new Set(comps.map(r=>r.title||('Component '+r.component)))].sort(); const ds=[]; titles.forEach((t,i)=>{const col=COMP_COLS[i%COMP_COLS.length]; const of=y=>comps.filter(r=>r.year===y&&(r.title||('Component '+r.component))===t); ds.push({label:t+' — KSS',data:cy.map(y=>avg(of(y).filter(r=>r.mark!==null).map(r=>r.mark))),backgroundColor:col,borderRadius:3,maxBarThickness:22}); ds.push({label:t+' — Nat',data:cy.map(y=>avg(of(y).filter(r=>r.nat!==null).map(r=>r.nat))),backgroundColor:fade(col),borderRadius:3,maxBarThickness:22});}); return {type:'bar',data:{labels:cy,datasets:ds},options:{plugins:{legend:{position:'bottom',labels:{boxWidth:10}}},scales:{x:noGridX,y:{...gridY,beginAtZero:true}}}}; },
   estPie(rows){ const we=gradeable(rows).filter(r=>r.est!==null&&r.band!==null); return {type:'doughnut',data:{labels:['Above estimate','Below estimate','Equal'],datasets:[{data:[we.filter(r=>r.band<r.est).length,we.filter(r=>r.band>r.est).length,we.filter(r=>r.band===r.est).length],backgroundColor:['#ce8147','#c23b2e','#e8e6df'],borderColor:'#2f353e',borderWidth:3}]},options:{cutout:'55%',plugins:{legend:{position:'right'}}}}; },
@@ -4301,7 +4304,7 @@ function runReport(kind,arg){
 
 /* ============================ Chart reading guides ============================ */
 const CHART_TIPS={
-  chGradeDist:'Counts every graded entry by final grade cluster. Taller bars towards the left (A, B) = stronger results. DNA = did not attempt. Click a bar to list those pupils with full detail.',
+  chGradeDist:'Counts every graded entry by final grade cluster. Taller bars towards the left (A, B) = stronger results. DNA = did not attempt (shown separately here for analysis; in A–C / No Award rates DNA counts with No Award). Click a bar to list those pupils with full detail.',
   chAcBySubject:'The percentage of each subject’s entries awarded A–C (bands 1–6). Use it to compare subjects at a glance — hover a bar for the exact figure.',
   chCohort:'How many entries each subject presents, stacked by course level. This shows the size and shape of the cohort — not results.',
   chBandProfile:'Splits each subject’s results into the nine QS bands as percentages. More gold (A bands) at the left of each bar is better; red is No Award, grey is DNA.',
@@ -4321,9 +4324,9 @@ const CHART_TIPS={
   chCompYoY:'For each component, the solid bar is your cohort’s average mark and the faded bar beside it is that component’s national average. Compare within each pair — different components have different maximum marks.',
   chCompDev:'Your average mark minus the national average, per component. Bars above zero beat the country; below zero fell short. The same component sitting below zero year after year is a persistent focus area.',
   tblComp:'Average mark / national average per year for every component. Δ YoY is the change in your average mark versus the previous year — green up, red down.',
-  chTrendBand:'One line per course and level, tracking the average awarded band each year. Lines climbing towards A1 (top) show improvement. Prior years prefer official Hub awards (or Band on Combined); otherwise bands are estimated from total component marks using SQA grade boundaries.',
-  chTrendGrades:'The grade profile of the current selection each year, as percentages. Prior years use official awards brought forward from Hub (or Band on Component Marks Combined); the open session uses this year’s results sheet. Growing gold (A) and shrinking red (No Award) means the profile is strengthening.',
-  chTrendAC:'The headline measures over time: solid gold = % awarded A–C, dashed = % awarded an A. Same official-award sources as the grades chart. Up and to the right is good.',
+  chTrendBand:'One line per course and level, tracking the average awarded band each year (DNA excluded from the mean, same as Overview). Lines climbing towards A1 (top) show improvement. Prior years prefer official Hub awards (or Band on Combined); otherwise bands are estimated from total component marks using SQA grade boundaries.',
+  chTrendGrades:'The grade profile of the current selection each year, as percentages. DNA (did not sit) is counted in No Award. Prior years use official awards brought forward from Hub (or Band on Component Marks Combined); the open session uses this year’s results sheet. Growing gold (A) and shrinking red (No Award) means the profile is strengthening.',
+  chTrendAC:'The headline measures over time: solid gold = % awarded A–C, dashed = % awarded an A. DNA is in the denominator (with No Award), matching Overview. Same official-award sources as the grades chart. Up and to the right is good.',
   chTrendCompDev:'For each component, cohort average (solid) vs national average (faded), year by year — shows whether each component is gaining ground on the country.',
   chArtPathEntries:'How many pupils sat Higher Art (gold) vs Advanced Higher Art (teal) each year. Gold should shrink and teal should grow as Higher is withdrawn.',
   chArtPathAC:'Pass rates over time. Solid lines = % who passed at A, B or C. Dashed = % who got an A. Compare gold to past gold, teal to past teal — not gold to teal.',
