@@ -102,6 +102,20 @@ body{
 .qs-comp-link-table tr:last-child td{border-bottom:none}
 .qs-comp-link-empty{padding:14px; color:var(--ink-3); text-align:center}
 
+/* Data status dock — full-width on upload; collapsed behind a chip in analysis */
+.data-status-stack{display:block}
+.data-status-stack-head{
+  display:none; align-items:center; justify-content:space-between; gap:12px;
+  padding:8px 14px; border-bottom:1px solid var(--line); background:var(--card);
+}
+.data-status-stack-head strong{font-size:12px; font-weight:800; color:var(--ink); letter-spacing:.02em}
+.btn-data-status-close{
+  font-family:var(--sans); font-size:11.5px; font-weight:700; color:var(--ink-2);
+  background:transparent; border:1px solid var(--line); border-radius:6px;
+  padding:4px 10px; cursor:pointer;
+}
+.btn-data-status-close:hover{border-color:var(--gold); color:var(--gold)}
+
 /* ---------- Header ---------- */
 header{
   background:linear-gradient(135deg,#16191e 0%,#1d222a 65%,#242b35 100%);
@@ -169,6 +183,12 @@ header::after{
   align-self:flex-end; max-width:min(200px, 28vw); overflow:hidden; text-overflow:ellipsis;
 }
 .status-chip.ok{color:#7dcea0; border-color:rgba(124,201,143,.35)}
+.status-chip.warn{color:#e5c164; border-color:rgba(227,176,75,.45)}
+button.status-chip{
+  font-family:var(--sans); cursor:pointer; max-width:min(320px, 42vw);
+}
+button.status-chip:hover{border-color:var(--gold); color:var(--gold)}
+button.status-chip[aria-expanded="true"]{border-color:var(--gold); color:var(--gold)}
 .filterbar-meta{margin-left:auto; display:flex; align-items:flex-end; gap:8px; flex-wrap:wrap}
 .btn{
   font-family:var(--sans); font-size:12.5px; font-weight:700; letter-spacing:.03em;
@@ -605,6 +625,24 @@ html.qs-analysis .file-chip .meta{display:none}
 html.qs-analysis .qs-year-bar{padding:6px 20px 8px; gap:6px 10px; align-items:center}
 html.qs-analysis #hubCloudBanner{display:none!important}
 html.qs-analysis #app{padding:0 20px 56px}
+/* Collapse Hub / match / attendance diagnostics behind Data chip */
+html.qs-analysis .data-status-stack{
+  display:none;
+  margin:0 0 12px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  overflow:hidden;
+  background:var(--bg);
+}
+html.qs-analysis .data-status-stack.is-open{display:block}
+html.qs-analysis .data-status-stack-head{display:flex}
+html.qs-analysis .data-status-stack .qs-nat-banner,
+html.qs-analysis .data-status-stack .qs-hist-banner{
+  text-align:left; padding:10px 14px; border-bottom:1px solid var(--line);
+}
+html.qs-analysis .data-status-stack .qs-comp-link-panel{
+  padding:0 14px 14px; border-bottom:1px solid var(--line);
+}
 html.qs-analysis .analysis-chrome{
   position:sticky; top:0; z-index:40; margin:0 -20px 12px;
   background:rgba(38,43,51,.94); backdrop-filter:blur(10px);
@@ -818,36 +856,42 @@ html.qs-embed.qs-analysis .analysis-chrome{margin-left:-16px; margin-right:-16px
 
 <div id="hubCloudBanner" class="hidden"></div>
 <div id="snapshotBanner" class="hidden">📌 <b>Snapshot report</b> — data embedded <span id="snapshotMeta"></span>. This copy opens without the Excel file.</div>
-<div id="sqaNatBanner" class="qs-nat-banner"></div>
-<div id="histCompBanner" class="qs-hist-banner"></div>
-<div id="compScnBanner" class="qs-nat-banner warn"></div>
-<div id="compLinkPanel" class="qs-comp-link-panel">
-  <div class="qs-comp-link-bar">
-    <button type="button" class="btn-comp-link-toggle" id="compLinkToggle" aria-expanded="false">Show lists to fix in Excel</button>
-    <span class="qs-comp-link-hint">Add missing rows to <b>Component Marks Combined</b> (include SCN where possible), then Replace the workbook.</span>
+<div id="dataStatusStack" class="data-status-stack">
+  <div class="data-status-stack-head">
+    <strong>Data status</strong>
+    <button type="button" class="btn-data-status-close" id="dataStatusClose">Close</button>
   </div>
-  <div id="compLinkPanelBody" class="qs-comp-link-body hidden">
-    <div class="qs-comp-link-section">
-      <h4>Results with no component rows (<span id="compLinkMissingCount">0</span>)</h4>
-      <p class="qs-comp-link-hint" style="margin:0 0 8px">These pupils appear on the results sheet but have no matching name/SCN on Component Marks Combined for this session.</p>
-      <div class="qs-comp-link-actions">
-        <button type="button" class="btn-comp-link-sm" id="compLinkMissingCsv">Download CSV</button>
-        <button type="button" class="btn-comp-link-sm" id="compLinkMissingCopy">Copy for Excel</button>
-      </div>
-      <div class="qs-comp-link-table-wrap"><table class="qs-comp-link-table" id="compLinkMissingTable"></table></div>
+  <div id="sqaNatBanner" class="qs-nat-banner"></div>
+  <div id="histCompBanner" class="qs-hist-banner"></div>
+  <div id="compScnBanner" class="qs-nat-banner warn"></div>
+  <div id="compLinkPanel" class="qs-comp-link-panel">
+    <div class="qs-comp-link-bar">
+      <button type="button" class="btn-comp-link-toggle" id="compLinkToggle" aria-expanded="false">Show lists to fix in Excel</button>
+      <span class="qs-comp-link-hint">Add missing rows to <b>Component Marks Combined</b> (include SCN where possible), then Replace the workbook.</span>
     </div>
-    <div class="qs-comp-link-section">
-      <h4>Component rows not on results (<span id="compLinkOrphanCount">0</span>)</h4>
-      <p class="qs-comp-link-hint" style="margin:0 0 8px">These Combined-sheet rows do not match any results pupil — check forename, surname, SCN, or year.</p>
-      <div class="qs-comp-link-actions">
-        <button type="button" class="btn-comp-link-sm" id="compLinkOrphanCsv">Download CSV</button>
-        <button type="button" class="btn-comp-link-sm" id="compLinkOrphanCopy">Copy for Excel</button>
+    <div id="compLinkPanelBody" class="qs-comp-link-body hidden">
+      <div class="qs-comp-link-section">
+        <h4>Results with no component rows (<span id="compLinkMissingCount">0</span>)</h4>
+        <p class="qs-comp-link-hint" style="margin:0 0 8px">These pupils appear on the results sheet but have no matching name/SCN on Component Marks Combined for this session.</p>
+        <div class="qs-comp-link-actions">
+          <button type="button" class="btn-comp-link-sm" id="compLinkMissingCsv">Download CSV</button>
+          <button type="button" class="btn-comp-link-sm" id="compLinkMissingCopy">Copy for Excel</button>
+        </div>
+        <div class="qs-comp-link-table-wrap"><table class="qs-comp-link-table" id="compLinkMissingTable"></table></div>
       </div>
-      <div class="qs-comp-link-table-wrap"><table class="qs-comp-link-table" id="compLinkOrphanTable"></table></div>
+      <div class="qs-comp-link-section">
+        <h4>Component rows not on results (<span id="compLinkOrphanCount">0</span>)</h4>
+        <p class="qs-comp-link-hint" style="margin:0 0 8px">These Combined-sheet rows do not match any results pupil — check forename, surname, SCN, or year.</p>
+        <div class="qs-comp-link-actions">
+          <button type="button" class="btn-comp-link-sm" id="compLinkOrphanCsv">Download CSV</button>
+          <button type="button" class="btn-comp-link-sm" id="compLinkOrphanCopy">Copy for Excel</button>
+        </div>
+        <div class="qs-comp-link-table-wrap"><table class="qs-comp-link-table" id="compLinkOrphanTable"></table></div>
+      </div>
     </div>
   </div>
+  <div id="attBanner" class="qs-nat-banner warn"></div>
 </div>
-<div id="attBanner" class="qs-nat-banner warn"></div>
 
 <input type="file" id="fileInput" accept=".xlsx,.xlsm,.xls,.csv" class="hidden">
 <input type="file" id="sqaNatInput" accept=".xlsx,.xlsm,.xls" class="hidden">
@@ -901,6 +945,7 @@ html.qs-embed.qs-analysis .analysis-chrome{margin-left:-16px; margin-right:-16px
       <button type="button" class="school-attach-btn" id="histHubBtnBar" title="Copy prior years’ component marks and awarded grades from saved Hub sessions">Hub history…</button>
     </div>
     <div class="filterbar-meta">
+      <button type="button" id="dataStatusChip" class="status-chip" hidden aria-expanded="false" aria-controls="dataStatusStack" title="Hub notes, component matching and attendance coverage">Data</button>
       <span id="schoolStatusBar" class="status-chip" aria-live="polite" title="" hidden></span>
       <span id="cohortCount"><b>0</b> pupils in view</span>
     </div>
@@ -1356,11 +1401,12 @@ function renderCompLinkPanel(){
 function refreshCompScnBanner(){
   const el=$('compScnBanner'); if(!el) return;
   const s=compLinkStats();
-  if(!s.totalRows && !s.totalComps){ el.classList.remove('on','warn'); el.innerHTML=''; renderCompLinkPanel(); return; }
+  if(!s.totalRows && !s.totalComps){ el.classList.remove('on','warn'); el.innerHTML=''; renderCompLinkPanel(); refreshDataStatusChip(); return; }
   if(s.totalComps===0){
     el.classList.add('on'); el.classList.remove('warn');
     el.innerHTML='No component marks loaded for this session — Combined sheet or QS marks report needed for component charts.';
     renderCompLinkPanel();
+    refreshDataStatusChip();
     return;
   }
   let html='Component links: <b>'+s.linkedComps+'</b> / '+s.totalComps+' rows matched to results';
@@ -1374,6 +1420,7 @@ function refreshCompScnBanner(){
   el.classList.add('on'); el.classList.toggle('warn', warn);
   el.innerHTML=html+(warn? ' — use the fix list below, or add SCN to Component Marks Combined.':'')+'. Save to Hub after Replace.';
   renderCompLinkPanel();
+  refreshDataStatusChip();
 }
 
 function headerMap(json0){ const map={}; Object.keys(json0||{}).forEach(k=>map[k.toLowerCase().replace(/[^a-z0-9]/g,'')]=k); return map; }
@@ -1526,10 +1573,11 @@ function attendanceCoverage(){
 }
 function setAttendanceBanner(html, warn){
   const el=$('attBanner'); if(!el) return;
-  if(!html){ el.classList.remove('on','warn'); el.innerHTML=''; return; }
+  if(!html){ el.classList.remove('on','warn'); el.innerHTML=''; refreshDataStatusChip(); return; }
   el.classList.add('on');
   el.classList.toggle('warn', !!warn);
   el.innerHTML=html;
+  refreshDataStatusChip();
 }
 function refreshAttendanceBanner(meta){
   const cov=attendanceCoverage();
@@ -1850,6 +1898,7 @@ function applySqaNationalAverages(entries, filename){
     else if(!sess) msg+=' Only blank national averages were filled (set exam session to target one year).';
     if(missed.length) msg+=' Unmatched: '+missed.slice(0,6).map(esc).join('; ')+(missed.length>6?'…':'');
     banner.innerHTML=msg;
+    refreshDataStatusChip();
   }
   buildComponentControls(); buildTrendControls(); renderAll();
   const missNote=missed.length?('\n\nUnmatched ('+missed.length+'):\n· '+missed.slice(0,12).join('\n· ')):'';
@@ -1936,6 +1985,66 @@ function setHistBanner(html, on){
   if(!el) return;
   el.classList.toggle('on', !!on);
   el.innerHTML=html||'';
+  refreshDataStatusChip();
+}
+function dataStatusHasContent(){
+  return ['histCompBanner','sqaNatBanner','compScnBanner','attBanner'].some(id=>{
+    const el=$(id); return el && el.classList.contains('on') && (el.innerHTML||'').trim();
+  }) || (($('compLinkPanel')||{}).classList||{contains:()=>false}).contains('on');
+}
+function dataStatusSummary(){
+  const parts=[];
+  let warn=false;
+  const hist=$('histCompBanner');
+  if(hist && hist.classList.contains('on') && hist.innerHTML){
+    parts.push('Hub');
+    if(/Save to Hub|Removed|failed|Loading/i.test(hist.textContent||'')) warn=true;
+  }
+  const nat=$('sqaNatBanner');
+  if(nat && nat.classList.contains('on') && nat.innerHTML){
+    parts.push('SQA nat');
+    if(nat.classList.contains('warn')) warn=true;
+  }
+  try{
+    const s=compLinkStats();
+    if(s.totalComps){
+      parts.push(s.linkedComps+'/'+s.totalComps+' linked');
+      if(s.orphanComps || s.pupilsMissingComps) warn=true;
+    } else if(s.totalRows){
+      parts.push('No comps');
+      warn=true;
+    }
+  }catch(_){}
+  const cov=attendanceCoverage();
+  if(cov.n){
+    if(cov.withAtt===0){ parts.push('Att none'); warn=true; }
+    else if(cov.withAtt<cov.n){ parts.push('Att '+fmtPct(cov.pct)); warn=true; }
+    else parts.push('Att ✓');
+  }
+  return {parts, warn, has: parts.length>0 || dataStatusHasContent()};
+}
+function setDataStatusPanelOpen(open){
+  const stack=$('dataStatusStack');
+  const chip=$('dataStatusChip');
+  if(stack) stack.classList.toggle('is-open', !!open);
+  if(chip) chip.setAttribute('aria-expanded', open?'true':'false');
+}
+function refreshDataStatusChip(){
+  const chip=$('dataStatusChip');
+  if(!chip) return;
+  const sum=dataStatusSummary();
+  if(!sum.has){
+    chip.hidden=true;
+    setDataStatusPanelOpen(false);
+    return;
+  }
+  chip.hidden=false;
+  chip.textContent=sum.parts.length? ('Data · '+sum.parts.join(' · ')) : 'Data';
+  chip.classList.toggle('warn', !!sum.warn);
+  chip.classList.toggle('ok', !sum.warn);
+  chip.title=sum.warn
+    ? 'Open data notes — something needs attention (matching, attendance, or Save to Hub)'
+    : 'Open data notes (Hub / matching / attendance)';
 }
 function mergeHistoricalComps(historyRows, meta){
   if(!historyRows||!historyRows.length) return {added:0, upgraded:0, years:[]};
@@ -2279,6 +2388,8 @@ function loadData(rows, comps, filename, sheetName){
   if(!fromCloud) state._hubHistoryOffered = false;
   const natBanner=$('sqaNatBanner'); if(natBanner){ natBanner.classList.remove('on','warn'); natBanner.innerHTML=''; }
   setHistBanner('', false);
+  refreshDataStatusChip();
+  setDataStatusPanelOpen(false);
   $('uploadHero').classList.add('hidden');
   $('app').classList.remove('hidden');
   setAnalysisMode(true);
@@ -4434,6 +4545,21 @@ $('resetFilters').addEventListener('click',()=>{
     $('compLinkMissingCopy').addEventListener('click',()=>copyCompLinkCsv('missing'));
     $('compLinkOrphanCsv').addEventListener('click',()=>downloadCompLinkCsv('orphan'));
     $('compLinkOrphanCopy').addEventListener('click',()=>copyCompLinkCsv('orphan'));
+  }
+})();
+(function initDataStatusDock(){
+  const chip=$('dataStatusChip'), close=$('dataStatusClose'), stack=$('dataStatusStack');
+  if(chip && !chip._bound){
+    chip._bound=true;
+    chip.addEventListener('click',()=>{
+      const open=!(stack && stack.classList.contains('is-open'));
+      setDataStatusPanelOpen(open);
+      if(open && stack) stack.scrollIntoView({behavior:'smooth', block:'nearest'});
+    });
+  }
+  if(close && !close._bound){
+    close._bound=true;
+    close.addEventListener('click',()=>setDataStatusPanelOpen(false));
   }
 })();
 ['cSubject','cLevel','cComponent'].forEach(id=>$(id).addEventListener('change',renderComponents));

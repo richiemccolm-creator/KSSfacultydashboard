@@ -378,6 +378,7 @@
           'Saved ' + currentCloudYear + ' to hub · switch years in the bar above.',
           'ok'
         );
+        if (typeof setHistBanner === 'function') setHistBanner('', false);
         syncManagerUi();
         return refreshLibrary(currentCloudYear);
       })
