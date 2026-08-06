@@ -1786,6 +1786,14 @@ function applySqaNationalAverages(entries, filename){
   if(!state.comps.length)
     throw new Error('No component mark records found yet. Add a Component Marks sheet (or QS Component Marks Report) first, then attach SQA national averages.');
 
+  /* Scope to the active exam session only — prior years keep nationals from
+     KSS SQA Data / Hub history. Without a session, only fill blank nat fields. */
+  const sess=sessionKey(state.session||($('ySessionBar')&&$('ySessionBar').value)||($('ySession')&&$('ySession').value)||'');
+  const inScope=r=>{
+    if(sess) return sessionKey(r.year)===sess;
+    return r.nat===null || r.nat===undefined;
+  };
+
   const lookup={};
   entries.forEach(e=>{
     if(!lookup[e.level]) lookup[e.level]={};
@@ -1795,9 +1803,15 @@ function applySqaNationalAverages(entries, filename){
 
   const unique=new Map();
   state.comps.forEach(r=>{
+    if(!inScope(r)) return;
     const k=[r.subject,r.level,String(r.component),String(r.title||'')].join('¦');
     if(!unique.has(k)) unique.set(k,r);
   });
+  if(!unique.size){
+    throw new Error(sess
+      ? 'No component mark rows for session '+sess+' to attach national averages to. Switch Years / Save as to the right exam year, or add that year’s Component Marks first.'
+      : 'No component rows with a blank national average — set the exam session (Years bar) so this release can target one year only.');
+  }
 
   let filledKeys=0, missed=[];
   const meanByKey=new Map();
@@ -1808,13 +1822,14 @@ function applySqaNationalAverages(entries, filename){
     else missed.push((sample.subject||'?')+' · '+(sample.level||'?')+' · '+(sample.title||sample.component||'?'));
   });
 
-  let rowsUpdated=0;
+  let rowsUpdated=0, skippedOtherYears=0;
   state.comps.forEach(r=>{
+    if(!inScope(r)){ skippedOtherYears++; return; }
     const k=[r.subject,r.level,String(r.component),String(r.title||'')].join('¦');
     if(meanByKey.has(k)){ r.nat=meanByKey.get(k); rowsUpdated++; }
   });
 
-  /* Also fill n1/n2/n3 on pupil rows when component order is known (unused by charts today, kept consistent) */
+  /* Also fill blank n1/n2/n3 on this session’s pupil rows when component order is known */
   state.rows.forEach(row=>{
     const list=(lookup[row.level]&&lookup[row.level][row.subject])||[];
     if(!list.length) return;
@@ -1823,18 +1838,25 @@ function applySqaNationalAverages(entries, filename){
     if(row.n3===null && list[2]) row.n3=list[2].mean;
   });
 
-  state.sqaNat={filename, means:entries.length, filledKeys, rowsUpdated, missed};
+  state.sqaNat={filename, means:entries.length, filledKeys, rowsUpdated, missed, session:sess||null, skippedOtherYears};
   const banner=$('sqaNatBanner');
   if(banner){
     banner.classList.add('on');
     banner.classList.toggle('warn', missed.length>0 && filledKeys===0);
-    let msg='SQA national averages from <b>'+esc(filename)+'</b> — matched <b>'+filledKeys+'</b> component'+(filledKeys===1?'':'s')+' · updated <b>'+rowsUpdated+'</b> pupil component rows.';
+    let msg='SQA national averages from <b>'+esc(filename)+'</b>';
+    if(sess) msg+=' for <b>'+esc(sess)+'</b>';
+    msg+=' — matched <b>'+filledKeys+'</b> component'+(filledKeys===1?'':'s')+' · updated <b>'+rowsUpdated+'</b> pupil component rows.';
+    if(sess && skippedOtherYears) msg+=' Prior years left unchanged ('+skippedOtherYears+' rows).';
+    else if(!sess) msg+=' Only blank national averages were filled (set exam session to target one year).';
     if(missed.length) msg+=' Unmatched: '+missed.slice(0,6).map(esc).join('; ')+(missed.length>6?'…':'');
     banner.innerHTML=msg;
   }
   buildComponentControls(); buildTrendControls(); renderAll();
   const missNote=missed.length?('\n\nUnmatched ('+missed.length+'):\n· '+missed.slice(0,12).join('\n· ')):'';
-  alert('SQA national averages applied from '+filename+':\n· '+filledKeys+' distinct components matched\n· '+rowsUpdated+' component rows updated'+missNote);
+  const scopeNote=sess
+    ? '\n· scoped to session '+sess+(skippedOtherYears?' (prior years unchanged)':'')
+    : '\n· no session set — only blank national averages filled';
+  alert('SQA national averages applied from '+filename+':\n· '+filledKeys+' distinct components matched\n· '+rowsUpdated+' component rows updated'+scopeNote+missNote);
 }
 
 function handleSqaNatFile(file){
