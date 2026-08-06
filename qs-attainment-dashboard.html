@@ -878,7 +878,7 @@ html.qs-embed.qs-analysis .analysis-chrome{margin-left:-16px; margin-right:-16px
   </div>
   <div class="steps">
     <div class="step"><div class="num">01</div><h4>Fill in the workbook</h4><p>Yellow cells only — estimates before results day, grades &amp; component marks after. Grey and blue cells look after themselves.</p></div>
-    <div class="step"><div class="num">02</div><h4>Bring history forward</h4><p>After upload, accept the prompt (or use <b>Bring forward hub history…</b>) to pull prior years’ component marks from saved Hub sessions — no re-typing.</p></div>
+    <div class="step"><div class="num">02</div><h4>Bring history forward</h4><p>After upload, accept the prompt (or use <b>Bring forward hub history…</b>) to pull prior years’ component marks <b>and awarded grades</b> from saved Hub sessions — so Over Time matches each year’s official results.</p></div>
     <div class="step"><div class="num">03</div><h4>SQA national averages</h4><p>Drop the SQA assessment-marks tables workbook to fill national means on component charts. Then <b>Save to Hub</b> so staff can open this session from the Faculty Hub.</p></div>
   </div>
 </section>
@@ -898,7 +898,7 @@ html.qs-embed.qs-analysis .analysis-chrome{margin-left:-16px; margin-right:-16px
       <button id="resetFilters">✕ Reset</button>
       <button type="button" class="school-attach-btn" id="schoolBtnBar" title="School-wide results for comparative attainment">School data…</button>
       <button type="button" class="school-attach-btn" id="sqaNatBtnBar" title="SQA assessment-marks tables (national component means)">SQA national avgs…</button>
-      <button type="button" class="school-attach-btn" id="histHubBtnBar" title="Copy prior years’ component marks from saved Hub sessions (does not add this year’s marks)">Hub history…</button>
+      <button type="button" class="school-attach-btn" id="histHubBtnBar" title="Copy prior years’ component marks and awarded grades from saved Hub sessions">Hub history…</button>
     </div>
     <div class="filterbar-meta">
       <span id="schoolStatusBar" class="status-chip" aria-live="polite" title="" hidden></span>
@@ -1035,7 +1035,7 @@ html.qs-embed.qs-analysis .analysis-chrome{margin-left:-16px; margin-right:-16px
       <div class="filter"><label>Level</label><select id="trLevel"></select></div>
     </div>
     <div class="grid c21">
-      <div class="card"><h3>Average band by year <span class="hint">lower is better · one line per course &amp; level · bands from marks report or estimated from totals</span></h3><div class="chart-wrap tall"><canvas id="chTrendBand"></canvas></div></div>
+      <div class="card"><h3>Average band by year <span class="hint">lower is better · one line per course &amp; level · official Hub awards when available, else Combined band / mark estimate</span></h3><div class="chart-wrap tall"><canvas id="chTrendBand"></canvas></div></div>
       <div class="card"><h3>How are we doing? <span class="hint">auto-generated trend analysis</span></h3><ul class="headlines" id="trendHeadlines"></ul></div>
     </div>
     <div class="grid c2">
@@ -1178,7 +1178,7 @@ const fadeCol = hex=>{const n=parseInt(hex.slice(1),16);return 'rgba('+(n>>16&25
 const compTitle = r=>r.title||('Component '+r.component);
 const LEVEL_ORDER = ['National 5','Higher','Advanced Higher','NPA'];
 
-const state = { rows:[], comps:[], filename:'', pupilCount:0, preResults:false, vaExt:false,
+const state = { rows:[], comps:[], histAwards:[], filename:'', pupilCount:0, preResults:false, vaExt:false,
   filters:{subject:'All',level:'All',teacher:'All',quintile:'All'}, tab:'overview' };
 const charts = {};
 const $ = id => document.getElementById(id);
@@ -1572,7 +1572,7 @@ function parseCompRows(json){
     if(!/^\d{2}-\d{2}$/.test(year)) continue;
     let mark = toNum(pick(r,cm,'mark'));
     if(mark!==null && mark>=999) mark=null; /* 999 = missing-data code */
-    const band = gradeToBand(pick(r,cm,'band'));
+    const band = gradeToBand(pick(r,cm,'band','sqaband','resultband','sqaresultband','sqagrade','grade','finalgrade','finalband','awardedband','awardedgrade'));
     if(mark===null && band===null) continue;
     out.push({
       year,
@@ -1586,7 +1586,87 @@ function parseCompRows(json){
       mark, band, nat: toNum(pick(r,cm,'nationalaveragemark','nationalaverage','nationalavg')),
     });
   }
-  return out;
+  /* If Band is only on some component rows for a pupil/course/year, copy it to siblings */
+  return propagateCompBands(out);
+}
+function propagateCompBands(comps){
+  if(!comps||!comps.length) return comps||[];
+  const best=new Map();
+  comps.forEach(c=>{
+    if(c.band===null||c.band===undefined) return;
+    const id=normalizeScn(c.scn)||nameKey(c.fore,c.sur);
+    if(!id) return;
+    best.set([sessionKey(c.year)||c.year, id, c.subject, c.level].join('¦'), c.band);
+  });
+  if(!best.size) return comps;
+  comps.forEach(c=>{
+    if(c.band!==null&&c.band!==undefined) return;
+    const id=normalizeScn(c.scn)||nameKey(c.fore,c.sur);
+    if(!id) return;
+    const b=best.get([sessionKey(c.year)||c.year, id, c.subject, c.level].join('¦'));
+    if(b!==undefined) c.band=b;
+  });
+  return comps;
+}
+function histAwardKey(a){
+  const id=normalizeScn(a.scn)||nameKey(a.fore,a.sur)||pupilNameKey(a.name);
+  return [sessionKey(a.year)||'', id, a.subject||'', a.level||''].join('¦');
+}
+function makeHistAward(year, r){
+  if(!r || r.band===null || r.band===undefined || r.level==='NPA') return null;
+  const fore=String(r.fore||'').trim();
+  const sur=String(r.sur||'').trim();
+  const name=String(r.name||[fore,sur].filter(Boolean).join(' ')).trim();
+  if(!normalizeScn(r.scn) && !nameKey(fore,sur) && !pupilNameKey(name)) return null;
+  return {
+    year: sessionKey(year)||String(year||'').trim(),
+    scn: normalizeScn(r.scn)||'',
+    fore, sur, name,
+    subject: r.subject,
+    level: r.level,
+    band: r.band,
+    teacher: r.teacher||'—'
+  };
+}
+function mergeHistAwards(incoming){
+  if(!incoming||!incoming.length) return 0;
+  if(!state.histAwards) state.histAwards=[];
+  const map=new Map(state.histAwards.map(a=>[histAwardKey(a), a]));
+  let added=0;
+  incoming.forEach(a=>{
+    if(!a || a.band===null || a.band===undefined) return;
+    const k=histAwardKey(a);
+    if(!k || k.startsWith('¦')) return;
+    if(!map.has(k)) added++;
+    map.set(k, a);
+  });
+  state.histAwards=[...map.values()];
+  stampAwardsOntoComps(incoming);
+  return added;
+}
+function stampAwardsOntoComps(awards){
+  if(!awards||!awards.length||!state.comps||!state.comps.length) return 0;
+  let stamped=0;
+  awards.forEach(a=>{
+    if(!a || a.band===null || a.band===undefined) return;
+    const y=sessionKey(a.year);
+    state.comps.forEach(c=>{
+      if((sessionKey(c.year)||c.year)!==y) return;
+      if(c.level!==a.level) return;
+      const subOk=c.subject===a.subject || (isArtDesignSubject(c.subject)&&isArtDesignSubject(a.subject));
+      if(!subOk) return;
+      if(!pupilMatchesComp({fore:a.fore,sur:a.sur,scn:a.scn,name:a.name}, c)) return;
+      if(c.band!==a.band){ c.band=a.band; stamped++; }
+    });
+  });
+  return stamped;
+}
+function stampCurrentSessionAwardsOntoComps(){
+  const sess=sessionKey(state.session||'');
+  if(!sess || state.preResults) return 0;
+  const awards=(state.rows||[]).map(r=>makeHistAward(sess, r)).filter(Boolean);
+  mergeHistAwards(awards.filter(a=>a.year===sess)); /* keep current-year awards in hist store too for save/reload consistency */
+  return stampAwardsOntoComps(awards);
 }
 
 /* ---------- SQA Assessment & Component Marks tables (national means) ---------- */
@@ -1808,14 +1888,27 @@ function setHistBanner(html, on){
   el.innerHTML=html||'';
 }
 function mergeHistoricalComps(historyRows, meta){
-  if(!historyRows||!historyRows.length) return {added:0, years:[]};
-  const existing=new Set(state.comps.map(compHistoryKey));
-  let added=0;
+  if(!historyRows||!historyRows.length) return {added:0, upgraded:0, years:[]};
+  const existingMap=new Map();
+  state.comps.forEach(c=>existingMap.set(compHistoryKey(c), c));
+  let added=0, upgraded=0;
   const years=new Set();
   historyRows.forEach(r=>{
     const k=compHistoryKey(r);
-    if(existing.has(k)) return;
-    existing.add(k);
+    const existing=existingMap.get(k);
+    if(existing){
+      /* Upgrade blank bands / nationals from Hub when the upload left them empty */
+      if((existing.band===null||existing.band===undefined) && r.band!==null&&r.band!==undefined){
+        existing.band=r.band; upgraded++;
+      }
+      if((existing.nat===null||existing.nat===undefined) && r.nat!==null&&r.nat!==undefined){
+        existing.nat=r.nat;
+      }
+      if(!normalizeScn(existing.scn) && normalizeScn(r.scn)) existing.scn=normalizeScn(r.scn);
+      if(r.year) years.add(sessionKey(r.year)||String(r.year));
+      return;
+    }
+    existingMap.set(k, true);
     state.comps.push({
       year:String(r.year||'').trim(),
       scn: normalizeScn(r.scn)||'',
@@ -1832,18 +1925,19 @@ function mergeHistoricalComps(historyRows, meta){
     added++;
     if(r.year) years.add(sessionKey(r.year)||String(r.year));
   });
-  if(added){
-    state.hubHistory=Object.assign({}, meta||{}, {added, years:[...years].sort()});
+  if(added||upgraded){
+    state.hubHistory=Object.assign({}, meta||{}, {added, upgraded, years:[...years].sort()});
     updateFileChipDisplay(state.filename, state.rows.length, state.comps.length, state.sheetName||'');
     buildComponentControls(); buildTrendControls(); renderAll();
     setHistBanner(
       'Hub history — added <b>'+added+'</b> prior component row'+(added===1?'':'s')+
+      (upgraded? ' · upgraded <b>'+upgraded+'</b> band'+(upgraded===1?'':'s'):'')+
       (years.size? ' covering <b>'+[...years].sort().map(esc).join(', ')+'</b>':'')+
-      '. This session’s rows from your upload were kept.',
+      '. Awarded grades from prior Hub years are applied to Over Time.',
       true
     );
   }
-  return {added, years:[...years].sort()};
+  return {added, upgraded, years:[...years].sort()};
 }
 function fetchHubComponentHistory(excludeSession){
   const Svc=window.QsAttainmentService;
@@ -1853,12 +1947,20 @@ function fetchHubComponentHistory(excludeSession){
     const list=(rows||[]).slice().sort(function(a,b){
       return String(a.school_year||'').localeCompare(String(b.school_year||''));
     });
-    if(!list.length) return {comps:[], sources:[], exclude};
+    if(!list.length) return {comps:[], awards:[], sources:[], exclude};
     return Promise.all(list.map(function(r){ return Svc.getSnapshot(r.school_year); })).then(function(fulls){
       const byKey=new Map();
+      const awardsByKey=new Map();
       const sources=[];
       fulls.forEach(function(row){
         if(!row||!row.data) return;
+        const snapYear=sessionKey(
+          (row.data && row.data.session) ||
+          row.session_label ||
+          (Svc.toSessionLabel && row.school_year ? Svc.toSessionLabel(row.school_year) : '') ||
+          row.school_year ||
+          ''
+        );
         const comps=row.data.comps||[];
         let used=0;
         comps.forEach(function(c){
@@ -1868,9 +1970,24 @@ function fetchHubComponentHistory(excludeSession){
           byKey.set(k, c); /* newer snapshots overwrite same key */
           used++;
         });
-        if(used) sources.push(row.school_year||row.session_label||'?');
+        /* Official awards from this Hub year's results sheet */
+        if(snapYear && !(exclude && snapYear===exclude)){
+          (row.data.rows||[]).forEach(function(r){
+            const a=makeHistAward(snapYear, r);
+            if(a) awardsByKey.set(histAwardKey(a), a);
+          });
+        }
+        /* Nested histAwards already carried into that snapshot */
+        (row.data.histAwards||[]).forEach(function(a){
+          if(!a) return;
+          const yk=sessionKey(a.year);
+          if(exclude && yk===exclude) return;
+          const full=makeHistAward(a.year, a);
+          if(full) awardsByKey.set(histAwardKey(full), full);
+        });
+        if(used || (snapYear && snapYear!==exclude)) sources.push(row.school_year||row.session_label||'?');
       });
-      return {comps:[...byKey.values()], sources, exclude};
+      return {comps:[...byKey.values()], awards:[...awardsByKey.values()], sources, exclude};
     });
   });
 }
@@ -1885,29 +2002,43 @@ function bringForwardHubHistory(opts){
     const ok=confirm('No exam session is set. History will exclude nothing (all hub component rows may merge). Continue?\n\nTip: set “Save as” / exam session first for cleaner results.');
     if(!ok) return Promise.resolve(null);
   }
-  setHistBanner('Loading component history from Hub…', true);
+  setHistBanner('Loading component history and awarded grades from Hub…', true);
   return fetchHubComponentHistory(sess).then(function(pack){
-    if(!pack.comps.length){
+    if(!pack.comps.length && !(pack.awards&&pack.awards.length)){
       setHistBanner('No prior component history found in Hub snapshots'+(pack.exclude? ' (excluding '+esc(pack.exclude)+')':'')+'.', true);
       if(!opts.silentEmpty) alert('No prior component marks found in saved Hub years'+(pack.exclude? ' (skipped '+pack.exclude+')':'')+'.');
       return pack;
     }
-    const years=[...new Set(pack.comps.map(c=>sessionKey(c.year)||c.year))].sort();
+    const years=[...new Set([
+      ...pack.comps.map(c=>sessionKey(c.year)||c.year),
+      ...(pack.awards||[]).map(a=>sessionKey(a.year)||a.year)
+    ])].filter(Boolean).sort();
     if(!opts.skipConfirm){
-      const msg='Bring forward '+pack.comps.length+' historical component row(s) from Hub?\n\nYears found: '+years.join(', ')+
+      const msg='Bring forward historical data from Hub?\n\n'+
+        '· '+(pack.comps.length||0)+' component mark row(s)\n'+
+        '· '+(pack.awards||[]).length+' awarded grade(s) for Over Time\n'+
+        'Years: '+(years.join(', ')||'—')+
         '\nSources: '+(pack.sources.join(', ')||'—')+
         (pack.exclude? '\nExcluding current session: '+pack.exclude:'')+
-        '\n\nRows already in your upload are kept; only missing history is added.';
+        '\n\nRows already in your upload are kept; blank bands are upgraded from Hub awards.';
       if(!confirm(msg)){ setHistBanner('', false); return null; }
     }
     const result=mergeHistoricalComps(pack.comps, {sources:pack.sources, exclude:pack.exclude});
-    if(!result.added){
-      setHistBanner('Hub history — nothing new to add (your upload already has those prior-year rows).', true);
+    const awardsAdded=mergeHistAwards(pack.awards||[]);
+    stampCurrentSessionAwardsOntoComps();
+    propagateCompBands(state.comps);
+    buildComponentControls(); buildTrendControls(); resolveCompScnLinks(); renderAll();
+    if(!result.added && !result.upgraded && !awardsAdded){
+      setHistBanner('Hub history — nothing new to add (your upload already has those prior-year rows and awards).', true);
       if(!opts.silentEmpty) alert('No new historical rows to add — your workbook already includes them.');
     } else if(!opts.silent){
-      alert('Added '+result.added+' historical component rows'+(result.years.length? ' ('+result.years.join(', ')+')':'')+'.');
+      alert('Hub history applied:\n· '+(result.added||0)+' component rows added'+
+        (result.upgraded? '\n· '+result.upgraded+' bands upgraded':'')+
+        (awardsAdded? '\n· '+awardsAdded+' awarded grades brought forward':'')+
+        (result.years.length? '\n· years: '+result.years.join(', '):'')+
+        '\n\nOver Time now uses official Hub awards for prior years where available.');
     }
-    return Object.assign({}, pack, result);
+    return Object.assign({}, pack, result, {awardsAdded});
   }).catch(function(err){
     setHistBanner('Hub history failed: '+esc((err&&err.message)||err), true);
     alert('Could not load Hub history: '+((err&&err.message)||err));
@@ -1924,8 +2055,8 @@ function offerHubHistoryCarryForward(){
     state._hubHistoryOffered=true;
     const sess=state.session||'';
     const msg='Saved Hub years found ('+rows.map(r=>r.school_year||r.session_label).filter(Boolean).join(', ')+').\n\n'+
-      'Bring forward historical component marks into this session'+(sess? ' (excluding '+sess+')':'')+'?\n\n'+
-      'Choose OK to merge prior years from the Hub. Cancel to keep only what is in this upload.';
+      'Bring forward historical component marks and awarded grades into this session'+(sess? ' (excluding '+sess+')':'')+'?\n\n'+
+      'This keeps Over Time aligned with each year’s official results. Choose OK to merge from the Hub. Cancel to keep only what is in this upload.';
     if(confirm(msg)) bringForwardHubHistory({skipConfirm:true});
   }).catch(function(){ /* ignore — offline / no auth */ });
 }
@@ -2079,11 +2210,14 @@ function parseWorkbook(wb, filename){
 /* ---------- state & boot ---------- */
 function loadData(rows, comps, filename, sheetName){
   const fromCloud = !!window.__qsLoadingFromCloud;
+  const keepHistAwards = fromCloud && Array.isArray(state._pendingHistAwards) ? state._pendingHistAwards : null;
   state.rows = rows; state.comps = comps; state.filename = filename; state.sheetName = sheetName||''; state.pupilCount = rows.length;
   state.preResults = !rows.some(r => r.band !== null);
   state.filters = {subject:'All',level:'All',teacher:'All',quintile:'All'};
   state.sqaNat = null;
   state.hubHistory = null;
+  state.histAwards = keepHistAwards || [];
+  state._pendingHistAwards = null;
   if(!fromCloud) state._hubHistoryOffered = false;
   const natBanner=$('sqaNatBanner'); if(natBanner){ natBanner.classList.remove('on','warn'); natBanner.innerHTML=''; }
   setHistBanner('', false);
@@ -2102,6 +2236,8 @@ function loadData(rows, comps, filename, sheetName){
   syncSessionSelects(sess);
   $('sessionLabel').textContent = sess? '| '+sess : '';
   $('sessionSub').textContent = sess? ' · Session 20'+sess.slice(0,2)+'–'+sess.slice(3,5) : '';
+  propagateCompBands(state.comps);
+  stampCurrentSessionAwardsOntoComps();
   buildFilterOptions();
   buildComponentControls();
   buildTrendControls();
@@ -3114,43 +3250,17 @@ function trendBands(){
     if(r.band!==null && g.band===null) g.band=r.band;
     if(r.mark!==null) g.marks.push(r.mark);
   }
-  /* Current session awarded grades from the results sheet */
+  /* Official awarded grades: Hub history for prior years + this session’s results sheet */
   const sess=state.session;
+  const awardList=[];
+  (state.histAwards||[]).forEach(a=>{ if(a) awardList.push(a); });
   if(sess && !state.preResults){
-    for(const r of state.rows){
-      if(r.band===null || r.level==='NPA') continue;
-      const fore=String(r.fore||'').trim(), sur=String(r.sur||'').trim();
-      const scn=normalizeScn(r.scn);
-      const nk=nameKey(fore,sur) || nameKey(r.name||'', '');
-      const sk=softNameKey(fore,sur) || nk;
-      if(!nk && !sk && !scn) continue;
-      let g=null;
-      if(scn){
-        g=[...groups.values()].find(x=>
-          x.year===sess && x.level===r.level && normalizeScn(x.scn)===scn &&
-          (x.subject===r.subject || (isArtDesignSubject(r.subject) && isArtDesignSubject(x.subject)))
-        ) || null;
-      }
-      let k=[sess, nk, r.subject, r.level].join('¦');
-      if(!g && !groups.has(k) && isArtDesignSubject(r.subject)){
-        g=[...groups.values()].find(x=>
-          x.year===sess && x.level===r.level && isArtDesignSubject(x.subject) &&
-          ((sk && x.sk===sk) || (nk && x.nk===nk) || (scn && normalizeScn(x.scn)===scn))
-        ) || null;
-        if(g) k=[g.year, g.nk, g.subject, g.level].join('¦');
-      }
-      if(!g && groups.has(k)) g=groups.get(k);
-      if(g){
-        if(g.band===null || g.estimated){ g.band=r.band; g.estimated=false; }
-        if(!g.fore && fore) g.fore=fore;
-        if(!g.sur && sur) g.sur=sur;
-        if(scn) g.scn=scn;
-        if(sk) g.sk=sk;
-      } else {
-        groups.set(k,{year:sess, subject:r.subject, level:r.level, band:r.band, marks:[], nComp:0, nk, sk, scn, fore, sur, estimated:false});
-      }
-    }
+    (state.rows||[]).forEach(r=>{
+      const a=makeHistAward(sess, r);
+      if(a) awardList.push(a);
+    });
   }
+  applyAwardsToTrendGroups(groups, awardList);
   /* Estimate remaining bands from summed component marks */
   for(const g of groups.values()){
     if(g.band!==null) continue;
@@ -3167,6 +3277,45 @@ function trendBands(){
     year:g.year, subject:g.subject, level:g.level, band:g.band, estimated:!!g.estimated,
     scn:g.scn||'', nk:g.nk||'', sk:g.sk||'', fore:g.fore||'', sur:g.sur||''
   }));
+}
+function applyAwardsToTrendGroups(groups, awards){
+  if(!awards||!awards.length) return;
+  for(const r of awards){
+    if(!r || r.band===null || r.band===undefined || r.level==='NPA') continue;
+    const year=sessionKey(r.year)||String(r.year||'').trim();
+    if(!/^\d{2}-\d{2}$/.test(year)) continue;
+    const fore=String(r.fore||'').trim(), sur=String(r.sur||'').trim();
+    const scn=normalizeScn(r.scn);
+    const nk=nameKey(fore,sur) || pupilNameKey(r.name||'');
+    const sk=softNameKey(fore,sur) || nk;
+    if(!nk && !sk && !scn) continue;
+    let g=null;
+    if(scn){
+      g=[...groups.values()].find(x=>
+        x.year===year && x.level===r.level && normalizeScn(x.scn)===scn &&
+        (x.subject===r.subject || (isArtDesignSubject(r.subject) && isArtDesignSubject(x.subject)))
+      ) || null;
+    }
+    let k=[year, nk, r.subject, r.level].join('¦');
+    if(!g && !groups.has(k) && isArtDesignSubject(r.subject)){
+      g=[...groups.values()].find(x=>
+        x.year===year && x.level===r.level && isArtDesignSubject(x.subject) &&
+        ((sk && x.sk===sk) || (nk && x.nk===nk) || (scn && normalizeScn(x.scn)===scn))
+      ) || null;
+      if(g) k=[g.year, g.nk, g.subject, g.level].join('¦');
+    }
+    if(!g && groups.has(k)) g=groups.get(k);
+    if(g){
+      /* Official awards always win over mark estimates / blank bands */
+      g.band=r.band; g.estimated=false;
+      if(!g.fore && fore) g.fore=fore;
+      if(!g.sur && sur) g.sur=sur;
+      if(scn) g.scn=scn;
+      if(sk) g.sk=sk;
+    } else {
+      groups.set(k,{year, subject:r.subject, level:r.level, band:r.band, marks:[], nComp:0, nk, sk, scn, fore, sur, estimated:false});
+    }
+  }
 }
 const LEVEL_SHORT={'National 5':'N5','Higher':'Higher','Advanced Higher':'Adv H'};
 const TREND_SHADES={
@@ -4109,9 +4258,9 @@ const CHART_TIPS={
   chCompYoY:'For each component, the solid bar is your cohort’s average mark and the faded bar beside it is that component’s national average. Compare within each pair — different components have different maximum marks.',
   chCompDev:'Your average mark minus the national average, per component. Bars above zero beat the country; below zero fell short. The same component sitting below zero year after year is a persistent focus area.',
   tblComp:'Average mark / national average per year for every component. Δ YoY is the change in your average mark versus the previous year — green up, red down.',
-  chTrendBand:'One line per course and level, tracking the average awarded band each year. Lines climbing towards A1 (top) show improvement. Bands come from the marks report when present; otherwise they are estimated from total component marks using SQA grade boundaries for that results year.',
-  chTrendGrades:'The grade profile of the current selection each year, as percentages. Growing gold (A) and shrinking red (No Award) means the profile is strengthening.',
-  chTrendAC:'The headline measures over time: solid gold = % awarded A–C, dashed = % awarded an A. Up and to the right is good.',
+  chTrendBand:'One line per course and level, tracking the average awarded band each year. Lines climbing towards A1 (top) show improvement. Prior years prefer official Hub awards (or Band on Combined); otherwise bands are estimated from total component marks using SQA grade boundaries.',
+  chTrendGrades:'The grade profile of the current selection each year, as percentages. Prior years use official awards brought forward from Hub (or Band on Component Marks Combined); the open session uses this year’s results sheet. Growing gold (A) and shrinking red (No Award) means the profile is strengthening.',
+  chTrendAC:'The headline measures over time: solid gold = % awarded A–C, dashed = % awarded an A. Same official-award sources as the grades chart. Up and to the right is good.',
   chTrendCompDev:'For each component, cohort average (solid) vs national average (faded), year by year — shows whether each component is gaining ground on the country.',
   chArtPathEntries:'How many pupils sat Higher Art (gold) vs Advanced Higher Art (teal) each year. Gold should shrink and teal should grow as Higher is withdrawn.',
   chArtPathAC:'Pass rates over time. Solid lines = % who passed at A, B or C. Dashed = % who got an A. Compare gold to past gold, teal to past teal — not gold to teal.',
@@ -4278,7 +4427,7 @@ $('tabbar').addEventListener('click',e=>{
 
 /* ============================ Snapshot export ============================ */
 $('btnSnapshot').addEventListener('click',()=>{
-  const payload={rows:state.rows,comps:state.comps,school:state.school||[],filename:state.filename,sheetName:state.sheetName,session:state.session||'',
+  const payload={rows:state.rows,comps:state.comps,histAwards:state.histAwards||[],school:state.school||[],filename:state.filename,sheetName:state.sheetName,session:state.session||'',
     generated:new Date().toLocaleString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})};
   const clone=document.documentElement.cloneNode(true);
   const oldSnap=clone.querySelector('#snapshot-data'); if(oldSnap) oldSnap.remove();
@@ -4318,6 +4467,7 @@ if(window.__SNAPSHOT__){
       return {
         rows: state.rows,
         comps: state.comps,
+        histAwards: state.histAwards || [],
         school: state.school || [],
         filename: state.filename || '',
         sheetName: state.sheetName || '',
@@ -4366,6 +4516,7 @@ if(window.__SNAPSHOT__){
       state.school = payload.school || [];
       state.compReport = payload.compReport || null;
       state.session = payload.session || '';
+      state._pendingHistAwards = Array.isArray(payload.histAwards) ? payload.histAwards.slice() : [];
       ensureSessionOption(payload.session);
       if(state.school && state.school.length){
         setSchoolStatusMessage('<span style="color:var(--green)">✓</span> Whole-school data loaded from hub: <b>'+state.school.length+'</b> results.', true);
@@ -4374,6 +4525,27 @@ if(window.__SNAPSHOT__){
       if(typeof payload.preResults==='boolean'){
         state.preResults = payload.preResults;
         $('preResultsBanner').classList.toggle('on', state.preResults);
+      }
+      /* Re-stamp after preResults flag is known */
+      stampCurrentSessionAwardsOntoComps();
+      if(state.histAwards && state.histAwards.length) stampAwardsOntoComps(state.histAwards);
+      propagateCompBands(state.comps);
+      buildTrendControls();
+      renderAll();
+      /* Older Hub saves may lack histAwards — quietly pull official grades from other years */
+      const sess=sessionKey(state.session||'');
+      const hasPrior=(state.comps||[]).some(c=>sessionKey(c.year)&&sessionKey(c.year)!==sess);
+      const priorAwardYears=new Set((state.histAwards||[]).map(a=>sessionKey(a.year)).filter(y=>y&&y!==sess));
+      if(hasPrior && priorAwardYears.size===0){
+        fetchHubComponentHistory(sess).then(function(pack){
+          if(!pack||!pack.awards||!pack.awards.length) return;
+          const n=mergeHistAwards(pack.awards);
+          if(!n && !(pack.awards||[]).length) return;
+          propagateCompBands(state.comps);
+          buildTrendControls();
+          renderAll();
+          setHistBanner('Over Time — loaded <b>'+pack.awards.length+'</b> official award'+(pack.awards.length===1?'':'s')+' from Hub for prior years. <b>Save to Hub</b> to keep them with this session.', true);
+        }).catch(function(){ /* ignore */ });
       }
     },
     onDataLoaded: function(fn){ if(typeof fn==='function') listeners.push(fn); },
