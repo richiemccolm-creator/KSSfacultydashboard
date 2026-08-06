@@ -91,6 +91,7 @@
       api.loadFromCloud({
         rows: data.rows || [],
         comps: data.comps || [],
+        histAwards: data.histAwards || [],
         school: data.school || [],
         filename: data.filename || (row.metadata && row.metadata.filename) || row.school_year,
         sheetName: data.sheetName || '',

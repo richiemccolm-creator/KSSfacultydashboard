@@ -942,7 +942,7 @@ html.qs-embed.qs-analysis .analysis-chrome{margin-left:-16px; margin-right:-16px
     </div>
     <div class="card"><h3>Subject × level breakdown</h3><div class="tbl-wrap"><table id="tblBreakdown"></table></div></div>
     <div class="school-rank-block needs-school-rank">
-      <div class="section-head"><h2>Whole-school context</h2><span class="desc">Was this faculty course the pupil’s highest, equal highest or lowest attainment vs their other subjects? · Insight National Course tariff · comparable pupils only</span></div>
+      <div class="section-head"><h2>Whole-school context</h2><span class="desc">Was this faculty course the pupil’s highest, equal highest or lowest attainment vs their other subjects? · Insight National Course tariff · % of all comparable pupils (middle included)</span></div>
       <div class="grid c2">
         <div class="card"><h3 id="hSchoolRankSubject">Comparative attainment by subject</h3><div class="chart-wrap"><canvas id="chSchoolRankSubject"></canvas></div></div>
         <div class="card"><h3 id="hSchoolRankLevel">Comparative attainment by level</h3><div class="chart-wrap"><canvas id="chSchoolRankLevel"></canvas></div></div>
@@ -1437,7 +1437,7 @@ function parseResultRows(json){
     /* SheetJS leaves unevaluated Excel formulas as strings — treat as missing */
     if(typeof attRaw==='string' && /^\s*=/.test(attRaw)) attRaw = null;
     let attendance = toNum(attRaw);
-    if(attendance!==null && attendance<=1.5) attendance = attendance*100;
+    if(attendance!==null && attendance<=1) attendance = attendance*100;
     if(attendance!==null && (attendance<0 || attendance>100)) attendance = null;
     const gradeRaw = pick(r,m,'sqagrade','grade');
     let band = gradeToBand(pick(r,m,'sqaresultband','resultband','sqaresults','sqaresult'));
@@ -1484,7 +1484,7 @@ function parseAttendanceLookup(wb){
     if(!fore && !sur) continue;
     let rate = toNum(pick(r,m,'attendancerate','attendance','attendancepct','attendancepercent'));
     if(rate===null) continue;
-    if(rate<=1.5) rate = rate*100;
+    if(rate<=1) rate = rate*100;
     if(rate<0 || rate>100) continue;
     const f = String(fore||'').trim(), s = String(sur||'').trim();
     map.set(key(f,s), rate);
@@ -1663,9 +1663,11 @@ function stampAwardsOntoComps(awards){
 }
 function stampCurrentSessionAwardsOntoComps(){
   const sess=sessionKey(state.session||'');
-  if(!sess || state.preResults) return 0;
-  const awards=(state.rows||[]).map(r=>makeHistAward(sess, r)).filter(Boolean);
-  mergeHistAwards(awards.filter(a=>a.year===sess)); /* keep current-year awards in hist store too for save/reload consistency */
+  if(!sess) return 0;
+  /* Stamp whenever awarded bands exist — do not wait for the global preResults flag */
+  const awards=(state.rows||[]).filter(r=>r.band!==null).map(r=>makeHistAward(sess, r)).filter(Boolean);
+  if(!awards.length) return 0;
+  mergeHistAwards(awards.filter(a=>a.year===sess));
   return stampAwardsOntoComps(awards);
 }
 
@@ -1910,7 +1912,7 @@ function mergeHistoricalComps(historyRows, meta){
     }
     existingMap.set(k, true);
     state.comps.push({
-      year:String(r.year||'').trim(),
+      year:sessionKey(r.year)||String(r.year||'').trim(),
       scn: normalizeScn(r.scn)||'',
       fore:String(r.fore||'').trim(),
       sur:String(r.sur||'').trim(),
@@ -2115,18 +2117,18 @@ function mergeCompReport(json, filename){
     || ($('ySessionBar')&&$('ySessionBar').value)
     || ($('ySession')&&$('ySession').value)
     || '';
-  if(!year) year='this session';
-  if(year && year!=='this session'){
-    state.session=year;
-    if($('ySession')) $('ySession').value=year;
-    if($('ySessionBar')) $('ySessionBar').value=year;
-    if($('sessionLabel')) $('sessionLabel').textContent='| '+year;
-    if($('sessionSub')) $('sessionSub').textContent=' · Session 20'+year.slice(0,2)+'–'+year.slice(3,5);
-  }
+  year=sessionKey(year)||year;
+  if(!year || !/^\d{2}-\d{2}$/.test(year))
+    throw new Error('Set the exam session in the Years bar before attaching the QS Component Marks Report (could not resolve a session like 25-26 from the filename).');
+  state.session=year;
+  if($('ySession')) $('ySession').value=year;
+  if($('ySessionBar')) $('ySessionBar').value=year;
+  if($('sessionLabel')) $('sessionLabel').textContent='| '+year;
+  if($('sessionSub')) $('sessionSub').textContent=' · Session 20'+year.slice(0,2)+'–'+year.slice(3,5);
   /* Always take Art, Drama and Photography from the report (not only subjects already on the results sheet) */
   const facRows=entries.filter(r=>isFacultySubject(r.subject));
   if(!facRows.length) throw new Error('No Art, Drama or Photography component rows found in that report.');
-  state.comps=state.comps.filter(r=>!(r.year===year && isFacultySubject(r.subject)));
+  state.comps=state.comps.filter(r=>!(sessionKey(r.year)===year && isFacultySubject(r.subject)));
   facRows.forEach(r=>state.comps.push({year, scn:normalizeScn(r.scn)||'', fore:r.fore, sur:r.sur, subject:r.subject, level:r.level, component:r.component, title:r.title, mark:r.mark, band:r.band, nat:null}));
   /* Every subject → whole-school attainment (one band per pupil per course) */
   const seen=new Set(), school=[];
@@ -2212,7 +2214,7 @@ function loadData(rows, comps, filename, sheetName){
   const fromCloud = !!window.__qsLoadingFromCloud;
   const keepHistAwards = fromCloud && Array.isArray(state._pendingHistAwards) ? state._pendingHistAwards : null;
   state.rows = rows; state.comps = comps; state.filename = filename; state.sheetName = sheetName||''; state.pupilCount = rows.length;
-  state.preResults = !rows.some(r => r.band !== null);
+  state.preResults = detectPreResults(rows);
   state.filters = {subject:'All',level:'All',teacher:'All',quintile:'All'};
   state.sqaNat = null;
   state.hubHistory = null;
@@ -2237,6 +2239,8 @@ function loadData(rows, comps, filename, sheetName){
   $('sessionLabel').textContent = sess? '| '+sess : '';
   $('sessionSub').textContent = sess? ' · Session 20'+sess.slice(0,2)+'–'+sess.slice(3,5) : '';
   propagateCompBands(state.comps);
+  /* Normalise legacy Hub year strings (2024-25 → 24-25) */
+  (state.comps||[]).forEach(c=>{ const y=sessionKey(c.year); if(y) c.year=y; });
   stampCurrentSessionAwardsOntoComps();
   buildFilterOptions();
   buildComponentControls();
@@ -2284,9 +2288,19 @@ const vaSet = rows => rows.filter(r => predEligible(r) && r.band!==null && r.ban
 const bandOf = r => r.band!==null ? r.band : (state.preResults ? r.est : null);
 const estTag = () => state.preResults ? ' (est.)' : '';
 const gradeable = rows => rows.filter(r => r.level!=='NPA' && bandOf(r)!==null);
+/* Graded entries for A / A–C rates: bands 1–8 (exclude DNA 9) — matches Over Time */
+const gradedEntries = rows => gradeable(rows).filter(r => { const b=bandOf(r); return b!==null && b<=8; });
 const isAC = b => b!==null && b<=6;
-const acRate = rows => { const g=gradeable(rows); return pct(g.filter(r=>isAC(bandOf(r))).length, g.length); };
-const avgBand = rows => { const g=gradeable(rows).filter(r=>bandOf(r)<=8); return avg(g.map(r=>bandOf(r))); };
+const acRate = rows => { const g=gradedEntries(rows); return pct(g.filter(r=>isAC(bandOf(r))).length, g.length); };
+const aRate = rows => { const g=gradedEntries(rows); return pct(g.filter(r=>bandOf(r)<=2).length, g.length); };
+const avgBand = rows => { const g=gradedEntries(rows); return avg(g.map(r=>bandOf(r))); };
+function detectPreResults(rows){
+  const candidates=(rows||[]).filter(r=>r.level!=='NPA');
+  if(!candidates.length) return true;
+  const withBand=candidates.filter(r=>r.band!==null).length;
+  /* Need ≥80% awarded grades before leaving pre-results — one filled cell must not unlock the whole cohort */
+  return withBand/candidates.length < 0.8;
+}
 
 /* ---------- Chart.js defaults & helpers ---------- */
 Chart.defaults.font.family = "'Archivo',sans-serif";
@@ -2466,17 +2480,17 @@ function kpiHtml(k){
   return '<div class="kpi">'+tip+'<div class="label">'+k.label+'</div><div class="value">'+k.value+'</div><div class="foot '+(k.cls||'')+'">'+k.foot+'</div></div>';
 }
 function renderOverview(rows){
-  const g = gradeable(rows);
-  const ac = acRate(rows), ab = avgBand(rows);
+  const g = gradedEntries(rows);
+  const gAll = gradeable(rows);
+  const ac = acRate(rows), ab = avgBand(rows), ar = aRate(rows);
   const attVals = rows.map(r=>r.attendance).filter(v=>v!==null);
   const attAvg = avg(attVals);
   const withPred = g.filter(r=>predEligible(r) && bandOf(r)!==null && bandOf(r)<=8);
   const attained = state.preResults ? null : pct(withPred.filter(r=>r.band<=r.pred).length, withPred.length);
-  const aRate = pct(g.filter(r=>bandOf(r)<=2).length, g.length);
   const kpis = [
     {label:'Pupils in view', value:String(rows.length), foot:[...new Set(rows.map(r=>r.subject))].length+' subjects · '+[...new Set(rows.map(r=>r.teacher))].length+' teachers', tip:'How many faculty entries match the current Subject / Level / Teacher / SIMD filters. Reset filters to see the full cohort.'},
-    {label:'A–C rate'+estTag(), value:fmtPct(ac), foot:g.length+' graded entries', tip:'Share of graded entries awarded A–C (bands 1–6). In pre-results mode this uses teacher estimates instead of awarded grades.'},
-    {label:'A rate'+estTag(), value:fmtPct(aRate), foot:'bands 1–2', tip:'Share of graded entries awarded an A (bands A1–A2). In pre-results mode this uses teacher estimates.'},
+    {label:'A–C rate'+estTag(), value:fmtPct(ac), foot:g.length+' graded entries (excl. DNA)', tip:'Share of graded entries (bands 1–8) awarded A–C (bands 1–6). DNA / Did Not Attempt is excluded from the denominator — same rule as Over Time. In pre-results mode this uses teacher estimates.'},
+    {label:'A rate'+estTag(), value:fmtPct(ar), foot:'bands 1–2 · excl. DNA', tip:'Share of graded entries (bands 1–8) awarded an A (bands A1–A2). DNA excluded. In pre-results mode this uses teacher estimates.'},
     {label:'Average band'+estTag(), value:fmt1(ab), foot:'1 = A1 · excludes DNA', tip:'Mean SQA band for graded entries in view. Lower is better: 1 = A1, 6 = C6, 7 = D. DNA / Did Not Attempt is excluded.'},
     {label:'Avg attendance', value:attAvg===null?'—':attAvg.toFixed(1)+'<small>%</small>', foot:attVals.filter(v=>v<80).length+' pupils below 80%', cls:attAvg!==null&&attAvg<90?'bad':'good', tip:'Mean attendance % for pupils in the current filter who have an attendance figure recorded.'},
     {label:'Attained potential', value:attained===null?'—':fmtPct(attained), foot:state.preResults?'unlocks on results day':'National 5 · vs CEM prediction', tip:'National 5 only: % of pupils whose awarded band was equal to or better than their CEM predicted band. CEM is an approximate baseline for value-added context, not an official QS predictor.'},
@@ -2485,9 +2499,9 @@ function renderOverview(rows){
     const sr=tallySchoolRankRows(rows.filter(r=>r.level!=='NPA'));
     if(sr.n){
       kpis.push(
-        {label:'Highest attainment', value:fmtPct(rankPct(sr,'hi')), foot:sr.hi+' of '+sr.n+' comparable pupils', cls:'good', tip:'Uses attached whole-school results. Of comparable pupils (those with at least one other subject in the school file), the % for whom this faculty course had a higher Insight National Course tariff than every other subject they sat. Needs awarded grades.'},
-        {label:'Equal highest', value:fmtPct(rankPct(sr,'eq')), foot:sr.eq+' pupils · vs other subjects', cls:'', tip:'Uses attached whole-school results. % of comparable pupils for whom this course tied for their best attainment (same tariff as their highest other subject). Compares across levels using Insight National Course ready-reckoner points (N5 A=84, Higher A=204, AH A=480).'},
-        {label:'Lowest attainment', value:fmtPct(rankPct(sr,'lo')), foot:sr.lo+' of '+sr.n+' comparable', cls:sr.lo>sr.hi?'bad':'', tip:'Uses attached whole-school results. % of comparable pupils for whom this faculty course was their weakest attainment vs every other subject they sat in the school-wide file.'},
+        {label:'Highest attainment', value:fmtPct(rankPct(sr,'hi')), foot:sr.hi+' of '+sr.n+' comparable pupils', cls:'good', tip:'Uses attached whole-school results. Of all comparable pupils (those with at least one other subject — including middle performers), the % for whom this faculty course had a higher Insight National Course tariff than every other subject they sat. Needs awarded grades.'},
+        {label:'Equal highest', value:fmtPct(rankPct(sr,'eq')), foot:sr.eq+' of '+sr.n+' comparable', cls:'', tip:'Uses attached whole-school results. % of all comparable pupils for whom this course tied for their best attainment (same tariff as their highest other subject). Denominator includes pupils in the middle of their subject profile.'},
+        {label:'Lowest attainment', value:fmtPct(rankPct(sr,'lo')), foot:sr.lo+' of '+sr.n+' comparable', cls:sr.lo>sr.hi?'bad':'', tip:'Uses attached whole-school results. % of all comparable pupils for whom this faculty course was their weakest attainment vs every other subject they sat.'},
       );
     } else {
       kpis.push({label:'School comparison', value:'—', foot:'No comparable pupils in filter', tip:'Whole-school data is attached, but no pupil in this filter has another subject in that file to compare against. Widen filters or check name matching.'});
@@ -2497,11 +2511,12 @@ function renderOverview(rows){
 
   /* Grade distribution */
   $('hGradeDist').textContent = state.preResults? 'Estimated grade distribution' : 'Grade distribution';
-  const counts = CLUSTERS.map(c => g.filter(r=>clusterOf(bandOf(r))===c).length);
-  if(g.length){ unhideCanvas('chGradeDist');
+  const distBase = gAll.length ? gAll : g;
+  const counts = CLUSTERS.map(c => distBase.filter(r=>clusterOf(bandOf(r))===c).length);
+  if(distBase.length){ unhideCanvas('chGradeDist');
     makeChart('chGradeDist',{type:'bar',data:{labels:CLUSTERS,datasets:[{data:counts,backgroundColor:CLUSTERS.map(c=>CLUSTER_COLOR[c]),borderRadius:5,maxBarThickness:56}]},
       _drill:(els)=>{ const cl=CLUSTERS[els[0].index]; openDrillPanel(cl+' grades', 'Click a bar to see pupils · current filters', drillByCluster(cl, rows)); },
-      options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.y+' pupils ('+fmtPct(pct(c.parsed.y,g.length))+') · click to list'}}},scales:{x:noGridX,y:{...gridY,beginAtZero:true,ticks:{precision:0}}}}});
+      options:{plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.parsed.y+' pupils ('+fmtPct(pct(c.parsed.y,distBase.length))+') · click to list'}}},scales:{x:noGridX,y:{...gridY,beginAtZero:true,ticks:{precision:0}}}}});
   } else emptyChart('chGradeDist','No graded entries for this filter');
 
   /* A–C by subject */
@@ -2556,13 +2571,16 @@ function classifySchoolRank(row, subject){
   return 'middle';
 }
 function tallySchoolRankRows(rows, fixedSubject){
-  const t={n:0,hi:0,eq:0,lo:0};
+  const t={n:0,hi:0,eq:0,lo:0,mid:0};
   for(const r of rows){
     if(r.level==='NPA') continue;
     const subj=fixedSubject||r.subject;
     const c=classifySchoolRank(r,subj);
-    if(c!=='highest'&&c!=='equal'&&c!=='lowest') continue;
-    t.n++; if(c==='highest') t.hi++; else if(c==='equal') t.eq++; else t.lo++;
+    if(c==='highest'){ t.n++; t.hi++; }
+    else if(c==='equal'){ t.n++; t.eq++; }
+    else if(c==='lowest'){ t.n++; t.lo++; }
+    else if(c==='middle'){ t.n++; t.mid++; }
+    /* skip no_grade / no_school / uncomparable — not in comparable denominator */
   }
   return t;
 }
@@ -2707,19 +2725,22 @@ function schoolSubjectCompareStats(level){
   const by=new Map();
   for(const r of src){
     const s=r.subject||'—';
-    if(!by.has(s)) by.set(s,{subject:s, n:0, ac:0, a:0, bandSum:0, bandN:0, faculty:isFacultySubject(s)});
+    if(!by.has(s)) by.set(s,{subject:s, n:0, graded:0, ac:0, a:0, bandSum:0, bandN:0, faculty:isFacultySubject(s)});
     const o=by.get(s);
     o.n++;
-    if(r.band<=6) o.ac++;
-    if(r.band<=2) o.a++;
-    if(r.band<=8){ o.bandSum+=r.band; o.bandN++; }
+    if(r.band<=8){
+      o.graded++;
+      if(r.band<=6) o.ac++;
+      if(r.band<=2) o.a++;
+      o.bandSum+=r.band; o.bandN++;
+    }
   }
   return [...by.values()].map(o=>({
     subject:o.subject,
     faculty:o.faculty,
     n:o.n,
-    ac:pct(o.ac,o.n),
-    aRate:pct(o.a,o.n),
+    ac:pct(o.ac,o.graded),
+    aRate:pct(o.a,o.graded),
     avgBand:o.bandN? o.bandSum/o.bandN : null
   }));
 }
@@ -2770,9 +2791,11 @@ function renderSchoolSubjectCompare(){
     }}},scales:{x:pctAxis(),y:{...noGridX,ticks:{autoSkip:false,font:{size:10}}}}}});
 
   const allSrc=(state.school||[]).filter(r=>r.band!==null&&r.level!=='NPA'&&(level==='All'||r.level===level));
-  const schoolWideAc=pct(allSrc.filter(r=>r.band<=6).length, allSrc.length);
+  const allGraded=allSrc.filter(r=>r.band<=8);
+  const schoolWideAc=pct(allGraded.filter(r=>r.band<=6).length, allGraded.length);
   const facRaw=allSrc.filter(r=>isFacultySubject(r.subject));
-  const facWideAc=facRaw.length? pct(facRaw.filter(r=>r.band<=6).length, facRaw.length) : null;
+  const facGraded=facRaw.filter(r=>r.band<=8);
+  const facWideAc=facGraded.length? pct(facGraded.filter(r=>r.band<=6).length, facGraded.length) : null;
 
   let html='<thead><tr><th></th><th>Subject</th><th class="r">Entries</th><th class="r">A rate</th><th class="r">A–C rate</th><th class="r">Avg band</th><th class="r">Δ vs school A–C</th></tr></thead><tbody>';
   stats.forEach((s,i)=>{
@@ -2784,9 +2807,9 @@ function renderSchoolSubjectCompare(){
     html+='<tr'+(s.faculty?' class="strong"':'')+'><td class="r" style="color:var(--ink-3)">'+rank+'</td><td>'+mark+' '+esc(s.subject)+'</td><td class="r">'+s.n+'</td>'+
       '<td class="r">'+fmtPct(s.aRate)+'</td><td class="r">'+pillPct(s.ac)+'</td><td class="r">'+fmt1(s.avgBand)+'</td><td class="r">'+dTxt+'</td></tr>';
   });
-  html+='<tr class="total"><td></td><td>Whole school'+(level==='All'?'':' · '+esc(level))+'</td><td class="r">'+allSrc.length+'</td><td class="r">'+fmtPct(pct(allSrc.filter(r=>r.band<=2).length,allSrc.length))+'</td><td class="r">'+fmtPct(schoolWideAc)+'</td><td class="r">'+fmt1(avg(allSrc.filter(r=>r.band<=8).map(r=>r.band)))+'</td><td class="r">—</td></tr>';
+  html+='<tr class="total"><td></td><td>Whole school'+(level==='All'?'':' · '+esc(level))+'</td><td class="r">'+allSrc.length+'</td><td class="r">'+fmtPct(pct(allGraded.filter(r=>r.band<=2).length,allGraded.length))+'</td><td class="r">'+fmtPct(schoolWideAc)+'</td><td class="r">'+fmt1(avg(allGraded.map(r=>r.band)))+'</td><td class="r">—</td></tr>';
   if(facRaw.length){
-    html+='<tr class="total"><td></td><td>Faculty (Art / Drama / Photography)</td><td class="r">'+facRaw.length+'</td><td class="r">'+fmtPct(pct(facRaw.filter(r=>r.band<=2).length,facRaw.length))+'</td><td class="r">'+fmtPct(facWideAc)+'</td><td class="r">'+fmt1(avg(facRaw.filter(r=>r.band<=8).map(r=>r.band)))+'</td><td class="r">'+(
+    html+='<tr class="total"><td></td><td>Faculty (Art / Drama / Photography)</td><td class="r">'+facRaw.length+'</td><td class="r">'+fmtPct(pct(facGraded.filter(r=>r.band<=2).length,facGraded.length))+'</td><td class="r">'+fmtPct(facWideAc)+'</td><td class="r">'+fmt1(avg(facGraded.map(r=>r.band)))+'</td><td class="r">'+(
       facWideAc!==null&&schoolWideAc!==null
         ? '<span class="'+(facWideAc-schoolWideAc>1?'delta-up':facWideAc-schoolWideAc<-1?'delta-dn':'delta-eq')+'">'+(facWideAc-schoolWideAc>=0?'+':'')+(facWideAc-schoolWideAc).toFixed(1)+' pp</span>'
         : '—'
@@ -2882,12 +2905,12 @@ function renderAttainment(rows){
   for(const s of subs) for(const l of [...new Set(rows.filter(r=>r.subject===s).map(r=>r.level))].sort((a,b)=>LEVEL_ORDER.indexOf(a)-LEVEL_ORDER.indexOf(b))) groups.push([s,l]);
   for(const [s,l] of groups){
     const rr=rows.filter(r=>r.subject===s&&r.level===l); const gg=gradeable(rr);
-    const a=pct(gg.filter(r=>bandOf(r)<=2).length,gg.length), acr=acRate(rr);
+    const a=aRate(rr), acr=acRate(rr);
     const nd=gg.filter(r=>bandOf(r)>=8).length;
     html+='<tr><td class="strong">'+esc(s)+'</td><td>'+esc(l)+'</td><td class="r">'+rr.length+'</td><td class="r">'+fmtPct(a)+'</td><td class="r">'+pillPct(acr)+'</td><td class="r">'+fmt1(avgBand(rr))+'</td><td class="r">'+(gg.length?nd:'—')+'</td></tr>';
   }
   const gAll=gradeable(rows);
-  html+='<tr class="total"><td>All in view</td><td></td><td class="r">'+rows.length+'</td><td class="r">'+fmtPct(pct(gAll.filter(r=>bandOf(r)<=2).length,gAll.length))+'</td><td class="r">'+fmtPct(acRate(rows))+'</td><td class="r">'+fmt1(avgBand(rows))+'</td><td class="r">'+gAll.filter(r=>bandOf(r)>=8).length+'</td></tr></tbody>';
+  html+='<tr class="total"><td>All in view</td><td></td><td class="r">'+rows.length+'</td><td class="r">'+fmtPct(aRate(rows))+'</td><td class="r">'+fmtPct(acRate(rows))+'</td><td class="r">'+fmt1(avgBand(rows))+'</td><td class="r">'+gAll.filter(r=>bandOf(r)>=8).length+'</td></tr></tbody>';
   $('tblBreakdown').innerHTML=html;
   renderSchoolRankAttainment(rows);
 }
@@ -3100,10 +3123,12 @@ function renderComponents(){
     emptyChart('chCompDev','Add the sheet to unlock year-on-year trends');
     $('tblComp').innerHTML=''; return;
   }
-  const years=[...new Set(c.map(r=>r.year))].sort();
-  if(c.length){
-    const titles=[...new Set(c.map(compTitle))].sort();
-    const of=(y,t)=>c.filter(r=>r.year===y&&compTitle(r)===t);
+  /* Normalise year labels so 2024-25 and 24-25 do not split into separate buckets */
+  const normed=c.map(r=>Object.assign({},r,{year:sessionKey(r.year)||r.year}));
+  const years=[...new Set(normed.map(r=>r.year).filter(y=>/^\d{2}-\d{2}$/.test(y)))].sort();
+  if(normed.length){
+    const titles=[...new Set(normed.map(compTitle))].sort();
+    const of=(y,t)=>normed.filter(r=>r.year===y&&compTitle(r)===t);
     /* Per-component: cohort (solid) vs national (faded) */
     unhideCanvas('chCompYoY');
     const ds=[];
@@ -3125,11 +3150,11 @@ function renderComponents(){
   } else { emptyChart('chCompYoY','No component records match this selection'); emptyChart('chCompDev',''); }
 
   /* detail table: year × subject/level/component */
-  const keys=[...new Set(c.map(r=>r.subject+'¦'+r.level+'¦'+r.component+'¦'+r.title))].sort();
+  const keys=[...new Set(normed.map(r=>r.subject+'¦'+r.level+'¦'+r.component+'¦'+r.title))].sort();
   let html='<thead><tr><th>Course</th><th>Level</th><th>Component</th>'+years.map(y=>'<th class="r">'+esc(y)+' avg / nat</th>').join('')+'<th class="r">Δ YoY (latest)</th></tr></thead><tbody>';
   for(const k of keys){
     const [s,l,comp,title]=k.split('¦');
-    const rowsK=c.filter(r=>r.subject===s&&r.level===l&&r.component===comp&&r.title===title);
+    const rowsK=normed.filter(r=>r.subject===s&&r.level===l&&r.component===comp&&r.title===title);
     const yAvg=years.map(y=>avg(rowsK.filter(r=>r.year===y&&r.mark!==null).map(r=>r.mark)));
     const yNat=years.map(y=>avg(rowsK.filter(r=>r.year===y&&r.nat!==null).map(r=>r.nat)));
     const present=yAvg.map((v,i)=>v!==null?i:null).filter(v=>v!==null);
@@ -3261,7 +3286,7 @@ function trendBands(){
     });
   }
   applyAwardsToTrendGroups(groups, awardList);
-  /* Estimate remaining bands from summed component marks */
+  /* Estimate remaining bands from summed component marks — only when coverage is strong */
   for(const g of groups.values()){
     if(g.band!==null) continue;
     if(!g.marks.length) continue;
@@ -3269,7 +3294,9 @@ function trendBands(){
     if(!bounds) continue;
     const total=g.marks.reduce((a,b)=>a+b,0);
     const coverage=total/bounds.max;
-    if(g.marks.length<2 && coverage<0.35 && bounds.max>120) continue;
+    /* Need at least two component marks and most of the course total — partial sets understate grades */
+    if(g.marks.length<2) continue;
+    if(coverage<0.7) continue;
     g.band=bandFromTotalMark(total, bounds);
     g.estimated=true;
   }
@@ -3550,13 +3577,16 @@ function artPathwayYearStats(all){
   return years.map(y=>{
     const h=art.filter(r=>r.year===y&&r.level==='Higher');
     const ah=art.filter(r=>r.year===y&&r.level==='Advanced Higher');
-    const pack = (rows) => ({
-      n:rows.length,
-      ac:pct(rows.filter(r=>r.band<=6).length, rows.length),
-      aRate:pct(rows.filter(r=>r.band<=2).length, rows.length),
-      avgBand:avg(rows.map(r=>r.band)),
-      tariff:avg(rows.map(r=>tariff(r.level,r.band)).filter(v=>v!==null))
-    });
+    const pack = (rows) => {
+      const g=rows.filter(r=>r.band!==null&&r.band<=8);
+      return {
+        n:rows.length,
+        ac:pct(g.filter(r=>r.band<=6).length, g.length),
+        aRate:pct(g.filter(r=>r.band<=2).length, g.length),
+        avgBand:avg(g.map(r=>r.band)),
+        tariff:avg(g.map(r=>tariff(r.level,r.band)).filter(v=>v!==null))
+      };
+    };
     return {year:y, higher:pack(h), ah:pack(ah)};
   }).filter(s=>s.higher.n||s.ah.n);
 }
@@ -3747,8 +3777,8 @@ function renderTeacher(){
   /* Component marks vs national — selected teacher, built from the component records
      so only real components appear and national averages come from the combined sheet */
   $('hTComps').innerHTML='Component marks vs national <span class="hint">'+esc(t)+' · '+esc(scopeLabel)+' · current session</span>';
-  const sessYear=state.session;
-  const crows=state.comps.filter(c=>c.year===sessYear && rows.some(r=>pupilMatchesComp(r,c)) && (ts==='All'||c.subject.startsWith(ts)) && (tl==='All'||c.level===tl));
+  const sessYear=sessionKey(state.session||'');
+  const crows=state.comps.filter(c=>sessionKey(c.year)===sessYear && rows.some(r=>pupilMatchesComp(r,c)) && (ts==='All'||c.subject.startsWith(ts)) && (tl==='All'||c.level===tl));
   if(crows.length){
     const keys=[...new Set(crows.map(r=>r.subject+'¦'+r.level+'¦'+r.component+'¦'+(r.title||('Component '+r.component))))].sort();
     const of=k=>{const[s,l,c,ti]=k.split('¦');return crows.filter(r=>r.subject===s&&r.level===l&&String(r.component)===c);};
@@ -3758,7 +3788,7 @@ function renderTeacher(){
     /* national: from these rows, else from the whole cohort's records for the same component */
     const nat=keys.map(k=>{const[s,l,c]=k.split('¦');
       let v=avg(of(k).filter(r=>r.nat!==null).map(r=>r.nat));
-      if(v===null) v=avg(state.comps.filter(r=>r.year===sessYear&&r.subject===s&&r.level===l&&String(r.component)===c&&r.nat!==null).map(r=>r.nat));
+      if(v===null) v=avg(state.comps.filter(r=>sessionKey(r.year)===sessYear&&r.subject===s&&r.level===l&&String(r.component)===c&&r.nat!==null).map(r=>r.nat));
       return v;});
     unhideCanvas('chTComps');
     makeChart('chTComps',{type:'bar',data:{labels,datasets:[
@@ -3852,12 +3882,12 @@ function chartImg(cfg,h=280){
   D.color=saved.color; D.borderColor=saved.borderColor;
   return '<img class="chart" src="'+url+'" alt="">';
 }
-const statPack=rows=>{ const g=gradeable(rows); return {
+const statPack=rows=>{ const gAll=gradeable(rows); return {
   n:rows.length,
-  a:pct(g.filter(r=>bandOf(r)<=2).length,g.length),
+  a:aRate(rows),
   ac:acRate(rows),
   avg:avgBand(rows),
-  na:g.length? g.filter(r=>bandOf(r)>=8).length : null,
+  na:gAll.length? gAll.filter(r=>bandOf(r)>=8).length : null,
   att:avg(rows.map(r=>r.attendance).filter(v=>v!==null)),
 };};
 const repKpis=rows=>{ const s=statPack(rows);
@@ -3897,7 +3927,7 @@ function repLevelTables(rows, groupBySubject){
 function devAreasHtml(rows, comps, scope){
   const out=[]; const g=gradeable(rows); const e=estTag();
   const dev=(t,ev,a)=>out.push('<div class="dev"><div class="dt">'+t+'</div><div class="de">'+ev+'</div><div class="da"><b>Suggested action:</b> '+a+'</div></div>');
-  const ac=acRate(rows), aR=pct(g.filter(r=>bandOf(r)<=2).length,g.length);
+  const ac=acRate(rows), aR=aRate(rows);
   const q12=acRate(rows.filter(r=>r.quintile!==null&&r.quintile<=2)), q45=acRate(rows.filter(r=>r.quintile!==null&&r.quintile>=4));
   if(q12!==null&&q45!==null&&q45-q12>10)
     dev('Close the poverty-related attainment gap','A–C'+e+' for SIMD Q1–2 pupils is '+fmtPct(q12)+' against '+fmtPct(q45)+' for Q4–5 — a gap of '+(q45-q12).toFixed(1)+' points.','Identify Q1–2 pupils at the start of the session; prioritise them for targeted feedback, resource access and tracking conversations. Consider PEF-supported interventions.');
@@ -4020,23 +4050,30 @@ function reviewQaTables(subject, opts){
     if(pageBreak) h+='<div class="pb"></div>';
     h+='<'+(pageBreak?'h2':'h3')+'>'+esc(subject)+' — '+esc(l)+' <span style="font-size:10px;color:#7c8794;text-transform:none;letter-spacing:.02em;font-weight:500">('+rows.length+' pupils)</span></'+(pageBreak?'h2':'h3')+'>';
     h+='<table><thead><tr><th>Question</th><th>Answer</th></tr></thead><tbody>';
-    const we=gradeable(rows).filter(r=>r.est!==null&&bandOf(r)!==null);
-    const exc=we.filter(r=>bandOf(r)<r.est).length, mat=we.filter(r=>bandOf(r)===r.est).length, low=we.filter(r=>bandOf(r)>r.est).length;
-    const p=(x)=>we.length? x+' &nbsp;<span style="color:#7c8794">('+fmtPct(pct(x,we.length))+' of '+we.length+')</span>' : 'No estimates recorded';
-    h+=qa('How many / what % of young people <b>exceeded</b> their predicted attainment?'+e, we.length?p(exc):'—');
-    h+=qa('How many / what % of young people <b>matched</b> their predicted attainment?'+e, we.length?p(mat):'—');
-    h+=qa('How many / what % of young people attained <b>lower</b> than their predicted attainment?'+e, we.length?p(low):'—');
+    if(state.preResults){
+      const awaitMsg='<span style="color:#9a7a1a">Awaiting awarded grades — pre-results mode (estimates only; comparison unlocks after results day)</span>';
+      h+=qa('How many / what % of young people <b>exceeded</b> their predicted attainment?', awaitMsg);
+      h+=qa('How many / what % of young people <b>matched</b> their predicted attainment?', awaitMsg);
+      h+=qa('How many / what % of young people attained <b>lower</b> than their predicted attainment?', awaitMsg);
+    } else {
+      const we=gradeable(rows).filter(r=>r.est!==null&&bandOf(r)!==null);
+      const exc=we.filter(r=>bandOf(r)<r.est).length, mat=we.filter(r=>bandOf(r)===r.est).length, low=we.filter(r=>bandOf(r)>r.est).length;
+      const p=(x)=>we.length? x+' &nbsp;<span style="color:#7c8794">('+fmtPct(pct(x,we.length))+' of '+we.length+')</span>' : 'No estimates recorded';
+      h+=qa('How many / what % of young people <b>exceeded</b> their predicted attainment?'+e, we.length?p(exc):'—');
+      h+=qa('How many / what % of young people <b>matched</b> their predicted attainment?'+e, we.length?p(mat):'—');
+      h+=qa('How many / what % of young people attained <b>lower</b> than their predicted attainment?'+e, we.length?p(low):'—');
+    }
     const rk=state.preResults? null : rankStats(rows,subject);
     const rkAns=(x)=>rk? x+' &nbsp;<span style="color:#7c8794">('+fmtPct(pct(x,rk.n))+' of '+rk.n+' comparable pupils)</span>' : '<span style="color:#9a7a1a">Awaiting whole-school data upload</span>';
     h+=qa('For how many / what % of young people was '+esc(subject)+' their <b>highest</b> attainment?', rkAns(rk?rk.hi:0));
     h+=qa('…their <b>equal highest</b> attainment?', rkAns(rk?rk.eq:0));
     h+=qa('…their <b>lowest</b> attainment?', rkAns(rk?rk.lo:0));
-    const latestYear=[...new Set(state.comps.map(r=>r.year))].sort().pop();
+    const sessYear=sessionKey(state.session||'')||[...new Set(state.comps.map(r=>sessionKey(r.year)||r.year))].filter(Boolean).sort().pop();
     for(const i of [1,2,3]){
       const ck='c'+i, nk='n'+i;
       let kss=avg(rows.map(r=>r[ck]).filter(v=>v!==null)), nat=avg(rows.map(r=>r[nk]).filter(v=>v!==null)), title='';
-      if((kss===null||nat===null) && latestYear){
-        const cr=state.comps.filter(r=>r.year===latestYear&&r.subject.startsWith(subject)&&r.level===l&&String(r.component)===String(i));
+      if((kss===null||nat===null) && sessYear){
+        const cr=state.comps.filter(r=>sessionKey(r.year)===sessYear&&r.subject.startsWith(subject)&&r.level===l&&String(r.component)===String(i));
         if(cr.length){
           if(kss===null) kss=avg(cr.filter(r=>r.mark!==null).map(r=>r.mark));
           if(nat===null) nat=avg(cr.filter(r=>r.nat!==null).map(r=>r.nat));
@@ -4155,7 +4192,7 @@ function teacherReport(t){
   }
   const q12=acRate(rows.filter(r=>r.quintile!==null&&r.quintile<=2)), q45=acRate(rows.filter(r=>r.quintile!==null&&r.quintile>=4));
   if(q12!==null&&q45!==null&&q45-q12>15) pd.push('<b>Equity pedagogy:</b> explore approaches for closing the poverty-related gap (targeted feedback, cost-of-the-school-day awareness, family engagement).');
-  const ac=acRate(rows), aR=pct(g.filter(r=>bandOf(r)<=2).length,g.length);
+  const ac=acRate(rows), aR=aRate(rows);
   if(ac!==null&&aR!==null&&ac>=70&&aR<20) pd.push('<b>Stretch &amp; challenge:</b> professional learning on top-band exemplification and extending high-attaining pupils.');
   if(!pd.length) pd.push('<b>Own choice:</b> indicators are healthy across the board — an opportunity to pursue a development interest of your own (digital pedagogy, creativity, leadership).');
   h+='<h2>Professional development suggestions</h2><ul class="heads">'+pd.map(x=>'<li>'+x+'</li>').join('')+'</ul>';
@@ -4451,7 +4488,10 @@ if(window.__SNAPSHOT__){
   if(snap.session){ const o=[...$('ySession').options].find(o=>o.value===snap.session); if(!o) $('ySession').insertAdjacentHTML('beforeend','<option>'+esc(snap.session)+'</option>'); $('ySession').value=snap.session; }
   if(snap.school&&snap.school.length){ state.school=snap.school;
     setSchoolStatusMessage('<span style="color:var(--green)">✓</span> Whole-school data embedded in this snapshot: <b>'+snap.school.length+'</b> results.', true); }
+  state._pendingHistAwards = Array.isArray(snap.histAwards) ? snap.histAwards.slice() : [];
   loadData(snap.rows, snap.comps||[], snap.filename, snap.sheetName||'');
+  if(state.histAwards && state.histAwards.length) stampAwardsOntoComps(state.histAwards);
+  propagateCompBands(state.comps);
 }
 
 /* Expose API for Faculty Hub cloud bridge */
@@ -4522,13 +4562,14 @@ if(window.__SNAPSHOT__){
         setSchoolStatusMessage('<span style="color:var(--green)">✓</span> Whole-school data loaded from hub: <b>'+state.school.length+'</b> results.', true);
       }
       loadData(payload.rows||[], payload.comps||[], payload.filename||'Hub snapshot', payload.sheetName||'');
-      if(typeof payload.preResults==='boolean'){
-        state.preResults = payload.preResults;
-        $('preResultsBanner').classList.toggle('on', state.preResults);
-      }
+      /* Always re-detect from rows — saved flag can be stale after partial results */
+      state.preResults = detectPreResults(state.rows);
+      $('preResultsBanner').classList.toggle('on', state.preResults);
       /* Re-stamp after preResults flag is known */
       stampCurrentSessionAwardsOntoComps();
       if(state.histAwards && state.histAwards.length) stampAwardsOntoComps(state.histAwards);
+      /* Normalise any legacy year strings on comps */
+      (state.comps||[]).forEach(c=>{ const y=sessionKey(c.year); if(y) c.year=y; });
       propagateCompBands(state.comps);
       buildTrendControls();
       renderAll();
@@ -4539,8 +4580,7 @@ if(window.__SNAPSHOT__){
       if(hasPrior && priorAwardYears.size===0){
         fetchHubComponentHistory(sess).then(function(pack){
           if(!pack||!pack.awards||!pack.awards.length) return;
-          const n=mergeHistAwards(pack.awards);
-          if(!n && !(pack.awards||[]).length) return;
+          mergeHistAwards(pack.awards);
           propagateCompBands(state.comps);
           buildTrendControls();
           renderAll();
