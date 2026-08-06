@@ -942,7 +942,7 @@ html.qs-embed.qs-analysis .analysis-chrome{margin-left:-16px; margin-right:-16px
     </div>
     <div class="card"><h3>Subject × level breakdown</h3><div class="tbl-wrap"><table id="tblBreakdown"></table></div></div>
     <div class="school-rank-block needs-school-rank">
-      <div class="section-head"><h2>Whole-school context</h2><span class="desc">Was this faculty course the pupil’s highest, equal highest or lowest attainment vs their other subjects? · Insight National Course tariff · comparable pupils only</span></div>
+      <div class="section-head"><h2>Whole-school context</h2><span class="desc">Was this faculty course the pupil’s highest, equal highest or lowest attainment vs their other subjects? · Insight National Course tariff · % of all comparable pupils (middle included)</span></div>
       <div class="grid c2">
         <div class="card"><h3 id="hSchoolRankSubject">Comparative attainment by subject</h3><div class="chart-wrap"><canvas id="chSchoolRankSubject"></canvas></div></div>
         <div class="card"><h3 id="hSchoolRankLevel">Comparative attainment by level</h3><div class="chart-wrap"><canvas id="chSchoolRankLevel"></canvas></div></div>
@@ -2543,9 +2543,9 @@ function renderOverview(rows){
     const sr=tallySchoolRankRows(rows.filter(r=>r.level!=='NPA'));
     if(sr.n){
       kpis.push(
-        {label:'Highest attainment', value:fmtPct(rankPct(sr,'hi')), foot:sr.hi+' of '+sr.n+' comparable pupils', cls:'good', tip:'Uses attached whole-school results. Of comparable pupils (those with at least one other subject in the school file), the % for whom this faculty course had a higher Insight National Course tariff than every other subject they sat. Needs awarded grades.'},
-        {label:'Equal highest', value:fmtPct(rankPct(sr,'eq')), foot:sr.eq+' pupils · vs other subjects', cls:'', tip:'Uses attached whole-school results. % of comparable pupils for whom this course tied for their best attainment (same tariff as their highest other subject). Compares across levels using Insight National Course ready-reckoner points (N5 A=84, Higher A=204, AH A=480).'},
-        {label:'Lowest attainment', value:fmtPct(rankPct(sr,'lo')), foot:sr.lo+' of '+sr.n+' comparable', cls:sr.lo>sr.hi?'bad':'', tip:'Uses attached whole-school results. % of comparable pupils for whom this faculty course was their weakest attainment vs every other subject they sat in the school-wide file.'},
+        {label:'Highest attainment', value:fmtPct(rankPct(sr,'hi')), foot:sr.hi+' of '+sr.n+' comparable pupils', cls:'good', tip:'Uses attached whole-school results. Of all comparable pupils (those with at least one other subject — including middle performers), the % for whom this faculty course had a higher Insight National Course tariff than every other subject they sat. Needs awarded grades.'},
+        {label:'Equal highest', value:fmtPct(rankPct(sr,'eq')), foot:sr.eq+' of '+sr.n+' comparable', cls:'', tip:'Uses attached whole-school results. % of all comparable pupils for whom this course tied for their best attainment (same tariff as their highest other subject). Denominator includes pupils in the middle of their subject profile.'},
+        {label:'Lowest attainment', value:fmtPct(rankPct(sr,'lo')), foot:sr.lo+' of '+sr.n+' comparable', cls:sr.lo>sr.hi?'bad':'', tip:'Uses attached whole-school results. % of all comparable pupils for whom this faculty course was their weakest attainment vs every other subject they sat.'},
       );
     } else {
       kpis.push({label:'School comparison', value:'—', foot:'No comparable pupils in filter', tip:'Whole-school data is attached, but no pupil in this filter has another subject in that file to compare against. Widen filters or check name matching.'});
@@ -2587,7 +2587,7 @@ function clusterOf(b){ if(b===null)return null; if(b<=2)return 'A'; if(b<=4)retu
    N5 SCQF5 24cr · Higher SCQF6 24cr · AH SCQF7 32cr. Bands within a grade share points.
    Local use only — not complementary/total leaver measures or unit/NPA awards. */
 const TARIFF={'National 5':{A:84,B:74,C:64,D:59},'Higher':{A:204,B:182,C:160,D:149},'Advanced Higher':{A:480,B:440,C:400,D:380}};
-const RANK_COLORS={highest:'#e3b04b',equal:'#b5b8a8',lowest:'#c23b2e'};
+const RANK_COLORS={highest:'#e3b04b',equal:'#b5b8a8',lowest:'#c23b2e',middle:'#5c6570'};
 function tariff(level,band){ if(band===null) return null; if(band>=8) return 0; const t=TARIFF[level]; if(!t) return null; return t[clusterOf(band)]??0; }
 function schoolRankReady(){ return !!(state.school&&state.school.length)&&!state.preResults; }
 function buildSchoolPupilMap(){
@@ -2614,13 +2614,16 @@ function classifySchoolRank(row, subject){
   return 'middle';
 }
 function tallySchoolRankRows(rows, fixedSubject){
-  const t={n:0,hi:0,eq:0,lo:0};
+  const t={n:0,hi:0,eq:0,lo:0,mid:0};
   for(const r of rows){
     if(r.level==='NPA') continue;
     const subj=fixedSubject||r.subject;
     const c=classifySchoolRank(r,subj);
-    if(c!=='highest'&&c!=='equal'&&c!=='lowest') continue;
-    t.n++; if(c==='highest') t.hi++; else if(c==='equal') t.eq++; else t.lo++;
+    if(c==='highest'){ t.n++; t.hi++; }
+    else if(c==='equal'){ t.n++; t.eq++; }
+    else if(c==='lowest'){ t.n++; t.lo++; }
+    else if(c==='middle'){ t.n++; t.mid++; }
+    /* skip no_grade / no_school / uncomparable — not in comparable denominator */
   }
   return t;
 }
@@ -2709,13 +2712,14 @@ function updateSchoolRankBanners(){
 function rankStackedChart(id, labels, tallies, emptyMsg){
   if(!labels.length||!tallies.some(t=>t.n>0)){ emptyChart(id, emptyMsg); return; }
   unhideCanvas(id);
-  const pctOf=t=>({hi:rankPct(t,'hi'),eq:rankPct(t,'eq'),lo:rankPct(t,'lo')});
+  const pctOf=t=>({hi:rankPct(t,'hi'),eq:rankPct(t,'eq'),lo:rankPct(t,'lo'),mid:rankPct(t,'mid')});
   makeChart(id,{type:'bar',data:{labels,datasets:[
     {label:'Highest',data:tallies.map(t=>pctOf(t).hi),backgroundColor:RANK_COLORS.highest,borderRadius:4,maxBarThickness:48},
     {label:'Equal highest',data:tallies.map(t=>pctOf(t).eq),backgroundColor:RANK_COLORS.equal,borderRadius:4,maxBarThickness:48},
+    {label:'Middle',data:tallies.map(t=>pctOf(t).mid),backgroundColor:RANK_COLORS.middle,borderRadius:4,maxBarThickness:48},
     {label:'Lowest',data:tallies.map(t=>pctOf(t).lo),backgroundColor:RANK_COLORS.lowest,borderRadius:4,maxBarThickness:48},
   ]},options:{plugins:{legend:{position:'bottom'},tooltip:{callbacks:{label:c=>{
-    const t=tallies[c.dataIndex], k=['hi','eq','lo'][c.datasetIndex];
+    const t=tallies[c.dataIndex], k=['hi','eq','mid','lo'][c.datasetIndex];
     const n=t[k]; return c.dataset.label+': '+fmtPct(c.parsed.y)+' ('+n+' of '+t.n+' comparable)';
   }}}},scales:{x:{...noGridX,stacked:true},y:{...pctAxis(100),stacked:true}}}});
 }
@@ -2735,20 +2739,21 @@ function renderSchoolRankAttainment(rows){
   rankStackedChart('chSchoolRankSubject',subs,subT,'No comparable pupils in this filter.');
   const lvlT=lvls.map(l=>tallySchoolRankRows(rows.filter(r=>r.level===l)));
   rankStackedChart('chSchoolRankLevel',lvls,lvlT,'No comparable pupils in this filter.');
-  let html='<thead><tr><th>Subject</th><th>Level</th><th class="r">Comparable</th><th class="r">Highest</th><th class="r">Equal highest</th><th class="r">Lowest</th></tr></thead><tbody>';
+  let html='<thead><tr><th>Subject</th><th>Level</th><th class="r">Comparable</th><th class="r">Highest</th><th class="r">Equal highest</th><th class="r">Middle</th><th class="r">Lowest</th></tr></thead><tbody>';
   for(const s of subs){
     const levels=[...new Set(rows.filter(r=>r.subject===s&&r.level!=='NPA').map(r=>r.level))].sort((a,b)=>LEVEL_ORDER.indexOf(a)-LEVEL_ORDER.indexOf(b));
     for(const l of levels){
       const t=tallySchoolRankRows(rows.filter(r=>r.subject===s&&r.level===l),s);
       const cell=(n,k)=>t.n? esc(String(n))+' <span style="color:var(--ink-3)">('+fmtPct(rankPct(t,k))+')</span>' : '—';
       html+='<tr><td class="strong">'+esc(s)+'</td><td>'+esc(l)+'</td><td class="r">'+t.n+'</td>'+
-        '<td class="r">'+cell(t.hi,'hi')+'</td><td class="r">'+cell(t.eq,'eq')+'</td><td class="r">'+cell(t.lo,'lo')+'</td></tr>';
+        '<td class="r">'+cell(t.hi,'hi')+'</td><td class="r">'+cell(t.eq,'eq')+'</td><td class="r">'+cell(t.mid,'mid')+'</td><td class="r">'+cell(t.lo,'lo')+'</td></tr>';
     }
   }
   const all=tallySchoolRankRows(rows.filter(r=>r.level!=='NPA'));
   html+='<tr class="total"><td>All in view</td><td></td><td class="r">'+all.n+'</td>'+
     '<td class="r">'+all.hi+(all.n?' ('+fmtPct(rankPct(all,'hi'))+')':'')+'</td>'+
     '<td class="r">'+all.eq+(all.n?' ('+fmtPct(rankPct(all,'eq'))+')':'')+'</td>'+
+    '<td class="r">'+all.mid+(all.n?' ('+fmtPct(rankPct(all,'mid'))+')':'')+'</td>'+
     '<td class="r">'+all.lo+(all.n?' ('+fmtPct(rankPct(all,'lo'))+')':'')+'</td></tr></tbody>';
   $('tblSchoolRank').innerHTML=html;
   renderSchoolSubjectCompare();
@@ -2864,11 +2869,11 @@ function renderSchoolRankTeacher(rows){
   const clsRows=k=>{const[s,l]=k.split('¦');return rows.filter(r=>r.subject===s&&r.level===l);};
   const tallies=classes.map(k=>tallySchoolRankRows(clsRows(k),k.split('¦')[0]));
   rankStackedChart('chTSchoolRank',classes.map(clsLabel),tallies,'No comparable pupils for this teacher selection.');
-  let html='<thead><tr><th>Class</th><th class="r">Comparable</th><th class="r">Highest</th><th class="r">Equal</th><th class="r">Lowest</th></tr></thead><tbody>';
+  let html='<thead><tr><th>Class</th><th class="r">Comparable</th><th class="r">Highest</th><th class="r">Equal</th><th class="r">Middle</th><th class="r">Lowest</th></tr></thead><tbody>';
   classes.forEach((k,i)=>{
     const t=tallies[i];
     html+='<tr><td class="strong">'+esc(clsLabel(k))+'</td><td class="r">'+t.n+'</td>'+
-      '<td class="r">'+(t.n?fmtPct(rankPct(t,'hi')):'—')+'</td><td class="r">'+(t.n?fmtPct(rankPct(t,'eq')):'—')+'</td><td class="r">'+(t.n?fmtPct(rankPct(t,'lo')):'—')+'</td></tr>';
+      '<td class="r">'+(t.n?fmtPct(rankPct(t,'hi')):'—')+'</td><td class="r">'+(t.n?fmtPct(rankPct(t,'eq')):'—')+'</td><td class="r">'+(t.n?fmtPct(rankPct(t,'mid')):'—')+'</td><td class="r">'+(t.n?fmtPct(rankPct(t,'lo')):'—')+'</td></tr>';
   });
   $('tblTSchoolRank').innerHTML=html+'</tbody>';
 }
@@ -4329,10 +4334,10 @@ const CHART_TIPS={
   chTAvgBand:'Average awarded band per class. Read alongside the CEM chart: a modest band from a class with a low baseline can still represent strong value added.',
   chTEstComp:'For each class, how many pupils finished above, below or equal to their estimate — a quick check on estimate accuracy class by class.',
   chTComps:'This teacher’s class average per component (gold) against the national average (grey), built from the component records — only components that actually exist for the course appear. National bars show once QS publish the averages (or via the marks report / combined sheet).',
-  chSchoolRankSubject:'Uses attached whole-school results. For each faculty subject, the % of comparable pupils for whom that course was their highest, equal-highest or lowest attainment vs every other subject they sat (Insight National Course tariff). Comparable = at least one other subject in the school file.',
-  chSchoolRankLevel:'Same whole-school comparison as the subject chart, broken down by level (National 5 / Higher / Advanced Higher) for the current filter.',
+  chSchoolRankSubject:'Uses attached whole-school results. For each faculty subject, the % of all comparable pupils for whom that course was their highest, equal-highest or lowest attainment vs every other subject they sat (Insight National Course tariff). Comparable = at least one other subject in the school file; middle performers are included in the denominator.',
+  chSchoolRankLevel:'Same whole-school comparison as the subject chart, broken down by level (National 5 / Higher / Advanced Higher) for the current filter. Denominator includes middle performers.',
   chSchoolSubjectAc:'A–C rate for every subject in the attached whole-school results file. Faculty courses (Art & Design, Drama, Photography) are coloured; other subjects are grey. Use the Level control to compare like-for-like (e.g. all National 5).',
-  chTSchoolRank:'For this teacher’s classes, % of comparable pupils for whom the faculty course was highest, equal-highest or lowest vs their other school subjects. Needs whole-school results attached and awarded grades.',
+  chTSchoolRank:'For this teacher’s classes, % of all comparable pupils for whom the faculty course was highest, equal-highest or lowest vs their other school subjects (middle included). Needs whole-school results attached and awarded grades.',
   tblClass:'Every pupil in the selection. “Vs estimate” compares the awarded grade with the teacher’s estimate — the key moderation signal. “Vs CEM (N5)” compares with the CEM prediction, National 5 only.',
 };
 Object.entries(CHART_TIPS).forEach(([id,tip])=>{
