@@ -142,8 +142,11 @@
         (window.DataService && DataService.get ? DataService.get('lessonPlanTemplates') : Promise.resolve(null)),
         (window.DataService && DataService.get ? DataService.get('plannerSchemesOfWork') : Promise.resolve(null))
       ]).then(function(res) {
-        state.timetable = res[0] && (res[0].slots || res[0].academicYearLabel) ? res[0] : { slots: [] };
+        state.timetable = res[0] && (res[0].slots || res[0].academicYearLabel || res[0].classColors) ? res[0] : { slots: [] };
         if (!state.timetable.slots) state.timetable.slots = [];
+        if (!state.timetable.classColors || typeof state.timetable.classColors !== 'object') {
+          state.timetable.classColors = {};
+        }
         state.lessons = res[1] && res[1].lessons ? res[1] : { lessons: [] };
         state.weekNotes = res[2] && typeof res[2] === 'object' ? res[2] : {};
         state.daySlotNotes = res[3] && typeof res[3] === 'object' ? res[3] : {};
@@ -175,6 +178,51 @@
     setAcademicYearLabel: function(label) {
       if (!state.timetable) state.timetable = { slots: [] };
       state.timetable.academicYearLabel = String(label || '').trim();
+      return this.saveTimetable();
+    },
+
+    /** Per-class colour map saved with the timetable blob: { "1F": "#2563eb", ... }. */
+    getClassColors: function() {
+      var raw = state.timetable && state.timetable.classColors;
+      if (!raw || typeof raw !== 'object') return {};
+      var out = {};
+      Object.keys(raw).forEach(function(k) {
+        var key = String(k || '').trim();
+        var hex = String(raw[k] || '').trim();
+        if (key && /^#[0-9A-Fa-f]{6}$/.test(hex)) out[key] = hex.toLowerCase();
+      });
+      return out;
+    },
+
+    setClassColor: function(className, hex) {
+      if (!state.timetable) state.timetable = { slots: [] };
+      var key = String(className || '').trim();
+      if (!key) return Promise.resolve();
+      var colour = String(hex || '').trim();
+      if (!state.timetable.classColors || typeof state.timetable.classColors !== 'object') {
+        state.timetable.classColors = {};
+      }
+      if (!colour) {
+        delete state.timetable.classColors[key];
+      } else if (/^#[0-9A-Fa-f]{6}$/.test(colour)) {
+        state.timetable.classColors[key] = colour.toLowerCase();
+      } else {
+        return Promise.resolve();
+      }
+      return this.saveTimetable();
+    },
+
+    setClassColors: function(map) {
+      if (!state.timetable) state.timetable = { slots: [] };
+      var out = {};
+      if (map && typeof map === 'object') {
+        Object.keys(map).forEach(function(k) {
+          var key = String(k || '').trim();
+          var hex = String(map[k] || '').trim();
+          if (key && /^#[0-9A-Fa-f]{6}$/.test(hex)) out[key] = hex.toLowerCase();
+        });
+      }
+      state.timetable.classColors = out;
       return this.saveTimetable();
     },
 

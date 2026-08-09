@@ -838,6 +838,26 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
 .day-list{display:flex;flex-direction:column;gap:.65rem}
 .day-card{background:var(--white);border:1px solid var(--border);border-radius:var(--radius);padding:.9rem 1.2rem;display:flex;gap:.9rem;align-items:flex-start;box-shadow:var(--shadow);cursor:pointer;transition:all .15s;border-left:4px solid}
 .day-card:hover{box-shadow:var(--shadow-lg)}
+.day-card.has-class-fill{background:var(--class-fill);border-color:rgba(0,0,0,.12);color:var(--class-ink)}
+.day-card.has-class-fill .day-cls-label,
+.day-card.has-class-fill .day-lesson-title,
+.day-card.has-class-fill .day-lesson-unit,
+.day-card.has-class-fill .day-lesson-empty{color:var(--class-ink)}
+.day-card.has-class-fill .day-lesson-unit,
+.day-card.has-class-fill .day-lesson-empty{opacity:.88}
+.day-card.has-class-fill .day-slot-note{background:rgba(255,255,255,.92);border-color:rgba(0,0,0,.12)}
+.class-colours-list{display:flex;flex-direction:column;gap:.75rem;max-height:50vh;overflow:auto;padding-right:.15rem}
+.class-colours-empty{font-size:.85rem;color:var(--text2);margin:0;line-height:1.45}
+.class-colour-row{display:flex;flex-direction:column;gap:.45rem;padding:.7rem .75rem;border:1px solid var(--border);border-radius:10px;background:var(--bg)}
+.class-colour-preview{display:flex;align-items:center;min-height:2.4rem;padding:.45rem .7rem;border-radius:8px;font-weight:750;font-size:.9rem}
+.class-colour-controls{display:flex;align-items:center;justify-content:space-between;gap:.65rem;flex-wrap:wrap}
+.class-colour-swatches{display:flex;flex-wrap:wrap;gap:.3rem}
+.class-colour-swatch{width:1.35rem;height:1.35rem;border-radius:999px;border:2px solid transparent;cursor:pointer;padding:0}
+.class-colour-swatch.is-selected{border-color:#0f172a;box-shadow:0 0 0 2px #fff inset}
+.class-colour-picker-wrap{display:inline-flex;align-items:center}
+.class-colour-picker{width:2.4rem;height:2rem;padding:0;border:1px solid var(--border);border-radius:6px;background:transparent;cursor:pointer}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.compact-tt-cell.has-class-fill{background:var(--class-fill)!important;color:var(--class-ink)!important;border-color:rgba(0,0,0,.12)}
 .day-badge{flex-shrink:0;width:2.25rem;height:2.25rem;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.68rem;font-weight:800;color:var(--white);font-family:'Sora',sans-serif}
 .day-body{flex:1}
 .day-cls-label{font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:.22rem}
@@ -1008,6 +1028,7 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
     <details class="tt-settings-details" id="timetableSettingsDetails">
       <summary>Timetable settings</summary>
       <div class="tt-settings-body">
+        <button type="button" class="btn-primary" id="classColoursBtn" title="Choose bold colours for each class">Class colours</button>
         <button type="button" class="btn-primary" id="importFacultyTtBtn" title="Fill your weekly timetable from the faculty timetable">Import faculty timetable</button>
         <button type="button" class="btn-primary" id="importN5CiBtn" title="Place all N5 Creative Industries sessions into your Tue/Wed/Fri periods">Import N5 CI sessions</button>
         <button type="button" class="btn-new-year" id="newAcademicYearBtn" title="Clear timetable to enter your new year schedule">Start new academic year</button>
@@ -1389,6 +1410,28 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
     <div class="modal-footer" style="flex-wrap:wrap;gap:.5rem">
       <button type="button" class="btn-secondary" id="schemeExportCopyBtn">Copy to clipboard</button>
       <button type="button" class="btn-primary" id="schemeExportSendBtn">Send to Class Planner</button>
+    </div>
+  </div>
+</div>
+
+<!-- Class colours editor -->
+<div class="modal-overlay" id="classColoursModal">
+  <div class="modal" style="max-width:460px">
+    <div class="modal-header">
+      <h2 class="modal-title">Class colours</h2>
+      <button type="button" class="modal-close" id="classColoursClose">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:.85rem;color:var(--text2);margin:0 0 1rem;line-height:1.5">Pick a bold colour for each class. It fills the whole box in Week, Today, Day and Timetable views so you can spot classes at a glance.</p>
+      <div id="classColoursList" class="class-colours-list"></div>
+      <p id="classColoursEmpty" class="class-colours-empty" hidden>No named classes yet. Add class names in <strong>Timetable</strong> first.</p>
+    </div>
+    <div class="modal-footer" style="flex-wrap:wrap;gap:.5rem;justify-content:space-between">
+      <button type="button" class="btn-secondary" id="classColoursResetDefaults">Reset to defaults</button>
+      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+        <button type="button" class="btn-secondary" id="classColoursCancel">Cancel</button>
+        <button type="button" class="btn-primary" id="classColoursSave">Save colours</button>
+      </div>
     </div>
   </div>
 </div>
@@ -2114,15 +2157,25 @@ function buildCompletedLessonDocxBody(payload) {
 }
 
 var SLOT_COLOURS = [
-  { value: '', label: 'Subject default' },
-  { value: '#0ea5e9', label: 'Blue' },
-  { value: '#7c3aed', label: 'Purple' },
-  { value: '#c0622a', label: 'Orange' },
-  { value: '#0d9488', label: 'Teal' },
-  { value: '#22c55e', label: 'Green' },
-  { value: '#f59e0b', label: 'Amber' },
-  { value: '#f43f5e', label: 'Rose' },
-  { value: '#64748b', label: 'Slate' }
+  { value: '', label: 'Class / subject default' },
+  { value: '#1d4ed8', label: 'Blue' },
+  { value: '#b91c1c', label: 'Red' },
+  { value: '#047857', label: 'Green' },
+  { value: '#6d28d9', label: 'Violet' },
+  { value: '#c2410c', label: 'Orange' },
+  { value: '#0e7490', label: 'Cyan' },
+  { value: '#9d174d', label: 'Pink' },
+  { value: '#4338ca', label: 'Indigo' },
+  { value: '#a16207', label: 'Gold' },
+  { value: '#115e59', label: 'Teal' },
+  { value: '#86198f', label: 'Fuchsia' },
+  { value: '#9a3412', label: 'Burnt' }
+];
+
+/** Bold defaults for auto-assigned class colours (stable by class name). */
+var CLASS_FILL_DEFAULTS = [
+  '#1d4ed8', '#b91c1c', '#047857', '#6d28d9', '#c2410c', '#0e7490',
+  '#9d174d', '#4338ca', '#a16207', '#115e59', '#86198f', '#9a3412'
 ];
 
 function lessonStatusBadgeClass(lesson) {
@@ -2131,15 +2184,99 @@ function lessonStatusBadgeClass(lesson) {
   return s;
 }
 
+function normalizeHexColor(hex) {
+  var s = String(hex || '').trim();
+  if (/^#[0-9A-Fa-f]{6}$/.test(s)) return s.toLowerCase();
+  if (/^#[0-9A-Fa-f]{3}$/.test(s)) {
+    return ('#' + s[1] + s[1] + s[2] + s[2] + s[3] + s[3]).toLowerCase();
+  }
+  return '';
+}
+
+function hashClassName(name) {
+  var s = String(name || '').trim().toLowerCase();
+  var h = 0;
+  for (var i = 0; i < s.length; i++) h = ((h << 5) - h) + s.charCodeAt(i) | 0;
+  return Math.abs(h);
+}
+
+function contrastInkForHex(hex) {
+  var n = normalizeHexColor(hex);
+  if (!n) return '#ffffff';
+  var v = parseInt(n.slice(1), 16);
+  var r = (v >> 16) & 255;
+  var g = (v >> 8) & 255;
+  var b = v & 255;
+  var lum = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  return lum > 0.58 ? '#14203a' : '#ffffff';
+}
+
+function defaultClassFill(className) {
+  var key = String(className || '').trim() || 'Class';
+  return CLASS_FILL_DEFAULTS[hashClassName(key) % CLASS_FILL_DEFAULTS.length];
+}
+
+function lookupStoredClassColor(className) {
+  var key = String(className || '').trim();
+  if (!key || !PS.getClassColors) return '';
+  var map = PS.getClassColors() || {};
+  if (map[key]) return map[key];
+  var lower = key.toLowerCase();
+  var found = '';
+  Object.keys(map).some(function(k) {
+    if (String(k).toLowerCase() === lower) {
+      found = map[k];
+      return true;
+    }
+    return false;
+  });
+  return found || '';
+}
+
+/**
+ * Resolve the bold fill colour for a class / slot.
+ * Priority: saved class colour → per-slot colour → stable default.
+ */
+function resolveClassFill(className, slot) {
+  var name = String(className || (slot && slot.className) || '').trim();
+  var stored = lookupStoredClassColor(name);
+  if (stored) return stored;
+  var slotColor = normalizeHexColor(slot && slot.color);
+  if (slotColor) return slotColor;
+  return defaultClassFill(name || 'Class');
+}
+
+function classFillStyleAttrs(className, slot) {
+  var fill = resolveClassFill(className, slot);
+  var ink = contrastInkForHex(fill);
+  return {
+    fill: fill,
+    ink: ink,
+    style: '--class-fill:' + fill + ';--class-ink:' + ink
+  };
+}
+
+function listTimetableClassNames() {
+  var state = PS.getState ? PS.getState() : null;
+  var slots = (state && state.timetable && state.timetable.slots) || [];
+  var seen = {};
+  var names = [];
+  slots.forEach(function(s) {
+    var name = String((s && s.className) || '').trim();
+    if (!name) return;
+    var low = name.toLowerCase();
+    if (seen[low]) return;
+    seen[low] = true;
+    names.push(name);
+  });
+  names.sort(function(a, b) { return a.localeCompare(b, undefined, { sensitivity: 'base' }); });
+  return names;
+}
+
 function slotChipStyle(slot) {
-  var cls = String((slot && slot.className) || '').toLowerCase();
-  if (/^2/.test(cls)) return { bg: '#dceede', dk: '#0a3b0c', ac: '#2e7d32' };
-  if (/^4/.test(cls)) return { bg: '#fdeade', dk: '#7a1a00', ac: '#e8420a' };
-  if (/^5.*ah/.test(cls)) return { bg: '#ddeaf8', dk: '#0a2d6b', ac: '#1565c0' };
-  if (/^5/.test(cls)) return { bg: '#ede9fe', dk: '#4c1d95', ac: '#7c3aed' };
-  if ((slot && slot.subject) === 'art') return { bg: '#fff4ed', dk: '#7c2d12', ac: '#c0622a' };
-  if ((slot && slot.subject) === 'photography') return { bg: '#ccfbf1', dk: '#115e59', ac: '#0d9488' };
-  return { bg: '#ede9fe', dk: '#4c1d95', ac: '#7c3aed' };
+  var fill = resolveClassFill(slot && slot.className, slot);
+  var ink = contrastInkForHex(fill);
+  return { bg: fill, dk: ink, ac: fill, bold: true };
 }
 
 function renderPlannerInsights() {
@@ -2789,7 +2926,8 @@ function renderCompactTimetable(weekStart) {
       }
       var lesson = PS.getLessonFor(dateStr, k);
       var st = deriveLessonStatus(lesson);
-      html += '<button type="button" class="compact-tt-cell has-slot st-' + st + '" data-date="' + dateStr + '" data-slot="' + k + '">' +
+      var compactFill = classFillStyleAttrs(slot.className || subjectLabel(slot.subject) || 'Class', slot);
+      html += '<button type="button" class="compact-tt-cell has-slot has-class-fill st-' + st + '" data-date="' + dateStr + '" data-slot="' + k + '" style="' + compactFill.style + '">' +
         escHtml(slot.className || subjectLabel(slot.subject) || 'Class') +
       '</button>';
     });
@@ -3041,13 +3179,14 @@ function createTodayDashboardMarkup(model) {
   } else {
     lessonsHtml = model.lessons.map(function(r) {
       var subj = r.subject || 'other';
+      var fillStyle = classFillStyleAttrs(r.className, null);
       var actionLabel = r.status === 'needs-planning' ? 'Plan now' : (r.status === 'complete' ? 'View summary' : 'View plan');
       var actionCls = r.status === 'needs-planning' ? 'today-lesson-action is-plan' : 'today-lesson-action is-view';
       var slidesBtn = (r.slides && r.slides.slidesFile)
         ? '<button type="button" class="today-lesson-action is-slides" data-slides-file="' + escAttr(r.slides.slidesFile) + '" data-slides-title="' + escAttr(r.slides.slidesTitle || '') + '" data-slides-hub="' + (r.slides.slidesIsHub ? '1' : '') + '" title="Open lesson slides">Slides</button>'
         : '';
       return (
-        '<div class="today-lesson-item is-' + r.status + ' subj-' + escHtml(subj) + '" data-date="' + r.dateStr + '" data-slot="' + r.slotKey + '" role="button" tabindex="0">' +
+        '<div class="today-lesson-item is-' + r.status + ' subj-' + escHtml(subj) + ' has-class-fill" data-date="' + r.dateStr + '" data-slot="' + r.slotKey + '" style="' + fillStyle.style + '" role="button" tabindex="0">' +
           '<span class="today-lesson-period" aria-label="Period ' + r.period + '">P' + r.period + '</span>' +
           '<div class="today-lesson-meta">' +
             '<span class="today-lesson-time">' + escHtml(r.timeLabel) + '</span>' +
@@ -3082,8 +3221,9 @@ function createTodayDashboardMarkup(model) {
         weekBody += '<div class="today-week-cell is-free' + (c.isToday ? ' is-today-col' : '') + '">Free</div>';
         return;
       }
+      var twFill = classFillStyleAttrs(c.label, null);
       weekBody +=
-        '<button type="button" class="today-week-cell has-slot st-' + c.status + ' subj-' + escHtml(c.subject || 'other') + (c.isToday ? ' is-today-col' : '') + '" data-date="' + c.dateStr + '" data-slot="' + c.slotKey + '">' +
+        '<button type="button" class="today-week-cell has-slot has-class-fill st-' + c.status + ' subj-' + escHtml(c.subject || 'other') + (c.isToday ? ' is-today-col' : '') + '" data-date="' + c.dateStr + '" data-slot="' + c.slotKey + '" style="' + twFill.style + '">' +
           escHtml(c.label) +
         '</button>';
     });
@@ -3637,9 +3777,9 @@ function renderTimetableDisplay() {
           lesson = PS.getLessonFor(getDateStr(d0), k);
         }
         var chipText = (lesson && lesson.title) ? escHtml(lesson.title) : '';
-        html += '<div class="tt-cell busy" data-slot="' + k + '"><div class="class-chip" style="background:' + s.bg + ';border:1.5px solid ' + (slot.color || s.ac) + ';color:' + s.dk + '">';
+        html += '<div class="tt-cell busy" data-slot="' + k + '"><div class="class-chip is-class-fill" style="background:' + s.bg + ';border:1.5px solid ' + s.ac + ';color:' + s.dk + '">';
         html += '<span class="chip-cls">' + escHtml(slot.className || subjectLabel(slot.subject) || 'Class') + '</span>';
-        if (chipText) html += '<span class="chip-lsn">' + chipText + '</span>';
+        if (chipText) html += '<span class="chip-lsn" style="color:' + s.dk + ';opacity:.88">' + chipText + '</span>';
         html += '</div></div>';
       } else {
         html += '<div class="tt-cell free" data-slot="' + k + '"><div class="chip-add">Free</div></div>';
@@ -4007,12 +4147,15 @@ function createWeekDashboardMarkup(model) {
         return;
       }
       var hide = model.unfinishedOnly && (c.status === 'planned' || c.status === 'complete');
+      var slotParts = parseSlotKeyParts(c.slotKey);
+      var slotRef = slotParts ? PS.getSlot(slotParts.day, slotParts.period) : null;
+      var fillStyle = classFillStyleAttrs(c.className, slotRef);
       var slidesBtn = (c.slides && c.slides.slidesFile)
         ? '<button type="button" class="week-slides-btn" data-slides-file="' + escAttr(c.slides.slidesFile) + '" data-slides-title="' + escAttr(c.slides.slidesTitle || '') + '" data-slides-hub="' + (c.slides.slidesIsHub ? '1' : '') + '" title="Open lesson slides">Slides</button>'
         : '';
       grid +=
-        '<div class="week-lesson-cell is-' + c.status + ' subj-' + escHtml(c.subject || 'other') + (c.isToday ? ' is-today-col' : '') + (hide ? ' is-filtered-out' : '') + '" data-date="' + c.dateStr + '" data-slot="' + c.slotKey + '" data-plan="' + c.status + '" role="button" tabindex="0">' +
-          '<div class="week-lesson-card">' +
+        '<div class="week-lesson-cell is-' + c.status + ' subj-' + escHtml(c.subject || 'other') + ' has-class-fill' + (c.isToday ? ' is-today-col' : '') + (hide ? ' is-filtered-out' : '') + '" data-date="' + c.dateStr + '" data-slot="' + c.slotKey + '" data-plan="' + c.status + '" data-class="' + escAttr(c.className) + '" style="' + fillStyle.style + '" role="button" tabindex="0">' +
+          '<div class="week-lesson-card is-class-fill">' +
             '<strong class="week-lesson-class">' + escHtml(c.className) + '</strong>' +
             '<span class="week-lesson-title">' + escHtml(c.title) + '</span>' +
             '<span class="week-status is-' + c.status + '">' + escHtml(statusLabel(c.status)) + '</span>' +
@@ -4101,7 +4244,7 @@ function createWeekDashboardMarkup(model) {
             '<div><h2>This week’s timetable</h2><p class="week-panel-summary">' + escHtml(panelSummary) + '</p></div>' +
             '<div class="week-panel-actions">' +
               '<button type="button" id="weekFilterButton" class="week-panel-control' + (model.unfinishedOnly ? ' is-on' : '') + '" aria-pressed="' + (model.unfinishedOnly ? 'true' : 'false') + '">' + escHtml(filterLabel) + '</button>' +
-              '<button type="button" id="weekViewOptionsButton" class="week-panel-control" disabled title="View options are not yet active">View options</button>' +
+              '<button type="button" id="weekViewOptionsButton" class="week-panel-control" title="Edit class colours for the week grid">Class colours</button>' +
             '</div>' +
           '</header>' +
           '<div class="week-timetable-scroll">' + grid + '</div>' +
@@ -4213,6 +4356,9 @@ function bindWeekDashboardEvents(root, model) {
   }
   var monthBtn = root.querySelector('#weekViewMonthAction');
   if (monthBtn) monthBtn.addEventListener('click', function() { switchPlannerTab('month'); });
+
+  var optionsBtn = root.querySelector('#weekViewOptionsButton');
+  if (optionsBtn) optionsBtn.addEventListener('click', openClassColoursModal);
 
   var filterBtn = root.querySelector('#weekFilterButton');
   if (filterBtn) {
@@ -5020,8 +5166,8 @@ function renderDayView() {
     var clsLabel = slot.className || subjectLabel(slot.subject) || 'Class';
     var roomLabel = slot.room ? (' · ' + slot.room) : '';
     var slotNote = PS.getDaySlotNote(dateStr, k);
-    html += '<div class="day-card" style="border-left-color:' + (slot.color || st.ac) + '" data-date="' + dateStr + '" data-slot="' + k + '">';
-    html += '<div class="day-badge" style="background:' + (slot.color || st.ac) + '">P' + p + '</div>';
+    html += '<div class="day-card has-class-fill" style="border-left-color:' + st.ac + ';--class-fill:' + st.bg + ';--class-ink:' + st.dk + '" data-date="' + dateStr + '" data-slot="' + k + '">';
+    html += '<div class="day-badge" style="background:' + st.ac + ';color:' + st.dk + '">P' + p + '</div>';
     html += '<div class="day-body">';
     html += '<div class="day-cls-label">' + escHtml(clsLabel + roomLabel) + (timeLabel ? ' · ' + escHtml(timeLabel) : '') + '</div>';
     if (lesson) {
@@ -5908,6 +6054,126 @@ function showToast(msg, opts) {
   t._hideTimer = setTimeout(function() { t.style.opacity = '0'; }, opts.onUndo ? 5000 : 2200);
 }
 
+function closeClassColoursModal() {
+  var modal = document.getElementById('classColoursModal');
+  if (modal) modal.classList.remove('visible');
+}
+
+function renderClassColoursEditor(useDefaults) {
+  var list = document.getElementById('classColoursList');
+  var empty = document.getElementById('classColoursEmpty');
+  if (!list) return;
+  var names = listTimetableClassNames();
+  if (empty) empty.hidden = names.length > 0;
+  if (!names.length) {
+    list.innerHTML = '';
+    return;
+  }
+  var stored = (PS.getClassColors && PS.getClassColors()) || {};
+  list.innerHTML = names.map(function(name) {
+    var fill = useDefaults
+      ? defaultClassFill(name)
+      : (lookupStoredClassColor(name) || defaultClassFill(name));
+    var swatches = CLASS_FILL_DEFAULTS.map(function(hex) {
+      return '<button type="button" class="class-colour-swatch' + (hex === fill ? ' is-selected' : '') + '" data-hex="' + hex + '" style="background:' + hex + '" title="' + hex + '" aria-label="Use ' + hex + '"></button>';
+    }).join('');
+    return (
+      '<div class="class-colour-row" data-class="' + escAttr(name) + '">' +
+        '<div class="class-colour-preview" style="background:' + fill + ';color:' + contrastInkForHex(fill) + '">' + escHtml(name) + '</div>' +
+        '<div class="class-colour-controls">' +
+          '<div class="class-colour-swatches">' + swatches + '</div>' +
+          '<label class="class-colour-picker-wrap">' +
+            '<span class="sr-only">Custom colour for ' + escHtml(name) + '</span>' +
+            '<input type="color" class="class-colour-picker" value="' + fill + '">' +
+          '</label>' +
+        '</div>' +
+      '</div>'
+    );
+  }).join('');
+
+  list.querySelectorAll('.class-colour-row').forEach(function(row) {
+    var preview = row.querySelector('.class-colour-preview');
+    var picker = row.querySelector('.class-colour-picker');
+    function applyHex(hex) {
+      var n = normalizeHexColor(hex);
+      if (!n || !preview || !picker) return;
+      preview.style.background = n;
+      preview.style.color = contrastInkForHex(n);
+      picker.value = n;
+      row.querySelectorAll('.class-colour-swatch').forEach(function(btn) {
+        btn.classList.toggle('is-selected', btn.getAttribute('data-hex') === n);
+      });
+    }
+    row.querySelectorAll('.class-colour-swatch').forEach(function(btn) {
+      btn.addEventListener('click', function() { applyHex(btn.getAttribute('data-hex')); });
+    });
+    if (picker) picker.addEventListener('input', function() { applyHex(picker.value); });
+  });
+}
+
+function openClassColoursModal() {
+  var modal = document.getElementById('classColoursModal');
+  if (!modal) return;
+  renderClassColoursEditor(false);
+  modal.classList.add('visible');
+}
+
+function collectClassColoursFromEditor() {
+  var map = {};
+  document.querySelectorAll('#classColoursList .class-colour-row').forEach(function(row) {
+    var name = row.getAttribute('data-class') || '';
+    var picker = row.querySelector('.class-colour-picker');
+    var hex = normalizeHexColor(picker && picker.value);
+    if (name && hex) map[name] = hex;
+  });
+  return map;
+}
+
+function syncSlotColorsFromClassMap(map) {
+  var state = PS.getState ? PS.getState() : null;
+  var slots = (state && state.timetable && state.timetable.slots) || [];
+  slots.forEach(function(s) {
+    var name = String((s && s.className) || '').trim();
+    if (!name) return;
+    var hex = map[name];
+    if (!hex) {
+      Object.keys(map).some(function(k) {
+        if (String(k).toLowerCase() === name.toLowerCase()) {
+          hex = map[k];
+          return true;
+        }
+        return false;
+      });
+    }
+    if (hex) s.color = hex;
+    else if (s.color) delete s.color;
+  });
+}
+
+function refreshPlannerAfterClassColours() {
+  if (document.getElementById('panel-week') && document.getElementById('panel-week').classList.contains('active')) renderWeekView();
+  if (document.getElementById('panel-today') && document.getElementById('panel-today').classList.contains('active')) renderTodayDashboard();
+  if (document.getElementById('panel-day') && document.getElementById('panel-day').classList.contains('active')) renderDayView();
+  if (document.getElementById('panel-timetable') && document.getElementById('panel-timetable').classList.contains('active')) {
+    renderTimetableDisplay();
+    var edit = document.getElementById('timetableEditSection');
+    if (edit && edit.style.display !== 'none') renderTimetable();
+  }
+}
+
+function saveClassColoursFromEditor() {
+  var map = collectClassColoursFromEditor();
+  syncSlotColorsFromClassMap(map);
+  var saveMap = PS.setClassColors ? PS.setClassColors(map) : Promise.resolve();
+  return saveMap.then(function() {
+    return PS.saveTimetable ? PS.saveTimetable() : Promise.resolve();
+  }).then(function() {
+    closeClassColoursModal();
+    refreshPlannerAfterClassColours();
+    showToast('Class colours saved');
+  });
+}
+
 document.getElementById('saveTimetable').addEventListener('click', function() {
   collectTimetableFromDOM();
   PS.saveTimetable().then(function() {
@@ -5923,6 +6189,27 @@ document.getElementById('editTimetableBtn').addEventListener('click', function()
   document.getElementById('timetableEditSection').style.display = 'block';
   renderTimetable();
 });
+
+var classColoursBtn = document.getElementById('classColoursBtn');
+if (classColoursBtn) classColoursBtn.addEventListener('click', openClassColoursModal);
+['classColoursClose', 'classColoursCancel'].forEach(function(id) {
+  var el = document.getElementById(id);
+  if (el) el.addEventListener('click', closeClassColoursModal);
+});
+var classColoursSave = document.getElementById('classColoursSave');
+if (classColoursSave) classColoursSave.addEventListener('click', function() { saveClassColoursFromEditor(); });
+var classColoursReset = document.getElementById('classColoursResetDefaults');
+if (classColoursReset) {
+  classColoursReset.addEventListener('click', function() {
+    renderClassColoursEditor(true);
+  });
+}
+var classColoursModal = document.getElementById('classColoursModal');
+if (classColoursModal) {
+  classColoursModal.addEventListener('click', function(e) {
+    if (e.target === classColoursModal) closeClassColoursModal();
+  });
+}
 
 function handleNewAcademicYear() {
   if (!confirm('Clear your timetable to enter your new schedule for the academic year? Your lesson plans will be kept.')) return;
