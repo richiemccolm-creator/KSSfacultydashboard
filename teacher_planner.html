@@ -1094,13 +1094,19 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
 
 <!-- Day view panel -->
 <div id="panel-day" class="planner-panel panel">
-  <div class="nav-row">
-    <button type="button" class="nav-btn" id="dayPrev" aria-label="Previous day">&#9664;</button>
-    <div class="day-date-title" id="dayViewDisplay"></div>
-    <button type="button" class="nav-btn" id="dayNext" aria-label="Next day">&#9654;</button>
-    <button type="button" class="nav-today" id="dayViewToday">Today</button>
-    <button type="button" class="nav-today" id="dayCourseStart" title="Jump to N5 Creative Industries course start">CI start</button>
-  </div>
+  <header class="day-hero">
+    <div class="day-hero-copy">
+      <p class="day-hero-eyebrow">Day planner</p>
+      <div class="day-date-title" id="dayViewDisplay"></div>
+      <div class="day-hero-stats" id="dayViewStats" aria-live="polite"></div>
+    </div>
+    <div class="nav-row day-hero-nav">
+      <button type="button" class="nav-btn" id="dayPrev" aria-label="Previous day">&#9664;</button>
+      <button type="button" class="nav-btn" id="dayNext" aria-label="Next day">&#9654;</button>
+      <button type="button" class="nav-today" id="dayViewToday">Today</button>
+      <button type="button" class="nav-today" id="dayCourseStart" title="Jump to N5 Creative Industries course start">CI start</button>
+    </div>
+  </header>
   <div class="day-notes-panel">
     <h3 class="day-notes-heading">Notes for this day</h3>
     <textarea id="dayNotesInput" class="day-notes-textarea" rows="2" placeholder="Resources needed, reminders, priorities for today…"></textarea>
@@ -5267,20 +5273,23 @@ function renderDayView() {
   PS.setCurrentDayViewDate(viewDate);
   var dateStr = getDateStr(viewDate);
   document.getElementById('dayViewDate').value = dateStr;
-  var dayTitle = viewDate.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  var dateHeading = viewDate.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
   var dayDisplay = document.getElementById('dayViewDisplay');
-  if (dayDisplay) dayDisplay.textContent = dayTitle;
+  if (dayDisplay) dayDisplay.textContent = dateHeading;
   syncDayNotesPanel(dateStr);
   var dayName = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'][viewDate.getDay()];
   var maxP = periodsForWeekday(dayName);
   var allSlots = state.timetable.slots || [];
   var listEl = document.getElementById('dayViewList');
+  var statsEl = document.getElementById('dayViewStats');
 
   if (!maxP) {
+    if (statsEl) statsEl.innerHTML = '';
     listEl.innerHTML = '<div class="day-na-card">Day view is for weekdays only.</div>';
     return;
   }
   if (allSlots.length === 0) {
+    if (statsEl) statsEl.innerHTML = '';
     listEl.innerHTML = '<div class="day-free-card">No teaching slots yet — set up your timetable in <strong>My Timetable</strong>.</div>';
     return;
   }
@@ -5298,6 +5307,9 @@ function renderDayView() {
   });
   var pt = state.timetable.periodTimes || {};
   var html = '';
+  var teachCount = 0;
+  var plannedCount = 0;
+  var needCount = 0;
 
   for (var p = 1; p <= maxP; p++) {
     var k = slotKey(dayName, p);
@@ -5308,35 +5320,53 @@ function renderDayView() {
     var timeLabel = timeBits.length ? timeBits.join('–') : '';
 
     if (!slot) {
-      html += '<div class="day-na-card"><div class="day-free-badge">P' + p + '</div><span>Free period' + (timeLabel ? ' · ' + escHtml(timeLabel) : '') + '</span></div>';
+      html +=
+        '<div class="day-gap-card is-free">' +
+          '<span class="day-gap-period">P' + p + '</span>' +
+          '<div class="day-gap-copy">' +
+            '<strong>Free period</strong>' +
+            (timeLabel ? '<span>' + escHtml(timeLabel) + '</span>' : '') +
+          '</div>' +
+          '<span class="day-gap-hint">Catch-up · prep · breath</span>' +
+        '</div>';
       continue;
     }
 
+    teachCount++;
     var lesson = bySlot[k];
-    var st = slotChipStyle(slot);
+    var status = deriveLessonStatus(lesson);
+    if (status === 'needs-planning') needCount++;
+    else plannedCount++;
+    var fill = classFillStyleAttrs(slot.className || subjectLabel(slot.subject) || 'Class', slot);
     var clsLabel = slot.className || subjectLabel(slot.subject) || 'Class';
-    var roomLabel = slot.room ? (' · ' + slot.room) : '';
+    var roomLabel = slot.room ? String(slot.room).trim() : '';
     var slotNote = PS.getDaySlotNote(dateStr, k);
-    html += '<div class="day-card has-class-fill" style="border-left-color:' + st.ac + ';--class-fill:' + st.bg + ';--class-ink:' + st.dk + '" data-date="' + dateStr + '" data-slot="' + k + '">';
-    html += '<div class="day-badge" style="background:' + st.ac + ';color:' + st.dk + '">P' + p + '</div>';
-    html += '<div class="day-body">';
-    html += '<div class="day-cls-label">' + escHtml(clsLabel + roomLabel) + (timeLabel ? ' · ' + escHtml(timeLabel) : '') + '</div>';
+    var subj = slot.subject || 'other';
+    html +=
+      '<article class="day-card has-class-fill is-' + status + ' subj-' + escHtml(subj) + '" style="' + fill.style + '" data-date="' + dateStr + '" data-slot="' + k + '" role="button" tabindex="0">' +
+        '<div class="day-period-rail">' +
+          '<span class="day-badge">P' + p + '</span>' +
+          (timeLabel ? '<span class="day-time">' + escHtml(timeLabel) + '</span>' : '') +
+        '</div>' +
+        '<div class="day-body">' +
+          '<div class="day-cls-label">' + escHtml(clsLabel) + '</div>' +
+          (roomLabel ? '<div class="day-room-chip">' + escHtml(roomLabel) + '</div>' : '');
+
     if (lesson) {
       var u = window.getUnitFromKey && window.getUnitFromKey(lesson.unitKey);
-      var dayTitle = lesson.title || 'Untitled';
+      var lessonTitle = lesson.title || 'Untitled';
       if (lesson.lessonNumber && String(lesson.lessonNumber).trim()) {
-        dayTitle = String(lesson.lessonNumber).trim() + ' · ' + dayTitle;
+        lessonTitle = String(lesson.lessonNumber).trim() + ' · ' + lessonTitle;
       }
-      html += '<div class="day-lesson-title">' + escHtml(dayTitle) + '</div>';
+      html += '<div class="day-lesson-title">' + escHtml(lessonTitle) + '</div>';
       if (u && u.unit) html += '<div class="day-lesson-unit">' + escHtml(u.unit) + '</div>';
       else if (lesson.n5CiSession) html += '<div class="day-lesson-unit">N5 Creative Industries</div>';
     } else {
       html += '<div class="day-lesson-empty">No lesson plan yet — click to add</div>';
     }
-    html += '</div>';
-    html += '<div class="day-card-side">';
-    html += '<textarea class="day-slot-note" data-date="' + dateStr + '" data-slot="' + k + '" rows="2" placeholder="Quick notes…">' + escHtml(slotNote) + '</textarea>';
-    if (lesson) html += '<span class="wg-card-status st-' + lessonStatusBadgeClass(lesson) + '">' + lessonStatusBadgeClass(lesson) + '</span>';
+
+    html += '</div><div class="day-card-side">';
+    html += '<span class="day-status is-' + status + '">' + escHtml(statusLabel(status)) + '</span>';
     var daySlides = window.LessonSlidesCatalog
       ? window.LessonSlidesCatalog.getAttachmentFromLesson(lesson)
       : (lesson && lesson.slidesFile ? {
@@ -5345,18 +5375,39 @@ function renderDayView() {
           slidesIsHub: !!lesson.slidesIsHub
         } : null);
     if (daySlides && daySlides.slidesFile) {
-      html += '<button type="button" class="day-slides-btn" data-slides-file="' + escAttr(daySlides.slidesFile) + '" data-slides-title="' + escAttr(daySlides.slidesTitle || '') + '" data-slides-hub="' + (daySlides.slidesIsHub ? '1' : '') + '">Open slides</button>';
+      html += '<button type="button" class="day-slides-btn" data-slides-file="' + escAttr(daySlides.slidesFile) + '" data-slides-title="' + escAttr(daySlides.slidesTitle || '') + '" data-slides-hub="' + (daySlides.slidesIsHub ? '1' : '') + '">Slides</button>';
+    } else if (status === 'needs-planning') {
+      html += '<span class="day-plan-cue">Plan now →</span>';
     }
-    html += '</div>';
-    html += '</div>';
+    html += '<textarea class="day-slot-note" data-date="' + dateStr + '" data-slot="' + k + '" rows="2" placeholder="Quick notes…">' + escHtml(slotNote) + '</textarea>';
+    html += '</div></article>';
+  }
+
+  if (statsEl) {
+    statsEl.innerHTML =
+      '<span class="day-stat-chip">' + teachCount + ' teaching</span>' +
+      '<span class="day-stat-chip is-good">' + plannedCount + ' planned</span>' +
+      (needCount
+        ? '<span class="day-stat-chip is-alert">' + needCount + ' need' + (needCount === 1 ? 's' : '') + ' planning</span>'
+        : '<span class="day-stat-chip is-good">All set</span>');
   }
 
   listEl.innerHTML = html;
   bindDaySlotNoteEvents();
   listEl.querySelectorAll('.day-card[data-date][data-slot]').forEach(function(card) {
+    function openCard() {
+      openLessonModal(card.dataset.date, card.dataset.slot);
+    }
     card.addEventListener('click', function(e) {
       if (e.target.closest('.day-slot-note') || e.target.closest('.day-slides-btn')) return;
-      openLessonModal(card.dataset.date, card.dataset.slot);
+      openCard();
+    });
+    card.addEventListener('keydown', function(e) {
+      if (e.target.closest('.day-slot-note')) return;
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openCard();
+      }
     });
   });
   listEl.querySelectorAll('.day-slides-btn').forEach(function(btn) {
