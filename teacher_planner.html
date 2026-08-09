@@ -4018,7 +4018,8 @@ function buildWeekDashboardModel() {
           title: 'Plan ' + (slot.className || subjectLabel(slot.subject) || 'class') + ' · P' + p,
           detail: weekDays[di].toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }),
           dateStr: dateStr,
-          slotKey: k
+          slotKey: k,
+          className: slot.className || subjectLabel(slot.subject) || 'Class'
         });
       }
       cells.push({
@@ -4168,16 +4169,24 @@ function createWeekDashboardMarkup(model) {
 
   var prioritiesHtml = model.priorities.length
     ? '<div class="week-priorities-list">' + model.priorities.map(function(it) {
+        var pFill = null;
+        if (it.className) {
+          var pParts = it.slotKey ? parseSlotKeyParts(it.slotKey) : null;
+          var pSlot = pParts ? PS.getSlot(pParts.day, pParts.period) : null;
+          pFill = classFillStyleAttrs(it.className, pSlot);
+        }
+        var pFillClass = pFill ? ' has-class-fill' : '';
+        var pFillStyle = pFill ? ' style="' + pFill.style + '"' : '';
         if (it.dateStr && it.slotKey) {
           return (
-            '<button type="button" class="week-priority-item is-action" data-date="' + it.dateStr + '" data-slot="' + it.slotKey + '">' +
+            '<button type="button" class="week-priority-item is-action' + pFillClass + '" data-date="' + it.dateStr + '" data-slot="' + it.slotKey + '"' + pFillStyle + '>' +
               '<span class="week-priority-icon is-' + escHtml(it.kind || 'info') + '" aria-hidden="true"></span>' +
               '<span class="week-priority-copy"><strong>' + escHtml(it.title) + '</strong><span>' + escHtml(it.detail || '') + '</span></span>' +
             '</button>'
           );
         }
         return (
-          '<div class="week-priority-item">' +
+          '<div class="week-priority-item' + pFillClass + '"' + pFillStyle + '>' +
             '<span class="week-priority-icon is-' + escHtml(it.kind || 'info') + '" aria-hidden="true"></span>' +
             '<span class="week-priority-copy"><strong>' + escHtml(it.title) + '</strong><span>' + escHtml(it.detail || '') + '</span></span>' +
           '</div>'
