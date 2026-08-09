@@ -23,6 +23,7 @@
 <script src="allowlist-check.js"></script>
 <script src="auth-guard.js"></script>
 <script src="data-service.js"></script>
+<script src="academic-calendar-defaults.js"></script>
 <script src="curriculum-units.js"></script>
 <script src="drama-curriculum-manifest.js"></script>
 <script src="n5-ci-curriculum-manifest.js"></script>
@@ -286,8 +287,8 @@ body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-h
   background:var(--card-elevated);border-radius:12px;max-width:560px;width:100%;max-height:90vh;
   overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.25)
 }
-/* Full lesson editor: more horizontal space for titles, todos, and long text areas */
-.modal-wide-lesson{max-width:min(920px, calc(100vw - 4rem))}
+/* Full lesson editor: wide shell; redesign CSS can refine further */
+.modal-wide-lesson{max-width:min(1180px, calc(100vw - 1.5rem))}
 .modal-header{
   padding:1.25rem 1.5rem;border-bottom:1px solid var(--border);
   display:flex;align-items:center;justify-content:space-between
@@ -1551,51 +1552,77 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
 
 <!-- Lesson modal -->
 <div class="modal-overlay" id="lessonModal">
-  <div class="modal modal-wide-lesson">
-    <div class="modal-header">
-      <h2 class="modal-title" id="lessonModalTitle">Add Lesson</h2>
-      <button class="modal-close" id="modalClose">&times;</button>
+  <div class="modal modal-wide-lesson lesson-modal-shell">
+    <div class="modal-header lesson-modal-hero">
+      <div class="lesson-modal-hero-copy">
+        <p class="lesson-modal-eyebrow">Teacher Planner</p>
+        <h2 class="modal-title" id="lessonModalTitle">Add Lesson</h2>
+        <p class="lesson-modal-hero-sub" id="lessonModalMeta">Plan the period — title, slides and the full lesson write-up</p>
+      </div>
+      <button class="modal-close lesson-modal-close" id="modalClose" aria-label="Close">&times;</button>
     </div>
-    <div class="modal-body">
+    <div class="modal-body lesson-modal-body">
       <input type="hidden" id="lessonSlotKey">
       <input type="hidden" id="lessonDate">
-      <div class="form-group lesson-modal-apply-section" style="background:var(--bg);padding:.6rem .75rem;border-radius:6px;margin-bottom:1rem">
-        <label class="form-label">Apply template</label>
-        <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
-          <select class="form-select" id="applyTemplateSelect" style="flex:1;min-width:160px">
+
+      <section class="lesson-modal-panel lesson-modal-apply-section">
+        <div class="lesson-modal-panel-head">
+          <span class="lesson-modal-panel-kicker">Quick start</span>
+          <h3 class="lesson-modal-panel-title">Apply template</h3>
+        </div>
+        <div class="lesson-modal-apply-row">
+          <select class="form-select" id="applyTemplateSelect">
             <option value="">— Select template —</option>
           </select>
-          <button type="button" class="btn-add-resource" id="applyTemplateBtn">Apply</button>
+          <button type="button" class="btn-add-resource lesson-modal-chip-btn" id="applyTemplateBtn">Apply</button>
         </div>
-      </div>
-      <div class="lesson-modal-top-strip">
-        <div class="form-group">
-          <label class="form-label">Subject & Year Group</label>
-          <select class="form-select" id="lessonSubject">
-            <option value="">— Select —</option>
-            <option value="drama">Drama</option>
-            <option value="art">Art & Design</option>
-            <option value="photography">Photography</option>
-          </select>
+      </section>
+
+      <section class="lesson-modal-panel">
+        <div class="lesson-modal-panel-head">
+          <span class="lesson-modal-panel-kicker">Details</span>
+          <h3 class="lesson-modal-panel-title">What are you teaching?</h3>
         </div>
-        <div class="form-group">
-          <label class="form-label">Unit</label>
-          <select class="form-select" id="lessonUnit">
-            <option value="">— Select unit —</option>
-          </select>
+        <div class="lesson-modal-top-strip">
+          <div class="form-group">
+            <label class="form-label" for="lessonSubject">Subject &amp; Year Group</label>
+            <select class="form-select" id="lessonSubject">
+              <option value="">— Select —</option>
+              <option value="drama">Drama</option>
+              <option value="art">Art & Design</option>
+              <option value="photography">Photography</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="lessonUnit">Unit</label>
+            <select class="form-select" id="lessonUnit">
+              <option value="">— Select unit —</option>
+            </select>
+          </div>
+          <div class="form-group lesson-title-group">
+            <label class="form-label" for="lessonTitle">Lesson title</label>
+            <input type="text" class="form-input lesson-title-input" id="lessonTitle" placeholder="e.g. Warm-up and character exploration">
+            <button type="button" class="btn-add-resource lesson-modal-chip-btn" id="useExampleBtn">Start from example</button>
+          </div>
+          <div class="form-group lesson-number-group">
+            <label class="form-label" for="lessonNumber">Lesson number</label>
+            <input type="text" class="form-input" id="lessonNumber" placeholder="e.g. 3, L5, Week 2" maxlength="24">
+          </div>
         </div>
-        <div class="form-group lesson-title-group">
-          <label class="form-label">Lesson title</label>
-          <input type="text" class="form-input" id="lessonTitle" placeholder="e.g. Warm-up and character exploration">
-          <button type="button" class="btn-add-resource" id="useExampleBtn" style="margin-top:.4rem;font-size:.72rem">Start from example</button>
+      </section>
+
+      <section class="lesson-slides-attach lesson-modal-panel" id="lessonSlidesAttach">
+        <div class="lesson-modal-panel-head lesson-slides-head">
+          <div>
+            <span class="lesson-modal-panel-kicker">Classroom</span>
+            <h3 class="lesson-modal-panel-title">Lesson slides</h3>
+          </div>
+          <div class="lesson-slides-attach-actions">
+            <button type="button" class="btn-add-resource lesson-modal-chip-btn" id="lessonSlidesOpenBtn" style="display:none">Open slides</button>
+            <button type="button" class="btn-add-resource lesson-modal-chip-btn is-accent" id="lessonSlidesPickBtn">Attach slides</button>
+            <button type="button" class="btn-add-resource lesson-modal-chip-btn" id="lessonSlidesClearBtn" style="display:none">Clear</button>
+          </div>
         </div>
-        <div class="form-group">
-          <label class="form-label">Lesson number</label>
-          <input type="text" class="form-input" id="lessonNumber" placeholder="e.g. 3, L5, Week 2 — shown on week &amp; day cards" maxlength="24">
-        </div>
-      </div>
-      <div class="lesson-slides-attach" id="lessonSlidesAttach">
-        <div class="lesson-slides-attach-label">Lesson slides</div>
         <input type="hidden" id="lessonSlidesSubject" value="">
         <input type="hidden" id="lessonSlidesUnitId" value="">
         <input type="hidden" id="lessonSlidesLessonId" value="">
@@ -1604,15 +1631,14 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
         <input type="hidden" id="lessonSlidesIsHub" value="">
         <div class="lesson-slides-attach-row">
           <div class="lesson-slides-attach-meta empty" id="lessonSlidesMeta">No slides linked</div>
-          <div class="lesson-slides-attach-actions">
-            <button type="button" class="btn-add-resource" id="lessonSlidesOpenBtn" style="display:none">Open slides</button>
-            <button type="button" class="btn-add-resource" id="lessonSlidesPickBtn">Attach slides</button>
-            <button type="button" class="btn-add-resource" id="lessonSlidesClearBtn" style="display:none">Clear</button>
-          </div>
         </div>
-      </div>
-      <div class="lesson-body-editor-wrap">
-        <label class="form-label">Lesson plan</label>
+      </section>
+
+      <section class="lesson-body-editor-wrap lesson-modal-panel is-editor">
+        <div class="lesson-modal-panel-head">
+          <span class="lesson-modal-panel-kicker">Plan</span>
+          <h3 class="lesson-modal-panel-title">Lesson plan</h3>
+        </div>
         <div class="lesson-body-editor-toolbar" id="lessonBodyToolbar">
           <button type="button" data-cmd="bold" title="Bold"><strong>B</strong></button>
           <button type="button" data-cmd="italic" title="Italic"><em>I</em></button>
@@ -1623,42 +1649,46 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
           <button type="button" data-cmd="ul" title="Bullet list">• List</button>
         </div>
         <div class="lesson-body-editor" id="lessonBodyEditor" contenteditable="true" data-placeholder="Start typing or paste your lesson here — quick notes, full plans, or copy from Word…"></div>
-      </div>
-      <details class="lesson-modal-extras">
-        <summary>To-do &amp; resources (optional)</summary>
+      </section>
+
+      <details class="lesson-modal-extras lesson-modal-panel">
+        <summary>To-do &amp; resources <span>(optional)</span></summary>
         <div class="lesson-modal-extras-body">
           <div class="form-group">
             <label class="form-label">To-do (prep tasks)</label>
             <div id="todosList" class="todos-list"></div>
-            <div style="display:flex;gap:.5rem;margin-top:.5rem">
-              <input type="text" id="todoNewInput" class="form-input" placeholder="e.g. Print handouts" style="flex:1">
-              <button type="button" class="btn-add-resource" id="addTodo">+ Add</button>
+            <div class="lesson-modal-inline-add">
+              <input type="text" id="todoNewInput" class="form-input" placeholder="e.g. Print handouts">
+              <button type="button" class="btn-add-resource lesson-modal-chip-btn is-accent" id="addTodo">+ Add</button>
             </div>
           </div>
           <div class="form-group">
             <label class="form-label">Resources</label>
             <div id="resourcesList" class="resources-list"></div>
-            <button type="button" class="btn-add-resource" id="addResource">+ Add resource (URL)</button>
+            <button type="button" class="btn-add-resource lesson-modal-chip-btn" id="addResource">+ Add resource (URL)</button>
           </div>
         </div>
       </details>
-      <div id="copyToForm" class="form-group" style="display:none;border-top:1px solid var(--border);padding-top:1rem;margin-top:1rem">
-        <label class="form-label">Copy to date & slot</label>
-        <div style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center">
-          <input type="date" id="copyToDate" class="form-input" style="width:140px">
-          <select id="copyToPeriod" class="form-select" style="width:100px"></select>
+
+      <div id="copyToForm" class="form-group lesson-modal-copy" style="display:none">
+        <label class="form-label">Copy to date &amp; slot</label>
+        <div class="lesson-modal-inline-add">
+          <input type="date" id="copyToDate" class="form-input">
+          <select id="copyToPeriod" class="form-select"></select>
           <button type="button" class="btn-primary" id="doCopy">Copy</button>
           <button type="button" class="btn-secondary" id="cancelCopy">Cancel</button>
         </div>
       </div>
     </div>
-    <div class="modal-footer">
-      <button class="btn-secondary" id="lessonDelete" style="margin-right:auto;color:#b91c1c;border-color:rgba(185,28,28,.3)">Delete</button>
-      <button class="btn-secondary" id="lessonSaveAsTemplate">Save as template</button>
-      <button class="btn-secondary" id="lessonCopyTo">Copy to...</button>
-      <button type="button" class="btn-secondary" id="lessonDownloadDocx" style="display:none" title="Download a formatted Word copy for your records">Download lesson plan</button>
-      <button class="btn-secondary" id="lessonCancel">Cancel</button>
-      <button class="btn-primary" id="lessonSave">Save Lesson</button>
+    <div class="modal-footer lesson-modal-footer">
+      <button class="btn-secondary lesson-modal-danger" id="lessonDelete">Delete</button>
+      <div class="lesson-modal-footer-actions">
+        <button class="btn-secondary" id="lessonSaveAsTemplate">Save as template</button>
+        <button class="btn-secondary" id="lessonCopyTo">Copy to...</button>
+        <button type="button" class="btn-secondary" id="lessonDownloadDocx" style="display:none" title="Download a formatted Word copy for your records">Download lesson plan</button>
+        <button class="btn-secondary" id="lessonCancel">Cancel</button>
+        <button class="btn-primary lesson-modal-save" id="lessonSave">Save Lesson</button>
+      </div>
     </div>
   </div>
 </div>
@@ -2735,6 +2765,37 @@ function getRoomDisplayName() {
   return (el && el.textContent && el.textContent.trim()) || 'Teaching Space';
 }
 
+/** Same 2026–27 defaults as Faculty Hub Academic Calendar. */
+function getPlannerCalendarDefaults() {
+  var sharedDefaults = (window.ACADEMIC_CALENDAR_DEFAULT_EVENTS && window.ACADEMIC_CALENDAR_DEFAULT_EVENTS.length)
+    ? window.ACADEMIC_CALENDAR_DEFAULT_EVENTS
+    : CAL_DEFAULT_EVENTS_FALLBACK;
+  return sharedDefaults.map(function(ev) {
+    return {
+      title: ev.title,
+      date: ev.date,
+      category: ev.category || 'general',
+      description: ev.description || '',
+      source: ev.source || 'shared'
+    };
+  });
+}
+
+function mergePlannerCalendarDefaults(allEvents) {
+  var base = Array.isArray(allEvents) ? allEvents.slice() : [];
+  var titlesMap = {};
+  base.forEach(function(e) { titlesMap[(e.title || '') + (e.date || '')] = true; });
+  getPlannerCalendarDefaults().forEach(function(ev) {
+    var key = (ev.title || '') + (ev.date || '');
+    if (!titlesMap[key]) {
+      base.push(ev);
+      titlesMap[key] = true;
+    }
+  });
+  base.sort(function(a, b) { return String(a.date || '').localeCompare(String(b.date || '')); });
+  return base;
+}
+
 function loadPlannerCalendarEvents() {
   var loadCal = (window.DataService && window.DataService.getCalendarMerged)
     ? DataService.getCalendarMerged()
@@ -2757,18 +2818,7 @@ function loadPlannerCalendarEvents() {
     return allEvents;
   }).then(function(allEvents) {
     if (!Array.isArray(allEvents)) allEvents = (allEvents && allEvents.events) ? allEvents.events : [];
-    if (!allEvents || allEvents.length === 0) {
-      allEvents = CAL_DEFAULT_EVENTS.slice();
-    } else {
-      var titlesMap = {};
-      allEvents.forEach(function(e) { titlesMap[(e.title || '') + (e.date || '')] = true; });
-      CAL_DEFAULT_EVENTS.forEach(function(ev) {
-        if (!titlesMap[(ev.title || '') + (ev.date || '')]) {
-          allEvents.push({ title: ev.title, date: ev.date, category: ev.category || 'general' });
-        }
-      });
-    }
-    return allEvents;
+    return mergePlannerCalendarDefaults(allEvents || []);
   });
 }
 
@@ -3847,18 +3897,9 @@ function isHolidayForDate(dateStr, weekEvents) {
   });
 }
 
-var CAL_DEFAULT_EVENTS = [
-  {title:'Pupils Return',date:'2025-08-14',category:'general'},
-  {title:'September Weekend Holiday',date:'2025-09-26',category:'holiday'},
-  {title:'September Weekend Holiday',date:'2025-09-29',category:'holiday'},
-  {title:'October Holiday',date:'2025-10-13',category:'holiday'},{title:'October Holiday',date:'2025-10-14',category:'holiday'},{title:'October Holiday',date:'2025-10-15',category:'holiday'},{title:'October Holiday',date:'2025-10-16',category:'holiday'},{title:'October Holiday',date:'2025-10-17',category:'holiday'},
-  {title:'Christmas Holiday',date:'2025-12-22',category:'holiday'},{title:'Christmas Holiday',date:'2025-12-23',category:'holiday'},{title:'Christmas Holiday',date:'2025-12-24',category:'holiday'},{title:'Christmas Holiday',date:'2025-12-25',category:'holiday'},{title:'Christmas Holiday',date:'2025-12-26',category:'holiday'},{title:'Christmas Holiday',date:'2025-12-29',category:'holiday'},{title:'Christmas Holiday',date:'2025-12-30',category:'holiday'},{title:'Christmas Holiday',date:'2025-12-31',category:'holiday'},{title:'Christmas Holiday',date:'2026-01-01',category:'holiday'},{title:'Christmas Holiday',date:'2026-01-02',category:'holiday'},
-  {title:'Schools Return',date:'2026-01-05',category:'general'},
-  {title:'February Holiday',date:'2026-02-16',category:'holiday'},{title:'February Holiday',date:'2026-02-17',category:'holiday'},{title:'In-Service Day',date:'2026-02-18',category:'meeting'},
-  {title:'Spring Break',date:'2026-04-06',category:'holiday'},{title:'Spring Break',date:'2026-04-07',category:'holiday'},{title:'Spring Break',date:'2026-04-08',category:'holiday'},{title:'Spring Break',date:'2026-04-09',category:'holiday'},{title:'Spring Break',date:'2026-04-10',category:'holiday'},{title:'Spring Break',date:'2026-04-13',category:'holiday'},{title:'Spring Break',date:'2026-04-14',category:'holiday'},{title:'Spring Break',date:'2026-04-15',category:'holiday'},{title:'Spring Break',date:'2026-04-16',category:'holiday'},{title:'Spring Break',date:'2026-04-17',category:'holiday'},
-  {title:'May Day Holiday',date:'2026-05-04',category:'holiday'},{title:'May Weekend',date:'2026-05-22',category:'holiday'},{title:'May Weekend',date:'2026-05-25',category:'holiday'},
-  {title:'S2 Parents Evening',date:'2026-03-24',category:'general'},{title:'Departmental Meeting 18',date:'2026-03-31',category:'meeting'},{title:'Strategy Group Meeting 2',date:'2026-04-22',category:'meeting'},{title:'Departmental Meeting 19',date:'2026-04-28',category:'meeting'},{title:'S3 Parents Evening',date:'2026-05-06',category:'general'},{title:'In-Service Day 5',date:'2026-05-07',category:'meeting'},{title:'Moderation Meeting',date:'2026-05-11',category:'meeting'},{title:'Ped Pod 5',date:'2026-06-03',category:'meeting'},{title:'S1 Full Reports Deadline',date:'2026-06-05',category:'reporting'},{title:'Departmental Meeting 20',date:'2026-06-09',category:'meeting'},{title:'Staff Meeting 2',date:'2026-06-10',category:'meeting'},{title:'Schools Close for Summer',date:'2026-06-25',category:'holiday'}
-];
+/** Legacy fallback only if academic-calendar-defaults.js fails to load. */
+var CAL_DEFAULT_EVENTS_FALLBACK = (window.ACADEMIC_CALENDAR_DEFAULT_EVENTS || []).slice();
+var CAL_DEFAULT_EVENTS = CAL_DEFAULT_EVENTS_FALLBACK;
 
 function buildWeekSidebar(weekStartStr, weekEvents, upcomingEvents) {
   var note = PS.getWeekNote(weekStartStr);
@@ -3930,19 +3971,24 @@ function isoWeekNumber(dateObj) {
 function calendarEventPriorityRank(e) {
   var cat = String((e && e.category) || '').toLowerCase();
   var title = String((e && e.title) || '').toLowerCase();
-  if (cat === 'assessment' || cat === 'exam' || /assessment|exam/i.test(title)) return 1;
-  if (cat === 'reporting' || /report|reporting|deadline/i.test(title)) return 2;
-  if (cat === 'meeting' || /meeting/i.test(title)) return 3;
+  if (cat === 'assessment' || cat === 'exam' || /assessment|exam|working grades/i.test(title)) return 1;
+  if (cat === 'reporting' || cat === 'deadline' || cat === 'faculty-deadline' || /report|reporting|deadline|qa\b/i.test(title)) return 2;
+  if (cat === 'meeting' || cat === 'inset' || /meeting|inset|dm\b|mod\b|ped pod/i.test(title)) return 3;
+  if (cat === 'holiday') return 5;
   return 4;
 }
 
 function calendarEventTag(e) {
   var cat = String((e && e.category) || '').toLowerCase();
   var title = String((e && e.title) || '').toLowerCase();
-  if (cat === 'assessment' || cat === 'exam' || /assessment|exam/i.test(title)) return 'Assessment';
-  if (cat === 'reporting' || /report|reporting|deadline/i.test(title)) return 'Reporting';
-  if (cat === 'meeting' || /meeting/i.test(title)) return 'Meeting';
+  if (cat === 'assessment' || cat === 'exam' || /assessment|exam|working grades/i.test(title)) return 'Assessment';
+  if (cat === 'inset' || /inset/i.test(title)) return 'INSET';
   if (cat === 'holiday') return 'Holiday';
+  if (cat === 'meeting' || /meeting|ped pod|sgm/i.test(title)) return 'Meeting';
+  // Faculty DM / MOD slots are meetings; report/QA deadlines stay Reporting.
+  if (cat === 'faculty-deadline' && /\bdm\b|\bmod\b/i.test(title) && !/report|deadline|qa\b/i.test(title)) return 'Meeting';
+  if (cat === 'reporting' || cat === 'deadline' || cat === 'faculty-deadline' || /report|reporting|deadline|qa\b/i.test(title)) return 'Reporting';
+  if (/\bdm\b|\bmod\b/i.test(title)) return 'Meeting';
   return 'Event';
 }
 
@@ -3951,6 +3997,7 @@ var CAL_CATEGORY_FILLS = {
   Assessment: '#b91c1c',
   Reporting: '#c2410c',
   Meeting: '#6d28d9',
+  INSET: '#0e7490',
   Holiday: '#a16207',
   Event: '#1d4ed8'
 };
@@ -4292,7 +4339,8 @@ function createWeekDashboardMarkup(model) {
         var tagSlug = (d.tag === 'Assessment') ? 'assess'
           : (d.tag === 'Meeting' ? 'meet'
           : (d.tag === 'Reporting' ? 'report'
-          : (d.tag === 'Holiday' ? 'holiday' : 'plan')));
+          : (d.tag === 'INSET' ? 'inset'
+          : (d.tag === 'Holiday' ? 'holiday' : 'plan'))));
         var fill = calendarEventFillStyle(d.tag);
         var sourceHint = d.source === 'shared' ? 'Shared calendar' : (d.source === 'personal' ? 'My calendar' : 'Academic Calendar');
         return (
@@ -5347,31 +5395,8 @@ function renderMonthView() {
   var year = monthStart.getFullYear();
   var month = monthStart.getMonth();
   var daysInMonth = new Date(year, month + 1, 0).getDate();
-  var loadCal = (window.DataService && window.DataService.getCalendarMerged) ? DataService.getCalendarMerged() : Promise.resolve([]);
-  loadCal.catch(function() { return []; }).then(function(allEvents) {
-    if (!allEvents || !Array.isArray(allEvents) || allEvents.length === 0) {
-      var fallback = (window.DataService && DataService.get) ? DataService.get('academicCalendarEvents') : Promise.resolve(null);
-      return fallback.then(function(stored) {
-        if (stored && Array.isArray(stored) && stored.length > 0) return stored;
-        if (window.DataService && window.DataService.isUsingCloud && window.DataService.isUsingCloud()) return [];
-        try {
-          var raw = localStorage.getItem('academicCalendarEvents');
-          var parsed = raw ? JSON.parse(raw) : null;
-          return (parsed && Array.isArray(parsed)) ? parsed : [];
-        } catch (e) { return []; }
-      });
-    }
-    return allEvents;
-  }).then(function(allEvents) {
-    if (!Array.isArray(allEvents)) allEvents = (allEvents && allEvents.events) ? allEvents.events : [];
-    if (!allEvents || allEvents.length === 0) allEvents = CAL_DEFAULT_EVENTS.slice();
-    else {
-      var titlesMap = {};
-      allEvents.forEach(function(e) { titlesMap[(e.title || '') + (e.date || '')] = true; });
-      CAL_DEFAULT_EVENTS.forEach(function(ev) {
-        if (!titlesMap[(ev.title || '') + (ev.date || '')]) allEvents.push({ title: ev.title, date: ev.date, category: ev.category || 'general' });
-      });
-    }
+  loadPlannerCalendarEvents().then(function(allEvents) {
+    if (!Array.isArray(allEvents)) allEvents = [];
     var slots = state.timetable.slots || [];
     var monthStartStr = year + '-' + String(month + 1).padStart(2, '0') + '-01';
     var monthEndStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(daysInMonth).padStart(2, '0');
@@ -5671,6 +5696,28 @@ function closeSlidesPickerModal() {
   if (modal) modal.classList.remove('visible');
 }
 
+function updateLessonModalMeta(dateStr, slotKey, mode) {
+  var meta = document.getElementById('lessonModalMeta');
+  if (!meta) return;
+  if (mode === 'library') {
+    meta.textContent = 'Build a reusable lesson for your bank — then drop it onto any period';
+    return;
+  }
+  var parts = [];
+  if (dateStr) {
+    var d = parseIsoDateLocal ? parseIsoDateLocal(dateStr) : null;
+    if (d) parts.push(d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }));
+    else parts.push(dateStr);
+  }
+  if (slotKey) {
+    var sk = parseSlotKeyParts(slotKey);
+    if (sk) parts.push('Period ' + sk.period);
+  }
+  meta.textContent = parts.length
+    ? parts.join(' · ')
+    : 'Plan the period — title, slides and the full lesson write-up';
+}
+
 function openLessonModal(dateStr, slotKey) {
   PS.setEditingTemplateId(null);
   PS.setEditingLessonId(null);
@@ -5678,6 +5725,7 @@ function openLessonModal(dateStr, slotKey) {
   document.getElementById('lessonSlotKey').value = slotKey || '';
   document.getElementById('lessonDate').value = dateStr || '';
   document.getElementById('lessonModalTitle').textContent = lesson ? 'Edit Lesson' : 'Add Lesson';
+  updateLessonModalMeta(dateStr, slotKey, 'period');
   document.getElementById('lessonSubject').value = lesson ? (lesson.subject || '') : '';
   document.getElementById('lessonUnit').value = lesson ? (lesson.unitKey || '') : '';
   document.getElementById('lessonTitle').value = lesson ? (lesson.title || '') : '';
@@ -5719,6 +5767,7 @@ function openLessonModalForLibrary(templateId) {
   document.getElementById('lessonSlotKey').value = '';
   document.getElementById('lessonDate').value = '';
   document.getElementById('lessonModalTitle').textContent = template ? 'Edit lesson' : 'Create new lesson';
+  updateLessonModalMeta('', '', 'library');
   document.getElementById('lessonSubject').value = template ? (template.subject || '') : '';
   document.getElementById('lessonUnit').value = template ? (template.unitKey || '') : '';
   document.getElementById('lessonTitle').value = template ? (template.title || template.name || '') : '';
