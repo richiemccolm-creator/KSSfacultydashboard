@@ -1557,6 +1557,7 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
       <div class="lesson-modal-hero-copy">
         <p class="lesson-modal-eyebrow">Teacher Planner</p>
         <h2 class="modal-title" id="lessonModalTitle">Add Lesson</h2>
+        <p class="lesson-modal-hero-class" id="lessonModalClass" hidden></p>
         <p class="lesson-modal-hero-sub" id="lessonModalMeta">Plan the period — title, slides and the full lesson write-up</p>
       </div>
       <button class="modal-close lesson-modal-close" id="modalClose" aria-label="Close">&times;</button>
@@ -1575,14 +1576,10 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
         </div>
       </section>
 
-      <section class="lesson-modal-panel">
-        <div class="lesson-modal-panel-head">
-          <span class="lesson-modal-panel-kicker">Details</span>
-          <h3 class="lesson-modal-panel-title">What are you teaching?</h3>
-        </div>
+      <section class="lesson-modal-panel lesson-modal-details">
         <div class="lesson-modal-top-strip">
           <div class="form-group">
-            <label class="form-label" for="lessonSubject">Subject &amp; Year Group</label>
+            <label class="form-label" for="lessonSubject">Subject</label>
             <select class="form-select" id="lessonSubject">
               <option value="">— Select —</option>
               <option value="drama">Drama</option>
@@ -1596,29 +1593,29 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
               <option value="">— Select unit —</option>
             </select>
           </div>
+          <div class="form-group lesson-number-group">
+            <label class="form-label" for="lessonNumber">No.</label>
+            <input type="text" class="form-input" id="lessonNumber" placeholder="e.g. 3" maxlength="24">
+          </div>
           <div class="form-group lesson-title-group">
             <div class="lesson-title-label-row">
               <label class="form-label" for="lessonTitle">Lesson title</label>
-              <button type="button" class="btn-add-resource lesson-modal-chip-btn is-ghost" id="useExampleBtn">Start from example</button>
+              <button type="button" class="btn-add-resource lesson-modal-chip-btn is-ghost" id="useExampleBtn">Example</button>
             </div>
             <input type="text" class="form-input lesson-title-input" id="lessonTitle" placeholder="e.g. Warm-up and character exploration">
-          </div>
-          <div class="form-group lesson-number-group">
-            <label class="form-label" for="lessonNumber">Lesson number</label>
-            <input type="text" class="form-input" id="lessonNumber" placeholder="e.g. 3, L5, Week 2" maxlength="24">
           </div>
         </div>
       </section>
 
-      <section class="lesson-slides-attach lesson-modal-panel" id="lessonSlidesAttach">
-        <div class="lesson-modal-panel-head lesson-slides-head">
-          <div>
-            <span class="lesson-modal-panel-kicker">Classroom</span>
-            <h3 class="lesson-modal-panel-title">Lesson slides</h3>
+      <section class="lesson-slides-attach lesson-modal-panel is-compact" id="lessonSlidesAttach">
+        <div class="lesson-slides-compact-row">
+          <div class="lesson-slides-compact-copy">
+            <span class="lesson-modal-apply-label">Slides</span>
+            <div class="lesson-slides-attach-meta empty" id="lessonSlidesMeta">No slides linked</div>
           </div>
           <div class="lesson-slides-attach-actions">
-            <button type="button" class="btn-add-resource lesson-modal-chip-btn" id="lessonSlidesOpenBtn" style="display:none">Open slides</button>
-            <button type="button" class="btn-add-resource lesson-modal-chip-btn is-accent" id="lessonSlidesPickBtn">Attach slides</button>
+            <button type="button" class="btn-add-resource lesson-modal-chip-btn" id="lessonSlidesOpenBtn" style="display:none">Open</button>
+            <button type="button" class="btn-add-resource lesson-modal-chip-btn is-accent" id="lessonSlidesPickBtn">Attach</button>
             <button type="button" class="btn-add-resource lesson-modal-chip-btn" id="lessonSlidesClearBtn" style="display:none">Clear</button>
           </div>
         </div>
@@ -1628,9 +1625,6 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
         <input type="hidden" id="lessonSlidesFile" value="">
         <input type="hidden" id="lessonSlidesTitle" value="">
         <input type="hidden" id="lessonSlidesIsHub" value="">
-        <div class="lesson-slides-attach-row">
-          <div class="lesson-slides-attach-meta empty" id="lessonSlidesMeta">No slides linked</div>
-        </div>
       </section>
 
       <section class="lesson-body-editor-wrap lesson-modal-panel is-editor">
@@ -5697,10 +5691,34 @@ function closeSlidesPickerModal() {
 
 function updateLessonModalMeta(dateStr, slotKey, mode) {
   var meta = document.getElementById('lessonModalMeta');
+  var classEl = document.getElementById('lessonModalClass');
   if (!meta) return;
   if (mode === 'library') {
+    if (classEl) {
+      classEl.hidden = true;
+      classEl.textContent = '';
+    }
     meta.textContent = 'Build a reusable lesson for your bank — then drop it onto any period';
     return;
+  }
+  var classLabel = '';
+  var sk = slotKey ? parseSlotKeyParts(slotKey) : null;
+  if (sk && PS.getSlot) {
+    var slot = PS.getSlot(sk.day, sk.period);
+    if (slot) {
+      classLabel = String(slot.className || '').trim()
+        || (typeof subjectLabel === 'function' ? subjectLabel(slot.subject) : '')
+        || '';
+    }
+  }
+  if (classEl) {
+    if (classLabel) {
+      classEl.hidden = false;
+      classEl.textContent = classLabel;
+    } else {
+      classEl.hidden = true;
+      classEl.textContent = '';
+    }
   }
   var parts = [];
   if (dateStr) {
@@ -5708,10 +5726,7 @@ function updateLessonModalMeta(dateStr, slotKey, mode) {
     if (d) parts.push(d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }));
     else parts.push(dateStr);
   }
-  if (slotKey) {
-    var sk = parseSlotKeyParts(slotKey);
-    if (sk) parts.push('Period ' + sk.period);
-  }
+  if (sk) parts.push('Period ' + sk.period);
   meta.textContent = parts.length
     ? parts.join(' · ')
     : 'Plan the period — title, slides and the full lesson write-up';
