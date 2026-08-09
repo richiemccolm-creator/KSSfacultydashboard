@@ -932,7 +932,7 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
   .pulse-heading{font-size:1.2rem}
 }
 @media (max-width:600px){
-  .topbar-meta{display:none}
+  .tabs-meta{display:none}
   .stat-num{font-size:1.25rem}
   .nav-label{min-width:140px;font-size:.82rem}
   .planner-pulse{flex-direction:column;align-items:flex-start}
@@ -962,12 +962,6 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
     </a>
     <span class="topbar-app-title">Teacher Planner</span>
   </div>
-  <div class="topbar-meta">
-    <span class="topbar-school-chip">Knightswood Secondary</span>
-    <span class="meta-badge teacher" id="topbarTeacherName">Teacher</span>
-    <span class="meta-badge" id="topbarRoom">Teaching Space</span>
-    <span class="meta-badge is-clickable" id="topbarAcademicYear" title="Click to change academic year">2025–26</span>
-  </div>
 </header>
 
 <nav class="tabs-bar" aria-label="Planner sections">
@@ -980,7 +974,12 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
     <!-- Day/Month remain as panels; opened via Week sub-nav -->
     <button type="button" class="tab-btn planner-tab" data-tab="day" hidden aria-hidden="true">Day View</button>
     <button type="button" class="tab-btn planner-tab" data-tab="month" hidden aria-hidden="true">Month View</button>
-    <div class="tabs-meta" aria-hidden="true"></div>
+    <div class="tabs-meta">
+      <span class="topbar-school-chip">Knightswood Secondary</span>
+      <span class="meta-badge teacher" id="topbarTeacherName">Teacher</span>
+      <span class="meta-badge" id="topbarRoom">Teaching Space</span>
+      <span class="meta-badge is-clickable" id="topbarAcademicYear" title="Click to change academic year">2025–26</span>
+    </div>
   </div>
 </nav>
 
@@ -1061,13 +1060,8 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
 <!-- Week view panel -->
 <div id="panel-week" class="planner-panel panel">
   <div id="weekHeroBanner" hidden aria-hidden="true"></div>
-  <div class="nav-row week-nav-row">
-    <button type="button" class="nav-btn" id="weekPrev" aria-label="Previous week">&#9664;</button>
-    <button type="button" class="nav-today" id="weekToday">Today</button>
-    <button type="button" class="nav-btn" id="weekNext" aria-label="Next week">&#9654;</button>
-    <button type="button" class="nav-today" id="weekCourseStart" title="Jump to N5 Creative Industries course start week">CI start</button>
-    <div class="nav-label" id="weekDisplay" hidden aria-hidden="true"></div>
-  </div>
+  <!-- Date nav lives in the week hero toolbar; keep weekDisplay for legacy label updates -->
+  <div class="nav-label" id="weekDisplay" hidden aria-hidden="true"></div>
   <div id="weekDashboardRoot" class="week-page">
     <div class="rd-empty">Loading week…</div>
   </div>
@@ -2679,8 +2673,9 @@ function getWeekPlanningStats(weekStart) {
 function updateCalendarSubnav(activeView) {
   var sub = document.getElementById('calendarSubnav');
   if (!sub) return;
-  var calendarViews = { week: 1, day: 1, month: 1 };
-  var show = !!calendarViews[activeView];
+  // Week view hosts its own Week/Day/Month toggle inside the blue hero banner.
+  // Keep the shared subnav only for Day / Month so those panels stay navigable.
+  var show = activeView === 'day' || activeView === 'month';
   sub.classList.toggle('is-visible', show);
   sub.querySelectorAll('[data-calendar-view]').forEach(function(btn) {
     btn.classList.toggle('is-active', btn.getAttribute('data-calendar-view') === activeView);
@@ -4066,6 +4061,19 @@ function createWeekDashboardMarkup(model) {
 
   return (
     '<section class="week-hero">' +
+      '<div class="week-hero-toolbar">' +
+        '<div class="week-view-toggle" role="group" aria-label="Calendar view">' +
+          '<button type="button" class="week-view-btn is-active" data-calendar-view="week">Week</button>' +
+          '<button type="button" class="week-view-btn" data-calendar-view="day">Day</button>' +
+          '<button type="button" class="week-view-btn" data-calendar-view="month">Month</button>' +
+        '</div>' +
+        '<div class="week-date-nav">' +
+          '<button type="button" class="week-nav-btn" id="weekPrev" aria-label="Previous week">&#9664;</button>' +
+          '<button type="button" class="week-nav-today" id="weekToday">Today</button>' +
+          '<button type="button" class="week-nav-btn" id="weekNext" aria-label="Next week">&#9654;</button>' +
+          '<button type="button" class="week-nav-today week-nav-ci" id="weekCourseStart" title="Jump to N5 Creative Industries course start week">CI start</button>' +
+        '</div>' +
+      '</div>' +
       '<div class="week-hero-main">' +
         '<div class="week-eyebrow">WEEK OVERVIEW</div>' +
         '<h1 class="week-heading">' + escHtml(model.heading) + '</h1>' +
@@ -4158,6 +4166,42 @@ function bindWeekDashboardEvents(root, model) {
     clearInterval(_weekClockTimer);
     _weekClockTimer = null;
   }
+
+  root.querySelectorAll('.week-view-btn[data-calendar-view]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var view = btn.getAttribute('data-calendar-view');
+      if (view) switchPlannerTab(view);
+    });
+  });
+
+  var weekPrev = root.querySelector('#weekPrev');
+  if (weekPrev) {
+    weekPrev.addEventListener('click', function() {
+      var start = PS.getCurrentWeekStart();
+      start.setDate(start.getDate() - 7);
+      syncDayAndMonthFromWeekStart(start);
+      renderWeekView();
+    });
+  }
+  var weekNext = root.querySelector('#weekNext');
+  if (weekNext) {
+    weekNext.addEventListener('click', function() {
+      var start = PS.getCurrentWeekStart();
+      start.setDate(start.getDate() + 7);
+      syncDayAndMonthFromWeekStart(start);
+      renderWeekView();
+    });
+  }
+  var weekToday = root.querySelector('#weekToday');
+  if (weekToday) {
+    weekToday.addEventListener('click', function() {
+      PS.setCurrentWeekStart(PS.getWeekStart(new Date()));
+      syncDayAndMonthFromWeekStart(PS.getCurrentWeekStart());
+      renderWeekView();
+    });
+  }
+  var weekCourseStart = root.querySelector('#weekCourseStart');
+  if (weekCourseStart) weekCourseStart.addEventListener('click', goToCourseStartDate);
 
   var addBtn = root.querySelector('#weekAddLessonAction');
   if (addBtn) {
@@ -5908,28 +5952,7 @@ document.getElementById('topbarAcademicYear').addEventListener('click', function
   });
 });
 
-document.getElementById('weekPrev').addEventListener('click', function() {
-  var start = PS.getCurrentWeekStart();
-  start.setDate(start.getDate() - 7);
-  syncDayAndMonthFromWeekStart(start);
-  renderWeekView();
-});
-
-document.getElementById('weekNext').addEventListener('click', function() {
-  var start = PS.getCurrentWeekStart();
-  start.setDate(start.getDate() + 7);
-  syncDayAndMonthFromWeekStart(start);
-  renderWeekView();
-});
-
-document.getElementById('weekToday').addEventListener('click', function() {
-  PS.setCurrentWeekStart(PS.getWeekStart(new Date()));
-  syncDayAndMonthFromWeekStart(PS.getCurrentWeekStart());
-  renderWeekView();
-});
-
-var weekCourseStartBtn = document.getElementById('weekCourseStart');
-if (weekCourseStartBtn) weekCourseStartBtn.addEventListener('click', goToCourseStartDate);
+/* Week prev/next/today/CI start are bound in bindWeekDashboardEvents (hero toolbar). */
 
 document.getElementById('monthPrev').addEventListener('click', function() {
   var m = PS.getCurrentMonthStart();
