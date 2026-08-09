@@ -4,654 +4,937 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <script src="app-version.js"></script>
-<title>U1 S02 — The Marketplace · N5 Creative Industries</title>
+<title>N5 CI — Session 02 · The Marketplace</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow+Condensed:wght@300;400;600;700&family=Barlow:wght@300;400;500&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Barlow:ital,wght@0,300;0,400;0,600;0,700;1,300;1,400&family=Barlow+Condensed:wght@300;400;600;700;800&family=JetBrains+Mono:wght@300;400;700&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --accent: #00AAFF;
-    --accent-dim: rgba(0,170,255,0.15);
-    --bg: #050505;
-    --white: #ffffff;
-    --ltgrey: #cccccc;
-    --grey: #888888;
-    --dgrey: #333333;
-    --mono: 'JetBrains Mono', monospace;
-    --display: 'Bebas Neue', sans-serif;
-    --cond: 'Barlow Condensed', sans-serif;
-    --body: 'Barlow', sans-serif;
-  }
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-  * { margin:0; padding:0; box-sizing:border-box; }
-  html, body { width:100%; height:100%; background:var(--bg); color:var(--white); font-family:var(--body); overflow:hidden; cursor:none; }
+:root {
+  --black:   #050505;
+  --white:   #F0EEE8;
+  --grey:    #1A1A1A;
+  --midgrey: #2E2E2E;
+  --ltgrey:  #C4C4C4;
+  --img:     assets/n5-ci/u1-s02;
+  --mono:    'JetBrains Mono', monospace;
+  --display: 'Bebas Neue', sans-serif;
+  --cond:    'Barlow Condensed', sans-serif;
+  --body:    'Barlow', sans-serif;
+  --accent:  #00AAFF;
+  --accent-mid: #0066CC;
+  --accent-dark: #001A33;
+  --accent-glow: rgba(0,170,255,0.12);
+  --accent-rgb: 0,170,255;
+}
 
-  #cursor { position:fixed; width:12px; height:12px; background:var(--accent); border-radius:50%; pointer-events:none; z-index:9999; transform:translate(-50%,-50%); mix-blend-mode:difference; }
+html, body { width:100%; height:100%; background:var(--black); overflow:hidden; cursor:none; }
 
-  #particleCanvas { position:fixed; inset:0; width:100%; height:100%; pointer-events:none; z-index:1; }
+/* Custom cursor */
+.cursor { position:fixed; width:8px; height:8px; border-radius:50%; background:var(--accent); pointer-events:none; z-index:9999; transform:translate(-50%,-50%); transition:transform 0.1s; mix-blend-mode:difference; }
 
-  body::before { content:''; position:fixed; inset:0; background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E"); pointer-events:none; z-index:2; opacity:0.6; }
+/* Scanlines */
+body::before {
+  content:''; position:fixed; inset:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px);
+  pointer-events:none; z-index:1000;
+}
+/* Grain */
+body::after {
+  content:''; position:fixed; inset:-200%; width:400%; height:400%;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+  opacity:0.025; pointer-events:none; z-index:999;
+  animation:grainShift 0.5s steps(2) infinite;
+}
+@keyframes grainShift { 0%{transform:translate(0,0)} 25%{transform:translate(-1%,-1%)} 50%{transform:translate(1%,1%)} 75%{transform:translate(-1%,1%)} 100%{transform:translate(1%,-1%)} }
 
-  body::after { content:''; position:fixed; inset:0; background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.03) 2px,rgba(0,0,0,0.03) 4px); pointer-events:none; z-index:3; }
+/* Particle canvas */
+#particleCanvas { position:fixed; inset:0; z-index:5; pointer-events:none; }
 
-  .hud { position:fixed; bottom:0; left:0; right:0; height:36px; display:flex; align-items:center; justify-content:space-between; padding:0 24px; background:rgba(5,5,5,0.95); border-top:1px solid var(--dgrey); z-index:100; font-family:var(--mono); font-size:10px; letter-spacing:0.12em; color:var(--grey); }
-  .hud-left { color:var(--accent); }
-  .hud-progress { display:flex; gap:6px; align-items:center; }
-  .hud-dot { width:6px; height:6px; border-radius:50%; background:var(--dgrey); transition:background 0.3s; }
-  .hud-dot.active { background:var(--accent); }
-  .hud-dot.done { background:var(--grey); }
+/* Deck */
+#deck { position:fixed; inset:0; z-index:10; }
 
-  .key-hint { position:fixed; top:16px; left:50%; transform:translateX(-50%); font-family:var(--mono); font-size:9px; letter-spacing:0.15em; color:var(--dgrey); z-index:100; transition:opacity 1s; }
+/* Base slide */
+.slide {
+  position:absolute; inset:0; display:flex; flex-direction:column;
+  justify-content:center; align-items:flex-start;
+  padding:6vh 8vw; opacity:0; pointer-events:none; overflow:hidden;
+}
+.slide.active { opacity:1; pointer-events:all; }
+.slide-enter { animation:slideIn 0.5s cubic-bezier(0.16,1,0.3,1) forwards; }
+.slide-exit  { animation:slideOut 0.4s cubic-bezier(0.7,0,0.84,0) forwards; }
+@keyframes slideIn { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+@keyframes slideOut { from{opacity:1;transform:translateY(0)} to{opacity:0;transform:translateY(-20px)} }
 
-  #deck { position:fixed; inset:0; bottom:36px; z-index:10; }
+/* Slide backgrounds */
+.bg-dark  { background:rgba(5,5,5,0.97); }
+.bg-color { background:var(--accent); }
+.bg-dark-tinted { background:var(--accent-dark); }
 
-  .slide { position:absolute; inset:0; display:none; overflow:hidden; }
-  .slide.active { display:flex; flex-direction:column; justify-content:center; padding:6vh 8vw; animation:slideIn 0.4s cubic-bezier(0.16,1,0.3,1) forwards; }
-  @keyframes slideIn { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
+/* HUD */
+.hud { position:fixed; bottom:3vh; left:8vw; right:8vw; display:flex; align-items:center; justify-content:space-between; z-index:200; pointer-events:none; }
+.hud-left  { font-family:var(--mono); font-size:clamp(12px,1.2vw,15px); color:var(--ltgrey); letter-spacing:0.1em; }
+.hud-dots  { display:flex; gap:6px; align-items:center; }
+.hud-dot   { width:6px; height:6px; border-radius:50%; background:var(--midgrey); transition:background 0.3s,transform 0.3s; cursor:pointer; pointer-events:all; }
+.hud-dot.active { background:var(--accent); transform:scale(1.5); }
+.hud-right { font-family:var(--mono); font-size:clamp(12px,1.2vw,15px); color:var(--ltgrey); letter-spacing:0.1em; }
+.key-hint  { position:fixed; bottom:3vh; left:50%; transform:translateX(-50%); font-family:var(--mono); font-size:clamp(11px,1.1vw,14px); color:var(--ltgrey); letter-spacing:0.15em; opacity:0.5; z-index:100; pointer-events:none; transition:opacity 0.5s; }
+.key-hint.hidden { opacity:0; }
 
-  .grid-bg { position:absolute; inset:0; background-image:linear-gradient(rgba(0,170,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,170,255,0.03) 1px,transparent 1px); background-size:60px 60px; pointer-events:none; }
+/* Reveal system */
+.reveal { opacity:0; transform:translateY(18px); transition:none; pointer-events:none; }
+.reveal.shown { opacity:1; transform:translateY(0); transition:opacity 0.45s cubic-bezier(0.16,1,0.3,1),transform 0.45s cubic-bezier(0.16,1,0.3,1); pointer-events:all; }
+.reveal-counter { position:fixed; bottom:3vh; left:50%; transform:translateX(-50%); display:flex; gap:5px; z-index:300; pointer-events:none; }
+.reveal-pip { width:5px; height:5px; border-radius:50%; background:var(--midgrey); transition:background 0.3s; }
+.reveal-pip.done { background:var(--accent); }
 
-  .coords { position:absolute; font-family:var(--mono); font-size:9px; letter-spacing:0.15em; color:var(--grey); }
-  .coords.tl { top:20px; left:8vw; }
-  .coords.tr { top:20px; right:8vw; }
+/* Grid bg */
+.grid-bg { position:absolute; inset:0; background-image:linear-gradient(rgba(255,255,255,0.015) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.015) 1px,transparent 1px); background-size:60px 60px; pointer-events:none; }
+.grid-bg-color { position:absolute; inset:0; background-image:linear-gradient(rgba(0,0,0,0.08) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,0.08) 1px,transparent 1px); background-size:60px 60px; pointer-events:none; }
 
-  .bg-num { position:absolute; right:-2vw; bottom:-4vh; font-family:var(--display); font-size:clamp(180px,28vw,380px); color:rgba(0,170,255,0.04); line-height:1; pointer-events:none; user-select:none; }
+/* Decorative elements */
+.v-rule { position:absolute; left:5vw; top:0; bottom:0; width:1px; background:linear-gradient(to bottom,transparent,rgba(0,170,255,0.3) 20%,rgba(0,170,255,0.3) 80%,transparent); opacity:0; animation:fadeIn 1s 0.5s forwards; }
+.v-rule-dark { position:absolute; left:5vw; top:0; bottom:0; width:1px; background:linear-gradient(to bottom,transparent,rgba(0,0,0,0.2) 20%,rgba(0,0,0,0.2) 80%,transparent); opacity:0; animation:fadeIn 1s 0.5s forwards; }
+.stripe { position:absolute; top:0; left:0; width:4px; height:100%; opacity:0; animation:fadeIn 1s 0.3s forwards; }
+.stripe-dark { background:var(--black); }
+.stripe-accent { background:var(--accent); }
+.big-num { font-family:var(--display); font-size:clamp(180px,28vw,340px); position:absolute; right:-2vw; top:-4vh; line-height:1; pointer-events:none; letter-spacing:-0.04em; }
+.big-num-dark  { color:rgba(0,170,255,0.05); }
+.big-num-color { color:rgba(0,0,0,0.08); }
+.bg-word { position:absolute; font-family:var(--display); font-size:clamp(200px,28vw,380px); line-height:1; pointer-events:none; white-space:nowrap; letter-spacing:-0.02em; }
+.bg-word-dark  { color:rgba(0,170,255,0.04); top:-5vh; left:-2vw; animation:bgDrift 20s linear infinite; }
+.bg-word-color { color:rgba(0,0,0,0.06); top:-5vh; left:-2vw; animation:bgDrift 20s linear infinite; }
+.coords { position:absolute; font-family:var(--mono); font-size:clamp(11px,1.1vw,14px); letter-spacing:0.1em; }
+.coords-dark  { color:rgba(255,255,255,0.07); }
+.coords-color { color:rgba(0,0,0,0.15); }
+.tl{top:2vh;left:3vw} .tr{top:2vh;right:3vw} .br{bottom:8vh;right:3vw}
+.bottom-bar { position:absolute; bottom:0; left:0; right:0; height:4px; width:0; animation:expandFull 1.2s 0.5s cubic-bezier(0.16,1,0.3,1) forwards; }
+.bottom-bar-dark  { background:var(--accent); }
+.bottom-bar-color { background:rgba(0,0,0,0.3); }
 
-  .stripe { position:absolute; top:0; left:0; width:5px; height:100%; background:var(--accent); }
-  .bottom-bar { position:absolute; bottom:0; left:0; right:0; height:3px; background:linear-gradient(90deg,var(--accent),transparent); }
+/* Animations */
+@keyframes fadeUp  { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+@keyframes fadeIn  { to{opacity:1} }
+@keyframes expandFull { to{width:100%} }
+@keyframes expandLine { from{width:0} to{width:clamp(60px,8vw,120px)} }
+@keyframes bgDrift { from{transform:translateX(0)} to{transform:translateX(-5%)} }
+@keyframes moneyDrop { from{opacity:0;transform:scale(1.3)} to{opacity:1;transform:scale(1)} }
 
-  .curriculum { position:absolute; bottom:8px; left:8vw; right:8vw; font-family:var(--mono); font-size:8px; letter-spacing:0.1em; color:var(--dgrey); border-top:1px solid var(--dgrey); padding-top:6px; }
+/* TYPOGRAPHY — classroom scale */
+.label-dark  { font-family:var(--mono); font-size:clamp(14px,1.5vw,18px); color:var(--accent); letter-spacing:0.14em; text-transform:uppercase; margin-bottom:1.5vh; opacity:0; animation:fadeUp 0.6s 0.1s forwards; }
+.label-color { font-family:var(--mono); font-size:clamp(14px,1.5vw,18px); color:rgba(0,0,0,0.55); letter-spacing:0.14em; text-transform:uppercase; margin-bottom:1.5vh; opacity:0; animation:fadeUp 0.6s 0.1s forwards; }
+.title-dark  { font-family:var(--display); font-size:clamp(48px,7.5vw,100px); line-height:0.95; color:var(--white); letter-spacing:0.02em; opacity:0; animation:fadeUp 0.7s 0.2s forwards; }
+.title-color { font-family:var(--display); font-size:clamp(48px,7.5vw,100px); line-height:0.95; color:var(--black); letter-spacing:0.02em; opacity:0; animation:fadeUp 0.7s 0.2s forwards; }
+.mega-dark   { font-family:var(--display); font-size:clamp(72px,12vw,150px); line-height:0.9; color:var(--white); opacity:0; animation:fadeUp 0.7s 0.2s forwards; }
+.mega-color  { font-family:var(--display); font-size:clamp(72px,12vw,150px); line-height:0.9; color:var(--black); opacity:0; animation:fadeUp 0.7s 0.2s forwards; }
+.body-dark   { font-family:var(--body); font-size:clamp(22px,2.4vw,34px); font-weight:400; line-height:1.45; color:var(--ltgrey); max-width:58vw; opacity:0; animation:fadeUp 0.6s 0.5s forwards; }
+.body-color  { font-family:var(--body); font-size:clamp(22px,2.4vw,34px); font-weight:400; line-height:1.45; color:rgba(0,0,0,0.78); max-width:58vw; opacity:0; animation:fadeUp 0.6s 0.5s forwards; }
+.mono-dark   { font-family:var(--mono); font-size:clamp(18px,2vw,26px); color:var(--ltgrey); line-height:1.55; opacity:0; animation:fadeUp 0.6s 0.5s forwards; }
+.mono-color  { font-family:var(--mono); font-size:clamp(18px,2vw,26px); color:rgba(0,0,0,0.65); line-height:1.55; opacity:0; animation:fadeUp 0.6s 0.5s forwards; }
+.accent-line-dark  { width:0; height:2px; background:var(--accent); margin:3vh 0; animation:expandLine 0.8s 0.3s cubic-bezier(0.16,1,0.3,1) forwards; }
+.accent-line-color { width:0; height:2px; background:rgba(0,0,0,0.3); margin:3vh 0; animation:expandLine 0.8s 0.3s cubic-bezier(0.16,1,0.3,1) forwards; }
 
-  .label { font-family:var(--mono); font-size:10px; letter-spacing:0.2em; color:var(--accent); text-transform:uppercase; margin-bottom:3vh; }
-  .slide-head { font-family:var(--display); font-size:clamp(40px,6vw,88px); line-height:1; color:var(--white); margin-bottom:3vh; }
-  .body { font-family:var(--body); font-size:clamp(18px,2.2vw,28px); font-weight:400; color:var(--white); line-height:1.55; }
+/* GLITCH */
+.glitch { position:relative; display:inline-block; }
+.glitch::before,.glitch::after { content:attr(data-text); position:absolute; inset:0; clip-path:inset(0 0 100% 0); opacity:0; }
+.glitch::before{color:#E8272A} .glitch::after{color:#00D4FF}
+.glitch-entry::before{animation:gE1 0.55s 0.25s steps(1) forwards}
+.glitch-entry::after {animation:gE2 0.55s 0.25s steps(1) forwards}
+@keyframes gE1{0%{opacity:0;clip-path:inset(0 0 100% 0);transform:translate(0,0)}10%{opacity:1;clip-path:inset(10% 0 65% 0);transform:translate(-3px,1px)}30%{clip-path:inset(30% 0 45% 0);transform:translate(-2px,2px)}60%{clip-path:inset(45% 0 30% 0);transform:translate(3px,1px)}90%{opacity:1;clip-path:inset(25% 0 55% 0);transform:translate(-1px,1px)}100%{opacity:0;clip-path:inset(0 0 100% 0);transform:translate(0,0)}}
+@keyframes gE2{0%{opacity:0;clip-path:inset(0 0 100% 0);transform:translate(0,0)}10%{opacity:1;clip-path:inset(60% 0 15% 0);transform:translate(3px,-1px)}40%{clip-path:inset(35% 0 40% 0);transform:translate(-2px,-1px)}70%{clip-path:inset(15% 0 65% 0);transform:translate(2px,1px)}100%{opacity:0;clip-path:inset(0 0 100% 0);transform:translate(0,0)}}
+.glitch-ambient::before{animation:gA1 0.28s steps(1) forwards}
+.glitch-ambient::after {animation:gA2 0.28s steps(1) forwards}
+@keyframes gA1{0%{opacity:0;clip-path:inset(0 0 100% 0)}20%{opacity:1;clip-path:inset(20% 0 55% 0);transform:translate(-3px,1px)}100%{opacity:0;clip-path:inset(0 0 100% 0)}}
+@keyframes gA2{0%{opacity:0;clip-path:inset(0 0 100% 0)}20%{opacity:1;clip-path:inset(55% 0 22% 0);transform:translate(3px,-1px)}100%{opacity:0;clip-path:inset(0 0 100% 0)}}
 
-  .task-box { border:1px solid var(--accent); border-left:4px solid var(--accent); padding:3vh 3vw; margin-top:2vh; background:var(--accent-dim); }
-  .task-title { font-family:var(--mono); font-size:11px; color:var(--accent); letter-spacing:0.2em; margin-bottom:1.5vh; }
-  .task-body { font-family:var(--body); font-size:clamp(17px,2vw,24px); color:var(--white); line-height:1.5; }
+/* UNIT TAG */
+.unit-tag { display:inline-block; font-family:var(--mono); font-size:clamp(13px,1.3vw,16px); font-weight:700; letter-spacing:0.12em; text-transform:uppercase; padding:6px 14px; background:var(--accent); color:var(--black); margin-bottom:2vh; opacity:0; animation:fadeUp 0.5s 0s forwards; }
+.unit-tag-outline { display:inline-block; font-family:var(--mono); font-size:clamp(13px,1.3vw,16px); font-weight:700; letter-spacing:0.12em; text-transform:uppercase; padding:6px 14px; border:1px solid rgba(0,0,0,0.35); color:rgba(0,0,0,0.7); margin-bottom:2vh; opacity:0; animation:fadeUp 0.5s 0s forwards; }
 
-  .steps { margin-top:2.5vh; }
-  .step { display:flex; gap:2vw; align-items:flex-start; margin-bottom:1.8vh; font-family:var(--body); font-size:clamp(17px,2vw,24px); color:var(--white); line-height:1.4; }
-  .step-num { font-family:var(--mono); font-size:10px; color:var(--accent); letter-spacing:0.15em; min-width:40px; padding-top:4px; flex-shrink:0; }
+/* ROW LIST */
+.row-list { display:flex; flex-direction:column; gap:2px; width:100%; max-width:84vw; background:var(--midgrey); margin-top:2.5vh; }
+.row-item { display:flex; align-items:stretch; background:var(--grey); }
+.row-num  { font-family:var(--display); font-size:clamp(32px,3.8vw,52px); padding:1.6vh 1.8vw; min-width:6vw; display:flex; align-items:center; color:var(--accent); background:rgba(0,170,255,0.06); border-right:1px solid var(--midgrey); }
+.row-content { padding:1.6vh 2vw; display:flex; flex-direction:column; justify-content:center; }
+.row-title { font-family:var(--cond); font-size:clamp(22px,2.4vw,34px); font-weight:700; color:var(--white); letter-spacing:0.03em; }
+.row-desc  { font-family:var(--body); font-size:clamp(18px,1.9vw,26px); font-weight:400; color:var(--ltgrey); margin-top:4px; }
+.row-list-color .row-item { background:rgba(0,0,0,0.12); }
+.row-list-color .row-num { color:var(--black); background:rgba(0,0,0,0.15); border-right:1px solid rgba(0,0,0,0.1); }
+.row-list-color .row-title { color:var(--black); }
+.row-list-color .row-desc  { color:rgba(0,0,0,0.6); }
+.row-list-color { background:rgba(0,0,0,0.1); }
 
-  .reveal { opacity:0; transform:translateY(12px); transition:opacity 0.4s,transform 0.4s; }
-  .reveal.shown { opacity:1; transform:translateY(0); }
+/* COL GRID */
+.col-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:2px; width:100%; max-width:84vw; background:var(--midgrey); margin-top:3vh; opacity:0; animation:fadeUp 0.6s 0.5s forwards; }
+.col-box  { background:var(--grey); padding:3vh 2vw; position:relative; overflow:hidden; }
+.col-box::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:var(--accent); }
+.col-head { font-family:var(--display); font-size:clamp(28px,3.5vw,48px); line-height:1.05; margin-bottom:1.2vh; color:var(--accent); }
+.col-body { font-family:var(--body); font-size:clamp(18px,2vw,28px); font-weight:400; color:var(--ltgrey); line-height:1.45; }
 
-  .sc-list { margin-top:2vh; }
-  .sc-item { display:flex; align-items:flex-start; gap:1.5vw; margin-bottom:1.5vh; font-size:clamp(16px,1.8vw,22px); color:var(--white); line-height:1.4; }
-  .sc-arrow { color:var(--accent); font-family:var(--mono); font-size:14px; flex-shrink:0; padding-top:2px; }
+/* CALLOUT BOX */
+.callout-box { border-left:4px solid var(--accent); padding:2.2vh 2.2vw; margin-top:3vh; width:100%; max-width:84vw; background:var(--accent-glow); opacity:0; animation:fadeUp 0.6s 0.6s forwards; }
+.callout-text { font-family:var(--cond); font-size:clamp(24px,2.8vw,40px); font-weight:600; color:var(--white); line-height:1.25; }
+.callout-box-color { border-left:4px solid rgba(0,0,0,0.35); padding:2.2vh 2.2vw; margin-top:3vh; width:100%; max-width:84vw; background:rgba(0,0,0,0.1); opacity:0; animation:fadeUp 0.6s 0.6s forwards; }
+.callout-text-color { font-family:var(--cond); font-size:clamp(24px,2.8vw,40px); font-weight:600; color:var(--black); line-height:1.25; }
 
-  .highlight { background:var(--accent-dim); border-left:4px solid var(--accent); padding:2vh 2vw; font-size:clamp(18px,2.2vw,28px); color:var(--white); font-family:var(--cond); font-weight:600; letter-spacing:0.05em; line-height:1.3; margin-top:2vh; }
+/* TASK BOX */
+.task-box { border:1px solid var(--accent); border-top:4px solid var(--accent); padding:2.5vh 2.5vw; margin-top:2.5vh; width:100%; max-width:84vw; background:rgba(0,170,255,0.04); opacity:0; animation:fadeUp 0.6s 0.4s forwards; }
+.task-intro { font-family:var(--cond); font-size:clamp(22px,2.4vw,34px); font-weight:600; color:var(--white); margin-bottom:2vh; }
+.task-steps { display:flex; flex-direction:column; gap:12px; }
+.task-step { font-family:var(--body); font-size:clamp(20px,2.2vw,30px); font-weight:400; color:var(--ltgrey); padding-left:3.5vw; position:relative; }
+.task-step::before { content:attr(data-n); position:absolute; left:0; font-family:var(--mono); font-size:clamp(14px,1.4vw,18px); color:var(--accent); top:4px; }
+.task-meta { font-family:var(--mono); font-size:clamp(14px,1.5vw,18px); color:var(--accent); margin-top:2vh; letter-spacing:0.1em; }
 
-  .phase-badge { display:inline-block; font-family:var(--mono); font-size:11px; letter-spacing:0.2em; color:var(--accent); border:1px solid var(--accent); padding:6px 16px; margin-bottom:2vh; }
+/* SC BOX — success criteria */
+.sc-grid { display:grid; grid-template-columns:1fr; gap:2px; width:100%; max-width:84vw; background:var(--midgrey); margin-top:2.5vh; opacity:0; animation:fadeUp 0.6s 0.4s forwards; }
+.sc-item { background:var(--grey); padding:1.8vh 2.2vw; display:flex; align-items:center; gap:1.5vw; }
+.sc-check { font-family:var(--display); font-size:clamp(28px,3vw,42px); color:var(--accent); min-width:3vw; }
+.sc-text  { font-family:var(--body); font-size:clamp(20px,2.2vw,32px); font-weight:400; color:var(--white); line-height:1.35; }
+.sc-grid-color .sc-item { background:rgba(0,0,0,0.12); }
+.sc-grid-color .sc-check { color:var(--black); }
+.sc-grid-color .sc-text  { color:var(--black); }
+.sc-grid-color { background:rgba(0,0,0,0.1); }
 
-  .accent-line { width:60px; height:3px; background:var(--accent); margin:2vh 0; }
-  .mono-sm { font-family:var(--mono); font-size:clamp(11px,1.2vw,14px); color:var(--grey); letter-spacing:0.12em; margin-top:1.5vh; }
+/* NAB BADGE ROW */
+.nab-row { display:flex; align-items:center; gap:1vw; margin-top:2.5vh; opacity:0; animation:fadeUp 0.5s 0.7s forwards; }
+.nab-badge { font-family:var(--mono); font-size:clamp(13px,1.3vw,16px); font-weight:700; letter-spacing:0.1em; text-transform:uppercase; padding:7px 16px; background:var(--accent); color:var(--black); }
+.nab-text  { font-family:var(--cond); font-size:clamp(20px,2.2vw,30px); font-weight:600; color:var(--white); }
+.nab-badge-outline { font-family:var(--mono); font-size:clamp(13px,1.3vw,16px); font-weight:700; letter-spacing:0.1em; text-transform:uppercase; padding:7px 16px; border:1px solid rgba(0,0,0,0.35); color:rgba(0,0,0,0.75); }
+.nab-text-color { font-family:var(--cond); font-size:clamp(20px,2.2vw,30px); font-weight:600; color:var(--black); }
 
-  .do-tag { font-family:var(--display); font-size:clamp(72px,14vw,180px); color:var(--accent); line-height:0.9; opacity:0.12; position:absolute; right:-2vw; top:50%; transform:translateY(-50%); pointer-events:none; user-select:none; }
+/* LI TITLE SLIDE */
+.slide-li-title { justify-content:flex-end; padding-bottom:12vh; }
 
-  .rubric { width:100%; border-collapse:collapse; margin-top:2vh; font-size:clamp(13px,1.5vw,17px); }
-  .rubric th { font-family:var(--mono); font-size:10px; letter-spacing:0.15em; color:var(--accent); border-bottom:2px solid var(--accent); padding:10px 12px; text-align:left; font-weight:400; }
-  .rubric td { padding:10px 12px; border-bottom:1px solid var(--dgrey); color:var(--ltgrey); vertical-align:top; line-height:1.4; }
-  .rubric tr:last-child td { border-bottom:none; }
-  .rubric .good { color:#44ff88; }
-  .rubric .ok { color:#ffcc00; }
-  .rubric .dev { color:var(--ltgrey); }
+/* TIMER BADGE */
+.timer-badge { display:inline-block; font-family:var(--mono); font-size:clamp(28px,4vw,52px); color:var(--accent); border:2px solid var(--accent); padding:1vh 2vw; margin-top:3vh; opacity:0; animation:fadeUp 0.5s 0.5s forwards; letter-spacing:0.05em; }
+.timer-badge-color { display:inline-block; font-family:var(--mono); font-size:clamp(28px,4vw,52px); color:var(--black); border:2px solid rgba(0,0,0,0.3); padding:1vh 2vw; margin-top:3vh; opacity:0; animation:fadeUp 0.5s 0.5s forwards; letter-spacing:0.05em; }
 
-  /* ═══ BIG TIMER OVERLAY ═══ */
-  .timer-trigger {
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    margin-top: 3vh;
-    padding: 12px 28px;
-    border: 2px solid var(--accent);
-    background: transparent;
-    color: var(--accent);
-    font-family: var(--mono);
-    font-size: clamp(13px,1.4vw,16px);
-    letter-spacing: 0.18em;
-    cursor: none;
-    transition: background 0.2s, color 0.2s;
-    position: relative;
-    z-index: 20;
-  }
-  .timer-trigger:hover { background: var(--accent); color: var(--bg); }
+/* STAT / BIG NUMBER */
+.stat-row { display:flex; gap:4vw; margin-top:4vh; opacity:0; animation:fadeUp 0.6s 0.5s forwards; }
+.stat-box  { display:flex; flex-direction:column; }
+.stat-num  { font-family:var(--display); font-size:clamp(48px,7vw,96px); line-height:1; color:var(--accent); }
+.stat-label{ font-family:var(--body); font-size:clamp(12px,1.3vw,16px); font-weight:300; color:var(--ltgrey); margin-top:4px; }
 
-  /* FULLSCREEN TIMER OVERLAY */
-  #timerOverlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    bottom: 36px;
-    background: rgba(5,5,5,0.97);
-    z-index: 500;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    animation: fadeOverlay 0.3s ease forwards;
-  }
-  #timerOverlay.visible { display: flex; }
-  @keyframes fadeOverlay { from { opacity:0; } to { opacity:1; } }
+/* QUOTE SLIDE */
+.big-quote { font-family:var(--display); font-size:clamp(48px,7vw,96px); line-height:1.05; color:var(--white); opacity:0; animation:fadeUp 0.8s 0.2s forwards; }
+.quote-attr { font-family:var(--mono); font-size:clamp(16px,1.8vw,24px); color:var(--ltgrey); letter-spacing:0.08em; text-transform:uppercase; margin-top:3vh; opacity:0; animation:fadeUp 0.5s 0.8s forwards; }
 
-  #timerOverlay .timer-label {
-    font-family: var(--mono);
-    font-size: clamp(12px,1.2vw,14px);
-    letter-spacing: 0.3em;
-    color: var(--accent);
-    margin-bottom: 3vh;
-    text-transform: uppercase;
-  }
-  #timerOverlay .timer-display {
-    font-family: var(--display);
-    font-size: clamp(100px,22vw,280px);
-    line-height: 1;
-    color: var(--white);
-    transition: color 0.5s;
-    letter-spacing: 0.02em;
-  }
-  #timerOverlay .timer-display.urgent { color: #ff4444; }
-  #timerOverlay .timer-display.expired { color: #ff2222; animation: timerPulse 0.4s ease infinite alternate; }
-  @keyframes timerPulse { from { opacity:1; } to { opacity:0.5; } }
+/* CHECKLIST */
+.check-list { display:flex; flex-direction:column; gap:6px; width:100%; max-width:84vw; margin-top:2.5vh; }
+.check-item { display:flex; align-items:flex-start; gap:1.5vw; padding:1.6vh 1.8vw; background:var(--grey); border-left:3px solid var(--midgrey); }
+.check-item.done { border-left-color:var(--accent); }
+.check-box  { width:22px; height:22px; border:2px solid var(--midgrey); border-radius:3px; flex-shrink:0; margin-top:4px; display:flex; align-items:center; justify-content:center; }
+.check-box.ticked { border-color:var(--accent); background:var(--accent); }
+.check-box.ticked::after { content:'✓'; font-size:14px; color:var(--black); font-weight:700; }
+.check-label { font-family:var(--body); font-size:clamp(20px,2.2vw,30px); color:var(--ltgrey); line-height:1.35; }
+.check-label strong { color:var(--white); font-weight:600; }
 
-  #timerOverlay .timer-sublabel {
-    font-family: var(--cond);
-    font-size: clamp(20px,3vw,40px);
-    color: var(--ltgrey);
-    letter-spacing: 0.15em;
-    margin-top: 2vh;
-    font-weight: 300;
-  }
-  #timerOverlay .timer-close {
-    margin-top: 6vh;
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 0.2em;
-    color: var(--grey);
-    border: 1px solid var(--dgrey);
-    padding: 10px 24px;
-    cursor: none;
-    transition: border-color 0.2s, color 0.2s;
-  }
-  #timerOverlay .timer-close:hover { border-color: var(--accent); color: var(--accent); }
+/* VISUAL LAYOUTS — poster / magazine art */
+.slide-content { position:relative; z-index:2; width:100%; max-width:84vw; }
+.slide.has-art { background:#050505; }
+.slide-art {
+  position:absolute; inset:0; z-index:0; pointer-events:none;
+  background-size:cover; background-position:center; background-repeat:no-repeat;
+  opacity:0.42;
+}
+.slide-art-side {
+  position:absolute; top:0; right:0; bottom:0; width:46vw; z-index:0; pointer-events:none;
+  background-size:cover; background-position:center; background-repeat:no-repeat;
+  opacity:0.9;
+}
+.slide-art-side::before {
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(90deg, #050505 0%, rgba(5,5,5,0.55) 35%, transparent 70%);
+}
+.slide-scrim {
+  position:absolute; inset:0; z-index:1; pointer-events:none;
+  background:linear-gradient(90deg, rgba(5,5,5,0.92) 0%, rgba(5,5,5,0.78) 42%, rgba(5,5,5,0.35) 100%);
+}
+.slide-scrim-color {
+  position:absolute; inset:0; z-index:1; pointer-events:none;
+  background:linear-gradient(90deg, rgba(0,170,255,0.94) 0%, rgba(0,170,255,0.78) 48%, rgba(0,170,255,0.35) 100%);
+}
+.slide-scrim-bottom {
+  position:absolute; inset:0; z-index:1; pointer-events:none;
+  background:linear-gradient(180deg, rgba(5,5,5,0.25) 0%, rgba(5,5,5,0.55) 45%, rgba(5,5,5,0.92) 100%);
+}
+.slide.split-layout { flex-direction:row; align-items:center; justify-content:space-between; gap:3vw; padding-right:5vw; }
+.slide.split-layout .slide-content { flex:1; max-width:50vw; min-width:0; }
+.slide.split-layout .coords { z-index:3; }
+.slide .slide-content .label-dark,
+.slide .slide-content .label-color,
+.slide .slide-content .title-dark,
+.slide .slide-content .title-color,
+.slide .slide-content .mega-dark,
+.slide .slide-content .mega-color,
+.slide .slide-content .body-dark,
+.slide .slide-content .body-color,
+.slide .slide-content .mono-dark,
+.slide .slide-content .mono-color,
+.slide .slide-content .unit-tag,
+.slide .slide-content .big-quote { position:relative; z-index:2; }
+.slide-art-panel {
+  position:relative; z-index:2; width:38vw; height:62vh; flex-shrink:0;
+  background-size:cover; background-position:center; background-repeat:no-repeat;
+  border:1px solid rgba(0,170,255,0.35); box-shadow:0 0 0 1px rgba(0,0,0,0.4);
+  opacity:0; animation:fadeUp 0.7s 0.35s forwards;
+}
+.slide.bg-color .slide-art-panel { border-color:rgba(0,0,0,0.25); }
+.art-strip {
+  width:100%; max-width:84vw; height:22vh; margin-top:2.5vh;
+  background-size:cover; background-position:center; background-repeat:no-repeat;
+  border:1px solid rgba(0,170,255,0.28);
+  opacity:0; animation:fadeUp 0.7s 0.45s forwards;
+}
+.slide.bg-color .art-strip { border-color:rgba(0,0,0,0.2); }
+.slide.has-art .grid-bg,
+.slide.has-art .grid-bg-color,
+.slide.has-art .big-num,
+.slide.has-art .bg-word { opacity:0.35; }
 
-  /* timer bar */
-  #timerBar { position:absolute; bottom:0; left:0; height:4px; background:var(--accent); transition:width 1s linear, background 0.5s; width:100%; }
 
-  /* ═══ FULL BLUE SLIDE (slide 8) ═══ */
-  .slide-blue {
-    background: var(--accent) !important;
-  }
-  .slide-blue .grid-bg {
-    background-image:
-      linear-gradient(rgba(0,0,0,0.08) 1px,transparent 1px),
-      linear-gradient(90deg,rgba(0,0,0,0.08) 1px,transparent 1px) !important;
-  }
-  .slide-blue .hud-override { color: #003355; }
-  .slide-blue .coords { color: rgba(0,0,0,0.4); }
-  .slide-blue .phase-badge { color: #003355; border-color: rgba(0,0,0,0.3); }
-  .slide-blue .rotating-word {
-    font-family: var(--display);
-    font-size: clamp(80px,16vw,200px);
-    line-height: 1;
-    color: rgba(0,0,0,0.12);
-    position: absolute;
-    bottom: -2vh;
-    right: -1vw;
-    pointer-events: none;
-    user-select: none;
-  }
-  .slide-blue .big-instruction {
-    font-family: var(--display);
-    font-size: clamp(52px,9vw,120px);
-    line-height: 0.95;
-    color: #003355;
-    letter-spacing: 0.02em;
-  }
-  .slide-blue .sub-instruction {
-    font-family: var(--cond);
-    font-size: clamp(20px,2.8vw,36px);
-    color: rgba(0,0,0,0.55);
-    letter-spacing: 0.12em;
-    font-weight: 400;
-    margin-top: 2vh;
-    line-height: 1.4;
-  }
-  .slide-blue .rule-row {
-    display: flex;
-    align-items: flex-start;
-    gap: 2vw;
-    margin-top: 2.5vh;
-    font-family: var(--cond);
-    font-size: clamp(18px,2.2vw,28px);
-    color: rgba(0,0,0,0.7);
-    font-weight: 600;
-    line-height: 1.3;
-    letter-spacing: 0.04em;
-  }
-  .slide-blue .rule-num {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: rgba(0,0,0,0.4);
-    letter-spacing: 0.15em;
-    min-width: 40px;
-    padding-top: 4px;
-    flex-shrink: 0;
-  }
-  .slide-blue .blue-timer-btn {
-    margin-top: 4vh;
-    display: inline-flex;
-    align-items: center;
-    gap: 12px;
-    padding: 14px 32px;
-    border: 2px solid rgba(0,0,0,0.25);
-    background: rgba(0,0,0,0.1);
-    color: #003355;
-    font-family: var(--mono);
-    font-size: clamp(13px,1.4vw,16px);
-    letter-spacing: 0.18em;
-    cursor: none;
-    transition: background 0.2s;
-  }
-  .slide-blue .blue-timer-btn:hover { background: rgba(0,0,0,0.2); }
-  .slide-blue .bottom-bar { background: linear-gradient(90deg,rgba(0,0,0,0.25),transparent) !important; }
-  .slide-blue .curriculum { color: rgba(0,0,0,0.3); border-top-color: rgba(0,0,0,0.15); }
-  .slide-blue .stripe { background: rgba(0,0,0,0.2); }
+/* TIMER + MARKETPLACE BLUE SLIDE */
+.timer-trigger {
+  display:inline-flex; align-items:center; gap:10px; margin-top:2.5vh;
+  padding:14px 28px; border:2px solid var(--accent); background:transparent;
+  color:var(--accent); font-family:var(--mono); font-size:clamp(16px,1.6vw,20px);
+  letter-spacing:0.14em; cursor:none; transition:background 0.2s,color 0.2s;
+  position:relative; z-index:20; pointer-events:all;
+}
+.timer-trigger:hover { background:var(--accent); color:var(--black); }
+#timerOverlay {
+  display:none; position:fixed; inset:0; background:rgba(5,5,5,0.97);
+  z-index:500; flex-direction:column; align-items:center; justify-content:center;
+  text-align:center;
+}
+#timerOverlay.visible { display:flex; }
+#timerOverlay .timer-label {
+  font-family:var(--mono); font-size:clamp(14px,1.4vw,18px); letter-spacing:0.25em;
+  color:var(--accent); margin-bottom:3vh; text-transform:uppercase;
+}
+#timerOverlay .timer-display {
+  font-family:var(--display); font-size:clamp(100px,22vw,280px); line-height:1;
+  color:var(--white); letter-spacing:0.02em;
+}
+#timerOverlay .timer-display.urgent { color:#ff4444; }
+#timerOverlay .timer-display.expired { color:#ff2222; animation:timerPulse 0.4s ease infinite alternate; }
+@keyframes timerPulse { from{opacity:1} to{opacity:0.5} }
+#timerOverlay .timer-sublabel {
+  font-family:var(--cond); font-size:clamp(22px,3vw,40px); color:var(--ltgrey);
+  letter-spacing:0.12em; margin-top:2vh; font-weight:400;
+}
+#timerOverlay .timer-close {
+  margin-top:6vh; font-family:var(--mono); font-size:clamp(13px,1.3vw,16px);
+  letter-spacing:0.16em; color:var(--ltgrey); border:1px solid var(--midgrey);
+  padding:12px 26px; cursor:none; background:transparent; color:var(--ltgrey);
+}
+#timerOverlay .timer-close:hover { border-color:var(--accent); color:var(--accent); }
+#timerBar { position:absolute; bottom:0; left:0; height:5px; background:var(--accent); transition:width 1s linear, background 0.5s; width:100%; }
+
+.phase-badge {
+  display:inline-block; font-family:var(--mono); font-size:clamp(14px,1.4vw,18px);
+  letter-spacing:0.16em; color:var(--accent); border:1px solid var(--accent);
+  padding:8px 16px; margin-bottom:1.5vh; opacity:0; animation:fadeUp 0.5s 0s forwards;
+}
+.step-list { display:flex; flex-direction:column; gap:1.4vh; margin-top:2vh; width:100%; }
+.step-row { display:flex; gap:1.5vw; align-items:flex-start; font-family:var(--body);
+  font-size:clamp(20px,2.2vw,30px); font-weight:400; color:var(--ltgrey); line-height:1.35; }
+.step-row strong { color:var(--white); font-weight:600; }
+.step-n { font-family:var(--mono); font-size:clamp(14px,1.4vw,18px); color:var(--accent);
+  letter-spacing:0.1em; min-width:3.5vw; padding-top:0.35em; flex-shrink:0; }
+
+.rubric { width:100%; max-width:84vw; border-collapse:collapse; margin-top:2vh;
+  font-size:clamp(16px,1.8vw,24px); opacity:0; animation:fadeUp 0.6s 0.35s forwards; }
+.rubric th { font-family:var(--mono); font-size:clamp(12px,1.2vw,15px); letter-spacing:0.12em;
+  color:var(--accent); border-bottom:2px solid var(--accent); padding:12px 14px; text-align:left; font-weight:400; }
+.rubric td { padding:12px 14px; border-bottom:1px solid var(--midgrey); color:var(--ltgrey); vertical-align:top; line-height:1.35; }
+.rubric .good { color:#66FF99; }
+.rubric .ok { color:#FFCC44; }
+.rubric .dev { color:var(--ltgrey); }
+
+.slide.bg-color.has-art { background:var(--accent); }
+.slide.bg-color .title-dark, .slide.bg-color .mega-dark, .slide.bg-color .big-quote { color:var(--black); }
+.slide.bg-color .label-dark, .slide.bg-color .phase-badge { color:rgba(0,0,0,0.55); border-color:rgba(0,0,0,0.3); }
+.slide.bg-color .body-dark, .slide.bg-color .mono-dark, .slide.bg-color .step-row { color:rgba(0,0,0,0.7); }
+.slide.bg-color .step-row strong { color:var(--black); }
+.slide.bg-color .step-n { color:rgba(0,0,0,0.55); }
+.slide.bg-color .coords-dark { color:rgba(0,0,0,0.35); }
+.slide.bg-color .callout-box { border-left-color:rgba(0,0,0,0.35); background:rgba(0,0,0,0.1); }
+.slide.bg-color .callout-text { color:var(--black); }
+.slide.bg-color .timer-trigger { border-color:rgba(0,0,0,0.35); color:#003355; }
+.slide.bg-color .timer-trigger:hover { background:rgba(0,0,0,0.15); color:#003355; }
+.slide.bg-color .bottom-bar-dark { background:rgba(0,0,0,0.3); }
+.slide.bg-color .slide-art-panel { border-color:rgba(0,0,0,0.25); }
+.rule-row { display:flex; gap:1.5vw; margin-top:2vh; font-family:var(--cond);
+  font-size:clamp(22px,2.5vw,34px); font-weight:600; color:rgba(0,0,0,0.75); line-height:1.3; }
+.rule-num { font-family:var(--mono); font-size:clamp(13px,1.3vw,16px); color:rgba(0,0,0,0.45);
+  letter-spacing:0.12em; min-width:7vw; padding-top:0.4em; flex-shrink:0; }
+
 </style>
 </head>
 <body>
 
-<div id="cursor"></div>
-<canvas id="particleCanvas"></canvas>
 
-<!-- FULLSCREEN TIMER OVERLAY -->
+<!-- FULLSCREEN TIMER -->
 <div id="timerOverlay">
   <div id="timerBar"></div>
   <div class="timer-label" id="timerLabel">TIMER</div>
   <div class="timer-display" id="timerDisplay">5:00</div>
   <div class="timer-sublabel" id="timerSublabel">MINUTES REMAINING</div>
-  <button class="timer-close" onclick="closeTimer()">✕ &nbsp; DISMISS</button>
+  <button class="timer-close" type="button" onclick="closeTimer()">DISMISS</button>
 </div>
 
+<canvas id="particleCanvas"></canvas>
+<div class="cursor" id="cursor"></div>
+
+<!-- HUD -->
 <div class="hud">
-  <div class="hud-left">U01 · S02 · THE MARKETPLACE</div>
-  <div class="hud-progress" id="hudProgress"></div>
-  <div id="hudRight" style="font-family:var(--mono);font-size:10px;letter-spacing:0.12em;color:var(--grey)">01 / 15</div>
+  <div class="hud-left" id="hudLeft">N5 CREATIVE INDUSTRIES · U1 · SESSION 02</div>
+  <div class="hud-dots" id="hudDots"></div>
+  <div class="hud-right" id="hudRight">01 / 15</div>
 </div>
-
-<div class="key-hint" id="keyHint">SPACE · ARROWS · CLICK TO ADVANCE &nbsp;|&nbsp; CLICK TIMER TO START</div>
+<div class="reveal-counter" id="revealCounter"></div>
+<div class="key-hint" id="keyHint">CLICK / → ADVANCE  ·  TIMER BUTTONS START TIMERS</div>
 
 <div id="deck">
 
-<!-- S1 DO NOW -->
-<div class="slide active" id="s1">
-  <div class="grid-bg"></div><div class="stripe"></div>
-  <div class="do-tag">DO<br>NOW</div>
-  <div class="coords tl">U01 · S02 · DO NOW</div>
-  <div class="coords tr">N5 CREATIVE INDUSTRIES</div>
-  <div class="label">AS YOU SIT DOWN — WORK IN SILENCE</div>
-  <div class="slide-head">DO NOW</div>
-  <div class="steps">
-    <div class="step reveal"><div class="step-num">01 /</div><div>What are the <strong>four units</strong> of this course? Name as many as you can remember.</div></div>
-    <div class="step reveal"><div class="step-num">02 /</div><div>How are you <strong>assessed</strong>? Give two details.</div></div>
-    <div class="step reveal"><div class="step-num">03 /</div><div>What is a <strong>folio</strong> and why are you building one?</div></div>
+<!-- S01 DO NOW -->
+<div class="slide bg-dark has-art split-layout active" id="s01">
+  <div class="coords coords-dark tl">U01 / S02 / DO NOW</div>
+  <div class="slide-content">
+    <div class="label-dark">AS YOU SIT DOWN — WORK IN SILENCE</div>
+    <div class="title-dark glitch glitch-entry" data-text="DO NOW">DO NOW</div>
+    <div class="step-list">
+      <div class="step-row reveal"><div class="step-n">01 /</div><div>Name the <strong>four units</strong> of this course.</div></div>
+      <div class="step-row reveal"><div class="step-n">02 /</div><div>How are you <strong>assessed</strong>? Give two details.</div></div>
+      <div class="step-row reveal"><div class="step-n">03 /</div><div>What is a <strong>folio</strong> — and why build one?</div></div>
+    </div>
+    <button class="timer-trigger" type="button" onclick="openTimer(5,'DO NOW','MINUTES TO COMPLETE')">START 5 MIN TIMER</button>
   </div>
-  <button class="timer-trigger" onclick="openTimer(5,'DO NOW','MINUTES TO COMPLETE')">⏱ START 5 MINUTE TIMER</button>
-  <div class="bottom-bar"></div>
-  <div class="curriculum">U1 (J17V 75) · Recall from S01 · Core Skill: Planning &amp; Organising · CfE: Successful Learner</div>
+  <div class="slide-art-panel" style="background-image:url('assets/n5-ci/u1-s02/u1s02-01-donow.png')"></div>
+  <div class="bottom-bar bottom-bar-dark"></div>
 </div>
 
-<!-- S2 LEARNING INTENTION -->
-<div class="slide" id="s2">
-  <div class="grid-bg"></div><div class="stripe"></div>
-  <div class="do-tag" style="opacity:0.06;font-size:clamp(48px,9vw,120px)">TODAY</div>
-  <div class="coords tl">U01 · S02 · TODAY'S SESSION</div>
-  <div class="label">WHAT ARE WE LEARNING TODAY?</div>
-  <div class="slide-head">LEARNING<br>INTENTION</div>
-  <div class="highlight">To investigate a Creative Industries sector in depth — and share that knowledge with others.</div>
-  <div class="sc-list" style="margin-top:2.5vh">
-    <div class="sc-item reveal"><div class="sc-arrow">→</div><div>I can describe what my sector does and who works in it</div></div>
-    <div class="sc-item reveal"><div class="sc-arrow">→</div><div>I can summarise key facts about my sector in 10 words or fewer</div></div>
-    <div class="sc-item reveal"><div class="sc-arrow">→</div><div>I can act as a sector expert and share my knowledge confidently</div></div>
-    <div class="sc-item reveal"><div class="sc-arrow">→</div><div>I have a completed recording sheet in my folio as evidence</div></div>
-  </div>
-  <div class="bottom-bar"></div>
-  <div class="curriculum">U1 (J17V 75) · Outcome 1 PC(a) · Core Skill: Critical Thinking · CfE: Confident Individual</div>
-</div>
-
-<!-- S3 OUTCOME REMINDER -->
-<div class="slide" id="s3">
-  <div class="grid-bg"></div><div class="stripe"></div>
-  <div class="bg-num">1</div>
-  <div class="coords tl">U01 · S02 · OUTCOME</div>
-  <div class="label">UNIT 1 · OUTCOME 1 · PC(a) — THIS IS YOUR EVIDENCE</div>
-  <div class="slide-head">YOU ARE<br>WORKING ON</div>
-  <div class="task-box" style="margin-top:2vh">
-    <div class="task-title">NAB · UNIT 1 — AN INTRODUCTION · J17V 75</div>
-    <div class="task-body" style="font-style:italic;color:var(--ltgrey);">"Describe the range of sectors within the Creative Industries"</div>
-  </div>
-  <div class="body" style="margin-top:3vh;color:var(--ltgrey);">Everything you find out today — about <span style="color:var(--white)">your sector</span> and the others — is building evidence for this outcome.</div>
-  <div class="body" style="margin-top:1.5vh;color:var(--accent);">Your recording sheet goes straight into your folio.</div>
-  <div class="bottom-bar"></div>
-  <div class="curriculum">U1 (J17V 75) · Outcome 1 PC(a) · Core Skill: Critical Thinking · CfE: Confident Individual · NOS: DES18</div>
-</div>
-
-<!-- S4 OVERVIEW -->
-<div class="slide" id="s4">
-  <div class="grid-bg"></div><div class="stripe"></div>
-  <div class="coords tl">U01 · S02 · OVERVIEW</div>
-  <div class="label">HOW TODAY WORKS</div>
-  <div class="slide-head">TODAY:<br>THE MARKETPLACE</div>
-  <div class="highlight">This is not a normal lesson.</div>
-  <div class="body" style="margin-top:2.5vh;color:var(--ltgrey);">You are going to become an <span style="color:var(--white)">expert on one sector</span> of the Creative Industries — then <span style="color:var(--white)">teach everyone else</span> about it.</div>
-  <div class="body" style="margin-top:1.5vh;color:var(--accent);">The session has three phases. Listen carefully. Your role changes each time.</div>
-  <div class="bottom-bar"></div>
-  <div class="curriculum">U1 (J17V 75) · Outcome 1 PC(a) · Core Skill: Working Co-operatively · CfE: Effective Contributor</div>
-</div>
-
-<!-- S5 GROUPS -->
-<div class="slide" id="s5">
-  <div class="grid-bg"></div><div class="stripe"></div>
-  <div class="coords tl">U01 · S02 · GROUPS</div>
-  <div class="label">YOUR GROUPS AND STATIONS</div>
-  <div class="slide-head">YOUR<br>STATION</div>
-  <div class="steps" style="margin-top:2vh">
-    <div class="step"><div class="step-num">01 /</div><div>Your teacher will tell you which <strong>group</strong> you are in</div></div>
-    <div class="step"><div class="step-num">02 /</div><div>Move to your <strong>station</strong> when directed</div></div>
-    <div class="step"><div class="step-num">03 /</div><div>Do <strong>not</strong> start reading yet — wait for the Phase 1 instruction</div></div>
-  </div>
-  <div class="highlight" style="margin-top:3vh">Scan the QR code at your station.<br>Your sector information is on screen.</div>
-  <div class="bottom-bar"></div>
-  <div class="curriculum">U1 (J17V 75) · Outcome 1 PC(a) · Core Skill: Working Co-operatively · CfE: Effective Contributor</div>
-</div>
-
-<!-- S6 PHASE 1 -->
-<div class="slide" id="s6">
-  <div class="grid-bg"></div><div class="stripe"></div>
-  <div class="bg-num" style="opacity:0.04;bottom:auto;top:-4vh">01</div>
-  <div class="coords tl">U01 · S02 · PHASE 1</div>
-  <div class="phase-badge">PHASE 01 / BECOME THE EXPERT</div>
-  <div class="slide-head">READ.<br>RESEARCH.<br>REMEMBER.</div>
-  <div class="steps" style="margin-top:2vh">
-    <div class="step reveal"><div class="step-num">01 /</div><div>Read everything at your station about your sector</div></div>
-    <div class="step reveal"><div class="step-num">02 /</div><div>Use <strong>Section A</strong> of your recording sheet to note key facts</div></div>
-    <div class="step reveal"><div class="step-num">03 /</div><div>Write a <strong>10-word summary</strong> of your sector at the bottom</div></div>
-    <div class="step reveal"><div class="step-num">04 /</div><div>You will be teaching this to others — <strong>know it</strong></div></div>
-  </div>
-  <button class="timer-trigger" onclick="openTimer(15,'PHASE 1 — BECOME THE EXPERT','MINUTES TO READ AND RESEARCH')">⏱ START 15 MINUTE TIMER</button>
-  <div class="bottom-bar"></div>
-  <div class="curriculum">U1 (J17V 75) · Outcome 1 PC(a) · Core Skill: Critical Thinking · CfE: Successful Learner</div>
-</div>
-
-<!-- S7 PHASE 2 -->
-<div class="slide" id="s7">
-  <div class="grid-bg"></div><div class="stripe"></div>
-  <div class="bg-num" style="opacity:0.04;bottom:auto;top:-4vh">02</div>
-  <div class="coords tl">U01 · S02 · PHASE 2</div>
-  <div class="phase-badge">PHASE 02 / THE ROTATION</div>
-  <div class="slide-head">TEACH.<br>LEARN.<br>RECORD.</div>
-  <div class="steps" style="margin-top:2vh">
-    <div class="step reveal"><div class="step-num">01 /</div><div><strong>Half your group stays</strong> at the station as the expert — <strong>half rotates</strong></div></div>
-    <div class="step reveal"><div class="step-num">02 /</div><div>Experts: explain your sector clearly and answer questions</div></div>
-    <div class="step reveal"><div class="step-num">03 /</div><div>Visitors: use <strong>Section B</strong> of your recording sheet to note what you learn</div></div>
-    <div class="step reveal"><div class="step-num">04 /</div><div>When the timer goes — rotate to the next station</div></div>
-  </div>
-  <button class="timer-trigger" onclick="openTimer(5,'ROTATION TIMER','MINUTES PER STATION')">⏱ START 5 MINUTE STATION TIMER</button>
-  <div class="bottom-bar"></div>
-  <div class="curriculum">U1 (J17V 75) · Outcome 1 PC(a) · Core Skill: Working Co-operatively · CfE: Effective Contributor · NOS: DES6</div>
-</div>
-
-<!-- S8 WORKING SLIDE — FULL BLUE -->
-<div class="slide slide-blue" id="s8">
-  <div class="grid-bg"></div>
-  <div class="stripe"></div>
-  <div class="coords tl" style="color:rgba(0,0,0,0.35);">U01 · S02 · ROTATION ACTIVE</div>
-  <div class="coords tr" style="color:rgba(0,0,0,0.35);">N5 CREATIVE INDUSTRIES</div>
-
-  <div class="phase-badge" style="color:#003355;border-color:rgba(0,0,0,0.25);">ROTATION IN PROGRESS</div>
-
-  <div class="big-instruction">VISIT EVERY<br>STATION.</div>
-
-  <div class="sub-instruction">
-    <div class="rule-row"><div class="rule-num">EXPERTS /</div><div>Stay calm. Be clear. Answer questions.</div></div>
-    <div class="rule-row"><div class="rule-num">VISITORS /</div><div>Listen actively. Fill in <strong>Section B</strong> of your sheet.</div></div>
-    <div class="rule-row"><div class="rule-num">TIMER /</div><div>When it sounds — rotate to the next station immediately.</div></div>
-  </div>
-
-  <button class="blue-timer-btn" onclick="openTimer(5,'ROTATION TIMER','MINUTES PER STATION')">⏱ START 5 MINUTE TIMER</button>
-
-  <div class="rotating-word">GO</div>
-  <div class="bottom-bar"></div>
-  <div class="curriculum">U1 (J17V 75) · Outcome 1 PC(a) · Core Skill: Working Co-operatively · CfE: Effective Contributor</div>
-</div>
-
-<!-- S9 DEBRIEF -->
-<div class="slide" id="s9">
-  <div class="grid-bg"></div><div class="stripe"></div>
-  <div class="bg-num">?</div>
-  <div class="coords tl">U01 · S02 · DEBRIEF</div>
-  <div class="label">BACK TOGETHER — THINK · PAIR · SHARE</div>
-  <div class="slide-head">DEBRIEF</div>
-  <div class="steps" style="margin-top:2vh">
-    <div class="step reveal"><div class="step-num">01 /</div><div>Return to your original seat</div></div>
-    <div class="step reveal"><div class="step-num">02 /</div><div>Take <strong>60 seconds</strong> — look at your sheet. What stands out?</div></div>
-    <div class="step reveal"><div class="step-num">03 /</div><div>Turn to your partner — share one thing that surprised you</div></div>
-  </div>
-  <button class="timer-trigger" onclick="openTimer(2,'THINK · PAIR · SHARE','MINUTES TO DISCUSS')">⏱ START 2 MINUTE TIMER</button>
-  <div class="bottom-bar"></div>
-  <div class="curriculum">U1 (J17V 75) · Outcome 1 PC(a) · Core Skill: Critical Thinking · CfE: Confident Individual</div>
-</div>
-
-<!-- S10 DISCUSSION -->
-<div class="slide" id="s10">
-  <div class="grid-bg"></div><div class="stripe"></div>
-  <div class="bg-num" style="opacity:0.05;font-size:clamp(100px,18vw,240px)">?</div>
-  <div class="coords tl">U01 · S02 · CLASS DISCUSSION</div>
-  <div class="label">CLASS DISCUSSION — NO HANDS UP</div>
-  <div class="slide-head">WHAT<br>CONNECTS<br>THEM?</div>
-  <div class="sc-list" style="margin-top:2.5vh">
-    <div class="sc-item reveal"><div class="sc-arrow">→</div><div>What do all these sectors have in common?</div></div>
-    <div class="sc-item reveal"><div class="sc-arrow">→</div><div>Which sector surprised you the most — and why?</div></div>
-    <div class="sc-item reveal"><div class="sc-arrow">→</div><div>Which sector would you most want to work in?</div></div>
-  </div>
-  <div class="mono-sm" style="margin-top:3vh;color:var(--accent);">Your teacher will choose who answers. Be ready.</div>
-  <div class="bottom-bar"></div>
-  <div class="curriculum">U1 (J17V 75) · Outcome 1 PC(a) · Core Skill: Critical Thinking · CfE: Confident Individual</div>
-</div>
-
-<!-- S11 INDIVIDUAL TASK -->
-<div class="slide" id="s11">
-  <div class="grid-bg"></div><div class="stripe"></div>
-  <div class="coords tl">U01 · S02 · INDIVIDUAL TASK</div>
-  <div class="label">ACTIVITY — INDIVIDUAL · IN YOUR FOLIO</div>
-  <div class="slide-head">SECTOR<br>REFLECTION</div>
-  <div class="task-box">
-    <div class="task-title">TASK — WRITE IN YOUR FOLIO</div>
-    <div class="task-body">Answer the following in <strong>full sentences</strong>. This is folio evidence.</div>
-    <div class="steps" style="margin-top:1.5vh">
-      <div class="step"><div class="step-num">01 /</div><div>Name the sector you researched. Describe what it involves in 2–3 sentences.</div></div>
-      <div class="step"><div class="step-num">02 /</div><div>Name two other sectors you visited. Write one key fact about each.</div></div>
-      <div class="step"><div class="step-num">03 /</div><div>Which sector interests you most this year, and why?</div></div>
+<!-- S02 LEARNING -->
+<div class="slide bg-dark has-art split-layout" id="s02">
+  <div class="coords coords-dark tl">U01 / S02 / OUTCOMES</div>
+  <div class="slide-content">
+    <div class="label-dark">TODAY'S SESSION</div>
+    <div class="title-dark glitch glitch-entry" data-text="LEARNING INTENTION">LEARNING<br>INTENTION</div>
+    <div class="callout-box" style="max-width:100%">
+      <div class="callout-text">Investigate one Creative Industries sector — then teach others what you know.</div>
+    </div>
+    <div class="sc-grid" style="opacity:1;animation:none;margin-top:2vh;max-width:100%">
+      <div class="sc-item reveal"><div class="sc-check">→</div><div class="sc-text">I can describe my sector and who works in it</div></div>
+      <div class="sc-item reveal"><div class="sc-check">→</div><div class="sc-text">I can summarise my sector in 10 words or fewer</div></div>
+      <div class="sc-item reveal"><div class="sc-check">→</div><div class="sc-text">I can share my knowledge as a sector expert</div></div>
+      <div class="sc-item reveal"><div class="sc-check">→</div><div class="sc-text">My recording sheet is in my folio as evidence</div></div>
     </div>
   </div>
-  <button class="timer-trigger" onclick="openTimer(10,'SECTOR REFLECTION','MINUTES TO WRITE')">⏱ START 10 MINUTE TIMER</button>
-  <div class="bottom-bar"></div>
-  <div class="curriculum">U1 (J17V 75) · Outcome 1 PC(a) · Evidence: Folio entry · NAB: J17V 75 · Core Skill: Critical Thinking · CfE: Successful Learner</div>
+  <div class="slide-art-panel" style="background-image:url('assets/n5-ci/u1-s02/u1s02-02-learning.png')"></div>
+  <div class="bottom-bar bottom-bar-dark"></div>
 </div>
 
-<!-- S12 FOLIO CHECK -->
-<div class="slide" id="s12">
-  <div class="grid-bg"></div><div class="stripe"></div>
-  <div class="coords tl">U01 · S02 · FOLIO CHECK</div>
-  <div class="label">BEFORE YOU MOVE ON</div>
-  <div class="slide-head">FOLIO<br>CHECK</div>
-  <div class="steps" style="margin-top:2.5vh">
-    <div class="step reveal"><div class="step-num">✓</div><div>Recording sheet completed — <strong>both Section A and Section B</strong></div></div>
-    <div class="step reveal"><div class="step-num">✓</div><div>Reflection written in full sentences in your folio</div></div>
-    <div class="step reveal"><div class="step-num">✓</div><div>Both pages labelled: <strong>U1 · Outcome 1 · PC(a) · Date</strong></div></div>
-    <div class="step reveal"><div class="step-num">✓</div><div>Added to your folio in the correct section</div></div>
+<!-- S03 OUTCOME -->
+<div class="slide bg-dark has-art split-layout" id="s03">
+  <div class="coords coords-dark tl">U01 / S02 / OUTCOME</div>
+  <div class="slide-content">
+    <div class="unit-tag">Unit 1 · Outcome 1 · PC(a)</div>
+    <div class="title-dark glitch glitch-entry" data-text="YOU ARE WORKING ON">YOU ARE<br>WORKING ON</div>
+    <div class="task-box" style="max-width:100%">
+      <div class="task-intro">NAB · J17V 75</div>
+      <div class="task-steps">
+        <div class="task-step" data-n="→" style="padding-left:2vw">“Describe the range of sectors within the Creative Industries”</div>
+      </div>
+    </div>
+    <div class="body-dark" style="margin-top:2vh;max-width:100%">Today’s research — your sector and the others — builds this evidence.</div>
+    <div class="mono-dark" style="margin-top:1.5vh;color:var(--accent)">Recording sheet → straight into your folio.</div>
   </div>
-  <div class="highlight" style="margin-top:2vh">Missing anything? Complete it now before we move on.</div>
-  <div class="bottom-bar"></div>
-  <div class="curriculum">U1 (J17V 75) · Outcome 1 PC(a) · Evidence check · Core Skill: Planning &amp; Organising · CfE: Successful Learner</div>
+  <div class="slide-art-panel" style="background-image:url('assets/n5-ci/u1-s02/u1s02-03-outcome.png')"></div>
+  <div class="bottom-bar bottom-bar-dark"></div>
 </div>
 
-<!-- S13 SC RUBRIC -->
-<div class="slide" id="s13">
-  <div class="grid-bg"></div><div class="stripe"></div>
-  <div class="coords tl">U01 · S02 · SUCCESS CRITERIA CHECK</div>
-  <div class="label">HOW DID YOU DO? — SELF-ASSESS HONESTLY</div>
-  <div class="slide-head">SUCCESS<br>CRITERIA<br>CHECK</div>
-  <table class="rubric" style="margin-top:2vh">
-    <tr><th>CRITERION</th><th>GOT IT ✓</th><th>NEARLY</th><th>NOT YET</th></tr>
-    <tr class="reveal"><td>I can describe my sector and who works in it</td><td class="good">Full detail</td><td class="ok">Some gaps</td><td class="dev">Needs work</td></tr>
-    <tr class="reveal"><td>I can summarise my sector in 10 words</td><td class="good">Sharp &amp; clear</td><td class="ok">A bit vague</td><td class="dev">Too long</td></tr>
-    <tr class="reveal"><td>I shared knowledge confidently with others</td><td class="good">Led the chat</td><td class="ok">Contributed</td><td class="dev">Held back</td></tr>
-    <tr class="reveal"><td>I have a completed recording sheet in my folio</td><td class="good">Both sections</td><td class="ok">One section</td><td class="dev">Missing</td></tr>
-  </table>
-  <div class="bottom-bar"></div>
-  <div class="curriculum">U1 (J17V 75) · Outcome 1 PC(a) · Self-evaluation · Core Skill: Critical Thinking · CfE: Confident Individual · NOS: CPD1</div>
+<!-- S04 MARKETPLACE -->
+<div class="slide bg-dark has-art slide-li-title" id="s04">
+  <div class="slide-art" style="background-image:url('assets/n5-ci/u1-s02/u1s02-04-marketplace.png');opacity:0.72"></div>
+  <div class="slide-scrim-bottom"></div>
+  <div class="coords coords-dark tl">U01 / S02 / OVERVIEW</div>
+  <div class="slide-content">
+    <div class="label-dark">HOW TODAY WORKS</div>
+    <div class="big-quote glitch glitch-entry" data-text="THE MARKETPLACE">THE<br>MARKETPLACE</div>
+    <div class="callout-box" style="max-width:58vw;margin-top:2.5vh">
+      <div class="callout-text">Not a normal lesson. Become an expert — then teach the room.</div>
+    </div>
+    <div class="mono-dark" style="margin-top:2vh">Three phases. Your role changes each time.</div>
+  </div>
+  <div class="bottom-bar bottom-bar-dark"></div>
+</div>
+
+<!-- S05 STATION -->
+<div class="slide bg-dark has-art split-layout" id="s05">
+  <div class="coords coords-dark tl">U01 / S02 / GROUPS</div>
+  <div class="slide-content">
+    <div class="label-dark">YOUR GROUPS AND STATIONS</div>
+    <div class="title-dark glitch glitch-entry" data-text="YOUR STATION">YOUR<br>STATION</div>
+    <div class="step-list">
+      <div class="step-row"><div class="step-n">01 /</div><div>Your teacher tells you which <strong>group</strong> you are in</div></div>
+      <div class="step-row"><div class="step-n">02 /</div><div>Move to your <strong>station</strong> when directed</div></div>
+      <div class="step-row"><div class="step-n">03 /</div><div>Do <strong>not</strong> start reading yet — wait for Phase 1</div></div>
+    </div>
+    <div class="callout-box" style="max-width:100%">
+      <div class="callout-text">Scan the QR at your station. Sector info is on screen.</div>
+    </div>
+  </div>
+  <div class="slide-art-panel" style="background-image:url('assets/n5-ci/u1-s02/u1s02-05-station.png')"></div>
+  <div class="bottom-bar bottom-bar-dark"></div>
+</div>
+
+<!-- S06 PHASE 1 -->
+<div class="slide bg-dark has-art" id="s06">
+  <div class="slide-art-side" style="background-image:url('assets/n5-ci/u1-s02/u1s02-06-phase1.png')"></div>
+  <div class="coords coords-dark tl">U01 / S02 / PHASE 1</div>
+  <div class="slide-content" style="max-width:50vw">
+    <div class="phase-badge">PHASE 01 / BECOME THE EXPERT</div>
+    <div class="title-dark glitch glitch-entry" data-text="READ. RESEARCH. REMEMBER.">READ.<br>RESEARCH.<br>REMEMBER.</div>
+    <div class="step-list">
+      <div class="step-row reveal"><div class="step-n">01 /</div><div>Read everything at your station</div></div>
+      <div class="step-row reveal"><div class="step-n">02 /</div><div>Use <strong>Section A</strong> to note key facts</div></div>
+      <div class="step-row reveal"><div class="step-n">03 /</div><div>Write a <strong>10-word summary</strong></div></div>
+      <div class="step-row reveal"><div class="step-n">04 /</div><div>You will teach this — <strong>know it</strong></div></div>
+    </div>
+    <button class="timer-trigger" type="button" onclick="openTimer(15,'PHASE 1 — BECOME THE EXPERT','MINUTES TO READ AND RESEARCH')">START 15 MIN TIMER</button>
+  </div>
+  <div class="bottom-bar bottom-bar-dark"></div>
+</div>
+
+<!-- S07 PHASE 2 -->
+<div class="slide bg-dark has-art" id="s07">
+  <div class="slide-art-side" style="background-image:url('assets/n5-ci/u1-s02/u1s02-07-phase2.png')"></div>
+  <div class="coords coords-dark tl">U01 / S02 / PHASE 2</div>
+  <div class="slide-content" style="max-width:50vw">
+    <div class="phase-badge">PHASE 02 / THE ROTATION</div>
+    <div class="title-dark glitch glitch-entry" data-text="TEACH. LEARN. RECORD.">TEACH.<br>LEARN.<br>RECORD.</div>
+    <div class="step-list">
+      <div class="step-row reveal"><div class="step-n">01 /</div><div><strong>Half stays</strong> as expert — <strong>half rotates</strong></div></div>
+      <div class="step-row reveal"><div class="step-n">02 /</div><div>Experts: explain clearly and answer questions</div></div>
+      <div class="step-row reveal"><div class="step-n">03 /</div><div>Visitors: fill <strong>Section B</strong> as you learn</div></div>
+      <div class="step-row reveal"><div class="step-n">04 /</div><div>Timer sounds → rotate to the next station</div></div>
+    </div>
+    <button class="timer-trigger" type="button" onclick="openTimer(5,'ROTATION TIMER','MINUTES PER STATION')">START 5 MIN STATION TIMER</button>
+  </div>
+  <div class="bottom-bar bottom-bar-dark"></div>
+</div>
+
+<!-- S08 ROTATION ACTIVE -->
+<div class="slide bg-color has-art" id="s08">
+  <div class="slide-art" style="background-image:url('assets/n5-ci/u1-s02/u1s02-08-rotation.png');opacity:0.35"></div>
+  <div class="coords coords-dark tl">U01 / S02 / ROTATION ACTIVE</div>
+  <div class="slide-content">
+    <div class="phase-badge">ROTATION IN PROGRESS</div>
+    <div class="mega-dark glitch glitch-entry" data-text="VISIT EVERY STATION.">VISIT EVERY<br>STATION.</div>
+    <div class="rule-row"><div class="rule-num">EXPERTS /</div><div>Stay calm. Be clear. Answer questions.</div></div>
+    <div class="rule-row"><div class="rule-num">VISITORS /</div><div>Listen. Fill in <strong>Section B</strong>.</div></div>
+    <div class="rule-row"><div class="rule-num">TIMER /</div><div>When it sounds — rotate immediately.</div></div>
+    <button class="timer-trigger" type="button" onclick="openTimer(5,'ROTATION TIMER','MINUTES PER STATION')">START 5 MIN TIMER</button>
+  </div>
+  <div class="bottom-bar bottom-bar-dark"></div>
+</div>
+
+<!-- S09 DEBRIEF -->
+<div class="slide bg-dark has-art split-layout" id="s09">
+  <div class="coords coords-dark tl">U01 / S02 / DEBRIEF</div>
+  <div class="slide-content">
+    <div class="label-dark">BACK TOGETHER — THINK · PAIR · SHARE</div>
+    <div class="title-dark glitch glitch-entry" data-text="DEBRIEF">DEBRIEF</div>
+    <div class="step-list">
+      <div class="step-row reveal"><div class="step-n">01 /</div><div>Return to your original seat</div></div>
+      <div class="step-row reveal"><div class="step-n">02 /</div><div><strong>60 seconds</strong> — what stands out on your sheet?</div></div>
+      <div class="step-row reveal"><div class="step-n">03 /</div><div>Partner: share one thing that surprised you</div></div>
+    </div>
+    <button class="timer-trigger" type="button" onclick="openTimer(2,'THINK · PAIR · SHARE','MINUTES TO DISCUSS')">START 2 MIN TIMER</button>
+  </div>
+  <div class="slide-art-panel" style="background-image:url('assets/n5-ci/u1-s02/u1s02-09-debrief.png')"></div>
+  <div class="bottom-bar bottom-bar-dark"></div>
+</div>
+
+<!-- S10 CONNECTS -->
+<div class="slide bg-dark has-art split-layout" id="s10">
+  <div class="coords coords-dark tl">U01 / S02 / DISCUSSION</div>
+  <div class="slide-content">
+    <div class="label-dark">CLASS DISCUSSION — NO HANDS UP</div>
+    <div class="title-dark glitch glitch-entry" data-text="WHAT CONNECTS THEM?">WHAT<br>CONNECTS<br>THEM?</div>
+    <div class="sc-grid" style="opacity:1;animation:none;margin-top:2vh;max-width:100%">
+      <div class="sc-item reveal"><div class="sc-check">→</div><div class="sc-text">What do all these sectors have in common?</div></div>
+      <div class="sc-item reveal"><div class="sc-check">→</div><div class="sc-text">Which sector surprised you most — and why?</div></div>
+      <div class="sc-item reveal"><div class="sc-check">→</div><div class="sc-text">Which sector would you most want to work in?</div></div>
+    </div>
+    <div class="mono-dark" style="margin-top:2vh;color:var(--accent)">Teacher chooses who answers. Be ready.</div>
+  </div>
+  <div class="slide-art-panel" style="background-image:url('assets/n5-ci/u1-s02/u1s02-10-connects.png')"></div>
+  <div class="bottom-bar bottom-bar-dark"></div>
+</div>
+
+<!-- S11 REFLECTION -->
+<div class="slide bg-dark has-art split-layout" id="s11">
+  <div class="coords coords-dark tl">U01 / S02 / INDIVIDUAL TASK</div>
+  <div class="slide-content">
+    <div class="label-dark">IN YOUR FOLIO — FULL SENTENCES</div>
+    <div class="title-dark glitch glitch-entry" data-text="SECTOR REFLECTION">SECTOR<br>REFLECTION</div>
+    <div class="task-box" style="max-width:100%">
+      <div class="task-intro">Write folio evidence now.</div>
+      <div class="task-steps">
+        <div class="task-step" data-n="01 /">Name your sector. Describe it in 2–3 sentences.</div>
+        <div class="task-step" data-n="02 /">Two other sectors you visited — one key fact each.</div>
+        <div class="task-step" data-n="03 /">Which sector interests you most this year, and why?</div>
+      </div>
+      <div class="task-meta">10 MIN · INDIVIDUAL · U1 O1 PC(a)</div>
+    </div>
+    <button class="timer-trigger" type="button" onclick="openTimer(10,'SECTOR REFLECTION','MINUTES TO WRITE')">START 10 MIN TIMER</button>
+  </div>
+  <div class="slide-art-panel" style="background-image:url('assets/n5-ci/u1-s02/u1s02-11-reflection.png')"></div>
+  <div class="bottom-bar bottom-bar-dark"></div>
+</div>
+
+<!-- S12 FOLIO -->
+<div class="slide bg-dark has-art split-layout" id="s12">
+  <div class="coords coords-dark tl">U01 / S02 / FOLIO CHECK</div>
+  <div class="slide-content">
+    <div class="label-dark">BEFORE YOU MOVE ON</div>
+    <div class="title-dark glitch glitch-entry" data-text="FOLIO CHECK">FOLIO<br>CHECK</div>
+    <div class="check-list" style="opacity:0;animation:fadeUp 0.6s 0.35s forwards;max-width:100%">
+      <div class="check-item done reveal"><div class="check-box ticked"></div><div class="check-label"><strong>Section A and Section B</strong> completed</div></div>
+      <div class="check-item done reveal"><div class="check-box ticked"></div><div class="check-label">Reflection written in <strong>full sentences</strong></div></div>
+      <div class="check-item done reveal"><div class="check-box ticked"></div><div class="check-label">Labelled: <strong>U1 · O1 · PC(a) · Date</strong></div></div>
+      <div class="check-item done reveal"><div class="check-box ticked"></div><div class="check-label">Filed in the correct folio section</div></div>
+    </div>
+    <div class="callout-box" style="max-width:100%;margin-top:2vh">
+      <div class="callout-text">Missing anything? Fix it now.</div>
+    </div>
+  </div>
+  <div class="slide-art-panel" style="background-image:url('assets/n5-ci/u1-s02/u1s02-12-folio.png')"></div>
+  <div class="bottom-bar bottom-bar-dark"></div>
+</div>
+
+<!-- S13 SUCCESS -->
+<div class="slide bg-dark has-art" id="s13">
+  <div class="slide-art-side" style="background-image:url('assets/n5-ci/u1-s02/u1s02-13-success.png')"></div>
+  <div class="coords coords-dark tl">U01 / S02 / SUCCESS CRITERIA</div>
+  <div class="slide-content" style="max-width:52vw">
+    <div class="label-dark">SELF-ASSESS HONESTLY</div>
+    <div class="title-dark glitch glitch-entry" data-text="SUCCESS CRITERIA">SUCCESS<br>CRITERIA</div>
+    <table class="rubric">
+      <tr><th>CRITERION</th><th>GOT IT</th><th>NEARLY</th><th>NOT YET</th></tr>
+      <tr class="reveal"><td>Describe my sector + who works in it</td><td class="good">Full detail</td><td class="ok">Some gaps</td><td class="dev">Needs work</td></tr>
+      <tr class="reveal"><td>Summarise in 10 words</td><td class="good">Sharp</td><td class="ok">Vague</td><td class="dev">Too long</td></tr>
+      <tr class="reveal"><td>Shared knowledge with others</td><td class="good">Led</td><td class="ok">Joined in</td><td class="dev">Held back</td></tr>
+      <tr class="reveal"><td>Recording sheet in folio</td><td class="good">Both sections</td><td class="ok">One section</td><td class="dev">Missing</td></tr>
+    </table>
+  </div>
+  <div class="bottom-bar bottom-bar-dark"></div>
 </div>
 
 <!-- S14 DO LAST -->
-<div class="slide" id="s14">
-  <div class="grid-bg"></div><div class="stripe"></div>
-  <div class="do-tag">DO<br>LAST</div>
-  <div class="coords tl">U01 · S02 · DO LAST</div>
-  <div class="label">REFLECTION — THINK · WRITE · SHARE</div>
-  <div class="slide-head">DO LAST</div>
-  <div class="task-box">
-    <div class="task-title">ON A STICKY NOTE OR IN YOUR JOTTER</div>
-    <div class="task-body">Write down <strong>one thing you now know</strong> about the Creative Industries that you didn't know at the start of today's lesson.</div>
+<div class="slide bg-dark has-art split-layout" id="s14">
+  <div class="coords coords-dark tl">U01 / S02 / DO LAST</div>
+  <div class="slide-content">
+    <div class="label-dark">THINK · WRITE · SHARE</div>
+    <div class="title-dark glitch glitch-entry" data-text="DO LAST">DO LAST</div>
+    <div class="callout-box" style="max-width:100%">
+      <div class="callout-text">One thing you now know about the Creative Industries that you didn’t know this morning.</div>
+    </div>
+    <div class="body-dark" style="margin-top:2vh;max-width:100%">Say it to your partner in <strong style="color:var(--white)">one sentence</strong>.</div>
+    <button class="timer-trigger" type="button" onclick="openTimer(3,'DO LAST — REFLECTION','MINUTES TO THINK AND WRITE')">START 3 MIN TIMER</button>
   </div>
-  <div class="body" style="margin-top:2.5vh;color:var(--ltgrey);">Then turn to your partner — say it out loud in <strong>one sentence</strong>.<br>Your teacher will take a few answers.</div>
-  <button class="timer-trigger" onclick="openTimer(3,'DO LAST — REFLECTION','MINUTES TO THINK AND WRITE')">⏱ START 3 MINUTE TIMER</button>
-  <div class="bottom-bar"></div>
-  <div class="curriculum">U1 (J17V 75) · Outcome 1 PC(a) · Core Skill: Critical Thinking · CfE: Successful Learner · NOS: CPD1</div>
+  <div class="slide-art-panel" style="background-image:url('assets/n5-ci/u1-s02/u1s02-14-dolast.png')"></div>
+  <div class="bottom-bar bottom-bar-dark"></div>
 </div>
 
-<!-- S15 CLOSER -->
-<div class="slide" id="s15">
-  <div class="grid-bg"></div><div class="stripe"></div>
-  <div class="bg-num" style="opacity:0.04">3</div>
-  <div class="coords tl">U01 · S02 · CLOSE</div>
-  <div class="coords tr">N5 CREATIVE INDUSTRIES</div>
-  <div class="label">UNIT 01 · END OF SESSION 2</div>
-  <div style="margin-top:auto;margin-bottom:auto;">
-    <div class="slide-head" style="font-size:clamp(52px,9vw,120px);">NEXT<br>SESSION</div>
-    <div class="accent-line"></div>
-    <div class="body" style="margin-top:2vh;color:var(--ltgrey);">Session 3 — <span style="color:var(--white)">Sectors Deep Dive</span><br>Job roles, career paths, and what it actually takes to work in Creative Industries.</div>
-    <div class="mono-sm" style="margin-top:3vh;">Make sure your folio evidence from today is labelled and filed before next session.</div>
+<!-- S15 NEXT -->
+<div class="slide bg-dark has-art slide-li-title" id="s15">
+  <div class="slide-art" style="background-image:url('assets/n5-ci/u1-s02/u1s02-15-next.png');opacity:0.7"></div>
+  <div class="slide-scrim-bottom"></div>
+  <div class="coords coords-dark tl">U01 / S02 / CLOSE</div>
+  <div class="slide-content">
+    <div class="label-dark">END OF SESSION 2</div>
+    <div class="big-quote glitch glitch-entry" data-text="NEXT SESSION">NEXT<br>SESSION</div>
+    <div class="quote-attr">Session 3 — Structure, Scale &amp; Sectors Deep Dive</div>
+    <div class="mono-dark" style="margin-top:2.5vh">Label and file today’s folio evidence before next time.</div>
   </div>
-  <div class="bottom-bar"></div>
-  <div class="curriculum">U1 (J17V 75) · Outcome 1 PC(a) · Core Skill: Planning &amp; Organising · CfE: Successful Learner</div>
+  <div class="bottom-bar bottom-bar-dark"></div>
 </div>
 
-</div><!-- /deck -->
+</div><!-- end #deck -->
 
 <script>
-// CURSOR
+// Cursor
 const cursor = document.getElementById('cursor');
-document.addEventListener('mousemove', e => { cursor.style.left=e.clientX+'px'; cursor.style.top=e.clientY+'px'; });
+document.addEventListener('mousemove', e => { cursor.style.left = e.clientX + 'px'; cursor.style.top = e.clientY + 'px'; });
 
-// PARTICLES
+// Slides
+const slides = Array.from(document.querySelectorAll('.slide'));
+let current = 0;
+
+// HUD
+const hudLeft  = document.getElementById('hudLeft');
+const hudRight = document.getElementById('hudRight');
+const hudDots  = document.getElementById('hudDots');
+const keyHint  = document.getElementById('keyHint');
+const revealCounter = document.getElementById('revealCounter');
+
+// Build dots
+slides.forEach((_, i) => {
+  const d = document.createElement('div');
+  d.className = 'hud-dot' + (i === 0 ? ' active' : '');
+  d.addEventListener('click', e => { e.stopPropagation(); goTo(i); });
+  hudDots.appendChild(d);
+});
+
+// Reveal system
+const revealMap = {};
+const revealState = {};
+
+slides.forEach(slide => {
+  const items = Array.from(slide.querySelectorAll('.reveal'));
+  if (items.length > 0) {
+    revealMap[slide.id] = items.map(el => [el]);
+    revealState[slide.id] = 0;
+  }
+});
+
+function hasUnrevealed(id) { return revealMap[id] && revealState[id] < revealMap[id].length; }
+function showNextReveal(id) {
+  const steps = revealMap[id]; if (!steps) return;
+  const step = revealState[id]; if (step >= steps.length) return;
+  steps[step].forEach(el => el.classList.add('shown'));
+  revealState[id]++;
+  updateRevealPips(id);
+}
+function resetReveal(id) {
+  if (!revealMap[id]) return;
+  revealState[id] = 0;
+  revealMap[id].flat().forEach(el => el.classList.remove('shown'));
+  updateRevealPips(id);
+}
+function updateRevealPips(id) {
+  revealCounter.innerHTML = '';
+  if (!revealMap[id]) return;
+  const t = revealMap[id].length, d = revealState[id] || 0;
+  for (let i = 0; i < t; i++) {
+    const p = document.createElement('div');
+    p.className = 'reveal-pip' + (i < d ? ' done' : '');
+    revealCounter.appendChild(p);
+  }
+}
+
+function goTo(n) {
+  if (n < 0 || n >= slides.length) return;
+  const prev = slides[current];
+  prev.classList.remove('active');
+  prev.classList.add('slide-exit');
+  setTimeout(() => prev.classList.remove('slide-exit'), 400);
+
+  current = n;
+  const next = slides[current];
+  next.classList.add('active', 'slide-enter');
+  setTimeout(() => next.classList.remove('slide-enter'), 500);
+
+  // Glitch
+  next.querySelectorAll('.glitch').forEach(el => {
+    el.classList.remove('glitch-entry', 'glitch-ambient');
+    void el.offsetWidth;
+    el.classList.add('glitch-entry');
+    el.addEventListener('animationend', () => el.classList.remove('glitch-entry'), { once: true });
+  });
+
+  // HUD update
+  hudDots.querySelectorAll('.hud-dot').forEach((d, i) => d.classList.toggle('active', i === current));
+  hudRight.textContent = String(current + 1).padStart(2, '0') + ' / ' + String(slides.length).padStart(2, '0');
+  updateRevealPips(next.id);
+  if (n > 0) { keyHint.classList.add('hidden'); }
+}
+
+function next() {
+  const id = slides[current]?.id;
+  if (hasUnrevealed(id)) { showNextReveal(id); return; }
+  if (current < slides.length - 1) goTo(current + 1);
+}
+function prev() {
+  const id = slides[current]?.id;
+  if (revealMap[id] && revealState[id] > 0) { resetReveal(id); return; }
+  if (current > 0) goTo(current - 1);
+}
+
+document.addEventListener('keydown', e => {
+  if (document.getElementById('timerOverlay')?.classList.contains('visible')) {
+    if (e.key === 'Escape') { e.preventDefault(); closeTimer(); }
+    return;
+  }
+  if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'ArrowDown') { e.preventDefault(); next(); }
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); prev(); }
+  if (e.key === 'Escape') { if (document.fullscreenElement) document.exitFullscreen(); }
+});
+
+let touchStartX = 0;
+document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; });
+document.addEventListener('touchend', e => { const dx = e.changedTouches[0].clientX - touchStartX; if (Math.abs(dx) > 50) dx < 0 ? next() : prev(); });
+document.getElementById('deck').addEventListener('click', e => {
+  if (e.target.closest('.timer-trigger, .timer-close, #timerOverlay')) return;
+  if (document.getElementById('timerOverlay')?.classList.contains('visible')) return;
+  next();
+});
+document.addEventListener('click', () => { if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {}); }, { once: true });
+
+// Ambient glitch
+function scheduleAmbientGlitch() {
+  const delay = 6000 + Math.random() * 6000;
+  setTimeout(() => {
+    if (slides[current]) {
+      const els = Array.from(slides[current].querySelectorAll('.glitch'));
+      if (els.length > 0) {
+        const el = els[Math.floor(Math.random() * els.length)];
+        el.classList.remove('glitch-entry', 'glitch-ambient');
+        void el.offsetWidth;
+        el.classList.add('glitch-ambient');
+        el.addEventListener('animationend', () => el.classList.remove('glitch-ambient'), { once: true });
+      }
+    }
+    scheduleAmbientGlitch();
+  }, delay);
+}
+scheduleAmbientGlitch();
+
+// Particles
 const canvas = document.getElementById('particleCanvas');
 const ctx = canvas.getContext('2d');
-function resizeCanvas(){ canvas.width=window.innerWidth; canvas.height=window.innerHeight; }
-resizeCanvas(); window.addEventListener('resize',resizeCanvas);
-class Particle { constructor(){ this.reset(); } reset(){ this.x=Math.random()*canvas.width; this.y=Math.random()*canvas.height; this.vx=(Math.random()-0.5)*0.4; this.vy=(Math.random()-0.5)*0.4; this.r=Math.random()*1.5+0.5; this.alpha=Math.random()*0.5+0.1; } update(){ this.x+=this.vx; this.y+=this.vy; if(this.x<0||this.x>canvas.width||this.y<0||this.y>canvas.height) this.reset(); } draw(){ ctx.beginPath(); ctx.arc(this.x,this.y,this.r,0,Math.PI*2); ctx.fillStyle=`rgba(0,170,255,${this.alpha})`; ctx.fill(); } }
-const particles=[];
-for(let i=0;i<80;i++) particles.push(new Particle());
-function drawParticles(){ ctx.clearRect(0,0,canvas.width,canvas.height); particles.forEach(p=>{p.update();p.draw();}); for(let i=0;i<particles.length;i++) for(let j=i+1;j<particles.length;j++){ const dx=particles[i].x-particles[j].x,dy=particles[i].y-particles[j].y,d=Math.sqrt(dx*dx+dy*dy); if(d<100){ ctx.beginPath();ctx.moveTo(particles[i].x,particles[i].y);ctx.lineTo(particles[j].x,particles[j].y);ctx.strokeStyle=`rgba(0,170,255,${0.06*(1-d/100)})`;ctx.lineWidth=0.5;ctx.stroke(); } } requestAnimationFrame(drawParticles); }
-drawParticles();
+function resizeCanvas() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+resizeCanvas();
+window.addEventListener('resize', () => { resizeCanvas(); initParticles(); });
 
-// SLIDE ENGINE
-const slides=Array.from(document.querySelectorAll('.slide'));
-let current=0, isAnimating=false;
-const revealState={};
-slides.forEach((_,i)=>{ revealState[i]=0; });
+const ACCENT_RGB = [0, 170, 255];
+const WHITE_RGB  = [240, 238, 232];
+let particles = [], mouse = { x: -9999, y: -9999 };
+document.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
 
-function showSlide(idx){ if(idx<0||idx>=slides.length||isAnimating) return; slides[current].classList.remove('active'); current=idx; slides[current].classList.add('active'); isAnimating=true; setTimeout(()=>{isAnimating=false;},450); updateHUD(); }
+class Particle {
+  constructor() { this.reset(true); }
+  reset(randomY = false) {
+    this.x = Math.random() * canvas.width;
+    this.y = randomY ? Math.random() * canvas.height : canvas.height + 10;
+    this.vx = (Math.random() - 0.5) * 0.35;
+    this.vy = -(Math.random() * 0.25 + 0.08);
+    this.size = Math.random() * 1.5 + 0.4;
+    this.isAccent = Math.random() < 0.12;
+    this.baseAlpha = Math.random() * 0.25 + 0.06;
+    this.alpha = this.baseAlpha;
+    this.pulse = Math.random() * Math.PI * 2;
+    this.pulseSpeed = Math.random() * 0.008 + 0.003;
+  }
+  update() {
+    this.x += this.vx; this.y += this.vy; this.pulse += this.pulseSpeed;
+    this.alpha = this.baseAlpha + Math.sin(this.pulse) * 0.04;
+    const dx = this.x - mouse.x, dy = this.y - mouse.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < 120) { const f = (120 - dist) / 120; this.x += dx / dist * f * 0.6; this.y += dy / dist * f * 0.6; }
+    if (this.y < -20 || this.x < -20 || this.x > canvas.width + 20) this.reset(false);
+  }
+  draw() {
+    const [r, g, b] = this.isAccent ? ACCENT_RGB : WHITE_RGB;
+    ctx.beginPath(); ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${r},${g},${b},${this.alpha})`; ctx.fill();
+  }
+}
 
-function advance(){ const sl=slides[current]; const items=Array.from(sl.querySelectorAll('.reveal')); const shown=revealState[current]; if(shown<items.length){ items[shown].classList.add('shown'); revealState[current]++; } else { if(current<slides.length-1) showSlide(current+1); } }
+function initParticles() { particles = Array.from({ length: 90 }, () => new Particle()); }
 
-function updateHUD(){ const prog=document.getElementById('hudProgress'),right=document.getElementById('hudRight'); prog.innerHTML=''; slides.forEach((_,i)=>{ const dot=document.createElement('div'); dot.className='hud-dot'+(i===current?' active':i<current?' done':''); prog.appendChild(dot); }); right.textContent=String(current+1).padStart(2,'0')+' / '+String(slides.length).padStart(2,'0'); }
+function drawConnections() {
+  for (let i = 0; i < particles.length; i++) {
+    for (let j = i + 1; j < particles.length; j++) {
+      const a = particles[i], b = particles[j];
+      const dx = a.x - b.x, dy = a.y - b.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < 160) {
+        const op = (1 - dist / 160) * 0.12;
+        const [r, g, bv] = (a.isAccent || b.isAccent) ? ACCENT_RGB : WHITE_RGB;
+        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+        ctx.strokeStyle = `rgba(${r},${g},${bv},${op})`; ctx.lineWidth = 0.5; ctx.stroke();
+      }
+    }
+  }
+}
 
-document.addEventListener('click',e=>{ if(e.target.closest('.timer-trigger,.blue-timer-btn,.timer-close')) return; if(document.getElementById('timerOverlay').classList.contains('visible')) return; advance(); });
-document.addEventListener('keydown',e=>{ if(document.getElementById('timerOverlay').classList.contains('visible')){ if(e.code==='Escape') closeTimer(); return; } if(['Space','ArrowRight','ArrowDown'].includes(e.code)){e.preventDefault();advance();} if(['ArrowLeft','ArrowUp'].includes(e.code)){e.preventDefault();if(current>0)showSlide(current-1);} });
-let touchStartX=0;
-document.addEventListener('touchstart',e=>{touchStartX=e.touches[0].clientX;});
-document.addEventListener('touchend',e=>{ const dx=e.changedTouches[0].clientX-touchStartX; if(Math.abs(dx)>50&&!document.getElementById('timerOverlay').classList.contains('visible')){dx<0?advance():(current>0&&showSlide(current-1));} });
+let flashTimer = 0, flashParticle = null, flashAlpha = 0;
+function updateFlash() {
+  flashTimer--;
+  if (flashTimer <= 0) { flashParticle = particles[Math.floor(Math.random() * particles.length)]; flashAlpha = 1; flashTimer = Math.floor(Math.random() * 180 + 120); }
+  if (flashParticle && flashAlpha > 0) {
+    const [r, g, b] = flashParticle.isAccent ? ACCENT_RGB : WHITE_RGB;
+    ctx.beginPath(); ctx.arc(flashParticle.x, flashParticle.y, 3, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(${r},${g},${b},${flashAlpha * 0.7})`; ctx.fill();
+    ctx.beginPath(); ctx.arc(flashParticle.x, flashParticle.y, (1 - flashAlpha) * 30 + 3, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(${r},${g},${b},${flashAlpha * 0.3})`; ctx.lineWidth = 1; ctx.stroke();
+    flashAlpha -= 0.015;
+  }
+}
 
-document.addEventListener('click',()=>{ if(!document.fullscreenElement&&document.documentElement.requestFullscreen) document.documentElement.requestFullscreen().catch(()=>{}); },{once:true});
-setTimeout(()=>{ const h=document.getElementById('keyHint'); if(h) h.style.opacity='0'; },5000);
+function animate() { ctx.clearRect(0, 0, canvas.width, canvas.height); drawConnections(); particles.forEach(p => { p.update(); p.draw(); }); updateFlash(); requestAnimationFrame(animate); }
+initParticles();
+animate();
+
 
 // FULLSCREEN TIMER
-let timerInterval=null;
-let timerTotal=0;
-
+let timerInterval = null;
+let timerTotal = 0;
 function openTimer(minutes, label, sublabel){
-  if(timerInterval) clearInterval(timerInterval);
+  if (timerInterval) clearInterval(timerInterval);
   timerTotal = minutes * 60;
   let remaining = timerTotal;
-
-  const overlay=document.getElementById('timerOverlay');
-  const display=document.getElementById('timerDisplay');
-  const lbl=document.getElementById('timerLabel');
-  const sub=document.getElementById('timerSublabel');
-  const bar=document.getElementById('timerBar');
-
+  const overlay = document.getElementById('timerOverlay');
+  const display = document.getElementById('timerDisplay');
+  const lbl = document.getElementById('timerLabel');
+  const sub = document.getElementById('timerSublabel');
+  const bar = document.getElementById('timerBar');
   lbl.textContent = label;
   sub.textContent = sublabel;
-  display.className='timer-display';
-  bar.style.background='var(--accent)';
-  bar.style.width='100%';
-
-  function fmt(s){ const m=Math.floor(s/60),sec=s%60; return m+':'+String(sec).padStart(2,'0'); }
+  display.className = 'timer-display';
+  bar.style.background = 'var(--accent)';
+  bar.style.width = '100%';
+  function fmt(s){ const m=Math.floor(s/60), sec=s%60; return m+':'+String(sec).padStart(2,'0'); }
   display.textContent = fmt(remaining);
   overlay.classList.add('visible');
-
   timerInterval = setInterval(()=>{
     remaining--;
-    const pct = (remaining/timerTotal)*100;
-    bar.style.width = pct+'%';
-
-    if(remaining<=0){
-      clearInterval(timerInterval);
-      display.textContent='0:00';
-      display.classList.add('expired');
-      sub.textContent='TIME\'S UP';
-      bar.style.width='0%';
-      playAlarm();
-      return;
+    bar.style.width = ((remaining/timerTotal)*100)+'%';
+    if (remaining <= 0) {
+      clearInterval(timerInterval); timerInterval=null;
+      display.textContent='0:00'; display.classList.add('expired');
+      sub.textContent="TIME'S UP"; bar.style.width='0%'; playAlarm(); return;
     }
-    display.textContent=fmt(remaining);
-    if(remaining<=30){ display.classList.add('urgent'); bar.style.background='#ff4444'; }
+    display.textContent = fmt(remaining);
+    if (remaining <= 30) { display.classList.add('urgent'); bar.style.background='#ff4444'; }
     else { display.classList.remove('urgent'); }
-  },1000);
+  }, 1000);
 }
-
 function closeTimer(){
-  if(timerInterval){ clearInterval(timerInterval); timerInterval=null; }
+  if (timerInterval) { clearInterval(timerInterval); timerInterval=null; }
   document.getElementById('timerOverlay').classList.remove('visible');
 }
-
 function playAlarm(){
-  try{
-    const ac=new(window.AudioContext||window.webkitAudioContext)();
+  try {
+    const ac = new (window.AudioContext||window.webkitAudioContext)();
     [0,0.35,0.7].forEach(t=>{
-      const o=ac.createOscillator(),g=ac.createGain();
-      o.connect(g);g.connect(ac.destination);
-      o.frequency.value=880;o.type='sine';
-      g.gain.setValueAtTime(0,ac.currentTime+t);
-      g.gain.linearRampToValueAtTime(0.5,ac.currentTime+t+0.05);
-      g.gain.linearRampToValueAtTime(0,ac.currentTime+t+0.28);
-      o.start(ac.currentTime+t);o.stop(ac.currentTime+t+0.3);
+      const o=ac.createOscillator(), g=ac.createGain();
+      o.connect(g); g.connect(ac.destination);
+      o.frequency.value=880; o.type='sine';
+      g.gain.setValueAtTime(0, ac.currentTime+t);
+      g.gain.linearRampToValueAtTime(0.5, ac.currentTime+t+0.05);
+      g.gain.linearRampToValueAtTime(0, ac.currentTime+t+0.28);
+      o.start(ac.currentTime+t); o.stop(ac.currentTime+t+0.3);
     });
-  }catch(e){}
+  } catch (e) {}
 }
 
-updateHUD();
+// Init
+goTo(0);
 </script>
 </body>
 </html>
