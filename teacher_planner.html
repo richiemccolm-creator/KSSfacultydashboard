@@ -3157,10 +3157,15 @@ function buildTodayDashboardModel() {
   }
 
   var eventItems = upcoming.map(function(e) {
-    var cat = String(e.category || '').toLowerCase();
-    var kind = (cat === 'assessment' || cat === 'exam') ? 'assess' : 'info';
+    var tag = calendarEventTag(e);
+    var kind = tag === 'Assessment' ? 'assess'
+      : (tag === 'Meeting' ? 'meet'
+      : (tag === 'Reporting' ? 'report'
+      : (tag === 'INSET' ? 'inset'
+      : (tag === 'Holiday' ? 'holiday' : 'info'))));
     return {
       kind: kind,
+      tag: tag,
       title: e.title || 'Event',
       detail: e.date || ''
     };
@@ -3284,9 +3289,13 @@ function createTodayDashboardMarkup(model) {
       var openAttr = (it.dateStr && it.slotKey)
         ? (' data-date="' + it.dateStr + '" data-slot="' + it.slotKey + '"')
         : '';
+      var iconStyle = '';
+      if (it.tag && typeof calendarEventFill === 'function') {
+        iconStyle = ' style="--cal-dot:' + calendarEventFill(it.tag) + '"';
+      }
       return (
         '<li class="today-week-list-item"' + openAttr + '>' +
-          '<span class="today-week-list-icon is-' + escHtml(it.kind || 'info') + '" aria-hidden="true"></span>' +
+          '<span class="today-week-list-icon is-' + escHtml(it.kind || 'info') + (it.tag ? ' has-cal-dot' : '') + '"' + iconStyle + ' aria-hidden="true"></span>' +
           '<span class="today-week-list-copy">' +
             '<strong>' + escHtml(it.title) + '</strong>' +
             '<span>' + escHtml(it.detail || '') + '</span>' +
@@ -4198,9 +4207,15 @@ function buildWeekDashboardModel() {
     return e.date && e.date >= weekStartStr && e.date <= weekEndStr;
   }).map(function(e) {
     var rank = calendarEventPriorityRank(e);
-    var kind = rank === 1 ? 'assess' : (rank === 2 ? 'report' : (rank === 3 ? 'meet' : 'info'));
+    var tag = calendarEventTag(e);
+    var kind = tag === 'Assessment' ? 'assess'
+      : (tag === 'Meeting' ? 'meet'
+      : (tag === 'Reporting' ? 'report'
+      : (tag === 'INSET' ? 'inset'
+      : (tag === 'Holiday' ? 'holiday' : 'info'))));
     return {
       kind: kind,
+      tag: tag,
       rank: rank,
       title: e.title || 'Event',
       detail: e.date || 'This week'
@@ -4308,28 +4323,29 @@ function createWeekDashboardMarkup(model) {
 
   var prioritiesHtml = model.priorities.length
     ? '<div class="week-priorities-list">' + model.priorities.map(function(it) {
-        var pFill = null;
+        var iconStyle = '';
+        var iconExtra = '';
         if (it.className) {
           var pParts = it.slotKey ? parseSlotKeyParts(it.slotKey) : null;
           var pSlot = pParts ? PS.getSlot(pParts.day, pParts.period) : null;
-          pFill = classFillStyleAttrs(it.className, pSlot);
+          var classFill = classFillStyleAttrs(it.className, pSlot);
+          iconStyle = ' style="--priority-dot:' + classFill.fill + '"';
+          iconExtra = ' has-priority-dot';
+        } else if (it.tag) {
+          iconStyle = ' style="--priority-dot:' + calendarEventFill(it.tag) + '"';
+          iconExtra = ' has-priority-dot';
         }
-        var pFillClass = pFill ? ' has-class-fill' : '';
-        var pFillStyle = pFill ? ' style="' + pFill.style + '"' : '';
+        var iconHtml =
+          '<span class="week-priority-icon is-' + escHtml(it.kind || 'info') + iconExtra + '"' + iconStyle + ' aria-hidden="true"></span>' +
+          '<span class="week-priority-copy"><strong>' + escHtml(it.title) + '</strong><span>' + escHtml(it.detail || '') + '</span></span>';
         if (it.dateStr && it.slotKey) {
           return (
-            '<button type="button" class="week-priority-item is-action' + pFillClass + '" data-date="' + it.dateStr + '" data-slot="' + it.slotKey + '"' + pFillStyle + '>' +
-              '<span class="week-priority-icon is-' + escHtml(it.kind || 'info') + '" aria-hidden="true"></span>' +
-              '<span class="week-priority-copy"><strong>' + escHtml(it.title) + '</strong><span>' + escHtml(it.detail || '') + '</span></span>' +
+            '<button type="button" class="week-priority-item is-action" data-date="' + it.dateStr + '" data-slot="' + it.slotKey + '">' +
+              iconHtml +
             '</button>'
           );
         }
-        return (
-          '<div class="week-priority-item' + pFillClass + '"' + pFillStyle + '>' +
-            '<span class="week-priority-icon is-' + escHtml(it.kind || 'info') + '" aria-hidden="true"></span>' +
-            '<span class="week-priority-copy"><strong>' + escHtml(it.title) + '</strong><span>' + escHtml(it.detail || '') + '</span></span>' +
-          '</div>'
-        );
+        return '<div class="week-priority-item">' + iconHtml + '</div>';
       }).join('') + '</div>'
     : '<p class="week-empty">No urgent priorities this week.</p>';
 
