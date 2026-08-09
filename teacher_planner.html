@@ -3946,6 +3946,110 @@ function calendarEventTag(e) {
   return 'Event';
 }
 
+/** Bold fill colours for shared Academic Calendar categories. */
+var CAL_CATEGORY_FILLS = {
+  Assessment: '#b91c1c',
+  Reporting: '#c2410c',
+  Meeting: '#6d28d9',
+  Holiday: '#a16207',
+  Event: '#1d4ed8'
+};
+
+function calendarEventFill(tag) {
+  return CAL_CATEGORY_FILLS[tag] || CAL_CATEGORY_FILLS.Event;
+}
+
+function calendarEventFillStyle(tag) {
+  var fill = calendarEventFill(tag);
+  return {
+    fill: fill,
+    ink: contrastInkForHex(fill),
+    style: '--cal-fill:' + fill + ';--cal-ink:' + contrastInkForHex(fill)
+  };
+}
+
+function parseIsoDateLocal(dateStr) {
+  var parts = String(dateStr || '').slice(0, 10).split('-');
+  if (parts.length !== 3) return null;
+  var d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function formatUpcomingDateLabel(startStr, endStr) {
+  var start = parseIsoDateLocal(startStr);
+  if (!start) return startStr || '';
+  var end = endStr && endStr !== startStr ? parseIsoDateLocal(endStr) : null;
+  if (!end) {
+    return start.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+  }
+  var sameMonth = start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear();
+  if (sameMonth) {
+    return start.toLocaleDateString('en-GB', { day: 'numeric' }) +
+      '–' + end.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  }
+  return start.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) +
+    ' – ' + end.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+}
+
+/**
+ * Build upcoming dates from shared/personal Academic Calendar events.
+ * Collapses consecutive same-title holiday runs into one row.
+ */
+function buildUpcomingDatesList(allEvents, fromDateStr, limit) {
+  var from = String(fromDateStr || '').slice(0, 10);
+  var max = limit != null ? limit : 6;
+  var sorted = (allEvents || []).filter(function(e) {
+    return e && e.date && String(e.date).slice(0, 10) >= from;
+  }).slice().sort(function(a, b) {
+    var cmp = String(a.date || '').localeCompare(String(b.date || ''));
+    if (cmp !== 0) return cmp;
+    return calendarEventPriorityRank(a) - calendarEventPriorityRank(b);
+  });
+
+  var rows = [];
+  for (var i = 0; i < sorted.length && rows.length < max; i++) {
+    var e = sorted[i];
+    var startDate = String(e.date).slice(0, 10);
+    var endDate = startDate;
+    var titleKey = String(e.title || '').trim().toLowerCase();
+    var tag = calendarEventTag(e);
+    var isHolidayRun = tag === 'Holiday' || String(e.category || '').toLowerCase() === 'holiday';
+
+    if (isHolidayRun && titleKey) {
+      while (i + 1 < sorted.length) {
+        var next = sorted[i + 1];
+        var nextDate = String(next.date || '').slice(0, 10);
+        var nextTitle = String(next.title || '').trim().toLowerCase();
+        var nextTag = calendarEventTag(next);
+        var nextIsHoliday = nextTag === 'Holiday' || String(next.category || '').toLowerCase() === 'holiday';
+        if (!nextIsHoliday || nextTitle !== titleKey) break;
+        var prev = parseIsoDateLocal(endDate);
+        var nxt = parseIsoDateLocal(nextDate);
+        if (!prev || !nxt) break;
+        var expected = new Date(prev);
+        expected.setDate(expected.getDate() + 1);
+        if (getDateStr(expected) !== nextDate) break;
+        endDate = nextDate;
+        i++;
+      }
+    }
+
+    var d = parseIsoDateLocal(startDate);
+    rows.push({
+      title: e.title || 'Event',
+      date: startDate,
+      endDate: endDate,
+      dateLabel: formatUpcomingDateLabel(startDate, endDate),
+      month: d ? d.toLocaleDateString('en-GB', { month: 'short' }).toUpperCase() : '',
+      day: d ? String(d.getDate()) : '',
+      category: String(e.category || 'general').toLowerCase(),
+      tag: tag,
+      source: e.source || ''
+    });
+  }
+  return rows;
+}
+
 function buildWeekDashboardModel() {
   var now = new Date();
   var state = PS.getState();
@@ -3973,9 +4077,6 @@ function buildWeekDashboardModel() {
   var assessments = weekEvents.filter(function(e) {
     return calendarEventPriorityRank(e) === 1;
   });
-  var upcomingDates = allEvents.filter(function(e) {
-    return e.date && e.date >= weekStartStr;
-  }).sort(function(a, b) { return (a.date || '').localeCompare(b.date || ''); }).slice(0, 3);
 
   var slots = (state.timetable && state.timetable.slots) || [];
   var byKey = {};
@@ -3989,6 +4090,9 @@ function buildWeekDashboardModel() {
     weekDays.push(wd);
   }
   var todayStr = getDateStr(new Date());
+  // Upcoming dates from shared Academic Calendar: from today, or week start if browsing ahead.
+  var upcomingFrom = todayStr > weekStartStr ? todayStr : weekStartStr;
+  var upcomingDates = buildUpcomingDatesList(allEvents, upcomingFrom, 6);
 
   var statusCounts = { planned: 0, draft: 0, complete: 0, 'needs-planning': 0 };
   var cells = [];
@@ -4093,18 +4197,7 @@ function buildWeekDashboardModel() {
     maxPeriod: maxPeriod,
     cells: cells,
     priorities: priorities,
-    upcomingDates: upcomingDates.map(function(e) {
-      var tag = calendarEventTag(e);
-      var d = e.date ? new Date(e.date + 'T12:00:00') : null;
-      return {
-        title: e.title || 'Event',
-        date: e.date || '',
-        month: d ? d.toLocaleDateString('en-GB', { month: 'short' }).toUpperCase() : '',
-        day: d ? String(d.getDate()) : '',
-        category: String(e.category || 'general').toLowerCase(),
-        tag: tag
-      };
-    }),
+    upcomingDates: upcomingDates,
     note: note,
     unfinishedOnly: !!weekUnfinishedOnly
   };
@@ -4196,16 +4289,24 @@ function createWeekDashboardMarkup(model) {
 
   var upcomingHtml = model.upcomingDates.length
     ? '<ul class="week-deadlines-list">' + model.upcomingDates.map(function(d) {
-        var tagClass = (d.tag === 'Assessment') ? 'is-assess' : (d.tag === 'Meeting' ? 'is-meet' : (d.tag === 'Reporting' ? 'is-report' : 'is-plan'));
+        var tagSlug = (d.tag === 'Assessment') ? 'assess'
+          : (d.tag === 'Meeting' ? 'meet'
+          : (d.tag === 'Reporting' ? 'report'
+          : (d.tag === 'Holiday' ? 'holiday' : 'plan')));
+        var fill = calendarEventFillStyle(d.tag);
+        var sourceHint = d.source === 'shared' ? 'Shared calendar' : (d.source === 'personal' ? 'My calendar' : 'Academic Calendar');
         return (
-          '<li class="week-deadline-item">' +
+          '<li class="week-deadline-item has-cal-fill cat-' + tagSlug + '" style="' + fill.style + '">' +
             '<div class="week-deadline-date" aria-hidden="true"><span>' + escHtml(d.month) + '</span><strong>' + escHtml(d.day) + '</strong></div>' +
-            '<div class="week-deadline-copy"><strong>' + escHtml(d.title) + '</strong><span>' + escHtml(d.date) + '</span></div>' +
-            '<span class="week-deadline-tag ' + tagClass + '">' + escHtml(d.tag) + '</span>' +
+            '<div class="week-deadline-copy">' +
+              '<strong>' + escHtml(d.title) + '</strong>' +
+              '<span>' + escHtml(d.dateLabel || d.date) + ' · ' + escHtml(sourceHint) + '</span>' +
+            '</div>' +
+            '<span class="week-deadline-tag is-' + tagSlug + '">' + escHtml(d.tag) + '</span>' +
           '</li>'
         );
       }).join('') + '</ul>'
-    : '<p class="week-empty">No upcoming dates recorded.</p>';
+    : '<p class="week-empty">No Academic Calendar dates from this week onward. Add or share events in <strong>Academic Calendar</strong>.</p>';
 
   var filterLabel = model.unfinishedOnly ? 'Show all lessons' : 'Show unfinished only';
   var sc = model.statusCounts;
