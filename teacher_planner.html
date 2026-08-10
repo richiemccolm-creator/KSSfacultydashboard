@@ -3278,29 +3278,6 @@ function createTodayDashboardMarkup(model) {
     }).join('');
   }
 
-  var weekHead = '<div class="today-week-corner" aria-hidden="true"></div>' + model.weekDays.map(function(d) {
-    return '<div class="today-week-head">' + d + '</div>';
-  }).join('');
-  var weekBody = '';
-  for (var p = 1; p <= 7; p++) {
-    weekBody += '<div class="today-week-period">P' + p + '</div>';
-    model.weekCells.filter(function(c) { return c.period === p; }).forEach(function(c) {
-      if (c.kind === 'empty') {
-        weekBody += '<div class="today-week-cell is-empty" aria-hidden="true"></div>';
-        return;
-      }
-      if (c.kind === 'free') {
-        weekBody += '<div class="today-week-cell is-free' + (c.isToday ? ' is-today-col' : '') + '">Free</div>';
-        return;
-      }
-      var twFill = classFillStyleAttrs(c.label, null);
-      weekBody +=
-        '<button type="button" class="today-week-cell has-slot has-class-fill st-' + c.status + ' subj-' + escHtml(c.subject || 'other') + (c.isToday ? ' is-today-col' : '') + '" data-date="' + c.dateStr + '" data-slot="' + c.slotKey + '" style="' + twFill.style + '">' +
-          escHtml(c.label) +
-        '</button>';
-    });
-  }
-
   function weekListHtml(items, emptyText) {
     if (!items.length) return '<p class="today-empty">' + escHtml(emptyText) + '</p>';
     return '<ul class="today-week-list">' + items.map(function(it) {
@@ -3365,15 +3342,6 @@ function createTodayDashboardMarkup(model) {
             '</header>' +
             '<div class="today-lessons-table">' +
               '<div class="today-lessons-list" id="todayLessonList">' + lessonsHtml + '</div>' +
-            '</div>' +
-          '</section>' +
-          '<section class="today-panel today-week-panel">' +
-            '<header class="today-panel-header">' +
-              '<div><h2>Weekly overview</h2></div>' +
-              '<button type="button" id="todayViewFullWeek" class="today-panel-link">View full timetable</button>' +
-            '</header>' +
-            '<div class="today-week-scroll">' +
-              '<div class="today-week-grid" role="grid" aria-label="Weekly timetable overview">' + weekHead + weekBody + '</div>' +
             '</div>' +
           '</section>' +
         '</main>' +
@@ -3457,8 +3425,6 @@ function bindTodayDashboardEvents(root, model) {
   if (bankBtn) bankBtn.addEventListener('click', function() { switchPlannerTab('bank'); });
   var weekBtn = root.querySelector('#todayViewWeek');
   if (weekBtn) weekBtn.addEventListener('click', function() { switchPlannerTab('week'); });
-  var fullWeekBtn = root.querySelector('#todayViewFullWeek');
-  if (fullWeekBtn) fullWeekBtn.addEventListener('click', function() { switchPlannerTab('week'); });
   var addNoteBtn = root.querySelector('#todayAddNote');
   if (addNoteBtn) addNoteBtn.addEventListener('click', focusNote);
   var newNoteBtn = root.querySelector('#todayNewNote');
