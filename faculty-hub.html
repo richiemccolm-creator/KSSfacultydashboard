@@ -10662,6 +10662,38 @@ function homeEnsureTaskChecklistStructure(){
   }
   return { scrollEl:scrollEl, quickEl:quickEl };
 }
+function homeRefreshTasksFromState(){
+  if(!window.TeacherTasksService || typeof window.TeacherTasksService.getState!=='function') return;
+  var st=TeacherTasksService.getState()||{ tasks:[], buckets:[] };
+  var tasks=Array.isArray(st.tasks)?st.tasks:[];
+  var today=typeof calLocalTodayISODate==='function'?calLocalTodayISODate():homeDateISO(new Date());
+  var tasksDue=tasks.filter(function(t){
+    return t.status!=='completed'&&!t.completed && t.dueDate && String(t.dueDate).slice(0,10)<=today;
+  });
+  homeSetText('homeTasksDueCount', tasksDue.length);
+  homeRenderTasks(tasks.filter(function(t){ return t.status!=='completed'&&!t.completed; }), st);
+}
+function homeTaskActionTimeout(promise, ms){
+  var settled=false;
+  return new Promise(function(resolve, reject){
+    var timer=setTimeout(function(){
+      if(settled) return;
+      settled=true;
+      reject(new Error('Task action timed out'));
+    }, ms||15000);
+    Promise.resolve(promise).then(function(value){
+      if(settled) return;
+      settled=true;
+      clearTimeout(timer);
+      resolve(value);
+    }, function(err){
+      if(settled) return;
+      settled=true;
+      clearTimeout(timer);
+      reject(err);
+    });
+  });
+}
 function homeRenderTasks(tasks, taskState){
   var parts=homeEnsureTaskChecklistStructure();
   if(!parts) return;
@@ -10693,35 +10725,46 @@ function homeRenderTasks(tasks, taskState){
         ev.preventDefault();
         ev.stopPropagation();
         var taskId=String(btn.getAttribute('data-task-id')||'').trim();
-        if(!taskId || !window.TeacherTasksService || typeof window.TeacherTasksService.toggleTaskComplete!=='function') return;
+        if(!taskId || btn.disabled || !window.TeacherTasksService || typeof window.TeacherTasksService.toggleTaskComplete!=='function') return;
         btn.disabled=true;
-        TeacherTasksService.toggleTaskComplete(taskId).then(function(){
-          homeDashboardRender({ showLoading: false });
+        homeTaskActionTimeout(TeacherTasksService.toggleTaskComplete(taskId), 15000).then(function(){
+          homeRefreshTasksFromState();
         }).catch(function(){
-          btn.disabled=false;
+          homeRefreshTasksFromState();
+          if(typeof backupToast==='function') backupToast('Task updated on this device — cloud sync may have timed out');
         });
       });
     });
   }
   var canQuickAdd=window.TeacherTasksService&&typeof window.TeacherTasksService.addTask==='function';
-  quickEl.innerHTML='<input type="text" class="staff-home-task-quick-input" placeholder="Quick add task..." aria-label="Quick add task"><button type="button" class="staff-home-task-quick-btn">Add</button>';
+  quickEl.innerHTML='<input type="text" class="staff-home-task-quick-input" placeholder="Quick add task..." aria-label="Quick add task" enterkeyhint="done" autocomplete="off" autocorrect="off"><button type="button" class="staff-home-task-quick-btn">Add</button>';
   var input=quickEl.querySelector('.staff-home-task-quick-input');
   var btn=quickEl.querySelector('.staff-home-task-quick-btn');
+  var quickBusy=false;
   if(!canQuickAdd){
     btn.disabled=true;
   }
   function submitQuickTask(){
     var title=String(input.value||'').trim();
-    if(!title || !canQuickAdd) return;
+    if(!title || !canQuickAdd || quickBusy) return;
+    quickBusy=true;
     btn.disabled=true;
-    TeacherTasksService.addTask('todo',{title:title}).then(function(){
+    // Blur first — iPad Safari can stall when keyboard stays open during save/re-render.
+    try{ input.blur(); }catch(e){}
+    homeTaskActionTimeout(TeacherTasksService.addTask('todo',{title:title}), 15000).then(function(){
       input.value='';
-      homeDashboardRender({ showLoading: false });
+      homeRefreshTasksFromState();
     }).catch(function(){
-      btn.disabled=false;
+      // Task is already in local state before cloud save — refresh so iPad isn't left greyed-out.
+      input.value='';
+      homeRefreshTasksFromState();
+      if(typeof backupToast==='function') backupToast('Task saved on this device — cloud sync may have timed out');
     });
   }
-  btn.addEventListener('click', submitQuickTask);
+  btn.addEventListener('click', function(ev){
+    ev.preventDefault();
+    submitQuickTask();
+  });
   input.addEventListener('keydown', function(e){
     if(e.key==='Enter'){
       e.preventDefault();

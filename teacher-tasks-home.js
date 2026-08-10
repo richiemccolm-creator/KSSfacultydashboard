@@ -112,19 +112,50 @@
         var quick = document.createElement('div');
         quick.className = 'home-task-quick';
         quick.innerHTML =
-          '<input type="text" class="home-task-quick-input" placeholder="Quick add task…" aria-label="Quick add task">' +
+          '<input type="text" class="home-task-quick-input" placeholder="Quick add task…" aria-label="Quick add task" enterkeyhint="done" autocomplete="off">' +
           '<button type="button" class="home-task-quick-btn">Add</button>';
         var input = quick.querySelector('.home-task-quick-input');
         var btn = quick.querySelector('.home-task-quick-btn');
+        var busy = false;
+        function withTimeout(promise, ms) {
+          var settled = false;
+          return new Promise(function(resolve, reject) {
+            var timer = setTimeout(function() {
+              if (settled) return;
+              settled = true;
+              reject(new Error('timeout'));
+            }, ms || 15000);
+            Promise.resolve(promise).then(function(v) {
+              if (settled) return;
+              settled = true;
+              clearTimeout(timer);
+              resolve(v);
+            }, function(err) {
+              if (settled) return;
+              settled = true;
+              clearTimeout(timer);
+              reject(err);
+            });
+          });
+        }
         function doQuickAdd() {
           var title = (input.value || '').trim();
-          if (!title) return;
-          TeacherTasksService.addTask('todo', { title: title }).then(function() {
+          if (!title || busy) return;
+          busy = true;
+          btn.disabled = true;
+          try { input.blur(); } catch (e) {}
+          withTimeout(TeacherTasksService.addTask('todo', { title: title }), 15000).then(function() {
             input.value = '';
             window.TeacherTasksHome.render();
-          }).catch(function() {});
+          }).catch(function() {
+            input.value = '';
+            window.TeacherTasksHome.render();
+          });
         }
-        btn.addEventListener('click', doQuickAdd);
+        btn.addEventListener('click', function(ev) {
+          ev.preventDefault();
+          doQuickAdd();
+        });
         input.addEventListener('keydown', function(e) {
           if (e.key === 'Enter') {
             e.preventDefault();

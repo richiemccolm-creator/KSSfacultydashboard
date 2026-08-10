@@ -143,6 +143,27 @@
       return session;
     });
   }
+  function promiseWithTimeout(promise, ms, message) {
+    var settled = false;
+    return new Promise(function(resolve, reject) {
+      var timer = setTimeout(function() {
+        if (settled) return;
+        settled = true;
+        reject(new Error(message || 'Request timed out'));
+      }, ms);
+      Promise.resolve(promise).then(function(value) {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        resolve(value);
+      }, function(err) {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        reject(err);
+      });
+    });
+  }
   function normalizeTrackerSubject(subject) {
     var value = String(subject == null ? '' : subject).trim().toLowerCase();
     if (!value) return null;
@@ -326,30 +347,25 @@
     },
 
     set: function(dataType, data) {
-      return new Promise(function(resolve, reject) {
-        if (!useSupabase()) {
-          try {
-            localStorage.setItem(dataType, typeof data === 'string' ? data : JSON.stringify(data));
-            resolve();
-          } catch (e) {
-            reject(e);
-          }
-          return;
+      if (!useSupabase()) {
+        try {
+          localStorage.setItem(dataType, typeof data === 'string' ? data : JSON.stringify(data));
+          return Promise.resolve();
+        } catch (e) {
+          return Promise.reject(e);
         }
-        window.supabase.auth.getSession()
-          .then(function(_a) {
-            var session = _a && _a.data && _a.data.session;
-            if (!session) throw new Error('Not authenticated');
-            var payload = { user_id: session.user.id, data_type: dataType, data: data };
-            return window.supabase.from('pupil_data')
-              .upsert(payload, { onConflict: 'user_id,data_type' });
-          })
+      }
+      // iPad Safari / home-screen PWAs can leave auth.getSession() pending forever.
+      // Use retry + hard timeout so UI actions (e.g. home quick-add task) can recover.
+      var write = ensureSessionForMutations().then(function(session) {
+        var payload = { user_id: session.user.id, data_type: dataType, data: data };
+        return window.supabase.from('pupil_data')
+          .upsert(payload, { onConflict: 'user_id,data_type' })
           .then(function(r) {
             if (r && r.error) throw r.error;
-            resolve();
-          })
-          .catch(reject);
+          });
       });
+      return promiseWithTimeout(write, 20000, 'Save timed out');
     },
 
     getAll: function() {
