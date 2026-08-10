@@ -4,12 +4,19 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Faculty Hub">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Teacher Planner">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#071b3f">
+<meta name="application-name" content="Teacher Planner">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
-<link rel="apple-touch-icon" href="faculty-hub-logo.png" sizes="180x180">
-<link rel="icon" type="image/png" href="faculty-hub-logo.png">
+<link rel="manifest" href="teacher-planner-manifest.json">
+<link rel="apple-touch-icon" href="teacher-planner-icon-180.png" sizes="180x180">
+<link rel="apple-touch-icon" href="teacher-planner-icon.png" sizes="1024x1024">
+<link rel="icon" type="image/png" href="teacher-planner-icon-512.png" sizes="512x512">
+<link rel="icon" type="image/png" href="teacher-planner-icon-180.png" sizes="180x180">
 <title>Teacher Planner — Expressive Arts</title>
 <script src="app-version.js"></script>
 <script>
@@ -984,6 +991,15 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
     <span class="topbar-app-title">Teacher Planner</span>
   </div>
 </header>
+
+<div id="plannerInstallTip" class="planner-install-tip" hidden>
+  <img src="teacher-planner-icon-180.png" alt="" class="planner-install-tip-icon" width="40" height="40">
+  <div class="planner-install-tip-copy">
+    <strong>Add Planner to your Home Screen</strong>
+    <span>On iPad: tap <em>Share</em> → <em>Add to Home Screen</em> for a separate Planner app icon beside Faculty Hub.</span>
+  </div>
+  <button type="button" class="planner-install-tip-dismiss" id="plannerInstallTipDismiss" aria-label="Dismiss install tip">Got it</button>
+</div>
 
 <nav class="tabs-bar" aria-label="Planner sections">
   <div class="tabs-inner">
@@ -3086,7 +3102,7 @@ function buildTodayDashboardModel() {
   if (needPlanning > 0) {
     attention.push({
       kind: 'warn',
-      title: needPlanning + ' lesson' + (needPlanning === 1 ? '' : 's') + ' need planning',
+      title: needPlanning + ' lesson' + (needPlanning === 1 ? '' : 's') + ' need' + (needPlanning === 1 ? 's' : '') + ' planning',
       detail: 'Today · open Plan missing lesson to start'
     });
   }
@@ -3313,7 +3329,7 @@ function createTodayDashboardMarkup(model) {
 
   var summaryHtml =
     '<span>' + lessonsCount + ' lessons today · </span>' +
-    '<span class="today-summary-alert">' + needN + ' needs planning</span>';
+    '<span class="today-summary-alert">' + needN + ' need' + (needN === 1 ? 's' : '') + ' planning</span>';
 
   return (
       '<section class="today-hero">' +
@@ -7383,10 +7399,43 @@ function bindN5CiImportUi() {
   });
 }
 
+function isPlannerStandaloneDisplay() {
+  return !!(window.navigator && window.navigator.standalone) ||
+    !!(window.matchMedia && window.matchMedia('(display-mode: standalone)').matches);
+}
+
+function isLikelyIosSafari() {
+  var ua = navigator.userAgent || '';
+  var iPadOsDesktopUa = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+  var iOS = /iPad|iPhone|iPod/.test(ua) || iPadOsDesktopUa;
+  var webkit = /WebKit/.test(ua);
+  var notOther = !/CriOS|FxiOS|EdgiOS|OPiOS|Chrome|Android/.test(ua);
+  var coarse = !(window.matchMedia) || window.matchMedia('(pointer: coarse)').matches;
+  return iOS && webkit && notOther && coarse;
+}
+
+function initPlannerInstallTip() {
+  var tip = document.getElementById('plannerInstallTip');
+  var dismissBtn = document.getElementById('plannerInstallTipDismiss');
+  if (!tip || !dismissBtn) return;
+  if (document.documentElement.classList.contains('is-embedded')) return;
+  if (isPlannerStandaloneDisplay()) return;
+  if (!isLikelyIosSafari()) return;
+  try {
+    if (localStorage.getItem('plannerInstallTipDismissed') === '1') return;
+  } catch (e) {}
+  tip.hidden = false;
+  dismissBtn.addEventListener('click', function() {
+    tip.hidden = true;
+    try { localStorage.setItem('plannerInstallTipDismissed', '1'); } catch (e) {}
+  });
+}
+
 // Init
 initLessonBodyEditor();
 bindFacultyTtImportUi();
 bindN5CiImportUi();
+initPlannerInstallTip();
 document.addEventListener('click', function(e) {
   if (e.target.closest && e.target.closest('.lb-action-more')) return;
   document.querySelectorAll('.lb-action-more.is-open').forEach(function(w) {
