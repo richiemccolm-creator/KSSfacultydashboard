@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Teacher Planner">
@@ -7428,7 +7428,37 @@ function initPlannerInstallTip() {
   dismissBtn.addEventListener('click', function() {
     tip.hidden = true;
     try { localStorage.setItem('plannerInstallTipDismissed', '1'); } catch (e) {}
+    updatePlannerChromeOffset();
   });
+}
+
+function updatePlannerChromeOffset() {
+  var root = document.querySelector('.planner-redesign');
+  var topbar = document.querySelector('.planner-redesign .topbar');
+  if (!root) return;
+  if (document.documentElement.classList.contains('is-embedded') || !topbar || topbar.offsetParent === null) {
+    root.style.setProperty('--planner-topbar-h', '0px');
+    root.style.setProperty('--planner-tabs-sticky-top', '0px');
+    return;
+  }
+  var h = Math.ceil(topbar.getBoundingClientRect().height) || 52;
+  root.style.setProperty('--planner-topbar-h', h + 'px');
+  root.style.setProperty('--planner-tabs-sticky-top', h + 'px');
+}
+
+function initPlannerChromeOffset() {
+  updatePlannerChromeOffset();
+  window.addEventListener('resize', updatePlannerChromeOffset);
+  window.addEventListener('orientationchange', function() {
+    setTimeout(updatePlannerChromeOffset, 120);
+  });
+  if (typeof ResizeObserver !== 'undefined') {
+    var topbar = document.querySelector('.planner-redesign .topbar');
+    if (topbar) {
+      var ro = new ResizeObserver(function() { updatePlannerChromeOffset(); });
+      ro.observe(topbar);
+    }
+  }
 }
 
 // Init
@@ -7436,6 +7466,7 @@ initLessonBodyEditor();
 bindFacultyTtImportUi();
 bindN5CiImportUi();
 initPlannerInstallTip();
+initPlannerChromeOffset();
 document.addEventListener('click', function(e) {
   if (e.target.closest && e.target.closest('.lb-action-more')) return;
   document.querySelectorAll('.lb-action-more.is-open').forEach(function(w) {

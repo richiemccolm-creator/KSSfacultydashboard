@@ -35,12 +35,22 @@
 
   --planner-shadow: 0 3px 12px rgba(23, 45, 86, 0.08);
 
+  --planner-safe-top: env(safe-area-inset-top, 0px);
+  --planner-safe-right: env(safe-area-inset-right, 0px);
+  --planner-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --planner-safe-left: env(safe-area-inset-left, 0px);
+  --planner-topbar-h: 52px;
+  --planner-tabs-sticky-top: var(--planner-topbar-h);
+
   width: 100%;
   max-width: 100%;
   overflow-x: clip;
   background: var(--planner-bg);
   color: var(--planner-text);
   min-height: 100%;
+  padding-left: var(--planner-safe-left);
+  padding-right: var(--planner-safe-right);
+  padding-bottom: var(--planner-safe-bottom);
 }
 
 .planner-redesign .planner-scroll-region {
@@ -68,7 +78,7 @@ body.is-embedded .planner-redesign .topbar {
 .planner-redesign .topbar {
   background: var(--planner-surface);
   border-bottom: 1px solid var(--planner-border);
-  padding: 0.55rem 1.5rem;
+  padding: calc(0.55rem + var(--planner-safe-top)) 1.5rem 0.55rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -223,8 +233,15 @@ body.is-embedded .planner-install-tip {
   background: var(--planner-surface);
   border-bottom: 1px solid var(--planner-border);
   position: sticky;
-  top: 48px;
+  top: var(--planner-tabs-sticky-top);
   z-index: 35;
+}
+
+body.is-embedded .planner-redesign {
+  --planner-tabs-sticky-top: 0px;
+  padding-left: 0;
+  padding-right: 0;
+  padding-bottom: 0;
 }
 
 body.is-embedded .planner-redesign .tabs-bar {
@@ -257,7 +274,7 @@ body.is-embedded .planner-redesign .tabs-bar {
   border-bottom: 2px solid transparent !important;
   box-shadow: none !important;
   white-space:nowrap;
-  min-height: 40px;
+  min-height: 44px;
 }
 
 .planner-redesign .tab-btn.planner-tab:hover {
@@ -2899,6 +2916,54 @@ button.week-priority-item.is-action:focus-visible {
   pointer-events: none;
 }
 
+@media (max-width: 1280px) {
+  .planner-redesign #panel-week .week-view-btn,
+  .planner-redesign #panel-week .week-nav-btn,
+  .planner-redesign #panel-week .week-nav-today {
+    min-height: 44px;
+  }
+
+  .planner-redesign #panel-week .week-nav-btn {
+    min-width: 44px;
+  }
+
+  .planner-redesign #panel-week .week-action,
+  .planner-redesign #panel-week .week-panel-control {
+    min-height: 44px;
+  }
+
+  .planner-redesign #panel-week .week-timetable-grid {
+    grid-template-columns: 72px repeat(5, minmax(118px, 1fr));
+    min-width: 720px;
+  }
+
+  .planner-redesign #panel-week .week-grid-corner,
+  .planner-redesign #panel-week .week-day-header {
+    min-height: 54px;
+    padding: 8px 6px;
+  }
+
+  .planner-redesign #panel-week .week-period-cell,
+  .planner-redesign #panel-week .week-lesson-cell {
+    min-height: 84px;
+    padding: 7px 6px;
+  }
+
+  .planner-redesign #panel-week .week-period-cell strong {
+    font-size: 0.82rem;
+  }
+
+  .planner-redesign #panel-week .week-period-cell span {
+    font-size: 0.62rem;
+  }
+
+  .planner-redesign #panel-week .week-slides-btn {
+    min-height: 32px;
+    padding: 0.28rem 0.5rem;
+    font-size: 0.68rem;
+  }
+}
+
 @media (max-width: 1250px) {
   .planner-redesign #panel-week .week-dashboard-grid {
     grid-template-columns: minmax(0, 1fr) 310px;
@@ -2916,6 +2981,31 @@ button.week-priority-item.is-action:focus-visible {
 
   .planner-redesign #panel-week .week-dashboard-grid {
     grid-template-columns: 1fr;
+  }
+
+  .planner-redesign #panel-week .week-timetable-grid {
+    grid-template-columns: 64px repeat(5, minmax(108px, 1fr));
+    min-width: 680px;
+  }
+}
+
+@media (max-width: 834px) {
+  .planner-redesign #panel-week .week-timetable-grid {
+    grid-template-columns: 58px repeat(5, minmax(96px, 1fr));
+    min-width: 620px;
+  }
+
+  .planner-redesign #panel-week .week-day-name {
+    font-size: 0.66rem;
+  }
+
+  .planner-redesign #panel-week .week-day-date {
+    font-size: 0.7rem;
+  }
+
+  .planner-redesign #panel-week .week-period-cell,
+  .planner-redesign #panel-week .week-lesson-cell {
+    min-height: 76px;
   }
 }
 
@@ -3150,8 +3240,6 @@ button.week-priority-item.is-action:focus-visible {
 
 /* ── Responsive ── */
 @media (max-width: 1100px) {
-  
-
   .planner-redesign .rd-stat-row,
   .planner-redesign .tt-summary-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -3161,7 +3249,10 @@ button.week-priority-item.is-action:focus-visible {
     grid-template-columns: 1fr;
   }
 
-  .planner-redesign .tabs-meta {
+  /* Keep academic year visible on iPad; hide bulkier chips */
+  .planner-redesign .tabs-meta .topbar-school-chip,
+  .planner-redesign .tabs-meta .meta-badge.teacher,
+  .planner-redesign .tabs-meta #topbarRoom {
     display: none;
   }
 }
@@ -3172,19 +3263,13 @@ button.week-priority-item.is-action:focus-visible {
   }
 
   .planner-redesign .topbar {
-    padding: 0.65rem 1rem;
+    padding: calc(0.65rem + var(--planner-safe-top)) 1rem 0.65rem;
   }
 
   .planner-redesign .rd-stat-row,
   .planner-redesign .tt-summary-row {
     grid-template-columns: 1fr 1fr;
   }
-
-  
-
-  
-  
-  
 }
 
 @media (max-width: 520px) {
@@ -3993,7 +4078,7 @@ button.week-priority-item.is-action:focus-visible {
   padding: 1.05rem 0.95rem !important;
   box-shadow: none !important;
   position: sticky;
-  top: 4.5rem;
+  top: calc(var(--planner-tabs-sticky-top) + 3.25rem);
 }
 
 .planner-redesign .bank-sidebar h3 {
@@ -4148,8 +4233,65 @@ button.week-priority-item.is-action:focus-visible {
   .planner-redesign .bank-layout {
     grid-template-columns: 1fr !important;
   }
+
   .planner-redesign .bank-sidebar {
     position: static !important;
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    padding: 0.85rem !important;
+  }
+
+  .planner-redesign .bank-sidebar h3 {
+    margin: 0;
+  }
+
+  .planner-redesign .bank-side-section + .bank-side-section {
+    margin-top: 0.35rem;
+    padding-top: 0.65rem;
+  }
+
+  .planner-redesign #bankSavedFilters {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.4rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 0.15rem;
+  }
+
+  .planner-redesign #bankSavedFilters .bank-filter-btn {
+    width: auto;
+    flex: 0 0 auto;
+    min-height: 44px;
+    border: 1px solid #d5e0ee;
+    background: #fff;
+    white-space: nowrap;
+  }
+
+  .planner-redesign #templatesList.lesson-grid {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)) !important;
+  }
+
+  .planner-redesign .lb-card {
+    min-height: 210px !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .planner-redesign #templatesList.lesson-grid {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)) !important;
+    gap: 0.9rem !important;
+  }
+
+  .planner-redesign .lb-card {
+    min-height: 0 !important;
+  }
+
+  .planner-redesign .lb-action-primary,
+  .planner-redesign .lb-card-secondary,
+  .planner-redesign .bank-filter-btn {
+    min-height: 44px;
   }
 }
 
@@ -4712,6 +4854,44 @@ button.week-priority-item.is-action:focus-visible {
   font-weight: 650;
 }
 
+@media (max-width: 1024px) {
+  #lessonModal.modal-overlay {
+    padding: 0;
+    align-items: stretch;
+  }
+
+  #lessonModal .lesson-modal-shell {
+    width: 100%;
+    height: 100dvh;
+    max-height: 100dvh;
+    border-radius: 0;
+    padding-bottom: var(--planner-safe-bottom, env(safe-area-inset-bottom, 0px));
+  }
+
+  #lessonModal .lesson-modal-hero {
+    padding-top: max(0.85rem, env(safe-area-inset-top, 0px));
+  }
+
+  #lessonModal .lesson-modal-footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
+    background: #fff;
+    box-shadow: 0 -6px 18px rgba(15, 23, 42, 0.08);
+  }
+
+  #lessonModal .lesson-modal-chip-btn,
+  #lessonModal .lesson-modal-close,
+  #lessonModal .lesson-modal-footer .btn-secondary {
+    min-height: 44px;
+  }
+
+  #lessonModal .lesson-modal-close {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+}
+
 @media (max-width: 900px) {
   #lessonModal .lesson-modal-top-strip {
     grid-template-columns: 1fr 1fr;
@@ -4724,17 +4904,6 @@ button.week-priority-item.is-action:focus-visible {
 }
 
 @media (max-width: 700px) {
-  #lessonModal.modal-overlay {
-    padding: 0;
-  }
-
-  #lessonModal .lesson-modal-shell {
-    width: 100%;
-    height: 100%;
-    max-height: 100%;
-    border-radius: 0;
-  }
-
   #lessonModal .lesson-modal-top-strip {
     grid-template-columns: 1fr;
   }
@@ -5224,5 +5393,156 @@ button.week-priority-item.is-action:focus-visible {
 
   .planner-redesign #panel-day .day-gap-hint {
     display: none;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   iPad / tablet polish — touch targets, Schemes, Timetable
+   ═══════════════════════════════════════════════════════════ */
+
+@media (pointer: coarse) {
+  .planner-redesign .week-view-btn,
+  .planner-redesign .week-nav-btn,
+  .planner-redesign .week-nav-today,
+  .planner-redesign .week-action,
+  .planner-redesign .week-panel-control,
+  .planner-redesign .planner-subnav-btn,
+  .planner-redesign .today-action,
+  .planner-redesign .today-panel-link,
+  .planner-redesign .today-week-tab,
+  .planner-redesign .rd-btn,
+  .planner-redesign .btn-primary,
+  .planner-redesign .btn-secondary,
+  .planner-redesign .scheme-filter-chip,
+  .planner-redesign .bank-filter-btn,
+  .planner-redesign .lb-action-primary,
+  .planner-redesign .tt-settings-details > summary {
+    min-height: 44px;
+  }
+
+  .planner-redesign .week-nav-btn,
+  .planner-redesign .btn-scheme-icon,
+  .planner-redesign .btn-scheme-export-lesson {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .planner-redesign .scheme-filter-chip {
+    padding: 0.5rem 0.9rem;
+    font-size: 0.78rem;
+  }
+
+  #lessonModal .lesson-modal-chip-btn {
+    min-height: 44px;
+    padding: 0.45rem 0.85rem;
+  }
+}
+
+@media (max-width: 1100px) {
+  .planner-redesign #panel-schemes .scheme-unit-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .planner-redesign #panel-schemes .scheme-unit-footer {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .planner-redesign #panel-schemes .scheme-unit-footer-bank-row {
+    grid-column: 1 / -1;
+  }
+
+  .planner-redesign #panel-schemes .btn-scheme-icon,
+  .planner-redesign #panel-schemes .btn-scheme-export-lesson {
+    min-width: 44px;
+    min-height: 44px;
+    font-size: 0.9rem;
+  }
+
+  .planner-redesign #panel-schemes .scheme-unit-card.is-expanded .scheme-unit-body {
+    max-height: none;
+    overflow: visible;
+  }
+
+  .planner-redesign #panel-schemes .scheme-filter-chip {
+    min-height: 40px;
+  }
+
+  .planner-redesign .timetable-display-grid,
+  .planner-redesign #timetableDisplayGrid {
+    font-size: 0.78rem;
+  }
+
+  .planner-redesign .tt-grid {
+    min-width: 520px;
+    --period-w: 2.6rem;
+    --cell-h: 2.9rem;
+  }
+
+  .planner-redesign .tt-actions-row .rd-btn,
+  .planner-redesign .tt-actions-row .btn-primary,
+  .planner-redesign .tt-settings-body .btn-primary,
+  .planner-redesign .tt-settings-body .btn-new-year {
+    min-height: 44px;
+  }
+
+  .planner-redesign .week-btn,
+  .planner-redesign .nav-btn {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 900px) {
+  .planner-redesign #panel-schemes .scheme-lesson-row-inner {
+    flex-wrap: wrap;
+  }
+
+  .planner-redesign #panel-schemes .scheme-lesson-side {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    align-items: center;
+    width: 100%;
+    gap: 0.4rem 0.5rem;
+  }
+
+  .planner-redesign #panel-schemes .scheme-unit-footer {
+    grid-template-columns: 1fr;
+  }
+
+  .planner-redesign .content {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .planner-redesign .tab-btn.planner-tab[data-tab="schemes"] {
+    padding-left: 0.7rem !important;
+    padding-right: 0.7rem !important;
+  }
+}
+
+@media (max-width: 834px) {
+  .planner-redesign #panel-today .today-lesson-actions {
+    min-width: 6.5rem;
+  }
+
+  .planner-redesign #panel-today .today-metrics {
+    gap: 0.65rem;
+  }
+
+  .planner-redesign .tabs-inner {
+    padding: 0 0.75rem;
+  }
+
+  .planner-redesign .tab-btn.planner-tab {
+    font-size: 0.8rem !important;
+    padding: 0.65rem 0.7rem !important;
+  }
+}
+
+/* Standalone home-screen: slightly denser content under notches */
+@media (display-mode: standalone) {
+  .planner-redesign .content {
+    padding-bottom: calc(2rem + var(--planner-safe-bottom));
   }
 }
