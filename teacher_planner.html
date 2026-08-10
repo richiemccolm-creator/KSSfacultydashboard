@@ -967,7 +967,7 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
   .pulse-right{text-align:left}
 }
 </style>
-<link rel="stylesheet" href="teacher-planner-redesign.css?v=library-2">
+<link rel="stylesheet" href="teacher-planner-redesign.css?v=library-3">
 </head>
 <body>
 <script>
@@ -1658,6 +1658,20 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
               <option value="drama">Drama</option>
               <option value="art">Art & Design</option>
               <option value="photography">Photography</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="lessonYearGroup">Year group</label>
+            <select class="form-select" id="lessonYearGroup">
+              <option value="">— Select —</option>
+              <option value="s1">S1</option>
+              <option value="s2">S2</option>
+              <option value="s3">S3</option>
+              <option value="s4">S4</option>
+              <option value="s5">S5</option>
+              <option value="s6">S6</option>
+              <option value="n5">N5</option>
+              <option value="higher">Higher</option>
             </select>
           </div>
           <div class="form-group">
@@ -2530,20 +2544,23 @@ function guessYearGroupLabel(template, unit) {
   return '';
 }
 
+function normLessonYearGroup(raw) {
+  var v = String(raw || '').trim().toLowerCase().replace(/\s+/g, '');
+  if (/^s[1-6]$/.test(v)) return v;
+  if (v === 'higher' || v === 'h') return 'higher';
+  if (v === 'n5' || v === 'nat5' || v === 'national5') return 'n5';
+  return '';
+}
+
 /** Normalised year key for Lesson Bank colouring/filters: s1–s6 | n5 | higher | other */
 function lessonBankYearKey(template, unit) {
-  function normYear(raw) {
-    var v = String(raw || '').trim().toLowerCase().replace(/\s+/g, '');
-    if (/^s[1-6]$/.test(v)) return v;
-    if (v === 'higher' || v === 'h') return 'higher';
-    if (v === 'n5' || v === 'nat5' || v === 'national5') return 'n5';
-    return '';
-  }
-  var fromUnit = normYear((unit && (unit.yearGroup || unit.year)) || (template && template.yearGroup));
+  var fromTemplate = normLessonYearGroup(template && template.yearGroup);
+  if (fromTemplate) return fromTemplate;
+  var fromUnit = normLessonYearGroup(unit && (unit.yearGroup || unit.year));
   if (fromUnit) return fromUnit;
   var keyParts = String((template && template.unitKey) || '').split('-');
   if (keyParts.length >= 2) {
-    var fromKey = normYear(keyParts[1]);
+    var fromKey = normLessonYearGroup(keyParts[1]);
     if (fromKey) return fromKey;
   }
   var hay = (((template && (template.name || template.title)) || '') + ' ' + ((unit && unit.unit) || '') + ' ' + ((template && template.unitKey) || '')).toLowerCase();
@@ -2556,6 +2573,31 @@ function lessonBankYearKey(template, unit) {
   if (/\bhigher\b/.test(hay)) return 'higher';
   if (/\bn5\b|\bnat\s*5\b|\bnational 5\b/.test(hay)) return 'n5';
   return 'other';
+}
+
+function yearGroupFromUnitKey(unitKey) {
+  var keyParts = String(unitKey || '').split('-');
+  if (keyParts.length < 2) return '';
+  return normLessonYearGroup(keyParts[1]);
+}
+
+function setLessonYearGroupField(value) {
+  var sel = document.getElementById('lessonYearGroup');
+  if (!sel) return;
+  var v = normLessonYearGroup(value);
+  if (v && Array.prototype.some.call(sel.options, function(o) { return o.value === v; })) {
+    sel.value = v;
+  } else {
+    sel.value = '';
+  }
+}
+
+function syncYearGroupFromSelectedUnit() {
+  var unitSel = document.getElementById('lessonUnit');
+  var ygSel = document.getElementById('lessonYearGroup');
+  if (!unitSel || !ygSel) return;
+  var fromUnit = yearGroupFromUnitKey(unitSel.value);
+  if (fromUnit) setLessonYearGroupField(fromUnit);
 }
 
 var weekUnfinishedOnly = false;
@@ -2608,18 +2650,17 @@ function collectScheduleSlots(opts) {
   var subject = opts.subject || '';
   var start = PS.getCurrentWeekStart ? PS.getCurrentWeekStart() : PS.getWeekStart(new Date());
   if (!start) start = PS.getWeekStart(new Date());
-  var out = [];
-  var dayOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
-  for (var i = 0; i < 10; i++) {
+  var matched = [];
+  var other = [];
+  for (var i = 0; i < 14; i++) {
     var d = new Date(start);
     d.setDate(d.getDate() + i);
     if (d.getDay() === 0 || d.getDay() === 6) continue;
     var dateStr = getDateStr(d);
     getSlotsForDate(d).forEach(function(row) {
-      if (subject && row.slot.subject && row.slot.subject !== subject) return;
       var existing = PS.getLessonFor(dateStr, row.slotKey);
       var empty = !existing;
-      out.push({
+      var item = {
         dateStr: dateStr,
         slotKey: row.slotKey,
         period: row.period,
@@ -2627,16 +2668,21 @@ function collectScheduleSlots(opts) {
         empty: empty,
         dayLabel: d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }),
         classLabel: row.slot.className || subjectLabel(row.slot.subject) || 'Class',
-        timeLabel: periodTimeLabel(row.period)
-      });
+        timeLabel: periodTimeLabel(row.period),
+        subjectMatch: !subject || !row.slot.subject || row.slot.subject === subject
+      };
+      if (item.subjectMatch) matched.push(item);
+      else other.push(item);
     });
-    if (out.length >= 18) break;
   }
+  // Prefer same-subject slots, but always offer other teaching periods so scheduling still works.
+  var out = matched.length ? matched.concat(other) : other;
   out.sort(function(a, b) {
     if (a.empty !== b.empty) return a.empty ? -1 : 1;
+    if (a.subjectMatch !== b.subjectMatch) return a.subjectMatch ? -1 : 1;
     return (a.dateStr + a.slotKey).localeCompare(b.dateStr + b.slotKey);
   });
-  return out.slice(0, 12);
+  return out.slice(0, 16);
 }
 
 function scheduleTemplateToSlot(templateId, dateStr, slotKeyStr, opts) {
@@ -2650,6 +2696,7 @@ function scheduleTemplateToSlot(templateId, dateStr, slotKeyStr, opts) {
     date: dateStr,
     slotKey: slotKeyStr,
     subject: t.subject,
+    yearGroup: t.yearGroup || '',
     unitKey: t.unitKey,
     title: t.title || t.name,
     lessonNumber: (t.lessonNumber && String(t.lessonNumber).trim()) || '',
@@ -2715,40 +2762,57 @@ function openQuickSchedule(templateId, anchorEl) {
   if (!t) { showToast('Lesson not found'); return; }
   var pop = document.getElementById('quickSchedulePopover');
   if (!pop) return;
+  // Prevent the opening click from immediately dismissing the popover.
+  if (window._qsIgnoreDocCloseUntil) {
+    /* already set */
+  }
+  window._qsIgnoreDocCloseUntil = Date.now() + 400;
+
   var slots = collectScheduleSlots({ subject: t.subject || '' });
   var html = '<h4>Schedule “' + escHtml(t.name || t.title || 'Lesson') + '”</h4>';
-  html += '<p>Pick a teaching slot this week. Empty slots are listed first.</p>';
+  html += '<p>Choose a day and period. Empty slots appear first.</p>';
   if (!slots.length) {
-    html += '<p class="rd-empty">No teaching slots found. Set up your timetable first.</p>';
+    html += '<p class="rd-empty">No teaching periods found in your timetable. Add slots in Timetable, or pick a date and period below.</p>';
   } else {
     html += '<div class="qs-slots">';
     slots.forEach(function(s) {
-      html += '<button type="button" class="qs-slot" data-date="' + s.dateStr + '" data-slot="' + s.slotKey + '">';
-      html += escHtml(s.dayLabel + ' · P' + s.period + ' · ' + s.classLabel);
-      html += '<small>' + (s.empty ? 'Empty — ready to schedule' : 'Has a plan — will replace') + (s.timeLabel ? ' · ' + escHtml(s.timeLabel) : '') + '</small>';
+      html += '<button type="button" class="qs-slot' + (s.empty ? ' is-empty' : ' is-filled') + '" data-date="' + s.dateStr + '" data-slot="' + s.slotKey + '">';
+      html += '<strong>' + escHtml(s.dayLabel) + ' · Period ' + s.period + '</strong>';
+      html += '<small>' + escHtml(s.classLabel) + (s.timeLabel ? ' · ' + escHtml(s.timeLabel) : '') + ' · ' + (s.empty ? 'Empty' : 'Has a plan — will replace') + '</small>';
       html += '</button>';
     });
     html += '</div>';
   }
-  html += '<div class="qs-foot"><button type="button" class="rd-link" id="qsAdvanced">More options…</button><button type="button" class="rd-btn rd-btn-outline" id="qsClose">Close</button></div>';
+  html += '<div class="qs-foot">' +
+    '<button type="button" class="rd-btn rd-btn-primary" id="qsPickDatePeriod">Pick date &amp; period…</button>' +
+    '<button type="button" class="rd-btn rd-btn-outline" id="qsClose">Close</button>' +
+  '</div>';
   pop.innerHTML = html;
   pop.hidden = false;
   pop.classList.add('is-open');
   var rect = anchorEl && anchorEl.getBoundingClientRect ? anchorEl.getBoundingClientRect() : null;
   var top = rect ? Math.min(window.innerHeight - 24, rect.bottom + 8) : 80;
-  var left = rect ? Math.min(window.innerWidth - 360, Math.max(12, rect.left - 80)) : 24;
-  if (rect && rect.bottom + 320 > window.innerHeight) top = Math.max(12, rect.top - 320);
+  var left = rect ? Math.min(window.innerWidth - 360, Math.max(12, rect.left - 40)) : 24;
+  if (rect && rect.bottom + 360 > window.innerHeight) top = Math.max(12, rect.top - 360);
   pop.style.top = top + 'px';
   pop.style.left = left + 'px';
   pop.querySelectorAll('.qs-slot').forEach(function(btn) {
-    btn.addEventListener('click', function() {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
       scheduleTemplateToSlot(templateId, btn.dataset.date, btn.dataset.slot);
     });
   });
   var closeBtn = document.getElementById('qsClose');
-  if (closeBtn) closeBtn.addEventListener('click', closeQuickSchedule);
-  var adv = document.getElementById('qsAdvanced');
-  if (adv) adv.addEventListener('click', function() {
+  if (closeBtn) closeBtn.addEventListener('click', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    closeQuickSchedule();
+  });
+  var pickBtn = document.getElementById('qsPickDatePeriod');
+  if (pickBtn) pickBtn.addEventListener('click', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
     closeQuickSchedule();
     openApplyToTimetableModal(templateId);
   });
@@ -5034,7 +5098,11 @@ function renderLibraryPreview(vm) {
   var editBtn = document.getElementById('libraryPreviewEdit');
   if (editBtn) editBtn.addEventListener('click', function() { openLessonModalForLibrary(vm.id); });
   var schedBtn = document.getElementById('libraryPreviewSchedule');
-  if (schedBtn) schedBtn.addEventListener('click', function() { openQuickSchedule(vm.id, schedBtn); });
+  if (schedBtn) schedBtn.addEventListener('click', function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    openQuickSchedule(vm.id, schedBtn);
+  });
 }
 
 function runLibraryAction(action, templateId, anchor) {
@@ -6238,6 +6306,13 @@ function openLessonModal(dateStr, slotKey) {
   document.getElementById('lessonNumber').value = lesson ? (lesson.lessonNumber || '') : '';
   setLessonBodyEditor(lessonRecordToBodyHtml(lesson));
   populateUnitDropdown(document.getElementById('lessonSubject').value);
+  if (lesson && lesson.unitKey) document.getElementById('lessonUnit').value = lesson.unitKey;
+  var ygInit = (lesson && lesson.yearGroup) || yearGroupFromUnitKey(lesson && lesson.unitKey) || '';
+  if (!ygInit && lesson) {
+    var inferred = lessonBankYearKey(lesson, lesson.unitKey && window.getUnitFromKey ? window.getUnitFromKey(lesson.unitKey) : null);
+    if (inferred && inferred !== 'other') ygInit = inferred;
+  }
+  setLessonYearGroupField(ygInit);
   renderResourcesList(lesson ? (lesson.resources || []) : []);
   renderTodosList(lesson ? (lesson.todos || []) : []);
   var slidesAtt = window.LessonSlidesCatalog
@@ -6280,6 +6355,13 @@ function openLessonModalForLibrary(templateId) {
   document.getElementById('lessonNumber').value = template ? (template.lessonNumber || '') : '';
   setLessonBodyEditor(lessonRecordToBodyHtml(template));
   populateUnitDropdown(document.getElementById('lessonSubject').value);
+  if (template && template.unitKey) document.getElementById('lessonUnit').value = template.unitKey;
+  var ygLib = (template && template.yearGroup) || yearGroupFromUnitKey(template && template.unitKey) || '';
+  if (!ygLib && template) {
+    var inferredLib = lessonBankYearKey(template, template.unitKey && window.getUnitFromKey ? window.getUnitFromKey(template.unitKey) : null);
+    if (inferredLib && inferredLib !== 'other') ygLib = inferredLib;
+  }
+  setLessonYearGroupField(ygLib);
   renderResourcesList(template ? (template.resources || []) : []);
   renderTodosList(template ? (template.todos || []) : []);
   var slidesAtt = window.LessonSlidesCatalog
@@ -6323,6 +6405,12 @@ function applyTemplateToModal(template) {
   document.getElementById('lessonUnit').value = template.unitKey || '';
   document.getElementById('lessonTitle').value = template.title || template.name || '';
   document.getElementById('lessonNumber').value = template.lessonNumber || '';
+  var yg = template.yearGroup || yearGroupFromUnitKey(template.unitKey) || '';
+  if (!yg) {
+    var inferred = lessonBankYearKey(template, template.unitKey && window.getUnitFromKey ? window.getUnitFromKey(template.unitKey) : null);
+    if (inferred && inferred !== 'other') yg = inferred;
+  }
+  setLessonYearGroupField(yg);
   setLessonBodyEditor(lessonRecordToBodyHtml(template));
   renderResourcesList(template.resources || []);
   renderTodosList(template.todos || []);
@@ -6443,6 +6531,9 @@ document.getElementById('todosList').addEventListener('click', function(e) {
 document.getElementById('lessonSubject').addEventListener('change', function() {
   populateUnitDropdown(this.value);
 });
+document.getElementById('lessonUnit').addEventListener('change', function() {
+  syncYearGroupFromSelectedUnit();
+});
 
 (function bindLessonSlidesUi() {
   var pickBtn = document.getElementById('lessonSlidesPickBtn');
@@ -6506,6 +6597,7 @@ function collectLessonPayloadFromModal(overrides) {
     date: document.getElementById('lessonDate').value,
     slotKey: document.getElementById('lessonSlotKey').value,
     subject: document.getElementById('lessonSubject').value,
+    yearGroup: (document.getElementById('lessonYearGroup') && document.getElementById('lessonYearGroup').value) || '',
     unitKey: document.getElementById('lessonUnit').value,
     title: document.getElementById('lessonTitle').value,
     lessonNumber: (document.getElementById('lessonNumber').value || '').trim(),
@@ -6569,6 +6661,7 @@ document.getElementById('lessonSaveAsTemplate').addEventListener('click', functi
   var template = {
     name: name.trim(),
     subject: payload.subject,
+    yearGroup: payload.yearGroup || '',
     unitKey: payload.unitKey,
     title: payload.title,
     lessonNumber: payload.lessonNumber || '',
@@ -7426,30 +7519,17 @@ document.getElementById('applyToTimetableConfirm').addEventListener('click', fun
   var dateStr = document.getElementById('applyToDate').value;
   if (!dateStr) { showToast('Select a date'); return; }
   var period = parseInt(document.getElementById('applyToPeriod').value, 10);
+  if (!period) { showToast('Select a period'); return; }
   var dayName = weekdayFromDateStr(dateStr);
+  if (!dayName || dayName === 'saturday' || dayName === 'sunday') {
+    showToast('Choose a weekday');
+    return;
+  }
   var toSlotKey = slotKey(dayName, period);
-  var payload = {
-    date: dateStr,
-    slotKey: toSlotKey,
-    subject: t.subject,
-    unitKey: t.unitKey,
-    title: t.title || t.name,
-    lessonNumber: (t.lessonNumber && String(t.lessonNumber).trim()) || '',
-    body: lessonRecordToBodyHtml(t),
-    notes: t.notes || lessonBodyPlainText(lessonRecordToBodyHtml(t)),
-    resources: t.resources || [],
-    todos: (t.todos || []).map(function(x) { return { id: PS.id(), text: x.text || '', done: false }; }),
-    updatedAt: new Date().toISOString()
-  };
-  PS.upsertLesson(payload, null);
-  PS.saveLessons().then(function() {
+  scheduleTemplateToSlot(applyToTimetableTemplateId, dateStr, toSlotKey).then(function() {
     document.getElementById('applyToTimetableModal').classList.remove('visible');
     applyToTimetableTemplateId = null;
-    showToast('Lesson added to timetable');
-    if (document.getElementById('panel-week').classList.contains('active')) renderWeekView();
-    if (document.getElementById('panel-day').classList.contains('active')) renderDayView();
-    if (document.getElementById('panel-month').classList.contains('active')) renderMonthView();
-  });
+  }).catch(function() {});
 });
 
 document.getElementById('applyToTimetableModal').addEventListener('click', function(e) {
@@ -7883,9 +7963,14 @@ document.addEventListener('click', function(e) {
     var b = w.querySelector('.lesson-card-more-btn');
     if (b) b.setAttribute('aria-expanded', 'false');
   });
-  if (!(e.target.closest && e.target.closest('#quickSchedulePopover')) && !(e.target.closest && e.target.closest('.lesson-card-apply-btn'))) {
-    closeQuickSchedule();
-  }
+  if (window._qsIgnoreDocCloseUntil && Date.now() < window._qsIgnoreDocCloseUntil) return;
+  var keepOpen = e.target.closest && (
+    e.target.closest('#quickSchedulePopover') ||
+    e.target.closest('.lesson-card-apply-btn') ||
+    e.target.closest('#libraryPreviewSchedule') ||
+    e.target.closest('[data-lib-action="schedule"]')
+  );
+  if (!keepOpen) closeQuickSchedule();
 });
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Escape') closeQuickSchedule();
