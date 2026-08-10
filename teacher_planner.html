@@ -967,7 +967,7 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
   .pulse-right{text-align:left}
 }
 </style>
-<link rel="stylesheet" href="teacher-planner-redesign.css?v=week-compose-1">
+<link rel="stylesheet" href="teacher-planner-redesign.css?v=tt-dense-1">
 </head>
 <body>
 <script>
@@ -3593,14 +3593,15 @@ function renderTimetableSummary() {
       if (byDay[d] > busiestN) { busiestN = byDay[d]; busiest = d; }
     });
     foot.innerHTML =
-      '<div class="rd-card"><h3>Class key / filters</h3><p class="rd-empty">Use Edit timetable to change subjects, classes and rooms.</p></div>' +
-      '<div class="rd-card"><h3>At a glance</h3><div class="tt-glance">' +
-        ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map(function(label, i) {
-          var key = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'][i];
-          return '<span class="tt-glance-pill">' + label + ' (' + byDay[key] + ')</span>';
-        }).join('') +
-      '</div></div>' +
-      '<div class="rd-card"><h3>Busiest day</h3><p><strong>' + busiest.charAt(0).toUpperCase() + busiest.slice(1) + '</strong> — ' + busiestN + ' lesson' + (busiestN === 1 ? '' : 's') + ' scheduled.</p></div>';
+      '<div class="tt-footer-bar">' +
+        '<div class="tt-glance" aria-label="Lessons per day">' +
+          ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map(function(label, i) {
+            var key = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'][i];
+            return '<span class="tt-glance-pill">' + label + ' ' + byDay[key] + '</span>';
+          }).join('') +
+        '</div>' +
+        '<p class="tt-busiest">Busiest: <strong>' + busiest.charAt(0).toUpperCase() + busiest.slice(1) + '</strong> (' + busiestN + ')</p>' +
+      '</div>';
   }
 }
 
@@ -3774,7 +3775,15 @@ function renderTimetable() {
 }
 
 function renderTimetableDisplay() {
-  renderPlannerInsights();
+  // Keep legacy plannerInsights collapsed — summary row already covers the same stats.
+  var insights = document.getElementById('plannerInsights');
+  if (insights) {
+    insights.hidden = true;
+    insights.setAttribute('hidden', '');
+    insights.innerHTML = '';
+  }
+  syncTopbarMeta();
+  if (typeof renderPlannerPulse === 'function') renderPlannerPulse();
   renderTimetableSummary();
   var state = PS.getState();
   var slots = state.timetable.slots || [];
@@ -3787,12 +3796,12 @@ function renderTimetableDisplay() {
     return;
   }
   var dayLabels = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
-  var dayCaps = { monday: 'Monday', tuesday: 'Tuesday', wednesday: 'Wednesday', thursday: 'Thursday', friday: 'Friday' };
+  var dayCaps = { monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu', friday: 'Fri' };
   var dayPeriods = PERIODS_BY_DAY;
   var maxP = 7;
   var byKey = {};
   slots.forEach(function(s) { byKey[slotKey((s.day || '').toLowerCase(), s.period)] = s; });
-  var html = '<p class="section-lbl">My weekly timetable</p><div class="grid-wrap"><div class="tt-grid">';
+  var html = '<div class="grid-wrap"><div class="tt-grid">';
   html += '<div class="tt-th corner"></div>';
   dayLabels.forEach(function(dayName) {
     html += '<div class="tt-th">' + dayCaps[dayName] + '</div>';
@@ -3825,14 +3834,11 @@ function renderTimetableDisplay() {
       }
     });
   }
-  html += '</div></div><div style="display:flex;gap:.6rem;align-items:center;margin-top:.9rem;flex-wrap:wrap"><button type="button" class="btn-secondary" id="editTimetableBtnInline">Edit timetable</button><span style="font-size:.73rem;color:var(--muted)">Use <strong>Import faculty timetable</strong> to fill periods from the faculty view, or <strong>Import N5 CI sessions</strong> for course plans — then edit in <strong>Week View</strong> or <strong>Day View</strong></span></div>';
+  html += '</div></div>';
   gridEl.innerHTML = html;
-  displaySection.style.display = 'block';
+  displaySection.style.display = 'flex';
+  displaySection.style.flexDirection = 'column';
   editSection.style.display = 'none';
-  document.getElementById('editTimetableBtnInline').addEventListener('click', function() {
-    displaySection.style.display = 'none';
-    editSection.style.display = 'block';
-  });
 }
 
 function collectTimetableFromDOM() {
