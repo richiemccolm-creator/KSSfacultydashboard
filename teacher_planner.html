@@ -967,7 +967,7 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
   .pulse-right{text-align:left}
 }
 </style>
-<link rel="stylesheet" href="teacher-planner-redesign.css?v=week-dense-2">
+<link rel="stylesheet" href="teacher-planner-redesign.css?v=week-compose-1">
 </head>
 <body>
 <script>
@@ -4354,7 +4354,6 @@ function createWeekDashboardMarkup(model) {
 
   var filterLabel = model.unfinishedOnly ? 'Show all lessons' : 'Show unfinished only';
   var sc = model.statusCounts;
-  var ringStyle = 'background: conic-gradient(var(--week-green) 0 ' + model.planPct + '%, rgba(21,152,120,0.15) ' + model.planPct + '% 100%);';
 
   return (
     '<section class="week-hero">' +
@@ -4372,7 +4371,6 @@ function createWeekDashboardMarkup(model) {
         '</div>' +
       '</div>' +
       '<div class="week-hero-main">' +
-        '<div class="week-eyebrow">WEEK OVERVIEW</div>' +
         '<h1 class="week-heading">' + escHtml(model.heading) + '</h1>' +
         '<p class="week-summary">' + escHtml(summary) + '</p>' +
         '<div class="week-hero-actions">' +
@@ -4381,15 +4379,6 @@ function createWeekDashboardMarkup(model) {
           '<button type="button" id="weekCopyPreviousAction" class="week-action week-action-secondary" disabled title="Copying will be added after the current save model is reviewed.">Copy previous week</button>' +
         '</div>' +
       '</div>' +
-      '<aside class="week-hero-meta">' +
-        '<div class="week-time-panel">' +
-          '<div class="week-meta-range">' + escHtml(model.weekMetaPrimary) + '</div>' +
-          '<div class="week-meta-extra">' + escHtml(model.weekMetaSecondary) + '</div>' +
-          '<div class="week-time-divider"></div>' +
-          '<div class="week-room">' + escHtml(model.room) + '</div>' +
-          '<div class="week-school">' + escHtml(model.school) + '</div>' +
-        '</div>' +
-      '</aside>' +
     '</section>' +
     '<div class="week-dashboard-grid">' +
       '<main class="week-main-column">' +
@@ -4404,17 +4393,28 @@ function createWeekDashboardMarkup(model) {
           '<div class="week-timetable-scroll">' + grid + '</div>' +
           '<footer class="week-timetable-footer">' +
             '<div class="week-status-legend" aria-label="Status legend">' +
-              '<span class="lg-planned">Planned</span>' +
-              '<span class="lg-draft">Draft</span>' +
-              '<span class="lg-complete">Complete</span>' +
-              '<span class="lg-needs">Needs planning</span>' +
+              '<span class="lg-planned">Planned ' + (sc.planned || 0) + '</span>' +
+              '<span class="lg-draft">Draft ' + (sc.draft || 0) + '</span>' +
+              '<span class="lg-complete">Complete ' + (sc.complete || 0) + '</span>' +
+              '<span class="lg-needs">Needs ' + (sc['needs-planning'] || 0) + '</span>' +
             '</div>' +
             '<div class="week-footer-progress">' +
-              '<span class="week-footer-progress-label">' + model.planned + ' of ' + model.teaching + ' lessons planned</span>' +
+              '<span class="week-footer-progress-label">' + model.planned + ' of ' + model.teaching + ' planned · ' + model.planPct + '%</span>' +
               '<div class="week-footer-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + model.planPct + '"><span style="width:' + model.planPct + '%"></span></div>' +
             '</div>' +
           '</footer>' +
         '</section>' +
+        '<details class="week-panel week-notes-panel week-notes-details"' + (model.note ? ' open' : '') + '>' +
+          '<summary class="week-notes-summary">' +
+            '<span>Weekly notes</span>' +
+            '<button type="button" id="weekSaveNoteAction" class="week-panel-link">Save note</button>' +
+          '</summary>' +
+          '<div class="week-note-card">' +
+            '<label class="sr-only" for="weekNotesRedesign">Weekly notes</label>' +
+            '<textarea id="weekNotesRedesign" data-week="' + escHtml(model.weekStartStr) + '" placeholder="Meeting notes, reminders, priorities…" rows="3">' + escHtml(model.note) + '</textarea>' +
+            '<div class="week-note-meta">Saves with your week notes</div>' +
+          '</div>' +
+        '</details>' +
       '</main>' +
       '<aside class="week-sidebar">' +
         '<section class="week-panel week-priorities-panel">' +
@@ -4424,32 +4424,6 @@ function createWeekDashboardMarkup(model) {
         '<section class="week-panel week-deadlines-panel">' +
           '<header class="week-panel-header"><h2>Upcoming dates</h2><button type="button" id="weekViewAllDeadlines" class="week-panel-link">View all</button></header>' +
           upcomingHtml +
-        '</section>' +
-        '<section class="week-panel week-progress-panel">' +
-          '<header class="week-panel-header"><h2>Weekly progress</h2></header>' +
-          '<div class="week-progress-layout">' +
-            '<div class="week-progress-ring" style="' + ringStyle + '" role="img" aria-label="' + model.planPct + ' percent planned">' +
-              '<div class="week-progress-ring-inner"><strong>' + model.planPct + '%</strong><span>Planned</span></div>' +
-            '</div>' +
-            '<div class="week-progress-details">' +
-              '<strong class="week-progress-heading">' + model.planned + ' of ' + model.teaching + ' lessons planned</strong>' +
-              '<div class="week-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + model.planPct + '"><span style="width:' + model.planPct + '%"></span></div>' +
-              '<div class="week-progress-legend">' +
-                '<span class="lg-planned">Planned ' + (sc.planned || 0) + '</span>' +
-                '<span class="lg-draft">Draft ' + (sc.draft || 0) + '</span>' +
-                '<span class="lg-complete">Complete ' + (sc.complete || 0) + '</span>' +
-                '<span class="lg-needs">Needs planning ' + (sc['needs-planning'] || 0) + '</span>' +
-              '</div>' +
-            '</div>' +
-          '</div>' +
-        '</section>' +
-        '<section class="week-panel week-notes-panel">' +
-          '<header class="week-panel-header"><h2>Weekly notes</h2><button type="button" id="weekSaveNoteAction" class="week-panel-link">Save note</button></header>' +
-          '<div class="week-note-card">' +
-            '<label class="sr-only" for="weekNotesRedesign">Weekly notes</label>' +
-            '<textarea id="weekNotesRedesign" data-week="' + escHtml(model.weekStartStr) + '" placeholder="Meeting notes, reminders, priorities…" rows="4">' + escHtml(model.note) + '</textarea>' +
-            '<div class="week-note-meta">Saves with your week notes</div>' +
-          '</div>' +
         '</section>' +
       '</aside>' +
     '</div>'
@@ -4534,7 +4508,13 @@ function bindWeekDashboardEvents(root, model) {
     PS.saveWeekNotes().then(function() { showToast('Week notes saved'); }).catch(function() {});
   }
   var saveBtn = root.querySelector('#weekSaveNoteAction');
-  if (saveBtn) saveBtn.addEventListener('click', saveNote);
+  if (saveBtn) {
+    saveBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      saveNote();
+    });
+  }
   bindWeekSidebarEvents(model.weekStartStr);
 
   root.querySelectorAll('.week-lesson-cell[data-date][data-slot]').forEach(function(cell) {
