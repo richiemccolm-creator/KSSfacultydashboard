@@ -967,7 +967,7 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
   .pulse-right{text-align:left}
 }
 </style>
-<link rel="stylesheet" href="teacher-planner-redesign.css?v=bank-dense-1">
+<link rel="stylesheet" href="teacher-planner-redesign.css?v=bank-color-1">
 </head>
 <body>
 <script>
@@ -1193,6 +1193,8 @@ body{font-family:'Inter',sans-serif;background:var(--off-white);color:var(--text
           <option value="s4">S4</option>
           <option value="s5">S5</option>
           <option value="s6">S6</option>
+          <option value="n5">N5</option>
+          <option value="higher">Higher</option>
         </select>
         <select id="lessonBankFilterStatus" aria-label="Status filter">
           <option value="">Status</option>
@@ -2466,16 +2468,44 @@ function lessonBankBadgeCode(template, unit) {
 }
 
 function guessYearGroupLabel(template, unit) {
-  var hay = (((template && (template.name || template.title)) || '') + ' ' + ((unit && unit.unit) || '') + ' ' + ((template && template.unitKey) || '')).toLowerCase();
-  if (/\bs1\b/.test(hay)) return 'S1';
-  if (/\bs2\b/.test(hay)) return 'S2';
-  if (/\bs3\b/.test(hay)) return 'S3';
-  if (/\bs4\b/.test(hay)) return 'S4';
-  if (/\bs5\b/.test(hay)) return 'S5';
-  if (/\bs6\b/.test(hay)) return 'S6';
-  if (/higher/.test(hay)) return 'Higher';
-  if (/n5|nat\s*5|national 5/.test(hay)) return 'N5';
+  var key = lessonBankYearKey(template, unit);
+  if (key === 's1') return 'S1';
+  if (key === 's2') return 'S2';
+  if (key === 's3') return 'S3';
+  if (key === 's4') return 'S4';
+  if (key === 's5') return 'S5';
+  if (key === 's6') return 'S6';
+  if (key === 'higher') return 'Higher';
+  if (key === 'n5') return 'N5';
   return '';
+}
+
+/** Normalised year key for Lesson Bank colouring/filters: s1–s6 | n5 | higher | other */
+function lessonBankYearKey(template, unit) {
+  function normYear(raw) {
+    var v = String(raw || '').trim().toLowerCase().replace(/\s+/g, '');
+    if (/^s[1-6]$/.test(v)) return v;
+    if (v === 'higher' || v === 'h') return 'higher';
+    if (v === 'n5' || v === 'nat5' || v === 'national5') return 'n5';
+    return '';
+  }
+  var fromUnit = normYear((unit && (unit.yearGroup || unit.year)) || (template && template.yearGroup));
+  if (fromUnit) return fromUnit;
+  var keyParts = String((template && template.unitKey) || '').split('-');
+  if (keyParts.length >= 2) {
+    var fromKey = normYear(keyParts[1]);
+    if (fromKey) return fromKey;
+  }
+  var hay = (((template && (template.name || template.title)) || '') + ' ' + ((unit && unit.unit) || '') + ' ' + ((template && template.unitKey) || '')).toLowerCase();
+  if (/\bs1\b/.test(hay)) return 's1';
+  if (/\bs2\b/.test(hay)) return 's2';
+  if (/\bs3\b/.test(hay)) return 's3';
+  if (/\bs4\b/.test(hay)) return 's4';
+  if (/\bs5\b/.test(hay)) return 's5';
+  if (/\bs6\b/.test(hay)) return 's6';
+  if (/\bhigher\b/.test(hay)) return 'higher';
+  if (/\bn5\b|\bnat\s*5\b|\bnational 5\b/.test(hay)) return 'n5';
+  return 'other';
 }
 
 var weekUnfinishedOnly = false;
@@ -2687,7 +2717,8 @@ function syncBankIntentChips(allTemplates) {
     art: 0,
     photography: 0,
     with: 0,
-    fav: 0
+    fav: 0,
+    s1: 0, s2: 0, s3: 0, s4: 0, s5: 0, s6: 0, n5: 0, higher: 0
   };
   allTemplates.forEach(function(t) {
     var st = deriveLessonStatus(t);
@@ -2696,23 +2727,37 @@ function syncBankIntentChips(allTemplates) {
     var hasRes = Array.isArray(t.resources) ? t.resources.length > 0 : !!(t.resources && String(t.resources).trim());
     if (hasRes) counts.with++;
     if (favs.indexOf(t.id) >= 0) counts.fav++;
+    var u = t.unitKey && window.getUnitFromKey ? window.getUnitFromKey(t.unitKey) : null;
+    var yk = lessonBankYearKey(t, u);
+    if (counts[yk] != null) counts[yk]++;
   });
   var subject = (document.getElementById('lessonBankFilterSubject') || {}).value || '';
   var status = (document.getElementById('lessonBankFilterStatus') || {}).value || '';
   var resources = (document.getElementById('lessonBankFilterResources') || {}).value || '';
+  var year = (document.getElementById('lessonBankFilterYear') || {}).value || '';
   var favOnly = wrap.dataset.favOnly === '1';
   function chip(key, label, on, extraClass, count) {
+    if (!count && key !== 'all') return '';
     return '<button type="button" class="bank-intent-chip' + (on ? ' is-on' : '') + (extraClass ? ' ' + extraClass : '') + '" data-chip="' + key + '">' + label + ' <span class="n">' + count + '</span></button>';
   }
+  var yearChipHtml =
+    chip('yg-s1', 'S1', year === 's1', 'chip-yg yg-s1', counts.s1) +
+    chip('yg-s2', 'S2', year === 's2', 'chip-yg yg-s2', counts.s2) +
+    chip('yg-s3', 'S3', year === 's3', 'chip-yg yg-s3', counts.s3) +
+    chip('yg-s4', 'S4', year === 's4', 'chip-yg yg-s4', counts.s4) +
+    chip('yg-s5', 'S5', year === 's5', 'chip-yg yg-s5', counts.s5) +
+    chip('yg-s6', 'S6', year === 's6', 'chip-yg yg-s6', counts.s6) +
+    chip('yg-n5', 'N5', year === 'n5', 'chip-yg yg-n5', counts.n5) +
+    chip('yg-higher', 'Higher', year === 'higher', 'chip-yg yg-higher', counts.higher);
   wrap.innerHTML =
-    chip('all', 'All', !subject && !status && !resources && !favOnly, '', counts.all) +
+    chip('all', 'All', !subject && !status && !resources && !year && !favOnly, '', counts.all) +
+    chip('drama', 'Drama', subject === 'drama', 'chip-subj subj-drama', counts.drama) +
+    chip('art', 'Art', subject === 'art', 'chip-subj subj-art', counts.art) +
+    chip('photography', 'Photo', subject === 'photography', 'chip-subj subj-photography', counts.photography) +
+    yearChipHtml +
     chip('draft', 'Drafts', status === 'draft', 'is-warn', counts.draft) +
     chip('planned', 'Planned', status === 'planned', '', counts.planned) +
-    chip('drama', 'Drama', subject === 'drama', '', counts.drama) +
-    chip('art', 'Art', subject === 'art', '', counts.art) +
-    chip('photography', 'Photo', subject === 'photography', '', counts.photography) +
-    chip('with', 'Has resources', resources === 'with', '', counts.with) +
-    chip('fav', 'Favourites', favOnly, '', counts.fav) +
+    chip('fav', '★', favOnly, '', counts.fav) +
     '<button type="button" class="bank-intent-clear" id="bankClearFilters">Clear</button>';
   wrap.querySelectorAll('[data-chip]').forEach(function(btn) {
     btn.addEventListener('click', function() {
@@ -2720,10 +2765,16 @@ function syncBankIntentChips(allTemplates) {
       var subjEl = document.getElementById('lessonBankFilterSubject');
       var statusEl = document.getElementById('lessonBankFilterStatus');
       var resEl = document.getElementById('lessonBankFilterResources');
+      var yearEl = document.getElementById('lessonBankFilterYear');
       if (key === 'all') {
         if (subjEl) subjEl.value = '';
         if (statusEl) statusEl.value = '';
         if (resEl) resEl.value = '';
+        if (yearEl) yearEl.value = '';
+        wrap.dataset.favOnly = '0';
+      } else if (key.indexOf('yg-') === 0) {
+        var yk = key.slice(3);
+        if (yearEl) yearEl.value = yearEl.value === yk ? '' : yk;
         wrap.dataset.favOnly = '0';
       } else if (key === 'draft' || key === 'planned' || key === 'complete') {
         if (statusEl) statusEl.value = statusEl.value === key ? '' : key;
@@ -4712,8 +4763,8 @@ function renderTemplatesList() {
     if (resourcesFilter === 'with' && !hasRes) return false;
     if (resourcesFilter === 'without' && hasRes) return false;
     if (yearFilter) {
-      var hay = ((t.name || '') + ' ' + (t.title || '') + ' ' + (t.unitKey || '')).toLowerCase();
-      if (hay.indexOf(yearFilter) === -1) return false;
+      var uYear = t.unitKey && window.getUnitFromKey ? window.getUnitFromKey(t.unitKey) : null;
+      if (lessonBankYearKey(t, uYear) !== yearFilter) return false;
     }
     if (searchQ) {
       var title = (t.name || t.title || '').toLowerCase();
@@ -4747,24 +4798,21 @@ function renderTemplatesList() {
     var subLabel = subjectLabel(t.subject || '') || 'Lesson';
     var st = deriveLessonStatus(t);
     var yg = guessYearGroupLabel(t, u);
+    var ygKey = lessonBankYearKey(t, u);
     var unitLabel = (u && u.unit) ? u.unit : '';
-    var badge = lessonBankBadgeCode(t, u);
-    var metaBits = [];
-    if (yg) metaBits.push(yg);
-    if (unitLabel) metaBits.push(unitLabel);
     var isFav = favs.indexOf(t.id) >= 0;
-    html += '<article class="lb-card' + (isFav ? ' is-fav' : '') + '" data-template-id="' + (t.id || '') + '" data-subject="' + escHtml(subj) + '" tabindex="0">';
-    html += '<div class="lb-card-accent" aria-hidden="true"></div>';
+    var ygClass = 'yg-' + ygKey;
+    html += '<article class="lb-card has-yg-fill ' + ygClass + ' subj-' + escHtml(subj || 'other') + (isFav ? ' is-fav' : '') + '" data-template-id="' + (t.id || '') + '" data-subject="' + escHtml(subj) + '" data-year="' + escHtml(ygKey) + '" tabindex="0">';
     html += '<div class="lb-card-body">';
-    html += '<div class="lb-card-top"><span class="lb-badge" aria-hidden="true">' + escHtml(badge) + '</span>';
+    html += '<div class="lb-card-top">';
+    html += '<span class="lb-yg-badge" aria-hidden="true">' + escHtml(yg || '—') + '</span>';
     html += '<div class="lb-card-copy"><h3 class="lb-title">' + escHtml(t.name || t.title || 'Untitled') + '</h3>';
-    html += '<div class="lb-meta">' + escHtml(metaBits.join(' · ') || subLabel) + '</div></div></div>';
+    html += '<div class="lb-meta">' + escHtml(unitLabel || subLabel) + '</div></div>';
+    html += '<span class="lb-subj-pill subj-' + escHtml(subj || 'other') + '">' + escHtml(subLabel) + '</span>';
+    html += '</div>';
     if (preview) html += '<p class="lb-preview">' + escHtml(preview) + '</p>';
-    html += '<div class="lb-tags">';
-    html += '<span class="lb-chip subj-' + escHtml(subj || 'other') + '">' + escHtml(subLabel) + '</span>';
-    if (yg) html += '<span class="lb-chip">' + escHtml(yg) + '</span>';
-    html += '<span class="rd-status rd-status-' + st + '">' + statusLabel(st) + '</span>';
-    html += '</div></div>';
+    html += '<div class="lb-tags"><span class="rd-status rd-status-' + st + '">' + statusLabel(st) + '</span></div>';
+    html += '</div>';
     html += '<div class="lb-actions">';
     html += '<button type="button" class="lb-action lb-card-secondary lesson-card-edit-btn">' + rdIcon('open') + ' Open</button>';
     html += '<button type="button" class="lb-action lb-card-secondary lesson-card-duplicate-btn">' + rdIcon('copy') + ' Duplicate</button>';
