@@ -12,6 +12,7 @@
     --navy:#1E2A3A; --navy-mid:#2E4263; --navy-dk:#111820;
     --white:#FFFFFF; --off-white:#F4F6F9; --slate:#C8D8EA;
     --grey:#94A3B8; --grey-lt:#D4DBE5;
+    --img: assets/s1-u01/l01;
   }
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   html,body{width:100vw;height:100vh;overflow:hidden;background:var(--navy-dk);font-family:'Barlow',sans-serif}
@@ -19,7 +20,8 @@
   .slide{position:absolute;inset:0;display:none;flex-direction:column}
   .slide.active{display:flex;animation:fadeIn .3s ease}
   @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-  .top-bar{height:56px;background:var(--navy-dk);display:flex;align-items:center;padding:0 28px;gap:14px;flex-shrink:0;border-bottom:3px solid var(--accent)}
+
+  .top-bar{height:56px;background:var(--navy-dk);display:flex;align-items:center;padding:0 28px;gap:14px;flex-shrink:0;border-bottom:3px solid var(--accent);z-index:5}
   .ad-badge{width:36px;height:36px;background:var(--accent);border-radius:7px;display:flex;align-items:center;justify-content:center;font-family:'Bebas Neue',sans-serif;font-size:15px;color:var(--white);flex-shrink:0}
   .bar-unit{font-family:'Bebas Neue',sans-serif;font-size:17px;letter-spacing:.1em;color:var(--white)}
   .bar-sep{color:var(--accent);font-size:16px}
@@ -29,83 +31,204 @@
   .b-li{background:var(--navy-mid);color:var(--accent-lt);border:1.5px solid var(--accent)}
   .b-main{background:#0F6E56;color:#E1F5EE}
   .b-dolast{background:#7B6FD4;color:var(--white)}
-  .content{flex:1;overflow:hidden;display:flex;flex-direction:column;position:relative}
-  .s-title{background:var(--navy);overflow:hidden}
-  .s-title::before{content:'';position:absolute;top:-40%;left:-10%;width:60%;height:180%;background:radial-gradient(ellipse,rgba(255,59,48,.1) 0%,transparent 70%);pointer-events:none}
-  .title-inner{flex:1;padding:32px 52px 24px;display:flex;flex-direction:column;justify-content:space-between;position:relative;z-index:1}
-  .title-eyebrow{font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:.18em;color:var(--accent)}
-  .title-big{font-family:'Bebas Neue',sans-serif;font-size:clamp(64px,11vw,116px);color:var(--white);line-height:.92;letter-spacing:.03em}
+
+  .content{flex:1;overflow:hidden;display:flex;flex-direction:column;position:relative;padding-bottom:48px}
+
+  /* ── Shared visual helpers ── */
+  .vis-support{
+    position:absolute;top:12px;right:16px;z-index:4;
+    display:inline-flex;align-items:center;gap:6px;
+    padding:4px 10px;border-radius:20px;
+    background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.18);
+    font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.7);
+  }
+  .vis-support.dark{background:rgba(30,42,58,.08);border-color:rgba(30,42,58,.12);color:var(--navy-mid)}
+  .picto{
+    width:42px;height:42px;min-width:42px;border-radius:10px;
+    background:rgba(255,59,48,.15);border:1.5px solid rgba(255,59,48,.35);
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  }
+  .picto svg{width:24px;height:24px}
+  .picto.lg{width:56px;height:56px;border-radius:14px}
+  .picto.lg svg{width:32px;height:32px}
+  .picto.on-red{background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.35)}
+  .picto.on-light{background:#FFF0EF;border-color:rgba(255,59,48,.25)}
+
+  /* ── Title ── */
+  .s-title{background:var(--navy)}
+  .title-split{flex:1;display:grid;grid-template-columns:1.05fr .95fr;min-height:0}
+  .title-copy{padding:28px 40px 24px;display:flex;flex-direction:column;justify-content:space-between;position:relative;z-index:1}
+  .title-copy::before{content:'';position:absolute;top:-30%;left:-15%;width:70%;height:160%;background:radial-gradient(ellipse,rgba(255,59,48,.14) 0%,transparent 70%);pointer-events:none}
+  .title-eyebrow{font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:.18em;color:var(--accent);position:relative}
+  .title-big{font-family:'Bebas Neue',sans-serif;font-size:clamp(52px,9vw,96px);color:var(--white);line-height:.92;letter-spacing:.03em;position:relative}
   .title-big span{color:var(--accent)}
-  .title-sub{font-family:'Bebas Neue',sans-serif;font-size:clamp(18px,3vw,32px);color:var(--slate);letter-spacing:.08em;margin-top:8px}
-  .title-chips{display:flex;gap:12px;flex-wrap:wrap}
-  .title-chip{border:1.5px solid rgba(255,59,48,.35);border-radius:8px;padding:8px 18px;font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:.1em;color:var(--accent-lt)}
+  .title-sub{font-family:'Bebas Neue',sans-serif;font-size:clamp(16px,2.4vw,26px);color:var(--slate);letter-spacing:.08em;margin-top:10px;position:relative}
+  .title-chips{display:flex;gap:10px;flex-wrap:wrap;position:relative}
+  .title-chip{border:1.5px solid rgba(255,59,48,.35);border-radius:8px;padding:7px 14px;font-family:'Bebas Neue',sans-serif;font-size:13px;letter-spacing:.1em;color:var(--accent-lt)}
+  .title-art{
+    background-image:url('assets/s1-u01/l01/l01-01-welcome.png');
+    background-size:cover;background-position:center;position:relative;
+  }
+  .title-art::before{
+    content:'';position:absolute;inset:0;
+    background:linear-gradient(90deg,var(--navy) 0%,rgba(30,42,58,.35) 28%,transparent 55%);
+  }
+  .title-art-caption{
+    position:absolute;bottom:18px;left:18px;right:18px;z-index:1;
+    background:rgba(17,24,32,.82);backdrop-filter:blur(8px);
+    border-left:4px solid var(--accent);border-radius:0 10px 10px 0;
+    padding:12px 16px;display:flex;align-items:center;gap:12px;
+  }
+  .title-art-caption strong{display:block;font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:.08em;color:var(--white)}
+  .title-art-caption span{font-size:12px;color:var(--slate);font-weight:500}
+
+  /* ── Do Now ── */
   .s-donow{background:var(--accent)}
-  .donow-inner{flex:1;padding:28px 48px;display:flex;flex-direction:column;gap:18px}
-  .donow-heading{font-family:'Bebas Neue',sans-serif;font-size:clamp(52px,9vw,88px);color:var(--navy-dk);letter-spacing:.05em;line-height:.95}
-  .donow-discuss{background:var(--navy);border-radius:14px;padding:18px 26px}
-  .donow-discuss-label{font-family:'Bebas Neue',sans-serif;font-size:12px;letter-spacing:.14em;color:var(--accent-lt);margin-bottom:10px}
-  .donow-q{font-size:clamp(13px,1.7vw,17px);color:var(--slate);font-weight:500;padding-left:18px;position:relative;line-height:1.4;margin-bottom:8px}
-  .donow-q::before{content:'→';position:absolute;left:0;color:var(--accent-lt);font-weight:700}
+  .donow-split{flex:1;display:grid;grid-template-columns:1fr 1.05fr;min-height:0;gap:0}
+  .donow-visual{
+    background-image:url('assets/s1-u01/l01/l01-02-teamwork.png');
+    background-size:cover;background-position:center;position:relative;margin:18px 0 18px 18px;border-radius:14px;overflow:hidden;
+    box-shadow:0 12px 32px rgba(17,24,32,.25);
+  }
+  .donow-visual-label{
+    position:absolute;top:12px;left:12px;
+    background:rgba(17,24,32,.85);color:#fff;padding:6px 12px;border-radius:8px;
+    font-family:'Bebas Neue',sans-serif;font-size:12px;letter-spacing:.12em;
+  }
+  .donow-main{padding:22px 28px 22px 22px;display:flex;flex-direction:column;gap:14px;min-height:0}
+  .donow-heading{font-family:'Bebas Neue',sans-serif;font-size:clamp(42px,7vw,72px);color:var(--navy-dk);letter-spacing:.05em;line-height:.95}
+  .donow-discuss{background:var(--navy-dk);border-radius:14px;padding:16px 18px;flex:1;display:flex;flex-direction:column;gap:10px;min-height:0}
+  .donow-discuss-label{font-family:'Bebas Neue',sans-serif;font-size:12px;letter-spacing:.14em;color:var(--accent-lt)}
+  .donow-q{font-size:clamp(13px,1.55vw,16px);color:var(--slate);font-weight:500;display:flex;align-items:flex-start;gap:10px;line-height:1.35}
+  .donow-q .picto{width:34px;height:34px;min-width:34px;border-radius:8px}
+  .donow-q .picto svg{width:18px;height:18px}
+  .donow-steps{display:flex;gap:8px}
+  .donow-step{
+    flex:1;background:rgba(17,24,32,.55);border-radius:10px;padding:10px 12px;
+    display:flex;align-items:center;gap:10px;color:var(--slate);font-size:clamp(12px,1.3vw,14px);font-weight:600;line-height:1.3;
+  }
+  .donow-step-n{font-family:'Bebas Neue',sans-serif;font-size:20px;color:#FFD0CC;line-height:1}
+
+  /* ── LI / SC ── */
   .s-lisc{background:var(--off-white)}
-  .lisc-inner{flex:1;padding:28px 48px;display:flex;flex-direction:column;gap:18px}
-  .lisc-heading{font-family:'Bebas Neue',sans-serif;font-size:clamp(36px,6vw,58px);color:var(--navy);letter-spacing:.05em;line-height:1}
-  .li-block{background:var(--navy);border-radius:14px;padding:20px 26px;border-left:8px solid var(--accent)}
+  .lisc-split{flex:1;display:grid;grid-template-columns:.95fr 1.05fr;min-height:0;gap:18px;padding:22px 28px}
+  .lisc-left{display:flex;flex-direction:column;gap:14px;min-height:0}
+  .lisc-heading{font-family:'Bebas Neue',sans-serif;font-size:clamp(32px,5vw,50px);color:var(--navy);letter-spacing:.05em;line-height:1}
+  .li-block{background:var(--navy);border-radius:14px;padding:18px 20px;border-left:8px solid var(--accent)}
   .block-label{font-family:'Bebas Neue',sans-serif;font-size:12px;letter-spacing:.15em;color:var(--accent);margin-bottom:8px}
-  .block-text{font-size:clamp(14px,2vw,19px);color:var(--white);font-weight:600;line-height:1.45}
-  .sc-list{display:flex;flex-direction:column;gap:9px}
-  .sc-row{background:var(--white);border-radius:10px;padding:13px 18px;border-left:6px solid var(--accent);font-size:clamp(13px,1.7vw,17px);color:var(--navy);font-weight:600;line-height:1.4;display:flex;align-items:center;gap:12px}
-  .sc-check{width:24px;height:24px;min-width:24px;border-radius:50%;border:2.5px solid var(--accent);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--accent);font-weight:700}
+  .block-text{font-size:clamp(14px,1.8vw,18px);color:var(--white);font-weight:600;line-height:1.4}
+  .sc-list{display:flex;flex-direction:column;gap:8px;flex:1}
+  .sc-row{
+    background:var(--white);border-radius:12px;padding:12px 14px;border-left:6px solid var(--accent);
+    font-size:clamp(13px,1.5vw,16px);color:var(--navy);font-weight:600;line-height:1.35;
+    display:flex;align-items:center;gap:12px;box-shadow:0 2px 10px rgba(15,23,42,.05);
+  }
+  .sc-check{width:26px;height:26px;min-width:26px;border-radius:50%;border:2.5px solid var(--accent);display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--accent);font-weight:700}
+  .lisc-art{
+    background-image:url('assets/s1-u01/l01/l01-03-success.png');
+    background-size:cover;background-position:center;border-radius:16px;
+    box-shadow:0 10px 28px rgba(15,23,42,.1);position:relative;overflow:hidden;
+  }
+  .lisc-art-cap{
+    position:absolute;bottom:0;left:0;right:0;padding:12px 16px;
+    background:linear-gradient(transparent,rgba(17,24,32,.88));
+    color:#fff;font-size:12px;font-weight:600;letter-spacing:.04em;
+  }
+
+  /* ── Dark activity slides ── */
   .s-dark{background:var(--navy)}
-  .activity-inner{flex:1;padding:24px 44px;display:flex;flex-direction:column;gap:16px;overflow:hidden}
-  .time-row{display:flex;align-items:flex-end;gap:14px}
-  .time-num{font-family:'Bebas Neue',sans-serif;font-size:clamp(40px,6.5vw,68px);color:var(--accent);line-height:1}
-  .time-label{font-size:13px;color:var(--grey);font-weight:500;margin-bottom:8px}
-  .activity-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(26px,4.5vw,48px);color:var(--white);letter-spacing:.05em;line-height:1;margin-left:4px}
-  .instructions{display:flex;flex-direction:column;gap:8px}
-  .instr-row{display:flex;align-items:flex-start;gap:14px;background:var(--navy-mid);border-radius:10px;padding:12px 16px}
-  .instr-num{font-family:'Bebas Neue',sans-serif;font-size:19px;color:var(--accent);line-height:1;min-width:20px;flex-shrink:0;margin-top:2px}
-  .instr-text{font-size:clamp(13px,1.7vw,17px);color:var(--white);font-weight:500;line-height:1.45}
-  .instr-text em{color:var(--white);font-style:italic}
-  .discuss-box{background:var(--accent);border-radius:12px;padding:15px 20px}
-  .discuss-label{font-family:'Bebas Neue',sans-serif;font-size:11px;letter-spacing:.14em;color:var(--white);margin-bottom:7px}
-  .discuss-q{font-size:clamp(14px,1.9vw,18px);color:var(--white);font-weight:700;line-height:1.4}
-  .rule-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
-  .rule-chip{background:var(--navy-mid);border-radius:10px;padding:14px 10px;text-align:center;border-bottom:4px solid var(--accent)}
-  .rule-letter{font-family:'Bebas Neue',sans-serif;font-size:clamp(28px,4vw,40px);color:var(--accent);line-height:1}
-  .rule-word{font-size:clamp(12px,1.2vw,14px);color:var(--slate);font-weight:600;margin-top:6px;line-height:1.3}
-  .quote-box{background:var(--navy-mid);border-radius:12px;padding:16px 20px;border-left:5px solid var(--accent)}
-  .quote-text{font-size:clamp(14px,1.8vw,18px);color:var(--white);font-weight:600;font-style:italic;line-height:1.45}
-  .quote-cite{font-size:12px;color:var(--grey);margin-top:8px}
-  .vocab-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
-  .vocab-card{background:var(--navy-mid);border-radius:12px;padding:14px 16px;border-top:4px solid var(--accent)}
-  .vocab-term{font-family:'Bebas Neue',sans-serif;font-size:clamp(14px,1.8vw,18px);color:var(--accent-lt);letter-spacing:.04em;margin-bottom:6px}
-  .vocab-def{font-size:clamp(11px,1.3vw,13px);color:var(--slate);line-height:1.4}
-  .vocab-new{display:inline-block;margin-top:8px;padding:2px 8px;border-radius:4px;background:rgba(255,59,48,.2);color:var(--accent-lt);font-size:12px;font-weight:700;letter-spacing:.08em}
-  .trust-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-  .trust-card{background:var(--navy-mid);border-radius:12px;overflow:hidden}
-  .trust-head{background:var(--accent);padding:12px 16px;font-family:'Bebas Neue',sans-serif;font-size:clamp(14px,1.8vw,18px);color:var(--white);letter-spacing:.05em}
-  .trust-body{padding:12px 16px;font-size:clamp(12px,1.4vw,14px);color:var(--slate);line-height:1.5}
-  .feedback-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-  .fb-card{background:var(--navy-mid);border-radius:12px;padding:16px}
-  .fb-q{font-family:'Bebas Neue',sans-serif;font-size:clamp(14px,1.7vw,17px);color:var(--accent-lt);margin-bottom:8px;letter-spacing:.04em}
-  .fb-sub{font-size:clamp(11px,1.3vw,13px);color:var(--slate);line-height:1.45}
-  .info-box{background:var(--navy-mid);border-radius:12px;padding:14px 18px}
-  .info-text{font-size:clamp(13px,1.6vw,16px);color:var(--slate);line-height:1.5}
+  .activity-inner{flex:1;padding:20px 36px 18px;display:flex;flex-direction:column;gap:14px;overflow:hidden;min-height:0}
+  .time-row{display:flex;align-items:flex-end;gap:14px;flex-shrink:0}
+  .time-num{font-family:'Bebas Neue',sans-serif;font-size:clamp(34px,5.5vw,56px);color:var(--accent);line-height:1}
+  .time-label{font-size:12px;color:var(--grey);font-weight:500;margin-bottom:6px}
+  .activity-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(24px,4vw,42px);color:var(--white);letter-spacing:.05em;line-height:1;margin-left:4px}
+
+  /* What is Drama — visual grid */
+  .drama-visual{
+    flex:1;min-height:0;border-radius:16px;overflow:hidden;position:relative;
+    background-image:url('assets/s1-u01/l01/l01-04-what-is-drama.png');
+    background-size:cover;background-position:center;
+    border:2px solid rgba(255,255,255,.12);
+    box-shadow:0 12px 30px rgba(0,0,0,.25);
+  }
+  .drama-caption-row{
+    display:grid;grid-template-columns:repeat(4,1fr);gap:10px;flex-shrink:0;
+  }
+  .drama-cap{
+    background:var(--navy-mid);border-radius:10px;padding:10px 12px;text-align:center;
+    border-bottom:3px solid var(--accent);
+  }
+  .drama-cap strong{display:block;font-family:'Bebas Neue',sans-serif;font-size:clamp(13px,1.6vw,16px);color:var(--accent-lt);letter-spacing:.06em;margin-bottom:3px}
+  .drama-cap span{font-size:clamp(11px,1.2vw,13px);color:var(--slate);font-weight:500;line-height:1.3}
+
+  /* Rules — image + dual-coded chips */
+  .rules-layout{flex:1;display:grid;grid-template-rows:1.15fr auto;gap:12px;min-height:0}
+  .rules-art{
+    border-radius:14px;overflow:hidden;min-height:0;
+    background-image:url('assets/s1-u01/l01/l01-05-rules.png?v=2');
+    background-size:contain;background-position:center;background-repeat:no-repeat;
+    background-color:#F4F6F9;
+    border:2px solid rgba(255,255,255,.12);
+    box-shadow:0 10px 28px rgba(0,0,0,.22);
+  }
+  .rule-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;flex-shrink:0}
+  .rule-chip{background:var(--navy-mid);border-radius:10px;padding:10px 8px;text-align:center;border-bottom:4px solid var(--accent);display:flex;flex-direction:column;align-items:center;gap:6px}
+  .rule-letter{font-family:'Bebas Neue',sans-serif;font-size:clamp(22px,3.2vw,32px);color:var(--accent);line-height:1}
+  .rule-word{font-size:clamp(11px,1.15vw,13px);color:var(--slate);font-weight:600;line-height:1.25}
+  .discuss-box{background:var(--accent);border-radius:12px;padding:12px 16px;flex-shrink:0;display:flex;align-items:flex-start;gap:12px}
+  .discuss-label{font-family:'Bebas Neue',sans-serif;font-size:11px;letter-spacing:.14em;color:var(--white);margin-bottom:4px}
+  .discuss-q{font-size:clamp(13px,1.6vw,17px);color:var(--white);font-weight:700;line-height:1.35}
+
+  /* Gesture circle */
+  .gesture-layout{flex:1;display:grid;grid-template-columns:1.15fr .85fr;gap:14px;min-height:0}
+  .gesture-art{
+    border-radius:14px;overflow:hidden;min-height:0;
+    background-image:url('assets/s1-u01/l01/l01-06-gesture-circle.png?v=2');
+    background-size:contain;background-position:center;background-repeat:no-repeat;
+    background-color:#F4F6F9;
+    border:2px solid rgba(255,255,255,.12);
+    box-shadow:0 10px 28px rgba(0,0,0,.22);
+  }
+  .gesture-side{display:flex;flex-direction:column;gap:8px;min-height:0;overflow:auto}
+  .instr-row{display:flex;align-items:flex-start;gap:10px;background:var(--navy-mid);border-radius:10px;padding:10px 12px}
+  .instr-num{font-family:'Bebas Neue',sans-serif;font-size:18px;color:var(--accent);line-height:1;min-width:18px;flex-shrink:0;margin-top:1px}
+  .instr-text{font-size:clamp(12px,1.45vw,15px);color:var(--white);font-weight:500;line-height:1.35}
+  .info-box{background:var(--navy-mid);border-radius:10px;padding:10px 12px;margin-top:auto}
+  .info-text{font-size:clamp(12px,1.4vw,14px);color:var(--slate);line-height:1.4}
   .info-text strong{color:var(--white)}
+  .debrief-box{background:rgba(255,59,48,.12);border:1px solid rgba(255,59,48,.35);border-radius:10px;padding:10px 12px}
+  .debrief-box .discuss-label{color:var(--accent-lt)}
+  .debrief-box .discuss-q{color:var(--white);font-weight:600;font-size:clamp(12px,1.4vw,15px)}
+
+  /* Do Last */
   .s-dolast{background:#1A1040}
-  .dolast-inner{flex:1;padding:28px 48px;display:flex;flex-direction:column;gap:18px}
-  .dolast-heading{font-family:'Bebas Neue',sans-serif;font-size:clamp(50px,9vw,86px);color:#7B6FD4;letter-spacing:.06em;line-height:.95}
+  .dolast-split{flex:1;display:grid;grid-template-columns:1fr 1fr;min-height:0;gap:0}
+  .dolast-main{padding:24px 32px;display:flex;flex-direction:column;gap:14px}
+  .dolast-heading{font-family:'Bebas Neue',sans-serif;font-size:clamp(42px,7vw,72px);color:#7B6FD4;letter-spacing:.06em;line-height:.95}
   .dolast-heading span{color:var(--white)}
-  .dolast-prompt{background:rgba(123,111,212,.15);border-radius:14px;border-left:6px solid #7B6FD4;padding:20px 26px}
-  .dolast-starter{font-family:'Bebas Neue',sans-serif;font-size:clamp(20px,3.2vw,34px);color:#BAB3F0;letter-spacing:.04em;margin-bottom:9px;line-height:1.2}
-  .dolast-text{font-size:clamp(13px,1.7vw,17px);color:var(--slate);font-weight:500;line-height:1.5}
-  .vocab-label{font-family:'Bebas Neue',sans-serif;font-size:12px;letter-spacing:.14em;color:#7B6FD4;margin-bottom:9px}
+  .dolast-prompt{background:rgba(123,111,212,.15);border-radius:14px;border-left:6px solid #7B6FD4;padding:16px 18px}
+  .dolast-starter{font-family:'Bebas Neue',sans-serif;font-size:clamp(18px,2.6vw,28px);color:#BAB3F0;letter-spacing:.04em;margin-bottom:8px;line-height:1.2}
+  .dolast-text{font-size:clamp(12px,1.5vw,15px);color:var(--slate);font-weight:500;line-height:1.45}
+  .vocab-label{font-family:'Bebas Neue',sans-serif;font-size:12px;letter-spacing:.14em;color:#7B6FD4;margin-bottom:8px}
   .vocab-chips{display:flex;flex-wrap:wrap;gap:8px}
-  .vocab-chip{background:rgba(123,111,212,.15);border:1.5px solid rgba(123,111,212,.4);border-radius:7px;padding:7px 16px;font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:.06em;color:#BAB3F0}
-  .next-lesson{background:var(--navy-mid);border-radius:11px;padding:13px 20px;display:flex;align-items:center;gap:12px}
-  .next-arrow{font-family:'Bebas Neue',sans-serif;font-size:26px;color:var(--accent)}
-  .next-text{font-size:clamp(12px,1.5vw,15px);color:var(--slate);font-weight:500;line-height:1.4}
+  .vocab-chip{
+    background:rgba(123,111,212,.15);border:1.5px solid rgba(123,111,212,.4);border-radius:10px;
+    padding:8px 12px;display:inline-flex;align-items:center;gap:8px;
+    font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:.06em;color:#BAB3F0;
+  }
+  .vocab-chip svg{width:20px;height:20px;flex-shrink:0}
+  .next-lesson{background:var(--navy-mid);border-radius:11px;padding:12px 16px;display:flex;align-items:center;gap:12px;margin-top:auto}
+  .next-arrow{font-family:'Bebas Neue',sans-serif;font-size:24px;color:var(--accent)}
+  .next-text{font-size:clamp(12px,1.4vw,14px);color:var(--slate);font-weight:500;line-height:1.35}
   .next-text strong{color:var(--accent-lt);font-weight:700}
+  .dolast-art{
+    margin:18px 18px 18px 0;border-radius:16px;overflow:hidden;
+    background-image:url('assets/s1-u01/l01/l01-07-exit.png');
+    background-size:cover;background-position:center;
+    box-shadow:0 12px 30px rgba(0,0,0,.3);
+  }
+
+  /* ── Nav ── */
   .nav{position:fixed;bottom:0;left:0;right:0;height:48px;background:var(--navy-dk);border-top:1px solid rgba(255,255,255,.06);display:flex;align-items:center;justify-content:space-between;padding:0 24px;z-index:200}
   .nav-info{font-size:11px;color:var(--grey);letter-spacing:.04em;font-weight:500;min-width:200px}
   .nav-dots{display:flex;gap:6px;align-items:center}
@@ -120,10 +243,21 @@
   .btn{width:32px;height:32px;border-radius:6px;border:1.5px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:var(--white);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;user-select:none}
   .btn:hover:not(:disabled){background:rgba(255,59,48,.2);border-color:var(--accent)}
   .btn:disabled{opacity:.25;cursor:default}
+
+  @media (max-width:900px){
+    .title-split,.donow-split,.lisc-split,.gesture-layout,.dolast-split{grid-template-columns:1fr}
+    .title-art,.donow-visual,.lisc-art,.gesture-art,.dolast-art{min-height:28vh}
+    .donow-visual{margin:14px 14px 0}
+    .dolast-art{margin:0 14px 14px}
+    .rule-grid{grid-template-columns:repeat(3,1fr)}
+    .drama-caption-row{grid-template-columns:repeat(2,1fr)}
+  }
 </style>
 </head>
 <body>
 <div class="deck" id="deck">
+
+<!-- 1 · TITLE -->
 <div class="slide s-title active" id="s1">
   <div class="top-bar">
     <div class="ad-badge">AD</div>
@@ -132,16 +266,35 @@
     <span class="bar-badge b-main">Lesson 1 of 3</span>
   </div>
   <div class="content s-title">
-    <div class="title-inner">
-      <div class="title-eyebrow">S1 Drama · Knightswood Secondary School</div>
-      <div>
-        <div class="title-big">WELCOME TO<br><span>DRAMA</span></div>
-        <div class="title-sub">Express · Collaborate · Perform</div>
+    <div class="title-split">
+      <div class="title-copy">
+        <div class="title-eyebrow">S1 Drama · Knightswood Secondary School</div>
+        <div>
+          <div class="title-big">WELCOME TO<br><span>DRAMA</span></div>
+          <div class="title-sub">Express · Collaborate · Perform</div>
+        </div>
+        <div class="title-chips">
+          <div class="title-chip">Week 1</div>
+          <div class="title-chip">50 Minutes</div>
+          <div class="title-chip">Lesson 1 of 3</div>
+        </div>
       </div>
-      <div class="title-chips"><div class="title-chip">Week 1</div><div class="title-chip">50 Minutes</div><div class="title-chip">Lesson 1 of 3</div></div>
+      <div class="title-art" role="img" aria-label="Pupils standing in a circle in the Drama studio, ready to begin">
+        <div class="title-art-caption">
+          <div class="picto on-red" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5" fill="#fff"/><path d="M12 4v2M12 18v2M4 12h2M18 12h2"/></svg>
+          </div>
+          <div>
+            <strong>We work in a circle</strong>
+            <span>Everyone can see · everyone can be seen · we start together</span>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
+
+<!-- 2 · DO NOW -->
 <div class="slide" id="s2">
   <div class="top-bar">
     <div class="ad-badge">AD</div>
@@ -150,22 +303,38 @@
     <span class="bar-badge b-donow">0–8 min</span>
   </div>
   <div class="content s-donow">
-    <div class="donow-inner">
-      <div class="donow-heading">DO<br>NOW</div>
-      <div class="donow-discuss" style="background:var(--navy-dk)">
-        <div class="donow-discuss-label">DISCUSS WITH YOUR PARTNER</div>
-        <div class="donow-q">Think about a time you had to work as part of a team. What made it go well — or not so well?</div>
-        <div class="donow-q">What does a good group member do? What does a difficult group member do?</div>
-        <div class="donow-q">Why might Drama be different from other subjects when it comes to working together?</div>
+    <div class="donow-split">
+      <div class="donow-visual" role="img" aria-label="Left: good teamwork with high-fives. Right: difficult group with crossed arms">
+        <div class="donow-visual-label">LOOK → COMPARE</div>
       </div>
-      <div class="instructions">
-        <div class="instr-row" style="background:rgba(17,24,32,.55)"><div class="instr-num">1</div><div class="instr-text" style="color:var(--slate)">Think quietly on your own for 2 minutes</div></div>
-        <div class="instr-row" style="background:rgba(17,24,32,.55)"><div class="instr-num">2</div><div class="instr-text" style="color:var(--slate)">Share your answer with the person next to you</div></div>
-        <div class="instr-row" style="background:rgba(17,24,32,.55)"><div class="instr-num">3</div><div class="instr-text" style="color:var(--slate)">Be ready to share one idea with the class</div></div>
+      <div class="donow-main">
+        <div class="donow-heading">DO<br>NOW</div>
+        <div class="donow-discuss">
+          <div class="donow-discuss-label">DISCUSS WITH YOUR PARTNER</div>
+          <div class="donow-q">
+            <div class="picto" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#FF8A82" stroke-width="2"><path d="M8 14s1.5 2 4 2 4-2 4-2"/><circle cx="9" cy="9" r="1" fill="#FF8A82"/><circle cx="15" cy="9" r="1" fill="#FF8A82"/><circle cx="12" cy="12" r="9"/></svg></div>
+            <span>Think about a time you worked in a team. What made it go well — or not?</span>
+          </div>
+          <div class="donow-q">
+            <div class="picto" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#FF8A82" stroke-width="2"><circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><path d="M2 20c0-3 2.5-5 6-5s6 2 6 5M10 20c0-3 2.5-5 6-5s6 2 6 5"/></svg></div>
+            <span>What does a <strong style="color:#fff">good</strong> group member do? What does a <strong style="color:#fff">difficult</strong> one do?</span>
+          </div>
+          <div class="donow-q">
+            <div class="picto" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#FF8A82" stroke-width="2"><path d="M4 19V5l8 4 8-4v14l-8 4-8-4z"/><path d="M12 9v14"/></svg></div>
+            <span>Why might Drama be different from other subjects when we work together?</span>
+          </div>
+        </div>
+        <div class="donow-steps">
+          <div class="donow-step"><span class="donow-step-n">1</span>Think alone — 2 mins</div>
+          <div class="donow-step"><span class="donow-step-n">2</span>Share with partner</div>
+          <div class="donow-step"><span class="donow-step-n">3</span>One idea for the class</div>
+        </div>
       </div>
     </div>
   </div>
 </div>
+
+<!-- 3 · LI & SC -->
 <div class="slide" id="s3">
   <div class="top-bar">
     <div class="ad-badge">AD</div>
@@ -174,23 +343,43 @@
     <span class="bar-badge b-li">LI &amp; SC</span>
   </div>
   <div class="content s-lisc">
-    <div class="lisc-inner">
-      <div class="lisc-heading">TODAY'S LESSON</div>
-      <div class="li-block">
-        <div class="block-label">LEARNING INTENTION</div>
-        <div class="block-text">Understand the purpose of Drama and why cooperation, trust and safety matter in the Drama studio.</div>
-      </div>
-      <div>
-        <div class="block-label" style="color:var(--navy);margin-bottom:10px;">SUCCESS CRITERIA — BY THE END OF TODAY I CAN...</div>
-        <div class="sc-list">
-          <div class="sc-row"><div class="sc-check">✓</div>Follow Drama rules and use safe working practices</div>
-          <div class="sc-row"><div class="sc-check">✓</div>Listen and respond to others positively</div>
-          <div class="sc-row"><div class="sc-check">✓</div>Contribute ideas and respect different opinions</div>
+    <div class="vis-support dark">Picture + words = meaning</div>
+    <div class="lisc-split">
+      <div class="lisc-left">
+        <div class="lisc-heading">TODAY'S LESSON</div>
+        <div class="li-block">
+          <div class="block-label">LEARNING INTENTION</div>
+          <div class="block-text">Understand the purpose of Drama and why cooperation, trust and safety matter in the Drama studio.</div>
         </div>
+        <div>
+          <div class="block-label" style="color:var(--navy);margin-bottom:8px;">SUCCESS CRITERIA — BY THE END I CAN…</div>
+          <div class="sc-list">
+            <div class="sc-row">
+              <div class="sc-check">✓</div>
+              <div class="picto on-light" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#FF3B30" stroke-width="2"><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg></div>
+              <span>Follow Drama rules and use safe working practices</span>
+            </div>
+            <div class="sc-row">
+              <div class="sc-check">✓</div>
+              <div class="picto on-light" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#FF3B30" stroke-width="2"><path d="M4 12c2-4 4-6 8-6s6 2 8 6c-2 4-4 6-8 6s-6-2-8-6z"/><circle cx="12" cy="12" r="2.5"/><path d="M3 19h4M17 19h4"/></svg></div>
+              <span>Listen and respond to others positively</span>
+            </div>
+            <div class="sc-row">
+              <div class="sc-check">✓</div>
+              <div class="picto on-light" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#FF3B30" stroke-width="2"><circle cx="12" cy="8" r="3"/><path d="M5 20c1.5-3.5 4-5 7-5s5.5 1.5 7 5"/><path d="M18 4v4M16 6h4"/></svg></div>
+              <span>Contribute ideas and respect different opinions</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="lisc-art" role="img" aria-label="Three success criteria shown as pictures: safe rules, listening, sharing ideas">
+        <div class="lisc-art-cap">Match each picture to a success criterion →</div>
       </div>
     </div>
   </div>
 </div>
+
+<!-- 4 · WHAT IS DRAMA -->
 <div class="slide" id="s4">
   <div class="top-bar">
     <div class="ad-badge">AD</div>
@@ -200,20 +389,22 @@
   </div>
   <div class="content s-dark">
     <div class="activity-inner">
-      <div class="time-row"><div><div class="time-num">8–18</div><div class="time-label">minutes</div></div><div class="activity-title">What is Drama?</div></div>
-      <div class="instructions">
-        <div class="instr-row"><div class="instr-num">→</div><div class="instr-text">A way of communicating through performance, movement and voice</div></div>
-        <div class="instr-row"><div class="instr-num">→</div><div class="instr-text">A space to explore ideas, emotions and stories safely</div></div>
-        <div class="instr-row"><div class="instr-num">→</div><div class="instr-text">A collaborative art form — it needs everyone working together</div></div>
-        <div class="instr-row"><div class="instr-num">→</div><div class="instr-text">A skill that builds confidence, empathy and creativity</div></div>
+      <div class="time-row">
+        <div><div class="time-num">8–18</div><div class="time-label">minutes</div></div>
+        <div class="activity-title">What is Drama?</div>
       </div>
-      <div class="quote-box">
-        <div class="quote-text">"Drama teaches you to listen, to look, to trust and to take risks — skills you need everywhere in life."</div>
-        <div class="quote-cite">— Expressive Arts Faculty, Knightswood</div>
+      <div class="drama-visual" role="img" aria-label="Four panels: Voice, Movement, Story, Together"></div>
+      <div class="drama-caption-row">
+        <div class="drama-cap"><strong>VOICE</strong><span>We communicate with sound and speech</span></div>
+        <div class="drama-cap"><strong>MOVEMENT</strong><span>We communicate with our bodies</span></div>
+        <div class="drama-cap"><strong>STORY</strong><span>We explore ideas and emotions safely</span></div>
+        <div class="drama-cap"><strong>TOGETHER</strong><span>Drama needs everyone working as one</span></div>
       </div>
     </div>
   </div>
 </div>
+
+<!-- 5 · RULES -->
 <div class="slide" id="s5">
   <div class="top-bar">
     <div class="ad-badge">AD</div>
@@ -223,21 +414,52 @@
   </div>
   <div class="content s-dark">
     <div class="activity-inner">
-      <div class="time-row"><div><div class="time-num">18–28</div><div class="time-label">minutes</div></div><div class="activity-title">Drama Rules &amp; Safe Practices</div></div>
-      <div class="rule-grid">
-        <div class="rule-chip"><div class="rule-letter">L</div><div class="rule-word">Listen when others are speaking</div></div>
-        <div class="rule-chip"><div class="rule-letter">S</div><div class="rule-word">Stay in your own space</div></div>
-        <div class="rule-chip"><div class="rule-letter">V</div><div class="rule-word">Voice level appropriate to the task</div></div>
-        <div class="rule-chip"><div class="rule-letter">T</div><div class="rule-word">Take creative risks — mistakes are learning</div></div>
-        <div class="rule-chip"><div class="rule-letter">R</div><div class="rule-word">Respond quickly to teacher instructions</div></div>
+      <div class="time-row">
+        <div><div class="time-num">18–28</div><div class="time-label">minutes</div></div>
+        <div class="activity-title">Drama Rules &amp; Safe Practices</div>
+      </div>
+      <div class="rules-layout">
+        <div class="rules-art" role="img" aria-label="Five rule icons: Listen, Space, Voice, Take risks, Respond"></div>
+        <div class="rule-grid">
+          <div class="rule-chip">
+            <div class="picto" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#FF8A82" stroke-width="2"><path d="M4 12c1.5-2 3-3 5-3 1 0 1.5.3 2 .8"/><path d="M9 15v2a2 2 0 0 0 2 2h0a2 2 0 0 0 2-2v-1"/><path d="M15 10c2 0 4 1.5 5 4"/><circle cx="18" cy="8" r="1.5" fill="#FF8A82"/></svg></div>
+            <div class="rule-letter">L</div>
+            <div class="rule-word">Listen when others speak</div>
+          </div>
+          <div class="rule-chip">
+            <div class="picto" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#FF8A82" stroke-width="2"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="10" r="2.5"/><path d="M8 18c1-2.5 2.5-3.5 4-3.5s3 1 4 3.5"/></svg></div>
+            <div class="rule-letter">S</div>
+            <div class="rule-word">Stay in your own space</div>
+          </div>
+          <div class="rule-chip">
+            <div class="picto" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#FF8A82" stroke-width="2"><path d="M4 14v-2a8 8 0 0 1 16 0v2"/><rect x="2" y="14" width="4" height="6" rx="1"/><rect x="18" y="14" width="4" height="6" rx="1"/></svg></div>
+            <div class="rule-letter">V</div>
+            <div class="rule-word">Voice level for the task</div>
+          </div>
+          <div class="rule-chip">
+            <div class="picto" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#FF8A82" stroke-width="2"><path d="M12 19V6"/><path d="M7 11l5-5 5 5"/><path d="M5 19h14"/><circle cx="17" cy="6" r="1.5" fill="#FF8A82"/></svg></div>
+            <div class="rule-letter">T</div>
+            <div class="rule-word">Take creative risks</div>
+          </div>
+          <div class="rule-chip">
+            <div class="picto" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#FF8A82" stroke-width="2"><path d="M8 11V7a4 4 0 0 1 8 0v4"/><rect x="6" y="11" width="12" height="9" rx="2"/><circle cx="12" cy="15.5" r="1.5" fill="#FF8A82"/></svg></div>
+            <div class="rule-letter">R</div>
+            <div class="rule-word">Respond to instructions</div>
+          </div>
+        </div>
       </div>
       <div class="discuss-box">
-        <div class="discuss-label">DISCUSS</div>
-        <div class="discuss-q">Why does a Drama room only work when everyone feels safe enough to take risks and make mistakes?</div>
+        <div class="picto on-red" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M8 10h8M8 14h5"/><path d="M5 5h14v10H12l-4 4v-4H5V5z"/></svg></div>
+        <div>
+          <div class="discuss-label">DISCUSS</div>
+          <div class="discuss-q">Why does a Drama room only work when everyone feels safe enough to take risks and make mistakes?</div>
+        </div>
       </div>
     </div>
   </div>
 </div>
+
+<!-- 6 · NAME & GESTURE -->
 <div class="slide" id="s6">
   <div class="top-bar">
     <div class="ad-badge">AD</div>
@@ -247,24 +469,32 @@
   </div>
   <div class="content s-dark">
     <div class="activity-inner">
-      <div class="time-row"><div><div class="time-num">28–45</div><div class="time-label">minutes</div></div><div class="activity-title">Name &amp; Gesture Circle</div></div>
-      <div class="instructions">
-        <div class="instr-row"><div class="instr-num">1</div><div class="instr-text">Stand in a circle as a class</div></div>
-        <div class="instr-row"><div class="instr-num">2</div><div class="instr-text">Say your name and do a gesture that represents you</div></div>
-        <div class="instr-row"><div class="instr-num">3</div><div class="instr-text">The whole group copies your name and gesture together</div></div>
-        <div class="instr-row"><div class="instr-num">4</div><div class="instr-text">Move clockwise until everyone has had a turn</div></div>
-        <div class="instr-row"><div class="instr-num">5</div><div class="instr-text">Final round — can you remember everyone's name and gesture?</div></div>
+      <div class="time-row">
+        <div><div class="time-num">28–45</div><div class="time-label">minutes</div></div>
+        <div class="activity-title">Name &amp; Gesture Circle</div>
       </div>
-      <div class="info-box">
-        <div class="info-text"><strong>Focus on:</strong> eye contact · clear gesture · listening · energy — commit to the gesture!</div>
-      </div>
-      <div class="discuss-box" style="background:var(--navy-mid);border:1px solid rgba(255,59,48,.3)">
-        <div class="discuss-label" style="color:var(--accent)">DEBRIEF</div>
-        <div class="discuss-q" style="color:var(--white);font-weight:600">What did you notice about how others communicated without words?</div>
+      <div class="gesture-layout">
+        <div class="gesture-art" role="img" aria-label="Step-by-step: stand in circle, say name with gesture, group copies, move round, remember all"></div>
+        <div class="gesture-side">
+          <div class="instr-row"><div class="instr-num">1</div><div class="instr-text">Stand in a circle as a class</div></div>
+          <div class="instr-row"><div class="instr-num">2</div><div class="instr-text">Say your name + a gesture that is you</div></div>
+          <div class="instr-row"><div class="instr-num">3</div><div class="instr-text">Whole group copies name + gesture</div></div>
+          <div class="instr-row"><div class="instr-num">4</div><div class="instr-text">Move clockwise — everyone has a turn</div></div>
+          <div class="instr-row"><div class="instr-num">5</div><div class="instr-text">Final round — remember everyone’s name + gesture?</div></div>
+          <div class="info-box">
+            <div class="info-text"><strong>Focus:</strong> eye contact · clear gesture · listening · energy — commit!</div>
+          </div>
+          <div class="debrief-box">
+            <div class="discuss-label">DEBRIEF</div>
+            <div class="discuss-q">What did you notice about how others communicated without words?</div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </div>
+
+<!-- 7 · DO LAST -->
 <div class="slide" id="s7">
   <div class="top-bar">
     <div class="ad-badge">AD</div>
@@ -273,24 +503,38 @@
     <span class="bar-badge b-dolast">48–50 min</span>
   </div>
   <div class="content s-dolast">
-    <div class="dolast-inner">
-      <div class="dolast-heading">DO<br><span>LAST</span></div>
-      <div class="dolast-prompt">
-        <div class="dolast-starter">"One thing I learnt today about working in a group was… because…"</div>
-        <div class="dolast-text">Write 2–3 sentences on your exit slip. Be specific — relate your answer to the success criteria. Use at least one Drama vocabulary word if you can.</div>
+    <div class="dolast-split">
+      <div class="dolast-main">
+        <div class="dolast-heading">DO<br><span>LAST</span></div>
+        <div class="dolast-prompt">
+          <div class="dolast-starter">"One thing I learnt today about working in a group was… because…"</div>
+          <div class="dolast-text">Write 2–3 sentences on your exit slip. Be specific — link to the success criteria. Use at least one Drama vocabulary word if you can.</div>
+        </div>
+        <div>
+          <div class="vocab-label">VOCABULARY — USE A PICTURE WORD</div>
+          <div class="vocab-chips">
+            <div class="vocab-chip">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#BAB3F0" stroke-width="2" aria-hidden="true"><circle cx="8" cy="10" r="3"/><circle cx="16" cy="10" r="3"/><path d="M8 10h8"/><circle cx="8" cy="10" r="1" fill="#BAB3F0"/><circle cx="16" cy="10" r="1" fill="#BAB3F0"/></svg>
+              eye contact
+            </div>
+            <div class="vocab-chip">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#BAB3F0" stroke-width="2" aria-hidden="true"><circle cx="12" cy="5" r="2.5"/><path d="M8 22l2-8 2 3 2-3 2 8"/><path d="M7 12h10"/></svg>
+              body language
+            </div>
+          </div>
+        </div>
+        <div class="next-lesson">
+          <div class="next-arrow">→</div>
+          <div class="next-text"><strong>Next lesson:</strong> Group Work &amp; Trust — trust exercises, levels, proxemics and timing in action.</div>
+        </div>
       </div>
-      <div>
-        <div class="vocab-label">VOCABULARY — CAN YOU USE THESE IN YOUR ANSWER?</div>
-        <div class="vocab-chips"><div class="vocab-chip">body language</div><div class="vocab-chip">eye contact</div></div>
-      </div>
-      <div class="next-lesson">
-        <div class="next-arrow">→</div>
-        <div class="next-text"><strong>Next lesson:</strong> Group Work &amp; Trust — trust exercises, levels, proxemics and timing in action.</div>
-      </div>
+      <div class="dolast-art" role="img" aria-label="Exit slip notebook with icons for eye contact and body language"></div>
     </div>
   </div>
 </div>
+
 </div>
+
 <div class="nav">
   <div class="nav-info" id="nav-info">Lesson 1 · Welcome to Drama</div>
   <div class="nav-dots" id="dots"></div>
@@ -305,7 +549,7 @@ const slides=document.querySelectorAll('.slide'),total=slides.length;
 const dotsEl=document.getElementById('dots'),counter=document.getElementById('counter');
 const prevBtn=document.getElementById('prev'),nextBtn=document.getElementById('next'),navInfo=document.getElementById('nav-info');
 const dotTypes=["", "donow", "li", "main", "main", "main", "dolast"];
-const labels=["Lesson 1 \u00b7 Welcome to Drama", "Do Now \u00b7 Teamwork discussion", "Learning Intention & Success Criteria", "What is Drama? \u00b7 8\u201318 min", "Drama Rules \u00b7 18\u201328 min", "Name & Gesture Circle \u00b7 28\u201345 min", "Do Last \u00b7 Exit task"];
+const labels=["Lesson 1 · Welcome to Drama", "Do Now · Teamwork discussion", "Learning Intention & Success Criteria", "What is Drama? · 8–18 min", "Drama Rules · 18–28 min", "Name & Gesture Circle · 28–45 min", "Do Last · Exit task"];
 let cur=0;
 slides.forEach((_,i)=>{const d=document.createElement('div');d.className='dot';if(dotTypes[i])d.setAttribute('data-type',dotTypes[i]);if(i===0)d.classList.add('active');d.title=labels[i];d.onclick=()=>goTo(i);dotsEl.appendChild(d);});
 function goTo(n){slides[cur].classList.remove('active');dotsEl.children[cur].classList.remove('active');cur=Math.max(0,Math.min(n,total-1));slides[cur].classList.add('active');dotsEl.children[cur].classList.add('active');counter.textContent=`${cur+1} / ${total}`;navInfo.textContent=labels[cur];prevBtn.disabled=cur===0;nextBtn.disabled=cur===total-1;}
