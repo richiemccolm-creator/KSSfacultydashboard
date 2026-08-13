@@ -2,9 +2,16 @@
  * Injects SDS meta-skills chips into drama lesson deck LI/SC slides (Unit01–03).
  */
 (function () {
-  var titleMatch = document.title.match(/Unit\s*0?(\d+)/i);
-  if (!titleMatch || !window.DRAMA_UNIT_META) return;
-  var uid = titleMatch[1].length === 1 ? '0' + titleMatch[1] : titleMatch[1];
+  var title = document.title || '';
+  var deck = document.getElementById('deck');
+  var uid = (deck && deck.getAttribute('data-unit')) || '';
+  if (!uid) {
+    var titleMatch = title.match(/Unit\s*0?(\d+)/i);
+    if (!titleMatch || !window.DRAMA_UNIT_META) return;
+    var num = titleMatch[1].length === 1 ? '0' + titleMatch[1] : titleMatch[1];
+    uid = /\bS2\b/i.test(title) ? 's2-' + num : num;
+  }
+  if (!window.DRAMA_UNIT_META) return;
   var meta = window.DRAMA_UNIT_META[uid];
   if (!meta || !meta.meta_skills || !meta.meta_skills.length) return;
 

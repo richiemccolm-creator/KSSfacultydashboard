@@ -57,5 +57,13 @@ window.DRAMA_UNIT_META = {
       'Taking increasing responsibility for team work and reaching compromise (Third/Fourth Level)',
       'Focusing on the task through planning, rehearsal and final performance (Third/Fourth Level)'
     ]
+  },
+  's2-02': {
+    meta_skills: ['Sense-making', 'Creativity', 'Critical thinking'],
+    meta_notes: [
+      'Identifying and ordering patterns in staging configurations and stage areas (Second Level)',
+      'Experimenting with blocking and spatial solutions (Third/Fourth Level)',
+      'Examining pros and cons of staging choices on audience experience (Third/Fourth Level)'
+    ]
   }
 };

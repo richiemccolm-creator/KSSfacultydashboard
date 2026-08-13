@@ -245,6 +245,43 @@ window.DRAMA_CURRICULUM = {
         'Focusing on the task through planning, rehearsal and final performance (Third/Fourth Level)'
       ],
       lessons: []
+    },
+    's2-02': {
+      id: 's2-02',
+      unitLabel: '02',
+      year: 'S2',
+      title: 'Areas of Stage & Staging',
+      weeks: '3 lessons',
+      month: 'Aug',
+      colour: '#3B82F6',
+      gradEnd: '#60A5FA',
+      desc: 'Own the space. Shape the audience. Learn stage areas, explore types of staging, then select and refine blocking for a short performance.',
+      meta_skills: ['Sense-making', 'Creativity', 'Critical thinking'],
+      meta_notes: [
+        'Identifying and ordering patterns in staging configurations and stage areas (Second Level)',
+        'Experimenting with blocking and spatial solutions (Third/Fourth Level)',
+        'Examining pros and cons of staging choices on audience experience (Third/Fourth Level)'
+      ],
+      lessons: [
+        {
+          id: '1',
+          title: 'Using the Areas of the Stage',
+          slides: 'S2_Unit02_Lesson01_Using_the_Areas_of_the_Stage.html',
+          status: 'ready'
+        },
+        {
+          id: '2',
+          title: 'Exploring Types of Staging',
+          slides: 'S2_Unit02_Lesson02_Exploring_Types_of_Staging.html',
+          status: 'ready'
+        },
+        {
+          id: '3',
+          title: 'The Director’s Staging Challenge',
+          slides: 'S2_Unit02_Lesson03_Directors_Staging_Challenge.html',
+          status: 'ready'
+        }
+      ]
     }
   }
 };
