@@ -385,6 +385,41 @@
       state.timetable.periodTimes = (periodTimes && Object.keys(periodTimes).length) ? periodTimes : undefined;
     },
 
+    upsertSlot: function(day, period, fields) {
+      if (!state.timetable) state.timetable = { slots: [] };
+      if (!state.timetable.slots) state.timetable.slots = [];
+      var dayKey = String(day || '').toLowerCase();
+      var p = parseInt(period, 10);
+      if (!dayKey || isNaN(p) || p < 1) return null;
+      var idx = state.timetable.slots.findIndex(function(s) {
+        return String(s.day || '').toLowerCase() === dayKey && parseInt(s.period, 10) === p;
+      });
+      var next = Object.assign({
+        id: id(),
+        day: dayKey,
+        period: p,
+        subject: 'other',
+        className: '',
+        room: ''
+      }, fields || {}, { day: dayKey, period: p });
+      if (idx >= 0) {
+        next.id = state.timetable.slots[idx].id || next.id;
+        state.timetable.slots[idx] = Object.assign({}, state.timetable.slots[idx], next);
+        return state.timetable.slots[idx];
+      }
+      state.timetable.slots.push(next);
+      return next;
+    },
+
+    clearSlot: function(day, period) {
+      if (!state.timetable || !state.timetable.slots) return;
+      var dayKey = String(day || '').toLowerCase();
+      var p = parseInt(period, 10);
+      state.timetable.slots = state.timetable.slots.filter(function(s) {
+        return !(String(s.day || '').toLowerCase() === dayKey && parseInt(s.period, 10) === p);
+      });
+    },
+
     upsertLesson: function(payload, editingId) {
       var lessons = state.lessons.lessons || [];
       var existingIdx = lessons.findIndex(function(l) { return l.date === payload.date && l.slotKey === payload.slotKey; });
@@ -432,6 +467,83 @@
 
     removeLesson: function(lessonId) {
       state.lessons.lessons = (state.lessons.lessons || []).filter(function(l) { return l.id !== lessonId; });
+    },
+
+    copyLessonsFromPreviousWeek: function(weekStart, options) {
+      options = options || {};
+      var skipExisting = options.skipExisting !== false;
+      var fromStart = new Date(weekStart);
+      fromStart.setDate(fromStart.getDate() - 7);
+      var copied = [];
+      var skipped = 0;
+      var sourceCount = 0;
+      var self = this;
+      DAYS.forEach(function(day, j) {
+        var fromD = new Date(fromStart);
+        fromD.setDate(fromD.getDate() + j);
+        var toD = new Date(weekStart);
+        toD.setDate(toD.getDate() + j);
+        var fromStr = self.getDateStr(fromD);
+        var toStr = self.getDateStr(toD);
+        for (var p = 1; p <= 7; p++) {
+          var sk = self.slotKey(day, p);
+          var src = self.getLessonFor(fromStr, sk);
+          if (!src) continue;
+          sourceCount++;
+          var dest = self.getLessonFor(toStr, sk);
+          if (dest && skipExisting) {
+            skipped++;
+            continue;
+          }
+          if (options.dryRun) {
+            copied.push({ date: toStr, slotKey: sk });
+            continue;
+          }
+          var clone = JSON.parse(JSON.stringify(src));
+          delete clone.id;
+          delete clone.createdAt;
+          clone.date = toStr;
+          clone.slotKey = sk;
+          clone.updatedAt = new Date().toISOString();
+          if (clone.status === 'complete') clone.status = 'planned';
+          if (Array.isArray(clone.todos)) {
+            clone.todos = clone.todos.map(function(t) {
+              return { id: id(), text: (t && t.text) || '', done: false };
+            });
+          }
+          self.upsertLesson(clone, dest ? dest.id : null);
+          var saved = self.getLessonFor(toStr, sk);
+          copied.push({
+            date: toStr,
+            slotKey: sk,
+            newId: saved && saved.id,
+            previous: dest ? dest : null
+          });
+        }
+      });
+      var fromKey = this.getDateStr(fromStart);
+      var toKey = this.getDateStr(new Date(weekStart));
+      var noteCopied = false;
+      var prevNote = '';
+      if (!String(this.getWeekNote(toKey) || '').trim()) {
+        var srcNote = this.getWeekNote(fromKey);
+        if (srcNote && String(srcNote).trim()) {
+          if (!options.dryRun) {
+            prevNote = this.getWeekNote(toKey) || '';
+            this.setWeekNote(toKey, srcNote);
+          }
+          noteCopied = true;
+        }
+      }
+      return {
+        copied: copied.length,
+        skipped: skipped,
+        sourceCount: sourceCount,
+        noteCopied: noteCopied,
+        copiedSlots: copied,
+        noteKey: toKey,
+        previousNote: prevNote
+      };
     },
 
     getTemplates: function() {

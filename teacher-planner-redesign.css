@@ -41,7 +41,10 @@
   --planner-safe-left: env(safe-area-inset-left, 0px);
   --planner-topbar-h: 52px;
   --planner-tabs-sticky-top: var(--planner-topbar-h);
+  --font-ui: 'General Sans', 'Inter', sans-serif;
 
+  font-family: var(--font-ui);
+  font-feature-settings: 'tnum' 1;
   width: 100%;
   max-width: 100%;
   overflow-x: clip;
@@ -613,9 +616,122 @@ body.is-embedded .planner-redesign .content {
 .today-page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   color: var(--today-text);
   min-width: 0;
+}
+
+.today-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem 1.5rem;
+  flex-wrap: wrap;
+  padding: 1rem 1.25rem;
+  border-radius: 14px;
+  background:
+    linear-gradient(120deg, #061a3e 0%, #08316a 72%, #061b3f 100%);
+  color: #fff;
+  box-shadow: 0 8px 22px rgba(7, 27, 63, 0.16);
+}
+
+.today-strip-copy {
+  min-width: 0;
+  flex: 1 1 16rem;
+}
+
+.today-strip .today-heading {
+  margin: 0;
+  font-size: clamp(1.35rem, 2.2vw, 1.85rem);
+  line-height: 1.15;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: #fff;
+}
+
+.today-strip .today-summary {
+  margin: 0.28rem 0 0;
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.82);
+  line-height: 1.35;
+}
+
+.today-strip-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  align-items: center;
+}
+
+.today-action-ghost {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: rgba(255, 255, 255, 0.92);
+}
+
+.today-action-ghost:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.today-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.today-status-chip {
+  appearance: none;
+  font: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  min-height: 40px;
+  padding: 0.4rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--today-border, #dbe3ee);
+  background: #fff;
+  color: var(--today-text, #17233d);
+  box-shadow: 0 1px 2px rgba(17, 29, 56, 0.04);
+}
+
+.today-status-chip:hover {
+  border-color: #c5d0e0;
+}
+
+.today-status-chip:focus-visible {
+  outline: 2px solid var(--today-blue, #2563eb);
+  outline-offset: 2px;
+}
+
+.today-status-chip:active {
+  transform: scale(0.98);
+}
+
+.today-status-chip-value {
+  font-weight: 750;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.95rem;
+  letter-spacing: -0.02em;
+}
+
+.today-status-chip-label {
+  font-size: 0.78rem;
+  font-weight: 550;
+  color: var(--today-muted, #64748b);
+}
+
+.today-status-chip.today-metric-red .today-status-chip-value { color: #c2410c; }
+.today-status-chip.today-metric-green .today-status-chip-value { color: #15803d; }
+.today-status-chip.today-metric-blue .today-status-chip-value { color: #1d4ed8; }
+.today-status-chip.today-metric-purple .today-status-chip-value { color: #6d28d9; }
+
+.today-note-save-state {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--today-muted, #64748b);
+  min-height: 1em;
 }
 
 .today-hero {
@@ -1034,18 +1150,44 @@ body.is-embedded .planner-redesign .content {
 
 .today-lesson-item {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   column-gap: 10px;
   align-items: center;
   min-height: 0;
-  padding: 0.55rem 0.7rem;
+  padding: 0.35rem 0.55rem 0.35rem 0.4rem;
   border-radius: 10px;
   border: 1px solid var(--today-border);
   background: #fff;
   position: relative;
-  cursor: pointer;
+  cursor: default;
   box-shadow: 0 1px 2px rgba(17, 29, 56, 0.03);
   min-width: 0;
+}
+
+.today-lesson-open {
+  appearance: none;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  column-gap: 10px;
+  align-items: center;
+  min-width: 0;
+  text-align: left;
+  cursor: pointer;
+  padding: 0.2rem 0.15rem;
+  border-radius: 8px;
+}
+
+.today-lesson-open:focus-visible {
+  outline: 2px solid var(--today-blue);
+  outline-offset: 2px;
+}
+
+.today-lesson-open:active {
+  transform: scale(0.99);
 }
 
 .today-lesson-item::before {
@@ -1067,7 +1209,7 @@ body.is-embedded .planner-redesign .content {
   border-color: #c5d0e0;
 }
 
-.today-lesson-item:focus-visible {
+.today-lesson-open:focus-visible {
   outline: 2px solid var(--today-blue);
   outline-offset: 2px;
 }
@@ -1725,7 +1867,7 @@ body.is-embedded .planner-redesign .content {
   }
 
   .planner-redesign #panel-today .today-lesson-item {
-    grid-template-columns: 40px minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
     row-gap: 0.4rem;
   }
 
@@ -2311,10 +2453,37 @@ body.is-embedded .planner-redesign .content {
   padding: 3px;
   min-width: 0;
   border: 0;
-  cursor: pointer;
+  cursor: default;
   color: inherit;
   position: relative;
   overflow: hidden;
+}
+
+.week-lesson-open {
+  appearance: none;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 52px;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 7px;
+}
+
+.week-lesson-open:focus-visible {
+  outline: 2px solid var(--week-blue, #2563eb);
+  outline-offset: 1px;
+}
+
+.week-lesson-open .week-lesson-card {
+  height: 100%;
+  min-height: 52px;
+  pointer-events: none;
 }
 
 .week-slides-btn {
@@ -4414,7 +4583,7 @@ button.week-priority-item.is-action:focus-visible {
 
 #lessonModal .lesson-modal-hero .modal-title {
   margin: 0;
-  font-family: 'Sora', 'Inter', sans-serif;
+  font-family: var(--font-ui);
   font-size: clamp(1.05rem, 1.6vw, 1.25rem);
   font-weight: 700;
   letter-spacing: -0.02em;
@@ -4424,7 +4593,7 @@ button.week-priority-item.is-action:focus-visible {
 
 #lessonModal .lesson-modal-hero-class {
   margin: 0.2rem 0 0;
-  font-family: 'Sora', 'Inter', sans-serif;
+  font-family: var(--font-ui);
   font-size: clamp(1.45rem, 2.4vw, 1.95rem);
   font-weight: 800;
   letter-spacing: -0.035em;
@@ -4466,11 +4635,57 @@ button.week-priority-item.is-action:focus-visible {
 #lessonModal .lesson-modal-body {
   flex: 1 1 auto;
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
   padding: 0.65rem 0.9rem 0.75rem;
   display: flex;
   flex-direction: column;
   gap: 0.45rem;
+}
+
+#lessonModal .lesson-modal-workspace {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+#lessonModal .lesson-modal-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  flex-shrink: 0;
+}
+
+#lessonModal .lesson-modal-write {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (min-width: 960px) {
+  #lessonModal .lesson-modal-workspace {
+    display: grid;
+    grid-template-columns: minmax(280px, 36%) minmax(0, 1fr);
+    align-items: stretch;
+    gap: 0.7rem;
+  }
+
+  #lessonModal .lesson-modal-meta {
+    min-height: 0;
+    overflow: auto;
+    padding-right: 0.15rem;
+  }
+
+  #lessonModal .lesson-modal-write {
+    min-height: 0;
+  }
+
+  #lessonModal .lesson-body-editor-wrap.is-editor {
+    height: 100%;
+    min-height: 0;
+  }
 }
 
 #lessonModal .lesson-modal-panel {
@@ -4512,7 +4727,7 @@ button.week-priority-item.is-action:focus-visible {
 
 #lessonModal .lesson-modal-panel-title {
   margin: 0;
-  font-family: 'Sora', 'Inter', sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.92rem;
   font-weight: 700;
   color: #172d56;
@@ -4801,7 +5016,7 @@ button.week-priority-item.is-action:focus-visible {
   list-style: none;
   cursor: pointer;
   padding: 0.95rem 1.1rem;
-  font-family: 'Sora', 'Inter', sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.98rem;
   font-weight: 700;
   color: #172d56;
@@ -4894,7 +5109,7 @@ button.week-priority-item.is-action:focus-visible {
     height: 100dvh;
     max-height: 100dvh;
     border-radius: 0;
-    padding-bottom: var(--planner-safe-bottom, env(safe-area-inset-bottom, 0px));
+    padding-bottom: calc(var(--planner-safe-bottom, env(safe-area-inset-bottom, 0px)) + var(--lesson-kb-inset, 0px));
   }
 
   #lessonModal .lesson-modal-hero {
@@ -4918,6 +5133,17 @@ button.week-priority-item.is-action:focus-visible {
   #lessonModal .lesson-modal-close {
     width: 2.75rem;
     height: 2.75rem;
+  }
+}
+
+@media (max-width: 959px) {
+  #lessonModal .lesson-modal-body {
+    overflow: auto;
+  }
+
+  #lessonModal .lesson-modal-write {
+    order: -1;
+    min-height: 42vh;
   }
 }
 
@@ -5011,7 +5237,7 @@ button.week-priority-item.is-action:focus-visible {
 
 .planner-redesign #panel-day .day-date-title {
   margin: 0;
-  font-family: 'Sora', 'Inter', sans-serif;
+  font-family: var(--font-ui);
   font-size: clamp(1.35rem, 2.4vw, 1.85rem);
   font-weight: 800;
   letter-spacing: -0.035em;
@@ -5108,7 +5334,7 @@ button.week-priority-item.is-action:focus-visible {
 .planner-redesign #panel-day .day-card {
   position: relative;
   display: grid;
-  grid-template-columns: 4.6rem minmax(0, 1fr) minmax(9.5rem, 12rem);
+  grid-template-columns: minmax(0, 1fr) minmax(9.5rem, 12rem);
   gap: 0.85rem 1rem;
   align-items: stretch;
   margin: 0;
@@ -5117,9 +5343,31 @@ button.week-priority-item.is-action:focus-visible {
   border: 1px solid rgba(0, 0, 0, 0.1);
   border-left: none;
   box-shadow: 0 6px 18px rgba(17, 29, 56, 0.1);
-  cursor: pointer;
+  cursor: default;
   overflow: hidden;
   transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+}
+
+.planner-redesign #panel-day .day-card-open {
+  appearance: none;
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  display: grid;
+  grid-template-columns: 4.6rem minmax(0, 1fr);
+  gap: 0.85rem 1rem;
+  align-items: stretch;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.planner-redesign #panel-day .day-card-open:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.85);
+  outline-offset: 2px;
+  border-radius: 10px;
 }
 
 .planner-redesign #panel-day .day-card::after {
@@ -5171,7 +5419,7 @@ button.week-priority-item.is-action:focus-visible {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Sora', 'Inter', sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.82rem;
   font-weight: 800;
   letter-spacing: -0.02em;
@@ -5201,7 +5449,7 @@ button.week-priority-item.is-action:focus-visible {
 
 .planner-redesign #panel-day .day-cls-label {
   margin: 0;
-  font-family: 'Sora', 'Inter', sans-serif;
+  font-family: var(--font-ui);
   font-size: clamp(1.15rem, 2vw, 1.45rem);
   font-weight: 800;
   letter-spacing: -0.03em;
@@ -5227,7 +5475,7 @@ button.week-priority-item.is-action:focus-visible {
 
 .planner-redesign #panel-day .day-lesson-title {
   margin: 0.1rem 0 0;
-  font-family: 'Sora', 'Inter', sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.98rem;
   font-weight: 700;
   line-height: 1.25;
@@ -5356,7 +5604,7 @@ button.week-priority-item.is-action:focus-visible {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-family: 'Sora', 'Inter', sans-serif;
+  font-family: var(--font-ui);
   font-size: 0.72rem;
   font-weight: 800;
   color: #475569;
@@ -5401,6 +5649,10 @@ button.week-priority-item.is-action:focus-visible {
 
 @media (max-width: 820px) {
   .planner-redesign #panel-day .day-card {
+    grid-template-columns: 1fr;
+  }
+
+  .planner-redesign #panel-day .day-card-open {
     grid-template-columns: 3.8rem minmax(0, 1fr);
   }
 
@@ -5581,11 +5833,12 @@ button.week-priority-item.is-action:focus-visible {
    Keep all Today/Week blocks; compress so they sit on one screen.
    ═══════════════════════════════════════════════════════════ */
 
-@media (min-width: 769px) {
+@media (min-width: 1200px) and (hover: hover) and (not (any-pointer: coarse)) {
   body:not(.is-embedded) .planner-redesign .content {
     padding: 0.55rem 0.9rem 0.65rem;
-    max-width: none;
+    max-width: 1440px;
     width: 100%;
+    margin-inline: auto;
   }
 
   /* Viewport-lock Today only — Week must never be height-crushed */
@@ -5868,7 +6121,7 @@ button.week-priority-item.is-action:focus-visible {
 }
 
 /* iPad landscape / shorter viewports: squeeze Today harder only */
-@media (min-width: 769px) and (max-height: 900px) {
+@media (min-width: 1200px) and (hover: hover) and (not (any-pointer: coarse)) and (max-height: 900px) {
   .planner-redesign #panel-today .today-hero {
     padding: 8px 12px;
   }
@@ -5899,7 +6152,7 @@ button.week-priority-item.is-action:focus-visible {
   }
 }
 
-@media (min-width: 769px) and (max-width: 1100px) {
+@media (min-width: 1200px) and (hover: hover) and (not (any-pointer: coarse)) and (max-width: 1400px) {
   .planner-redesign #panel-today .today-metrics {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
@@ -5924,7 +6177,7 @@ body.is-embedded .planner-redesign #panel-today.active {
   min-height: calc(100dvh - 3.5rem);
 }
 
-@media (min-width: 769px) {
+@media (min-width: 1200px) and (hover: hover) and (not (any-pointer: coarse)) {
   body.is-embedded .planner-redesign .content:has(#panel-today.active) {
     overflow: hidden;
   }
@@ -6347,14 +6600,13 @@ body.is-embedded .planner-redesign #panel-today.active {
     flex: none !important;
   }
 
-  /* Today hero */
-  .planner-redesign #panel-today .today-hero {
-    padding: 14px 20px;
-    grid-template-columns: 1fr;
-    gap: 12px;
-    min-height: auto;
+  /* Compact date strip */
+  .planner-redesign #panel-today .today-strip {
+    padding: 12px 16px;
+    gap: 10px;
   }
 
+  .planner-redesign #panel-today .today-hero,
   .planner-redesign #panel-today .today-hero-meta {
     display: none;
   }
@@ -6368,15 +6620,13 @@ body.is-embedded .planner-redesign #panel-today.active {
   }
 
   .planner-redesign #panel-today .today-action {
-    min-height: 36px;
-    padding: 0.4rem 0.9rem;
-    font-size: 0.78rem;
+    min-height: 44px;
+    padding: 0.45rem 0.95rem;
+    font-size: 0.82rem;
   }
 
-  /* Metrics 2×2 */
   .planner-redesign #panel-today .today-metrics {
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 8px;
+    display: none;
   }
 
   .planner-redesign #panel-today .today-metric-card {
@@ -6426,10 +6676,10 @@ body.is-embedded .planner-redesign #panel-today.active {
   }
 
   .planner-redesign #panel-today .today-lesson-item {
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) auto;
     gap: 8px;
-    padding: 0.45rem 0.6rem;
-    align-items: start;
+    padding: 0.4rem 0.5rem;
+    align-items: center;
   }
 
   .planner-redesign #panel-today .today-lesson-period {
@@ -6467,9 +6717,9 @@ body.is-embedded .planner-redesign #panel-today.active {
   }
 
   .planner-redesign #panel-today .today-lesson-action {
-    min-height: 30px;
-    padding: 0.25rem 0.45rem;
-    font-size: 0.65rem;
+    min-height: 44px;
+    padding: 0.4rem 0.7rem;
+    font-size: 0.78rem;
   }
 
   .planner-redesign #panel-today .today-panel-header {
@@ -6888,13 +7138,25 @@ body.is-embedded .planner-redesign #panel-today.active {
 }
 
 .planner-redesign #panel-timetable .timetable-display-header {
-  padding: 0.45rem 0.75rem;
+  padding: 0.55rem 0.85rem;
   margin: 0;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  flex-wrap: wrap;
 }
 
 .planner-redesign #panel-timetable .timetable-display-title {
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   font-weight: 750;
+}
+
+.planner-redesign #panel-timetable .timetable-display-hint {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--planner-text-muted);
 }
 
 .planner-redesign #panel-timetable .timetable-display-grid {
@@ -6926,8 +7188,37 @@ body.is-embedded .planner-redesign #panel-today.active {
 }
 
 .planner-redesign #panel-timetable .tt-cell {
+  appearance: none;
+  font: inherit;
+  color: inherit;
   min-height: var(--cell-h);
+  min-width: 0;
   padding: 0.15rem;
+  display: flex;
+  align-items: stretch;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.planner-redesign #panel-timetable .tt-cell:focus-visible {
+  outline: 2px solid var(--planner-blue);
+  outline-offset: -2px;
+}
+
+.planner-redesign #panel-timetable .tt-cell:active:not(.na) {
+  transform: scale(0.98);
+}
+
+.planner-redesign #panel-timetable .tt-cell.na {
+  cursor: default;
+  pointer-events: none;
+}
+
+.planner-redesign #panel-timetable .tt-cell .class-chip,
+.planner-redesign #panel-timetable .tt-cell .chip-add {
+  width: 100%;
 }
 
 .planner-redesign #panel-timetable .class-chip {
@@ -7792,5 +8083,519 @@ body.is-embedded .planner-redesign #panel-today.active {
 
   .planner-redesign #panel-bank .library-preview-footer {
     flex-direction: column;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   UX pass — iPad / desktop (tap targets, slot sheet, press)
+   ═══════════════════════════════════════════════════════════ */
+
+.planner-redesign .today-action:active:not(:disabled),
+.planner-redesign .week-action:active,
+.planner-redesign .week-nav-btn:active,
+.planner-redesign .tab-btn.planner-tab:active,
+.planner-redesign .rd-btn:active {
+  transform: scale(0.98);
+}
+
+.slot-edit-sheet {
+  max-width: 420px;
+}
+
+@media (any-pointer: coarse) {
+  .planner-redesign .today-status-chip,
+  .planner-redesign .today-lesson-action,
+  .planner-redesign .week-slides-btn,
+  .planner-redesign #panel-timetable .tt-cell:not(.na) {
+    min-height: 44px;
+  }
+
+  .planner-redesign .week-slides-btn {
+    padding: 0.35rem 0.55rem;
+    font-size: 0.68rem;
+    right: 6px;
+    bottom: 6px;
+  }
+
+  #slotEditModal.modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  #slotEditModal .slot-edit-sheet {
+    max-width: none;
+    width: 100%;
+    max-height: min(88dvh, 640px);
+    border-radius: 18px 18px 0 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  #slotEditModal .modal-close,
+  #slotEditSave,
+  #slotEditCancel,
+  #slotEditClear {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+
+@media (max-width: 1023px) {
+  .planner-redesign #panel-today .today-strip-actions {
+    width: 100%;
+  }
+
+  .planner-redesign #panel-today .today-strip-actions .today-action {
+    flex: 1 1 auto;
+  }
+
+  .planner-redesign #panel-today .today-status-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .planner-redesign #panel-today .today-status-chip {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
+
+@media (min-width: 1100px) {
+  .planner-redesign #panel-week .week-page,
+  .planner-redesign #panel-timetable {
+    max-width: 1440px;
+    margin-inline: auto;
+  }
+}
+
+.planner-dock {
+  display: none;
+}
+
+.week-swipe-hint {
+  margin: 0.35rem 0 0;
+  font-size: 0.72rem;
+  font-weight: 550;
+  color: var(--planner-text-muted);
+  text-align: center;
+}
+
+@media (any-pointer: coarse) and (min-width: 768px) {
+  body:not(.is-embedded) .planner-dock {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 45;
+    justify-content: space-around;
+    align-items: stretch;
+    gap: 0.15rem;
+    padding: 0.28rem 0.4rem calc(0.28rem + env(safe-area-inset-bottom, 0px));
+    background: rgba(255, 255, 255, 0.94);
+    border-top: 1px solid var(--planner-border);
+    backdrop-filter: blur(12px);
+  }
+
+  body:not(.is-embedded) .planner-redesign .tabs-inner > .planner-tab {
+    display: none !important;
+  }
+
+  body:not(.is-embedded) .planner-redesign .content,
+  body:not(.is-embedded) .planner-redesign {
+    padding-bottom: calc(4.4rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  body:not(.is-embedded) #plannerToast {
+    bottom: calc(5.2rem + env(safe-area-inset-bottom, 0px)) !important;
+  }
+}
+
+.planner-dock-btn {
+  appearance: none;
+  font: inherit;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 48px;
+  border: 0;
+  background: transparent;
+  color: var(--planner-text-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.12rem;
+  font-size: 0.62rem;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  border-radius: 10px;
+}
+
+.planner-dock-btn:active {
+  transform: scale(0.97);
+  background: #f1f5fb;
+}
+
+.planner-dock-btn.is-active {
+  color: var(--planner-navy);
+}
+
+.planner-dock-icon {
+  display: block;
+  width: 1.35rem;
+  height: 1.35rem;
+}
+
+.planner-dock-icon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+body.is-embedded .planner-dock {
+  display: none !important;
+}
+
+.planner-empty-callout {
+  margin: 0.35rem 0 0.75rem;
+  padding: 0.9rem 1rem;
+  border: 1px dashed var(--planner-border, #d5deeb);
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.planner-empty-callout strong {
+  display: block;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--planner-navy, #172d56);
+  margin-bottom: 0.25rem;
+}
+
+.planner-empty-callout p {
+  margin: 0 0 0.7rem;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--planner-text-muted, #5b6b82);
+}
+
+.planner-empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.planner-empty-actions .rd-btn {
+  min-height: 44px;
+}
+
+.today-lessons-list > .planner-empty-callout,
+.week-timetable-panel > .planner-empty-callout,
+#timetableDisplayGrid > .planner-empty-callout {
+  margin-top: 0;
+}
+
+.week-jump-wrap {
+  display: inline-flex;
+  align-items: center;
+}
+
+.week-jump-date {
+  appearance: none;
+  font: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 650;
+  border-radius: 8px;
+  min-height: 32px;
+  padding: 0.2rem 0.4rem;
+  color-scheme: dark;
+  max-width: 10.5rem;
+}
+
+.week-jump-date:focus-visible {
+  outline: 2px solid #f5d56a;
+  outline-offset: 2px;
+}
+
+.academic-year-copy {
+  margin: 0 0 0.85rem;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  color: var(--text2, #5b6b82);
+}
+
+.academic-year-choices {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.45rem;
+  margin-bottom: 0.9rem;
+}
+
+.academic-year-chip {
+  appearance: none;
+  font: inherit;
+  cursor: pointer;
+  border: 1.5px solid var(--planner-border, #d5deeb);
+  background: #fff;
+  border-radius: 10px;
+  padding: 0.55rem 0.4rem;
+  min-height: 44px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.12rem;
+}
+
+.academic-year-chip strong {
+  font-size: 0.88rem;
+  color: var(--planner-navy, #172d56);
+}
+
+.academic-year-chip span {
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--planner-text-muted, #5b6b82);
+}
+
+.academic-year-chip.is-selected {
+  border-color: var(--planner-navy, #172d56);
+  background: #eef3fb;
+  box-shadow: 0 0 0 1px var(--planner-navy, #172d56);
+}
+
+.tt-print-header {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: landscape;
+    margin: 10mm;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  body.is-printing-timetable .topbar,
+  body.is-printing-timetable .tabs-bar,
+  body.is-printing-timetable .planner-dock,
+  body.is-printing-timetable .planner-install-tip,
+  body.is-printing-timetable #calendarSubnav,
+  body.is-printing-timetable .planner-pulse,
+  body.is-printing-timetable .tt-actions-row,
+  body.is-printing-timetable .tt-summary-row,
+  body.is-printing-timetable .tt-footer-insights,
+  body.is-printing-timetable .tt-settings-details,
+  body.is-printing-timetable #timetableEditSection,
+  body.is-printing-timetable .timetable-display-header,
+  body.is-printing-timetable .planner-empty-callout,
+  body.is-printing-timetable #plannerToast,
+  body.is-printing-timetable .planner-panel {
+    display: none !important;
+  }
+
+  body.is-printing-timetable #panel-timetable.planner-panel {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  body.is-printing-timetable .planner-redesign,
+  body.is-printing-timetable .planner-redesign .content,
+  body.is-printing-timetable #timetableDisplaySection,
+  body.is-printing-timetable #timetableDisplayGrid,
+  body.is-printing-timetable .grid-wrap {
+    display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    height: auto !important;
+    background: #fff !important;
+    box-shadow: none !important;
+    border: 0 !important;
+  }
+
+  body.is-printing-timetable .tt-print-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 1rem;
+    margin: 0 0 0.7rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 2px solid #172d56;
+    color: #172d56;
+    font-size: 0.85rem;
+  }
+
+  body.is-printing-timetable .tt-print-header strong {
+    font-size: 1.05rem;
+  }
+
+  body.is-printing-timetable .tt-grid {
+    width: 100% !important;
+    min-width: 0 !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  body.is-printing-timetable .tt-cell,
+  body.is-printing-timetable .class-chip {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+    box-shadow: none !important;
+  }
+
+  body.is-printing-timetable .chip-add {
+    display: none !important;
+  }
+}
+
+.planner-redesign .planner-subnav,
+#panel-day,
+#panel-month {
+  display: none !important;
+}
+
+.today-date-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-bottom: 0.4rem;
+}
+
+.today-nav-btn,
+.today-nav-today {
+  appearance: none;
+  font: inherit;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 650;
+  border-radius: 8px;
+  min-height: 32px;
+  min-width: 32px;
+  padding: 0.25rem 0.65rem;
+  line-height: 1;
+}
+
+.today-nav-btn:hover,
+.today-nav-today:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+.today-nav-btn:focus-visible,
+.today-nav-today:focus-visible {
+  outline: 2px solid #f5d56a;
+  outline-offset: 2px;
+}
+
+#monthPopover {
+  z-index: 1080;
+}
+
+.month-popover-sheet {
+  max-width: min(920px, calc(100vw - 1.5rem));
+}
+
+.month-pop-header {
+  gap: 0.75rem;
+}
+
+.month-pop-nav {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  flex: 1;
+}
+
+.month-pop-nav .modal-title {
+  margin: 0;
+  min-width: 0;
+  flex: 1;
+  text-align: center;
+}
+
+.month-pop-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.7rem;
+}
+
+#monthPopover .month-cell {
+  min-height: 4.4rem;
+}
+
+#monthPopover .month-cell.is-current-week {
+  background: #eef4ff;
+}
+
+#monthPopover .month-cell.today.is-current-week {
+  background: rgba(201, 168, 76, 0.1);
+}
+
+#plannerConfirmModal {
+  z-index: 1200;
+}
+
+.planner-confirm-copy {
+  margin: 0 0 0.75rem;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--text2, #5b6b82);
+}
+
+#plannerConfirmOk.is-danger {
+  background: #b42318;
+  border-color: #b42318;
+  color: #fff;
+}
+
+#plannerConfirmOk.is-danger:hover {
+  filter: brightness(1.05);
+}
+
+@media (any-pointer: coarse) and (max-width: 1100px) {
+  #monthPopover.modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+
+  #monthPopover .month-popover-sheet {
+    max-width: none;
+    width: 100%;
+    max-height: min(92dvh, 780px);
+    border-radius: 18px 18px 0 0;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+
+  #monthPopover .month-preview {
+    display: none;
+  }
+
+  #monthPopover .month-cell {
+    min-height: 3.2rem;
+  }
+
+  #plannerConfirmModal .btn-primary,
+  #plannerConfirmModal .btn-secondary,
+  #plannerConfirmModal .modal-close {
+    min-height: 44px;
   }
 }
