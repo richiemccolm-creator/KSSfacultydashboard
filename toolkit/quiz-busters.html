@@ -13,6 +13,7 @@
 <script src="../allowlist-check.js"></script>
 <script>window.__authGuardLoginPath='../login.html';</script>
 <script src="../auth-guard.js"></script>
+<script src="../classroom-toolkit-library-service.js"></script>
 <script src="../embed-chrome.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -1111,6 +1112,43 @@ body.mode-play .top-actions{
 
   var $ = function (id) { return document.getElementById(id); };
   var toastT = null;
+  var cloudReady = false;
+
+  function whenAuthReady(cb) {
+    var done = false;
+    function run() {
+      if (done) return;
+      done = true;
+      cb();
+    }
+    if (window.__authReady) run();
+    else {
+      try { window.addEventListener("auth-guard-ready", run, { once: true }); }
+      catch (e) { window.addEventListener("auth-guard-ready", run); }
+      setTimeout(run, 2500);
+    }
+  }
+
+  function boardsForCloud(list) {
+    return (list || []).filter(function (b) {
+      return b && b.id && b.id !== SAMPLE.id && !b.builtIn;
+    }).map(function (b) {
+      return {
+        id: b.id,
+        title: b.title,
+        items: normalizeItems(b.items),
+        updatedAt: b.updatedAt || null
+      };
+    });
+  }
+
+  function persistBoardsLocal() {
+    try {
+      localStorage.setItem(STORE_KEY, JSON.stringify(state.boards));
+    } catch (e) {
+      toast("Could not save — storage may be full");
+    }
+  }
 
   function toast(msg) {
     var el = $("toast");
@@ -1164,11 +1202,34 @@ body.mode-play .top-actions{
   }
 
   function saveBoards() {
-    try {
-      localStorage.setItem(STORE_KEY, JSON.stringify(state.boards));
-    } catch (e) {
-      toast("Could not save — storage may be full");
+    persistBoardsLocal();
+    if (cloudReady && window.ClassroomToolkitLibrary) {
+      ClassroomToolkitLibrary.saveSoon(
+        ClassroomToolkitLibrary.STORE.QUIZ_BUSTERS,
+        function () { return boardsForCloud(state.boards); }
+      );
     }
+  }
+
+  function syncBoardsFromCloud() {
+    var lib = window.ClassroomToolkitLibrary;
+    if (!lib) {
+      cloudReady = true;
+      return Promise.resolve();
+    }
+    return lib.syncList(lib.STORE.QUIZ_BUSTERS, boardsForCloud(state.boards)).then(function (items) {
+      var sample = state.boards.filter(function (b) { return b.id === SAMPLE.id; });
+      var others = (items || []).filter(function (b) {
+        return b && b.id && b.id !== SAMPLE.id;
+      });
+      state.boards = sample.concat(others);
+      ensureSamplePresent();
+      cloudReady = true;
+      persistBoardsLocal();
+      if (state.view === "library") renderLibrary();
+    }).catch(function () {
+      cloudReady = true;
+    });
   }
 
   function loadSound() {
@@ -1416,6 +1477,7 @@ body.mode-play .top-actions{
       id: board.id,
       title: board.title,
       builtIn: !!board.builtIn,
+      updatedAt: board.updatedAt || null,
       items: normalizeItems(board.items).map(function (it) { return { q: it.q, a: it.a }; })
     };
   }
@@ -1786,6 +1848,7 @@ body.mode-play .top-actions{
     var payload = {
       id: ed.builtIn && ed.isNew === false && ed.id === SAMPLE.id ? uid() : ed.id,
       title: ed.title,
+      updatedAt: new Date().toISOString(),
       items: ed.items.map(function (it) { return { q: it.q.trim(), a: it.a.trim() }; })
     };
     if (ed.builtIn && !ed.isNew && ed.id === SAMPLE.id) {
@@ -2639,8 +2702,13 @@ body.mode-play .top-actions{
   state.sound = loadSound();
   state.boards = loadBoards();
   ensureSamplePresent();
-  saveBoards();
+  persistBoardsLocal();
   showView("library");
+  whenAuthReady(function () {
+    syncBoardsFromCloud().then(function () {
+      if (state.view === "library") renderChrome();
+    });
+  });
 })();
 </script>
 </body>

@@ -13,6 +13,7 @@
 <script src="../allowlist-check.js"></script>
 <script>window.__authGuardLoginPath='../login.html';</script>
 <script src="../auth-guard.js"></script>
+<script src="../classroom-toolkit-library-service.js"></script>
 <script src="../embed-chrome.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -329,6 +330,7 @@ body.host-live{
     inboxFilter: "pending"
   };
   var toastTimer = null;
+  var cloudReady = false;
 
   var BLOCK = [
     "fuck","fucking","fucked","shit","shitty","bitch","bastard","asshole","arsehole",
@@ -374,8 +376,18 @@ body.host-live{
     } catch (e) { state.packs = []; }
   }
 
-  function savePacks() {
+  function persistPacksLocal() {
     try { localStorage.setItem(STORE_KEY, JSON.stringify(state.packs)); } catch (e) {}
+  }
+
+  function savePacks() {
+    persistPacksLocal();
+    if (cloudReady && window.ClassroomToolkitLibrary) {
+      ClassroomToolkitLibrary.saveSoon(
+        ClassroomToolkitLibrary.STORE.EXIT,
+        function () { return state.packs; }
+      );
+    }
   }
 
   function parsePrompts(text) {
@@ -851,27 +863,48 @@ body.host-live{
   }
 
   function boot() {
+    if (boot.done) return;
+    boot.done = true;
     buildSky();
     loadPacks();
-    if (!state.packs.length) {
-      state.packs = [{
-        id: uid(),
-        title: "Drama reflection (sample)",
-        prompts: [
-          "What went well in your work today?",
-          "Name one Drama word you used, and what it means."
-        ],
-        updatedAt: Date.now()
-      }];
-      savePacks();
-    }
     try {
       var home = document.getElementById("homeLink");
       if (home && (new URLSearchParams(location.search).get("embed") === "1" || sessionStorage.getItem("fh-embed") === "1")) {
         home.href = "../classroom_toolkit.html?embed=1";
       }
     } catch (e) {}
-    renderLibrary();
+
+    function finish() {
+      if (!state.packs.length) {
+        state.packs = [{
+          id: uid(),
+          title: "Drama reflection (sample)",
+          prompts: [
+            "What went well in your work today?",
+            "Name one Drama word you used, and what it means."
+          ],
+          updatedAt: Date.now()
+        }];
+        savePacks();
+      }
+      renderLibrary();
+    }
+
+    var lib = window.ClassroomToolkitLibrary;
+    if (!lib) {
+      cloudReady = true;
+      finish();
+      return;
+    }
+    lib.syncList(lib.STORE.EXIT, state.packs).then(function (items) {
+      state.packs = items || [];
+      cloudReady = true;
+      persistPacksLocal();
+      finish();
+    }).catch(function () {
+      cloudReady = true;
+      finish();
+    });
   }
 
   // expose isBlocked for future client checks (unused but available)

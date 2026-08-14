@@ -15,6 +15,7 @@
 <script src="supabase-init.js"></script>
 <script src="allowlist-check.js"></script>
 <script src="auth-guard.js"></script>
+<script src="classroom-toolkit-library-service.js"></script>
 <script src="embed-chrome.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -814,9 +815,27 @@ body.embedded .side-left,body.embedded .side-right{top:var(--header-h);height:ca
   var favs = loadFavs();
   var state = {cat:"All", q:"", view:"toolkit"};
   var CATS = ["All"].concat(TOOLS.map(function(t){return t.cat}).filter(function(v,i,a){return a.indexOf(v)===i}));
+  var cloudReady = false;
+
+  function whenAuthReady(cb){
+    var done=false;
+    function run(){ if(done) return; done=true; cb(); }
+    if(window.__authReady) run();
+    else {
+      try { window.addEventListener("auth-guard-ready", run, { once: true }); }
+      catch(e){ window.addEventListener("auth-guard-ready", run); }
+      setTimeout(run, 2500);
+    }
+  }
 
   function loadFavs(){ try{ return JSON.parse(localStorage.getItem("tk_favs")||"[]"); }catch(e){ return []; } }
-  function saveFavs(){ try{ localStorage.setItem("tk_favs",JSON.stringify(favs)); }catch(e){} }
+  function persistFavsLocal(){ try{ localStorage.setItem("tk_favs",JSON.stringify(favs)); }catch(e){} }
+  function saveFavs(){
+    persistFavsLocal();
+    if(cloudReady && window.ClassroomToolkitLibrary){
+      ClassroomToolkitLibrary.saveSoon(ClassroomToolkitLibrary.STORE.FAVS, function(){ return favs; });
+    }
+  }
   function isFav(id){ return favs.indexOf(id)>=0; }
   function toggleFav(id){ var i=favs.indexOf(id); if(i>=0)favs.splice(i,1); else favs.push(id); saveFavs(); }
 
@@ -1144,6 +1163,16 @@ body.embedded .side-left,body.embedded .side-right{top:var(--header-h);height:ca
 
   render();
   loadSignedInTeacher();
+  whenAuthReady(function(){
+    var lib = window.ClassroomToolkitLibrary;
+    if(!lib){ cloudReady = true; return; }
+    lib.syncStringList(lib.STORE.FAVS, favs).then(function(items){
+      favs = Array.isArray(items) ? items : favs;
+      cloudReady = true;
+      persistFavsLocal();
+      render();
+    }).catch(function(){ cloudReady = true; });
+  });
 })();
 </script>
 </body>

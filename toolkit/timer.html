@@ -13,6 +13,7 @@
 <script src="../allowlist-check.js"></script>
 <script>window.__authGuardLoginPath='../login.html';</script>
 <script src="../auth-guard.js"></script>
+<script src="../classroom-toolkit-library-service.js"></script>
 <script src="../embed-chrome.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -713,6 +714,24 @@ body:-webkit-full-screen .fx-mesh{opacity:1}
   var audioCtx = null;
   var toastT = null;
   var startAnimT = null;
+  var cloudReady = false;
+
+  function whenAuthReady(cb) {
+    if (window.__authReady) cb();
+    else {
+      try { window.addEventListener("auth-guard-ready", cb, { once: true }); }
+      catch (e) { window.addEventListener("auth-guard-ready", cb); }
+      setTimeout(cb, 2500);
+    }
+  }
+
+  function timerPrefsPayload() {
+    return {
+      total: state.total,
+      ring: state.ring,
+      label: state.label
+    };
+  }
 
   function toast(msg) {
     var el = $("toast");
@@ -774,24 +793,35 @@ body:-webkit-full-screen .fx-mesh{opacity:1}
     try {
       var raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return;
-      var data = JSON.parse(raw);
-      if (data && typeof data.total === "number" && data.total > 0) {
-        state.total = Math.min(99 * 60 + 59, Math.max(1, Math.floor(data.total)));
-        state.remaining = state.total;
-      }
-      if (typeof data.ring === "boolean") state.ring = data.ring;
-      if (typeof data.label === "string") state.label = data.label.slice(0, 60);
+      applyTimerPrefs(JSON.parse(raw));
+      if (!state.running) state.remaining = state.total;
+    } catch (e) {}
+  }
+
+  function applyTimerPrefs(data) {
+    if (!data || typeof data !== "object") return;
+    if (typeof data.total === "number" && data.total > 0) {
+      state.total = Math.min(99 * 60 + 59, Math.max(1, Math.floor(data.total)));
+      if (!state.running) state.remaining = state.total;
+    }
+    if (typeof data.ring === "boolean") state.ring = data.ring;
+    if (typeof data.label === "string") state.label = data.label.slice(0, 60);
+  }
+
+  function persistPrefsLocal() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(timerPrefsPayload()));
     } catch (e) {}
   }
 
   function savePrefs() {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({
-        total: state.total,
-        ring: state.ring,
-        label: state.label
-      }));
-    } catch (e) {}
+    persistPrefsLocal();
+    if (cloudReady && window.ClassroomToolkitLibrary) {
+      ClassroomToolkitLibrary.saveSoon(
+        ClassroomToolkitLibrary.STORE.TIMER,
+        timerPrefsPayload
+      );
+    }
   }
 
   function fmt(secs) {
@@ -1160,6 +1190,24 @@ body:-webkit-full-screen .fx-mesh{opacity:1}
   syncCustomInputs();
   draw();
   requestAnimationFrame(tick);
+  whenAuthReady(function () {
+    var lib = window.ClassroomToolkitLibrary;
+    if (!lib) {
+      cloudReady = true;
+      return;
+    }
+    lib.syncValue(lib.STORE.TIMER, timerPrefsPayload()).then(function (data) {
+      applyTimerPrefs(data);
+      if (!state.running) state.remaining = state.total;
+      cloudReady = true;
+      persistPrefsLocal();
+      $("activityLabel").value = state.label || "";
+      syncCustomInputs();
+      draw();
+    }).catch(function () {
+      cloudReady = true;
+    });
+  });
 })();
 </script>
 </body>

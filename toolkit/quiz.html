@@ -13,6 +13,7 @@
 <script src="../allowlist-check.js"></script>
 <script>window.__authGuardLoginPath='../login.html';</script>
 <script src="../auth-guard.js"></script>
+<script src="../classroom-toolkit-library-service.js"></script>
 <script src="../embed-chrome.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -560,6 +561,7 @@ body.hosting .top .sub{display:none}
   var hostTimer = null;
   var hostRaf = null;
   var playerPoll = null;
+  var cloudReady = false;
 
   function whenAuthReady(cb) {
     if (window.__authReady) cb();
@@ -873,7 +875,13 @@ body.hosting .top .sub{display:none}
     return list;
   }
 
-  function saveQuizzes() {
+  function quizzesForCloud() {
+    return (state.quizzes || []).filter(function (q) {
+      return q && q.id && q.id !== SAMPLE.id && !q.builtIn;
+    });
+  }
+
+  function persistQuizzesLocal() {
     try {
       var toSave = state.quizzes.map(function (q) {
         var copy = normalizeQuiz(q);
@@ -884,6 +892,37 @@ body.hosting .top .sub{display:none}
     } catch (e) {
       toast("Could not save quizzes");
     }
+  }
+
+  function saveQuizzes() {
+    persistQuizzesLocal();
+    if (cloudReady && window.ClassroomToolkitLibrary) {
+      ClassroomToolkitLibrary.saveSoon(
+        ClassroomToolkitLibrary.STORE.QUIZ_BUILDER,
+        quizzesForCloud
+      );
+    }
+  }
+
+  function syncQuizzesFromCloud() {
+    var lib = window.ClassroomToolkitLibrary;
+    if (!lib) {
+      cloudReady = true;
+      return Promise.resolve();
+    }
+    return lib.syncList(lib.STORE.QUIZ_BUILDER, quizzesForCloud()).then(function (items) {
+      var sample = state.quizzes.filter(function (q) { return q.id === SAMPLE.id; });
+      if (!sample.length) sample = [normalizeQuiz(SAMPLE)];
+      var others = (items || []).filter(function (q) {
+        return q && q.id && q.id !== SAMPLE.id;
+      }).map(normalizeQuiz).filter(Boolean);
+      state.quizzes = sample.concat(others);
+      cloudReady = true;
+      persistQuizzesLocal();
+      if (state.view === "library") renderLibrary();
+    }).catch(function () {
+      cloudReady = true;
+    });
   }
 
   function findQuiz(id) {
@@ -2043,8 +2082,11 @@ body.hosting .top .sub{display:none}
 
   state.sound = loadSound();
   state.quizzes = loadQuizzes();
-  saveQuizzes();
+  persistQuizzesLocal();
   setView("library");
+  whenAuthReady(function () {
+    syncQuizzesFromCloud();
+  });
 })();
 </script>
 </body>
