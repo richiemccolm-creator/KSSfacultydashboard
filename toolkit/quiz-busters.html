@@ -15,6 +15,7 @@
 <script src="../auth-guard.js"></script>
 <script src="../classroom-toolkit-library-service.js"></script>
 <script src="../embed-chrome.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,600;0,700;0,800;1,800&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -899,6 +900,58 @@ body.mode-play .top-actions{
 .modal .err{margin:8px 0 0;color:#FFB4B9;font:500 13px/1.4 var(--font);min-height:1.2em}
 @media(max-width:560px){.modal .form-grid{grid-template-columns:1fr}}
 
+.buzz-dock{
+  margin-top:12px;padding:12px;border-radius:16px;
+  border:1px solid rgba(91,128,213,.28);
+  background:rgba(3,8,23,.45);
+}
+.buzz-dock-head{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  font:800 11px/1 var(--font);letter-spacing:.1em;text-transform:uppercase;color:var(--qb-text-muted);
+  margin-bottom:10px;
+}
+.buzz-pin{color:#fff;letter-spacing:.16em;font-variant-numeric:tabular-nums}
+.buzz-qr-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.buzz-qr{
+  display:flex;flex-direction:column;align-items:center;gap:6px;
+  padding:8px;border-radius:14px;background:rgba(255,255,255,.03);
+}
+.buzz-qr img{width:100%;max-width:118px;aspect-ratio:1;border-radius:10px;background:#fff;padding:6px;object-fit:contain}
+.buzz-qr span{font:800 11px/1 var(--font);letter-spacing:.08em;text-transform:uppercase}
+.buzz-qr.blue span{color:var(--qb-blue-bright)}
+.buzz-qr.amber span{color:var(--qb-amber-bright)}
+.buzz-meta,.buzz-status{margin:8px 0 0;font:600 12px/1.35 var(--font);color:var(--qb-text-muted);text-align:center}
+.buzz-status.is-armed{color:var(--qb-green);font-weight:800}
+.buzz-status.is-locked.blue{color:var(--qb-blue-bright);font-weight:800}
+.buzz-status.is-locked.amber{color:var(--qb-amber-bright);font-weight:800}
+.buzz-pop{
+  position:fixed;inset:0;z-index:55;display:grid;place-items:center;
+  background:rgba(3,8,23,.45);pointer-events:none;
+}
+.buzz-pop.hidden{display:none!important}
+.buzz-pop-card{
+  min-width:min(520px,88vw);padding:28px 32px;border-radius:24px;text-align:center;
+  border:1px solid rgba(255,255,255,.2);
+  box-shadow:0 24px 60px rgba(0,0,0,.45);
+  animation:buzzPopIn .28s var(--ease) both;
+}
+.buzz-pop.is-blue .buzz-pop-card{
+  background:linear-gradient(160deg,#1677ff,#123fc4);
+}
+.buzz-pop.is-amber .buzz-pop-card{
+  background:linear-gradient(160deg,#ffc342,#c86a00);color:#1a1205;
+}
+.buzz-pop-kicker{margin:0 0 6px;font:800 12px/1 var(--font);letter-spacing:.16em;text-transform:uppercase;opacity:.85}
+.buzz-pop-card h2{margin:0;font:800 clamp(42px,8vw,84px)/.9 var(--font-display);letter-spacing:-.04em;font-style:italic}
+.buzz-pop-card p{margin:8px 0 0;font:700 16px/1.3 var(--font)}
+@keyframes buzzPopIn{
+  from{opacity:0;transform:scale(.86) translateY(12px)}
+  to{opacity:1;transform:none}
+}
+@media(prefers-reduced-motion:reduce){
+  .buzz-pop-card{animation:none}
+}
+
 .toast{
   position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);
   background:#121F3D;border:1px solid var(--line-strong);color:#fff;padding:11px 16px;border-radius:12px;
@@ -971,6 +1024,14 @@ body.mode-play .top-actions{
     <section class="view hidden" id="viewEditor"></section>
     <section class="view hidden" id="viewPlay"></section>
   </main>
+</div>
+
+<div class="buzz-pop hidden" id="buzzPop" aria-live="assertive">
+  <div class="buzz-pop-card">
+    <p class="buzz-pop-kicker">First buzz</p>
+    <h2 id="buzzPopTitle">BLUE</h2>
+    <p id="buzzPopMsg">answers this letter</p>
+  </div>
 </div>
 
 <div class="win-banner hidden" id="winBanner" role="dialog" aria-modal="true" aria-labelledby="winTitle">
@@ -1107,12 +1168,15 @@ body.mode-play .top-actions{
     boards: [],
     editing: null,
     play: null,
-    sound: true
+    sound: true,
+    live: null
   };
 
   var $ = function (id) { return document.getElementById(id); };
   var toastT = null;
   var cloudReady = false;
+  var livePoll = null;
+  var buzzPopT = null;
 
   function whenAuthReady(cb) {
     var done = false;
@@ -1148,6 +1212,271 @@ body.mode-play .top-actions{
     } catch (e) {
       toast("Could not save — storage may be full");
     }
+  }
+
+  function randomPin() {
+    return String(Math.floor(100000 + Math.random() * 900000));
+  }
+
+  function joinBuzzerUrl(pin, team) {
+    var base = location.href.replace(/[^/]*$/, "quiz-busters-join.html");
+    base = base.split("#")[0].split("?")[0];
+    return base + "?c=" + encodeURIComponent(pin) + (team ? "&t=" + encodeURIComponent(team) : "");
+  }
+
+  function stopLivePoll() {
+    if (livePoll) { clearInterval(livePoll); livePoll = null; }
+  }
+
+  function hideBuzzPop() {
+    clearTimeout(buzzPopT);
+    var el = $("buzzPop");
+    if (el) {
+      el.classList.add("hidden");
+      el.classList.remove("is-blue", "is-amber");
+    }
+  }
+
+  function showBuzzPop(team) {
+    var el = $("buzzPop");
+    if (!el) return;
+    el.classList.remove("hidden", "is-blue", "is-amber");
+    el.classList.add(team === "amber" ? "is-amber" : "is-blue");
+    var title = $("buzzPopTitle");
+    if (title) title.textContent = team === "amber" ? "AMBER" : "BLUE";
+    var msg = $("buzzPopMsg");
+    if (msg) msg.textContent = "answers this letter";
+    clearTimeout(buzzPopT);
+    buzzPopT = setTimeout(hideBuzzPop, 2800);
+  }
+
+  function patchLive(patch) {
+    var live = state.live;
+    if (!live || !live.sessionId || !window.supabase) return Promise.resolve();
+    return window.supabase.from("quiz_busters_sessions").update(patch).eq("id", live.sessionId)
+      .then(function (res) {
+        if (res.error) throw res.error;
+      });
+  }
+
+  function armBuzzers(letterIndex) {
+    if (state.live) {
+      state.live.status = "armed";
+      state.live.buzzTeam = null;
+    }
+    hideBuzzPop();
+    updateBuzzUi();
+    return patchLive({
+      status: "armed",
+      buzz_team: null,
+      buzz_player_id: null,
+      buzz_at: null,
+      letter_index: letterIndex
+    }).catch(function () {});
+  }
+
+  function idleBuzzers() {
+    if (state.live) {
+      state.live.status = "idle";
+      state.live.buzzTeam = null;
+    }
+    hideBuzzPop();
+    updateBuzzUi();
+    return patchLive({
+      status: "idle",
+      buzz_team: null,
+      buzz_player_id: null,
+      buzz_at: null,
+      letter_index: null
+    }).catch(function () {});
+  }
+
+  function reopenBuzzers() {
+    var p = state.play;
+    if (!p || p.active == null || p.winner) return;
+    armBuzzers(p.active);
+    toast("Buzzers open");
+  }
+
+  function closeLiveSession() {
+    stopLivePoll();
+    hideBuzzPop();
+    var live = state.live;
+    if (!live || !live.sessionId || !window.supabase) {
+      state.live = null;
+      return Promise.resolve();
+    }
+    var id = live.sessionId;
+    state.live = null;
+    return window.supabase.from("quiz_busters_sessions").update({ status: "closed" }).eq("id", id)
+      .then(function () {});
+  }
+
+  function setQrSrc(el, src) {
+    if (!el) return;
+    el.src = src;
+  }
+
+  function drawOneQr(imgId, url, cacheKey) {
+    var el = $(imgId);
+    var live = state.live;
+    if (!el || !live) return;
+    if (live[cacheKey]) {
+      setQrSrc(el, live[cacheKey]);
+      return;
+    }
+    function fallback() {
+      var src = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&data=" + encodeURIComponent(url);
+      live[cacheKey] = src;
+      setQrSrc(el, src);
+    }
+    var lib = window.QRCode;
+    if (lib && typeof lib.toDataURL === "function") {
+      lib.toDataURL(url, {
+        width: 220,
+        margin: 1,
+        color: { dark: "#081126", light: "#ffffff" }
+      }, function (err, dataUrl) {
+        if (err || !dataUrl) fallback();
+        else {
+          live[cacheKey] = dataUrl;
+          setQrSrc($(imgId), dataUrl);
+        }
+      });
+      return;
+    }
+    fallback();
+  }
+
+  function drawBuzzQrs() {
+    var live = state.live;
+    if (!live || !live.pin) return;
+    drawOneQr("qrBlue", joinBuzzerUrl(live.pin, "blue"), "qrBlue");
+    drawOneQr("qrAmber", joinBuzzerUrl(live.pin, "amber"), "qrAmber");
+  }
+
+  function updateBuzzUi() {
+    var dock = $("buzzDock");
+    var live = state.live;
+    if (!dock || !live) return;
+    var pinEl = $("buzzPin");
+    if (pinEl) pinEl.textContent = live.pin || "------";
+    var meta = $("buzzMeta");
+    if (meta) {
+      meta.textContent = (live.blueCount || 0) + " Blue · " + (live.amberCount || 0) + " Amber connected";
+    }
+    var status = $("buzzStatus");
+    if (status) {
+      status.className = "buzz-status";
+      if (live.status === "armed") {
+        status.classList.add("is-armed");
+        status.textContent = "Buzzers armed — waiting for a press";
+      } else if (live.status === "locked" && live.buzzTeam) {
+        status.classList.add("is-locked", live.buzzTeam);
+        status.textContent = (live.buzzTeam === "amber" ? "Amber" : "Blue") + " buzzed first";
+      } else {
+        status.textContent = "Pick a letter to arm the iPad buzzers";
+      }
+    }
+    var reopen = $("btnReopenBuzz");
+    if (reopen) {
+      if (live.status === "locked" && state.play && state.play.active != null && !state.play.winner) {
+        reopen.classList.remove("hidden");
+      } else {
+        reopen.classList.add("hidden");
+      }
+    }
+  }
+
+  function renderBuzzDock() {
+    var dock = $("buzzDock");
+    if (!dock) return;
+    var live = state.live;
+    if (!live) {
+      dock.innerHTML = '<p class="buzz-status">iPad buzzers connect when this game is live.</p>';
+      return;
+    }
+    dock.innerHTML =
+      '<div class="buzz-dock-head"><span>iPad buzzers</span><span class="buzz-pin" id="buzzPin">' + esc(live.pin || "") + "</span></div>" +
+      '<div class="buzz-qr-row">' +
+        '<div class="buzz-qr blue"><img id="qrBlue" alt="Blue team QR"><span>Blue</span></div>' +
+        '<div class="buzz-qr amber"><img id="qrAmber" alt="Amber team QR"><span>Amber</span></div>' +
+      "</div>" +
+      '<p class="buzz-meta" id="buzzMeta"></p>' +
+      '<p class="buzz-status" id="buzzStatus"></p>' +
+      '<button type="button" class="btn hidden" id="btnReopenBuzz" style="width:100%;margin-top:8px">Open buzzers again</button>';
+    drawBuzzQrs();
+    updateBuzzUi();
+  }
+
+  function refreshLive() {
+    var live = state.live;
+    if (!live || !live.sessionId || !window.supabase) return;
+    window.supabase.rpc("qb_list_host_state", { p_session_id: live.sessionId }).then(function (res) {
+      if (res.error || !res.data) return;
+      var d = res.data;
+      var prevKey = live.lastBuzzKey || "";
+      live.status = d.status;
+      live.buzzTeam = d.buzz_team || null;
+      live.blueCount = d.blue_count || 0;
+      live.amberCount = d.amber_count || 0;
+      var buzzKey = d.buzz_at ? String(d.buzz_at) : "";
+      if (live.buzzTeam && buzzKey && buzzKey !== prevKey) {
+        live.lastBuzzKey = buzzKey;
+        showBuzzPop(live.buzzTeam);
+        beep(live.buzzTeam === "amber" ? "buzz-amber" : "buzz-blue");
+      } else if (!live.buzzTeam) {
+        hideBuzzPop();
+      }
+      updateBuzzUi();
+    });
+  }
+
+  function startLivePoll() {
+    stopLivePoll();
+    refreshLive();
+    livePoll = setInterval(refreshLive, 400);
+  }
+
+  function createBuzzSession(board) {
+    if (!window.supabase || !window.supabase.auth) return Promise.resolve(null);
+    return window.supabase.auth.getSession().then(function (r) {
+      var session = r && r.data && r.data.session;
+      if (!session || !session.user) return null;
+      var payload = {
+        host_id: session.user.id,
+        pin: randomPin(),
+        title: (board && board.title) || "Quiz Busters",
+        status: "idle"
+      };
+      return window.supabase.from("quiz_busters_sessions").insert(payload).select("*").single().then(function (res) {
+        if (res.error) {
+          payload.pin = randomPin();
+          return window.supabase.from("quiz_busters_sessions").insert(payload).select("*").single().then(function (res2) {
+            if (res2.error) throw res2.error;
+            return res2.data;
+          });
+        }
+        return res.data;
+      }).then(function (row) {
+        if (!row) return null;
+        state.live = {
+          sessionId: row.id,
+          pin: row.pin,
+          hostUserId: session.user.id,
+          status: "idle",
+          buzzTeam: null,
+          blueCount: 0,
+          amberCount: 0,
+          qrBlue: null,
+          qrAmber: null,
+          lastBuzzKey: ""
+        };
+        startLivePoll();
+        renderBuzzDock();
+        return row;
+      });
+    }).catch(function () { return null; });
   }
 
   function toast(msg) {
@@ -1379,6 +1708,14 @@ body.mode-play .top-actions{
           dest: fx, type: "sine", freq: 1320, freqEnd: 1760,
           when: now + 0.08, dur: 0.14, peak: 0.025, attack: 0.006
         });
+      } else if (kind === "buzz-blue") {
+        playVoice({ dest: fx, type: "sawtooth", freq: 196, when: now, dur: 0.55, peak: 0.16, attack: 0.01, filter: "lowpass", filterFreq: 900 });
+        playVoice({ dest: fx, type: "square", freq: 247, when: now + 0.02, dur: 0.48, peak: 0.1, attack: 0.008, filter: "lowpass", filterFreq: 1200 });
+        playVoice({ dest: fx, type: "sine", freq: 98, when: now, dur: 0.7, peak: 0.12, attack: 0.02 });
+      } else if (kind === "buzz-amber") {
+        playVoice({ dest: fx, type: "sawtooth", freq: 330, when: now, dur: 0.48, peak: 0.16, attack: 0.01, filter: "lowpass", filterFreq: 1400 });
+        playVoice({ dest: fx, type: "square", freq: 392, when: now + 0.03, dur: 0.4, peak: 0.1, attack: 0.008 });
+        playVoice({ dest: fx, type: "sine", freq: 165, when: now, dur: 0.6, peak: 0.11, attack: 0.02 });
       } else {
         // tick / select
         playVoice({
@@ -1503,6 +1840,7 @@ body.mode-play .top-actions{
         fw.classList.add("hidden");
         fw.innerHTML = "";
       }
+      closeLiveSession();
     }
     syncBed();
     renderChrome();
@@ -1765,7 +2103,7 @@ body.mode-play .top-actions{
         '<div class="hero-grid">' +
           '<div class="hero-copy">' +
             '<h2 class="sr-only">Quiz Busters</h2>' +
-            "<p>Two teams race to link opposite sides of the board. Click a letter, ask the question, then award the tile to the team that answers first. Or answer a few questions, copy an AI prompt, and paste the board back in.</p>" +
+            "<p>Two teams race to link opposite sides of the board. Click a letter, ask the question, then award the tile to the team that answers first. Scan the Blue and Amber QR codes onto iPads for team buzzers — first press wins the chance to answer.</p>" +
             '<div class="hero-actions">' +
               '<button class="btn btn-primary" id="heroPlaySample">Play sample board</button>' +
               '<button class="btn" id="heroNew">Create your own</button>' +
@@ -1965,6 +2303,7 @@ body.mode-play .top-actions{
     };
     $("winBanner").classList.add("hidden");
     showView("play");
+    createBuzzSession(board);
   }
 
   function requestRestart(reshuffle) {
@@ -1992,6 +2331,7 @@ body.mode-play .top-actions{
     state.play.justClaimed = null;
     $("winBanner").classList.add("hidden");
     $("winBanner").classList.remove("win-blue", "win-amber");
+    idleBuzzers();
     renderChrome();
     renderPlay();
     toast(reshuffle ? "Board shuffled" : "Game restarted");
@@ -2069,11 +2409,15 @@ body.mode-play .top-actions{
     }
 
     var turnClass = p.turn === "blue" ? " turn-blue" : (p.turn === "amber" ? " turn-amber" : "");
+    var liveBuzz = state.live && state.live.buzzTeam;
     var turnLabel = p.winner
       ? ((p.winner === "blue" ? "Blue" : "Amber") + " Team wins")
-      : (p.turn
-        ? ((p.turn === "blue" ? "Blue" : "Amber") + " Team's turn")
-        : "Either team can pick a letter");
+      : (liveBuzz
+        ? ((liveBuzz === "blue" ? "Blue" : "Amber") + " buzzed first — they answer")
+        : (p.turn
+          ? ((p.turn === "blue" ? "Blue" : "Amber") + " Team's turn")
+          : "Either team can pick a letter"));
+    if (liveBuzz) turnClass = liveBuzz === "amber" ? " turn-amber" : " turn-blue";
 
     var canPick = !p.winner;
     var canReveal = p.active != null && !p.revealed && !p.winner;
@@ -2114,9 +2458,12 @@ body.mode-play .top-actions{
               '<button class="team-btn amber" id="btnAmber" ' + (canAward ? "" : "disabled") + ">" +
                 iconSvg("trophy") + " AWARD AMBER</button>" +
             "</div>" +
+            '<div class="buzz-dock" id="buzzDock"></div>' +
           "</aside>" +
         "</div>" +
       "</div>";
+
+    renderBuzzDock();
 
     if (p.justClaimed != null) {
       var claimed = p.justClaimed;
@@ -2138,6 +2485,7 @@ body.mode-play .top-actions{
     p.revealed = false;
     beep("tick");
     renderPlay();
+    armBuzzers(i);
   }
 
   function pickRandom() {
@@ -2159,6 +2507,7 @@ body.mode-play .top-actions{
     p.revealed = true;
     p.justClaimed = cell;
     beep("claim");
+    idleBuzzers();
     var path = findPath(p.owner, team);
     if (path) {
       p.winner = team;
@@ -2574,8 +2923,13 @@ body.mode-play .top-actions{
       if (state.play) {
         state.play.active = null;
         state.play.revealed = false;
+        idleBuzzers();
         renderPlay();
       }
+      return;
+    }
+    if (t.id === "btnReopenBuzz") {
+      reopenBuzzers();
       return;
     }
     if (t.id === "btnBlue") { award("blue"); return; }

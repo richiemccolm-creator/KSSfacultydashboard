@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Quiz Busters">
+<title>Join Quiz Busters — Classroom Toolkit</title>
+<script src="../app-version.js"></script>
+<script>(function(){if(window.ensureAppVersionInUrl)window.ensureAppVersionInUrl();})();</script>
+<script src="../config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../supabase-init.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,700;0,800;1,800&family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#030817; --text:#f7f9ff; --muted:#9eacc9;
+  --blue:#1677ff; --blue-b:#31a2ff; --amber:#f4a11c; --amber-b:#ffc342;
+  --font:"Inter",ui-sans-serif,system-ui,sans-serif;
+  --display:"Archivo","Inter",ui-sans-serif,system-ui,sans-serif;
+  --ease:cubic-bezier(.2,.8,.2,1);
+}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+html{color-scheme:dark}
+body{
+  font-family:var(--font);color:var(--text);min-height:100%;
+  background:
+    radial-gradient(ellipse 70% 50% at 50% -10%,rgba(22,119,255,.22),transparent 55%),
+    radial-gradient(ellipse 50% 40% at 100% 100%,rgba(244,161,28,.16),transparent 50%),
+    var(--bg);
+  -webkit-font-smoothing:antialiased;
+  touch-action:manipulation;
+  user-select:none;
+  overflow:hidden;
+}
+button{font:inherit;color:inherit;cursor:pointer}
+.hidden{display:none!important}
+.wrap{
+  min-height:100%;min-height:100dvh;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;padding:max(16px,env(safe-area-inset-top)) 18px max(20px,env(safe-area-inset-bottom));
+}
+.card{
+  width:min(440px,100%);border-radius:22px;padding:26px 18px 22px;
+  background:linear-gradient(160deg,#0d1834,#081126);
+  border:1px solid rgba(91,128,213,.3);
+  box-shadow:0 18px 40px rgba(0,0,0,.4);
+}
+.logo{display:block;width:min(280px,80%);height:auto;margin:0 auto 12px}
+h1{margin:0 0 6px;font:800 26px/1.1 var(--display);letter-spacing:-.03em;text-align:center;font-style:italic}
+.sub{margin:0 0 18px;text-align:center;color:var(--muted);font:500 14px/1.45 var(--font)}
+label{display:block;font:700 11px/1 var(--font);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+input{
+  width:100%;height:52px;border-radius:14px;border:1px solid rgba(124,148,205,.22);background:#0a142c;
+  padding:0 14px;outline:none;margin-bottom:12px;font:700 22px/1 var(--font);letter-spacing:.18em;text-align:center;
+}
+input:focus{border-color:rgba(49,162,255,.55);box-shadow:0 0 0 3px rgba(22,119,255,.18)}
+.err{color:#ffb4b9;font:650 13px/1.4 var(--font);min-height:1.2em;margin:0 0 8px;text-align:center}
+.team-pick{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+.team-btn{
+  min-height:92px;border:none;border-radius:18px;font:800 18px/1 var(--display);
+  letter-spacing:.04em;text-transform:uppercase;
+}
+.team-btn.blue{background:linear-gradient(160deg,var(--blue-b),var(--blue));color:#fff;box-shadow:0 10px 24px -8px rgba(22,119,255,.55)}
+.team-btn.amber{background:linear-gradient(160deg,var(--amber-b),var(--amber));color:#1a1205;box-shadow:0 10px 24px -8px rgba(244,161,28,.5)}
+.team-btn:disabled{opacity:.45}
+
+.buzz-app{
+  width:100%;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;
+}
+body.team-blue{background:
+  radial-gradient(ellipse 80% 60% at 50% 0%,rgba(22,119,255,.35),transparent 58%),
+  var(--bg)}
+body.team-amber{background:
+  radial-gradient(ellipse 80% 60% at 50% 0%,rgba(244,161,28,.32),transparent 58%),
+  var(--bg)}
+.team-tag{
+  font:800 13px/1 var(--font);letter-spacing:.18em;text-transform:uppercase;
+  padding:7px 12px;border-radius:999px;border:1px solid rgba(255,255,255,.16);
+}
+body.team-blue .team-tag{color:var(--blue-b);background:rgba(22,119,255,.14)}
+body.team-amber .team-tag{color:var(--amber-b);background:rgba(244,161,28,.14)}
+.status{
+  text-align:center;font:700 16px/1.35 var(--display);color:#fff;min-height:2.4em;
+  text-shadow:0 2px 16px rgba(0,0,0,.4);
+}
+.buzzer{
+  width:min(78vw,340px);aspect-ratio:1;border-radius:50%;border:8px solid rgba(255,255,255,.18);
+  display:grid;place-items:center;position:relative;
+  font:800 28px/1 var(--display);letter-spacing:.06em;text-transform:uppercase;
+  transition:transform .08s var(--ease),filter .15s,box-shadow .15s;
+  -webkit-tap-highlight-color:transparent;
+}
+body.team-blue .buzzer{
+  color:#fff;
+  background:radial-gradient(circle at 35% 30%,#5cb0ff,var(--blue) 55%,#0d3ea8);
+  box-shadow:0 18px 40px rgba(22,119,255,.45),inset 0 8px 20px rgba(255,255,255,.18);
+}
+body.team-amber .buzzer{
+  color:#1a1205;
+  background:radial-gradient(circle at 35% 30%,#ffd56a,var(--amber) 55%,#c86a00);
+  box-shadow:0 18px 40px rgba(244,161,28,.45),inset 0 8px 20px rgba(255,255,255,.28);
+}
+.buzzer:disabled{filter:grayscale(.25) brightness(.7);transform:none;cursor:default}
+.buzzer.is-armed:not(:disabled){animation:pulse 1.1s ease-in-out infinite}
+.buzzer.is-down{transform:scale(.94)}
+.buzzer.is-won{animation:wonFlash .7s ease-out both}
+@keyframes pulse{
+  0%,100%{transform:scale(1);filter:brightness(1)}
+  50%{transform:scale(1.03);filter:brightness(1.12)}
+}
+@keyframes wonFlash{
+  0%{transform:scale(.9)}
+  40%{transform:scale(1.08)}
+  100%{transform:scale(1)}
+}
+.meta{font:600 13px/1.4 var(--font);color:var(--muted);text-align:center}
+@media(prefers-reduced-motion:reduce){
+  .buzzer.is-armed:not(:disabled){animation:none}
+}
+</style>
+</head>
+<body>
+<div class="wrap" id="viewJoin">
+  <div class="card">
+    <img class="logo" src="quiz-busters-logo.png" width="804" height="318" alt="Quiz Busters">
+    <h1>Team buzzer</h1>
+    <p class="sub">Enter the PIN from the board, then join as Blue or Amber.</p>
+    <label for="pin">Game PIN</label>
+    <input id="pin" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="000000">
+    <p class="err" id="joinErr"></p>
+    <div class="team-pick">
+      <button type="button" class="team-btn blue" id="btnBlue" data-team="blue">Blue team</button>
+      <button type="button" class="team-btn amber" id="btnAmber" data-team="amber">Amber team</button>
+    </div>
+  </div>
+</div>
+
+<div class="wrap hidden" id="viewBuzz">
+  <div class="buzz-app">
+    <div class="team-tag" id="teamTag">Blue team</div>
+    <p class="status" id="buzzStatus">Waiting for a letter…</p>
+    <button type="button" class="buzzer" id="buzzer" disabled>Buzz</button>
+    <p class="meta" id="buzzMeta"></p>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var state = {
+    pin: "",
+    token: "",
+    team: "",
+    poll: null,
+    buzzing: false,
+    lastStatus: "",
+    lastBuzzTeam: null
+  };
+  var audioCtx = null;
+
+  function tokenKey(pin) { return "tk_qb_buzzer_" + pin; }
+
+  function getOrCreateToken(pin) {
+    var key = tokenKey(pin);
+    try {
+      var t = localStorage.getItem(key);
+      if (t && t.length >= 16) return t;
+    } catch (e) {}
+    var t2 = "b_" + Math.random().toString(36).slice(2) + Date.now().toString(36) + Math.random().toString(36).slice(2);
+    try { localStorage.setItem(key, t2); } catch (e2) {}
+    return t2;
+  }
+
+  function rpc(name, args) {
+    if (!window.supabase || !window.supabase.rpc) {
+      return Promise.reject(new Error("Connection not ready"));
+    }
+    return window.supabase.rpc(name, args).then(function (res) {
+      if (res.error) throw res.error;
+      return res.data;
+    });
+  }
+
+  function unlockAudio() {
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    if (!audioCtx) audioCtx = new AC();
+    if (audioCtx.state === "suspended") {
+      try { audioCtx.resume(); } catch (e) {}
+    }
+    return audioCtx;
+  }
+
+  function playBuzz(team) {
+    var ctx = unlockAudio();
+    if (!ctx) return;
+    var now = ctx.currentTime;
+    var isBlue = team === "blue";
+    function tone(freq, start, dur, type, peak) {
+      var o = ctx.createOscillator();
+      var g = ctx.createGain();
+      o.type = type || "square";
+      o.frequency.setValueAtTime(freq, now + start);
+      g.gain.setValueAtTime(0.0001, now + start);
+      g.gain.exponentialRampToValueAtTime(peak || 0.22, now + start + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, now + start + dur);
+      o.connect(g);
+      g.connect(ctx.destination);
+      o.start(now + start);
+      o.stop(now + start + dur + 0.02);
+    }
+    if (isBlue) {
+      tone(196, 0, 0.42, "sawtooth", 0.2);
+      tone(247, 0.02, 0.38, "square", 0.12);
+      tone(98, 0, 0.5, "sine", 0.14);
+    } else {
+      tone(330, 0, 0.36, "sawtooth", 0.2);
+      tone(392, 0.03, 0.32, "square", 0.12);
+      tone(165, 0, 0.44, "sine", 0.12);
+    }
+  }
+
+  function showBuzzView() {
+    $("viewJoin").classList.add("hidden");
+    $("viewBuzz").classList.remove("hidden");
+    document.body.classList.toggle("team-blue", state.team === "blue");
+    document.body.classList.toggle("team-amber", state.team === "amber");
+    $("teamTag").textContent = state.team === "amber" ? "Amber team" : "Blue team";
+  }
+
+  function applyState(data) {
+    if (!data) return;
+    var status = data.status || "idle";
+    var buzzTeam = data.buzz_team || null;
+    var youWon = !!data.you_won;
+    var buzzer = $("buzzer");
+    var statusEl = $("buzzStatus");
+    var meta = $("buzzMeta");
+    buzzer.classList.remove("is-armed", "is-won");
+
+    if (status === "closed") {
+      buzzer.disabled = true;
+      statusEl.textContent = "This game has ended.";
+      meta.textContent = "";
+    } else if (status === "armed") {
+      buzzer.disabled = false;
+      buzzer.classList.add("is-armed");
+      statusEl.textContent = "BUZZ when you know it!";
+      meta.textContent = "First press wins the chance to answer.";
+    } else if (status === "locked") {
+      buzzer.disabled = true;
+      if (youWon) {
+        buzzer.classList.add("is-won");
+        statusEl.textContent = "Your team buzzed first!";
+        meta.textContent = "Get ready to answer.";
+      } else if (buzzTeam) {
+        statusEl.textContent = (buzzTeam === "amber" ? "Amber" : "Blue") + " buzzed first.";
+        meta.textContent = "Wait for the next letter.";
+      } else {
+        statusEl.textContent = "Locked";
+        meta.textContent = "";
+      }
+    } else {
+      buzzer.disabled = true;
+      statusEl.textContent = "Waiting for a letter…";
+      meta.textContent = "Buzzers arm when the teacher picks a tile.";
+    }
+    state.lastStatus = status;
+    state.lastBuzzTeam = buzzTeam;
+  }
+
+  function poll() {
+    if (!state.pin || !state.token) return;
+    rpc("qb_get_session_state", { p_pin: state.pin, p_token: state.token })
+      .then(applyState)
+      .catch(function () {});
+  }
+
+  function startPolling() {
+    if (state.poll) clearInterval(state.poll);
+    poll();
+    state.poll = setInterval(poll, 400);
+  }
+
+  function join(team) {
+    var pin = String($("pin").value || "").replace(/\D/g, "").slice(0, 6);
+    $("joinErr").textContent = "";
+    if (pin.length !== 6) {
+      $("joinErr").textContent = "Enter the 6-digit PIN from the board.";
+      return;
+    }
+    if (!window.supabase) {
+      $("joinErr").textContent = "Can't connect right now. Check the school network.";
+      return;
+    }
+    unlockAudio();
+    $("btnBlue").disabled = true;
+    $("btnAmber").disabled = true;
+    var token = getOrCreateToken(pin);
+    rpc("qb_join_session", { p_pin: pin, p_team: team, p_token: token })
+      .then(function (data) {
+        state.pin = pin;
+        state.token = token;
+        state.team = (data && data.team) || team;
+        showBuzzView();
+        applyState(data);
+        startPolling();
+      })
+      .catch(function (err) {
+        $("joinErr").textContent = (err && err.message) ? err.message : "Could not join. Check the PIN.";
+      })
+      .then(function () {
+        $("btnBlue").disabled = false;
+        $("btnAmber").disabled = false;
+      });
+  }
+
+  function buzz() {
+    if (state.buzzing || !$("buzzer") || $("buzzer").disabled) return;
+    state.buzzing = true;
+    $("buzzer").classList.add("is-down");
+    playBuzz(state.team);
+    rpc("qb_buzz", { p_token: state.token })
+      .then(function (data) {
+        applyState({
+          status: data.status,
+          buzz_team: data.buzz_team,
+          you_won: data.won
+        });
+      })
+      .catch(function (err) {
+        $("buzzStatus").textContent = (err && err.message) ? err.message : "Could not buzz";
+      })
+      .then(function () {
+        state.buzzing = false;
+        $("buzzer").classList.remove("is-down");
+      });
+  }
+
+  $("btnBlue").addEventListener("click", function () { join("blue"); });
+  $("btnAmber").addEventListener("click", function () { join("amber"); });
+  $("pin").addEventListener("keydown", function (e) {
+    if (e.key === "Enter") join("blue");
+  });
+  $("buzzer").addEventListener("pointerdown", function (e) {
+    e.preventDefault();
+    buzz();
+  });
+
+  try {
+    var q = new URLSearchParams(location.search);
+    var pin = String(q.get("c") || q.get("pin") || "").replace(/\D/g, "").slice(0, 6);
+    var team = String(q.get("t") || q.get("team") || "").toLowerCase();
+    if (pin.length === 6) $("pin").value = pin;
+    if (pin.length === 6 && (team === "blue" || team === "amber")) {
+      join(team);
+    }
+  } catch (e) {}
+})();
+</script>
+</body>
+</html>
