@@ -3,13 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <title>Class Management · Faculty Hub</title>
+  <title>Classes for teachers · Faculty Hub</title>
   <link rel="icon" type="image/png" href="faculty-hub-logo.png">
   <link rel="preconnect" href="https://api.fontshare.com" crossorigin>
   <link href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap" rel="stylesheet">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="design-tokens.css">
   <link rel="stylesheet" href="class_management.css">
   <script src="app-version.js"></script>
@@ -27,163 +24,172 @@
   <div id="cm-denied" class="cm-denied card" style="display:none;max-width:480px;margin:2rem auto">
     <p><strong>Access restricted</strong></p>
     <p>Class Management is for faculty heads and school managers.</p>
-    <p style="margin-top:1rem"><a href="faculty-hub.html">← Faculty Hub</a></p>
+    <p style="margin-top:1rem"><a href="faculty-hub.html">Faculty Hub</a></p>
   </div>
 
   <main id="cm-app" class="cm-page" style="display:none">
     <header class="cm-top" id="cm-top-header">
       <div>
-        <h1>Class Management</h1>
-        <p>Set up classes and pupil lists for teachers, then push to their Art or Drama tracker when ready.</p>
+        <h1>Classes for teachers</h1>
+        <p>You create the lists. Their Art and Drama trackers update.</p>
       </div>
-      <a class="cm-back" id="cm-back-link" href="faculty-hub.html">← Faculty Hub</a>
+      <div class="cm-top-tools">
+        <div class="cm-field cm-year-field">
+          <label for="cm-year-label">Academic year</label>
+          <select id="cm-year-label" aria-label="Academic year"></select>
+        </div>
+        <a class="cm-back" id="cm-back-link" href="faculty-hub.html">Faculty Hub</a>
+      </div>
     </header>
 
     <nav class="cm-tabs" aria-label="Class management views">
-      <button type="button" class="is-active" id="cm-tab-roster" data-tab="roster">Roster setup</button>
-      <button type="button" id="cm-tab-tracker" data-tab="tracker">Tracker classes &amp; handover</button>
+      <button type="button" class="is-active" id="cm-tab-roster" data-tab="roster">Set up classes</button>
+      <button type="button" id="cm-tab-tracker" data-tab="tracker">Move or promote</button>
     </nav>
 
     <div id="cm-panel-roster" class="cm-panel is-active">
 
-    <section class="card cm-picker" aria-label="Teacher and subject">
-      <div class="cm-field" style="grid-column:1/-1">
-        <label for="cm-teacher">Teacher</label>
-        <select id="cm-teacher" aria-label="Select teacher">
-          <option value="">Loading staff…</option>
-        </select>
-      </div>
-      <div class="cm-field">
-        <label>Subject</label>
-        <div class="cm-subject-toggle" role="group" aria-label="Subject">
-          <button type="button" class="btn btn-art is-active" id="cm-subj-art" data-subject="art">Art</button>
-          <button type="button" class="btn btn-drama" id="cm-subj-drama" data-subject="drama">Drama</button>
-        </div>
-      </div>
-      <div class="cm-field">
-        <label for="cm-year-label">Academic year</label>
-        <select id="cm-year-label" aria-label="Academic year"></select>
-      </div>
-      <div class="cm-field" id="cm-tracker-link-wrap" style="display:none">
-        <label>Preview</label>
-        <a class="btn btn-ghost" id="cm-tracker-link" href="#" target="_blank" rel="noopener">View tracker (read-only)</a>
-      </div>
-    </section>
-
-    <section class="card" style="margin-top:var(--sp-4)" aria-labelledby="cm-roster-title">
-      <div class="cm-roster-head">
-        <h2 id="cm-roster-title">Classes for this teacher</h2>
-        <span class="badge" id="cm-class-count">0 classes</span>
-      </div>
-
-      <div class="cm-add-row">
-        <div class="cm-field">
-          <label for="cm-add-year">Year</label>
-          <select id="cm-add-year">
-            <option value="1">S1</option>
-            <option value="2">S2</option>
-            <option value="3">S3</option>
-          </select>
-        </div>
-        <div class="cm-field">
-          <label for="cm-add-code">Class code</label>
-          <input id="cm-add-code" type="text" placeholder="e.g. 1A1" autocomplete="off" />
-        </div>
-        <div class="cm-field">
-          <label for="cm-add-name">Display name</label>
-          <input id="cm-add-name" type="text" placeholder="Same as code if blank" autocomplete="off" />
-        </div>
-        <button type="button" class="btn btn-primary cm-add-btn" id="cm-add-btn">+ Add</button>
-      </div>
-
-      <div class="cm-actions-bar">
-        <button type="button" class="btn" id="cm-paste-btn">Paste class list</button>
-        <button type="button" class="btn btn-primary" id="cm-save-btn">Save roster</button>
-        <button type="button" class="btn btn-secondary" id="cm-push-btn" title="Write classes and pupils into this teacher's tracker">Push to tracker</button>
-      </div>
-      <p class="cm-hint">Save roster stores classes and pupils in the cloud. <strong>Push to tracker</strong> updates the teacher’s Art/Drama tracker when you choose — pupils with scores are kept if you remove them from the roster. Select a class to manage pupils, or use <strong>Promote</strong> / <strong>Transfer</strong> when the class exists in the tracker.</p>
-
-      <div class="table-wrap" style="margin-top:var(--sp-4)">
-        <table class="table" id="cm-table">
-          <thead>
-            <tr>
-              <th>Year</th>
-              <th>Class code</th>
-              <th>Name</th>
-              <th>Pupils</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="cm-table-body">
-            <tr><td colspan="5" class="cm-empty">Select a teacher to view or add classes.</td></tr>
-          </tbody>
-        </table>
-      </div>
-
-      <section class="cm-pupils-panel" id="cm-pupils-panel" hidden aria-labelledby="cm-pupils-title">
-        <div class="cm-pupils-head">
+      <section id="cm-overview" class="cm-overview" aria-labelledby="cm-overview-title">
+        <div class="cm-overview-bar">
           <div>
-            <h3 id="cm-pupils-title">Pupils</h3>
-            <p class="cm-pupils-sub" id="cm-pupils-sub">Select a class to manage pupils.</p>
+            <h2 id="cm-overview-title">Who needs classes</h2>
+            <p class="cm-overview-sub">Choose a teacher. Add classes and names. Send them to the BGE tracker so the teacher never has to.</p>
           </div>
-          <div class="cm-pupils-head-actions">
-            <span class="badge" id="cm-pupil-count">0 pupils</span>
-            <button type="button" class="btn btn-ghost" id="cm-roster-transfer-btn" disabled title="Move tracker class to another teacher">Transfer</button>
-            <button type="button" class="btn btn-primary" id="cm-roster-promote-btn" disabled title="Promote tracker class to the next year">Promote</button>
+          <div class="cm-overview-actions">
+            <label class="cm-search-wrap">
+              <span class="sr-only">Find a teacher</span>
+              <input type="search" id="cm-staff-search" placeholder="Find a teacher" autocomplete="off" />
+            </label>
+            <button type="button" class="btn" id="cm-import-open">Import class lists</button>
           </div>
         </div>
-
-        <div class="cm-pupil-add-row">
-          <div class="cm-field" style="flex:1">
-            <label for="cm-pupil-name">Add pupil</label>
-            <input id="cm-pupil-name" type="text" placeholder="First Last" autocomplete="off" />
+        <div class="cm-overview-meta">
+          <span class="badge" id="cm-teacher-count">0 teachers</span>
+          <span class="cm-meta" id="cm-overview-status">Loading staff</span>
+          <div class="cm-status-filters" role="group" aria-label="Filter teachers">
+            <button type="button" class="is-active" data-status-filter="all">All</button>
+            <button type="button" data-status-filter="empty">Needs classes</button>
+            <button type="button" data-status-filter="draft">Draft</button>
+            <button type="button" data-status-filter="ready">On tracker</button>
+            <button type="button" data-status-filter="scores">Scores live</button>
           </div>
-          <button type="button" class="btn btn-primary" id="cm-pupil-add-btn">+ Add</button>
-          <button type="button" class="btn" id="cm-pupil-paste-btn">Paste names</button>
-          <button type="button" class="btn btn-ghost" id="cm-pupil-load-tracker-btn" title="Copy pupils from this teacher's tracker into the roster list">Load from tracker</button>
         </div>
-
-        <div class="table-wrap">
-          <table class="table cm-pupil-table">
-            <thead>
-              <tr>
-                <th style="width:2.5rem">#</th>
-                <th>Name</th>
-                <th style="width:8rem"></th>
-              </tr>
-            </thead>
-            <tbody id="cm-pupils-body">
-              <tr><td colspan="3" class="cm-empty">No pupils in this class yet.</td></tr>
-            </tbody>
-          </table>
+        <div id="cm-teacher-grid" class="cm-bento" aria-live="polite">
+          <div class="cm-skeleton" aria-hidden="true"></div>
+          <div class="cm-skeleton" aria-hidden="true"></div>
+          <div class="cm-skeleton" aria-hidden="true"></div>
+          <div class="cm-skeleton" aria-hidden="true"></div>
         </div>
       </section>
-    </section>
 
-    <section class="card cm-upload" aria-labelledby="cm-upload-title">
-      <h2 id="cm-upload-title" style="margin:0 0 var(--sp-2);font-size:var(--fs-lg)">Optional: upload spreadsheet</h2>
-      <p style="margin:0 0 var(--sp-4);color:var(--ink-500);font-size:var(--fs-sm)">CSV or XLSX with columns <code>year_level</code>, <code>class_code</code>, <code>class_name</code>. Add <code>pupil_name</code> to include pupils. Click a class row to manage its pupil list, then <strong>Save roster</strong> and <strong>Push to tracker</strong>.</p>
-      <div style="display:flex;gap:var(--sp-2);flex-wrap:wrap;margin-bottom:var(--sp-3)">
-        <button type="button" class="btn" id="cm-template-csv">Template (CSV)</button>
-        <button type="button" class="btn" id="cm-template-xlsx">Template (XLSX)</button>
-      </div>
-      <label class="cm-drop" id="cm-drop">
-        <input type="file" id="cm-file" accept=".csv,.xlsx,.xls" hidden />
-        <strong>Drop file here or browse</strong>
-        <span>Rows are assigned to the teacher selected above</span>
-      </label>
-    </section>
+      <section id="cm-workspace" class="cm-workspace" hidden>
+        <div class="cm-command">
+          <button type="button" class="btn btn-ghost" id="cm-back-overview">All teachers</button>
+          <div class="cm-field cm-teacher-field">
+            <label for="cm-teacher">Teacher</label>
+            <select id="cm-teacher" aria-label="Select teacher">
+              <option value="">Loading staff</option>
+            </select>
+          </div>
+          <div class="cm-field">
+            <label>Subject</label>
+            <div class="cm-subject-toggle" role="group" aria-label="Subject">
+              <button type="button" class="btn is-active" id="cm-subj-art" data-subject="art">Art</button>
+              <button type="button" class="btn" id="cm-subj-drama" data-subject="drama">Drama</button>
+            </div>
+          </div>
+          <div class="cm-command-actions">
+            <span id="cm-unsaved" class="cm-unsaved" hidden>Unsaved</span>
+            <div id="cm-tracker-link-wrap" hidden>
+              <a class="btn btn-ghost" id="cm-tracker-link" href="#" target="_blank" rel="noopener">Open tracker</a>
+            </div>
+            <button type="button" class="btn" id="cm-save-btn">Save draft</button>
+            <button type="button" class="btn btn-primary" id="cm-push-btn">Send to tracker</button>
+          </div>
+        </div>
+        <p class="cm-command-hint" id="cm-send-hint">Send to tracker puts these names on the teacher’s BGE tracker. Save draft keeps a cloud copy without changing what they see yet.</p>
+        <p class="cm-send-result" id="cm-send-result" hidden></p>
 
-    </div><!-- /cm-panel-roster -->
+        <div class="cm-split">
+          <aside class="cm-classes-col" aria-labelledby="cm-roster-title">
+            <div class="cm-roster-head">
+              <h2 id="cm-roster-title">Classes</h2>
+              <span class="badge" id="cm-class-count">0 classes</span>
+            </div>
+
+            <div class="cm-add-row">
+              <div class="cm-field">
+                <label for="cm-add-year">Year</label>
+                <select id="cm-add-year">
+                  <option value="1">S1</option>
+                  <option value="2">S2</option>
+                  <option value="3">S3</option>
+                </select>
+              </div>
+              <div class="cm-field">
+                <label for="cm-add-code">Class code</label>
+                <input id="cm-add-code" type="text" placeholder="e.g. 1A1" autocomplete="off" />
+              </div>
+              <button type="button" class="btn cm-add-btn" id="cm-add-btn">Add class</button>
+            </div>
+
+            <div class="cm-class-tools">
+              <button type="button" class="btn" id="cm-paste-btn">Paste class list</button>
+              <button type="button" class="btn btn-ghost" id="cm-import-open-ws">Import spreadsheet</button>
+            </div>
+
+            <div id="cm-class-slices" class="cm-class-slices">
+              <p class="cm-empty">Add a class, then paste pupil names on the right.</p>
+            </div>
+          </aside>
+
+          <section class="cm-pupils-panel" id="cm-pupils-panel" aria-labelledby="cm-pupils-title">
+            <div class="cm-pupils-head">
+              <div>
+                <h3 id="cm-pupils-title">Pupils</h3>
+                <p class="cm-pupils-sub" id="cm-pupils-sub">Select a class to add names.</p>
+              </div>
+              <span class="badge" id="cm-pupil-count">0 pupils</span>
+            </div>
+
+            <div class="cm-pupil-add-row">
+              <div class="cm-field" style="flex:1">
+                <label for="cm-pupil-name">Add pupil</label>
+                <input id="cm-pupil-name" type="text" placeholder="First Last, or paste a list" autocomplete="off" />
+              </div>
+              <button type="button" class="btn" id="cm-pupil-add-btn">Add</button>
+              <button type="button" class="btn" id="cm-pupil-paste-btn">Paste names</button>
+              <button type="button" class="btn btn-ghost" id="cm-pupil-load-tracker-btn" title="Copy pupils from this teacher's tracker into this list">Load from tracker</button>
+            </div>
+
+            <div class="table-wrap">
+              <table class="table cm-pupil-table">
+                <thead>
+                  <tr>
+                    <th style="width:2.5rem">#</th>
+                    <th>Name</th>
+                    <th style="width:8rem"></th>
+                  </tr>
+                </thead>
+                <tbody id="cm-pupils-body">
+                  <tr><td colspan="3" class="cm-empty">No class selected yet.</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </section>
+
+    </div>
 
     <div id="cm-panel-tracker" class="cm-panel">
-      <section class="card" aria-labelledby="cm-tracker-title">
-        <h2 id="cm-tracker-title" style="margin:0 0 var(--sp-2);font-size:var(--fs-lg)">Classes in Art &amp; Drama trackers</h2>
-        <p style="margin:0 0 var(--sp-4);color:var(--ink-500);font-size:var(--fs-sm)">Live classes from each teacher’s tracker. Transfer a class to another teacher, or promote to the next year (e.g. S1 → S2). Promoting archives the source class and attaches prior-year scores as a read-only snapshot on each pupil in the new year.</p>
+      <section class="cm-move-card" aria-labelledby="cm-tracker-title">
+        <h2 id="cm-tracker-title">Move or promote</h2>
+        <p class="cm-move-lead">Live classes from each teacher’s Art and Drama tracker. Transfer a class to another teacher, or promote to the next year. Promoting archives the source class and keeps prior-year scores as a read-only snapshot.</p>
         <div class="cm-tracker-filters">
           <div class="cm-field">
             <label for="cm-trk-search">Search</label>
-            <input type="search" id="cm-trk-search" placeholder="Teacher, class…" />
+            <input type="search" id="cm-trk-search" placeholder="Teacher, class" />
           </div>
           <div class="cm-field">
             <label for="cm-trk-subject">Subject</label>
@@ -218,7 +224,7 @@
               </tr>
             </thead>
             <tbody id="cm-trk-body">
-              <tr><td colspan="7" class="cm-empty">Loading tracker classes…</td></tr>
+              <tr><td colspan="7" class="cm-empty">Loading tracker classes</td></tr>
             </tbody>
           </table>
         </div>
@@ -226,6 +232,34 @@
     </div>
 
   </main>
+
+  <div class="cm-modal-overlay" id="cm-import-modal" role="dialog" aria-modal="true" aria-labelledby="cm-import-title">
+    <div class="cm-modal cm-modal-wide">
+      <h3 id="cm-import-title">Import class lists</h3>
+      <p>CSV or XLSX with <code>year_level</code>, <code>class_code</code>, <code>class_name</code>. Add <code>pupil_name</code> for names. Review the list, then send it to the tracker from the teacher workspace.</p>
+      <div class="cm-field" style="margin-bottom:0.85rem">
+        <label for="cm-import-teacher">Add these classes to</label>
+        <select id="cm-import-teacher"></select>
+      </div>
+      <div class="cm-import-templates">
+        <button type="button" class="btn" id="cm-template-csv">Template (CSV)</button>
+        <button type="button" class="btn" id="cm-template-xlsx">Template (XLSX)</button>
+      </div>
+      <label class="cm-drop" id="cm-drop">
+        <input type="file" id="cm-file" accept=".csv,.xlsx,.xls" hidden />
+        <strong>Drop file here or browse</strong>
+        <span>Review the list before it is added</span>
+      </label>
+      <div id="cm-import-preview-wrap" class="cm-import-preview-wrap" hidden>
+        <p id="cm-import-summary" class="cm-import-summary"></p>
+        <div id="cm-import-preview" class="cm-import-preview"></div>
+      </div>
+      <div class="cm-modal-actions">
+        <button type="button" class="btn" id="cm-import-cancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="cm-import-apply" disabled>Add to list</button>
+      </div>
+    </div>
+  </div>
 
   <div class="cm-modal-overlay" id="cm-transfer-modal" role="dialog" aria-modal="true" aria-labelledby="cm-transfer-title">
     <div class="cm-modal cm-modal-wide">
@@ -250,7 +284,7 @@
         </label>
         <label class="cm-check">
           <input type="checkbox" id="cm-transfer-roster" checked />
-          <span>Update cloud roster for receiving teacher</span>
+          <span>Update cloud list for receiving teacher</span>
         </label>
         <div class="cm-field cm-field-full" id="cm-transfer-pupils-wrap" style="display:none">
           <label>Pupils to transfer</label>
@@ -267,7 +301,7 @@
 
   <div class="cm-modal-overlay" id="cm-promote-modal" role="dialog" aria-modal="true" aria-labelledby="cm-promote-title">
     <div class="cm-modal cm-modal-wide">
-      <h3 id="cm-promote-title">Promote &amp; assign</h3>
+      <h3 id="cm-promote-title">Promote and assign</h3>
       <p id="cm-promote-desc"></p>
       <div class="cm-form-grid">
         <div class="cm-field">
@@ -305,7 +339,7 @@
       </div>
       <div class="cm-modal-actions">
         <button type="button" class="btn" id="cm-promote-cancel">Cancel</button>
-        <button type="button" class="btn btn-primary" id="cm-promote-confirm">Promote &amp; assign</button>
+        <button type="button" class="btn btn-primary" id="cm-promote-confirm">Promote and assign</button>
       </div>
     </div>
   </div>
@@ -336,15 +370,15 @@
 
   <div class="cm-modal-overlay" id="cm-push-modal" role="dialog" aria-modal="true" aria-labelledby="cm-push-title">
     <div class="cm-modal">
-      <h3 id="cm-push-title">Push roster to tracker</h3>
-      <p id="cm-push-desc">This will update the teacher’s tracker with your saved class and pupil lists.</p>
+      <h3 id="cm-push-title">Send to BGE tracker</h3>
+      <p id="cm-push-desc">This will put your class and pupil lists on the teacher’s tracker.</p>
       <label class="cm-check">
         <input type="checkbox" id="cm-push-remove-missing" checked />
-        <span>Remove pupils from the tracker if they are no longer on the roster (pupils with scores are kept)</span>
+        <span>Remove pupils from the tracker if they are no longer on this list (pupils with scores are kept)</span>
       </label>
       <div class="cm-modal-actions">
         <button type="button" class="btn" id="cm-push-cancel">Cancel</button>
-        <button type="button" class="btn btn-primary" id="cm-push-confirm">Push to tracker</button>
+        <button type="button" class="btn btn-primary" id="cm-push-confirm">Send to tracker</button>
       </div>
     </div>
   </div>

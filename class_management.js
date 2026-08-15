@@ -17,12 +17,246 @@
     selectedClassKey: '',
     loading: false,
     tab: 'roster',
+    view: 'overview',
     trackerRows: [],
     trackerLoaded: false,
-    wizardRow: null
+    wizardRow: null,
+    teacherStats: {},
+    staffFilter: '',
+    pendingImport: null,
+    statusFilter: 'all',
+    dirty: false
   };
 
   function $(id) { return document.getElementById(id); }
+
+  function initials(name) {
+    var parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+    if (!parts.length) return '--';
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  }
+
+  function teacherStatus(stats) {
+    var art = (stats && stats.art) || {};
+    var drama = (stats && stats.drama) || {};
+    var trackerClasses = (art.classes || 0) + (drama.classes || 0);
+    var pupils = (art.pupils || 0) + (drama.pupils || 0);
+    var roster = (art.rosterClasses || 0) + (drama.rosterClasses || 0);
+    if (art.hasScores || drama.hasScores) return { key: 'scores', label: 'Scores live' };
+    if (pupils) return { key: 'ready', label: 'On tracker' };
+    if (trackerClasses) return { key: 'setup', label: 'No pupils' };
+    if (roster) return { key: 'draft', label: 'Draft, not sent' };
+    return { key: 'empty', label: 'Needs classes' };
+  }
+
+  function statusMatchesFilter(key, filter) {
+    if (!filter || filter === 'all') return true;
+    if (filter === 'ready') return key === 'ready' || key === 'setup' || key === 'scores';
+    return key === filter;
+  }
+
+  function markDirty() {
+    state.dirty = true;
+    var el = $('cm-unsaved');
+    if (el) el.hidden = false;
+    var result = $('cm-send-result');
+    if (result) result.hidden = true;
+  }
+
+  function clearDirty() {
+    state.dirty = false;
+    var el = $('cm-unsaved');
+    if (el) el.hidden = true;
+  }
+
+  function confirmLeaveWorkspace() {
+    if (!state.dirty) return true;
+    return window.confirm('You have unsaved class or pupil changes. Leave without sending to the tracker?');
+  }
+
+  function showSendResult(msg) {
+    var el = $('cm-send-result');
+    if (!el) return;
+    el.hidden = false;
+    el.textContent = msg;
+  }
+
+  function buildOverviewStats(staffList) {
+    var byUser = {};
+    if (!window.ClassManagementTracker) return byUser;
+    var rows = ClassManagementTracker.buildClassRowsFromStaff(staffList, {});
+    rows.forEach(function(r) {
+      var rec = byUser[r.userId] || {
+        art: { classes: 0, pupils: 0, hasScores: false },
+        drama: { classes: 0, pupils: 0, hasScores: false }
+      };
+      if (!rec[r.subject]) rec[r.subject] = { classes: 0, pupils: 0, hasScores: false };
+      rec[r.subject].classes += 1;
+      rec[r.subject].pupils += r.pupilCount || 0;
+      if (r.hasScores) rec[r.subject].hasScores = true;
+      byUser[r.userId] = rec;
+    });
+    return byUser;
+  }
+
+  function showOverview() {
+    state.view = 'overview';
+    var overview = $('cm-overview');
+    var workspace = $('cm-workspace');
+    if (overview) overview.hidden = false;
+    if (workspace) workspace.hidden = true;
+    renderTeacherGrid();
+  }
+
+  function showWorkspace() {
+    state.view = 'workspace';
+    var overview = $('cm-overview');
+    var workspace = $('cm-workspace');
+    if (overview) overview.hidden = true;
+    if (workspace) workspace.hidden = false;
+    updateSendHint();
+  }
+
+  function updateSendHint() {
+    var hint = $('cm-send-hint');
+    var btn = $('cm-push-btn');
+    var t = selectedTeacher();
+    var name = t && (t.display_name || t.email) ? String(t.display_name || t.email).split(' ')[0] : 'this teacher';
+    if (hint) {
+      hint.textContent = 'Send to tracker puts these names on ' + name + '\'s ' +
+        subjectLabel() + ' tracker. Save draft keeps a cloud copy without changing what they see yet.';
+    }
+    if (btn) btn.textContent = 'Send to tracker';
+  }
+
+  function renderTeacherGrid() {
+    var grid = $('cm-teacher-grid');
+    var countEl = $('cm-teacher-count');
+    var statusEl = $('cm-overview-status');
+    if (!grid) return;
+    var q = String(state.staffFilter || '').trim().toLowerCase();
+    var rows = state.teachers.filter(function(t) {
+      if (q) {
+        var hay = ((t.display_name || '') + ' ' + (t.email || '')).toLowerCase();
+        if (hay.indexOf(q) === -1) return false;
+      }
+      var status = teacherStatus(state.teacherStats[t.teacher_id] || {});
+      return statusMatchesFilter(status.key, state.statusFilter);
+    });
+    if (countEl) {
+      countEl.textContent = rows.length + ' teacher' + (rows.length === 1 ? '' : 's');
+    }
+    if (statusEl) {
+      statusEl.textContent = state.academicYear ? 'Year ' + state.academicYear : '';
+    }
+    if (!state.teachers.length) {
+      grid.innerHTML = '<p class="cm-empty">No teachers found. Staff must sign in once before they appear here.</p>';
+      return;
+    }
+    if (!rows.length) {
+      grid.innerHTML = '<p class="cm-empty">No teachers match that search or filter.</p>';
+      return;
+    }
+    grid.innerHTML = rows.map(function(t) {
+      var stats = state.teacherStats[t.teacher_id] || {};
+      var art = stats.art || {};
+      var drama = stats.drama || {};
+      var status = teacherStatus(stats);
+      var name = t.display_name || t.email || 'Staff';
+      return '<button type="button" class="cm-teacher-card is-' + status.key + '" data-teacher-id="' + escAttr(t.teacher_id) + '">' +
+        '<span class="cm-avatar" aria-hidden="true">' + escHtml(initials(name)) + '</span>' +
+        '<span>' +
+        '<h3>' + escHtml(name) + '</h3>' +
+        (t.email && t.email !== name ? '<p class="cm-teacher-mail">' + escHtml(t.email) + '</p>' : '') +
+        '<div class="cm-teacher-stats">' +
+        '<span>Art ' + (art.classes || 0) + '</span>' +
+        '<span>Drama ' + (drama.classes || 0) + '</span>' +
+        '</div>' +
+        '<span class="cm-status cm-status-' + status.key + '">' + escHtml(status.label) + '</span>' +
+        '</span></button>';
+    }).join('');
+    grid.querySelectorAll('.cm-teacher-card').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        openTeacher(btn.getAttribute('data-teacher-id') || '');
+      });
+    });
+  }
+
+  function openTeacher(teacherId) {
+    if (!teacherId) return;
+    state.selectedTeacherId = teacherId;
+    var sel = $('cm-teacher');
+    if (sel) sel.value = teacherId;
+    var stats = state.teacherStats[teacherId] || {};
+    var artN = (stats.art && stats.art.classes) || 0;
+    var dramaN = (stats.drama && stats.drama.classes) || 0;
+    if (dramaN && !artN) state.subject = 'drama';
+    else if (artN && !dramaN) state.subject = 'art';
+    updateSubjectUi();
+    showWorkspace();
+    updateTrackerLink();
+    loadClasses();
+  }
+
+  function loadRosterCounts() {
+    if (!window.DataService || typeof DataService.listTeacherSubjectClassesForLoader !== 'function') {
+      return Promise.resolve();
+    }
+    if (!state.academicYear || !state.teachers.length) return Promise.resolve();
+    var year = state.academicYear;
+    var jobs = [];
+    state.teachers.forEach(function(t) {
+      ['art', 'drama'].forEach(function(subj) {
+        jobs.push({ teacherId: t.teacher_id, subject: subj });
+      });
+    });
+    var i = 0;
+    var chunkSize = 8;
+    function nextChunk() {
+      if (i >= jobs.length) return Promise.resolve();
+      var chunk = jobs.slice(i, i + chunkSize);
+      i += chunkSize;
+      return Promise.all(chunk.map(function(job) {
+        return DataService.listTeacherSubjectClassesForLoader({
+          teacherId: job.teacherId,
+          subject: job.subject,
+          academicYearLabel: year
+        }).then(function(rows) {
+          return { teacherId: job.teacherId, subject: job.subject, count: (rows || []).length };
+        }).catch(function() {
+          return { teacherId: job.teacherId, subject: job.subject, count: 0 };
+        });
+      })).then(function(results) {
+        results.forEach(function(r) {
+          state.teacherStats[r.teacherId] = state.teacherStats[r.teacherId] || {
+            art: { classes: 0, pupils: 0, hasScores: false, rosterClasses: 0 },
+            drama: { classes: 0, pupils: 0, hasScores: false, rosterClasses: 0 }
+          };
+          var rec = state.teacherStats[r.teacherId][r.subject] || {
+            classes: 0, pupils: 0, hasScores: false, rosterClasses: 0
+          };
+          rec.rosterClasses = r.count;
+          state.teacherStats[r.teacherId][r.subject] = rec;
+        });
+        if (state.view === 'overview') renderTeacherGrid();
+        return nextChunk();
+      });
+    }
+    return nextChunk();
+  }
+
+  function loadOverviewStats() {
+    if (!window.ClassManagementTracker) return loadRosterCounts();
+    return ClassManagementTracker.loadStaff().then(function(staff) {
+      state.teacherStats = buildOverviewStats(staff || []);
+      if (state.view === 'overview') renderTeacherGrid();
+      return loadRosterCounts();
+    }).catch(function() {
+      if (state.view === 'overview') renderTeacherGrid();
+      return loadRosterCounts();
+    });
+  }
 
   function currentAcademicYearLabel() {
     var now = new Date();
@@ -108,12 +342,14 @@
     var t = selectedTeacher();
     if (!wrap || !link) return;
     if (t && state.selectedTeacherId) {
+      wrap.hidden = false;
       wrap.style.display = '';
       link.href = trackerViewUrl(t);
-      link.textContent = 'View ' + subjectLabel() + ' tracker (read-only)';
+      link.textContent = 'Open ' + subjectLabel() + ' tracker';
     } else {
-      wrap.style.display = 'none';
+      wrap.hidden = true;
     }
+    updateSendHint();
   }
 
   function classKeyFor(cls) {
@@ -153,24 +389,28 @@
     var cls = selectedClass();
     if (!panel || !body) return;
 
-    if (!cls || !state.selectedTeacherId) {
-      panel.hidden = true;
-      updateRosterTrackerActions(null);
-      return;
-    }
-
     panel.hidden = false;
-    updateRosterTrackerActions(cls);
     var pupils = pupilsForSelectedClass();
     if (sub) {
-      sub.textContent = 'S' + cls.year_level + ' · ' + (cls.class_name || cls.class_code);
+      if (!cls) {
+        sub.textContent = 'Add a class on the left, then paste names here.';
+      } else {
+        sub.textContent = 'S' + cls.year_level + ' · ' + (cls.class_name || cls.class_code);
+      }
     }
     if (countEl) {
       countEl.textContent = pupils.length + ' pupil' + (pupils.length === 1 ? '' : 's');
     }
 
+    if (!cls || !state.selectedTeacherId) {
+      body.innerHTML = '<tr><td colspan="3"><div class="cm-empty-action"><p>Choose a class to add pupil names.</p></div></td></tr>';
+      bindEmptyActions();
+      return;
+    }
+
     if (!pupils.length) {
-      body.innerHTML = '<tr><td colspan="3" class="cm-empty">No pupils in this class yet — add names above or paste a list.</td></tr>';
+      body.innerHTML = '<tr><td colspan="3"><div class="cm-empty-action"><p>No pupils in this class yet.</p><button type="button" class="btn" id="cm-empty-paste-pupils">Paste names</button></div></td></tr>';
+      bindEmptyActions();
       return;
     }
 
@@ -192,6 +432,7 @@
         var p = list.find(function(x) { return x.local_id === id; });
         if (p) p.name = String(inp.value || '').trim();
         setPupilsForClass(state.selectedClassKey, list);
+        markDirty();
         renderTable();
       });
     });
@@ -201,16 +442,18 @@
         var id = btn.getAttribute('data-id');
         var list = pupilsForSelectedClass().filter(function(p) { return p.local_id !== id; });
         setPupilsForClass(state.selectedClassKey, list);
+        markDirty();
         renderPupilsPanel();
         renderTable();
       });
     });
+    bindEmptyActions();
   }
 
   function renderTable() {
-    var body = $('cm-table-body');
+    var host = $('cm-class-slices');
     var countEl = $('cm-class-count');
-    if (!body) return;
+    if (!host) return;
     var rows = state.classes.slice().sort(function(a, b) {
       return (a.year_level - b.year_level) || String(a.class_code).localeCompare(String(b.class_code));
     });
@@ -218,31 +461,37 @@
       countEl.textContent = rows.length + ' class' + (rows.length === 1 ? '' : 'es');
     }
     if (!state.selectedTeacherId) {
-      body.innerHTML = '<tr><td colspan="5" class="cm-empty">Select a teacher to view or add classes.</td></tr>';
+      host.innerHTML = '<p class="cm-empty">Choose a teacher to add classes.</p>';
       state.selectedClassKey = '';
       renderPupilsPanel();
+      bindEmptyActions();
       return;
     }
     if (!rows.length) {
-      body.innerHTML = '<tr><td colspan="5" class="cm-empty">No classes yet — add one above or paste a list, then Save roster.</td></tr>';
+      host.innerHTML = '<div class="cm-empty-action"><p>No classes yet.</p><button type="button" class="btn" id="cm-empty-paste-classes">Paste class list</button></div>';
       state.selectedClassKey = '';
       renderPupilsPanel();
+      bindEmptyActions();
       return;
     }
-    body.innerHTML = rows.map(function(c) {
-      var key = classKeyFor(c);
-      var pupilCount = (state.pupilsByClass[key] || []).length;
-      var selected = state.selectedClassKey === key ? ' is-selected' : '';
-      return '<tr class="row-' + state.subject + ' cm-class-row' + selected + '" data-class-key="' + escAttr(key) + '" tabindex="0" role="button" aria-pressed="' + (selected ? 'true' : 'false') + '">' +
-        '<td>S' + c.year_level + '</td>' +
-        '<td><code>' + escHtml(c.class_code) + '</code></td>' +
-        '<td>' + escHtml(c.class_name) + '</td>' +
-        '<td>' + pupilCount + '</td>' +
-        '<td><button type="button" class="btn btn-ghost cm-row-del" data-year="' + c.year_level + '" data-code="' + escAttr(c.class_code) + '" aria-label="Remove class">Remove</button></td>' +
-        '</tr>';
+    var years = [1, 2, 3];
+    host.innerHTML = years.map(function(yl) {
+      var group = rows.filter(function(c) { return c.year_level === yl; });
+      if (!group.length) return '';
+      var cards = group.map(function(c) {
+        var key = classKeyFor(c);
+        var pupilCount = (state.pupilsByClass[key] || []).length;
+        var selected = state.selectedClassKey === key ? ' is-selected' : '';
+        return '<div class="cm-class-card' + selected + '" data-class-key="' + escAttr(key) + '" tabindex="0" role="button" aria-pressed="' + (selected ? 'true' : 'false') + '">' +
+          '<strong>' + escHtml(c.class_code) + '</strong>' +
+          '<span class="cm-class-count">' + pupilCount + ' pupil' + (pupilCount === 1 ? '' : 's') + '</span>' +
+          '<button type="button" class="btn btn-ghost cm-row-del" data-year="' + c.year_level + '" data-code="' + escAttr(c.class_code) + '" aria-label="Remove class">Remove</button>' +
+          '</div>';
+      }).join('');
+      return '<div class="cm-year-slice"><h3>S' + yl + '</h3><div class="cm-class-list">' + cards + '</div></div>';
     }).join('');
 
-    body.querySelectorAll('.cm-class-row').forEach(function(row) {
+    host.querySelectorAll('.cm-class-card').forEach(function(row) {
       function selectRow() {
         state.selectedClassKey = row.getAttribute('data-class-key') || '';
         renderTable();
@@ -262,7 +511,7 @@
       });
     });
 
-    body.querySelectorAll('.cm-row-del').forEach(function(btn) {
+    host.querySelectorAll('.cm-row-del').forEach(function(btn) {
       btn.addEventListener('click', function(e) {
         e.stopPropagation();
         var yl = parseInt(btn.getAttribute('data-year'), 10);
@@ -273,12 +522,27 @@
         });
         delete state.pupilsByClass[removedKey];
         if (state.selectedClassKey === removedKey) state.selectedClassKey = '';
+        markDirty();
         renderTable();
         renderPupilsPanel();
       });
     });
 
     renderPupilsPanel();
+    bindEmptyActions();
+  }
+
+  function bindEmptyActions() {
+    var pasteClasses = $('cm-empty-paste-classes');
+    var pasteBtn = $('cm-paste-btn');
+    if (pasteClasses && pasteBtn) {
+      pasteClasses.onclick = function() { pasteBtn.click(); };
+    }
+    var pastePupils = $('cm-empty-paste-pupils');
+    var pupilPaste = $('cm-pupil-paste-btn');
+    if (pastePupils && pupilPaste) {
+      pastePupils.onclick = function() { pupilPaste.click(); };
+    }
   }
 
   function loadPupilsForClasses() {
@@ -297,6 +561,9 @@
       if (state.selectedClassKey && !state.pupilsByClass[state.selectedClassKey]) {
         state.selectedClassKey = '';
       }
+      if (!state.selectedClassKey && state.classes.length) {
+        state.selectedClassKey = classKeyFor(state.classes[0]);
+      }
       renderTable();
     }).catch(function() {
       renderTable();
@@ -309,6 +576,7 @@
       state.pupilsByClass = {};
       state.selectedClassKey = '';
       renderTable();
+      clearDirty();
       return Promise.resolve();
     }
     state.loading = true;
@@ -326,6 +594,8 @@
         };
       }).filter(function(c) { return c.class_code && c.year_level; });
       return loadPupilsForClasses();
+    }).then(function() {
+      clearDirty();
     }).catch(function(err) {
       toast('Could not load classes: ' + (err.message || err), 'error');
       state.classes = [];
@@ -349,19 +619,22 @@
           return an.localeCompare(bn);
         });
       var sel = $('cm-teacher');
-      if (!sel) return;
-      if (!state.teachers.length) {
-        sel.innerHTML = '<option value="">No teachers found — staff must sign in once</option>';
-        return;
+      if (sel) {
+        if (!state.teachers.length) {
+          sel.innerHTML = '<option value="">No teachers found. Staff must sign in once</option>';
+        } else {
+          sel.innerHTML = '<option value="">Select a teacher</option>' +
+            state.teachers.map(function(t) {
+              var label = (t.display_name || t.email || 'Staff').trim();
+              if (t.email && label.toLowerCase() !== String(t.email).toLowerCase()) {
+                label += ' (' + t.email + ')';
+              }
+              return '<option value="' + escHtml(t.teacher_id) + '">' + escHtml(label) + '</option>';
+            }).join('');
+        }
       }
-      sel.innerHTML = '<option value="">Select a teacher…</option>' +
-        state.teachers.map(function(t) {
-          var label = (t.display_name || t.email || 'Staff').trim();
-          if (t.email && label.toLowerCase() !== String(t.email).toLowerCase()) {
-            label += ' (' + t.email + ')';
-          }
-          return '<option value="' + escHtml(t.teacher_id) + '">' + escHtml(label) + '</option>';
-        }).join('');
+      renderTeacherGrid();
+      fillImportTeacherSelect();
     });
   }
 
@@ -394,7 +667,12 @@
     return Promise.resolve();
   }
 
-  function addClassLocal(yearLevel, code, name) {
+  function addClassLocal(yearLevel, code, name, opts) {
+    opts = opts || {};
+    if (!state.selectedTeacherId) {
+      toast('Choose a teacher first', 'error');
+      return false;
+    }
     code = String(code || '').trim();
     name = String(name || code).trim();
     var yl = parseYearLevel(yearLevel);
@@ -410,7 +688,7 @@
       return c.year_level === yl && c.class_code.toLowerCase() === code.toLowerCase();
     });
     if (exists) {
-      toast('Class already in the list', 'error');
+      if (!opts.quiet) toast('Class already in the list', 'error');
       return false;
     }
     state.classes.push({ year_level: yl, class_code: code, class_name: name });
@@ -418,6 +696,7 @@
     if (!state.pupilsByClass[state.selectedClassKey]) {
       state.pupilsByClass[state.selectedClassKey] = [];
     }
+    markDirty();
     renderTable();
     return true;
   }
@@ -466,14 +745,15 @@
         var totalPupils = Object.keys(state.pupilsByClass).reduce(function(n, key) {
           return n + (state.pupilsByClass[key] || []).length;
         }, 0);
-        var msg = 'Saved roster: ' + payload.length + ' class' + (payload.length === 1 ? '' : 'es');
+        var msg = 'Draft saved: ' + payload.length + ' class' + (payload.length === 1 ? '' : 'es');
         if (totalPupils) msg += ', ' + totalPupils + ' pupil' + (totalPupils === 1 ? '' : 's');
         if (inserted || assigned) msg += ' (' + (inserted + assigned) + ' class updates)';
-        if (skipped) msg += ' — ' + skipped + ' skipped';
+        if (skipped) msg += ', ' + skipped + ' skipped';
         if (pupilResult && pupilResult.fallback_add_only) {
-          msg += ' — pupil list saved (add-only mode)';
+          msg += '. Pupil list saved (add-only mode)';
         }
         if (!opts.silent) toast(msg, 'success');
+        clearDirty();
         return loadClasses();
       });
     }).catch(function(err) {
@@ -490,14 +770,14 @@
       return;
     }
     if (!state.classes.length) {
-      toast('Add and save classes before pushing to the tracker', 'error');
+      toast('Add classes before sending to the tracker', 'error');
       return;
     }
     var teacher = selectedTeacher();
     var modal = $('cm-push-modal');
     var desc = $('cm-push-desc');
     if (desc) {
-      desc.textContent = 'Push ' + state.classes.length + ' class' + (state.classes.length === 1 ? '' : 'es') +
+      desc.textContent = 'Send ' + state.classes.length + ' class' + (state.classes.length === 1 ? '' : 'es') +
         ' and their pupil lists to ' + (teacher && (teacher.display_name || teacher.email) || 'this teacher') +
         '\'s ' + subjectLabel() + ' tracker.';
     }
@@ -510,7 +790,7 @@
       return;
     }
     if (!state.selectedTeacherId || !state.classes.length) {
-      toast('Add and save classes before pushing', 'error');
+      toast('Add classes before sending', 'error');
       return;
     }
     var removeMissing = $('cm-push-remove-missing') && $('cm-push-remove-missing').checked;
@@ -528,13 +808,27 @@
       });
     }).then(function(stats) {
       closeModal('cm-push-modal');
-      var msg = 'Pushed to tracker: ' + stats.added + ' added';
-      if (stats.updated) msg += ', ' + stats.updated + ' renamed';
-      if (stats.removed) msg += ', ' + stats.removed + ' removed';
-      if (stats.scored_removals && stats.scored_removals.length) {
-        msg += ' (' + stats.scored_removals.length + ' with scores kept)';
+      var teacher = selectedTeacher();
+      var teacherName = teacher && (teacher.display_name || teacher.email) || 'this teacher';
+      var n = Object.keys(state.pupilsByClass).reduce(function(sum, key) {
+        return sum + (state.pupilsByClass[key] || []).length;
+      }, 0);
+      var banner = n
+        ? n + ' pupil' + (n === 1 ? '' : 's') + ' now on ' + teacherName + '\'s ' + subjectLabel() + ' tracker'
+        : 'Classes sent to ' + teacherName + '\'s ' + subjectLabel() + ' tracker';
+      showSendResult(banner);
+      var msg = banner;
+      if (stats && (stats.added || stats.updated || stats.removed)) {
+        msg = 'Sent to tracker: ' + stats.added + ' added';
+        if (stats.updated) msg += ', ' + stats.updated + ' renamed';
+        if (stats.removed) msg += ', ' + stats.removed + ' removed';
+        if (stats.scored_removals && stats.scored_removals.length) {
+          msg += ' (' + stats.scored_removals.length + ' with scores kept)';
+        }
       }
       toast(msg, 'success');
+      clearDirty();
+      loadOverviewStats();
     }).catch(function(err) {
       toast('Push failed: ' + (err.message || err), 'error');
     }).finally(function() {
@@ -565,6 +859,7 @@
       name: name
     });
     setPupilsForClass(state.selectedClassKey, list);
+    markDirty();
     renderPupilsPanel();
     renderTable();
     return true;
@@ -589,6 +884,7 @@
       added++;
     });
     setPupilsForClass(state.selectedClassKey, list);
+    if (added) markDirty();
     renderPupilsPanel();
     renderTable();
     return added;
@@ -611,6 +907,7 @@
         return;
       }
       setPupilsForClass(state.selectedClassKey, loaded);
+      markDirty();
       renderPupilsPanel();
       renderTable();
       toast('Loaded ' + loaded.length + ' pupil' + (loaded.length === 1 ? '' : 's') + ' from tracker', 'success');
@@ -720,13 +1017,127 @@
     return out;
   }
 
-  function handleImportFile(file) {
-    if (!file) return;
-    if (!state.selectedTeacherId) {
-      toast('Select a teacher before importing', 'error');
+  function fillImportTeacherSelect() {
+    var sel = $('cm-import-teacher');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">Choose a teacher</option>' +
+      state.teachers.map(function(t) {
+        var label = (t.display_name || t.email || 'Staff').trim();
+        return '<option value="' + escAttr(t.teacher_id) + '">' + escHtml(label) + '</option>';
+      }).join('');
+    if (state.selectedTeacherId) sel.value = state.selectedTeacherId;
+  }
+
+  function openImportModal() {
+    fillImportTeacherSelect();
+    state.pendingImport = null;
+    var wrap = $('cm-import-preview-wrap');
+    var apply = $('cm-import-apply');
+    var summary = $('cm-import-summary');
+    var preview = $('cm-import-preview');
+    if (wrap) wrap.hidden = true;
+    if (apply) apply.disabled = true;
+    if (summary) summary.textContent = '';
+    if (preview) preview.innerHTML = '';
+    var modal = $('cm-import-modal');
+    if (modal) modal.classList.add('open');
+  }
+
+  function uniqueClassRows(rows) {
+    var seen = {};
+    var out = [];
+    (rows || []).forEach(function(r) {
+      var key = String(r.year_level || '') + '|' + String(r.class_code || '').toLowerCase();
+      if (seen[key]) return;
+      seen[key] = true;
+      out.push(r);
+    });
+    return out;
+  }
+
+  function renderImportPreview() {
+    var wrap = $('cm-import-preview-wrap');
+    var summary = $('cm-import-summary');
+    var preview = $('cm-import-preview');
+    var apply = $('cm-import-apply');
+    var pending = state.pendingImport;
+    if (!wrap || !preview) return;
+    if (!pending || !pending.classRows.length) {
+      wrap.hidden = true;
+      if (apply) apply.disabled = true;
       return;
     }
-    var teacher = selectedTeacher();
+    wrap.hidden = false;
+    if (apply) apply.disabled = false;
+    var classes = uniqueClassRows(pending.classRows);
+    var pupils = pending.pupilRows.length;
+    if (summary) {
+      summary.textContent = classes.length + ' class' + (classes.length === 1 ? '' : 'es') +
+        (pupils ? ', ' + pupils + ' pupil' + (pupils === 1 ? '' : 's') : '') +
+        ' from ' + (pending.fileName || 'file');
+    }
+    preview.innerHTML = '<table><thead><tr><th>Year</th><th>Class</th><th>Pupils</th></tr></thead><tbody>' +
+      classes.map(function(c) {
+        var n = pending.pupilRows.filter(function(p) {
+          return String(p.year_level) === String(c.year_level) &&
+            String(p.class_code).toLowerCase() === String(c.class_code).toLowerCase();
+        }).length;
+        return '<tr><td>' + escHtml(c.year_level) + '</td><td>' + escHtml(c.class_code) +
+          '</td><td>' + n + '</td></tr>';
+      }).join('') + '</tbody></table>';
+  }
+
+  function applyPendingImport() {
+    var importSel = $('cm-import-teacher');
+    var teacherId = (importSel && importSel.value) || state.selectedTeacherId;
+    if (!teacherId) {
+      toast('Choose a teacher for this import', 'error');
+      return;
+    }
+    var pending = state.pendingImport;
+    if (!pending || !pending.classRows.length) {
+      toast('No rows to add', 'error');
+      return;
+    }
+    if (!confirmLeaveWorkspace()) return;
+    var firstSubj = normalizeSubject(pending.classRows[0].subject) || state.subject;
+    state.subject = firstSubj;
+    state.selectedTeacherId = teacherId;
+    var teacherSel = $('cm-teacher');
+    if (teacherSel) teacherSel.value = teacherId;
+    updateSubjectUi();
+    showWorkspace();
+    updateTrackerLink();
+    loadClasses().then(function() {
+      uniqueClassRows(pending.classRows).forEach(function(r) {
+        addClassLocal(parseYearLevel(r.year_level), r.class_code, r.class_name, { quiet: true });
+      });
+      pending.pupilRows.forEach(function(r) {
+        var yl = parseYearLevel(r.year_level);
+        var key = 'S' + yl + '|' + String(r.class_code || '').trim().toLowerCase();
+        if (!state.pupilsByClass[key]) state.pupilsByClass[key] = [];
+        var name = [r.first_name, r.last_name].filter(Boolean).join(' ').trim();
+        if (!name) return;
+        if (state.pupilsByClass[key].some(function(p) { return p.name.toLowerCase() === name.toLowerCase(); })) return;
+        state.pupilsByClass[key].push({
+          local_id: window.ClassManagementRoster ? ClassManagementRoster.uid() : String(Date.now()),
+          name: name
+        });
+      });
+      markDirty();
+      renderTable();
+      renderPupilsPanel();
+      closeModal('cm-import-modal');
+      toast('Added to list. Review names, then send to tracker.', 'success');
+      state.pendingImport = null;
+    });
+  }
+
+  function handleImportFile(file) {
+    if (!file) return;
+    var importSel = $('cm-import-teacher');
+    var teacherId = (importSel && importSel.value) || state.selectedTeacherId;
+    var teacher = state.teachers.find(function(t) { return t.teacher_id === teacherId; }) || selectedTeacher();
     var email = (teacher && teacher.email) ? String(teacher.email).toLowerCase() : '';
 
     parseFileRows(file).then(function(rawRows) {
@@ -739,28 +1150,13 @@
         if (norm.first_name && norm.last_name) pupilRows.push(norm);
       });
       if (!classRows.length) {
-        toast('No valid rows for ' + subjectLabel(), 'error');
+        toast('No valid rows for ' + subjectLabel() + '. Check year_level and class_code.', 'error');
         return;
       }
-      classRows.forEach(function(r) {
-        addClassLocal(parseYearLevel(r.year_level), r.class_code, r.class_name);
-      });
-      pupilRows.forEach(function(r) {
-        var yl = parseYearLevel(r.year_level);
-        var key = 'S' + yl + '|' + String(r.class_code || '').trim().toLowerCase();
-        if (!state.pupilsByClass[key]) state.pupilsByClass[key] = [];
-        var name = [r.first_name, r.last_name].filter(Boolean).join(' ').trim();
-        if (!name) return;
-        if (state.pupilsByClass[key].some(function(p) { return p.name.toLowerCase() === name.toLowerCase(); })) return;
-        state.pupilsByClass[key].push({
-          local_id: window.ClassManagementRoster ? ClassManagementRoster.uid() : String(Date.now()),
-          name: name
-        });
-      });
-      renderTable();
-      toast('Imported ' + classRows.length + ' classes' +
-        (pupilRows.length ? ' and ' + pupilRows.length + ' pupils' : '') +
-        ' — review, then Save roster', 'success');
+      state.pendingImport = { classRows: classRows, pupilRows: pupilRows, fileName: file.name };
+      renderImportPreview();
+      var modal = $('cm-import-modal');
+      if (modal && !modal.classList.contains('open')) modal.classList.add('open');
     }).catch(function(err) {
       toast('Import failed: ' + (err.message || err), 'error');
     });
@@ -801,6 +1197,7 @@
     if (rosterPanel) rosterPanel.classList.toggle('is-active', tab === 'roster');
     if (trackerPanel) trackerPanel.classList.toggle('is-active', tab === 'tracker');
     if (tab === 'tracker') loadTrackerClasses();
+    if (tab === 'roster' && state.view === 'overview') renderTeacherGrid();
   }
 
   function fillModalYearSelects() {
@@ -955,8 +1352,8 @@
     ClassManagementTracker.loadTrackerState(state.selectedTeacherId, state.subject).then(function(trackerS) {
       var match = resolveTrackerClassForRoster(cls, trackerS);
       if (!match) {
-        promoteBtn.title = 'Class not in tracker yet — push to tracker first';
-        transferBtn.title = 'Class not in tracker yet — push to tracker first';
+        promoteBtn.title = 'Class not in tracker yet. Push to tracker first';
+        transferBtn.title = 'Class not in tracker yet. Push to tracker first';
         return;
       }
       transferBtn.disabled = false;
@@ -979,7 +1376,7 @@
     ClassManagementTracker.loadTrackerState(state.selectedTeacherId, state.subject).then(function(trackerS) {
       var match = resolveTrackerClassForRoster(cls, trackerS);
       if (!match) {
-        toast('Class not found in tracker — push to tracker first', 'error');
+        toast('Class not found in tracker. Push to tracker first', 'error');
         return;
       }
       var row = buildWizardRowFromRoster(cls, match, trackerS);
@@ -1181,10 +1578,10 @@
       continuingPupilIds: continuingPupilIds
     }).then(function(res) {
       var excluded = (res.excludedCount || 0) > 0
-        ? ' (' + res.excludedCount + ' not continuing — kept in archive only)'
+        ? ' (' + res.excludedCount + ' not continuing, kept in archive only)'
         : '';
       toast('Promoted ' + res.pupilCount + ' pupils to ' + res.toClassName + ' (' + res.toYearGroup.toUpperCase() + ')' +
-        excluded + (archiveSource ? ' — source class archived' : ''), 'success');
+        excluded + (archiveSource ? '. Source class archived' : ''), 'success');
       closeModal('cm-promote-modal');
       loadTrackerClasses();
       if (state.tab === 'roster') renderPupilsPanel();
@@ -1232,10 +1629,67 @@
     if (rosterTransfer) rosterTransfer.addEventListener('click', function() { openRosterTrackerAction('transfer'); });
     if (rosterPromote) rosterPromote.addEventListener('click', function() { openRosterTrackerAction('promote'); });
 
+    var backOverview = $('cm-back-overview');
+    if (backOverview) {
+      backOverview.addEventListener('click', function() {
+        if (!confirmLeaveWorkspace()) return;
+        clearDirty();
+        state.selectedTeacherId = '';
+        state.classes = [];
+        state.pupilsByClass = {};
+        state.selectedClassKey = '';
+        var sel = $('cm-teacher');
+        if (sel) sel.value = '';
+        updateTrackerLink();
+        showOverview();
+        loadOverviewStats();
+      });
+    }
+
+    document.querySelectorAll('.cm-status-filters [data-status-filter]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        state.statusFilter = btn.getAttribute('data-status-filter') || 'all';
+        document.querySelectorAll('.cm-status-filters [data-status-filter]').forEach(function(b) {
+          b.classList.toggle('is-active', b === btn);
+        });
+        renderTeacherGrid();
+      });
+    });
+
+    var staffSearch = $('cm-staff-search');
+    if (staffSearch) {
+      staffSearch.addEventListener('input', function() {
+        state.staffFilter = staffSearch.value || '';
+        renderTeacherGrid();
+      });
+    }
+
+    ['cm-import-open', 'cm-import-open-ws'].forEach(function(id) {
+      var btn = $(id);
+      if (btn) btn.addEventListener('click', openImportModal);
+    });
+    var importCancel = $('cm-import-cancel');
+    if (importCancel) importCancel.addEventListener('click', function() { closeModal('cm-import-modal'); });
+    var importApply = $('cm-import-apply');
+    if (importApply) importApply.addEventListener('click', applyPendingImport);
+
     var teacherSel = $('cm-teacher');
     if (teacherSel) {
       teacherSel.addEventListener('change', function() {
-        state.selectedTeacherId = teacherSel.value || '';
+        var next = teacherSel.value || '';
+        if (next === state.selectedTeacherId) return;
+        if (!confirmLeaveWorkspace()) {
+          teacherSel.value = state.selectedTeacherId;
+          return;
+        }
+        clearDirty();
+        state.selectedTeacherId = next;
+        if (!state.selectedTeacherId) {
+          showOverview();
+          updateTrackerLink();
+          return;
+        }
+        showWorkspace();
         updateTrackerLink();
         loadClasses();
       });
@@ -1245,7 +1699,11 @@
       var btn = $(id);
       if (!btn) return;
       btn.addEventListener('click', function() {
-        state.subject = btn.getAttribute('data-subject') || 'art';
+        var next = btn.getAttribute('data-subject') || 'art';
+        if (next === state.subject) return;
+        if (!confirmLeaveWorkspace()) return;
+        clearDirty();
+        state.subject = next;
         updateSubjectUi();
         updateTrackerLink();
         loadClasses();
@@ -1255,8 +1713,20 @@
     var yearSel = $('cm-year-label');
     if (yearSel) {
       yearSel.addEventListener('change', function() {
-        state.academicYear = yearSel.value;
-        loadClasses();
+        var next = yearSel.value;
+        if (next === state.academicYear) return;
+        if (state.view === 'workspace' && state.selectedTeacherId) {
+          if (!confirmLeaveWorkspace()) {
+            yearSel.value = state.academicYear;
+            return;
+          }
+          clearDirty();
+          state.academicYear = next;
+          loadClasses();
+          return;
+        }
+        state.academicYear = next;
+        loadRosterCounts();
       });
     }
 
@@ -1265,14 +1735,18 @@
       addBtn.addEventListener('click', function() {
         var yl = $('cm-add-year') && $('cm-add-year').value;
         var code = $('cm-add-code') && $('cm-add-code').value;
-        var name = $('cm-add-name') && $('cm-add-name').value;
-        if (addClassLocal(yl, code, name)) {
-          if (!state.pupilsByClass[classKeyFor({ year_level: yl, class_code: code })]) {
-            state.pupilsByClass[classKeyFor({ year_level: yl, class_code: code })] = [];
-          }
+        if (addClassLocal(yl, code, code)) {
           if ($('cm-add-code')) $('cm-add-code').value = '';
-          if ($('cm-add-name')) $('cm-add-name').value = '';
           if ($('cm-add-code')) $('cm-add-code').focus();
+        }
+      });
+    }
+    var addCode = $('cm-add-code');
+    if (addCode) {
+      addCode.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          if (addBtn) addBtn.click();
         }
       });
     }
@@ -1302,6 +1776,14 @@
           e.preventDefault();
           if (addPupilLocal(pupilNameInput.value)) pupilNameInput.value = '';
         }
+      });
+      pupilNameInput.addEventListener('paste', function(e) {
+        var clip = e.clipboardData || window.clipboardData;
+        var text = clip && clip.getData ? clip.getData('text') : '';
+        if (!text || !/[\r\n\t]/.test(text)) return;
+        e.preventDefault();
+        var n = pastePupilNames(text);
+        toast(n ? 'Added ' + n + ' pupil' + (n === 1 ? '' : 's') : 'No new names added', n ? 'success' : 'error');
       });
     }
 
@@ -1361,7 +1843,6 @@
     var drop = $('cm-drop');
     var fileInput = $('cm-file');
     if (drop && fileInput) {
-      drop.addEventListener('click', function() { fileInput.click(); });
       fileInput.addEventListener('change', function() {
         if (fileInput.files && fileInput.files[0]) handleImportFile(fileInput.files[0]);
         fileInput.value = '';
@@ -1387,6 +1868,12 @@
     var tplXlsx = $('cm-template-xlsx');
     if (tplCsv) tplCsv.addEventListener('click', function() { downloadTemplate('csv'); });
     if (tplXlsx) tplXlsx.addEventListener('click', function() { downloadTemplate('xlsx'); });
+
+    window.addEventListener('beforeunload', function(e) {
+      if (!state.dirty) return;
+      e.preventDefault();
+      e.returnValue = '';
+    });
   }
 
   function boot() {
@@ -1395,8 +1882,6 @@
       if (page) page.classList.add('is-embed');
       var back = $('cm-back-link');
       if (back) back.style.display = 'none';
-      var header = $('cm-top-header');
-      if (header) header.querySelector('h1').textContent = 'Class Management';
     }
 
     function showApp() {
@@ -1407,9 +1892,12 @@
       $('cm-app').style.display = 'block';
       updateSubjectUi();
       wireEvents();
+      showOverview();
       Promise.all([loadAcademicYears(), loadTeachers()])
         .then(function() {
           fillModalYearSelects();
+          fillImportTeacherSelect();
+          return loadOverviewStats();
         })
         .catch(function(err) {
           toast(err.message || 'Could not load', 'error');
