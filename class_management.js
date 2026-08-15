@@ -24,12 +24,13 @@
     teacherStats: {},
     staffFilter: '',
     pendingImport: null,
-    statusFilter: 'all',
+    statusFilter: 'empty',
     dirty: false,
     trackerClassMeta: {},
     sendDraftJobs: [],
     ttMatchOverrides: {},
-    justAddedKeys: {}
+    justAddedKeys: {},
+    focusRestore: null
   };
 
   function $(id) { return document.getElementById(id); }
@@ -78,16 +79,14 @@
 
   function markDirty() {
     state.dirty = true;
-    var el = $('cm-unsaved');
-    if (el) el.hidden = false;
+    updateRosterStatus();
     var result = $('cm-send-result');
     if (result) result.hidden = true;
   }
 
   function clearDirty() {
     state.dirty = false;
-    var el = $('cm-unsaved');
-    if (el) el.hidden = true;
+    updateRosterStatus();
   }
 
   function confirmLeaveWorkspace() {
@@ -121,6 +120,99 @@
     return byUser;
   }
 
+  function updateSkipLink() {
+    var skip = document.querySelector('.cm-skip');
+    if (!skip) return;
+    if (state.view === 'workspace') {
+      skip.setAttribute('href', '#cm-workspace');
+      skip.textContent = 'Skip to classes';
+    } else {
+      skip.setAttribute('href', '#cm-staff-search');
+      skip.textContent = 'Skip to teacher list';
+    }
+  }
+
+  function getFocusable(root) {
+    if (!root) return [];
+    return Array.prototype.slice.call(root.querySelectorAll(
+      'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    )).filter(function(el) {
+      if (el.hasAttribute('hidden') || el.getAttribute('aria-hidden') === 'true') return false;
+      return el.getClientRects().length > 0;
+    });
+  }
+
+  function setAppInert(on) {
+    var app = $('cm-app');
+    if (!app) return;
+    if (on) app.setAttribute('inert', '');
+    else app.removeAttribute('inert');
+  }
+
+  function openModal(id) {
+    var m = $(id);
+    if (!m) return;
+    state.focusRestore = document.activeElement;
+    m.classList.add('open');
+    m.setAttribute('aria-hidden', 'false');
+    setAppInert(true);
+    var nodes = getFocusable(m);
+    if (nodes[0]) {
+      try { nodes[0].focus(); } catch (e) {}
+    }
+  }
+
+  function updateRosterTally() {
+    var el = $('cm-roster-tally');
+    if (!el) return;
+    var classN = state.classes.length;
+    var pupilN = 0;
+    Object.keys(state.pupilsByClass || {}).forEach(function(k) {
+      pupilN += (state.pupilsByClass[k] || []).length;
+    });
+    el.textContent = classN + ' class' + (classN === 1 ? '' : 'es') + ' · ' +
+      pupilN + ' pupil' + (pupilN === 1 ? '' : 's');
+    updateRosterStatus();
+  }
+
+  function classesOnTracker() {
+    return (state.classes || []).some(function(c) {
+      var yg = 's' + c.year_level;
+      var metaMap = state.trackerClassMeta[yg] || {};
+      return !!(metaMap[String(c.class_name || '').toLowerCase()] ||
+        metaMap[String(c.class_code || '').toLowerCase()]);
+    });
+  }
+
+  function updateRosterStatus() {
+    var el = $('cm-unsaved');
+    if (!el) return;
+    el.hidden = false;
+    var onTracker = classesOnTracker();
+    if (!state.classes.length) {
+      el.textContent = 'No classes yet';
+      el.className = 'cm-unsaved is-idle';
+      return;
+    }
+    if (state.dirty && onTracker) {
+      el.textContent = 'On tracker · unsaved changes';
+      el.className = 'cm-unsaved is-warn';
+      return;
+    }
+    if (state.dirty) {
+      el.textContent = 'Unsaved · not sent yet';
+      el.className = 'cm-unsaved is-warn';
+      return;
+    }
+    if (onTracker) {
+      el.textContent = 'On tracker';
+      el.className = 'cm-unsaved is-live';
+      return;
+    }
+    el.textContent = 'Draft · not on tracker';
+    el.className = 'cm-unsaved is-draft';
+  }
+
   function showOverview() {
     state.view = 'overview';
     var overview = $('cm-overview');
@@ -131,7 +223,10 @@
     if (workspace) workspace.hidden = true;
     if (back) back.hidden = true;
     if (page) page.classList.remove('is-workspace');
+    var tabs = document.querySelector('.cm-tabs');
+    if (tabs) tabs.hidden = false;
     updateWorkspaceChrome();
+    updateSkipLink();
     flashEnter(overview);
     renderTeacherGrid();
   }
@@ -146,9 +241,13 @@
     if (workspace) workspace.hidden = false;
     if (back) back.hidden = false;
     if (page) page.classList.add('is-workspace');
+    var tabs = document.querySelector('.cm-tabs');
+    if (tabs) tabs.hidden = true;
     updateSendHint();
     updateWorkspaceChrome();
+    updateSkipLink();
     flashEnter(workspace);
+    updateRosterStatus();
     try { window.scrollTo(0, 0); } catch (e) {}
   }
 
@@ -158,8 +257,8 @@
     var t = selectedTeacher();
     var name = t && (t.display_name || t.email) ? String(t.display_name || t.email).split(' ')[0] : 'this teacher';
     if (hint) {
-      hint.textContent = 'Send to tracker puts these names on ' + name + '\'s ' +
-        subjectLabel() + ' tracker. Save draft keeps a cloud copy without changing what they see yet.';
+      hint.textContent = 'Save keeps a Hub copy. Send updates what they see on ' + name +
+        '\'s ' + subjectLabel() + ' tracker.';
     }
     if (btn) btn.textContent = 'Send to tracker';
   }
@@ -195,14 +294,19 @@
       var n = state.teachers.filter(function(t) {
         return statusMatchesFilter(state.teacherStats[t.teacher_id] || {}, f);
       }).length;
-      btn.textContent = filterLabels[f] ? filterLabels[f] + ' · ' + n : btn.textContent;
+      var label = filterLabels[f] || f;
+      btn.innerHTML = escHtml(label) + ' <span class="cm-filter-n">' + n + '</span>';
+      btn.setAttribute('aria-pressed', btn.classList.contains('is-active') ? 'true' : 'false');
     });
     if (!state.teachers.length) {
       grid.innerHTML = '<p class="cm-empty">No teachers found. Staff must sign in once before they appear here.</p>';
       return;
     }
     if (!rows.length) {
-      grid.innerHTML = '<div class="cm-empty-action"><p>No teachers match that search or filter.</p>' +
+      var emptyCopy = (state.statusFilter === 'empty' && !q)
+        ? 'Every teacher already has classes.'
+        : 'No teachers match that search or filter.';
+      grid.innerHTML = '<div class="cm-empty-action"><p>' + emptyCopy + '</p>' +
         '<button type="button" class="btn" id="cm-clear-filters">Show all teachers</button></div>';
       bindEmptyActions();
       return;
@@ -213,29 +317,37 @@
       var drama = stats.drama || {};
       var status = teacherStatus(stats);
       var name = t.display_name || t.email || 'Staff';
-      return '<button type="button" class="cm-teacher-card is-' + status.key + '" data-teacher-id="' + escAttr(t.teacher_id) + '">' +
-        '<span class="cm-avatar" aria-hidden="true">' + escHtml(initials(name)) + '</span>' +
-        '<span>' +
+      return '<article class="cm-teacher-card is-' + status.key + '" data-teacher-id="' + escAttr(t.teacher_id) + '">' +
+        '<button type="button" class="cm-teacher-open" aria-label="Open classes for ' + escAttr(name) + '">' +
+        '<span class="cm-avatar-wrap"><span class="cm-avatar" aria-hidden="true">' + escHtml(initials(name)) + '</span></span>' +
+        '<span class="cm-teacher-copy">' +
         '<h3>' + escHtml(name) + '</h3>' +
         (t.email && t.email !== name ? '<p class="cm-teacher-mail">' + escHtml(t.email) + '</p>' : '') +
-        '<div class="cm-teacher-stats">' +
+        '<span class="cm-teacher-stats">' +
         '<span class="cm-stat cm-stat-art">Art ' + (art.classes || 0) + '</span>' +
         '<span class="cm-stat cm-stat-drama">Drama ' + (drama.classes || 0) + '</span>' +
-        '</div>' +
-        '<span class="cm-status-row">' +
-        '<span class="cm-status cm-chip-art cm-status-' + status.art.key + '">Art · ' + escHtml(status.art.label) + '</span>' +
-        '<span class="cm-status cm-chip-drama cm-status-' + status.drama.key + '">Drama · ' + escHtml(status.drama.label) + '</span>' +
-        '</span>' +
-        '</span></button>';
+        '</span></span></button>' +
+        '<div class="cm-status-row">' +
+        '<button type="button" class="cm-status cm-chip-art cm-status-' + status.art.key + '" data-subject="art">Art · ' + escHtml(status.art.label) + '</button>' +
+        '<button type="button" class="cm-status cm-chip-drama cm-status-' + status.drama.key + '" data-subject="drama">Drama · ' + escHtml(status.drama.label) + '</button>' +
+        '</div></article>';
     }).join('');
-    grid.querySelectorAll('.cm-teacher-card').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        openTeacher(btn.getAttribute('data-teacher-id') || '');
+    grid.querySelectorAll('.cm-teacher-card').forEach(function(card) {
+      var id = card.getAttribute('data-teacher-id') || '';
+      var openBtn = card.querySelector('.cm-teacher-open');
+      if (openBtn) {
+        openBtn.addEventListener('click', function() { openTeacher(id); });
+      }
+      card.querySelectorAll('[data-subject]').forEach(function(chip) {
+        chip.addEventListener('click', function(e) {
+          e.stopPropagation();
+          openTeacher(id, chip.getAttribute('data-subject'));
+        });
       });
     });
   }
 
-  function openTeacher(teacherId) {
+  function openTeacher(teacherId, subjectHint) {
     if (!teacherId) return;
     state.selectedTeacherId = teacherId;
     var sel = $('cm-teacher');
@@ -243,7 +355,8 @@
     var stats = state.teacherStats[teacherId] || {};
     var artN = (stats.art && stats.art.classes) || 0;
     var dramaN = (stats.drama && stats.drama.classes) || 0;
-    if (dramaN && !artN) state.subject = 'drama';
+    if (subjectHint === 'art' || subjectHint === 'drama') state.subject = subjectHint;
+    else if (dramaN && !artN) state.subject = 'drama';
     else if (artN && !dramaN) state.subject = 'art';
     updateSubjectUi();
     showWorkspace();
@@ -392,13 +505,17 @@
 
   function updateWorkspaceChrome() {
     var lead = $('cm-top-lead');
-    if (!lead) return;
+    var title = $('cm-page-title');
     var t = selectedTeacher();
     if (state.view === 'workspace' && t) {
-      lead.textContent = (t.display_name || t.email) + ' · ' + subjectLabel() +
-        '. Add or check classes, then send to their tracker.';
+      if (title) title.textContent = t.display_name || t.email || 'Teacher';
+      if (lead) {
+        lead.textContent = subjectLabel() + (state.academicYear ? ' · ' + state.academicYear : '') +
+          '. Check classes, add names, then send to their tracker.';
+      }
     } else {
-      lead.textContent = 'You create the lists. Their Art and Drama trackers update.';
+      if (title) title.textContent = 'Classes for teachers';
+      if (lead) lead.textContent = 'You create the lists. Their Art and Drama trackers update.';
     }
   }
 
@@ -427,8 +544,14 @@
   function updateSubjectUi() {
     var artBtn = $('cm-subj-art');
     var dramaBtn = $('cm-subj-drama');
-    if (artBtn) artBtn.classList.toggle('is-active', state.subject === 'art');
-    if (dramaBtn) dramaBtn.classList.toggle('is-active', state.subject === 'drama');
+    if (artBtn) {
+      artBtn.classList.toggle('is-active', state.subject === 'art');
+      artBtn.setAttribute('aria-pressed', state.subject === 'art' ? 'true' : 'false');
+    }
+    if (dramaBtn) {
+      dramaBtn.classList.toggle('is-active', state.subject === 'drama');
+      dramaBtn.setAttribute('aria-pressed', state.subject === 'drama' ? 'true' : 'false');
+    }
     var lbl = $('cm-subject-label');
     if (lbl) lbl.textContent = subjectLabel();
     var page = $('cm-app');
@@ -513,6 +636,7 @@
     if (countEl) {
       countEl.textContent = pupils.length + ' pupil' + (pupils.length === 1 ? '' : 's');
     }
+    updateRosterTally();
 
     if (state.loading) {
       body.innerHTML = '<tr><td colspan="3"><p class="cm-empty">Loading classes and pupils…</p></td></tr>';
@@ -578,6 +702,7 @@
     if (countEl) {
       countEl.textContent = rows.length + ' class' + (rows.length === 1 ? '' : 'es');
     }
+    updateRosterTally();
     if (!state.selectedTeacherId) {
       host.innerHTML = '<p class="cm-empty">Choose a teacher to add classes.</p>';
       state.selectedClassKey = '';
@@ -604,7 +729,9 @@
     var years = [1, 2, 3];
     host.innerHTML = years.map(function(yl) {
       var group = rows.filter(function(c) { return c.year_level === yl; });
-      if (!group.length) return '';
+      if (!group.length) {
+        return '<div class="cm-year-slice is-empty"><h3>S' + yl + '</h3><p class="cm-year-empty">None yet</p></div>';
+      }
       var cards = group.map(function(c) {
         var key = classKeyFor(c);
         var pupilCount = (state.pupilsByClass[key] || []).length;
@@ -707,7 +834,9 @@
         var search = $('cm-staff-search');
         if (search) search.value = '';
         document.querySelectorAll('.cm-status-filters [data-status-filter]').forEach(function(b) {
-          b.classList.toggle('is-active', b.getAttribute('data-status-filter') === 'all');
+          var on = b.getAttribute('data-status-filter') === 'all';
+          b.classList.toggle('is-active', on);
+          b.setAttribute('aria-pressed', on ? 'true' : 'false');
         });
         renderTeacherGrid();
       };
@@ -1139,14 +1268,13 @@
       return;
     }
     var teacher = selectedTeacher();
-    var modal = $('cm-push-modal');
     var desc = $('cm-push-desc');
     if (desc) {
       desc.textContent = 'Send ' + state.classes.length + ' class' + (state.classes.length === 1 ? '' : 'es') +
         ' and their pupil lists to ' + (teacher && (teacher.display_name || teacher.email) || 'this teacher') +
         '\'s ' + subjectLabel() + ' tracker.';
     }
-    if (modal) modal.classList.add('open');
+    openModal('cm-push-modal');
     refreshPushDiff();
   }
 
@@ -1476,8 +1604,7 @@
     if (summary) summary.textContent = '';
     if (preview) preview.innerHTML = '';
     setImportButtons(false);
-    var modal = $('cm-import-modal');
-    if (modal) modal.classList.add('open');
+    openModal('cm-import-modal');
   }
 
   function renderImportPreview() {
@@ -1648,8 +1775,8 @@
       }
       state.pendingImport = { classRows: classRows, pupilRows: pupilRows, fileName: file.name };
       renderImportPreview();
-      var modal = $('cm-import-modal');
-      if (modal && !modal.classList.contains('open')) modal.classList.add('open');
+      var importModal = $('cm-import-modal');
+      if (importModal && !importModal.classList.contains('open')) openModal('cm-import-modal');
     }).catch(function(err) {
       toast('Import failed: ' + (err.message || err), 'error');
     });
@@ -1723,8 +1850,7 @@
       }
     }
     if (confirmBtn) confirmBtn.disabled = !jobs.length;
-    var modal = $('cm-send-drafts-modal');
-    if (modal) modal.classList.add('open');
+    openModal('cm-send-drafts-modal');
   }
 
   function confirmSendDrafts() {
@@ -1903,8 +2029,7 @@
     }
     if (!confirmLeaveWorkspace()) return;
     renderTimetablePreview();
-    var modal = $('cm-tt-modal');
-    if (modal) modal.classList.add('open');
+    openModal('cm-tt-modal');
   }
 
   function timetableStaffForTeacher(teacher) {
@@ -2308,7 +2433,6 @@
 
   function openTransferModal(row) {
     state.wizardRow = row;
-    var modal = $('cm-transfer-modal');
     var desc = $('cm-transfer-desc');
     if (desc) {
       desc.textContent = 'Move “' + row.className + '” (' + row.yearGroup.toUpperCase() + ' ' +
@@ -2324,12 +2448,11 @@
       checkboxClass: 'cm-transfer-pupil-cb'
     });
     fillModalYearSelects();
-    if (modal) modal.classList.add('open');
+    openModal('cm-transfer-modal');
   }
 
   function openPromoteModal(row) {
     state.wizardRow = row;
-    var modal = $('cm-promote-modal');
     var desc = $('cm-promote-desc');
     var nextYg = ClassManagementTracker.nextYearGroup(row.yearGroup);
     if (desc) {
@@ -2356,13 +2479,22 @@
       checkboxClass: 'cm-promote-pupil-cb'
     });
     fillModalYearSelects();
-    if (modal) modal.classList.add('open');
+    openModal('cm-promote-modal');
   }
 
   function closeModal(id) {
     var m = $(id);
-    if (m) m.classList.remove('open');
+    if (m) {
+      m.classList.remove('open');
+      m.setAttribute('aria-hidden', 'true');
+    }
     state.wizardRow = null;
+    setAppInert(false);
+    var restore = state.focusRestore;
+    state.focusRestore = null;
+    if (restore && typeof restore.focus === 'function') {
+      try { restore.focus(); } catch (e) {}
+    }
   }
 
   function confirmTransfer() {
@@ -2453,9 +2585,34 @@
     if (tabTracker) tabTracker.addEventListener('click', function() { setTab('tracker'); });
 
     document.addEventListener('keydown', function(e) {
-      if (e.key !== 'Escape') return;
-      var open = document.querySelector('.cm-modal-overlay.open');
-      if (open && open.id) closeModal(open.id);
+      if (e.key === 'Escape') {
+        var openEsc = document.querySelector('.cm-modal-overlay.open');
+        if (openEsc && openEsc.id) closeModal(openEsc.id);
+        return;
+      }
+      if (e.key === 'Tab') {
+        var openTab = document.querySelector('.cm-modal-overlay.open');
+        if (!openTab) return;
+        var nodes = getFocusable(openTab);
+        if (!nodes.length) return;
+        var first = nodes[0];
+        var last = nodes[nodes.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+        return;
+      }
+      if (e.key === '/' && state.view === 'overview' && state.tab === 'roster') {
+        var tag = (e.target && e.target.tagName) || '';
+        if (/INPUT|TEXTAREA|SELECT/.test(tag) || (e.target && e.target.isContentEditable)) return;
+        e.preventDefault();
+        var search = $('cm-staff-search');
+        if (search) search.focus();
+      }
     });
     document.querySelectorAll('.cm-modal-overlay').forEach(function(overlay) {
       overlay.addEventListener('click', function(e) {
@@ -2516,6 +2673,7 @@
         state.statusFilter = btn.getAttribute('data-status-filter') || 'all';
         document.querySelectorAll('.cm-status-filters [data-status-filter]').forEach(function(b) {
           b.classList.toggle('is-active', b === btn);
+          b.setAttribute('aria-pressed', b === btn ? 'true' : 'false');
         });
         renderTeacherGrid();
       });
@@ -2689,21 +2847,21 @@
           toast('Select a class first', 'error');
           return;
         }
-        pupilPasteModal.classList.add('open');
+        openModal('cm-pupil-paste-modal');
         var ta = $('cm-pupil-paste-text');
         if (ta) { ta.value = ''; ta.focus(); }
       });
     }
     var pupilPasteCancel = $('cm-pupil-paste-cancel');
     if (pupilPasteCancel && pupilPasteModal) {
-      pupilPasteCancel.addEventListener('click', function() { pupilPasteModal.classList.remove('open'); });
+      pupilPasteCancel.addEventListener('click', function() { closeModal('cm-pupil-paste-modal'); });
     }
     var pupilPasteApply = $('cm-pupil-paste-apply');
     if (pupilPasteApply && pupilPasteModal) {
       pupilPasteApply.addEventListener('click', function() {
         var ta = $('cm-pupil-paste-text');
         var n = pastePupilNames(ta ? ta.value : '');
-        pupilPasteModal.classList.remove('open');
+        closeModal('cm-pupil-paste-modal');
         toast(n ? 'Added ' + n + ' pupil' + (n === 1 ? '' : 's') : 'No new names added', n ? 'success' : 'error');
       });
     }
@@ -2715,21 +2873,21 @@
     var pasteModal = $('cm-paste-modal');
     if (pasteBtn && pasteModal) {
       pasteBtn.addEventListener('click', function() {
-        pasteModal.classList.add('open');
+        openModal('cm-paste-modal');
         var ta = $('cm-paste-text');
         if (ta) { ta.value = ''; ta.focus(); }
       });
     }
     var pasteCancel = $('cm-paste-cancel');
     if (pasteCancel && pasteModal) {
-      pasteCancel.addEventListener('click', function() { pasteModal.classList.remove('open'); });
+      pasteCancel.addEventListener('click', function() { closeModal('cm-paste-modal'); });
     }
     var pasteApply = $('cm-paste-apply');
     if (pasteApply && pasteModal) {
       pasteApply.addEventListener('click', function() {
         var ta = $('cm-paste-text');
         var n = parsePasteLines(ta ? ta.value : '');
-        pasteModal.classList.remove('open');
+        closeModal('cm-paste-modal');
         toast(n ? 'Added ' + n + ' class' + (n === 1 ? '' : 'es') : 'No lines added', n ? 'success' : 'error');
       });
     }

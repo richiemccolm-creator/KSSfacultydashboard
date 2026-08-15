@@ -6,7 +6,7 @@
   <title>Classes for teachers · Faculty Hub</title>
   <link rel="icon" type="image/png" href="faculty-hub-logo.png">
   <link rel="preconnect" href="https://api.fontshare.com" crossorigin>
-  <link href="https://api.fontshare.com/v2/css?f[]=general-sans@400,500,600,700&display=swap" rel="stylesheet">
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@500,700,900&f[]=general-sans@400,500,600,700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="design-tokens.css">
   <link rel="stylesheet" href="class_management.css">
   <script src="app-version.js"></script>
@@ -21,6 +21,7 @@
   <script src="auth-guard.js"></script>
 </head>
 <body>
+  <a class="cm-skip" href="#cm-staff-search">Skip to teacher list</a>
   <div id="cm-denied" class="cm-denied card">
     <p><strong>Access restricted</strong></p>
     <p>Class Management is for faculty heads and school managers.</p>
@@ -29,9 +30,9 @@
 
   <main id="cm-app" class="cm-page cm-subject-art" style="display:none">
     <header class="cm-top" id="cm-top-header">
-      <div>
+      <div class="cm-mast-copy">
         <button type="button" class="btn cm-back-teachers" id="cm-back-overview" hidden>Back to all teachers</button>
-        <h1>Classes for teachers</h1>
+        <h1 id="cm-page-title">Classes for teachers</h1>
         <p id="cm-top-lead">You create the lists. Their Art and Drama trackers update.</p>
       </div>
       <div class="cm-top-tools">
@@ -53,33 +54,34 @@
       <section id="cm-overview" class="cm-overview" aria-labelledby="cm-overview-title">
         <div class="cm-overview-bar">
           <div>
-            <h2 id="cm-overview-title">Who needs classes</h2>
-            <p class="cm-overview-sub">Load classes from the faculty timetable, then add pupil names. Send puts those lists on their Art and Drama trackers.</p>
+            <h2 id="cm-overview-title">Teachers</h2>
+            <p class="cm-overview-sub">Start with people who still need lists. Load the timetable, add names, then send to their tracker.</p>
           </div>
           <div class="cm-overview-actions">
             <button type="button" class="btn btn-primary" id="cm-tt-open">Load faculty timetable</button>
             <button type="button" class="btn" id="cm-send-drafts">Send drafts to trackers</button>
-            <button type="button" class="btn" id="cm-import-open">Import class lists</button>
+            <button type="button" class="btn btn-ghost" id="cm-import-open">Import class lists</button>
           </div>
         </div>
         <div class="cm-overview-toolbar">
           <label class="cm-search-wrap">
-            <span class="sr-only">Find a teacher</span>
+            <span class="sr-only">Find a teacher. Press slash to focus.</span>
             <input type="search" id="cm-staff-search" placeholder="Find a teacher" autocomplete="off" />
+            <kbd class="cm-kbd" aria-hidden="true">/</kbd>
           </label>
           <div class="cm-status-filters" role="group" aria-label="Filter teachers">
-            <button type="button" class="is-active" data-status-filter="all">All</button>
-            <button type="button" data-status-filter="empty">Needs classes</button>
-            <button type="button" data-status-filter="draft">Draft</button>
-            <button type="button" data-status-filter="ready">On tracker</button>
-            <button type="button" data-status-filter="scores">Scores live</button>
+            <button type="button" data-status-filter="all" aria-pressed="false">All</button>
+            <button type="button" class="is-active" data-status-filter="empty" aria-pressed="true">Needs classes</button>
+            <button type="button" data-status-filter="draft" aria-pressed="false">Draft</button>
+            <button type="button" data-status-filter="ready" aria-pressed="false">On tracker</button>
+            <button type="button" data-status-filter="scores" aria-pressed="false">Scores live</button>
           </div>
           <div class="cm-overview-meta">
             <span class="badge" id="cm-teacher-count">0 teachers</span>
             <span class="cm-meta" id="cm-overview-status">Loading staff</span>
           </div>
         </div>
-        <div id="cm-teacher-grid" class="cm-bento" aria-live="polite">
+        <div id="cm-teacher-grid" class="cm-bento">
           <div class="cm-skeleton" aria-hidden="true"></div>
           <div class="cm-skeleton" aria-hidden="true"></div>
           <div class="cm-skeleton" aria-hidden="true"></div>
@@ -88,7 +90,7 @@
       </section>
 
       <section id="cm-workspace" class="cm-workspace" hidden>
-        <div class="cm-command">
+        <div class="cm-command" role="region" aria-label="Teacher, subject, and send">
           <div class="cm-field cm-teacher-field">
             <label for="cm-teacher">Teacher</label>
             <select id="cm-teacher" aria-label="Select teacher">
@@ -98,12 +100,13 @@
           <div class="cm-field">
             <label>Subject</label>
             <div class="cm-subject-toggle" role="group" aria-label="Subject">
-              <button type="button" class="btn is-active" id="cm-subj-art" data-subject="art">Art</button>
-              <button type="button" class="btn" id="cm-subj-drama" data-subject="drama">Drama</button>
+              <button type="button" class="btn is-active" id="cm-subj-art" data-subject="art" aria-pressed="true">Art</button>
+              <button type="button" class="btn" id="cm-subj-drama" data-subject="drama" aria-pressed="false">Drama</button>
             </div>
           </div>
           <div class="cm-command-actions">
-            <span id="cm-unsaved" class="cm-unsaved" hidden>Unsaved</span>
+            <span id="cm-unsaved" class="cm-unsaved" aria-live="polite">No classes yet</span>
+            <p class="cm-roster-tally" id="cm-roster-tally"></p>
             <div id="cm-tracker-link-wrap" hidden>
               <a class="btn btn-ghost" id="cm-tracker-link" href="#" target="_blank" rel="noopener">Open tracker</a>
             </div>
@@ -111,7 +114,7 @@
             <button type="button" class="btn btn-primary" id="cm-push-btn">Send to tracker</button>
           </div>
         </div>
-        <p class="cm-command-hint" id="cm-send-hint">Send to tracker puts these names on the teacher’s BGE tracker. Save draft keeps a cloud copy without changing what they see yet.</p>
+        <p class="cm-command-hint" id="cm-send-hint">Save keeps a Hub copy. Send updates what they see on their tracker.</p>
         <p class="cm-send-result" id="cm-send-result" hidden></p>
 
         <div class="cm-split">
@@ -238,7 +241,7 @@
 
   </main>
 
-  <div class="cm-modal-overlay" id="cm-import-modal" role="dialog" aria-modal="true" aria-labelledby="cm-import-title">
+  <div class="cm-modal-overlay" id="cm-import-modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="cm-import-title">
     <div class="cm-modal cm-modal-wide">
       <h3 id="cm-import-title">Import class lists</h3>
       <p>CSV or XLSX with <code>subject</code>, <code>year_level</code>, <code>class_code</code>, <code>teacher_email</code>, and optional <code>pupil_name</code>. Rows are grouped by teacher. Unknown emails stay unmatched.</p>
@@ -269,7 +272,7 @@
     </div>
   </div>
 
-  <div class="cm-modal-overlay" id="cm-transfer-modal" role="dialog" aria-modal="true" aria-labelledby="cm-transfer-title">
+  <div class="cm-modal-overlay" id="cm-transfer-modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="cm-transfer-title">
     <div class="cm-modal cm-modal-wide">
       <h3 id="cm-transfer-title">Transfer class to another teacher</h3>
       <p id="cm-transfer-desc"></p>
@@ -307,7 +310,7 @@
     </div>
   </div>
 
-  <div class="cm-modal-overlay" id="cm-promote-modal" role="dialog" aria-modal="true" aria-labelledby="cm-promote-title">
+  <div class="cm-modal-overlay" id="cm-promote-modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="cm-promote-title">
     <div class="cm-modal cm-modal-wide">
       <h3 id="cm-promote-title">Promote and assign</h3>
       <p id="cm-promote-desc"></p>
@@ -352,7 +355,7 @@
     </div>
   </div>
 
-  <div class="cm-modal-overlay" id="cm-paste-modal" role="dialog" aria-modal="true" aria-labelledby="cm-paste-title">
+  <div class="cm-modal-overlay" id="cm-paste-modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="cm-paste-title">
     <div class="cm-modal">
       <h3 id="cm-paste-title">Paste class list</h3>
       <p>One class per line, e.g. <code>S1 1A1</code> or <code>1A1</code> (uses S1 if year omitted).</p>
@@ -364,7 +367,7 @@
     </div>
   </div>
 
-  <div class="cm-modal-overlay" id="cm-pupil-paste-modal" role="dialog" aria-modal="true" aria-labelledby="cm-pupil-paste-title">
+  <div class="cm-modal-overlay" id="cm-pupil-paste-modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="cm-pupil-paste-title">
     <div class="cm-modal">
       <h3 id="cm-pupil-paste-title">Paste pupil names</h3>
       <p>One name per line for the selected class.</p>
@@ -376,7 +379,7 @@
     </div>
   </div>
 
-  <div class="cm-modal-overlay" id="cm-push-modal" role="dialog" aria-modal="true" aria-labelledby="cm-push-title">
+  <div class="cm-modal-overlay" id="cm-push-modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="cm-push-title">
     <div class="cm-modal cm-modal-wide">
       <h3 id="cm-push-title">Send to BGE tracker</h3>
       <p id="cm-push-desc">This will put your class and pupil lists on the teacher’s tracker.</p>
@@ -392,7 +395,7 @@
     </div>
   </div>
 
-  <div class="cm-modal-overlay" id="cm-send-drafts-modal" role="dialog" aria-modal="true" aria-labelledby="cm-send-drafts-title">
+  <div class="cm-modal-overlay" id="cm-send-drafts-modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="cm-send-drafts-title">
     <div class="cm-modal cm-modal-wide">
       <h3 id="cm-send-drafts-title">Send drafts to trackers</h3>
       <p id="cm-send-drafts-desc">Cloud lists that are not yet on a tracker. Names already on a tracker with scores are left alone.</p>
@@ -408,7 +411,7 @@
     </div>
   </div>
 
-  <div class="cm-modal-overlay" id="cm-tt-modal" role="dialog" aria-modal="true" aria-labelledby="cm-tt-title">
+  <div class="cm-modal-overlay" id="cm-tt-modal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="cm-tt-title">
     <div class="cm-modal cm-modal-wide">
       <h3 id="cm-tt-title">Load faculty timetable</h3>
       <p>S1 to S3 Art and Drama classes from the faculty timetable. Senior phase, photography, and non-teaching slots are skipped. Match any unmatched teacher, then put the class names on their trackers. Add pupil names after.</p>
