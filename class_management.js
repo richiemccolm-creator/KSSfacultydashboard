@@ -197,12 +197,12 @@
         '<h3>' + escHtml(name) + '</h3>' +
         (t.email && t.email !== name ? '<p class="cm-teacher-mail">' + escHtml(t.email) + '</p>' : '') +
         '<div class="cm-teacher-stats">' +
-        '<span>Art ' + (art.classes || 0) + '</span>' +
-        '<span>Drama ' + (drama.classes || 0) + '</span>' +
+        '<span class="cm-stat cm-stat-art">Art ' + (art.classes || 0) + '</span>' +
+        '<span class="cm-stat cm-stat-drama">Drama ' + (drama.classes || 0) + '</span>' +
         '</div>' +
         '<span class="cm-status-row">' +
-        '<span class="cm-status cm-status-' + status.art.key + '">Art · ' + escHtml(status.art.label) + '</span>' +
-        '<span class="cm-status cm-status-' + status.drama.key + '">Drama · ' + escHtml(status.drama.label) + '</span>' +
+        '<span class="cm-status cm-chip-art cm-status-' + status.art.key + '">Art · ' + escHtml(status.art.label) + '</span>' +
+        '<span class="cm-status cm-chip-drama cm-status-' + status.drama.key + '">Drama · ' + escHtml(status.drama.label) + '</span>' +
         '</span>' +
         '</span></button>';
     }).join('');
@@ -355,6 +355,11 @@
     if (dramaBtn) dramaBtn.classList.toggle('is-active', state.subject === 'drama');
     var lbl = $('cm-subject-label');
     if (lbl) lbl.textContent = subjectLabel();
+    var page = $('cm-app');
+    if (page) {
+      page.classList.toggle('cm-subject-art', state.subject === 'art');
+      page.classList.toggle('cm-subject-drama', state.subject === 'drama');
+    }
   }
 
   function trackerViewUrl(teacher) {
@@ -433,13 +438,13 @@
     }
 
     if (!cls || !state.selectedTeacherId) {
-      body.innerHTML = '<tr><td colspan="3"><div class="cm-empty-action"><p>Choose a class to add pupil names.</p></div></td></tr>';
+      body.innerHTML = '<tr><td colspan="3"><div class="cm-empty-action"><p>Choose a class on the left, then paste pupil names here.</p></div></td></tr>';
       bindEmptyActions();
       return;
     }
 
     if (!pupils.length) {
-      body.innerHTML = '<tr><td colspan="3"><div class="cm-empty-action"><p>No pupils in this class yet.</p><button type="button" class="btn" id="cm-empty-paste-pupils">Paste names</button></div></td></tr>';
+      body.innerHTML = '<tr><td colspan="3"><div class="cm-empty-action"><p>No pupils in this class yet.</p><button type="button" class="btn btn-primary" id="cm-empty-paste-pupils">Paste names</button></div></td></tr>';
       bindEmptyActions();
       return;
     }
@@ -497,8 +502,17 @@
       bindEmptyActions();
       return;
     }
+    if (state.loading && !rows.length) {
+      host.innerHTML = '<p class="cm-empty">Loading classes and pupils…</p>';
+      renderPupilsPanel();
+      return;
+    }
     if (!rows.length) {
-      host.innerHTML = '<div class="cm-empty-action"><p>No classes yet.</p><button type="button" class="btn" id="cm-empty-paste-classes">Paste class list</button></div>';
+      host.innerHTML = '<div class="cm-empty-action"><p>No classes yet. Load this teacher’s timetable, paste a list, or add a class code above.</p>' +
+        '<div class="cm-empty-actions">' +
+        '<button type="button" class="btn btn-primary" id="cm-empty-tt-teacher">Load timetable</button>' +
+        '<button type="button" class="btn" id="cm-empty-paste-classes">Paste class list</button>' +
+        '</div></div>';
       state.selectedClassKey = '';
       renderPupilsPanel();
       bindEmptyActions();
@@ -575,6 +589,11 @@
     if (pasteClasses && pasteBtn) {
       pasteClasses.onclick = function() { pasteBtn.click(); };
     }
+    var emptyTt = $('cm-empty-tt-teacher');
+    var ttTeacher = $('cm-tt-teacher');
+    if (emptyTt && ttTeacher) {
+      emptyTt.onclick = function() { ttTeacher.click(); };
+    }
     var pastePupils = $('cm-empty-paste-pupils');
     var pupilPaste = $('cm-pupil-paste-btn');
     if (pastePupils && pupilPaste) {
@@ -613,23 +632,90 @@
       return Promise.resolve();
     }
     return ClassManagementTracker.loadTrackerState(state.selectedTeacherId, state.subject).then(function(S) {
-      var meta = { s1: {}, s2: {}, s3: {} };
-      ['s1', 's2', 's3'].forEach(function(yg) {
-        Object.keys((S.pupils && S.pupils[yg]) || {}).forEach(function(cls) {
-          var pupils = S.pupils[yg][cls] || [];
-          var hasScores = pupils.some(function(p) {
-            var sc = S.scores && S.scores[yg] && S.scores[yg][p.id];
-            return sc && Object.keys(sc).length;
-          });
-          meta[yg][String(cls).toLowerCase()] = {
-            pupilCount: pupils.length,
-            hasScores: hasScores
-          };
-        });
-      });
-      state.trackerClassMeta = meta;
+      applyTrackerMeta(S);
     }).catch(function() {
       state.trackerClassMeta = {};
+    });
+  }
+
+  function applyTrackerMeta(S) {
+    var meta = { s1: {}, s2: {}, s3: {} };
+    ['s1', 's2', 's3'].forEach(function(yg) {
+      Object.keys((S && S.pupils && S.pupils[yg]) || {}).forEach(function(cls) {
+        var pupils = S.pupils[yg][cls] || [];
+        var hasScores = pupils.some(function(p) {
+          var sc = S.scores && S.scores[yg] && S.scores[yg][p.id];
+          return sc && Object.keys(sc).length;
+        });
+        meta[yg][String(cls).toLowerCase()] = {
+          pupilCount: pupils.length,
+          hasScores: hasScores
+        };
+      });
+    });
+    state.trackerClassMeta = meta;
+  }
+
+  function classesFromTrackerState(S) {
+    var out = [];
+    ['s1', 's2', 's3'].forEach(function(yg) {
+      Object.keys((S && S.pupils && S.pupils[yg]) || {}).forEach(function(clsName) {
+        var code = String(clsName || '').trim();
+        if (!code) return;
+        out.push({
+          year_level: Number(yg.replace('s', '')),
+          class_code: code,
+          class_name: code
+        });
+      });
+    });
+    return out;
+  }
+
+  function mergeClassLists(primary, extra) {
+    var classes = (primary || []).slice();
+    var seen = {};
+    classes.forEach(function(c) { seen[classKeyFor(c)] = true; });
+    (extra || []).forEach(function(c) {
+      if (!c || !c.class_code || !c.year_level) return;
+      var key = classKeyFor(c);
+      if (seen[key]) return;
+      seen[key] = true;
+      classes.push({
+        year_level: c.year_level,
+        class_code: c.class_code,
+        class_name: c.class_name || c.class_code
+      });
+    });
+    return classes;
+  }
+
+  function trackerPupilsForClass(S, cls) {
+    if (!S || !cls) return [];
+    var yg = 's' + cls.year_level;
+    var want = String(cls.class_name || cls.class_code || '').trim().toLowerCase();
+    if (!want) return [];
+    var bag = (S.pupils && S.pupils[yg]) || {};
+    var hit = Object.keys(bag).find(function(k) {
+      return String(k).trim().toLowerCase() === want;
+    });
+    if (!hit) return [];
+    return (bag[hit] || []).map(function(p) {
+      return {
+        local_id: window.ClassManagementRoster ? ClassManagementRoster.uid() : String(Date.now()),
+        name: String(p.name || '').trim(),
+        tracker_pupil_id: p.id
+      };
+    }).filter(function(p) { return p.name; });
+  }
+
+  function fillEmptyPupilsFromTracker(S) {
+    if (!S) return;
+    state.classes.forEach(function(cls) {
+      var key = classKeyFor(cls);
+      if ((state.pupilsByClass[key] || []).length) return;
+      var fromTracker = trackerPupilsForClass(S, cls);
+      if (fromTracker.length) state.pupilsByClass[key] = fromTracker;
     });
   }
 
@@ -706,20 +792,41 @@
       return Promise.resolve();
     }
     state.loading = true;
+    state.classes = [];
+    state.pupilsByClass = {};
+    state.selectedClassKey = '';
+    renderTable();
+    var trackerS = null;
     return DataService.listTeacherSubjectClassesForLoader({
       teacherId: state.selectedTeacherId,
       subject: state.subject,
       academicYearLabel: state.academicYear
     }).then(function(rows) {
       state.classes = classesFromLoaderRows(rows);
+      if (!window.ClassManagementTracker) return null;
+      return ClassManagementTracker.loadTrackerState(state.selectedTeacherId, state.subject).catch(function() {
+        return null;
+      });
+    }).then(function(S) {
+      trackerS = S || null;
+      if (trackerS) {
+        applyTrackerMeta(trackerS);
+        state.classes = mergeClassLists(state.classes, classesFromTrackerState(trackerS));
+      } else {
+        state.trackerClassMeta = {};
+      }
       return loadPupilsForClasses();
     }).then(function() {
-      return loadTrackerClassMeta();
-    }).then(function() {
+      fillEmptyPupilsFromTracker(trackerS);
+      if (!state.selectedClassKey && state.classes.length) {
+        state.selectedClassKey = classKeyFor(state.classes[0]);
+      }
+      state.loading = false;
       renderTable();
       clearDirty();
     }).catch(function(err) {
       toast('Could not load classes: ' + (err.message || err), 'error');
+      state.loading = false;
       state.classes = [];
       state.pupilsByClass = {};
       state.selectedClassKey = '';
@@ -1684,6 +1791,72 @@
     if (modal) modal.classList.add('open');
   }
 
+  function timetableStaffForTeacher(teacher) {
+    var FT = window.FacultyTimetableData;
+    if (!teacher || !FT || typeof FT.allStaff !== 'function') return null;
+    var hits = FT.allStaff().filter(function(staff) {
+      var matched = matchTimetableStaff(staff);
+      return matched && matched.teacher_id === teacher.teacher_id;
+    });
+    if (hits.length === 1) return hits[0];
+    var tn = normalizePersonName(teacher.display_name || '');
+    var nameHits = FT.allStaff().filter(function(staff) {
+      return tn && normalizePersonName(staff.name) === tn;
+    });
+    if (nameHits.length === 1) return nameHits[0];
+    return hits[0] || nameHits[0] || null;
+  }
+
+  function loadTimetableForSelectedTeacher() {
+    var teacher = selectedTeacher();
+    if (!teacher) {
+      toast('Choose a teacher first', 'error');
+      return;
+    }
+    var FT = window.FacultyTimetableData;
+    if (!FT || typeof FT.bgeClassesForStaff !== 'function') {
+      toast('Faculty timetable data not loaded', 'error');
+      return;
+    }
+    var staff = timetableStaffForTeacher(teacher);
+    if (!staff) {
+      toast('Could not match this teacher on the faculty timetable. Use Load faculty timetable on the teacher list to match names.', 'error');
+      return;
+    }
+    var rows = (FT.bgeClassesForStaff(staff) || []).filter(function(c) {
+      return c.subject === state.subject;
+    });
+    var teacherName = teacher.display_name || teacher.email || 'this teacher';
+    if (!rows.length) {
+      toast('No S1 to S3 ' + subjectLabel() + ' classes on the timetable for ' + teacherName, 'error');
+      return;
+    }
+    var merged = mergeImportIntoRoster(state.classes, state.pupilsByClass, rows, []);
+    var existingKeys = {};
+    state.classes.forEach(function(c) { existingKeys[classKeyFor(c)] = true; });
+    var addedClasses = merged.classes.filter(function(c) { return !existingKeys[classKeyFor(c)]; });
+    if (!addedClasses.length) {
+      toast(subjectLabel() + ' timetable classes are already on this list. Existing pupils were left as they are.', 'success');
+      return;
+    }
+    var codes = addedClasses.map(function(c) { return c.class_code; }).join(', ');
+    var msg = 'Add ' + addedClasses.length + ' class' + (addedClasses.length === 1 ? '' : 'es') +
+      ' from the timetable for ' + teacherName + '?\n\n' + codes +
+      '\n\nClasses and pupils already here stay.';
+    if (!window.confirm(msg)) return;
+    state.classes = merged.classes;
+    state.pupilsByClass = merged.pupilsByClass;
+    if (!state.selectedClassKey && state.classes.length) {
+      state.selectedClassKey = classKeyFor(state.classes[0]);
+    } else if (addedClasses.length && !state.selectedClassKey) {
+      state.selectedClassKey = classKeyFor(addedClasses[0]);
+    }
+    markDirty();
+    renderTable();
+    toast('Added ' + addedClasses.length + ' class' + (addedClasses.length === 1 ? '' : 'es') +
+      ' from the timetable. Send to tracker when the lists look right.', 'success');
+  }
+
   function applyTimetableClasses(send) {
     var groups = buildTimetableGroups().filter(function(g) { return g.teacher; });
     if (!groups.length) {
@@ -2243,6 +2416,8 @@
 
     var ttOpen = $('cm-tt-open');
     if (ttOpen) ttOpen.addEventListener('click', openTimetableModal);
+    var ttTeacher = $('cm-tt-teacher');
+    if (ttTeacher) ttTeacher.addEventListener('click', loadTimetableForSelectedTeacher);
     var ttCancel = $('cm-tt-cancel');
     if (ttCancel) ttCancel.addEventListener('click', function() { closeModal('cm-tt-modal'); });
     var ttDrafts = $('cm-tt-drafts');

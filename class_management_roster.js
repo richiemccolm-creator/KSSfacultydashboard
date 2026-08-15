@@ -387,7 +387,15 @@ window.ClassManagementRoster = (function() {
         if (selectedKey && key !== selectedKey) return;
         var yg = yearGroupFromLevel(cls.year_level);
         var className = String(cls.class_name || cls.class_code || '').trim();
-        var list = (yg && S.pupils[yg] && S.pupils[yg][className]) ? S.pupils[yg][className] : [];
+        var bag = (yg && S.pupils && S.pupils[yg]) || {};
+        var list = bag[className] || [];
+        if (!list.length && className) {
+          var want = className.toLowerCase();
+          var hit = Object.keys(bag).find(function(k) {
+            return String(k).trim().toLowerCase() === want;
+          });
+          if (hit) list = bag[hit] || [];
+        }
         byClass[key] = list.map(function(p) {
           return {
             local_id: uid(),
