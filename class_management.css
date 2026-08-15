@@ -14,6 +14,7 @@ html, body {
   --cm-accent-hover: color-mix(in srgb, var(--drama-600) 86%, #0a1a33);
   --cm-accent-soft: var(--drama-100);
   --cm-accent-wash: var(--drama-050);
+  --cm-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   max-width: var(--max-content, 1280px);
   margin: 0 auto;
   padding: var(--sp-6) var(--sp-6) var(--sp-12);
@@ -44,8 +45,22 @@ html, body {
   color: #fff;
   border-color: transparent;
 }
-.cm-page .btn-primary:hover {
-  background: var(--cm-accent-hover);
+.cm-page ::placeholder {
+  color: var(--navy-400);
+  opacity: 1;
+}
+.cm-page a {
+  text-underline-offset: 0.15em;
+}
+.cm-page .btn:disabled,
+.cm-page .btn[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+.cm-page .btn:active:not(:disabled) {
+  transform: scale(0.98);
 }
 .cm-page ::selection {
   background: var(--cm-accent-soft);
@@ -77,8 +92,28 @@ html, body {
   .cm-picker button,
   .cm-back,
   .cm-tabs button,
-  .cm-command .btn {
+  .cm-command .btn,
+  .cm-class-tools .btn,
+  .cm-status-filters button,
+  .cm-overview-actions .btn {
     min-height: 44px;
+  }
+  .cm-overview-bar,
+  .cm-overview-toolbar {
+    align-items: stretch;
+  }
+  .cm-overview-actions {
+    width: 100%;
+  }
+  .cm-overview-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .cm-search-wrap {
+    min-width: 0;
+  }
+  .cm-overview-meta {
+    margin-left: 0;
   }
 }
 
@@ -201,9 +236,15 @@ html, body {
 }
 .cm-hint {
   font-size: var(--fs-xs);
-  color: var(--ink-400);
+  color: var(--ink-500);
   margin-top: var(--sp-3);
   line-height: 1.5;
+}
+.cm-hint-tight {
+  margin: 0 0 0.5rem;
+}
+.cm-import-fallback {
+  margin-bottom: 0.85rem;
 }
 .cm-promote-pupil-list {
   max-height: 200px;
@@ -234,7 +275,7 @@ html, body {
 .cm-empty {
   text-align: left;
   padding: var(--sp-6) var(--sp-2);
-  color: var(--ink-400);
+  color: var(--ink-500);
   font-size: var(--fs-sm);
 }
 .cm-add-row {
@@ -272,9 +313,10 @@ html, body {
   font-size: var(--fs-sm);
   font-weight: 600;
   z-index: 300;
-  transition: transform var(--t-base) var(--ease);
+  transition: transform 280ms var(--cm-ease-out, var(--ease));
   max-width: min(90vw, 420px);
   text-align: center;
+  cursor: pointer;
 }
 .cm-toast.show { transform: translateX(-50%) translateY(0); }
 .cm-toast.error { background: var(--danger-600); }
@@ -293,6 +335,10 @@ html, body {
 .cm-modal-overlay.open {
   display: flex;
   flex-direction: column;
+  animation: cmOverlayIn 280ms var(--cm-ease-out, var(--ease));
+}
+.cm-modal-overlay.open .cm-modal {
+  animation: cmModalIn 320ms var(--cm-ease-out, var(--ease));
 }
 .cm-modal-overlay.open::before,
 .cm-modal-overlay.open::after {
@@ -313,6 +359,7 @@ html, body {
   max-height: calc(100dvh - 2 * var(--sp-4));
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  scrollbar-color: var(--navy-200) transparent;
 }
 .cm-modal h3 { margin: 0 0 var(--sp-2); font-size: var(--fs-lg); letter-spacing: -0.02em; }
 .cm-modal p { margin: 0 0 var(--sp-3); color: var(--ink-500); font-size: var(--fs-sm); }
@@ -346,9 +393,18 @@ html, body {
 .cm-drop strong { display: block; margin-bottom: var(--sp-1); }
 .cm-drop span { font-size: var(--fs-sm); color: var(--ink-500); }
 .cm-denied {
+  display: none;
+  max-width: 480px;
+  margin: 2rem auto;
   text-align: center;
   padding: var(--sp-12) var(--sp-4);
   color: var(--ink-500);
+}
+.cm-denied a {
+  color: var(--drama-600);
+}
+.cm-denied-link {
+  margin-top: var(--sp-4);
 }
 
 .cm-tabs {
@@ -502,7 +558,7 @@ html, body {
 }
 .cm-teacher-card:focus-visible {
   outline: none;
-  box-shadow: var(--sh-ring);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--cm-accent) 35%, transparent);
 }
 .cm-avatar {
   width: 2.5rem;
@@ -526,7 +582,7 @@ html, body {
 .cm-teacher-mail {
   margin: 0.15rem 0 0.45rem;
   font-size: 0.72rem;
-  color: var(--ink-400);
+  color: var(--ink-500);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -579,11 +635,11 @@ html, body {
 .cm-status-row .cm-status { margin-top: 0; }
 .cm-chip-art {
   background: var(--art-100);
-  color: var(--art-600);
+  color: color-mix(in srgb, var(--art-600) 46%, #1a0a04);
 }
 .cm-chip-drama {
   background: var(--drama-100);
-  color: var(--drama-600);
+  color: color-mix(in srgb, var(--drama-600) 58%, #0a1a33);
 }
 .cm-status-empty::before { background: var(--warning-600); }
 .cm-status-draft::before { background: var(--info-600); }
@@ -595,6 +651,36 @@ html, body {
   min-height: 8rem;
   border-radius: 14px;
   background: var(--navy-100);
+  animation: cmPulse 1.4s ease-in-out infinite;
+}
+.cm-teacher-card:active {
+  transform: scale(0.98);
+}
+.cm-class-card.is-new {
+  animation: cmNewFlash 1.2s var(--cm-ease-out, var(--ease));
+}
+.cm-enter {
+  animation: cmEnter 280ms var(--cm-ease-out, var(--ease));
+}
+@keyframes cmPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+@keyframes cmEnter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes cmOverlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes cmModalIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes cmNewFlash {
+  from { box-shadow: 0 0 0 3px color-mix(in srgb, var(--cm-accent) 42%, transparent); }
+  to { box-shadow: none; }
 }
 .cm-unsaved {
   font-size: 0.72rem;
@@ -609,7 +695,7 @@ html, body {
   padding: 0.75rem 1rem;
   font-size: var(--fs-sm);
   font-weight: 650;
-  color: var(--cm-accent);
+  color: color-mix(in srgb, var(--cm-accent) 38%, var(--navy-900));
   background: var(--cm-accent-soft);
   border-radius: 10px;
 }
@@ -639,8 +725,17 @@ html, body {
   .cm-toast {
     transition: none;
   }
-  .cm-teacher-card:hover {
+  .cm-teacher-card:hover,
+  .cm-teacher-card:active,
+  .cm-page .btn:active:not(:disabled) {
     transform: none;
+  }
+  .cm-skeleton,
+  .cm-enter,
+  .cm-class-card.is-new,
+  .cm-modal-overlay.open,
+  .cm-modal-overlay.open .cm-modal {
+    animation: none;
   }
 }
 
@@ -665,7 +760,7 @@ html, body {
 .cm-command-hint {
   margin: 0 0 var(--sp-5);
   font-size: var(--fs-xs);
-  color: var(--ink-400);
+  color: var(--ink-500);
   max-width: 52rem;
 }
 @media (max-width: 980px) {
@@ -711,8 +806,8 @@ html, body {
 }
 .cm-class-card {
   display: grid;
-  grid-template-columns: 1fr auto auto;
-  gap: 0.5rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.35rem 0.6rem;
   align-items: center;
   width: 100%;
   text-align: left;
@@ -733,9 +828,20 @@ html, body {
 .cm-class-card.is-selected .cm-class-track {
   color: rgba(255, 255, 255, 0.88);
 }
+.cm-class-main {
+  display: grid;
+  gap: 0.12rem;
+  min-width: 0;
+}
 .cm-class-card strong {
   font-size: 0.88rem;
   font-weight: 650;
+}
+.cm-class-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.65rem;
 }
 .cm-class-card .cm-class-count {
   font-size: 0.72rem;
@@ -743,8 +849,9 @@ html, body {
   opacity: 0.72;
 }
 .cm-class-card .cm-row-del {
-  padding: 0.2rem 0.4rem;
-  font-size: 0.68rem;
+  padding: 0.35rem 0.5rem;
+  font-size: 0.72rem;
+  min-height: 44px;
   background: transparent;
   color: inherit;
   opacity: 0.7;
@@ -776,6 +883,15 @@ html, body {
   align-items: end;
   margin-bottom: var(--sp-3);
 }
+.cm-pupil-name-field {
+  flex: 1;
+  min-width: 12rem;
+}
+.cm-pupil-table {
+  font-variant-numeric: tabular-nums;
+}
+.cm-pupil-num { width: 2.5rem; }
+.cm-pupil-actions-col { width: 8rem; }
 .cm-pupil-table input.cm-pupil-edit {
   width: 100%;
   padding: var(--sp-1) var(--sp-2);
@@ -874,11 +990,9 @@ html, body {
   color: var(--warning-600);
 }
 .cm-class-track {
-  display: block;
-  margin-top: 0.15rem;
   font-size: 0.68rem;
   font-weight: 650;
-  color: var(--ink-400);
+  color: var(--ink-500);
 }
 .cm-class-track.is-ready { color: var(--success-600); }
 .cm-class-track.is-scores { color: var(--drama-600); }
