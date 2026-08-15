@@ -233,6 +233,109 @@ window.ClassManagementRoster = (function() {
     return !!(sc && Object.keys(sc).length);
   }
 
+  function applyRosterToTrackerState(S, classes, pupilsByClass, removeMissing) {
+    var stats = {
+      added: 0,
+      updated: 0,
+      removed: 0,
+      classes: 0,
+      scored_removals: [],
+      details: []
+    };
+
+    (classes || []).forEach(function(cls) {
+      var yg = yearGroupFromLevel(cls.year_level);
+      var className = String(cls.class_name || cls.class_code || '').trim();
+      var rosterPupils = (pupilsByClass[classKey(cls)] || []).filter(function(p) {
+        return String(p.name || '').trim();
+      });
+      if (!yg || !className) return;
+
+      if (!S.pupils[yg][className]) S.pupils[yg][className] = [];
+      var trackerList = S.pupils[yg][className].slice();
+      var newList = [];
+      var usedIds = {};
+      var detail = {
+        className: className,
+        yearGroup: yg,
+        added: [],
+        renamed: [],
+        removed: [],
+        scoredKept: []
+      };
+
+      rosterPupils.forEach(function(rp) {
+        var name = String(rp.name || '').trim();
+        var existing = null;
+        if (rp.tracker_pupil_id) {
+          existing = trackerList.find(function(t) { return t.id === rp.tracker_pupil_id; });
+        }
+        if (!existing) {
+          existing = trackerList.find(function(t) {
+            return normalizeName(t.name) === normalizeName(name) && !usedIds[t.id];
+          });
+        }
+        if (existing) {
+          if (existing.name !== name) {
+            existing.name = name;
+            stats.updated += 1;
+            detail.renamed.push(name);
+          }
+          newList.push(existing);
+          usedIds[existing.id] = true;
+          rp.tracker_pupil_id = existing.id;
+        } else {
+          var np = { id: uid(), name: name };
+          newList.push(np);
+          usedIds[np.id] = true;
+          rp.tracker_pupil_id = np.id;
+          stats.added += 1;
+          detail.added.push(name);
+        }
+      });
+
+      trackerList.forEach(function(tp) {
+        if (usedIds[tp.id]) return;
+        if (!removeMissing) {
+          newList.push(tp);
+          return;
+        }
+        if (pupilHasScores(S, yg, tp.id)) {
+          stats.scored_removals.push({ name: tp.name, className: className, yearGroup: yg });
+          detail.scoredKept.push(tp.name);
+          newList.push(tp);
+          return;
+        }
+        if (S.scores[yg]) delete S.scores[yg][tp.id];
+        if (S.profiles[yg]) delete S.profiles[yg][tp.id];
+        stats.removed += 1;
+        detail.removed.push(tp.name);
+      });
+
+      S.pupils[yg][className] = newList;
+      stats.classes += 1;
+      stats.details.push(detail);
+    });
+
+    return stats;
+  }
+
+  function previewPushToTracker(options) {
+    var opts = options || {};
+    if (!window.ClassManagementTracker) {
+      return Promise.reject(new Error('Tracker module not loaded'));
+    }
+    return ClassManagementTracker.loadTrackerState(opts.teacherId, opts.subject).then(function(S) {
+      var clone = JSON.parse(JSON.stringify(S));
+      return applyRosterToTrackerState(
+        clone,
+        opts.classes || [],
+        opts.pupilsByClass || {},
+        opts.removeMissing !== false
+      );
+    });
+  }
+
   function pushToTracker(options) {
     var opts = options || {};
     var teacherId = opts.teacherId;
@@ -246,68 +349,7 @@ window.ClassManagementRoster = (function() {
     }
 
     return ClassManagementTracker.loadTrackerState(teacherId, subject).then(function(S) {
-      var stats = { added: 0, updated: 0, removed: 0, classes: 0, scored_removals: [] };
-
-      classes.forEach(function(cls) {
-        var yg = yearGroupFromLevel(cls.year_level);
-        var className = String(cls.class_name || cls.class_code || '').trim();
-        var rosterPupils = (pupilsByClass[classKey(cls)] || []).filter(function(p) {
-          return String(p.name || '').trim();
-        });
-        if (!yg || !className) return;
-
-        if (!S.pupils[yg][className]) S.pupils[yg][className] = [];
-        var trackerList = S.pupils[yg][className].slice();
-        var newList = [];
-        var usedIds = {};
-
-        rosterPupils.forEach(function(rp) {
-          var name = String(rp.name || '').trim();
-          var existing = null;
-          if (rp.tracker_pupil_id) {
-            existing = trackerList.find(function(t) { return t.id === rp.tracker_pupil_id; });
-          }
-          if (!existing) {
-            existing = trackerList.find(function(t) {
-              return normalizeName(t.name) === normalizeName(name) && !usedIds[t.id];
-            });
-          }
-          if (existing) {
-            if (existing.name !== name) {
-              existing.name = name;
-              stats.updated += 1;
-            }
-            newList.push(existing);
-            usedIds[existing.id] = true;
-            rp.tracker_pupil_id = existing.id;
-          } else {
-            var np = { id: uid(), name: name };
-            newList.push(np);
-            usedIds[np.id] = true;
-            rp.tracker_pupil_id = np.id;
-            stats.added += 1;
-          }
-        });
-
-        trackerList.forEach(function(tp) {
-          if (usedIds[tp.id]) return;
-          if (!removeMissing) {
-            newList.push(tp);
-            return;
-          }
-          if (pupilHasScores(S, yg, tp.id)) {
-            stats.scored_removals.push({ name: tp.name, className: className, yearGroup: yg });
-            newList.push(tp);
-            return;
-          }
-          if (S.scores[yg]) delete S.scores[yg][tp.id];
-          if (S.profiles[yg]) delete S.profiles[yg][tp.id];
-          stats.removed += 1;
-        });
-
-        S.pupils[yg][className] = newList;
-        stats.classes += 1;
-      });
+      var stats = applyRosterToTrackerState(S, classes, pupilsByClass, removeMissing);
 
       return ClassManagementTracker.saveTrackerState(teacherId, subject, S).then(function() {
         return loadCache().then(function(cache) {
@@ -363,6 +405,7 @@ window.ClassManagementRoster = (function() {
     uid: uid,
     loadPupilsForTeacher: loadPupilsForTeacher,
     saveRosterPupils: saveRosterPupils,
+    previewPushToTracker: previewPushToTracker,
     pushToTracker: pushToTracker,
     loadFromTracker: loadFromTracker
   };

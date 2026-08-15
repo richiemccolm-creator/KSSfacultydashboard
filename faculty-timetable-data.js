@@ -140,6 +140,49 @@
     return 'other';
   }
 
+  function yearLevelFromClassCode(code) {
+    var m = /^(\d)/.exec(String(code || '').trim());
+    if (!m) return null;
+    var n = Number(m[1]);
+    if (n >= 1 && n <= 3) return n;
+    return null;
+  }
+
+  /**
+   * Unique S1-S3 Art/Drama classes for one staff member.
+   * Skips senior phase (S4+), photography, and non-teaching slots.
+   */
+  function bgeClassesForStaff(staff) {
+    var seen = {};
+    var out = [];
+    if (!staff || !staff.tt) return out;
+    Object.keys(staff.tt).forEach(function(day) {
+      var periods = staff.tt[day] || {};
+      Object.keys(periods).forEach(function(period) {
+        var code = periods[period];
+        if (isSpecialClass(code)) return;
+        var subj = inferSubject(code, staff.department);
+        if (subj !== 'art' && subj !== 'drama') return;
+        var yl = yearLevelFromClassCode(code);
+        if (!yl) return;
+        var key = subj + '|' + yl + '|' + String(code).toLowerCase();
+        if (seen[key]) return;
+        seen[key] = true;
+        out.push({
+          subject: subj,
+          year_level: 'S' + yl,
+          class_code: String(code).trim(),
+          class_name: String(code).trim()
+        });
+      });
+    });
+    return out.sort(function(a, b) {
+      return String(a.subject).localeCompare(String(b.subject)) ||
+        String(a.year_level).localeCompare(String(b.year_level)) ||
+        String(a.class_code).localeCompare(String(b.class_code));
+    });
+  }
+
   global.FacultyTimetableData = {
     SPECIAL_CLASS_CODES: SPECIAL_CLASS_CODES,
     DRAMA_STAFF: DRAMA_STAFF,
@@ -147,6 +190,8 @@
     allStaff: allStaff,
     getStaffByName: getStaffByName,
     isSpecialClass: isSpecialClass,
-    inferSubject: inferSubject
+    inferSubject: inferSubject,
+    yearLevelFromClassCode: yearLevelFromClassCode,
+    bgeClassesForStaff: bgeClassesForStaff
   };
 })(typeof window !== 'undefined' ? window : this);

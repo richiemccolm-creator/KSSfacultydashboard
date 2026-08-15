@@ -30,6 +30,7 @@
   <main id="cm-app" class="cm-page" style="display:none">
     <header class="cm-top" id="cm-top-header">
       <div>
+        <button type="button" class="btn cm-back-teachers" id="cm-back-overview" hidden>Back to all teachers</button>
         <h1>Classes for teachers</h1>
         <p>You create the lists. Their Art and Drama trackers update.</p>
       </div>
@@ -53,13 +54,15 @@
         <div class="cm-overview-bar">
           <div>
             <h2 id="cm-overview-title">Who needs classes</h2>
-            <p class="cm-overview-sub">Choose a teacher. Add classes and names. Send them to the BGE tracker so the teacher never has to.</p>
+            <p class="cm-overview-sub">Load classes from the faculty timetable, then add pupil names. Send puts those lists on their Art and Drama trackers.</p>
           </div>
           <div class="cm-overview-actions">
             <label class="cm-search-wrap">
               <span class="sr-only">Find a teacher</span>
               <input type="search" id="cm-staff-search" placeholder="Find a teacher" autocomplete="off" />
             </label>
+            <button type="button" class="btn btn-primary" id="cm-tt-open">Load faculty timetable</button>
+            <button type="button" class="btn" id="cm-send-drafts">Send drafts to trackers</button>
             <button type="button" class="btn" id="cm-import-open">Import class lists</button>
           </div>
         </div>
@@ -84,7 +87,6 @@
 
       <section id="cm-workspace" class="cm-workspace" hidden>
         <div class="cm-command">
-          <button type="button" class="btn btn-ghost" id="cm-back-overview">All teachers</button>
           <div class="cm-field cm-teacher-field">
             <label for="cm-teacher">Teacher</label>
             <select id="cm-teacher" aria-label="Select teacher">
@@ -236,10 +238,12 @@
   <div class="cm-modal-overlay" id="cm-import-modal" role="dialog" aria-modal="true" aria-labelledby="cm-import-title">
     <div class="cm-modal cm-modal-wide">
       <h3 id="cm-import-title">Import class lists</h3>
-      <p>CSV or XLSX with <code>year_level</code>, <code>class_code</code>, <code>class_name</code>. Add <code>pupil_name</code> for names. Review the list, then send it to the tracker from the teacher workspace.</p>
+      <p>CSV or XLSX with <code>subject</code>, <code>year_level</code>, <code>class_code</code>, <code>teacher_email</code>, and optional <code>pupil_name</code>. Rows are grouped by teacher. Unknown emails stay unmatched.</p>
       <div class="cm-field" style="margin-bottom:0.85rem">
-        <label for="cm-import-teacher">Add these classes to</label>
-        <select id="cm-import-teacher"></select>
+        <label for="cm-import-teacher">Rows with no teacher email go to</label>
+        <select id="cm-import-teacher">
+          <option value="">Leave unmatched</option>
+        </select>
       </div>
       <div class="cm-import-templates">
         <button type="button" class="btn" id="cm-template-csv">Template (CSV)</button>
@@ -248,7 +252,7 @@
       <label class="cm-drop" id="cm-drop">
         <input type="file" id="cm-file" accept=".csv,.xlsx,.xls" hidden />
         <strong>Drop file here or browse</strong>
-        <span>Review the list before it is added</span>
+        <span>Review teachers before anything is saved</span>
       </label>
       <div id="cm-import-preview-wrap" class="cm-import-preview-wrap" hidden>
         <p id="cm-import-summary" class="cm-import-summary"></p>
@@ -256,7 +260,8 @@
       </div>
       <div class="cm-modal-actions">
         <button type="button" class="btn" id="cm-import-cancel">Cancel</button>
-        <button type="button" class="btn btn-primary" id="cm-import-apply" disabled>Add to list</button>
+        <button type="button" class="btn" id="cm-import-apply" disabled>Save drafts</button>
+        <button type="button" class="btn btn-primary" id="cm-import-send" disabled>Save and send to trackers</button>
       </div>
     </div>
   </div>
@@ -369,9 +374,10 @@
   </div>
 
   <div class="cm-modal-overlay" id="cm-push-modal" role="dialog" aria-modal="true" aria-labelledby="cm-push-title">
-    <div class="cm-modal">
+    <div class="cm-modal cm-modal-wide">
       <h3 id="cm-push-title">Send to BGE tracker</h3>
       <p id="cm-push-desc">This will put your class and pupil lists on the teacher’s tracker.</p>
+      <div id="cm-push-diff" class="cm-push-diff" hidden></div>
       <label class="cm-check">
         <input type="checkbox" id="cm-push-remove-missing" checked />
         <span>Remove pupils from the tracker if they are no longer on this list (pupils with scores are kept)</span>
@@ -383,8 +389,39 @@
     </div>
   </div>
 
+  <div class="cm-modal-overlay" id="cm-send-drafts-modal" role="dialog" aria-modal="true" aria-labelledby="cm-send-drafts-title">
+    <div class="cm-modal cm-modal-wide">
+      <h3 id="cm-send-drafts-title">Send drafts to trackers</h3>
+      <p id="cm-send-drafts-desc">Cloud lists that are not yet on a tracker. Names already on a tracker with scores are left alone.</p>
+      <div id="cm-send-drafts-list" class="cm-import-preview"></div>
+      <label class="cm-check">
+        <input type="checkbox" id="cm-send-drafts-remove" />
+        <span>Also remove tracker pupils who are not on the cloud list (pupils with scores are kept)</span>
+      </label>
+      <div class="cm-modal-actions">
+        <button type="button" class="btn" id="cm-send-drafts-cancel">Cancel</button>
+        <button type="button" class="btn btn-primary" id="cm-send-drafts-confirm">Send listed drafts</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="cm-modal-overlay" id="cm-tt-modal" role="dialog" aria-modal="true" aria-labelledby="cm-tt-title">
+    <div class="cm-modal cm-modal-wide">
+      <h3 id="cm-tt-title">Load faculty timetable</h3>
+      <p>S1 to S3 Art and Drama classes from the faculty timetable. Senior phase, photography, and non-teaching slots are skipped. Match any unmatched teacher, then put the class names on their trackers. Add pupil names after.</p>
+      <div id="cm-tt-preview" class="cm-import-preview"></div>
+      <p id="cm-tt-summary" class="cm-import-summary"></p>
+      <div class="cm-modal-actions">
+        <button type="button" class="btn" id="cm-tt-cancel">Cancel</button>
+        <button type="button" class="btn" id="cm-tt-drafts">Save drafts only</button>
+        <button type="button" class="btn btn-primary" id="cm-tt-send">Put classes on trackers</button>
+      </div>
+    </div>
+  </div>
+
   <div class="cm-toast" id="cm-toast" role="status" aria-live="polite"></div>
 
+  <script src="faculty-timetable-data.js"></script>
   <script src="class_management_tracker.js"></script>
   <script src="class_management_roster.js"></script>
   <script src="class_management.js"></script>
