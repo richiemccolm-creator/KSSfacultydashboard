@@ -260,7 +260,7 @@
       hint.textContent = 'Save keeps a Hub copy. Send updates what they see on ' + name +
         '\'s ' + subjectLabel() + ' tracker.';
     }
-    if (btn) btn.textContent = 'Send to tracker';
+    if (btn) setButtonLabel(btn, 'Send to tracker');
   }
 
   function renderTeacherGrid() {
@@ -468,10 +468,10 @@
 
   function setBusy(el, label) {
     if (!el) return;
-    if (!el.getAttribute('data-idle-label')) el.setAttribute('data-idle-label', el.textContent);
+    if (!el.getAttribute('data-idle-label')) el.setAttribute('data-idle-label', getButtonLabel(el));
     el.disabled = true;
     el.setAttribute('aria-busy', 'true');
-    if (label) el.textContent = label;
+    if (label) setButtonLabel(el, label);
   }
 
   function clearBusy(el) {
@@ -479,7 +479,7 @@
     el.disabled = false;
     el.removeAttribute('aria-busy');
     var idle = el.getAttribute('data-idle-label');
-    if (idle) el.textContent = idle;
+    if (idle) setButtonLabel(el, idle);
   }
 
   function syncWorkspaceBusy() {
@@ -531,6 +531,34 @@
     return escHtml(s);
   }
 
+  function iconMarkup(name) {
+    return '<svg class="cm-ico" aria-hidden="true"><use href="#cm-i-' + name + '"></use></svg>';
+  }
+
+  function labeledBtnInner(icon, label) {
+    return iconMarkup(icon) + '<span class="cm-btn-label">' + escHtml(label) + '</span>';
+  }
+
+  function buttonLabelNode(el) {
+    return el ? el.querySelector('.cm-btn-label') : null;
+  }
+
+  function getButtonLabel(el) {
+    if (!el) return '';
+    var label = buttonLabelNode(el);
+    return label ? String(label.textContent || '') : String(el.textContent || '');
+  }
+
+  function setButtonLabel(el, text) {
+    if (!el) return;
+    var label = buttonLabelNode(el);
+    if (label) {
+      label.textContent = text;
+      return;
+    }
+    el.textContent = text;
+  }
+
   function selectedTeacher() {
     return state.teachers.find(function(t) {
       return t.teacher_id === state.selectedTeacherId;
@@ -580,7 +608,7 @@
       wrap.hidden = false;
       wrap.style.display = '';
       link.href = trackerViewUrl(t);
-      link.textContent = 'Open ' + subjectLabel() + ' tracker';
+      setButtonLabel(link, 'Open ' + subjectLabel() + ' tracker');
     } else {
       wrap.hidden = true;
     }
@@ -651,7 +679,7 @@
     }
 
     if (!pupils.length) {
-      body.innerHTML = '<tr><td colspan="3"><div class="cm-empty-action"><p>No pupils in this class yet.</p><button type="button" class="btn btn-primary" id="cm-empty-paste-pupils">Paste names</button></div></td></tr>';
+      body.innerHTML = '<tr><td colspan="3"><div class="cm-empty-action"><p>No pupils in this class yet.</p><button type="button" class="btn btn-primary" id="cm-empty-paste-pupils">' + labeledBtnInner('clipboard', 'Paste names') + '</button></div></td></tr>';
       bindEmptyActions();
       return;
     }
@@ -718,8 +746,8 @@
     if (!rows.length) {
       host.innerHTML = '<div class="cm-empty-action"><p>No classes yet. Load this teacher’s timetable, paste a list, or add a class code above.</p>' +
         '<div class="cm-empty-actions">' +
-        '<button type="button" class="btn btn-primary" id="cm-empty-tt-teacher">Load timetable</button>' +
-        '<button type="button" class="btn" id="cm-empty-paste-classes">Paste class list</button>' +
+        '<button type="button" class="btn btn-primary" id="cm-empty-tt-teacher">' + labeledBtnInner('calendar', 'Load timetable') + '</button>' +
+        '<button type="button" class="btn" id="cm-empty-paste-classes">' + labeledBtnInner('clipboard', 'Paste class list') + '</button>' +
         '</div></div>';
       state.selectedClassKey = '';
       renderPupilsPanel();
