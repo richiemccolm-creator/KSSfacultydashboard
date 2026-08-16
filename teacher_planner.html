@@ -49,23 +49,23 @@
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
   --font-ui:var(--font-body);
-  --navy:#2d3a5a;
-  --navy-dark:#232f47;
-  --accent:#0ea5e9;
-  --accent-art:#c0622a;
-  --accent-drama:#7c3aed;
+  --navy:var(--navy-900, #0f1a30);
+  --navy-dark:var(--navy-800, #152340);
+  --accent:var(--navy-600, #2a3f62);
+  --accent-art:var(--art-500, #c0622a);
+  --accent-drama:var(--drama-500, #4a7fd4);
   --accent-photography:#0d9488;
   --white:#ffffff;
-  --bg:#f8fafc;
-  --card:#fafbfc;
-  --card-elevated:#ffffff;
-  --text:#1a202c;
-  --text2:#4a5568;
-  --text3:#718096;
-  --border:#e2e8f0;
-  --border2:#cbd5e0;
-  --shadow-card:0 2px 8px rgba(0,0,0,.06);
-  --shadow-card-hover:0 4px 12px rgba(0,0,0,.08);
+  --bg:var(--bg-muted, #f4f6fb);
+  --card:var(--navy-050, #f4f6fb);
+  --card-elevated:var(--bg-elev, #ffffff);
+  --text:var(--ink-900, #0b1220);
+  --text2:var(--ink-500, #475569);
+  --text3:var(--ink-400, #64748b);
+  --border:var(--navy-100, #e2e8f0);
+  --border2:var(--navy-200, #c9d2e0);
+  --shadow-card:var(--sh-md, 0 4px 12px rgba(15,26,48,.08));
+  --shadow-card-hover:var(--sh-lg, 0 12px 32px rgba(15,26,48,.12));
 }
 html{scroll-behavior:smooth}
 body{font-family:var(--font-ui);background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;font-size:14px}
@@ -966,7 +966,7 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
   .pulse-right{text-align:left}
 }
 </style>
-<link rel="stylesheet" href="teacher-planner-redesign.css?v=ux-polish-1">
+<link rel="stylesheet" href="teacher-planner-redesign.css?v=premium-strip-1">
 </head>
 <body>
 <script>
@@ -3480,7 +3480,7 @@ function buildTodayDashboardModel() {
       period: row.period,
       slotKey: row.slotKey,
       dateStr: dateStr,
-      timeLabel: periodTimeLabel(row.period) || '—',
+      timeLabel: periodTimeLabel(row.period) || '',
       className: row.slot.className || subjectLabel(subject) || 'Class',
       subject: subject,
       subjectLabel: subjectLabel(subject) || '',
@@ -3517,7 +3517,7 @@ function buildTodayDashboardModel() {
     attention.push({
       kind: 'warn',
       title: needPlanning + ' lesson' + (needPlanning === 1 ? '' : 's') + ' need' + (needPlanning === 1 ? 's' : '') + ' planning',
-      detail: (isToday ? 'Today' : viewDate.toLocaleDateString('en-GB', { weekday: 'long' })) + ' · open Plan missing lesson to start'
+      detail: (isToday ? 'Today' : viewDate.toLocaleDateString('en-GB', { weekday: 'long' })) + ' · use Plan to start'
     });
   }
   lessonRows.filter(function(r) { return r.status === 'draft'; }).slice(0, 2).forEach(function(r) {
@@ -3551,7 +3551,8 @@ function buildTodayDashboardModel() {
   var firstName = teacherFirstName();
   var greeting = greetingForHour(now.getHours()) + ', ' + firstName;
   var weekdayName = viewDate.toLocaleDateString('en-GB', { weekday: 'long' });
-  var heading = isToday ? greeting : weekdayName;
+  var dateHeading = viewDate.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+  var heading = dateHeading;
   var fullDate = viewDate.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
 
   var dayOrder = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
@@ -3610,6 +3611,8 @@ function buildTodayDashboardModel() {
     isToday: isToday,
     weekdayName: weekdayName,
     heading: heading,
+    dateHeading: dateHeading,
+    greeting: greeting,
     school: ((document.querySelector('.topbar-school-chip') || {}).textContent || 'School').trim(),
     clock: formatTodayClock(now),
     fullDate: fullDate,
@@ -3640,8 +3643,9 @@ function buildTodayDashboardModel() {
 
 function createTodayDashboardMarkup(model) {
   var firstUnplanned = model.firstUnplanned;
-  var planLabel = firstUnplanned ? 'Plan missing lesson' : 'All lessons planned';
-  var planDisabled = firstUnplanned ? '' : ' disabled';
+  var planLabel = firstUnplanned
+    ? ('Plan P' + firstUnplanned.period + ' ' + (firstUnplanned.className || '').trim())
+    : '';
   var lessonsCount = model.lessons.length;
   var needN = model.needPlanning || 0;
   var panelSummary = lessonsCount
@@ -3656,15 +3660,6 @@ function createTodayDashboardMarkup(model) {
       ? 'Looks like a free day. Open Timetable if a class is missing, or check another day in Week.'
       : 'No classes on the timetable for this weekday. Open Timetable if something is missing.')
     : 'Import the faculty timetable or add classes so Today can show your periods.';
-
-  var statusChips = model.metrics.map(function(m) {
-    return (
-      '<button type="button" class="today-status-chip today-metric-' + escHtml(m.tone) + '" data-today-action="' + escHtml(m.action) + '">' +
-        '<span class="today-status-chip-value">' + escHtml(m.value) + '</span>' +
-        '<span class="today-status-chip-label">' + escHtml(m.label) + '</span>' +
-      '</button>'
-    );
-  }).join('');
 
   var lessonsHtml;
   if (!model.lessons.length) {
@@ -3704,7 +3699,7 @@ function createTodayDashboardMarkup(model) {
                 '<span class="today-lesson-time">' + escHtml(r.timeLabel) + '</span>' +
               '</div>' +
               '<strong class="today-lesson-title">' + escHtml(r.title) + '</strong>' +
-              '<span class="today-lesson-unit">' + escHtml(r.unit || '—') + '</span>' +
+              (r.unit ? '<span class="today-lesson-unit">' + escHtml(r.unit) + '</span>' : '') +
             '</div>' +
           '</button>' +
           '<div class="today-lesson-side">' +
@@ -3747,9 +3742,16 @@ function createTodayDashboardMarkup(model) {
   var pct = model.progress.pct;
   var ringStyle = 'background: conic-gradient(var(--today-green) 0 ' + pct + '%, rgba(21,152,120,0.15) ' + pct + '% 100%);';
 
-  var summaryHtml =
-    escHtml(model.fullDate) + ' · ' + lessonsCount + ' lesson' + (lessonsCount === 1 ? '' : 's') +
-    (needN ? (' · ' + needN + ' need' + (needN === 1 ? 's' : '') + ' planning') : '');
+  var summaryHtml = lessonsCount
+    ? (escHtml(String(lessonsCount)) + ' lesson' + (lessonsCount === 1 ? '' : 's') +
+      (needN
+        ? (' <span class="today-summary-alert">' + needN + ' need' + (needN === 1 ? 's' : '') + ' planning</span>')
+        : ' · all planned'))
+    : escHtml(model.isToday ? 'No teaching periods today' : 'No teaching periods this day');
+
+  var planBtnHtml = planLabel
+    ? '<button type="button" id="todayPlanMissing" class="today-action today-action-primary">' + escHtml(planLabel) + '</button>'
+    : '';
 
   return (
       '<header class="today-strip">' +
@@ -3759,16 +3761,14 @@ function createTodayDashboardMarkup(model) {
             '<button type="button" class="today-nav-today" id="todayJumpToday"' + (model.isToday ? ' hidden' : '') + '>Jump to today</button>' +
             '<button type="button" class="today-nav-btn" id="todayNextDay" aria-label="Next school day">&#9654;</button>' +
           '</div>' +
-          '<h1 class="today-heading">' + escHtml(model.heading) + '</h1>' +
+          '<h1 class="today-heading">' + escHtml(model.dateHeading || model.heading) + '</h1>' +
           '<p class="today-summary">' + summaryHtml + '</p>' +
         '</div>' +
         '<div class="today-strip-actions">' +
-          '<button type="button" id="todayPlanMissing" class="today-action today-action-primary"' + planDisabled + '>' + escHtml(planLabel) + '</button>' +
+          planBtnHtml +
           '<button type="button" id="todayViewWeek" class="today-action today-action-secondary">View week</button>' +
-          '<button type="button" id="todayOpenBank" class="today-action today-action-ghost">Library</button>' +
         '</div>' +
       '</header>' +
-      '<section class="today-status-row" aria-label="Today at a glance">' + statusChips + '</section>' +
       '<div class="today-dashboard-grid">' +
         '<main class="today-main-column">' +
           '<section class="today-panel today-lessons-panel" id="todayLessonsCard">' +
