@@ -1,11 +1,12 @@
 /**
  * Shared Expressive Arts faculty timetable data.
  * Used by Faculty_Timetable.html (display) and teacher planner import.
+ * Source: Art & Drama Timetable Update 11th Aug 26.xlsx
  */
 (function (global) {
   'use strict';
 
-  var SPECIAL_CLASS_CODES = ['PT meeting', 'WA', 'AfN', '5A1'];
+  var SPECIAL_CLASS_CODES = ['PT meeting', 'WA', 'AfN', '5A1', '5I1 PSE'];
 
   var DRAMA_STAFF = [
     {
@@ -17,7 +18,7 @@
         Tuesday:   { 1: '1F', 2: '4draG', 3: '5ciC', 4: '5ciC', 5: 'PT meeting', 6: '5AHdraB', 7: '5AHdraB' },
         Wednesday: { 1: '5ciC', 2: '5ciC', 4: '4draG', 5: '2L', 7: '1A' },
         Thursday:  { 1: '1K', 3: '1L', 4: '1P', 5: '5AHdraB', 6: '5AHdraB' },
-        Friday:    { 1: '1G', 2: '2M', 4: '1F', 5: '5ciC', 6: '5ciC' }
+        Friday:    { 1: '2F', 2: '2M', 4: '1F', 5: '5ciC', 6: '5ciC' }
       }
     },
     {
@@ -28,8 +29,8 @@
         Monday:    { 2: '1D', 3: '1N', 6: '3draG', 7: '1K' },
         Tuesday:   { 1: '1N', 2: '2N', 4: '3draG', 5: '1B', 6: '1G' },
         Wednesday: { 2: '3draG', 4: '2C', 6: '1C', 7: '1D' },
-        Thursday:  { 2: '3draG', 3: '1C', 5: '2B' },
-        Friday:    { 1: '2F', 2: '1B', 3: '1M', 5: '4draG' }
+        Thursday:  { 1: '4draF', 2: '3draG', 3: '1C', 5: '2B' },
+        Friday:    { 1: '1G', 2: '1B', 3: '1M', 5: '4draG' }
       }
     },
     {
@@ -49,7 +50,7 @@
       ac: '#6a1b9a', bg: '#ebd9f8', dk: '#3b0070',
       department: 'drama',
       tt: {
-        Monday:    { 1: '5draA', 2: '5draA', 3: '5AHdraB', 4: '5AHdraB', 5: '5A1', 6: '1P', 7: '3draE' },
+        Monday:    { 1: '5draA', 2: '5draA', 3: '5AHdraB', 4: '5AHdraB', 5: '5I1 PSE', 6: '1P', 7: '3draE' },
         Tuesday:   { 1: '1H', 4: '2G', 5: '1L', 6: '3draE', 7: '2K' },
         Wednesday: { 1: '3draE', 2: '2D', 4: '1M', 6: '5draA', 7: '5draA' },
         Thursday:  { 3: '1H', 5: '2A' },
@@ -77,8 +78,8 @@
       department: 'art',
       tt: {
         Monday:    { 3: '5artB', 4: '5artB', 6: '2G', 7: '2L' },
-        Tuesday:   { 1: '3artC', 4: '2B', 5: '1M', 6: '5artB', 7: '5artB' },
-        Wednesday: { 3: '2G', 4: '3artC', 6: '4artC', 7: '1E' },
+        Tuesday:   { 1: '3artC', 4: '2B', 5: '1M', 6: '5artB', 7: '4artC' },
+        Wednesday: { 3: '2G', 4: '3artC', 5: '1K', 6: '4artC', 7: '1E' },
         Thursday:  { 2: '2L', 3: '3artC', 4: '1B', 5: '5artB', 6: '5artB' },
         Friday:    { 1: '3artC', 2: '2B', 3: '4artC', 5: '1F', 6: '2D' }
       }
@@ -88,7 +89,7 @@
       ac: '#3949ab', bg: '#e8e8f8', dk: '#1a1a6b',
       department: 'art',
       tt: {
-        Monday:    { 1: '4artD', 3: '2F', 6: '3artG', 7: '2H' },
+        Monday:    { 1: '4artD', 3: '2F', 6: '3artG', 7: '2N' },
         Tuesday:   { 1: '5photoE', 2: '5photoE', 4: '3artG', 5: '2E' },
         Wednesday: { 2: '3artG', 3: '2M', 4: '2A', 5: '4photoF', 7: '4artD' },
         Thursday:  { 1: '4photoF', 2: '3artG', 3: '5photoE', 4: '5photoE', 5: '4artD', 6: '2A' },
@@ -100,9 +101,9 @@
       ac: '#c2185b', bg: '#fde8f0', dk: '#6b0030',
       department: 'art',
       tt: {
-        Monday:    { 1: '3artF', 3: '2M', 5: '4photoF', 6: '2K', 7: '2N' },
-        Tuesday:   { 1: '1D', 3: '3artF', 5: '4photoF', 6: '2N', 7: '4artC' },
-        Wednesday: { 2: '2F', 5: '1K', 7: '3artF' },
+        Monday:    { 1: '3artF', 3: '2M', 5: '4photoF', 6: '2K', 7: '2H' },
+        Tuesday:   { 1: '1D', 3: '3artF', 5: '4photoF', 6: '2N', 7: '5artB' },
+        Wednesday: { 2: '2F', 5: 'WA', 7: '3artF' },
         Thursday:  { 3: '2K', 4: '1L', 6: '4artC' },
         Friday:    { 1: '1H', 2: '1C', 3: '1N', 5: '3artE', 6: '3artF' }
       }
