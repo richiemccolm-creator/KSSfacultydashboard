@@ -49,7 +49,7 @@ Undecided: whether Photography class lists should ever follow the same faculty-h
 - Faculty: Art & Drama (Expressive Arts). Photography is a third subject in the hub.
 - Logo: `faculty-hub-logo.png`.
 - Voice: professional staff English. UI copy must not use em dashes.
-- Binding from the product owner: keep Faculty Hub identity (navy, Art terracotta, Drama blue, General Sans). Visual expansion belongs in design work, not here.
+- Binding from the product owner: keep Faculty Hub identity (navy, Art terracotta, Drama blue). Typography is Manrope for headings and Inter for UI, owned in design-tokens.css. Visual expansion belongs in design work, not here.
 
 ## Evidence on Hand
 
