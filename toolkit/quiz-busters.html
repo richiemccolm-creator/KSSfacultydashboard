@@ -223,17 +223,34 @@ a{color:inherit;text-decoration:none}
 .field input:focus,.field textarea:focus{border-color:rgba(22,119,255,.55);box-shadow:0 0 0 3px rgba(22,119,255,.14)}
 .qa-list{display:grid;gap:8px}
 .qa-row{
-  display:grid;grid-template-columns:42px 1fr 1fr;gap:8px;align-items:center;
+  display:grid;grid-template-columns:42px minmax(150px,.46fr) 1fr;gap:8px;align-items:center;
   padding:8px;border-radius:12px;border:1px solid var(--line);background:rgba(12,23,49,.7);
 }
 .qa-letter{
   height:40px;border-radius:10px;display:grid;place-items:center;
   font:800 16px/1 var(--font-display);background:var(--blue-soft);color:#9bb6ff;border:1px solid rgba(22,119,255,.3);
 }
-.qa-row input{height:40px;border-radius:9px;border:1px solid rgba(132,153,207,.16);background:#0A142C;padding:0 10px;outline:none}
-.qa-row input:focus{border-color:rgba(22,119,255,.5)}
+.qa-field{
+  display:grid;grid-template-columns:26px 1fr;align-items:center;min-width:0;
+  border-radius:9px;border:1px solid rgba(132,153,207,.16);background:#0A142C;
+}
+.qa-field:focus-within{border-color:rgba(22,119,255,.5)}
+.qa-field .qa-k{
+  font:800 11px/1 var(--font-display);color:var(--muted);text-align:center;letter-spacing:.04em;
+}
+.qa-field.ans-wrap .qa-k{color:#9bb6ff}
+.qa-row input{
+  width:100%;min-width:0;height:40px;border:0;border-radius:9px;background:transparent;
+  padding:0 10px 0 2px;outline:none;color:var(--text);
+}
+.qa-row input:focus{box-shadow:none}
 .edit-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end;margin-top:4px}
-.hint{font:500 12.5px/1.4 var(--font);color:var(--muted)}
+.hint{font:500 12.5px/1.4 var(--font);color:var(--muted);max-width:280px}
+.swap-note{
+  display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;
+  padding:12px 14px;border-radius:12px;background:rgba(244,161,28,.12);
+  border:1px solid rgba(244,161,28,.28);color:#f3d7a0;font:500 13px/1.4 var(--font);
+}
 
 /* ---------- play mode shell ---------- */
 body.mode-play{
@@ -969,7 +986,8 @@ body.mode-play .top-actions{
   body.mode-play::after{display:none}
   .play-layout{grid-template-columns:1fr;overflow:auto}
   .qa-row{grid-template-columns:36px 1fr;grid-template-rows:auto auto}
-  .qa-row .ans{grid-column:2}
+  .qa-row .ans-wrap{grid-column:2}
+  .qa-row .q-wrap{grid-column:1 / -1}
   .controls{grid-template-columns:1fr}
   .join-lobby-qrs{grid-template-columns:1fr}
 }
@@ -1032,11 +1050,11 @@ body.mode-play .top-actions{
     <p class="join-lobby-pin" id="joinLobbyPin"></p>
     <div class="join-lobby-qrs">
       <div class="join-qr blue">
-        <img id="qrBlue" alt="Blue team QR">
+        <img id="qrBlue" alt="Blue team QR" width="180" height="180" src="quiz-busters-logo.png">
         <span>Blue</span>
       </div>
       <div class="join-qr amber">
-        <img id="qrAmber" alt="Amber team QR">
+        <img id="qrAmber" alt="Amber team QR" width="180" height="180" src="quiz-busters-logo.png">
         <span>Amber</span>
       </div>
     </div>
@@ -1528,9 +1546,74 @@ body.mode-play .top-actions{
     return "qb_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
   }
 
+  function stripQAPrefix(s) {
+    return String(s == null ? "" : s)
+      .trim()
+      .replace(/^(?:[QA]\s*[:.]\s+|[QA]\s+[-–—]\s+)/i, "")
+      .trim();
+  }
+
   function letterOf(answer) {
-    var m = String(answer || "").trim().match(/[A-Za-z]/);
+    var m = stripQAPrefix(answer).match(/[A-Za-z]/);
     return m ? m[0].toUpperCase() : "?";
+  }
+
+  function looksLikeQuestion(s) {
+    var t = String(s || "").trim();
+    if (!t) return false;
+    if (/\?\s*$/.test(t)) return true;
+    var words = t.split(/\s+/).filter(Boolean);
+    if (words.length < 3) return false;
+    return /^(what|which|who|whom|whose|where|when|why|how|name|define|identify|give|describe|explain)\b/i.test(t);
+  }
+
+  function looksLikeShortAnswer(s) {
+    var t = String(s || "").trim();
+    if (!t || looksLikeQuestion(t)) return false;
+    var words = t.split(/\s+/).filter(Boolean);
+    return words.length <= 6 && t.length <= 80;
+  }
+
+  function pairLooksInverted(q, a) {
+    q = String(q || "").trim();
+    a = String(a || "").trim();
+    if (!q || !a) return false;
+    if (looksLikeQuestion(a) && looksLikeShortAnswer(q)) return true;
+    if (looksLikeQuestion(q) && looksLikeShortAnswer(a)) return false;
+    var qw = q.split(/\s+/).filter(Boolean).length;
+    var aw = a.split(/\s+/).filter(Boolean).length;
+    return qw <= 4 && q.length <= 48 && aw >= 6 && a.length >= 28 && !looksLikeQuestion(q);
+  }
+
+  function normalizeQAPair(q, a) {
+    q = stripQAPrefix(q);
+    a = stripQAPrefix(a);
+    if (pairLooksInverted(q, a)) {
+      var tmp = q;
+      q = a;
+      a = tmp;
+    }
+    return { q: q, a: a };
+  }
+
+  function itemsLookSwapped(items) {
+    var filled = (items || []).filter(function (it) { return it && it.q && it.a; });
+    if (filled.length < 5) return false;
+    var inverted = 0;
+    filled.forEach(function (it) {
+      if (pairLooksInverted(stripQAPrefix(it.q), stripQAPrefix(it.a))) inverted++;
+    });
+    return inverted >= Math.ceil(filled.length * 0.6);
+  }
+
+  function repairBoardIfNeeded(board) {
+    if (!board || board.builtIn || board.id === SAMPLE.id) return board;
+    var items = normalizeItems(board.items);
+    if (!itemsLookSwapped(items)) return board;
+    var next = {};
+    Object.keys(board).forEach(function (k) { next[k] = board[k]; });
+    next.items = items.map(function (it) { return normalizeQAPair(it.q, it.a); });
+    return next;
   }
 
   function loadBoards() {
@@ -1556,7 +1639,7 @@ body.mode-play .top-actions{
       }
       return raw.filter(function (b) {
         return b && b.id && b.title && Array.isArray(b.items);
-      });
+      }).map(repairBoardIfNeeded);
     } catch (e) {
       return [];
     }
@@ -1583,10 +1666,14 @@ body.mode-play .top-actions{
       var others = (items || []).filter(function (b) {
         return b && b.id && b.id !== SAMPLE.id;
       });
-      state.boards = sample.concat(others);
+      var incoming = sample.concat(others);
+      var repaired = incoming.map(repairBoardIfNeeded);
+      var changed = repaired.some(function (b, i) { return b !== incoming[i]; });
+      state.boards = repaired;
       ensureSamplePresent();
       cloudReady = true;
       persistBoardsLocal();
+      if (changed) saveBoards();
       if (state.view === "library") renderLibrary();
     }).catch(function () {
       cloudReady = true;
@@ -2168,12 +2255,15 @@ body.mode-play .top-actions{
   }
 
   function openEditor(board, isNew) {
+    var source = repairBoardIfNeeded(board);
     state.editing = {
-      id: board.id,
-      title: board.title,
-      builtIn: !!board.builtIn,
+      id: source.id,
+      title: source.title,
+      builtIn: !!source.builtIn,
       isNew: !!isNew,
-      items: normalizeItems(board.items)
+      items: normalizeItems(source.items).map(function (it) {
+        return normalizeQAPair(it.q, it.a);
+      })
     };
     showView("editor");
   }
@@ -2181,12 +2271,19 @@ body.mode-play .top-actions{
   function renderEditor() {
     var ed = state.editing;
     if (!ed) return;
+    var swapped = itemsLookSwapped(ed.items);
     var rows = ed.items.map(function (it, i) {
       return (
         '<div class="qa-row" data-i="' + i + '">' +
           '<div class="qa-letter" aria-hidden="true">' + esc(letterOf(it.a)) + "</div>" +
-          '<input class="q" type="text" placeholder="Question" value="' + esc(it.q) + '" maxlength="220">' +
-          '<input class="ans" type="text" placeholder="Answer (letter comes from this)" value="' + esc(it.a) + '" maxlength="80">' +
+          '<label class="qa-field ans-wrap">' +
+            '<span class="qa-k">A</span>' +
+            '<input class="ans" type="text" placeholder="Answer — tile letter comes from this" value="' + esc(it.a) + '" maxlength="80" aria-label="Answer ' + (i + 1) + '">' +
+          "</label>" +
+          '<label class="qa-field q-wrap">' +
+            '<span class="qa-k">Q</span>' +
+            '<input class="q" type="text" placeholder="Question" value="' + esc(it.q) + '" maxlength="220" aria-label="Question ' + (i + 1) + '">' +
+          "</label>" +
         "</div>"
       );
     }).join("");
@@ -2197,10 +2294,14 @@ body.mode-play .top-actions{
           '<div class="field"><label for="editTitle">Board title</label>' +
             '<input id="editTitle" type="text" maxlength="60" value="' + esc(ed.title) + '">' +
           "</div>" +
-          '<div class="hint">Need ' + CELL_COUNT + " questions. Answers should start with the letter shown on each tile.</div>" +
+          '<div class="hint">Need ' + CELL_COUNT + " questions. The hex letter is the first letter of the answer (A), not the question.</div>" +
         "</div>" +
+        (swapped
+          ? '<div class="swap-note">These look the wrong way round — tile letters are coming from the questions. <button type="button" class="btn" id="btnSwapQA">Swap questions and answers</button></div>'
+          : "") +
         '<div class="qa-list">' + rows + "</div>" +
         '<div class="edit-actions">' +
+          '<button type="button" class="btn" id="btnSwapQABottom">Swap Q &amp; A</button>' +
           '<button class="btn btn-primary" id="btnSaveEditBottom">Save &amp; play</button>' +
         "</div>" +
       "</div>";
@@ -2224,6 +2325,9 @@ body.mode-play .top-actions{
   function persistEditor(andPlay) {
     var ed = readEditorIntoState();
     if (!ed) return;
+    if (itemsLookSwapped(ed.items)) {
+      ed.items = ed.items.map(function (it) { return normalizeQAPair(it.q, it.a); });
+    }
     var filled = ed.items.filter(function (it) { return it.q && it.a; });
     if (filled.length < CELL_COUNT) {
       toast("Fill all " + CELL_COUNT + " questions and answers");
@@ -2245,7 +2349,17 @@ body.mode-play .top-actions{
     // Keep sample at top if present
     ensureSamplePresent();
     saveBoards();
-    toast("Board saved");
+    var letters = {};
+    payload.items.forEach(function (it) {
+      var L = letterOf(it.a);
+      if (L !== "?") letters[L] = true;
+    });
+    var uniq = Object.keys(letters);
+    if (uniq.length === 1) {
+      toast("Saved — but every tile is " + uniq[0] + ". Check the A field; that is what sets the letter.");
+    } else {
+      toast("Board saved");
+    }
     if (andPlay) startPlay(payload);
     else showView("library");
   }
@@ -2329,7 +2443,10 @@ body.mode-play .top-actions{
   }
 
   function startPlay(board) {
-    var items = normalizeItems(board.items).filter(function (it) { return it.q && it.a; });
+    var source = repairBoardIfNeeded(board);
+    var items = normalizeItems(source.items).map(function (it) {
+      return normalizeQAPair(it.q, it.a);
+    }).filter(function (it) { return it.q && it.a; });
     if (items.length < CELL_COUNT) {
       toast("This board needs " + CELL_COUNT + " complete Q&As");
       return;
@@ -2791,25 +2908,15 @@ body.mode-play .top-actions{
 
       var m = line.match(lineRe);
       if (m) {
-        var q = m[1].trim();
-        var a = m[2].trim();
-        // If AI put answer first after letter pattern without Q:/A:
-        // "1. Script | What do we call..." — prefer longer side as question when one side looks like a short answer
-        if (/^Q\s*:/i.test(line) === false && q.length < a.length && q.split(/\s+/).length <= 4) {
-          // keep as-is if Q: was present; lineRe already stripped optional Q:/A:
-        }
-        // Strip leading "Q:" leftovers
-        q = q.replace(/^Q\s*:\s*/i, "").trim();
-        a = a.replace(/^A\s*:\s*/i, "").trim();
-        items.push({ q: q, a: a });
+        var pair = normalizeQAPair(m[1].trim(), m[2].trim());
+        items.push(pair);
         i++;
         continue;
       }
 
       var lf = line.match(letterFirstRe);
       if (lf) {
-        // "S - Script | What do we call the written text of a play?"
-        items.push({ q: lf[2].trim(), a: lf[1].trim() });
+        items.push(normalizeQAPair(lf[2].trim(), lf[1].trim()));
         i++;
         continue;
       }
@@ -2824,7 +2931,7 @@ body.mode-play .top-actions{
         if (!am) {
           return { error: "Expected A: after Q: (near: " + qText.slice(0, 40) + ")" };
         }
-        items.push({ q: qText, a: am[1].trim() });
+        items.push(normalizeQAPair(qText, am[1].trim()));
         i++;
         continue;
       }
@@ -2834,7 +2941,9 @@ body.mode-play .top-actions{
       i++;
     }
 
-    items = items.filter(function (it) { return it.q && it.a; });
+    items = items.filter(function (it) { return it.q && it.a; }).map(function (it) {
+      return normalizeQAPair(it.q, it.a);
+    });
     if (!items.length) return { error: "No Q&A pairs found. Use: 1. Q: … | A: …" };
     if (items.length < CELL_COUNT) {
       return {
@@ -2935,6 +3044,15 @@ body.mode-play .top-actions{
       return;
     }
     if (t.id === "btnCancelEdit") { showView("library"); return; }
+    if (t.id === "btnSwapQA" || t.id === "btnSwapQABottom") {
+      if (!readEditorIntoState()) return;
+      state.editing.items = state.editing.items.map(function (it) {
+        return { q: it.a, a: it.q };
+      });
+      renderEditor();
+      toast("Swapped questions and answers");
+      return;
+    }
     if (t.id === "btnSaveEdit" || t.id === "btnSaveEditBottom") {
       persistEditor(t.id === "btnSaveEditBottom");
       return;
