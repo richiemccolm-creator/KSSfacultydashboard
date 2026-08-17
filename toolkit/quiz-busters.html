@@ -935,13 +935,13 @@ body.mode-play .top-actions{
   backdrop-filter:blur(10px);
 }
 .join-lobby.hidden{display:none!important}
-.join-lobby-inner{width:min(820px,100%);text-align:center}
+.join-lobby-inner{width:min(920px,100%);text-align:center}
 .join-lobby-logo{
   display:block;width:min(360px,70%);height:auto;margin:0 auto 18px;
   filter:drop-shadow(0 0 18px rgba(56,189,248,.35));
 }
 .join-lobby-pin{
-  margin:0 0 28px;font:800 clamp(2.4rem,6vw,4.2rem)/1 var(--font-display);
+  margin:0 0 18px;font:800 clamp(2.4rem,6vw,4.2rem)/1 var(--font-display);
   letter-spacing:.18em;font-variant-numeric:tabular-nums;color:#fff;
 }
 .join-lobby-qrs{display:grid;grid-template-columns:1fr 1fr;gap:clamp(16px,3vw,28px);align-items:start}
@@ -958,8 +958,28 @@ body.mode-play .top-actions{
 .join-qr.blue span{color:var(--qb-blue-bright)}
 .join-qr.amber{border-color:rgba(255,195,66,.45);box-shadow:0 0 32px rgba(244,161,28,.16)}
 .join-qr.amber span{color:var(--qb-amber-bright)}
-.join-lobby-meta{margin:22px 0 0;font:600 16px/1.4 var(--font);color:var(--qb-text-muted)}
-.join-lobby-actions{margin-top:22px;display:flex;justify-content:center}
+.join-roster{
+  display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px;text-align:left;
+}
+.join-roster-col{
+  min-height:88px;padding:12px 14px;border-radius:16px;
+  background:rgba(8,16,36,.7);border:1px solid rgba(91,128,213,.28);
+}
+.join-roster-col h3{
+  margin:0 0 8px;font:800 12px/1 var(--font-display);letter-spacing:.06em;text-transform:uppercase;
+}
+.join-roster-col.blue{border-color:rgba(49,162,255,.35)}
+.join-roster-col.blue h3{color:var(--qb-blue-bright)}
+.join-roster-col.amber{border-color:rgba(255,195,66,.35)}
+.join-roster-col.amber h3{color:var(--qb-amber-bright)}
+.join-roster-col ul{margin:0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:6px}
+.join-roster-col li{
+  font:700 13px/1.2 var(--font);padding:6px 10px;border-radius:999px;
+  background:rgba(255,255,255,.07);
+}
+.join-roster-col .empty{color:var(--qb-text-muted);font:500 13px/1.35 var(--font)}
+.join-lobby-meta{margin:16px 0 0;font:600 16px/1.4 var(--font);color:var(--qb-text-muted)}
+.join-lobby-actions{margin-top:18px;display:flex;justify-content:center}
 
 .toast{
   position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);
@@ -990,6 +1010,7 @@ body.mode-play .top-actions{
   .qa-row .q-wrap{grid-column:1 / -1}
   .controls{grid-template-columns:1fr}
   .join-lobby-qrs{grid-template-columns:1fr}
+  .join-roster{grid-template-columns:1fr}
 }
 @media(max-width:560px){
   .top{flex-wrap:wrap}
@@ -1046,19 +1067,29 @@ body.mode-play .top-actions{
 <div class="join-lobby hidden" id="joinLobby" role="dialog" aria-modal="true" aria-labelledby="joinLobbyTitle">
   <div class="join-lobby-inner">
     <img class="join-lobby-logo" src="quiz-busters-logo.png" width="804" height="318" alt="Quiz Busters" decoding="async">
-    <h2 class="sr-only" id="joinLobbyTitle">Join with team buzzers</h2>
+    <h2 class="sr-only" id="joinLobbyTitle">Join with named buzzers</h2>
     <p class="join-lobby-pin" id="joinLobbyPin"></p>
     <div class="join-lobby-qrs">
       <div class="join-qr blue">
         <img id="qrBlue" alt="Blue team QR" width="180" height="180" src="quiz-busters-logo.png">
-        <span>Blue</span>
+        <span>Join Blue</span>
       </div>
       <div class="join-qr amber">
         <img id="qrAmber" alt="Amber team QR" width="180" height="180" src="quiz-busters-logo.png">
-        <span>Amber</span>
+        <span>Join Amber</span>
       </div>
     </div>
-    <p class="join-lobby-meta" id="joinLobbyMeta">Scan onto the team iPads</p>
+    <div class="join-roster" aria-live="polite">
+      <div class="join-roster-col blue">
+        <h3 id="rosterBlueTitle">Blue</h3>
+        <ul id="rosterBlue"></ul>
+      </div>
+      <div class="join-roster-col amber">
+        <h3 id="rosterAmberTitle">Amber</h3>
+        <ul id="rosterAmber"></ul>
+      </div>
+    </div>
+    <p class="join-lobby-meta" id="joinLobbyMeta">Pupils scan a QR, type their name, and get a buzzer.</p>
     <div class="join-lobby-actions">
       <button type="button" class="btn btn-primary" id="btnSkipLobby">Start the board</button>
     </div>
@@ -1268,15 +1299,17 @@ body.mode-play .top-actions{
     }
   }
 
-  function showBuzzPop(team) {
+  function showBuzzPop(team, name) {
     var el = $("buzzPop");
     if (!el) return;
     el.classList.remove("hidden", "is-blue", "is-amber");
     el.classList.add(team === "amber" ? "is-amber" : "is-blue");
+    var who = String(name || "").trim();
+    var teamLabel = team === "amber" ? "Amber" : "Blue";
     var title = $("buzzPopTitle");
-    if (title) title.textContent = team === "amber" ? "Amber" : "Blue";
+    if (title) title.textContent = who || teamLabel;
     var msg = $("buzzPopMsg");
-    if (msg) msg.textContent = "answers this letter";
+    if (msg) msg.textContent = who ? (teamLabel + " · answers this letter") : "answers this letter";
     clearTimeout(buzzPopT);
     buzzPopT = setTimeout(hideBuzzPop, 2800);
   }
@@ -1354,22 +1387,32 @@ body.mode-play .top-actions{
     updateJoinLobbyMeta();
   }
 
+  function rosterHtml(players, team) {
+    var names = (players || []).filter(function (p) { return p && p.team === team; });
+    if (!names.length) return '<li class="empty">Waiting for pupils</li>';
+    return names.map(function (p) {
+      return "<li>" + esc(p.name || "Player") + "</li>";
+    }).join("");
+  }
+
   function updateJoinLobbyMeta() {
     var live = state.live;
     var meta = $("joinLobbyMeta");
-    if (!live || !meta) return;
+    if (!live) return;
     var blue = live.blueCount || 0;
     var amber = live.amberCount || 0;
-    if (blue && amber) meta.textContent = "Both teams connected";
-    else if (blue || amber) {
-      meta.textContent = (blue ? "Blue connected" : "Waiting for Blue") + " · " +
-        (amber ? "Amber connected" : "Waiting for Amber");
-    } else {
-      meta.textContent = "Scan onto the team iPads";
-    }
-    if (blue && amber && !live.lobbyDismissed && !live.lobbyManual) {
-      hideJoinLobby();
-      toast("Both teams connected");
+    var total = blue + amber;
+    var blueList = $("rosterBlue");
+    var amberList = $("rosterAmber");
+    var blueTitle = $("rosterBlueTitle");
+    var amberTitle = $("rosterAmberTitle");
+    if (blueList) blueList.innerHTML = rosterHtml(live.players, "blue");
+    if (amberList) amberList.innerHTML = rosterHtml(live.players, "amber");
+    if (blueTitle) blueTitle.textContent = "Blue · " + blue;
+    if (amberTitle) amberTitle.textContent = "Amber · " + amber;
+    if (meta) {
+      if (!total) meta.textContent = "Pupils scan a QR, type their name, and get a buzzer.";
+      else meta.textContent = total + " buzzer" + (total === 1 ? "" : "s") + " joined · start when the class is ready";
     }
   }
 
@@ -1446,7 +1489,11 @@ body.mode-play .top-actions{
       line.textContent = "Buzzers armed";
     } else if (live.status === "locked" && live.buzzTeam) {
       line.classList.add("is-locked", live.buzzTeam);
-      line.textContent = (live.buzzTeam === "amber" ? "Amber" : "Blue") + " buzzed first";
+      var who = String(live.buzzPlayerName || "").trim();
+      var teamLabel = live.buzzTeam === "amber" ? "Amber" : "Blue";
+      line.textContent = who ? (who + " (" + teamLabel + ") buzzed first") : (teamLabel + " buzzed first");
+    } else if ((live.blueCount || 0) + (live.amberCount || 0)) {
+      line.textContent = (live.blueCount || 0) + " Blue · " + (live.amberCount || 0) + " Amber";
     } else {
       line.textContent = "";
     }
@@ -1465,12 +1512,14 @@ body.mode-play .top-actions{
       var prevKey = live.lastBuzzKey || "";
       live.status = d.status;
       live.buzzTeam = d.buzz_team || null;
+      live.buzzPlayerName = d.buzz_player_name || "";
       live.blueCount = d.blue_count || 0;
       live.amberCount = d.amber_count || 0;
+      live.players = Array.isArray(d.players) ? d.players : [];
       var buzzKey = d.buzz_at ? String(d.buzz_at) : "";
       if (live.buzzTeam && buzzKey && buzzKey !== prevKey) {
         live.lastBuzzKey = buzzKey;
-        showBuzzPop(live.buzzTeam);
+        showBuzzPop(live.buzzTeam, live.buzzPlayerName);
         beep(live.buzzTeam === "amber" ? "buzz-amber" : "buzz-blue");
       } else if (!live.buzzTeam) {
         hideBuzzPop();
@@ -1513,8 +1562,10 @@ body.mode-play .top-actions{
           hostUserId: session.user.id,
           status: "idle",
           buzzTeam: null,
+          buzzPlayerName: "",
           blueCount: 0,
           amberCount: 0,
+          players: [],
           qrBlue: null,
           qrAmber: null,
           lastBuzzKey: "",
@@ -2241,7 +2292,7 @@ body.mode-play .top-actions{
         "</div>" +
         '<div class="hero-copy">' +
           '<h2 class="sr-only">Quiz Busters</h2>' +
-          "<p>Two teams. One board. First buzz takes the letter.</p>" +
+          "<p>Two teams. Named buzzers. First buzz takes the letter.</p>" +
           '<div class="hero-actions">' +
             '<button class="btn btn-amber" id="heroPlaySample">Play sample</button>' +
             '<button class="btn" id="heroNew">Create a board</button>' +
@@ -2576,7 +2627,11 @@ body.mode-play .top-actions{
     var turnLabel = p.winner
       ? ((p.winner === "blue" ? "Blue" : "Amber") + " Team wins")
       : (liveBuzz
-        ? ((liveBuzz === "blue" ? "Blue" : "Amber") + " buzzed first — they answer")
+        ? (function () {
+            var who = String(state.live.buzzPlayerName || "").trim();
+            var teamLabel = liveBuzz === "blue" ? "Blue" : "Amber";
+            return (who ? who + " (" + teamLabel + ")" : teamLabel) + " buzzed first — they answer";
+          })()
         : (p.turn
           ? ((p.turn === "blue" ? "Blue" : "Amber") + " Team's turn")
           : "Either team can pick a letter"));

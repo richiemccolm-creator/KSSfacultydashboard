@@ -52,11 +52,15 @@ button{font:inherit;color:inherit;cursor:pointer}
 h1{margin:0 0 6px;font:800 32px/1.05 var(--display);letter-spacing:-.03em;text-align:center;font-style:italic}
 .sub{margin:0 0 18px;text-align:center;color:var(--muted);font:500 14px/1.45 var(--font)}
 label{display:block;font:700 11px/1 var(--font);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
-input{
+#pin{
   width:100%;height:52px;border-radius:14px;border:1px solid rgba(124,148,205,.22);background:#0a142c;
   padding:0 14px;outline:none;margin-bottom:12px;font:700 22px/1 var(--font);letter-spacing:.18em;text-align:center;
 }
-input:focus{border-color:rgba(49,162,255,.55);box-shadow:0 0 0 3px rgba(22,119,255,.18)}
+#displayName{
+  width:100%;height:52px;border-radius:14px;border:1px solid rgba(124,148,205,.22);background:#0a142c;
+  padding:0 14px;outline:none;margin-bottom:12px;font:700 18px/1 var(--font);letter-spacing:.01em;text-align:center;
+}
+#pin:focus,#displayName:focus{border-color:rgba(49,162,255,.55);box-shadow:0 0 0 3px rgba(22,119,255,.18)}
 .err{color:#ffb4b9;font:650 13px/1.4 var(--font);min-height:1.2em;margin:0 0 8px;text-align:center}
 .team-pick{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
 .team-btn{
@@ -65,6 +69,7 @@ input:focus{border-color:rgba(49,162,255,.55);box-shadow:0 0 0 3px rgba(22,119,2
 }
 .team-btn.blue{background:linear-gradient(160deg,var(--blue-b),var(--blue));color:#fff;box-shadow:0 10px 24px -8px rgba(22,119,255,.55)}
 .team-btn.amber{background:linear-gradient(160deg,var(--amber-b),var(--amber));color:#1a1205;box-shadow:0 10px 24px -8px rgba(244,161,28,.5)}
+.team-btn.is-hint{outline:3px solid rgba(255,255,255,.55);outline-offset:2px}
 .team-btn:disabled{opacity:.45}
 
 .buzz-app{
@@ -126,10 +131,12 @@ body.team-amber .buzzer{
 <div class="wrap" id="viewJoin">
   <div class="card">
     <img class="logo" src="quiz-busters-logo.png" width="804" height="318" alt="Quiz Busters">
-    <h1>Team buzzer</h1>
-    <p class="sub">Enter the PIN from the board, then join as Blue or Amber.</p>
+    <h1>Your buzzer</h1>
+    <p class="sub">Type your name, then join Blue or Amber. The teacher will see who buzzes.</p>
     <label for="pin">Game PIN</label>
     <input id="pin" inputmode="numeric" maxlength="6" autocomplete="off" placeholder="000000">
+    <label for="displayName">Your name</label>
+    <input id="displayName" type="text" maxlength="32" autocomplete="nickname" placeholder="e.g. Aisha" autocapitalize="words">
     <p class="err" id="joinErr"></p>
     <div class="team-pick">
       <button type="button" class="team-btn blue" id="btnBlue" data-team="blue">Blue team</button>
@@ -151,16 +158,35 @@ body.team-amber .buzzer{
 (function () {
   "use strict";
   var $ = function (id) { return document.getElementById(id); };
+  var NAME_KEY = "tk_qb_display_name";
   var state = {
     pin: "",
     token: "",
     team: "",
+    name: "",
     poll: null,
     buzzing: false,
     lastStatus: "",
     lastBuzzTeam: null
   };
   var audioCtx = null;
+
+  function readSavedName() {
+    try {
+      return String(localStorage.getItem(NAME_KEY) || "").trim().slice(0, 32);
+    } catch (e) {
+      return "";
+    }
+  }
+
+  function saveName(name) {
+    try { localStorage.setItem(NAME_KEY, name); } catch (e) {}
+  }
+
+  function readName() {
+    var el = $("displayName");
+    return String(el && el.value ? el.value : "").replace(/\s+/g, " ").trim().slice(0, 32);
+  }
 
   function tokenKey(pin) { return "tk_qb_buzzer_" + pin; }
 
@@ -229,14 +255,17 @@ body.team-amber .buzzer{
     $("viewBuzz").classList.remove("hidden");
     document.body.classList.toggle("team-blue", state.team === "blue");
     document.body.classList.toggle("team-amber", state.team === "amber");
-    $("teamTag").textContent = state.team === "amber" ? "Amber team" : "Blue team";
+    $("teamTag").textContent = (state.name ? state.name + " · " : "") +
+      (state.team === "amber" ? "Amber team" : "Blue team");
   }
 
   function applyState(data) {
     if (!data) return;
     var status = data.status || "idle";
     var buzzTeam = data.buzz_team || null;
-    var youWon = !!data.you_won;
+    var youBuzzed = !!data.you_buzzed;
+    var youWon = !!data.you_won || youBuzzed;
+    var buzzName = String(data.buzz_player_name || "").trim();
     var buzzer = $("buzzer");
     var statusEl = $("buzzStatus");
     var meta = $("buzzMeta");
@@ -253,12 +282,16 @@ body.team-amber .buzzer{
       meta.textContent = "First press wins the chance to answer.";
     } else if (status === "locked") {
       buzzer.disabled = true;
-      if (youWon) {
+      if (youBuzzed) {
         buzzer.classList.add("is-won");
-        statusEl.textContent = "Your team buzzed first!";
+        statusEl.textContent = "You buzzed first!";
+        meta.textContent = "Get ready to answer.";
+      } else if (youWon) {
+        statusEl.textContent = (buzzName ? buzzName : "A teammate") + " buzzed for your team.";
         meta.textContent = "Get ready to answer.";
       } else if (buzzTeam) {
-        statusEl.textContent = (buzzTeam === "amber" ? "Amber" : "Blue") + " buzzed first.";
+        var who = buzzName || (buzzTeam === "amber" ? "Amber" : "Blue");
+        statusEl.textContent = who + " buzzed first.";
         meta.textContent = "Wait for the next letter.";
       } else {
         statusEl.textContent = "Locked";
@@ -288,9 +321,15 @@ body.team-amber .buzzer{
 
   function join(team) {
     var pin = String($("pin").value || "").replace(/\D/g, "").slice(0, 6);
+    var name = readName();
     $("joinErr").textContent = "";
     if (pin.length !== 6) {
       $("joinErr").textContent = "Enter the 6-digit PIN from the board.";
+      return;
+    }
+    if (!name) {
+      $("joinErr").textContent = "Enter your name so the teacher can see who buzzes.";
+      if ($("displayName")) $("displayName").focus();
       return;
     }
     if (!window.supabase) {
@@ -301,17 +340,23 @@ body.team-amber .buzzer{
     $("btnBlue").disabled = true;
     $("btnAmber").disabled = true;
     var token = getOrCreateToken(pin);
-    rpc("qb_join_session", { p_pin: pin, p_team: team, p_token: token })
+    rpc("qb_join_session", { p_pin: pin, p_team: team, p_token: token, p_name: name })
       .then(function (data) {
         state.pin = pin;
         state.token = token;
         state.team = (data && data.team) || team;
+        state.name = (data && data.name) || name;
+        saveName(state.name);
         showBuzzView();
         applyState(data);
         startPolling();
       })
       .catch(function (err) {
-        $("joinErr").textContent = (err && err.message) ? err.message : "Could not join. Check the PIN.";
+        var msg = (err && err.message) ? err.message : "Could not join. Check the PIN.";
+        if (/qb_join_session|schema cache|p_name/i.test(msg)) {
+          msg = "Named buzzers are not enabled on the server yet. Ask the teacher to update Quiz Busters.";
+        }
+        $("joinErr").textContent = msg;
       })
       .then(function () {
         $("btnBlue").disabled = false;
@@ -329,7 +374,9 @@ body.team-amber .buzzer{
         applyState({
           status: data.status,
           buzz_team: data.buzz_team,
-          you_won: data.won
+          buzz_player_name: data.buzz_player_name,
+          you_won: data.won,
+          you_buzzed: data.you_buzzed
         });
       })
       .catch(function (err) {
@@ -344,7 +391,12 @@ body.team-amber .buzzer{
   $("btnBlue").addEventListener("click", function () { join("blue"); });
   $("btnAmber").addEventListener("click", function () { join("amber"); });
   $("pin").addEventListener("keydown", function (e) {
-    if (e.key === "Enter") join("blue");
+    if (e.key === "Enter" && $("displayName")) $("displayName").focus();
+  });
+  $("displayName").addEventListener("keydown", function (e) {
+    if (e.key !== "Enter") return;
+    var hinted = document.querySelector(".team-btn.is-hint");
+    join(hinted && hinted.getAttribute("data-team") === "amber" ? "amber" : "blue");
   });
   $("buzzer").addEventListener("pointerdown", function (e) {
     e.preventDefault();
@@ -355,10 +407,14 @@ body.team-amber .buzzer{
     var q = new URLSearchParams(location.search);
     var pin = String(q.get("c") || q.get("pin") || "").replace(/\D/g, "").slice(0, 6);
     var team = String(q.get("t") || q.get("team") || "").toLowerCase();
+    var saved = readSavedName();
     if (pin.length === 6) $("pin").value = pin;
-    if (pin.length === 6 && (team === "blue" || team === "amber")) {
-      join(team);
+    if (saved && $("displayName")) $("displayName").value = saved;
+    if (team === "blue" || team === "amber") {
+      var hintBtn = team === "amber" ? $("btnAmber") : $("btnBlue");
+      if (hintBtn) hintBtn.classList.add("is-hint");
     }
+    if (pin.length === 6 && $("displayName")) $("displayName").focus();
   } catch (e) {}
 })();
 </script>
