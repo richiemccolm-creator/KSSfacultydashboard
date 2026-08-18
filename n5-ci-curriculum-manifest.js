@@ -30,7 +30,7 @@
       lessons: [
         session(1, 'Course Induction + Self-Eval #1', 'ready'),
         session(2, 'Marketplace Activity — Exploring the Sectors', 'ready'),
-        session(3, 'Structure, Scale & Sectors Deep Dive', 'ready'),
+        session(3, 'Sectors Deep Dive + Card Sort', 'ready'),
         session(4, 'Legal Parameters, Health & Safety + Agencies', 'ready'),
         session(5, 'O1 Completion + Sector Confirmed + O2 Launch', 'ready'),
         session(6, 'Employment Opportunities + Freelance Issues', 'ready'),
