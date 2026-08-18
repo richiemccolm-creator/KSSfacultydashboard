@@ -26,7 +26,7 @@
     --text:        #1a2e4a;
 
     --cell-h:      3.2rem;
-    --label-w:     2.8rem;
+    --day-w:       4.4rem;
     --teacher-w:   6.5rem;
   }
 
@@ -241,8 +241,8 @@
   }
   .timetable-grid {
     display: grid;
-    min-width: 700px;
-    grid-template-columns: var(--label-w) var(--teacher-w) repeat(5, 1fr);
+    min-width: 760px;
+    grid-template-columns: var(--day-w) var(--teacher-w) repeat(7, minmax(5rem, 1fr));
   }
 
   .th {
@@ -259,12 +259,24 @@
   .th:first-child { border-radius: 10px 0 0 0; }
   .th:last-child  { border-radius: 0 10px 0 0; border-right: none; }
   .th.corner { background: var(--navy-mid); }
+  .th.corner.day-corner {
+    position: sticky;
+    left: 0;
+    z-index: 4;
+  }
+  .th.corner.teacher-corner {
+    position: sticky;
+    left: var(--day-w);
+    z-index: 4;
+  }
 
-  .period-label {
+  .day-label {
     background: var(--navy-mid);
     color: var(--white);
-    font-size: 0.82rem;
+    font-size: 0.72rem;
     font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
     text-align: center;
     display: flex;
     align-items: center;
@@ -274,6 +286,7 @@
     position: sticky;
     left: 0;
     z-index: 2;
+    padding: 0 0.25rem;
   }
 
   .teacher-label {
@@ -286,7 +299,7 @@
     font-size: 0.72rem;
     font-weight: 700;
     position: sticky;
-    left: var(--label-w);
+    left: var(--day-w);
     z-index: 1;
     background: var(--white);
     min-height: var(--cell-h);
@@ -308,7 +321,7 @@
     justify-content: center;
     padding: 0.25rem;
   }
-  .cell:last-child { border-right: none; }
+  .cell.period-end { border-right: none; }
   .cell.na   { background: #eaeff5; }
   .cell.free { background: var(--white); }
 
@@ -317,7 +330,7 @@
     padding: 0.28rem 0.5rem;
     text-align: center;
     width: 100%;
-    max-width: 110px;
+    max-width: none;
     cursor: default;
     transition: transform 0.12s, box-shadow 0.12s;
   }
@@ -351,7 +364,7 @@
   .class-chip.special .cls-name { color: #888888; }
   .class-chip.special .cls-room { display: none; }
 
-  .period-sep {
+  .day-sep {
     grid-column: 1 / -1;
     height: 3px;
     background: var(--border);
@@ -446,33 +459,33 @@
   body.embedded .controls { padding-top: 1.15rem; }
 
   @media (max-width: 1024px) {
-    :root { --teacher-w: 5.8rem; --label-w: 2.55rem; --cell-h: 2.9rem; }
+    :root { --teacher-w: 5.8rem; --day-w: 4.1rem; --cell-h: 2.9rem; }
     .banner-inner,
     .controls,
     .cover-notice,
     .timetable-section { padding-left: 1.1rem; padding-right: 1.1rem; }
-    .timetable-grid { min-width: 640px; }
+    .timetable-grid { min-width: 720px; }
     .key-row { gap: 0.45rem; }
     .key-card { font-size: 0.72rem; padding: 0.4rem 0.62rem; }
-    .class-chip { max-width: 96px; padding: 0.25rem 0.42rem; }
+    .class-chip { padding: 0.25rem 0.42rem; }
     .class-chip .cls-name { font-size: 0.74rem; }
     .class-chip .cls-room { font-size: 0.58rem; }
   }
 
   @media (max-width: 820px) {
-    :root { --teacher-w: 5.2rem; --label-w: 2.35rem; --cell-h: 2.75rem; }
-    .timetable-grid { min-width: 600px; }
+    :root { --teacher-w: 5.2rem; --day-w: 3.8rem; --cell-h: 2.75rem; }
+    .timetable-grid { min-width: 680px; }
     .th { font-size: 0.66rem; padding: 0.62rem 0.35rem; }
     .teacher-label { font-size: 0.68rem; }
-    .period-label { font-size: 0.72rem; }
+    .day-label { font-size: 0.66rem; }
   }
 
   @media (max-width: 600px) {
     .banner-inner { padding: 1rem; }
     .controls, .timetable-section { padding-left: 1rem; padding-right: 1rem; }
     .cover-notice { padding: 0 1rem; }
-    :root { --teacher-w: 5rem; --label-w: 2.2rem; --cell-h: 2.65rem; }
-    .timetable-grid { min-width: 560px; }
+    :root { --teacher-w: 5rem; --day-w: 3.6rem; --cell-h: 2.65rem; }
+    .timetable-grid { min-width: 640px; }
   }
 </style>
 </head>
@@ -602,6 +615,7 @@ const isEmbedded = new URLSearchParams(window.location.search).get('embed') === 
 if (isEmbedded) document.body.classList.add('embedded');
 
 const DAYS       = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
+const DAY_SHORT  = { Monday:'Mon', Tuesday:'Tue', Wednesday:'Wed', Thursday:'Thu', Friday:'Fri' };
 const DAY_PERIODS = { Monday:7, Tuesday:7, Wednesday:7, Thursday:6, Friday:6 };
 const MAX_P      = 7;
 const SPECIAL    = new Set(
@@ -729,20 +743,24 @@ function buildGrid(containerId, staff) {
 
   const subject = containerId.replace('-grid', '');
 
-  container.append(el('div','th corner'), el('div','th corner'));
-  DAYS.forEach(day => {
-    const th = el('div','th');
-    th.textContent = day;
-    container.append(th);
-  });
-
+  const dayCorner = el('div','th corner day-corner');
+  const teacherCorner = el('div','th corner teacher-corner');
+  container.append(dayCorner, teacherCorner);
   for (let p = 1; p <= MAX_P; p++) {
-    if (p > 1) container.append(el('div','period-sep'));
+    const th = el('div', p === MAX_P ? 'th period-end' : 'th');
+    th.textContent = `P${p}`;
+    container.append(th);
+  }
 
-    const pLabel = el('div','period-label');
-    pLabel.textContent = `P${p}`;
-    pLabel.style.gridRow = `span ${staff.length}`;
-    container.append(pLabel);
+  DAYS.forEach((day, dayIdx) => {
+    if (dayIdx > 0) container.append(el('div','day-sep'));
+
+    const dLabel = el('div','day-label');
+    dLabel.textContent = DAY_SHORT[day];
+    dLabel.setAttribute('aria-label', day);
+    dLabel.title = day;
+    dLabel.style.gridRow = `span ${staff.length}`;
+    container.append(dLabel);
 
     staff.forEach(s => {
       const tLabel = el('div','teacher-label');
@@ -755,10 +773,10 @@ function buildGrid(containerId, staff) {
       tLabel.append(dot, tName);
       container.append(tLabel);
 
-      DAYS.forEach(day => {
-        const nP   = DAY_PERIODS[day];
+      const nP = DAY_PERIODS[day];
+      for (let p = 1; p <= MAX_P; p++) {
         const cls  = p <= nP ? (s.tt[day]?.[p] || null) : null;
-        const cell = el('div','cell');
+        const cell = el('div', p === MAX_P ? 'cell period-end' : 'cell');
 
         if (p > nP) {
           cell.classList.add('na');
@@ -788,9 +806,9 @@ function buildGrid(containerId, staff) {
           cell.classList.add('free');
         }
         container.append(cell);
-      });
+      }
     });
-  }
+  });
 }
 
 const FILTER_STATE = { subject: 'all', teacher: 'all' };
