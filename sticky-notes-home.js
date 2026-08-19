@@ -57,6 +57,12 @@
     );
   }
 
+  function fitTextarea(ta) {
+    if (!ta) return;
+    ta.style.height = 'auto';
+    ta.style.height = Math.max(80, ta.scrollHeight) + 'px';
+  }
+
   function bindNote(card) {
     var id = card.getAttribute('data-note-id');
     if (!id || !window.StickyNotesService) return;
@@ -72,7 +78,11 @@
     }
 
     if (textarea) {
-      textarea.addEventListener('input', scheduleSave);
+      fitTextarea(textarea);
+      textarea.addEventListener('input', function() {
+        fitTextarea(textarea);
+        scheduleSave();
+      });
       textarea.addEventListener('blur', function() {
         if (saveTimer) clearTimeout(saveTimer);
         StickyNotesService.setText(id, textarea.value).catch(function() {});
@@ -154,7 +164,7 @@
       '<div class="home-sticky-board-head home-sticky-board-head--collapsed">' +
         '<div>' +
           '<div class="home-sticky-title">Sticky notes</div>' +
-          '<div class="home-sticky-sub">' + esc(countLabel) + ' — tap Show when you are alone</div>' +
+          '<div class="home-sticky-sub">' + esc(countLabel) + '. Tap Show when you are alone</div>' +
         '</div>' +
         '<button type="button" class="home-sticky-show" aria-expanded="false" title="Show sticky notes">' +
           '<i class="ti ti-eye" aria-hidden="true"></i> Show' +
@@ -169,7 +179,7 @@
       '<div class="home-sticky-board-head">' +
         '<div>' +
           '<div class="home-sticky-title">Sticky notes</div>' +
-          '<div class="home-sticky-sub">Private reminders — hide these if someone is nearby</div>' +
+          '<div class="home-sticky-sub">Private reminders. Hide these if someone is nearby</div>' +
         '</div>' +
         '<div class="home-sticky-head-actions">' +
           '<button type="button" class="home-sticky-hide" aria-expanded="true" title="Hide sticky notes from view">' +
