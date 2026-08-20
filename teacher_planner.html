@@ -966,7 +966,7 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
   .pulse-right{text-align:left}
 }
 </style>
-<link rel="stylesheet" href="teacher-planner-redesign.css?v=premium-strip-1">
+<link rel="stylesheet" href="teacher-planner-redesign.css?v=homework-polish-2">
 </head>
 <body>
 <script>
@@ -1004,6 +1004,7 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
   <div class="tabs-inner">
     <button type="button" class="tab-btn planner-tab active" data-tab="today">Today</button>
     <button type="button" class="tab-btn planner-tab" data-tab="week">Week</button>
+    <button type="button" class="tab-btn planner-tab" data-tab="homework">Homework</button>
     <button type="button" class="tab-btn planner-tab" data-tab="timetable">Timetable</button>
     <button type="button" class="tab-btn planner-tab" data-tab="bank">Library</button>
     <button type="button" class="tab-btn planner-tab" data-tab="schemes">Schemes of Work</button>
@@ -1031,6 +1032,12 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
     </span>
     <span>Week</span>
+  </button>
+  <button type="button" class="planner-dock-btn" data-tab="homework">
+    <span class="planner-dock-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h8"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg>
+    </span>
+    <span>Homework</span>
   </button>
   <button type="button" class="planner-dock-btn" data-tab="bank">
     <span class="planner-dock-icon" aria-hidden="true">
@@ -1139,6 +1146,13 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
   <!-- Preserved IDs for legacy callers -->
   <div id="weekGridWrap" class="planner-scroll-region" hidden aria-hidden="true"></div>
   <aside id="weekSidebarRoot" class="week-sidebar-root" hidden aria-hidden="true" aria-label="Week sidebar"></aside>
+</div>
+
+<!-- Homework overview -->
+<div id="panel-homework" class="planner-panel panel">
+  <div id="homeworkDashboardRoot" class="homework-page">
+    <div class="rd-empty">Loading homework…</div>
+  </div>
 </div>
 
 <!-- Day view panel (kept for notes IDs; Today now hosts day browsing) -->
@@ -1853,6 +1867,27 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
         <input type="hidden" id="lessonSlidesTitle" value="">
         <input type="hidden" id="lessonSlidesIsHub" value="">
       </section>
+      <section class="lesson-modal-panel lesson-homework-panel is-compact" id="lessonHomeworkPanel">
+        <div class="lesson-modal-panel-head">
+          <h3 class="lesson-modal-panel-title">Homework</h3>
+        </div>
+        <div class="form-group lesson-homework-task-group">
+          <label class="form-label" for="lessonHomeworkTask">Task</label>
+          <textarea id="lessonHomeworkTask" class="form-input lesson-homework-task" rows="2" placeholder="What should pupils do?"></textarea>
+        </div>
+        <div class="lesson-homework-row">
+          <div class="form-group">
+            <label class="form-label" for="lessonHomeworkDue">Due</label>
+            <input type="date" id="lessonHomeworkDue" class="form-input">
+          </div>
+          <button type="button" class="btn-add-resource lesson-modal-chip-btn is-ghost" id="lessonHomeworkNextLesson">Next lesson with this class</button>
+        </div>
+        <label class="lesson-homework-collected">
+          <input type="checkbox" id="lessonHomeworkCollected">
+          Collected
+        </label>
+        <input type="hidden" id="lessonHomeworkNotes" value="">
+      </section>
       <details class="lesson-modal-extras lesson-modal-panel">
         <summary>To-do &amp; resources <span>(optional)</span></summary>
         <div class="lesson-modal-extras-body">
@@ -2027,6 +2062,100 @@ function escHtml(s) {
 
 function escAttr(s) {
   return escHtml(s).replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function parseYmdParts(dateStr) {
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(dateStr || ''));
+  if (!m) return null;
+  return new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10));
+}
+
+function formatHomeworkDueLabel(dateStr, opts) {
+  opts = opts || {};
+  var d = parseYmdParts(dateStr);
+  if (!d) return '';
+  var todayStr = opts.todayStr || getDateStr(new Date());
+  if (!opts.skipRelative) {
+    if (dateStr === todayStr) return 'Due today';
+    var yest = new Date();
+    yest.setDate(yest.getDate() - 1);
+    if (dateStr === getDateStr(yest)) return 'Due yesterday';
+  }
+  return 'Due ' + d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+}
+
+function homeworkChipTone(hw, todayStr) {
+  if (!hw) return '';
+  if (hw.collected) return 'is-collected';
+  var due = hw.dueDate || '';
+  if (due && due < todayStr) return 'is-overdue';
+  if (due === todayStr) return 'is-due-today';
+  return 'is-due';
+}
+
+function todayHomeworkChipHtml(hw) {
+  if (!hw || (!hw.task && !hw.dueDate)) return '';
+  var todayStr = getDateStr(new Date());
+  var tone = homeworkChipTone(hw, todayStr);
+  var label = hw.collected
+    ? 'Collected'
+    : (formatHomeworkDueLabel(hw.dueDate, { todayStr: todayStr }) || 'Homework set');
+  return '<span class="today-hw-chip ' + tone + '">' + escHtml(label) + '</span>';
+}
+
+function weekHomeworkMarkHtml(hw) {
+  if (!hw || (!hw.task && !hw.dueDate)) return '';
+  var todayStr = getDateStr(new Date());
+  var tone = homeworkChipTone(hw, todayStr);
+  var title = hw.collected
+    ? 'Homework collected'
+    : (formatHomeworkDueLabel(hw.dueDate, { todayStr: todayStr }) || 'Homework set');
+  if (hw.task) title += ': ' + hw.task;
+  return '<span class="week-hw-mark ' + tone + '" title="' + escAttr(title) + '">HW</span>';
+}
+
+function fillHomeworkModal(hw) {
+  hw = hw || {};
+  var task = document.getElementById('lessonHomeworkTask');
+  var due = document.getElementById('lessonHomeworkDue');
+  var collected = document.getElementById('lessonHomeworkCollected');
+  var notes = document.getElementById('lessonHomeworkNotes');
+  if (task) task.value = hw.task || '';
+  if (due) due.value = hw.dueDate || '';
+  if (collected) collected.checked = !!hw.collected;
+  if (notes) notes.value = hw.notes || '';
+}
+
+function collectHomeworkFromModal() {
+  var taskEl = document.getElementById('lessonHomeworkTask');
+  if (!taskEl) return null;
+  var raw = {
+    task: taskEl.value || '',
+    dueDate: (document.getElementById('lessonHomeworkDue') || {}).value || '',
+    collected: !!(document.getElementById('lessonHomeworkCollected') && document.getElementById('lessonHomeworkCollected').checked),
+    notes: (document.getElementById('lessonHomeworkNotes') || {}).value || ''
+  };
+  return PS.normalizeHomework ? PS.normalizeHomework(raw) : raw;
+}
+
+function classNameForLessonSlot(dateStr, slotKey) {
+  var sk = parseSlotKeyParts(slotKey);
+  var slot = sk ? PS.getSlot(sk.day, sk.period) : null;
+  return (slot && slot.className) ? String(slot.className).trim() : '';
+}
+
+function setHomeworkDueToNextLesson() {
+  var dateStr = (document.getElementById('lessonDate') || {}).value || '';
+  var slotKey = (document.getElementById('lessonSlotKey') || {}).value || '';
+  var className = classNameForLessonSlot(dateStr, slotKey);
+  var next = PS.nextLessonDateForClass ? PS.nextLessonDateForClass(className, dateStr) : '';
+  var due = document.getElementById('lessonHomeworkDue');
+  if (due && next) {
+    due.value = next;
+    showToast('Due date set to the next lesson with this class');
+  } else {
+    showToast('No later lesson with this class on the timetable');
+  }
 }
 
 /** Decode once so titles stored as e.g. &amp; don’t double-escape; repair stray &; from bad imports */
@@ -2370,6 +2499,14 @@ function buildCompletedLessonDocxBody(payload) {
       var mark = t.done ? '✓ ' : '○ ';
       body += plannerDocxPara(mark + (t.text || ''), { spaceAfter: 72 });
     });
+    body += plannerDocxPara('', { spaceAfter: 120 });
+  }
+  var hw = payload.homework || null;
+  if (hw && (hw.task || hw.dueDate)) {
+    body += plannerDocxPara('Homework:', { bold: true, spaceAfter: 40 });
+    if (hw.task) body += plannerDocxParasFromText(hw.task, { spaceAfter: 40 });
+    if (hw.dueDate) body += plannerDocxPara('Due: ' + formatHomeworkDueLabel(hw.dueDate, { skipRelative: true }), { spaceAfter: 40 });
+    if (hw.collected) body += plannerDocxPara('Collected', { spaceAfter: 40 });
     body += plannerDocxPara('', { spaceAfter: 120 });
   }
   if (payload.body && String(payload.body).trim()) {
@@ -3126,6 +3263,7 @@ function switchPlannerTab(tabName, opts) {
   activatePlannerPanel(tabName);
   if (tabName === 'today') renderTodayDashboard();
   if (tabName === 'week') renderWeekView();
+  if (tabName === 'homework') renderHomeworkDashboard();
   if (tabName === 'timetable') {
     renderTimetableDisplay();
   }
@@ -3487,7 +3625,8 @@ function buildTodayDashboardModel() {
       title: lesson ? (lesson.title || 'Untitled') : 'No lesson plan yet',
       unit: unit,
       status: st,
-      slides: slidesAtt
+      slides: slidesAtt,
+      homework: lesson && PS.normalizeHomework ? PS.normalizeHomework(lesson.homework) : (lesson && lesson.homework) || null
     };
   });
 
@@ -3535,6 +3674,30 @@ function buildTodayDashboardModel() {
       title: assessments.length + ' assessment' + (assessments.length === 1 ? '' : 's') + ' this week',
       detail: 'Review deadlines in Events'
     });
+  }
+  var hwDueOnView = PS.listHomework
+    ? PS.listHomework({ dueFrom: dateStr, dueTo: dateStr, uncollectedOnly: true })
+    : [];
+  if (hwDueOnView.length) {
+    attention.push({
+      kind: 'warn',
+      title: hwDueOnView.length + ' homework' + (hwDueOnView.length === 1 ? '' : ' items') + ' due ' + (isToday ? 'today' : 'this day'),
+      detail: hwDueOnView[0].className || 'Open Homework to review',
+      dateStr: hwDueOnView[0].date,
+      slotKey: hwDueOnView[0].slotKey
+    });
+  }
+  if (isToday && PS.listHomework) {
+    var hwOverdueToday = PS.listHomework({ overdueOnly: true });
+    if (hwOverdueToday.length) {
+      attention.push({
+        kind: 'warn',
+        title: hwOverdueToday.length + ' homework overdue',
+        detail: 'Collect or update due dates',
+        dateStr: hwOverdueToday[0].date,
+        slotKey: hwOverdueToday[0].slotKey
+      });
+    }
   }
   weekEvents.filter(function(e) {
     return String(e.category || '').toLowerCase() === 'meeting';
@@ -3700,6 +3863,7 @@ function createTodayDashboardMarkup(model) {
               '</div>' +
               '<strong class="today-lesson-title">' + escHtml(r.title) + '</strong>' +
               (r.unit ? '<span class="today-lesson-unit">' + escHtml(r.unit) + '</span>' : '') +
+              todayHomeworkChipHtml(r.homework) +
             '</div>' +
           '</button>' +
           '<div class="today-lesson-side">' +
@@ -4640,6 +4804,7 @@ function buildWeekDashboardModel() {
         title: lesson ? (lesson.title || 'Untitled') : 'Needs planning',
         status: st,
         isToday: dateStr === todayStr,
+        homework: lesson && PS.normalizeHomework ? PS.normalizeHomework(lesson.homework) : (lesson && lesson.homework) || null,
         slides: window.LessonSlidesCatalog
           ? window.LessonSlidesCatalog.getAttachmentFromLesson(lesson)
           : (lesson && lesson.slidesFile ? {
@@ -4670,7 +4835,35 @@ function buildWeekDashboardModel() {
     };
   }).sort(function(a, b) { return a.rank - b.rank; });
 
-  var priorities = needsPriorities.concat(eventPriorities).slice(0, 4);
+  var hwDueThisWeek = PS.listHomework
+    ? PS.listHomework({ dueFrom: weekStartStr, dueTo: weekEndStr, uncollectedOnly: true })
+    : [];
+  var hwOverdueWeek = PS.listHomework ? PS.listHomework({ overdueOnly: true }) : [];
+  var hwPriorities = [];
+  if (hwOverdueWeek.length) {
+    hwPriorities.push({
+      kind: 'warn',
+      rank: 0,
+      title: hwOverdueWeek.length + ' homework overdue',
+      detail: hwOverdueWeek[0].className || 'Review in Homework',
+      dateStr: hwOverdueWeek[0].date,
+      slotKey: hwOverdueWeek[0].slotKey,
+      className: hwOverdueWeek[0].className
+    });
+  }
+  if (hwDueThisWeek.length) {
+    hwPriorities.push({
+      kind: 'info',
+      rank: 1,
+      title: hwDueThisWeek.length + ' homework due this week',
+      detail: hwDueThisWeek[0].className || 'Open Homework',
+      dateStr: hwDueThisWeek[0].date,
+      slotKey: hwDueThisWeek[0].slotKey,
+      className: hwDueThisWeek[0].className
+    });
+  }
+
+  var priorities = hwPriorities.concat(needsPriorities, eventPriorities).slice(0, 4);
 
   var planPct = stats.teaching ? Math.round((stats.planned / stats.teaching) * 100) : 0;
   var note = PS.getWeekNote ? PS.getWeekNote(weekStartStr) : '';
@@ -4691,6 +4884,7 @@ function buildWeekDashboardModel() {
     teaching: stats.teaching,
     planned: stats.planned,
     assessmentsDue: assessments.length,
+    homeworkDue: hwDueThisWeek.length,
     statusCounts: statusCounts,
     planPct: planPct,
     weekDays: weekDays.map(function(d, i) {
@@ -4716,7 +4910,8 @@ function createWeekDashboardMarkup(model) {
   var summary =
     model.teaching + ' teaching periods · ' +
     model.planned + ' lessons planned · ' +
-    model.assessmentsDue + ' assessment' + (model.assessmentsDue === 1 ? '' : 's') + ' due';
+    model.assessmentsDue + ' assessment' + (model.assessmentsDue === 1 ? '' : 's') + ' due · ' +
+    (model.homeworkDue || 0) + ' homework due';
 
   var panelSummary = model.planned + ' of ' + model.teaching + ' lessons planned this week';
 
@@ -4756,6 +4951,7 @@ function createWeekDashboardMarkup(model) {
       var slidesBtn = (c.slides && c.slides.slidesFile)
         ? '<button type="button" class="week-slides-btn" data-slides-file="' + escAttr(c.slides.slidesFile) + '" data-slides-title="' + escAttr(c.slides.slidesTitle || '') + '" data-slides-hub="' + (c.slides.slidesIsHub ? '1' : '') + '" title="Open lesson slides">Slides</button>'
         : '';
+      var hwMark = weekHomeworkMarkHtml(c.homework);
       grid +=
         '<div class="week-lesson-cell is-' + c.status + ' subj-' + escHtml(c.subject || 'other') + ' has-class-fill' + (c.isToday ? ' is-today-col' : '') + (hide ? ' is-filtered-out' : '') + '" style="' + fillStyle.style + '">' +
           '<button type="button" class="week-lesson-open" data-date="' + c.dateStr + '" data-slot="' + c.slotKey + '" data-plan="' + c.status + '" data-class="' + escAttr(c.className) + '" data-grid-day="' + c.dayIndex + '" data-grid-period="' + c.period + '">' +
@@ -4765,6 +4961,7 @@ function createWeekDashboardMarkup(model) {
               '<span class="week-status is-' + c.status + '">' + escHtml(statusLabel(c.status)) + '</span>' +
             '</div>' +
           '</button>' +
+          hwMark +
           slidesBtn +
         '</div>';
     });
@@ -5160,6 +5357,492 @@ function renderWeekView() {
     console.error('Week dashboard failed', err);
     renderWeekDashboard();
   });
+}
+
+var homeworkListFilter = 'all';
+var homeworkClassFilter = '';
+var homeworkSetFormOpen = false;
+var homeworkSetJustOpened = false;
+var homeworkSetDraft = {
+  className: '',
+  setDate: '',
+  slotKey: '',
+  task: '',
+  dueDate: ''
+};
+
+function homeworkWeekBounds() {
+  if (!PS.getCurrentWeekStart || !PS.getCurrentWeekStart()) {
+    PS.setCurrentWeekStart(PS.getWeekStart(new Date()));
+  }
+  var start = PS.getCurrentWeekStart();
+  var end = new Date(start);
+  end.setDate(end.getDate() + 6);
+  return { start: start, startStr: getDateStr(start), endStr: getDateStr(end) };
+}
+
+function shiftHomeworkWeek(days) {
+  var start = (PS.getCurrentWeekStart && PS.getCurrentWeekStart()) || PS.getWeekStart(new Date());
+  start = new Date(start);
+  start.setDate(start.getDate() + days);
+  PS.setCurrentWeekStart(start);
+  if (typeof syncDayAndMonthFromWeekStart === 'function') syncDayAndMonthFromWeekStart(start);
+  renderHomeworkDashboard();
+}
+
+function captureHomeworkSetDraft(root) {
+  if (!root) return;
+  var cls = root.querySelector('#hwSetClass');
+  var date = root.querySelector('#hwSetDate');
+  var slot = root.querySelector('#hwSetPeriod');
+  var task = root.querySelector('#hwSetTask');
+  var due = root.querySelector('#hwSetDue');
+  if (cls) homeworkSetDraft.className = cls.value || '';
+  if (date) homeworkSetDraft.setDate = date.value || '';
+  if (slot) homeworkSetDraft.slotKey = slot.value || '';
+  if (task) homeworkSetDraft.task = task.value || '';
+  if (due) homeworkSetDraft.dueDate = due.value || '';
+}
+
+function populateHomeworkSetPeriods(root) {
+  var dateEl = root.querySelector('#hwSetDate');
+  var classEl = root.querySelector('#hwSetClass');
+  var periodEl = root.querySelector('#hwSetPeriod');
+  if (!periodEl) return;
+  var dateStr = dateEl ? dateEl.value : '';
+  var className = classEl ? classEl.value : '';
+  var slots = (PS.getSlotsForClassOnDate && className && dateStr)
+    ? PS.getSlotsForClassOnDate(className, dateStr)
+    : [];
+  var prev = periodEl.value || homeworkSetDraft.slotKey;
+  if (!className || !dateStr) {
+    periodEl.innerHTML = '<option value="">Choose class and date</option>';
+    periodEl.disabled = true;
+    return;
+  }
+  if (!slots.length) {
+    periodEl.innerHTML = '<option value="">No period with this class</option>';
+    periodEl.disabled = true;
+    return;
+  }
+  periodEl.disabled = false;
+  periodEl.innerHTML = slots.map(function(s) {
+    var sk = PS.slotKey(s.day, s.period);
+    return '<option value="' + escAttr(sk) + '">P' + s.period + '</option>';
+  }).join('');
+  var match = slots.some(function(s) { return PS.slotKey(s.day, s.period) === prev; });
+  periodEl.value = match ? prev : PS.slotKey(slots[0].day, slots[0].period);
+}
+
+function homeworkRowHtml(row, todayStr) {
+  var hw = row.homework || {};
+  var fillStyle = classFillStyleAttrs(row.className || 'Class', null);
+  var tone = homeworkChipTone(hw, todayStr);
+  var dueLabel = hw.collected
+    ? 'Collected'
+    : (formatHomeworkDueLabel(hw.dueDate, { todayStr: todayStr }) || 'No due date');
+  var period = row.period ? ('P' + row.period) : '';
+  var setDateObj = parseYmdParts(row.date);
+  var setLabel = setDateObj
+    ? setDateObj.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+    : '';
+  var collected = !!hw.collected;
+  return (
+    '<article class="homework-item has-class-fill ' + tone + '" style="' + fillStyle.style + '">' +
+      '<button type="button" class="homework-item-open" data-date="' + escAttr(row.date) + '" data-slot="' + escAttr(row.slotKey) + '">' +
+        '<span class="homework-item-class">' + escHtml(row.className || 'Class') + '</span>' +
+        '<strong class="homework-item-task">' + escHtml(hw.task || row.title || 'Homework') + '</strong>' +
+        '<span class="homework-item-meta">' +
+          escHtml(dueLabel) +
+          (period ? ' · set ' + period : '') +
+          (setLabel ? ' ' + escHtml(setLabel) : '') +
+        '</span>' +
+      '</button>' +
+      '<label class="homework-item-collect">' +
+        '<input type="checkbox" class="homework-collect-input"' +
+          (collected ? ' checked' : '') +
+          ' data-date="' + escAttr(row.date) + '" data-slot="' + escAttr(row.slotKey) + '"' +
+          ' aria-label="Mark collected for ' + escAttr(row.className || 'this class') + '">' +
+        '<span>Collected</span>' +
+      '</label>' +
+    '</article>'
+  );
+}
+
+function homeworkGroupHtml(title, rows, todayStr, emptyText) {
+  if (!rows.length) {
+    return (
+      '<section class="today-panel homework-group">' +
+        '<header class="today-panel-header"><h2>' + escHtml(title) + '</h2></header>' +
+        '<p class="today-empty">' + escHtml(emptyText) + '</p>' +
+      '</section>'
+    );
+  }
+  return (
+    '<section class="today-panel homework-group">' +
+      '<header class="today-panel-header"><h2>' + escHtml(title) + '</h2>' +
+        '<p class="today-panel-summary">' + rows.length + '</p></header>' +
+      '<div class="homework-list">' + rows.map(function(r) { return homeworkRowHtml(r, todayStr); }).join('') + '</div>' +
+    '</section>'
+  );
+}
+
+function homeworkSetFormHtml(classes, todayStr) {
+  var classOpts = ['<option value="">Select class</option>'].concat(classes.map(function(c) {
+    return '<option value="' + escAttr(c) + '"' + (homeworkSetDraft.className === c ? ' selected' : '') + '>' + escHtml(c) + '</option>';
+  }));
+  var setDate = homeworkSetDraft.setDate || todayStr;
+  var dueDate = homeworkSetDraft.dueDate || '';
+  return (
+    '<section class="today-panel homework-set-panel" id="homeworkSetPanel">' +
+      '<header class="today-panel-header"><h2>Set homework</h2></header>' +
+      '<p class="homework-set-error" id="hwSetError" hidden role="alert"></p>' +
+      '<div class="homework-set-grid">' +
+        '<div class="form-group"><label class="form-label" for="hwSetClass">Class</label>' +
+          '<select id="hwSetClass" class="form-select">' + classOpts.join('') + '</select></div>' +
+        '<div class="form-group"><label class="form-label" for="hwSetDate">Set on</label>' +
+          '<input type="date" id="hwSetDate" class="form-input" value="' + escAttr(setDate) + '"></div>' +
+        '<div class="form-group"><label class="form-label" for="hwSetPeriod">Period</label>' +
+          '<select id="hwSetPeriod" class="form-select"><option value="">Choose class and date</option></select></div>' +
+        '<div class="form-group homework-set-due">' +
+          '<label class="form-label" for="hwSetDue">Due</label>' +
+          '<div class="homework-set-due-row">' +
+            '<input type="date" id="hwSetDue" class="form-input" value="' + escAttr(dueDate) + '">' +
+            '<button type="button" class="today-action today-action-secondary" id="hwSetNextLesson">Next lesson with this class</button>' +
+          '</div>' +
+        '</div>' +
+        '<div class="form-group homework-set-task"><label class="form-label" for="hwSetTask">Task</label>' +
+          '<textarea id="hwSetTask" class="form-input" rows="2" placeholder="What should pupils do?">' + escHtml(homeworkSetDraft.task) + '</textarea></div>' +
+      '</div>' +
+      '<div class="homework-set-actions">' +
+        '<button type="button" class="today-action today-action-secondary" id="hwSetCancel">Cancel</button>' +
+        '<button type="button" class="today-action today-action-primary" id="hwSetSave">Save homework</button>' +
+      '</div>' +
+    '</section>'
+  );
+}
+
+function buildHomeworkDashboardModel() {
+  var bounds = homeworkWeekBounds();
+  var todayStr = getDateStr(new Date());
+  var classes = PS.getTimetableClassNames ? PS.getTimetableClassNames() : [];
+  var className = homeworkClassFilter;
+  var dueToday = PS.listHomework ? PS.listHomework({ dueTodayOnly: true, uncollectedOnly: true, className: className, todayStr: todayStr }) : [];
+  var dueWeek = PS.listHomework ? PS.listHomework({ dueFrom: bounds.startStr, dueTo: bounds.endStr, uncollectedOnly: true, className: className, todayStr: todayStr }) : [];
+  var overdue = PS.listHomework ? PS.listHomework({ overdueOnly: true, className: className, todayStr: todayStr }) : [];
+  var setWeek = PS.listHomework ? PS.listHomework({ setFrom: bounds.startStr, setTo: bounds.endStr, className: className, todayStr: todayStr }) : [];
+  var headingRange = bounds.start.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) +
+    ' – ' + (function() {
+      var fri = new Date(bounds.start);
+      fri.setDate(fri.getDate() + 4);
+      return fri.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+    })();
+  var emptyTimetable = !((PS.getState().timetable && PS.getState().timetable.slots) || []).length;
+  var thisWeekStartStr = getDateStr(PS.getWeekStart(new Date()));
+  return {
+    todayStr: todayStr,
+    weekStart: bounds.start,
+    weekStartStr: bounds.startStr,
+    headingRange: headingRange,
+    classes: classes,
+    dueToday: dueToday,
+    dueWeek: dueWeek,
+    overdue: overdue,
+    setWeek: setWeek,
+    emptyTimetable: emptyTimetable,
+    isThisWeek: bounds.startStr === thisWeekStartStr,
+    dueTodayCount: dueToday.length,
+    dueWeekCount: dueWeek.length,
+    overdueCount: overdue.length
+  };
+}
+
+function createHomeworkDashboardMarkup(model) {
+  var summaryBits = [];
+  summaryBits.push(model.dueWeekCount + ' due this week');
+  if (model.overdueCount) summaryBits.push(model.overdueCount + ' overdue');
+  else summaryBits.push('none overdue');
+  var filter = homeworkListFilter;
+  var chip = function(id, value, label) {
+    var on = filter === id;
+    return '<button type="button" class="today-status-chip' + (on ? ' is-active' : '') + '" data-hw-filter="' + id + '" aria-pressed="' + (on ? 'true' : 'false') + '">' +
+      '<span class="today-status-chip-value">' + value + '</span>' +
+      '<span class="today-status-chip-label">' + label + '</span></button>';
+  };
+  var classOpts = ['<option value="">All classes</option>'].concat(model.classes.map(function(c) {
+    return '<option value="' + escAttr(c) + '"' + (homeworkClassFilter === c ? ' selected' : '') + '>' + escHtml(c) + '</option>';
+  }));
+
+  var lists = '';
+  if (model.emptyTimetable) {
+    lists = plannerEmptyCallout({
+      title: 'Your timetable is empty',
+      body: 'Add classes on Timetable so homework can sit on a period.',
+      actions: [
+        { action: 'import', label: 'Import faculty timetable', primary: true },
+        { action: 'timetable', label: 'Open Timetable' }
+      ]
+    });
+  } else if (filter === 'today') {
+    lists = homeworkGroupHtml('Due today', model.dueToday, model.todayStr, 'Nothing due today.');
+  } else if (filter === 'overdue') {
+    lists = homeworkGroupHtml('Overdue', model.overdue, model.todayStr, 'Nothing overdue.');
+  } else if (filter === 'week') {
+    lists = homeworkGroupHtml('Due this week', model.dueWeek, model.todayStr, 'No homework due this week. Set one from a lesson, or use Set homework.');
+  } else if (filter === 'set') {
+    lists = homeworkGroupHtml('Set this week', model.setWeek, model.todayStr, 'No homework set from this week\'s lessons.');
+  } else {
+    var anyHw = model.dueToday.length || model.overdue.length || model.dueWeek.length || model.setWeek.length;
+    if (!anyHw) {
+      lists = plannerEmptyCallout({
+        title: 'No homework due this week',
+        body: 'Set one from a lesson, or use Set homework.'
+      });
+    } else {
+      if (model.dueToday.length) lists += homeworkGroupHtml('Due today', model.dueToday, model.todayStr, 'Nothing due today.');
+      if (model.overdue.length) lists += homeworkGroupHtml('Overdue', model.overdue, model.todayStr, 'Nothing overdue.');
+      var dueWeekRest = model.dueWeek.filter(function(r) { return !r.dueToday; });
+      if (dueWeekRest.length) lists += homeworkGroupHtml('Due this week', dueWeekRest, model.todayStr, 'No homework due this week.');
+      if (model.setWeek.length) lists += homeworkGroupHtml('Set this week', model.setWeek, model.todayStr, '');
+    }
+  }
+
+  return (
+    '<header class="today-strip">' +
+      '<div class="today-strip-copy">' +
+        '<div class="today-date-nav">' +
+          '<button type="button" class="today-nav-btn" id="hwPrevWeek" aria-label="Previous week">&#9664;</button>' +
+          '<button type="button" class="today-nav-today" id="hwJumpThisWeek"' + (model.isThisWeek ? ' hidden' : '') + '>This week</button>' +
+          '<button type="button" class="today-nav-btn" id="hwNextWeek" aria-label="Next week">&#9654;</button>' +
+        '</div>' +
+        '<h1 class="today-heading">Homework</h1>' +
+        '<p class="today-summary">' + escHtml(model.headingRange) + ' · ' + summaryBits.join(' · ') + '</p>' +
+      '</div>' +
+      '<div class="today-strip-actions">' +
+        (homeworkSetFormOpen
+          ? ''
+          : '<button type="button" class="today-action today-action-primary" id="hwOpenSet">Set homework</button>') +
+        '<button type="button" class="today-action today-action-secondary" id="hwViewWeek">View week</button>' +
+      '</div>' +
+    '</header>' +
+    '<div class="homework-toolbar">' +
+      '<div class="homework-status-row">' +
+        chip('today', model.dueTodayCount, 'Due today') +
+        chip('week', model.dueWeekCount, 'Due this week') +
+        chip('overdue', model.overdueCount, 'Overdue') +
+      '</div>' +
+      '<label class="homework-class-filter"><span>Class</span>' +
+        '<select id="hwClassFilter" class="form-select">' + classOpts.join('') + '</select></label>' +
+    '</div>' +
+    (homeworkSetFormOpen ? homeworkSetFormHtml(model.classes, model.todayStr) : '') +
+    '<div class="homework-groups">' + lists + '</div>'
+  );
+}
+
+function showHomeworkSetError(root, msg) {
+  var el = root && root.querySelector('#hwSetError');
+  if (!el) return;
+  if (!msg) {
+    el.hidden = true;
+    el.textContent = '';
+    return;
+  }
+  el.hidden = false;
+  el.textContent = msg;
+}
+
+function bindHomeworkDashboardEvents(root, model) {
+  if (!root) return;
+  var prev = root.querySelector('#hwPrevWeek');
+  var next = root.querySelector('#hwNextWeek');
+  var jump = root.querySelector('#hwJumpThisWeek');
+  if (prev) prev.addEventListener('click', function() { shiftHomeworkWeek(-7); });
+  if (next) next.addEventListener('click', function() { shiftHomeworkWeek(7); });
+  if (jump) jump.addEventListener('click', function() {
+    var today = snapToWeekday(new Date());
+    PS.setCurrentWeekStart(PS.getWeekStart(today));
+    renderHomeworkDashboard();
+  });
+  var viewWeek = root.querySelector('#hwViewWeek');
+  if (viewWeek) viewWeek.addEventListener('click', function() { switchPlannerTab('week'); });
+  var openSet = root.querySelector('#hwOpenSet');
+  if (openSet) openSet.addEventListener('click', function() {
+    homeworkSetFormOpen = true;
+    homeworkSetJustOpened = true;
+    if (!homeworkSetDraft.setDate) homeworkSetDraft.setDate = getDateStr(snapToWeekday(new Date()));
+    renderHomeworkDashboard();
+  });
+  root.querySelectorAll('[data-hw-filter]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var nextFilter = btn.getAttribute('data-hw-filter');
+      homeworkListFilter = (homeworkListFilter === nextFilter) ? 'all' : nextFilter;
+      renderHomeworkDashboard();
+    });
+  });
+  var classFilter = root.querySelector('#hwClassFilter');
+  if (classFilter) {
+    classFilter.addEventListener('change', function() {
+      homeworkClassFilter = classFilter.value || '';
+      renderHomeworkDashboard();
+    });
+  }
+  root.querySelectorAll('.homework-item-open').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      openLessonModal(btn.getAttribute('data-date'), btn.getAttribute('data-slot'));
+    });
+  });
+  root.querySelectorAll('.homework-item-collect').forEach(function(label) {
+    label.addEventListener('click', function(ev) { ev.stopPropagation(); });
+  });
+  root.querySelectorAll('.homework-collect-input').forEach(function(input) {
+    input.addEventListener('click', function(ev) { ev.stopPropagation(); });
+    input.addEventListener('change', function(ev) {
+      ev.stopPropagation();
+      var dateStr = input.getAttribute('data-date');
+      var slotKey = input.getAttribute('data-slot');
+      var current = (PS.getHomeworkFor && PS.getHomeworkFor(dateStr, slotKey)) || {};
+      var collected = !!input.checked;
+      input.disabled = true;
+      PS.setHomeworkFor(dateStr, slotKey, {
+        task: current.task || '',
+        dueDate: current.dueDate || '',
+        notes: current.notes || '',
+        collected: collected
+      });
+      PS.saveLessons().then(function() {
+        showToast(collected ? 'Marked collected' : 'Marked not collected');
+        renderHomeworkDashboard();
+        if (document.getElementById('panel-today') && document.getElementById('panel-today').classList.contains('active')) renderTodayDashboard();
+      }).catch(function() {
+        input.disabled = false;
+        input.checked = !collected;
+        showToast('Could not update collected. Try again.');
+      });
+    });
+  });
+  root.querySelectorAll('[data-empty-action]').forEach(function(btn) {
+    btn.addEventListener('click', function() { runPlannerEmptyAction(btn.getAttribute('data-empty-action')); });
+  });
+
+  if (homeworkSetFormOpen) {
+    populateHomeworkSetPeriods(root);
+    ['#hwSetClass', '#hwSetDate'].forEach(function(sel) {
+      var el = root.querySelector(sel);
+      if (!el) return;
+      el.addEventListener('change', function() {
+        showHomeworkSetError(root, '');
+        captureHomeworkSetDraft(root);
+        populateHomeworkSetPeriods(root);
+        captureHomeworkSetDraft(root);
+      });
+    });
+    ['#hwSetPeriod', '#hwSetTask', '#hwSetDue'].forEach(function(sel) {
+      var el = root.querySelector(sel);
+      if (!el) return;
+      el.addEventListener('change', function() {
+        showHomeworkSetError(root, '');
+        captureHomeworkSetDraft(root);
+      });
+      if (el.tagName === 'TEXTAREA') el.addEventListener('input', function() {
+        showHomeworkSetError(root, '');
+        captureHomeworkSetDraft(root);
+      });
+    });
+    var nextLesson = root.querySelector('#hwSetNextLesson');
+    if (nextLesson) {
+      nextLesson.addEventListener('click', function() {
+        captureHomeworkSetDraft(root);
+        var nextDate = PS.nextLessonDateForClass
+          ? PS.nextLessonDateForClass(homeworkSetDraft.className, homeworkSetDraft.setDate || model.todayStr)
+          : '';
+        var due = root.querySelector('#hwSetDue');
+        if (due && nextDate) {
+          due.value = nextDate;
+          homeworkSetDraft.dueDate = nextDate;
+          showHomeworkSetError(root, '');
+          showToast('Due date set to the next lesson with this class');
+        } else {
+          showHomeworkSetError(root, 'No later lesson with this class on the timetable. Pick a due date, or add the class on Timetable.');
+        }
+      });
+    }
+    var cancel = root.querySelector('#hwSetCancel');
+    if (cancel) {
+      cancel.addEventListener('click', function() {
+        if (cancel.disabled) return;
+        homeworkSetFormOpen = false;
+        homeworkSetJustOpened = false;
+        renderHomeworkDashboard();
+      });
+    }
+    var save = root.querySelector('#hwSetSave');
+    if (save) {
+      save.addEventListener('click', function() {
+        if (save.disabled) return;
+        captureHomeworkSetDraft(root);
+        var err = '';
+        if (!homeworkSetDraft.className) err = 'Choose a class.';
+        else if (!homeworkSetDraft.setDate) err = 'Choose the date you set it.';
+        else if (!homeworkSetDraft.slotKey) err = 'Choose a period.';
+        else if (!String(homeworkSetDraft.task || '').trim() && !homeworkSetDraft.dueDate) {
+          err = 'Add a task or a due date.';
+        }
+        if (err) {
+          showHomeworkSetError(root, err);
+          return;
+        }
+        showHomeworkSetError(root, '');
+        var controls = root.querySelectorAll('#hwSetClass, #hwSetDate, #hwSetPeriod, #hwSetTask, #hwSetDue, #hwSetCancel, #hwSetNextLesson');
+        save.disabled = true;
+        save.setAttribute('aria-busy', 'true');
+        save.textContent = 'Saving…';
+        controls.forEach(function(el) { el.disabled = true; });
+        PS.setHomeworkFor(homeworkSetDraft.setDate, homeworkSetDraft.slotKey, {
+          task: homeworkSetDraft.task,
+          dueDate: homeworkSetDraft.dueDate,
+          collected: false,
+          notes: ''
+        });
+        PS.saveLessons().then(function() {
+          homeworkSetFormOpen = false;
+          homeworkSetJustOpened = false;
+          homeworkSetDraft = { className: homeworkSetDraft.className, setDate: '', slotKey: '', task: '', dueDate: '' };
+          showToast('Homework saved');
+          renderHomeworkDashboard();
+          if (document.getElementById('panel-today') && document.getElementById('panel-today').classList.contains('active')) renderTodayDashboard();
+        }).catch(function() {
+          save.disabled = false;
+          save.removeAttribute('aria-busy');
+          save.textContent = 'Save homework';
+          controls.forEach(function(el) { el.disabled = false; });
+          populateHomeworkSetPeriods(root);
+          showHomeworkSetError(root, 'Could not save. Try again.');
+        });
+      });
+    }
+    if (homeworkSetJustOpened) {
+      homeworkSetJustOpened = false;
+      var panel = root.querySelector('#homeworkSetPanel');
+      var classSel = root.querySelector('#hwSetClass');
+      var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (panel && panel.scrollIntoView) {
+        panel.scrollIntoView({ block: 'nearest', behavior: reduceMotion ? 'auto' : 'smooth' });
+      }
+      if (classSel) classSel.focus();
+    }
+  }
+}
+
+function renderHomeworkDashboard() {
+  var root = document.getElementById('homeworkDashboardRoot');
+  if (!root) return;
+  if (plannerFieldIsFocused(root) && homeworkSetFormOpen) {
+    captureHomeworkSetDraft(root);
+  }
+  var model = buildHomeworkDashboardModel();
+  root.classList.add('homework-page');
+  root.innerHTML = createHomeworkDashboardMarkup(model);
+  bindHomeworkDashboardEvents(root, model);
 }
 
 var applyToTimetableTemplateId = null;
@@ -6981,6 +7664,9 @@ function openLessonModal(dateStr, slotKey) {
   setLessonYearGroupField(ygInit);
   renderResourcesList(lesson ? (lesson.resources || []) : []);
   renderTodosList(lesson ? (lesson.todos || []) : []);
+  fillHomeworkModal(lesson && lesson.homework);
+  var hwPanel = document.getElementById('lessonHomeworkPanel');
+  if (hwPanel) hwPanel.hidden = false;
   var slidesAtt = window.LessonSlidesCatalog
     ? window.LessonSlidesCatalog.getAttachmentFromLesson(lesson)
     : (lesson && lesson.slidesFile ? {
@@ -7031,6 +7717,9 @@ function openLessonModalForLibrary(templateId) {
   setLessonYearGroupField(ygLib);
   renderResourcesList(template ? (template.resources || []) : []);
   renderTodosList(template ? (template.todos || []) : []);
+  fillHomeworkModal(null);
+  var hwPanelLib = document.getElementById('lessonHomeworkPanel');
+  if (hwPanelLib) hwPanelLib.hidden = true;
   var slidesAtt = window.LessonSlidesCatalog
     ? window.LessonSlidesCatalog.getAttachmentFromLesson(template)
     : (template && template.slidesFile ? {
@@ -7286,6 +7975,7 @@ function collectLessonPayloadFromModal(overrides) {
     slidesFile: slidesAtt ? (slidesAtt.slidesFile || '') : '',
     slidesTitle: slidesAtt ? (slidesAtt.slidesTitle || '') : '',
     slidesIsHub: slidesAtt ? !!slidesAtt.slidesIsHub : false,
+    homework: collectHomeworkFromModal(),
     updatedAt: new Date().toISOString()
   }, overrides);
 }
@@ -7368,6 +8058,7 @@ document.getElementById('lessonSave').addEventListener('click', function() {
     delete template.date;
     delete template.slotKey;
     delete template.updatedAt;
+    delete template.homework;
     if (templateId !== 'new') template.id = templateId;
     PS.saveTemplate(template).then(function() {
       document.getElementById('lessonModal').classList.remove('visible');
@@ -7381,12 +8072,22 @@ document.getElementById('lessonSave').addEventListener('click', function() {
   PS.upsertLesson(payload, PS.getEditingLessonId());
   PS.saveLessons().then(function() {
     document.getElementById('lessonModal').classList.remove('visible');
-    renderWeekView();
-    if (document.getElementById('panel-today') && document.getElementById('panel-today').classList.contains('active')) renderTodayDashboard();
-    if (document.getElementById('panel-day').classList.contains('active')) renderDayView();
-    if (document.getElementById('panel-month').classList.contains('active')) renderMonthView();
+    refreshPlannerAfterLessonChange();
   });
 });
+
+var lessonHomeworkNextBtn = document.getElementById('lessonHomeworkNextLesson');
+if (lessonHomeworkNextBtn) {
+  lessonHomeworkNextBtn.addEventListener('click', setHomeworkDueToNextLesson);
+}
+
+function refreshPlannerAfterLessonChange() {
+  renderWeekView();
+  if (document.getElementById('panel-today') && document.getElementById('panel-today').classList.contains('active')) renderTodayDashboard();
+  if (document.getElementById('panel-day') && document.getElementById('panel-day').classList.contains('active')) renderDayView();
+  if (document.getElementById('panel-month') && document.getElementById('panel-month').classList.contains('active')) renderMonthView();
+  if (document.getElementById('panel-homework') && document.getElementById('panel-homework').classList.contains('active')) renderHomeworkDashboard();
+}
 
 document.getElementById('lessonCancel').addEventListener('click', function() {
   closeLessonModal();
@@ -7418,10 +8119,7 @@ document.getElementById('lessonDelete').addEventListener('click', function() {
   PS.removeLesson(editingId);
   PS.saveLessons().then(function() {
     document.getElementById('lessonModal').classList.remove('visible');
-    renderWeekView();
-    if (document.getElementById('panel-today') && document.getElementById('panel-today').classList.contains('active')) renderTodayDashboard();
-    if (document.getElementById('panel-day').classList.contains('active')) renderDayView();
-    if (document.getElementById('panel-month').classList.contains('active')) renderMonthView();
+    refreshPlannerAfterLessonChange();
     showToast('Lesson deleted');
   });
 });
@@ -7457,9 +8155,7 @@ document.getElementById('doCopy').addEventListener('click', function() {
   PS.saveLessons().then(function() {
     document.getElementById('copyToForm').style.display = 'none';
     showToast('Lesson copied');
-    renderWeekView();
-    if (document.getElementById('panel-day').classList.contains('active')) renderDayView();
-    if (document.getElementById('panel-month').classList.contains('active')) renderMonthView();
+    refreshPlannerAfterLessonChange();
   });
 });
 

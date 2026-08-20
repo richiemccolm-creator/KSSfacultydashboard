@@ -102,6 +102,31 @@
     if (les.notes == null || !String(les.notes).trim()) {
       les.notes = les.activities || '';
     }
+    les.homework = normalizeHomework(les.homework);
+  }
+
+  function ymdValid(s) {
+    return /^\d{4}-\d{2}-\d{2}$/.test(String(s || ''));
+  }
+
+  function normalizeHomework(hw) {
+    if (!hw || typeof hw !== 'object') return null;
+    var task = String(hw.task || '').trim();
+    var dueDate = String(hw.dueDate || '').slice(0, 10);
+    if (!ymdValid(dueDate)) dueDate = '';
+    var notes = String(hw.notes || '').trim();
+    var collected = !!hw.collected;
+    if (!task && !dueDate && !notes && !collected) return null;
+    return { task: task, dueDate: dueDate, collected: collected, notes: notes };
+  }
+
+  function weekdayNameFromDateStr(dateStr) {
+    if (!ymdValid(dateStr)) return '';
+    var parts = String(dateStr).split('-');
+    var d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    var js = d.getDay();
+    if (js < 1 || js > 5) return '';
+    return DAYS[js - 1];
   }
 
   var SCHEME_UNIT_ACCENT_OK = {
@@ -148,6 +173,8 @@
           state.timetable.classColors = {};
         }
         state.lessons = res[1] && res[1].lessons ? res[1] : { lessons: [] };
+        if (!Array.isArray(state.lessons.lessons)) state.lessons.lessons = [];
+        state.lessons.lessons.forEach(normalizeLesson);
         state.weekNotes = res[2] && typeof res[2] === 'object' ? res[2] : {};
         state.daySlotNotes = res[3] && typeof res[3] === 'object' ? res[3] : {};
         state.dayNotes = res[4] && typeof res[4] === 'object' ? res[4] : {};
@@ -282,6 +309,136 @@
 
     getLessonsForDate: function(dateStr) {
       return (state.lessons.lessons || []).filter(function(l) { return l.date === dateStr; });
+    },
+
+    normalizeHomework: normalizeHomework,
+
+    getHomeworkFor: function(dateStr, slotKey) {
+      var les = this.getLessonFor(dateStr, slotKey);
+      return les ? normalizeHomework(les.homework) : null;
+    },
+
+    getTimetableClassNames: function() {
+      var seen = {};
+      var out = [];
+      (state.timetable.slots || []).forEach(function(s) {
+        var n = String(s.className || '').trim();
+        if (!n || seen[n.toLowerCase()]) return;
+        seen[n.toLowerCase()] = 1;
+        out.push(n);
+      });
+      out.sort(function(a, b) { return a.localeCompare(b, undefined, { sensitivity: 'base' }); });
+      return out;
+    },
+
+    getSlotsForClassOnDate: function(className, dateStr) {
+      var dayName = weekdayNameFromDateStr(dateStr);
+      var want = String(className || '').trim().toLowerCase();
+      if (!dayName || !want) return [];
+      return (state.timetable.slots || []).filter(function(s) {
+        return String(s.day || '').toLowerCase() === dayName &&
+          String(s.className || '').trim().toLowerCase() === want;
+      }).slice().sort(function(a, b) {
+        return (parseInt(a.period, 10) || 0) - (parseInt(b.period, 10) || 0);
+      });
+    },
+
+    nextLessonDateForClass: function(className, afterDate) {
+      var want = String(className || '').trim().toLowerCase();
+      if (!want) return '';
+      var after = ymdValid(afterDate) ? String(afterDate).slice(0, 10) : this.getDateStr(new Date());
+      var slots = (state.timetable.slots || []).filter(function(s) {
+        return String(s.className || '').trim().toLowerCase() === want;
+      });
+      if (!slots.length) return '';
+      var daySet = {};
+      slots.forEach(function(s) { daySet[String(s.day || '').toLowerCase()] = 1; });
+      var parts = after.split('-');
+      var d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+      for (var i = 0; i < 42; i++) {
+        d.setDate(d.getDate() + 1);
+        var js = d.getDay();
+        if (js < 1 || js > 5) continue;
+        var name = DAYS[js - 1];
+        if (daySet[name]) return this.getDateStr(d);
+      }
+      return '';
+    },
+
+    listHomework: function(filters) {
+      var self = this;
+      filters = filters || {};
+      var todayStr = ymdValid(filters.todayStr) ? filters.todayStr : this.getDateStr(new Date());
+      var classWant = String(filters.className || '').trim().toLowerCase();
+      var rows = [];
+      (state.lessons.lessons || []).forEach(function(l) {
+        var hw = normalizeHomework(l.homework);
+        if (!hw) return;
+        if (!hw.task && !hw.dueDate) return;
+        var sk = self.parseSlotKeyParts(l.slotKey);
+        var slot = sk ? self.getSlot(sk.day, sk.period) : null;
+        var className = (slot && slot.className) ? String(slot.className).trim() : '';
+        var subject = (l.subject && String(l.subject).trim()) || (slot && slot.subject) || '';
+        var setDate = (l.date || '').slice(0, 10);
+        var due = hw.dueDate || '';
+        var overdue = !hw.collected && !!due && due < todayStr;
+        var dueToday = !hw.collected && due === todayStr;
+        if (classWant && className.toLowerCase() !== classWant) return;
+        if (filters.dueFrom && (!due || due < filters.dueFrom)) return;
+        if (filters.dueTo && (!due || due > filters.dueTo)) return;
+        if (filters.setFrom && (!setDate || setDate < filters.setFrom)) return;
+        if (filters.setTo && (!setDate || setDate > filters.setTo)) return;
+        if (filters.overdueOnly && !overdue) return;
+        if (filters.dueTodayOnly && !dueToday) return;
+        if (filters.uncollectedOnly && hw.collected) return;
+        rows.push({
+          lessonId: l.id || null,
+          date: setDate,
+          slotKey: l.slotKey || '',
+          period: sk ? sk.period : null,
+          className: className,
+          subject: subject,
+          title: (l.title && String(l.title).trim()) || '',
+          homework: hw,
+          overdue: overdue,
+          dueToday: dueToday
+        });
+      });
+      rows.sort(function(a, b) {
+        var da = a.homework.dueDate || '9999-99-99';
+        var db = b.homework.dueDate || '9999-99-99';
+        if (da !== db) return da.localeCompare(db);
+        var cmp = (a.date || '').localeCompare(b.date || '');
+        if (cmp) return cmp;
+        return (a.period || 99) - (b.period || 99);
+      });
+      return rows;
+    },
+
+    setHomeworkFor: function(dateStr, slotKey, homework) {
+      var hw = normalizeHomework(homework);
+      var existing = this.getLessonFor(dateStr, slotKey);
+      if (existing) {
+        existing.homework = hw;
+        existing.updatedAt = new Date().toISOString();
+        normalizeLesson(existing);
+        return existing;
+      }
+      var sk = this.parseSlotKeyParts(slotKey);
+      var slot = sk ? this.getSlot(sk.day, sk.period) : null;
+      this.upsertLesson({
+        date: dateStr,
+        slotKey: slotKey,
+        subject: (slot && slot.subject) || '',
+        yearGroup: '',
+        unitKey: '',
+        title: '',
+        homework: hw,
+        updatedAt: new Date().toISOString()
+      }, null);
+      var created = this.getLessonFor(dateStr, slotKey);
+      if (created) normalizeLesson(created);
+      return created;
     },
 
     /** Match teacher_planner.html parseSlotKeyParts — day lowercased, period integer. */
@@ -425,7 +582,10 @@
       var existingIdx = lessons.findIndex(function(l) { return l.date === payload.date && l.slotKey === payload.slotKey; });
       var existing = existingIdx >= 0 ? lessons[existingIdx] : null;
       var todos = Array.isArray(payload.todos) ? payload.todos : (existing && existing.todos) ? existing.todos : [];
-      var normalized = Object.assign({}, payload, { todos: todos });
+      var homework = payload.homework !== undefined
+        ? normalizeHomework(payload.homework)
+        : (existing ? existing.homework : null);
+      var normalized = Object.assign({}, payload, { todos: todos, homework: homework });
       if (editingId) {
         var idx = lessons.findIndex(function(l) { return l.id === editingId; });
         if (idx >= 0) {
@@ -510,6 +670,9 @@
             clone.todos = clone.todos.map(function(t) {
               return { id: id(), text: (t && t.text) || '', done: false };
             });
+          }
+          if (clone.homework && typeof clone.homework === 'object') {
+            clone.homework = Object.assign({}, clone.homework, { collected: false });
           }
           self.upsertLesson(clone, dest ? dest.id : null);
           var saved = self.getLessonFor(toStr, sk);
