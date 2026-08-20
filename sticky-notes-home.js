@@ -127,6 +127,21 @@
     var showBtn = el.querySelector('.home-sticky-show');
     var addBtn = el.querySelector('.home-sticky-add');
 
+    function openNotes() {
+      setHidden(false);
+      window.StickyNotesHome.render({ force: true });
+    }
+
+    if (el.classList.contains('is-hidden')) {
+      el.onclick = function() { openNotes(); };
+      el.onkeydown = function(e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          openNotes();
+        }
+      };
+    }
+
     if (hideBtn) {
       hideBtn.onclick = function() {
         setHidden(true);
@@ -134,9 +149,9 @@
       };
     }
     if (showBtn) {
-      showBtn.onclick = function() {
-        setHidden(false);
-        window.StickyNotesHome.render({ force: true });
+      showBtn.onclick = function(e) {
+        e.stopPropagation();
+        openNotes();
       };
     }
     if (addBtn) {
@@ -158,16 +173,20 @@
   }
 
   function renderHiddenShell(el, noteCount) {
-    var countLabel = noteCount === 1 ? '1 note hidden' : noteCount + ' notes hidden';
+    var countLabel = noteCount === 1 ? '1 note' : noteCount + ' notes';
     el.classList.add('is-hidden');
+    el.setAttribute('role', 'button');
+    el.setAttribute('tabindex', '0');
+    el.setAttribute('aria-expanded', 'false');
+    el.setAttribute('aria-label', 'Sticky notes, ' + countLabel + '. Open when you are alone');
     el.innerHTML =
       '<div class="home-sticky-board-head home-sticky-board-head--collapsed">' +
         '<div>' +
           '<div class="home-sticky-title">Sticky notes</div>' +
-          '<div class="home-sticky-sub">' + esc(countLabel) + '. Tap Show when you are alone</div>' +
+          '<div class="home-sticky-sub">' + esc(countLabel) + '. Open when you are alone</div>' +
         '</div>' +
-        '<button type="button" class="home-sticky-show" aria-expanded="false" title="Show sticky notes">' +
-          '<i class="ti ti-eye" aria-hidden="true"></i> Show' +
+        '<button type="button" class="home-sticky-show" aria-expanded="false" title="Open sticky notes" tabindex="-1">' +
+          'Open <i class="ti ti-chevron-down" aria-hidden="true"></i>' +
         '</button>' +
       '</div>';
     bindChrome(el);
@@ -175,6 +194,12 @@
 
   function renderVisibleShell(el) {
     el.classList.remove('is-hidden');
+    el.removeAttribute('role');
+    el.removeAttribute('tabindex');
+    el.removeAttribute('aria-expanded');
+    el.removeAttribute('aria-label');
+    el.onclick = null;
+    el.onkeydown = null;
     el.innerHTML =
       '<div class="home-sticky-board-head">' +
         '<div>' +
