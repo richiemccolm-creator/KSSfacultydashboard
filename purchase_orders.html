@@ -453,8 +453,9 @@ body.is-admin span.admin-only.inline{display:inline}
           <select id="editorYear" class="form-input" disabled></select>
         </div>
         <div>
-          <label class="form-label">Subject</label>
-          <select id="editorSubject" class="form-input" disabled>
+          <label class="form-label" for="editorSubject">Subject</label>
+          <select id="editorSubject" class="form-input">
+            <option value="">Select subject…</option>
             <option value="drama">Drama</option>
             <option value="art_design">Art &amp; Design</option>
             <option value="photography">Photography</option>
@@ -852,32 +853,55 @@ body.is-admin span.admin-only.inline{display:inline}
     $('editorTotal').textContent = 'Estimated total: ' + formatMoney(t);
   }
 
-  function openEditorNew() {
-    var y = getSelectedYear();
-    var sub = $('editorSubject').value;
-    PurchaseOrderService.createDraft(y, sub, '').then(function(id) {
-      $('editorRequestId').value = id;
-      $('editorTitle').textContent = 'New purchase request';
-      $('editorYear').value = y;
-      $('editorSubject').value = sub;
-      $('editorYear').disabled = true;
-      $('editorSubject').disabled = true;
-      $('editorNotes').value = '';
-      $('editorBudgetVoteFieldset').disabled = false;
-      document.querySelectorAll('#editorModal input[name="editorBudgetVote"]').forEach(function(inp) { inp.checked = false; });
-      $('editorBudgetVoteOther').value = '';
-      $('linesEditor').innerHTML = '';
-      addLineRow();
-      recalcEditorTotal();
-      $('submitReqBtn').style.display = 'inline-flex';
-      $('saveDraftBtn').style.display = 'inline-flex';
+  function selectedEditorSubject() {
+    return String($('editorSubject').value || '').trim();
+  }
+
+  function requireEditorSubject() {
+    var sub = selectedEditorSubject();
+    if (!sub || !SUBJECTS[sub]) {
+      toast('Select a subject for this purchase.');
+      $('editorSubject').focus();
+      return '';
+    }
+    return sub;
+  }
+
+  function ensureDraft() {
+    var id = $('editorRequestId').value;
+    if (id) return Promise.resolve(id);
+    var sub = requireEditorSubject();
+    if (!sub) return Promise.reject(new Error('Select a subject for this purchase.'));
+    return PurchaseOrderService.createDraft(getSelectedYear(), sub, $('editorNotes').value).then(function(newId) {
+      $('editorRequestId').value = newId;
       $('deleteDraftBtn').style.display = 'inline-flex';
-      $('addLineBtn').style.display = 'inline-flex';
-      $('linesEditor').querySelectorAll('input').forEach(function(inp) { inp.disabled = false; });
-      $('editorNotes').disabled = false;
-      $('editorModal').classList.add('visible');
-      syncBudgetVoteOtherInput();
-    }).catch(function(e) { toast(e.message || 'Could not create draft'); });
+      return newId;
+    });
+  }
+
+  function openEditorNew() {
+    $('editorRequestId').value = '';
+    $('editorTitle').textContent = 'New purchase request';
+    $('editorYear').value = getSelectedYear();
+    $('editorYear').disabled = true;
+    $('editorSubject').value = '';
+    $('editorSubject').disabled = false;
+    $('editorNotes').value = '';
+    $('editorBudgetVoteFieldset').disabled = false;
+    document.querySelectorAll('#editorModal input[name="editorBudgetVote"]').forEach(function(inp) { inp.checked = false; });
+    $('editorBudgetVoteOther').value = '';
+    $('linesEditor').innerHTML = '';
+    addLineRow();
+    recalcEditorTotal();
+    $('submitReqBtn').style.display = 'inline-flex';
+    $('saveDraftBtn').style.display = 'inline-flex';
+    $('deleteDraftBtn').style.display = 'none';
+    $('addLineBtn').style.display = 'inline-flex';
+    $('linesEditor').querySelectorAll('input').forEach(function(inp) { inp.disabled = false; });
+    $('editorNotes').disabled = false;
+    $('editorModal').classList.add('visible');
+    syncBudgetVoteOtherInput();
+    $('editorSubject').focus();
   }
 
   function openRequest(id) {
@@ -888,7 +912,7 @@ body.is-admin span.admin-only.inline{display:inline}
       $('editorYear').value = req.academic_year;
       $('editorSubject').value = req.subject_code;
       $('editorYear').disabled = true;
-      $('editorSubject').disabled = true;
+      $('editorSubject').disabled = req.status !== 'draft';
       $('editorNotes').value = req.notes || '';
       var draft = req.status === 'draft';
       $('editorBudgetVoteFieldset').disabled = !draft;
@@ -923,20 +947,22 @@ body.is-admin span.admin-only.inline{display:inline}
   }
 
   function saveDraftFromEditor() {
-    var id = $('editorRequestId').value;
-    if (!id) return;
+    var sub = requireEditorSubject();
+    if (!sub) return;
     var lines = readLinesFromEditor();
     var bv = readBudgetVoteFromEditor();
-    PurchaseOrderService.replaceLines(id, lines).then(function() {
-      return PurchaseOrderService.updateDraftMeta(id, $('editorNotes').value, bv.vote, bv.other);
+    ensureDraft().then(function(id) {
+      return PurchaseOrderService.replaceLines(id, lines).then(function() {
+        return PurchaseOrderService.updateDraftMeta(id, $('editorNotes').value, bv.vote, bv.other, sub);
+      });
     }).then(function() {
       toast('Draft saved.');
     }).catch(function(e) { toast(e.message || 'Save failed'); });
   }
 
   function submitFromEditor() {
-    var id = $('editorRequestId').value;
-    if (!id) return;
+    var sub = requireEditorSubject();
+    if (!sub) return;
     var bv = readBudgetVoteFromEditor();
     if (!bv.vote) {
       toast('Select what you are ordering (budget line).');
@@ -951,10 +977,12 @@ body.is-admin span.admin-only.inline{display:inline}
       toast('Add at least one line item with a description or code.');
       return;
     }
-    PurchaseOrderService.replaceLines(id, lines).then(function() {
-      return PurchaseOrderService.updateDraftMeta(id, $('editorNotes').value, bv.vote, bv.other);
-    }).then(function() {
-      return PurchaseOrderService.submitRequest(id);
+    ensureDraft().then(function(id) {
+      return PurchaseOrderService.replaceLines(id, lines).then(function() {
+        return PurchaseOrderService.updateDraftMeta(id, $('editorNotes').value, bv.vote, bv.other, sub);
+      }).then(function() {
+        return PurchaseOrderService.submitRequest(id);
+      });
     }).then(function() {
       toast('Submitted for approval.');
       closeEditor();

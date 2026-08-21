@@ -148,20 +148,24 @@
     /**
      * @param {string} budgetVote - one of EXPENDITURE_VOTE_* keys or empty
      * @param {string} [budgetVoteOther] - required text when vote is `other`
+     * @param {string} [subjectCode] - drama | art_design | photography
      */
-    updateDraftMeta: function(id, notes, budgetVote, budgetVoteOther) {
+    updateDraftMeta: function(id, notes, budgetVote, budgetVoteOther, subjectCode) {
       return requireSession().then(function() {
         var vote = (budgetVote && String(budgetVote).trim()) ? String(budgetVote).trim() : null;
         var other = null;
         if (vote === 'other') {
           other = (budgetVoteOther && String(budgetVoteOther).trim()) ? String(budgetVoteOther).trim() : null;
         }
+        var patch = {
+          notes: (notes && String(notes).trim()) ? String(notes).trim() : null,
+          budget_vote: vote,
+          budget_vote_other: other
+        };
+        var sub = (subjectCode && String(subjectCode).trim()) ? String(subjectCode).trim() : '';
+        if (sub) patch.subject_code = sub;
         return window.supabase.from('purchase_requests')
-          .update({
-            notes: (notes && String(notes).trim()) ? String(notes).trim() : null,
-            budget_vote: vote,
-            budget_vote_other: other
-          })
+          .update(patch)
           .eq('id', id)
           .eq('status', 'draft')
           .select();
