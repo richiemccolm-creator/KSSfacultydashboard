@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
-<title>Procurement — Faculty Hub</title>
+<title>Procurement | Faculty Hub</title>
 <link rel="icon" type="image/png" href="faculty-hub-logo.png">
 <script src="config.js"></script>
 <script src="embed-chrome.js"></script>
@@ -20,91 +20,325 @@
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--navy:#1e2d4a;--navy-dark:#16243c;--accent-drama:#4a7fd4;--accent-ad:#c0622a;--accent-photo:#8b5cf6;--white:#fff;--bg:#f0f2f5;--card:#fff;--border:#e2e8f0;--text:#1a202c;--text2:#4a5568;--text3:#718096}
 html{scroll-behavior:smooth}
-body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;-webkit-font-smoothing:antialiased;font-weight:400}
+body{font-family:var(--font-body);background:var(--navy-050);color:var(--ink-900);min-height:100vh;font-size:0.9375rem;-webkit-font-smoothing:antialiased;font-weight:400;caret-color:var(--navy-700)}
 html{font-family:var(--font-body)}
 button,input,select,textarea,table,th,td{font:inherit}
 h1,h2{font-weight:700}
 h3,h4,h5,h6{font-weight:600}
 
-.dash-sidebar{width:220px;flex-shrink:0;background:var(--navy);position:fixed;top:0;left:0;bottom:0;overflow-y:auto;z-index:100;padding:1.25rem 0;display:flex;flex-direction:column}
-.dash-sidebar-brand{display:block;padding:0 1.25rem 1rem;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:.5rem;text-decoration:none}
-.dash-sidebar-logo{display:block;width:100%;max-width:160px;height:auto}
-.dash-sidebar-title{font-size:.92rem;font-weight:600;color:var(--white);padding:0 1.25rem 1rem;letter-spacing:.02em}
-.dash-sidebar-sub{font-size:.6rem;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.4);padding:0 1.25rem .5rem}
-.dash-nav-btn{display:block;width:100%;text-align:left;border:none;background:none;cursor:pointer;font-size:.8rem;font-weight:500;color:rgba(255,255,255,.7);padding:.55rem 1.25rem;border-left:3px solid transparent;transition:all .12s;line-height:1.3;text-decoration:none}
-.dash-nav-btn:hover{background:rgba(255,255,255,.08);color:var(--white)}
-.dash-nav-btn.active{background:rgba(255,255,255,.12);color:var(--white);border-left-color:var(--accent-drama);font-weight:600}
-.dash-signout{margin-top:auto;padding:1rem 0 1.5rem;border-top:1px solid rgba(255,255,255,.08)}
-.dash-main{margin-left:220px;min-height:100vh;display:flex;flex-direction:column}
-.content{padding:1.5rem 2rem;max-width:1100px;flex:1}
+::selection{background:var(--drama-100);color:var(--navy-900)}
+.content{padding:1.5rem;max-width:1120px;flex:1}
+.po-app{display:flex;flex-direction:column;gap:1.5rem}
+.po-app > .po-back{order:0}
+.po-app > .po-block-head{order:1}
+.po-app > .po-block-mine{order:2}
+.po-app > .po-block-budgets{order:3}
+.po-app > .po-block-pending{order:4}
+.po-app > .po-block-approved{order:5}
+.po-app > .po-block-setbudget{order:6}
+.po-app > .po-block-processed{order:7}
+.po-app > .po-block-name{order:8}
+body.is-admin .po-app > .po-block-pending{order:2}
+body.is-admin .po-app > .po-block-approved{order:3}
+body.is-admin .po-app > .po-block-budgets{order:4}
+body.is-admin .po-app > .po-block-mine{order:5}
+body.is-admin .po-app > .po-block-setbudget{order:6}
+body.is-admin .po-app > .po-block-processed{order:7}
+body.is-admin .po-app > .po-block-name{order:8}
 
-.hero{background:linear-gradient(135deg,var(--navy-dark),var(--navy));border-radius:10px;padding:2rem 2.5rem;margin-bottom:1.5rem;color:var(--white)}
-.hero-title{font-size:1.3rem;font-weight:700;margin-bottom:.4rem;letter-spacing:-.01em}
-.hero-sub{font-size:.82rem;opacity:.85;line-height:1.6}
+.po-back{display:inline-flex;align-items:center;font-size:.75rem;font-weight:500;color:var(--ink-500);text-decoration:none;border:0;background:none;padding:.25rem 0;min-height:44px;width:fit-content;border-radius:var(--r-sm)}
+.po-back:hover{color:var(--navy-700)}
+.po-back:focus-visible{outline:none;box-shadow:var(--sh-ring)}
 
-.sc{background:var(--card);border:1px solid var(--border);border-radius:8px;margin-bottom:1.2rem;overflow:hidden}
-.sc-header{padding:1rem 1.5rem;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem}
-.sc-title{font-size:.92rem;font-weight:600}
-.sc-sub{font-size:.72rem;color:var(--text3);margin-top:.2rem}
-.sc-body{padding:1.25rem 1.5rem}
+.po-pagehead{display:flex;align-items:center;justify-content:space-between;gap:1rem 1.5rem;flex-wrap:wrap}
+.po-pagehead h1{font-family:var(--font-heading);font-size:1.5rem;font-weight:700;letter-spacing:-.03em;color:var(--ink-900);line-height:1.15;margin:0}
+.po-lede{color:var(--ink-500);margin:.4rem 0 0;max-width:40rem;line-height:1.5}
+.po-pagehead-actions{display:flex;align-items:flex-end;gap:.5rem;flex-wrap:wrap}
+.po-year-field{display:flex;flex-direction:column;align-items:flex-start;gap:.2rem}
+.po-year-field .form-label{margin-bottom:0}
+.po-year-field .form-input{max-width:8.5rem}
 
-.btn{font-size:.78rem;font-weight:600;padding:.5rem 1rem;border-radius:6px;border:none;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:.4rem}
-.btn-primary{background:var(--navy);color:var(--white)}.btn-primary:hover{background:var(--navy-dark)}
-.btn-ghost{background:var(--bg);color:var(--text2);border:1px solid var(--border)}.btn-ghost:hover{border-color:var(--navy);color:var(--navy)}
-.btn-danger{background:#fee2e2;color:#991b1b;border:1px solid #fca5a5}
-.btn:disabled{opacity:.5;cursor:not-allowed}
-.form-input{font-size:.85rem;padding:.5rem .75rem;border:1px solid var(--border);border-radius:6px;width:100%;max-width:320px}
-.form-input:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 2px rgba(30,45,74,.15)}
-.form-label{font-size:.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:.35rem;display:block}
-.form-row{display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-end;margin-bottom:1rem}
+.po-section{background:var(--bg-elev);border:1px solid var(--navy-100);border-radius:var(--r-lg)}
+.po-section-head{padding:1rem 1.25rem .75rem}
+.po-section-head h2,.sc-title{font-family:var(--font-heading);font-size:1.2rem;font-weight:700;letter-spacing:-.02em;color:var(--ink-900);margin:0;line-height:1.25}
+.po-section-head p,.sc-sub{font-size:.75rem;color:var(--ink-500);margin:.3rem 0 0;line-height:1.45}
+.po-section-body,.sc-body{padding:0 1.25rem 1.25rem}
+.po-count{margin-left:.35rem;font-size:.75rem;font-weight:600;color:var(--ink-400);font-variant-numeric:tabular-nums}
 
-.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:1rem}
-.stat-card{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:1.1rem}
-.stat-card.drama{border-left:4px solid var(--accent-drama)}
-.stat-card.art{border-left:4px solid var(--accent-ad)}
-.stat-card.photo{border-left:4px solid var(--accent-photo)}
-.stat-name{font-size:.84rem;font-weight:600;margin-bottom:.75rem}
-.stat-row{display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:.35rem;color:var(--text2)}
-.stat-row strong{color:var(--text)}
-.stat-remain{font-size:1.1rem;font-weight:700;color:var(--navy);margin-top:.5rem;padding-top:.5rem;border-top:1px solid var(--border)}
-.progress-bar{height:8px;background:var(--border);border-radius:4px;overflow:hidden;margin-top:.5rem}
-.progress-fill{height:100%;background:var(--navy);border-radius:4px;min-width:2px}
+.po-settings{padding:0}
+.po-settings summary{cursor:pointer;font-size:.75rem;font-weight:500;color:var(--ink-500);padding:.4rem 0;width:fit-content;border-radius:var(--r-sm)}
+.po-settings summary:hover{color:var(--navy-700)}
+.po-settings summary:focus-visible{outline:none;box-shadow:var(--sh-ring)}
+.po-settings .po-settings-body{margin-top:.5rem;padding:1rem 1.25rem;background:var(--bg-elev);border:1px solid var(--navy-100);border-radius:var(--r-lg)}
+
+.btn{font:500 .9375rem/1.2 var(--font-body);padding:.5rem 1rem;border-radius:var(--r-md);border:1px solid transparent;cursor:pointer;transition:background var(--t-fast) var(--ease),color var(--t-fast) var(--ease),transform var(--t-fast) var(--ease),box-shadow var(--t-fast) var(--ease);display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:40px}
+.btn-primary:hover{background:var(--navy-600);box-shadow:var(--sh-sm);transform:translateY(-1px)}
+.btn:active{transform:scale(.98)}
+.btn:focus-visible{outline:none;box-shadow:var(--sh-ring)}
+.btn-primary{background:var(--navy-700);color:#fff}
+.btn-ghost{background:transparent;color:var(--ink-900)}.btn-ghost:hover{background:var(--navy-050);color:var(--navy-700)}
+.btn-danger{background:transparent;color:var(--danger-600)}.btn-danger:hover{background:var(--danger-100)}
+.btn-sm{padding:.4rem .7rem;min-height:36px}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none;box-shadow:none}
+
+.form-input{font:400 .9375rem/1.4 var(--font-body);padding:.55rem .7rem;border:1px solid var(--navy-100);border-radius:var(--r-sm);width:100%;max-width:320px;background:#fff;color:var(--ink-900);min-height:40px;transition:border-color var(--t-fast) var(--ease),box-shadow var(--t-fast) var(--ease)}
+.form-input::placeholder{color:var(--navy-400)}
+.form-input:hover:not(:disabled){border-color:var(--navy-200)}
+.form-input:focus{outline:none;border-color:var(--navy-200);box-shadow:var(--sh-ring)}
+.form-input:disabled{background:var(--navy-050);color:var(--ink-500);cursor:not-allowed}
+textarea.form-input{min-height:72px;line-height:1.45}
+.form-label{font-size:.75rem;font-weight:500;color:var(--ink-500);margin-bottom:.3rem;display:block}
+.form-row{display:flex;gap:.85rem;flex-wrap:wrap;align-items:flex-end;margin-bottom:.85rem}
+.form-row:last-child{margin-bottom:0}
+.modal .form-row>div{flex:1;min-width:10rem}
+
+.stats-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.stat-card{
+  background:var(--navy-700);
+  color:var(--navy-050);
+  border:1px solid var(--navy-800);
+  border-radius:14px;
+  padding:14px 16px 16px;
+  box-shadow:
+    inset 0 1px 0 rgba(244,246,251,.08),
+    0 8px 20px rgba(15,26,48,.14);
+}
+.stat-card ::selection{background:rgba(244,246,251,.22);color:#fff}
+.stat-name{
+  font-family:var(--font-heading);
+  font-size:1.05rem;
+  font-weight:600;
+  letter-spacing:-.02em;
+  margin:0 0 .7rem;
+  color:#fff;
+}
+.stat-row{display:flex;justify-content:space-between;gap:.75rem;font-size:.75rem;margin-bottom:.28rem;color:rgba(244,246,251,.72)}
+.stat-row strong{color:#fff;font-variant-numeric:tabular-nums;font-weight:600}
+.stat-remain{
+  font-family:var(--font-heading);
+  font-size:1.2rem;
+  font-weight:700;
+  color:#fff;
+  margin-top:.65rem;
+  padding-top:.65rem;
+  border-top:1px solid rgba(244,246,251,.12);
+  letter-spacing:-.02em;
+  font-variant-numeric:tabular-nums;
+}
+.stat-remain-label{
+  display:block;
+  margin-top:.12rem;
+  font-family:var(--font-ui);
+  font-size:.75rem;
+  font-weight:500;
+  letter-spacing:0;
+  color:rgba(244,246,251,.72);
+}
+.stat-unspent{
+  margin-top:.28rem;
+  font-size:.75rem;
+  font-weight:500;
+  color:rgba(244,246,251,.72);
+  font-variant-numeric:tabular-nums;
+}
+.stat-remain-state{
+  display:block;
+  margin-top:.2rem;
+  font-family:var(--font-ui);
+  font-size:.75rem;
+  font-weight:600;
+  letter-spacing:0;
+}
+.stat-card.is-over .stat-remain{color:#fecaca}
+.stat-card.is-over .stat-remain-label,.stat-card.is-over .stat-remain-state{color:rgba(254,202,202,.8)}
+.stat-card.is-tight .stat-remain{color:#fbbf24}
+.stat-card.is-tight .stat-remain-label,.stat-card.is-tight .stat-remain-state{color:rgba(251,191,36,.78)}
+.progress-bar{height:4px;background:rgba(244,246,251,.14);border-radius:var(--r-pill);overflow:hidden;margin-top:.7rem}
+.progress-fill{height:100%;background:rgba(244,246,251,.55);border-radius:var(--r-pill);min-width:2px;transition:width var(--t-slow) var(--ease)}
+.stat-card.drama .progress-fill{background:var(--drama-500)}
+.stat-card.art .progress-fill{background:var(--art-500)}
+.stat-card.photo .progress-fill{background:var(--photo-500)}
 
 .table-wrap{overflow-x:auto}
-table{width:100%;border-collapse:collapse;font-size:.8rem}
-th{text-align:left;padding:.5rem .75rem;font-weight:600;font-size:.65rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);border-bottom:1px solid var(--border);background:var(--bg)}
-td{padding:.55rem .75rem;border-bottom:1px solid var(--border)}
-tr:hover td{background:#f8fafc}
-.mono{font-family:ui-monospace,monospace}
+.po-app table,.modal table{width:100%;border-collapse:collapse}
+.po-app th,.modal th{text-align:left;padding:.5rem .65rem;font-weight:500;font-size:.75rem;color:var(--ink-500);border-bottom:1px solid var(--navy-100);background:transparent}
+.po-app td,.modal td{padding:.55rem .65rem;border-bottom:1px solid var(--navy-100);vertical-align:middle;color:var(--ink-700)}
+.po-app th:last-child,.po-app td:last-child{text-align:right}
+.po-app tbody tr[data-id]{cursor:pointer;transition:background var(--t-fast) var(--ease)}
+.po-app tbody tr[data-id]:focus-visible{outline:2px solid var(--drama-500);outline-offset:-2px}
+.po-app tbody tr[data-id]:hover td{background:var(--navy-050)}
+.po-app tbody tr:last-child td{border-bottom:0}
+.po-app .row-drama td:first-child{box-shadow:inset 3px 0 0 var(--drama-500)}
+.po-app .row-art td:first-child{box-shadow:inset 3px 0 0 var(--art-500)}
+.po-app .row-photo td:first-child{box-shadow:inset 3px 0 0 var(--photo-500)}
+.mono{font-family:var(--font-mono);font-size:.75rem;font-variant-numeric:tabular-nums}
+.po-actions{display:flex;gap:.25rem;flex-wrap:wrap;align-items:center;justify-content:flex-end}
+.po-num{font-variant-numeric:tabular-nums;font-weight:600;color:var(--ink-900);white-space:nowrap}
 
-.lines-editor .line-row{display:grid;grid-template-columns:100px 1fr 90px 70px 36px;gap:.5rem;align-items:center;margin-bottom:.5rem}
-@media(max-width:800px){.lines-editor .line-row{grid-template-columns:1fr}}
+.po-status{display:inline-flex;align-items:center;padding:.18rem .5rem;border-radius:var(--r-sm);font-size:.75rem;font-weight:600;line-height:1.3}
+.po-status.st-draft{background:var(--navy-050);color:var(--navy-600)}
+.po-status.st-submitted{background:var(--warning-100);color:var(--warning-600)}
+.po-status.st-approved{background:var(--drama-100);color:var(--drama-600)}
+.po-status.st-processed{background:var(--success-100);color:var(--success-600)}
+.po-status.st-rejected{background:var(--danger-100);color:var(--danger-600)}
 
-.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;display:none;align-items:center;justify-content:center;padding:1rem}
+.editor-status{margin:0 0 1.05rem;padding:.7rem .85rem;border:1px solid var(--navy-100);border-radius:var(--r-md);background:var(--navy-050)}
+.editor-status-row{display:flex;align-items:flex-start;gap:.65rem}
+.editor-status-copy{margin:.05rem 0 0;font-size:.875rem;line-height:1.45;color:var(--ink-700)}
+.editor-status-extra{margin:.55rem 0 0;padding-top:.55rem;border-top:1px solid var(--navy-100)}
+.editor-status-extra .review-k{margin-bottom:.15rem}
+.editor-status-extra .review-v{display:block}
+
+.po-admin-delete{margin-top:1.1rem;padding-top:.85rem;border-top:1px solid var(--navy-100)}
+.po-admin-delete-btn{
+  display:inline-flex;align-items:center;margin:0;padding:0;
+  border:0;background:none;cursor:pointer;
+  font:500 .75rem/1.4 var(--font-body);color:var(--ink-400);
+  min-height:44px;border-radius:var(--r-sm)
+}
+.po-admin-delete-btn:hover{color:var(--danger-600)}
+.po-admin-delete-btn:focus-visible{outline:none;box-shadow:var(--sh-ring)}
+
+.po-empty,.po-loading,.empty-s{text-align:left;padding:.25rem 0;color:var(--ink-500);line-height:1.5}
+.po-empty-title{color:var(--ink-900);font-weight:600;margin:0 0 .2rem}
+.po-empty-hint{margin:0;color:var(--ink-500);font-size:.75rem}
+.po-loading{color:var(--ink-400);font-size:.75rem}
+
+.budget-admin-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.75rem 1rem;margin-bottom:1rem}
+.budget-admin-grid .form-input{max-width:none}
+
+.line-head,.lines-editor .line-row{
+  display:grid;
+  grid-template-columns:5.5rem minmax(0,1fr) 4.5rem .7rem 3.35rem .7rem 4.6rem 2.25rem;
+  gap:.35rem;
+  align-items:center;
+}
+.line-head{margin-bottom:.35rem}
+.line-head span{font-size:.75rem;font-weight:500;color:var(--ink-500)}
+.line-head .line-op{color:var(--ink-400)}
+.lines-editor{display:flex;flex-direction:column;gap:.4rem}
+.lines-editor .form-input,.modal .form-input{max-width:none}
+.line-op{text-align:center;color:var(--ink-400);font-size:.75rem;font-weight:500;user-select:none;line-height:1}
+.line-field{position:relative}
+.line-field .line-label{
+  position:absolute;
+  width:1px;
+  height:1px;
+  padding:0;
+  margin:-1px;
+  overflow:hidden;
+  clip:rect(0,0,0,0);
+  white-space:nowrap;
+  border:0;
+}
+.line-total{
+  display:block;
+  font-variant-numeric:tabular-nums;
+  font-weight:600;
+  font-size:.8125rem;
+  color:var(--ink-900);
+  text-align:right;
+  padding:.45rem .1rem;
+}
+.line-remove{width:36px;min-height:40px;padding:0;font-size:1.2rem;line-height:1;color:var(--ink-400)}
+.line-remove:hover{color:var(--danger-600);background:var(--danger-100)}
+.modal-foot-main{display:flex;flex-direction:column;align-items:flex-start;gap:.35rem;min-width:0}
+
+.modal-overlay{position:fixed;inset:0;background:rgba(15,26,48,.46);z-index:200;display:none;align-items:center;justify-content:center;padding:1rem}
 .modal-overlay.visible{display:flex}
-.modal{background:var(--card);border-radius:10px;max-width:820px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 20px 50px rgba(0,0,0,.2)}
-.budget-vote-fieldset{border:1px solid var(--border);border-radius:10px;padding:1rem 1.15rem 1.1rem;margin:0 0 1rem;background:var(--bg)}
-.budget-vote-fieldset:disabled{opacity:.72}
-.budget-vote-legend{font-size:.86rem;font-weight:600;padding:0 .35rem}
-.budget-vote-grid{display:grid;grid-template-columns:1fr 1fr;gap:.4rem 1rem;font-size:.8rem}
-.budget-vote-item{display:flex;align-items:flex-start;gap:.45rem;line-height:1.35;cursor:pointer;color:var(--text2)}
-.budget-vote-item input{flex-shrink:0;margin-top:.2rem;accent-color:var(--navy)}
-.budget-vote-item span{color:var(--text)}
-.budget-vote-other-wrap{margin-top:.65rem;padding-top:.65rem;border-top:1px solid var(--border)}
-.modal-head{padding:1rem 1.25rem;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
-.modal-body{padding:1.25rem}
+#editorDiscardModal{z-index:210}
+#editorDiscardModal .modal{max-width:26rem}
+#editorDiscardModal .modal-body p{margin:0;color:var(--ink-700);line-height:1.5}
+.modal{background:var(--bg-elev);border-radius:var(--r-lg);max-width:840px;width:100%;max-height:min(92vh,900px);overflow:hidden;box-shadow:var(--sh-lg);display:flex;flex-direction:column}
+.modal-head{padding:1rem 1.25rem;border-bottom:1px solid var(--navy-100);display:flex;justify-content:space-between;align-items:center;gap:.75rem;flex-shrink:0}
+.modal-head strong,#editorTitle,#reviewTitle{font-family:var(--font-heading);font-size:1.2rem;font-weight:700;letter-spacing:-.02em}
+.modal-body{padding:1.15rem 1.25rem 1.25rem;overflow:auto;flex:1}
+.modal-foot{display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap;padding:.85rem 1.25rem;border-top:1px solid var(--navy-100);background:var(--navy-050);flex-shrink:0}
+.modal-foot-actions{display:flex;gap:.45rem;flex-wrap:wrap;margin-left:auto}
+#editorTotal{font-family:var(--font-heading);font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.02em;color:var(--navy-700);margin:0;font-size:1.2rem}
 
-.empty-s{text-align:center;padding:2rem;color:var(--text3);font-size:.82rem}
-.toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%);background:var(--navy);color:var(--white);padding:.75rem 1.25rem;border-radius:8px;font-size:.82rem;opacity:0;pointer-events:none;transition:opacity .25s;z-index:9999}
-.toast.show{opacity:1}
+.budget-vote-fieldset{border:1px solid var(--navy-100);border-radius:var(--r-md);padding:.85rem 1rem 1rem;margin:0 0 1.05rem;background:#fff}
+.budget-vote-fieldset:disabled{opacity:.72}
+.budget-vote-legend{font-weight:600;padding:0 .25rem;color:var(--ink-900)}
+.budget-vote-grid{display:grid;grid-template-columns:1fr 1fr;gap:.25rem .5rem}
+.budget-vote-item{display:flex;align-items:flex-start;gap:.45rem;line-height:1.35;cursor:pointer;color:var(--ink-500);padding:.45rem .5rem;border-radius:var(--r-sm);border:1px solid transparent;transition:background var(--t-fast) var(--ease),border-color var(--t-fast) var(--ease);min-height:40px}
+.budget-vote-item:hover{background:var(--navy-050)}
+.budget-vote-item:has(input:checked){background:var(--drama-050);border-color:var(--drama-100);color:var(--ink-900)}
+.budget-vote-item input{flex-shrink:0;margin-top:.15rem;accent-color:var(--navy-700)}
+.budget-vote-item span{color:var(--ink-900)}
+.budget-vote-other-wrap{margin-top:.65rem;padding-top:.65rem;border-top:1px solid var(--navy-100)}
+.field-error{display:block;margin:.35rem 0 0;font-size:.75rem;font-weight:500;color:var(--danger-600);line-height:1.4}
+.form-input[aria-invalid="true"]{border-color:var(--danger-600)}
+.budget-vote-fieldset[aria-invalid="true"]{border-color:var(--danger-600)}
+
+.review-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:.75rem 1.25rem;margin-bottom:1.15rem}
+.review-meta p{margin:0}
+.review-k{display:block;font-size:.75rem;font-weight:500;color:var(--ink-500);margin-bottom:.2rem}
+.review-v{color:var(--ink-900)}
+.review-actions{margin-top:1rem;display:flex;gap:.5rem;flex-wrap:wrap;padding-top:.9rem;border-top:1px solid var(--navy-100)}
+
+.toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(8px);background:var(--navy-800);color:#fff;padding:.7rem 1.15rem;border-radius:var(--r-md);opacity:0;pointer-events:none;transition:opacity var(--t-base) var(--ease),transform var(--t-base) var(--ease);z-index:9999;box-shadow:var(--sh-lg)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+body.po-modal-open{overflow:hidden}
 
 .admin-only{display:none}
 body.is-admin .admin-only{display:block}
 body.is-admin .admin-only.flex{display:flex}
 body.is-admin span.admin-only.inline{display:inline}
 
+html[data-fh-embed="1"] .po-back{display:none!important}
+html[data-fh-embed="1"] .po-pagehead-copy{display:none}
+html[data-fh-embed="1"] .content{padding:.85rem .5rem 1.5rem;max-width:none}
+html[data-fh-embed="1"] .po-pagehead{padding:0}
+html[data-fh-embed="1"] body{background:#fff}
+
+@media(max-width:860px){
+  .stats-grid,.budget-admin-grid,.review-meta,.budget-vote-grid{grid-template-columns:1fr}
+  .po-pagehead{align-items:stretch}
+  .po-pagehead-actions{width:100%}
+  .po-pagehead-actions .btn-primary{flex:1}
+  .btn,.form-input,.line-remove,.budget-vote-item{min-height:44px}
+}
+@media(max-width:800px){
+  .line-head{display:none}
+  .line-op{display:none}
+  .lines-editor .line-row{
+    grid-template-columns:1fr 1fr;
+    gap:.5rem .55rem;
+    align-items:end;
+    padding:.7rem 0;
+    border-bottom:1px solid var(--navy-100);
+  }
+  .lines-editor .line-row:last-child{border-bottom:0}
+  .line-field .line-label{
+    position:static;
+    width:auto;
+    height:auto;
+    margin:0 0 .25rem;
+    overflow:visible;
+    clip:auto;
+    white-space:normal;
+    display:block;
+    font-size:.75rem;
+    font-weight:500;
+    color:var(--ink-500);
+  }
+  .line-field-code,.line-field-desc{grid-column:1 / -1}
+  .line-field-price{grid-column:1}
+  .line-field-qty{grid-column:2}
+  .line-field-total{grid-column:1}
+  .line-total{text-align:left;padding:.45rem 0}
+  .line-remove{grid-column:2;justify-self:end;align-self:end}
+}
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  .btn,.form-input,.toast,.progress-fill,.budget-vote-item,.po-app tbody tr[data-id]{transition:none}
+  .btn:hover,.btn:active,.toast,.toast.show{transform:none}
+}
+
 @media print{
-  .no-print{display:none!important}
+  .no-print,.po-app,.modal-overlay,.toast{display:none!important}
   body{background:#f8fafc;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .print-area{display:block!important;position:static!important;padding:0;visibility:visible!important;max-width:none;width:100%}
   .po-doc{box-shadow:none;border-radius:8px}
@@ -342,23 +576,93 @@ body.is-admin span.admin-only.inline{display:inline}
 </style>
 </head>
 <body class="no-print-body">
-<div class="content">
-  <div class="no-print" style="margin-bottom:1rem">
-    <a href="faculty-hub.html" class="btn btn-ghost">← Back to Faculty Hub</a>
-  </div>
-  <div class="hero">
-    <div class="hero-title">Procurement</div>
-    <div class="hero-sub">Subject budgets, purchase requests, and printable purchase orders for the office. Spent amounts update when a request is marked processed.</div>
-  </div>
+<div class="content po-app">
+  <a href="faculty-hub.html" class="po-back no-print">Back to Faculty Hub</a>
 
-  <div class="sc no-print">
-    <div class="sc-header">
+  <header class="po-pagehead po-block-head no-print">
+    <div class="po-pagehead-copy">
+      <h1>Procurement</h1>
+      <p class="po-lede">Request against subject budgets. Spent updates when an approved order is marked processed.</p>
+    </div>
+    <div class="po-pagehead-actions">
+      <div class="po-year-field">
+        <label class="form-label" for="yearSelect">Academic year</label>
+        <select id="yearSelect" class="form-input"></select>
+      </div>
+      <button type="button" class="btn btn-ghost" id="refreshDashBtn">Refresh</button>
+      <button type="button" class="btn btn-primary" id="newRequestBtn">New request</button>
+    </div>
+  </header>
+
+  <section class="po-section po-block-mine">
+    <div class="po-section-head">
       <div>
-        <div class="sc-title">Your name on requisitions</div>
-        <div class="sc-sub">Shown as &ldquo;Requested by&rdquo; on printed orders (instead of your email). Saved to your account profile.</div>
+        <h2>My requests</h2>
+        <p>Drafts, submitted, approved, and processed orders you created.</p>
       </div>
     </div>
-    <div class="sc-body">
+    <div class="po-section-body">
+      <div id="myRequestsTable" class="table-wrap"></div>
+    </div>
+  </section>
+
+  <section class="po-section po-block-budgets">
+    <div class="po-section-head">
+      <div>
+        <h2>Subject budgets</h2>
+        <p>Spent is processed. Committed is approved and waiting on the office. Available excludes money already spent or committed to approved orders.</p>
+      </div>
+    </div>
+    <div class="po-section-body">
+      <div id="dashboardStats" class="stats-grid"></div>
+      <div id="dashboardError" class="empty-s" style="display:none"></div>
+    </div>
+  </section>
+
+  <section class="po-section po-block-pending admin-only">
+    <div class="po-section-head">
+      <div>
+        <h2>Needs approval <span class="po-count" id="pendingCount" hidden></span></h2>
+        <p>Submitted requests waiting for a decision.</p>
+      </div>
+    </div>
+    <div class="po-section-body">
+      <div id="pendingTable" class="table-wrap"></div>
+    </div>
+  </section>
+
+  <section class="po-section po-block-approved admin-only">
+    <div class="po-section-head">
+      <div>
+        <h2>Ready for the office <span class="po-count" id="approvedCount" hidden></span></h2>
+        <p>Print the purchase order, then mark processed once it has been ordered.</p>
+      </div>
+    </div>
+    <div class="po-section-body">
+      <div id="approvedTable" class="table-wrap"></div>
+    </div>
+  </section>
+
+  <details class="po-settings admin-only po-block-setbudget no-print">
+    <summary>Set annual budgets</summary>
+    <div class="po-settings-body">
+      <p class="sc-sub" style="margin:0 0 .7rem">Faculty head only. Amounts apply to the selected academic year.</p>
+      <div id="budgetAdminBody"></div>
+    </div>
+  </details>
+
+  <details class="po-settings admin-only po-block-processed no-print">
+    <summary>Processed this year</summary>
+    <div class="po-settings-body">
+      <p class="sc-sub" style="margin:0 0 .7rem">Orders already marked processed. Open a request if you need to remove a test record.</p>
+      <div id="processedTable" class="table-wrap"></div>
+    </div>
+  </details>
+
+  <details class="po-settings po-block-name no-print">
+    <summary>Name on printed orders</summary>
+    <div class="po-settings-body">
+      <p class="sc-sub" style="margin:0 0 .7rem">Shown as requested by, instead of your email. Saved to your profile.</p>
       <div class="form-row" style="margin:0;align-items:flex-end;gap:.75rem">
         <div style="flex:1;min-width:200px">
           <label class="form-label" for="requisitionDisplayName">Display name</label>
@@ -367,89 +671,23 @@ body.is-admin span.admin-only.inline{display:inline}
         <button type="button" class="btn btn-primary" id="saveDisplayNameBtn">Save</button>
       </div>
     </div>
-  </div>
-
-  <div class="sc">
-    <div class="sc-header">
-      <div>
-        <div class="sc-title">Academic year &amp; overview</div>
-        <div class="sc-sub">Budget, committed (approved, awaiting office), spent (processed), and remaining.</div>
-      </div>
-      <div class="form-row" style="margin:0">
-        <div>
-          <label class="form-label" for="yearSelect">Year</label>
-          <select id="yearSelect" class="form-input" style="max-width:140px"></select>
-        </div>
-        <button type="button" class="btn btn-primary" id="refreshDashBtn">Refresh</button>
-      </div>
-    </div>
-    <div class="sc-body">
-      <div id="dashboardStats" class="stats-grid"></div>
-      <div id="dashboardError" class="empty-s" style="display:none"></div>
-    </div>
-  </div>
-
-  <div class="sc">
-    <div class="sc-header">
-      <div>
-        <div class="sc-title">My purchase requests</div>
-        <div class="sc-sub">Drafts, submitted, approved, and processed orders you created.</div>
-      </div>
-      <button type="button" class="btn btn-primary" id="newRequestBtn">New request</button>
-    </div>
-    <div class="sc-body">
-      <div id="myRequestsTable" class="table-wrap"></div>
-    </div>
-  </div>
-
-  <div class="sc admin-only">
-    <div class="sc-header">
-      <div>
-        <div class="sc-title">Set budgets (faculty head)</div>
-        <div class="sc-sub">Annual budget per subject for the selected academic year.</div>
-      </div>
-    </div>
-    <div class="sc-body" id="budgetAdminBody"></div>
-  </div>
-
-  <div class="sc admin-only">
-    <div class="sc-header">
-      <div>
-        <div class="sc-title">Pending approval</div>
-        <div class="sc-sub">Submitted requests awaiting your decision.</div>
-      </div>
-    </div>
-    <div class="sc-body">
-      <div id="pendingTable" class="table-wrap"></div>
-    </div>
-  </div>
-
-  <div class="sc admin-only">
-    <div class="sc-header">
-      <div>
-        <div class="sc-title">Approved — send PO to office</div>
-        <div class="sc-sub">Print the purchase order, then mark as processed once the office has ordered (deducts from remaining budget as spent).</div>
-      </div>
-    </div>
-    <div class="sc-body">
-      <div id="approvedTable" class="table-wrap"></div>
-    </div>
-  </div>
+  </details>
 </div>
 
-<div id="toast" class="toast"></div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
 
-<div id="editorModal" class="modal-overlay no-print">
+<div id="editorModal" class="modal-overlay no-print" role="dialog" aria-modal="true" aria-labelledby="editorTitle" aria-hidden="true">
   <div class="modal">
     <div class="modal-head">
-      <strong id="editorTitle">Edit request</strong>
+      <strong id="editorTitle" tabindex="-1">Edit request</strong>
       <button type="button" class="btn btn-ghost" id="editorCloseBtn">Close</button>
     </div>
     <div class="modal-body">
       <input type="hidden" id="editorRequestId">
+      <div id="editorStatus" class="editor-status" hidden></div>
       <div class="form-row">
         <div>
-          <label class="form-label">Academic year</label>
+          <label class="form-label" for="editorYear">Academic year</label>
           <select id="editorYear" class="form-input" disabled></select>
         </div>
         <div>
@@ -460,40 +698,79 @@ body.is-admin span.admin-only.inline{display:inline}
             <option value="art_design">Art &amp; Design</option>
             <option value="photography">Photography</option>
           </select>
-        </div>
-      </div>
-      <div class="form-row">
-        <div style="flex:1;min-width:200px">
-          <label class="form-label">Notes (optional)</label>
-          <textarea id="editorNotes" class="form-input" style="max-width:none;min-height:72px;resize:vertical" placeholder="Supplier, delivery, etc."></textarea>
+          <p id="editorSubjectError" class="field-error" hidden></p>
         </div>
       </div>
       <fieldset class="budget-vote-fieldset" id="editorBudgetVoteFieldset">
-        <legend class="budget-vote-legend">What are you ordering? (budget line)</legend>
-        <p class="sc-sub" style="margin:-0.2rem 0 .75rem">Pick the spend type for the office — it appears on the printed requisition with your line items.</p>
+        <legend class="budget-vote-legend">What are you ordering?</legend>
+        <p class="sc-sub" style="margin:.15rem 0 .7rem">Required to submit. This budget line prints on the requisition.</p>
         <div class="budget-vote-grid" id="editorBudgetVoteGrid"></div>
         <div class="budget-vote-other-wrap" id="editorBudgetVoteOtherWrap">
-          <label class="form-label" for="editorBudgetVoteOther">If you chose &ldquo;Other&rdquo;, specify</label>
-          <input type="text" id="editorBudgetVoteOther" class="form-input" style="max-width:none" placeholder="e.g. workshop materials, trip costs&hellip;" autocomplete="off">
+          <label class="form-label" for="editorBudgetVoteOther">If Other, specify</label>
+          <input type="text" id="editorBudgetVoteOther" class="form-input" style="max-width:none" placeholder="e.g. workshop materials, trip costs" autocomplete="off">
+          <p id="editorBudgetVoteOtherError" class="field-error" hidden></p>
         </div>
+        <p id="editorBudgetVoteError" class="field-error" hidden></p>
       </fieldset>
-      <div class="sc-title" style="margin-bottom:.75rem">Line items</div>
+      <div class="sc-title" style="margin-bottom:.2rem">Line items</div>
+      <p class="sc-sub" style="margin:0 0 .55rem">Unit price × quantity is calculated for each line. At least one item needs a description or supplier code.</p>
+      <p id="linesEditorError" class="field-error" hidden></p>
+      <div class="line-head">
+        <span>Code</span>
+        <span>Description</span>
+        <span>Unit price</span>
+        <span class="line-op" aria-hidden="true">×</span>
+        <span>Qty</span>
+        <span class="line-op" aria-hidden="true">=</span>
+        <span>Line total</span>
+        <span class="sr-only">Remove</span>
+      </div>
       <div class="lines-editor" id="linesEditor"></div>
-      <button type="button" class="btn btn-ghost" id="addLineBtn" style="margin-bottom:1rem">+ Add line</button>
-      <div id="editorTotal" style="font-weight:700;margin-bottom:1rem"></div>
-      <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+      <button type="button" class="btn btn-ghost" id="addLineBtn" style="margin-top:.7rem">Add line</button>
+      <div class="form-row" style="margin-top:1.05rem;margin-bottom:0">
+        <div style="flex:1;min-width:200px">
+          <label class="form-label" for="editorNotes">Notes <span style="font-weight:400;color:var(--ink-400)">(optional)</span></label>
+          <textarea id="editorNotes" class="form-input" style="max-width:none;min-height:72px;resize:vertical" placeholder="Supplier, delivery, catalogue reference…"></textarea>
+        </div>
+      </div>
+      <div id="editorAdminDelete" class="po-admin-delete" hidden>
+        <button type="button" class="po-admin-delete-btn" id="adminDeleteReqBtn">Delete request permanently</button>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <div class="modal-foot-main">
+        <div id="editorTotal"></div>
+        <button type="button" class="btn btn-danger btn-sm" id="deleteDraftBtn" style="display:none">Delete draft</button>
+      </div>
+      <div class="modal-foot-actions">
         <button type="button" class="btn btn-ghost" id="saveDraftBtn">Save draft</button>
         <button type="button" class="btn btn-primary" id="submitReqBtn">Submit for approval</button>
-        <button type="button" class="btn btn-danger" id="deleteDraftBtn" style="display:none">Delete draft</button>
       </div>
     </div>
   </div>
 </div>
 
-<div id="reviewModal" class="modal-overlay no-print">
+<div id="editorDiscardModal" class="modal-overlay no-print" role="dialog" aria-modal="true" aria-labelledby="editorDiscardTitle" aria-describedby="editorDiscardCopy" aria-hidden="true">
   <div class="modal">
     <div class="modal-head">
-      <strong>Review request</strong>
+      <strong id="editorDiscardTitle" tabindex="-1">Discard unsaved changes?</strong>
+    </div>
+    <div class="modal-body">
+      <p id="editorDiscardCopy">You have changes to this request that haven't been saved.</p>
+    </div>
+    <div class="modal-foot">
+      <div class="modal-foot-actions">
+        <button type="button" class="btn btn-primary" id="editorKeepEditingBtn">Keep editing</button>
+        <button type="button" class="btn btn-danger" id="editorDiscardBtn">Discard changes</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="reviewModal" class="modal-overlay no-print" role="dialog" aria-modal="true" aria-labelledby="reviewTitle" aria-hidden="true">
+  <div class="modal">
+    <div class="modal-head">
+      <strong id="reviewTitle" tabindex="-1">Review request</strong>
       <button type="button" class="btn btn-ghost" id="reviewCloseBtn">Close</button>
     </div>
     <div class="modal-body" id="reviewBody"></div>
@@ -530,6 +807,294 @@ body.is-admin span.admin-only.inline{display:inline}
     var x = Number(n);
     if (isNaN(x)) x = 0;
     return '£' + x.toFixed(2);
+  }
+
+  function formatCardMoney(n) {
+    var x = Number(n);
+    if (isNaN(x)) x = 0;
+    var abs = '£' + Math.abs(x).toFixed(2);
+    return x < 0 ? '-' + abs : abs;
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '\u2014';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return esc(String(iso).slice(0, 10));
+    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  }
+
+  function statusBadge(st) {
+    var key = String(st || '').toLowerCase();
+    var labels = {
+      draft: 'Draft',
+      submitted: 'Submitted',
+      approved: 'Approved',
+      processed: 'Processed',
+      rejected: 'Rejected'
+    };
+    var label = labels[key] || st || 'Unknown';
+    var cls = labels[key] ? 'st-' + key : 'st-draft';
+    return '<span class="po-status ' + cls + '">' + esc(label) + '</span>';
+  }
+
+  function subjectRowClass(code) {
+    var meta = SUBJECTS[code];
+    return meta && meta.cls ? ' class="row-' + meta.cls + '"' : '';
+  }
+
+  function emptyStateHtml(title, hint) {
+    return '<div class="po-empty"><p class="po-empty-title">' + esc(title) + '</p><p class="po-empty-hint">' + esc(hint) + '</p></div>';
+  }
+
+  function loadingHtml(label) {
+    return '<p class="po-loading" role="status">' + esc(label) + '</p>';
+  }
+
+  var FOCUSABLE_SEL = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  var overlayReturn = {
+    editor: { el: null, requestId: null },
+    review: { el: null, requestId: null }
+  };
+  var editorFocusBeforeDiscard = null;
+
+  function isDisplayed(el) {
+    if (!el || el.disabled) return false;
+    if (el.hasAttribute('hidden') || (el.closest && el.closest('[hidden]'))) return false;
+    if (el.closest && el.closest('fieldset:disabled')) return false;
+    if (typeof el.getClientRects !== 'function') return true;
+    return el.getClientRects().length > 0;
+  }
+
+  function getFocusable(container) {
+    if (!container) return [];
+    var nodes = Array.prototype.filter.call(container.querySelectorAll(FOCUSABLE_SEL), function(el) {
+      if (el.tabIndex < 0) return false;
+      return isDisplayed(el);
+    });
+    var seenRadio = {};
+    return nodes.filter(function(el) {
+      if (el.tagName !== 'INPUT' || el.type !== 'radio') return true;
+      var name = el.name || '';
+      var group = container.querySelectorAll('input[type="radio"][name="' + name + '"]');
+      var checked = null;
+      Array.prototype.forEach.call(group, function(r) {
+        if (r.checked && isDisplayed(r)) checked = r;
+      });
+      if (checked) return el === checked;
+      if (seenRadio[name]) return false;
+      seenRadio[name] = true;
+      return true;
+    });
+  }
+
+  function topmostDialog() {
+    if (discardConfirmIsOpen()) return $('editorDiscardModal');
+    if ($('editorModal') && $('editorModal').classList.contains('visible')) return $('editorModal');
+    if ($('reviewModal') && $('reviewModal').classList.contains('visible')) return $('reviewModal');
+    return null;
+  }
+
+  function setInert(el, on) {
+    if (!el) return;
+    if (on) el.setAttribute('inert', '');
+    else el.removeAttribute('inert');
+  }
+
+  function openerRequestId(fromEl) {
+    if (!fromEl || !fromEl.closest) return null;
+    var withId = fromEl.closest('[data-id]');
+    return withId ? withId.getAttribute('data-id') : null;
+  }
+
+  function rememberOpener(slot) {
+    overlayReturn[slot] = {
+      el: document.activeElement,
+      requestId: openerRequestId(document.activeElement)
+    };
+  }
+
+  function takeOpener(slot) {
+    var rec = overlayReturn[slot] || { el: null, requestId: null };
+    overlayReturn[slot] = { el: null, requestId: null };
+    return rec;
+  }
+
+  function findReturnEl(rec, slot) {
+    if (rec && rec.el && document.documentElement.contains(rec.el) && isDisplayed(rec.el) && !rec.el.closest('[inert]')) {
+      return rec.el;
+    }
+    if (rec && rec.requestId) {
+      var id = rec.requestId;
+      var tr = document.querySelector('.po-app tbody tr[data-id="' + id + '"]');
+      if (tr) return tr;
+      var btn = document.querySelector('.po-app button[data-id="' + id + '"]');
+      if (btn) return btn;
+    }
+    if (slot === 'review') {
+      return document.querySelector('#pendingTable .btn-review') || document.querySelector('.po-block-pending h2') || $('newRequestBtn');
+    }
+    return $('newRequestBtn');
+  }
+
+  function focusEl(el) {
+    if (!el || typeof el.focus !== 'function') return;
+    if (el.tabIndex < 0 && !el.hasAttribute('tabindex')) el.setAttribute('tabindex', '-1');
+    try { el.focus(); } catch (err) {}
+  }
+
+  function restoreOpenerSoon(rec, slot) {
+    var tries = 0;
+    function go() {
+      tries += 1;
+      var fromTable = rec && rec.el && rec.el.closest && rec.el.closest('.table-wrap');
+      if (fromTable && document.documentElement.contains(rec.el) && tries < 24) {
+        setTimeout(go, 50);
+        return;
+      }
+      var el = findReturnEl(rec, slot);
+      if (el) {
+        focusEl(el);
+        return;
+      }
+      if (tries < 24) {
+        setTimeout(go, 50);
+        return;
+      }
+      focusEl(slot === 'review' ? (document.querySelector('.po-block-pending h2') || $('newRequestBtn')) : $('newRequestBtn'));
+    }
+    go();
+  }
+
+  function syncDialogLayers() {
+    var editor = $('editorModal');
+    var review = $('reviewModal');
+    var discard = $('editorDiscardModal');
+    var editorOpen = !!(editor && editor.classList.contains('visible'));
+    var reviewOpen = !!(review && review.classList.contains('visible'));
+    var discardOpen = discardConfirmIsOpen();
+    var app = document.querySelector('.po-app');
+    setInert(app, editorOpen || reviewOpen);
+    if (app) {
+      if (editorOpen || reviewOpen) app.setAttribute('aria-hidden', 'true');
+      else app.removeAttribute('aria-hidden');
+    }
+    setInert(editor, editorOpen && discardOpen);
+    if (editor) {
+      editor.setAttribute('aria-modal', editorOpen && !discardOpen ? 'true' : 'false');
+      editor.setAttribute('aria-hidden', editorOpen && !discardOpen ? 'false' : 'true');
+    }
+    if (review) {
+      review.setAttribute('aria-modal', reviewOpen ? 'true' : 'false');
+      review.setAttribute('aria-hidden', reviewOpen ? 'false' : 'true');
+    }
+    if (discard) {
+      discard.setAttribute('aria-modal', discardOpen ? 'true' : 'false');
+      discard.setAttribute('aria-hidden', discardOpen ? 'false' : 'true');
+    }
+    document.body.classList.toggle('po-modal-open', editorOpen || reviewOpen);
+  }
+
+  function setOverlayOpen(el, open, opts) {
+    if (!el) return;
+    opts = opts || {};
+    var slot = el === $('reviewModal') ? 'review' : 'editor';
+    var wasOpen = el.classList.contains('visible');
+    if (open) {
+      if (!wasOpen) rememberOpener(slot);
+      el.classList.add('visible');
+    } else {
+      el.classList.remove('visible');
+    }
+    syncDialogLayers();
+    if (!open && opts.restore !== false) restoreOpenerSoon(takeOpener(slot), slot);
+  }
+
+  function focusEditorOnOpen() {
+    if (editorIsEditable) {
+      var sub = $('editorSubject');
+      if (sub && !sub.disabled && isDisplayed(sub)) {
+        sub.focus();
+        return;
+      }
+    }
+    var title = $('editorTitle');
+    if (title) {
+      title.setAttribute('tabindex', '-1');
+      title.focus();
+    }
+  }
+
+  function focusReviewOnOpen() {
+    var title = $('reviewTitle');
+    if (title) {
+      title.setAttribute('tabindex', '-1');
+      title.focus();
+    }
+  }
+
+  function restoreEditorFocusFromDiscard() {
+    var el = editorFocusBeforeDiscard;
+    editorFocusBeforeDiscard = null;
+    if (el && $('editorModal').contains(el) && isDisplayed(el) && !el.disabled) {
+      focusEl(el);
+      return;
+    }
+    if (editorIsEditable && $('editorSubject') && !$('editorSubject').disabled) {
+      $('editorSubject').focus();
+      return;
+    }
+    if ($('editorCloseBtn') && !$('editorCloseBtn').disabled) {
+      $('editorCloseBtn').focus();
+      return;
+    }
+    focusEl($('editorTitle'));
+  }
+
+  function setCount(id, n) {
+    var el = $(id);
+    if (!el) return;
+    if (n > 0) {
+      el.hidden = false;
+      el.textContent = String(n);
+    } else {
+      el.hidden = true;
+    }
+  }
+
+  function namesForUserIds(ids) {
+    var unique = [];
+    (ids || []).forEach(function(id) {
+      if (id && unique.indexOf(id) === -1) unique.push(id);
+    });
+    if (unique.length === 0) return Promise.resolve({});
+    return Promise.all(unique.map(function(id) {
+      return PurchaseOrderService.getProfile(id).then(function(p) {
+        return { id: id, name: requesterNameForPrint(p) };
+      }).catch(function() {
+        return { id: id, name: 'Staff' };
+      });
+    })).then(function(pairs) {
+      var map = {};
+      pairs.forEach(function(p) { map[p.id] = p.name; });
+      return map;
+    });
+  }
+
+  function bindRowActivate(root, handler) {
+    if (!root) return;
+    root.querySelectorAll('tbody tr[data-id]').forEach(function(tr) {
+      tr.setAttribute('tabindex', '0');
+      tr.addEventListener('click', function(e) {
+        if (e.target.closest('button')) return;
+        handler(tr.getAttribute('data-id'));
+      });
+      tr.addEventListener('keydown', function(e) {
+        if (e.key !== 'Enter' && e.key !== ' ') return;
+        if (e.target.closest('button')) return;
+        e.preventDefault();
+        handler(tr.getAttribute('data-id'));
+      });
+    });
   }
 
   function looksLikeEmail(s) {
@@ -688,6 +1253,22 @@ body.is-admin span.admin-only.inline{display:inline}
 
   function setAdminClass() {
     document.body.classList.toggle('is-admin', canManageProcurement());
+    applyWorkFirstOrder();
+  }
+
+  function applyWorkFirstOrder() {
+    var app = document.querySelector('.po-app');
+    if (!app) return;
+    var admin = document.body.classList.contains('is-admin');
+    var seq = admin
+      ? ['po-block-head', 'po-block-pending', 'po-block-approved', 'po-block-budgets', 'po-block-mine', 'po-block-setbudget', 'po-block-processed', 'po-block-name']
+      : ['po-block-head', 'po-block-mine', 'po-block-budgets', 'po-block-pending', 'po-block-approved', 'po-block-setbudget', 'po-block-processed', 'po-block-name'];
+    var back = app.querySelector('.po-back');
+    seq.forEach(function(cls) {
+      var el = app.querySelector('.' + cls);
+      if (el) app.appendChild(el);
+    });
+    if (back) app.insertBefore(back, app.firstChild);
   }
 
   function syncManagementUi() {
@@ -703,19 +1284,25 @@ body.is-admin span.admin-only.inline{display:inline}
     wrap.innerHTML = '';
     stats.forEach(function(row) {
       var meta = SUBJECTS[row.subject_code] || { label: row.subject_code, cls: '' };
-      var budget = row.budget_gbp;
-      var spent = row.spent_gbp;
-      var committed = row.committed_gbp;
-      var remaining = budget - spent;
+      var budget = Number(row.budget_gbp) || 0;
+      var spent = Number(row.spent_gbp) || 0;
+      var committed = Number(row.committed_gbp) || 0;
+      var unspent = budget - spent;
+      var available = budget - spent - committed;
       var pct = budget > 0 ? Math.min(100, ((spent + committed) / budget) * 100) : 0;
+      var tone = available < 0 ? ' is-over' : (budget > 0 && available / budget < 0.15 ? ' is-tight' : '');
+      var stateHtml = available < 0
+        ? '<span class="stat-remain-state">Over budget</span>'
+        : (budget > 0 && available / budget < 0.15 ? '<span class="stat-remain-state">Tight</span>' : '');
       var card = document.createElement('div');
-      card.className = 'stat-card ' + meta.cls;
+      card.className = 'stat-card ' + meta.cls + tone;
       card.innerHTML =
         '<div class="stat-name">' + esc(meta.label) + '</div>' +
         '<div class="stat-row"><span>Budget</span><strong>' + formatMoney(budget) + '</strong></div>' +
-        '<div class="stat-row"><span>Spent (processed)</span><strong>' + formatMoney(spent) + '</strong></div>' +
-        '<div class="stat-row"><span>Committed (approved)</span><strong>' + formatMoney(committed) + '</strong></div>' +
-        '<div class="stat-remain">Remaining: ' + formatMoney(remaining) + '</div>' +
+        '<div class="stat-row"><span>Spent</span><strong>' + formatMoney(spent) + '</strong></div>' +
+        '<div class="stat-row"><span>Committed</span><strong>' + formatMoney(committed) + '</strong></div>' +
+        '<div class="stat-remain">' + formatCardMoney(available) + '<span class="stat-remain-label">available</span>' + stateHtml + '</div>' +
+        '<div class="stat-unspent">' + formatCardMoney(unspent) + ' unspent</div>' +
         '<div class="progress-bar"><div class="progress-fill" style="width:' + pct + '%"></div></div>';
       wrap.appendChild(card);
     });
@@ -724,17 +1311,18 @@ body.is-admin span.admin-only.inline{display:inline}
   function loadDashboard() {
     var y = getSelectedYear();
     $('dashboardError').style.display = 'none';
+    $('dashboardStats').innerHTML = loadingHtml('Loading budgets');
     PurchaseOrderService.getDashboardStats(y).then(renderDashboard).catch(function(e) {
       $('dashboardStats').innerHTML = '';
       $('dashboardError').style.display = 'block';
-      $('dashboardError').textContent = (e && e.message) ? e.message : 'Could not load dashboard. Run the purchase_ordering migration in Supabase.';
+      $('dashboardError').textContent = (e && e.message) ? e.message : 'Could not load budgets. Refresh and try again.';
     });
   }
 
   function renderBudgetAdmin() {
     var y = getSelectedYear();
     var body = $('budgetAdminBody');
-    body.innerHTML = '<p style="font-size:.8rem;color:var(--text3);margin-bottom:1rem">Year: <strong>' + esc(y) + '</strong></p><div id="budgetInputs"></div>' +
+    body.innerHTML = '<div id="budgetInputs" class="budget-admin-grid"></div>' +
       '<button type="button" class="btn btn-primary" id="saveBudgetsBtn">Save budgets</button>';
     var inputs = $('budgetInputs');
     inputs.innerHTML = '';
@@ -743,10 +1331,9 @@ body.is-admin span.admin-only.inline{display:inline}
       rows.forEach(function(r) { bySub[r.subject_code] = r.amount_gbp; });
       ['drama', 'art_design', 'photography'].forEach(function(code) {
         var row = document.createElement('div');
-        row.className = 'form-row';
         row.innerHTML =
-          '<div><label class="form-label">' + esc(SUBJECTS[code].label) + '</label>' +
-          '<input type="number" class="form-input budget-amt" data-code="' + code + '" min="0" step="0.01" value="' + (bySub[code] != null ? bySub[code] : '') + '" placeholder="0.00"></div>';
+          '<label class="form-label" for="budget-' + code + '">' + esc(SUBJECTS[code].label) + '</label>' +
+          '<input type="number" id="budget-' + code + '" class="form-input budget-amt" data-code="' + code + '" min="0" step="0.01" value="' + (bySub[code] != null ? bySub[code] : '') + '" placeholder="0.00">';
         inputs.appendChild(row);
       });
       $('saveBudgetsBtn').onclick = function() {
@@ -768,27 +1355,33 @@ body.is-admin span.admin-only.inline{display:inline}
 
   function loadMyRequests() {
     var y = getSelectedYear();
+    $('myRequestsTable').innerHTML = loadingHtml('Loading requests');
     PurchaseOrderService.listMyRequests(y).then(function(rows) {
-      var html = '<table><thead><tr><th>Subject</th><th>Status</th><th>PO #</th><th>Updated</th><th></th></tr></thead><tbody>';
       if (rows.length === 0) {
-        html += '<tr><td colspan="5" class="empty-s">No requests for this year.</td></tr>';
-      } else {
-        rows.forEach(function(r) {
-          var sub = SUBJECTS[r.subject_code] ? SUBJECTS[r.subject_code].label : r.subject_code;
-          var del = requestStatusDeletable(r.status)
-            ? '<button type="button" class="btn btn-danger btn-del-req" data-id="' + esc(r.id) + '" data-status="' + esc(r.status) + '" style="padding:.35rem .6rem;font-size:.72rem">Delete</button>'
-            : '';
-          html += '<tr><td>' + esc(sub) + '</td><td>' + esc(r.status) + '</td><td class="mono">' + esc(r.po_number || '—') + '</td><td>' + esc((r.submitted_at || r.created_at || '').slice(0, 10)) + '</td><td style="white-space:nowrap;display:flex;gap:.35rem;flex-wrap:wrap;align-items:center">' +
-            '<button type="button" class="btn btn-ghost btn-open-req" data-id="' + esc(r.id) + '">Open</button>' + del + '</td></tr>';
-        });
+        $('myRequestsTable').innerHTML = emptyStateHtml('No requests this year', 'Use New request to start a draft. It stays here until you submit it.');
+        return;
       }
+      var html = '<table><thead><tr><th>Subject</th><th>Status</th><th>PO</th><th>Date</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>';
+      rows.forEach(function(r) {
+        var sub = SUBJECTS[r.subject_code] ? SUBJECTS[r.subject_code].label : r.subject_code;
+        var del = requestStatusDeletable(r.status)
+          ? '<button type="button" class="btn btn-danger btn-sm btn-del-req" data-id="' + esc(r.id) + '" data-status="' + esc(r.status) + '">Delete</button>'
+          : '';
+        html += '<tr data-id="' + esc(r.id) + '"' + subjectRowClass(r.subject_code) + '><td>' + esc(sub) + '</td><td>' + statusBadge(r.status) + '</td><td class="mono">' + esc(r.po_number || '\u2014') + '</td><td>' + esc(formatDate(r.submitted_at || r.created_at)) + '</td><td><div class="po-actions">' +
+          '<button type="button" class="btn btn-ghost btn-sm btn-open-req" data-id="' + esc(r.id) + '">Open</button>' + del + '</div></td></tr>';
+      });
       html += '</tbody></table>';
       $('myRequestsTable').innerHTML = html;
       $('myRequestsTable').querySelectorAll('.btn-open-req').forEach(function(btn) {
-        btn.onclick = function() { openRequest(btn.getAttribute('data-id')); };
+        btn.onclick = function(e) {
+          e.stopPropagation();
+          openRequest(btn.getAttribute('data-id'));
+        };
       });
+      bindRowActivate($('myRequestsTable'), openRequest);
       $('myRequestsTable').querySelectorAll('.btn-del-req').forEach(function(btn) {
-        btn.onclick = function() {
+        btn.onclick = function(e) {
+          e.stopPropagation();
           var rid = btn.getAttribute('data-id');
           var st = btn.getAttribute('data-status');
           var msg =
@@ -806,6 +1399,8 @@ body.is-admin span.admin-only.inline{display:inline}
           }).catch(function(e) { toast(e.message || 'Delete failed'); });
         };
       });
+    }).catch(function(e) {
+      $('myRequestsTable').innerHTML = emptyStateHtml('Could not load requests', (e && e.message) || 'Refresh and try again.');
     });
   }
 
@@ -817,17 +1412,58 @@ body.is-admin span.admin-only.inline{display:inline}
     var row = document.createElement('div');
     row.className = 'line-row';
     row.dataset.lineId = id;
+    var priceVal = line.unit_price == null || line.unit_price === '' ? '' : line.unit_price;
+    var qtyVal = line.quantity == null || line.quantity === '' ? '1' : line.quantity;
     row.innerHTML =
-      '<input type="text" class="form-input line-code" placeholder="Code" value="' + esc(line.product_code) + '">' +
-      '<input type="text" class="form-input line-desc" placeholder="Description" value="' + esc(line.description) + '">' +
-      '<input type="number" class="form-input line-price" min="0" step="0.01" placeholder="Price" value="' + line.unit_price + '">' +
-      '<input type="number" class="form-input line-qty" min="0.001" step="0.1" placeholder="Qty" value="' + line.quantity + '">' +
-      '<button type="button" class="btn btn-ghost line-remove" aria-label="Remove">×</button>';
+      '<div class="line-field line-field-code">' +
+        '<label class="line-label" for="' + id + '-code">Code</label>' +
+        '<input type="text" id="' + id + '-code" class="form-input line-code" placeholder="Supplier code" value="' + esc(line.product_code) + '" autocomplete="off">' +
+      '</div>' +
+      '<div class="line-field line-field-desc">' +
+        '<label class="line-label" for="' + id + '-desc">Description</label>' +
+        '<input type="text" id="' + id + '-desc" class="form-input line-desc" placeholder="What you are ordering" value="' + esc(line.description) + '">' +
+      '</div>' +
+      '<div class="line-field line-field-price">' +
+        '<label class="line-label" for="' + id + '-price">Unit price</label>' +
+        '<input type="number" id="' + id + '-price" class="form-input line-price" min="0" step="0.01" placeholder="0.00" value="' + esc(String(priceVal)) + '" inputmode="decimal">' +
+      '</div>' +
+      '<span class="line-op" aria-hidden="true">×</span>' +
+      '<div class="line-field line-field-qty">' +
+        '<label class="line-label" for="' + id + '-qty"><span class="line-label-vis" aria-hidden="true">Qty</span><span class="sr-only">Quantity</span></label>' +
+        '<input type="number" id="' + id + '-qty" class="form-input line-qty" min="0.001" step="0.1" placeholder="1" value="' + esc(String(qtyVal)) + '" inputmode="decimal">' +
+      '</div>' +
+      '<span class="line-op" aria-hidden="true">=</span>' +
+      '<div class="line-field line-field-total">' +
+        '<span class="line-label" id="' + id + '-total-label">Line total</span>' +
+        '<span class="line-total" aria-labelledby="' + id + '-total-label">£0.00</span>' +
+      '</div>' +
+      '<button type="button" class="btn btn-ghost line-remove" aria-label="Remove line">&times;</button>';
     wrap.appendChild(row);
-    row.querySelector('.line-remove').onclick = function() { row.remove(); recalcEditorTotal(); };
+    row.querySelector('.line-remove').onclick = function() {
+      row.remove();
+      recalcEditorTotal();
+      if (linesHaveAnItem()) setLinesError('');
+    };
     ['line-price', 'line-qty', 'line-code', 'line-desc'].forEach(function(c) {
-      row.querySelector('.' + c).addEventListener('input', recalcEditorTotal);
+      row.querySelector('.' + c).addEventListener('input', function() {
+        recalcEditorTotal();
+        if (linesHaveAnItem()) setLinesError('');
+      });
     });
+    updateLineRowTotal(row);
+  }
+
+  function lineRowAmount(row) {
+    var price = Number(row.querySelector('.line-price').value);
+    var qty = Number(row.querySelector('.line-qty').value);
+    if (isNaN(price)) price = 0;
+    if (isNaN(qty)) qty = 0;
+    return price * qty;
+  }
+
+  function updateLineRowTotal(row) {
+    var el = row.querySelector('.line-total');
+    if (el) el.textContent = formatMoney(lineRowAmount(row));
   }
 
   function readLinesFromEditor() {
@@ -845,12 +1481,126 @@ body.is-admin span.admin-only.inline{display:inline}
   }
 
   function recalcEditorTotal() {
-    var lines = readLinesFromEditor();
     var t = 0;
-    lines.forEach(function(l) {
-      t += (Number(l.unit_price) || 0) * (Number(l.quantity) || 0);
+    $('linesEditor').querySelectorAll('.line-row').forEach(function(row) {
+      updateLineRowTotal(row);
+      t += lineRowAmount(row);
     });
-    $('editorTotal').textContent = 'Estimated total: ' + formatMoney(t);
+    $('editorTotal').textContent = 'Total ' + formatMoney(t);
+  }
+
+  var editorWriteInFlight = false;
+  var editorIsEditable = false;
+
+  function setEditorBusy(busy) {
+    editorWriteInFlight = !!busy;
+    ['saveDraftBtn', 'submitReqBtn', 'deleteDraftBtn', 'addLineBtn', 'editorCloseBtn'].forEach(function(id) {
+      var el = $(id);
+      if (el) el.disabled = !!busy;
+    });
+    if (busy) {
+      disableEditorFields();
+    } else {
+      enableEditorFieldsIfEditable();
+    }
+  }
+
+  function disableEditorFields() {
+    $('editorSubject').disabled = true;
+    $('editorNotes').disabled = true;
+    var fs = $('editorBudgetVoteFieldset');
+    if (fs) fs.disabled = true;
+    var other = $('editorBudgetVoteOther');
+    if (other) other.disabled = true;
+    $('linesEditor').querySelectorAll('input, button').forEach(function(el) { el.disabled = true; });
+  }
+
+  function enableEditorFieldsIfEditable() {
+    if (!editorIsEditable) return;
+    $('editorSubject').disabled = false;
+    $('editorNotes').disabled = false;
+    var fs = $('editorBudgetVoteFieldset');
+    if (fs) fs.disabled = false;
+    $('linesEditor').querySelectorAll('input, button').forEach(function(el) { el.disabled = false; });
+    syncBudgetVoteOtherInput();
+  }
+
+  function captureEditorWriteSnapshot() {
+    var bv = readBudgetVoteFromEditor();
+    return {
+      requestId: String($('editorRequestId').value || '').trim(),
+      academicYear: $('editorYear').value || getSelectedYear(),
+      subject: selectedEditorSubject(),
+      notes: $('editorNotes').value,
+      vote: bv.vote,
+      other: bv.other,
+      lines: readLinesFromEditor()
+    };
+  }
+
+  function toastDraftWriteError(e, fallback) {
+    if (PurchaseOrderService.isStaleDraftError(e) || (e && e.code === 'PO_DRAFT_STALE')) {
+      toast(PurchaseOrderService.STALE_DRAFT_MESSAGE);
+      return;
+    }
+    toast((e && e.message) || fallback);
+  }
+
+  function setControlError(el, errorEl, message) {
+    if (!errorEl) return;
+    if (message) {
+      errorEl.hidden = false;
+      errorEl.textContent = message;
+      if (el) {
+        el.setAttribute('aria-invalid', 'true');
+        el.setAttribute('aria-describedby', errorEl.id);
+      }
+    } else {
+      errorEl.hidden = true;
+      errorEl.textContent = '';
+      if (el) {
+        el.removeAttribute('aria-invalid');
+        el.removeAttribute('aria-describedby');
+      }
+    }
+  }
+
+  function setLinesError(message) {
+    var err = $('linesEditorError');
+    var inputs = $('linesEditor') ? $('linesEditor').querySelectorAll('.line-code, .line-desc') : [];
+    if (message) {
+      if (err) {
+        err.hidden = false;
+        err.textContent = message;
+      }
+      var first = $('linesEditor') && $('linesEditor').querySelector('.line-desc, .line-code');
+      if (first) {
+        first.setAttribute('aria-invalid', 'true');
+        if (err) first.setAttribute('aria-describedby', err.id);
+      }
+    } else {
+      if (err) {
+        err.hidden = true;
+        err.textContent = '';
+      }
+      Array.prototype.forEach.call(inputs, function(el) {
+        el.removeAttribute('aria-invalid');
+        el.removeAttribute('aria-describedby');
+      });
+    }
+  }
+
+  function linesHaveAnItem() {
+    return readLinesFromEditor().some(function(l) {
+      return String(l.description || '').trim() || String(l.product_code || '').trim();
+    });
+  }
+
+  function clearEditorFieldErrors() {
+    setControlError($('editorSubject'), $('editorSubjectError'), '');
+    setControlError($('editorBudgetVoteFieldset'), $('editorBudgetVoteError'), '');
+    setControlError($('editorBudgetVoteOther'), $('editorBudgetVoteOtherError'), '');
+    setLinesError('');
   }
 
   function selectedEditorSubject() {
@@ -860,28 +1610,45 @@ body.is-admin span.admin-only.inline{display:inline}
   function requireEditorSubject() {
     var sub = selectedEditorSubject();
     if (!sub || !SUBJECTS[sub]) {
+      setControlError($('editorSubject'), $('editorSubjectError'), 'Select a subject.');
       toast('Select a subject for this purchase.');
       $('editorSubject').focus();
       return '';
     }
+    setControlError($('editorSubject'), $('editorSubjectError'), '');
     return sub;
   }
 
-  function ensureDraft() {
-    var id = $('editorRequestId').value;
-    if (id) return Promise.resolve(id);
-    var sub = requireEditorSubject();
-    if (!sub) return Promise.reject(new Error('Select a subject for this purchase.'));
-    return PurchaseOrderService.createDraft(getSelectedYear(), sub, $('editorNotes').value).then(function(newId) {
-      $('editorRequestId').value = newId;
-      $('deleteDraftBtn').style.display = 'inline-flex';
-      return newId;
+  function focusEditorBudgetVote() {
+    var fs = $('editorBudgetVoteFieldset');
+    if (fs && typeof fs.scrollIntoView === 'function') fs.scrollIntoView({ block: 'nearest' });
+    var first = document.querySelector('#editorModal input[name="editorBudgetVote"]');
+    if (first && !first.disabled) first.focus();
+  }
+
+  function focusFirstLineItem() {
+    var desc = document.querySelector('#linesEditor .line-desc');
+    if (desc) {
+      if (typeof desc.scrollIntoView === 'function') desc.scrollIntoView({ block: 'nearest' });
+      desc.focus();
+    }
+  }
+
+  function persistCapturedDraft(snapshot) {
+    return PurchaseOrderService.saveDraft(snapshot.requestId || null, snapshot).then(function(id) {
+      if (id) {
+        $('editorRequestId').value = id;
+        $('deleteDraftBtn').style.display = 'inline-flex';
+      }
+      return id;
     });
   }
 
   function openEditorNew() {
+    if (editorWriteInFlight) return;
     $('editorRequestId').value = '';
     $('editorTitle').textContent = 'New purchase request';
+    hideEditorStatus();
     $('editorYear').value = getSelectedYear();
     $('editorYear').disabled = true;
     $('editorSubject').value = '';
@@ -899,13 +1666,20 @@ body.is-admin span.admin-only.inline{display:inline}
     $('addLineBtn').style.display = 'inline-flex';
     $('linesEditor').querySelectorAll('input').forEach(function(inp) { inp.disabled = false; });
     $('editorNotes').disabled = false;
-    $('editorModal').classList.add('visible');
+    editorIsEditable = true;
+    hideEditorAdminDelete();
+    setEditorBusy(false);
+    setOverlayOpen($('editorModal'), true);
     syncBudgetVoteOtherInput();
-    $('editorSubject').focus();
+    markEditorClean();
+    clearEditorFieldErrors();
+    focusEditorOnOpen();
   }
 
   function openRequest(id) {
+    if (editorWriteInFlight) return;
     PurchaseOrderService.getRequest(id).then(function(req) {
+      if (editorWriteInFlight) return;
       if (!req) { toast('Not found'); return; }
       $('editorRequestId').value = req.id;
       $('editorTitle').textContent = req.status === 'draft' ? 'Edit draft' : 'View request';
@@ -934,92 +1708,350 @@ body.is-admin span.admin-only.inline{display:inline}
       $('editorNotes').disabled = !draft;
       $('addLineBtn').style.display = draft ? 'inline-flex' : 'none';
       $('linesEditor').querySelectorAll('.line-remove').forEach(function(b) { b.style.display = draft ? 'inline-flex' : 'none'; });
-      $('editorModal').classList.add('visible');
+      editorIsEditable = draft;
+      renderEditorStatus(req);
+      showEditorAdminDelete(req);
+      setEditorBusy(false);
+      setOverlayOpen($('editorModal'), true);
       syncBudgetVoteOtherInput();
+      markEditorClean();
+      clearEditorFieldErrors();
+      focusEditorOnOpen();
     }).catch(function(e) { toast(e.message || 'Load failed'); });
   }
 
+  var officeActionInFlight = {};
+  var reviewModalRequestId = null;
+
+  function setReviewDecisionControlsBusy(busy) {
+    var approve = $('doApproveBtn');
+    var reject = $('doRejectBtn');
+    var reason = $('rejectReason');
+    if (approve) approve.disabled = !!busy;
+    if (reject) reject.disabled = !!busy;
+    if (reason) reason.disabled = !!busy;
+  }
+
+  function closeReview() {
+    reviewModalRequestId = null;
+    var rec = takeOpener('review');
+    setOverlayOpen($('reviewModal'), false, { restore: false });
+    restoreOpenerSoon(rec, 'review');
+  }
+
+  function hideEditorStatus() {
+    var el = $('editorStatus');
+    if (!el) return;
+    el.hidden = true;
+    el.innerHTML = '';
+  }
+
+  function renderEditorStatus(req) {
+    var el = $('editorStatus');
+    if (!el || !req || !req.status) {
+      hideEditorStatus();
+      return;
+    }
+    var st = String(req.status).toLowerCase();
+    var po = (req.po_number && String(req.po_number).trim()) ? String(req.po_number).trim() : '';
+    var copy = '';
+    if (st === 'draft') copy = 'This request has not been submitted for approval.';
+    else if (st === 'submitted') copy = 'Waiting for Faculty Head approval.';
+    else if (st === 'approved') {
+      copy = po
+        ? 'Purchase order <span class="mono">' + esc(po) + '</span> has been created and is waiting to be ordered.'
+        : 'A purchase order has been created and is waiting to be ordered.';
+    } else if (st === 'processed') {
+      copy = 'This order has been processed and recorded as spent.';
+    } else if (st === 'rejected') {
+      copy = 'This request was not approved.';
+    } else {
+      copy = 'Status: ' + esc(req.status);
+    }
+    var html = '<div class="editor-status-row">' + statusBadge(st) + '<p class="editor-status-copy">' + copy + '</p></div>';
+    if (st === 'processed' && po) {
+      html += '<div class="editor-status-extra"><span class="review-k">PO reference</span><span class="review-v mono">' + esc(po) + '</span></div>';
+    }
+    if (st === 'rejected') {
+      var reason = String(req.rejected_reason || '').trim();
+      html += '<div class="editor-status-extra"><span class="review-k">Rejection reason</span><span class="review-v">' + (reason ? esc(reason) : 'No reason was recorded.') + '</span></div>';
+    }
+    el.innerHTML = html;
+    el.hidden = false;
+  }
+
+  var editorLoadedRequest = null;
+
+  function requestLineTotal(req) {
+    var lines = (req && req.purchase_request_lines) || [];
+    var t = 0;
+    lines.forEach(function(l) {
+      var lt = Number(l.line_total);
+      if (isNaN(lt)) lt = (Number(l.unit_price) || 0) * (Number(l.quantity) || 0);
+      t += lt;
+    });
+    return t;
+  }
+
+  function hideEditorAdminDelete() {
+    editorLoadedRequest = null;
+    var el = $('editorAdminDelete');
+    if (el) el.hidden = true;
+  }
+
+  function showEditorAdminDelete(req) {
+    editorLoadedRequest = req || null;
+    var el = $('editorAdminDelete');
+    if (!el) return;
+    el.hidden = !(req && req.id && canManageProcurement());
+  }
+
+  function confirmPermanentDelete(req) {
+    var total = requestLineTotal(req);
+    var po = req && req.po_number && String(req.po_number).trim();
+    var ident = po
+      ? 'Permanently delete PO ' + po + ' for ' + formatMoney(total) + '?'
+      : 'Permanently delete this request for ' + formatMoney(total) + '?';
+    return window.confirm(
+      ident + '\n\nThis will remove the procurement record and reverse any associated budget effect. This cannot be undone.'
+    );
+  }
+
+  function adminPermanentDelete(req, onDone) {
+    if (!canManageProcurement() || !req || !req.id) return;
+    if (!confirmPermanentDelete(req)) return;
+    PurchaseOrderService.adminDeleteRequest(req.id).then(function() {
+      toast('Request deleted permanently.');
+      if (typeof onDone === 'function') onDone();
+    }).catch(function(e) {
+      toast((e && e.message) || 'Could not delete this request.');
+    });
+  }
+
+  var editorCleanSnapshot = '';
+
+  function readEditorSnapshot() {
+    var bv = readBudgetVoteFromEditor();
+    return JSON.stringify({
+      subject: selectedEditorSubject(),
+      notes: $('editorNotes').value,
+      vote: bv.vote,
+      other: bv.other,
+      lines: readLinesFromEditor()
+    });
+  }
+
+  function markEditorClean() {
+    editorCleanSnapshot = readEditorSnapshot();
+  }
+
+  function isEditorDirty() {
+    if (!editorIsEditable) return false;
+    return readEditorSnapshot() !== editorCleanSnapshot;
+  }
+
+  function discardConfirmIsOpen() {
+    var el = $('editorDiscardModal');
+    return !!(el && el.classList.contains('visible'));
+  }
+
+  function hideDiscardConfirm(opts) {
+    var el = $('editorDiscardModal');
+    if (!el) return;
+    el.classList.remove('visible');
+    syncDialogLayers();
+    if (opts && opts.restoreFocus === false) {
+      editorFocusBeforeDiscard = null;
+      return;
+    }
+    restoreEditorFocusFromDiscard();
+  }
+
+  function showDiscardConfirm() {
+    var el = $('editorDiscardModal');
+    if (!el) return;
+    var active = document.activeElement;
+    editorFocusBeforeDiscard = (active && $('editorModal').contains(active)) ? active : $('editorCloseBtn');
+    el.classList.add('visible');
+    syncDialogLayers();
+    var keep = $('editorKeepEditingBtn');
+    if (keep) keep.focus();
+  }
+
+  function requestCloseEditor() {
+    if (editorWriteInFlight) return;
+    if (discardConfirmIsOpen()) return;
+    if (isEditorDirty()) {
+      showDiscardConfirm();
+      return;
+    }
+    closeEditor();
+  }
+
   function closeEditor() {
-    $('editorModal').classList.remove('visible');
+    hideDiscardConfirm({ restoreFocus: false });
+    hideEditorStatus();
+    hideEditorAdminDelete();
+    setEditorBusy(false);
+    editorIsEditable = false;
+    editorCleanSnapshot = '';
+    clearEditorFieldErrors();
+    var rec = takeOpener('editor');
+    setOverlayOpen($('editorModal'), false, { restore: false });
     loadMyRequests();
     loadAdmin();
     loadDashboard();
+    restoreOpenerSoon(rec, 'editor');
   }
 
   function saveDraftFromEditor() {
+    if (editorWriteInFlight) return;
     var sub = requireEditorSubject();
     if (!sub) return;
-    var lines = readLinesFromEditor();
-    var bv = readBudgetVoteFromEditor();
-    ensureDraft().then(function(id) {
-      return PurchaseOrderService.replaceLines(id, lines).then(function() {
-        return PurchaseOrderService.updateDraftMeta(id, $('editorNotes').value, bv.vote, bv.other, sub);
-      });
-    }).then(function() {
-      toast('Draft saved.');
-    }).catch(function(e) { toast(e.message || 'Save failed'); });
+    var snapshot = captureEditorWriteSnapshot();
+    setEditorBusy(true);
+    persistCapturedDraft(snapshot).then(function() {
+      toast('Draft saved. You can close this and come back later.');
+      markEditorClean();
+    }).catch(function(e) {
+      toastDraftWriteError(e, 'Save failed');
+    }).then(function() { setEditorBusy(false); });
   }
 
   function submitFromEditor() {
+    if (editorWriteInFlight) return;
     var sub = requireEditorSubject();
     if (!sub) return;
-    var bv = readBudgetVoteFromEditor();
-    if (!bv.vote) {
-      toast('Select what you are ordering (budget line).');
+    var snapshot = captureEditorWriteSnapshot();
+    if (!snapshot.vote) {
+      setControlError($('editorBudgetVoteFieldset'), $('editorBudgetVoteError'), 'Select what you are ordering.');
+      toast('Select what you are ordering before submitting.');
+      focusEditorBudgetVote();
       return;
     }
-    if (bv.vote === 'other' && !String(bv.other || '').trim()) {
-      toast('Please specify the budget line for Other.');
+    setControlError($('editorBudgetVoteFieldset'), $('editorBudgetVoteError'), '');
+    if (snapshot.vote === 'other' && !String(snapshot.other || '').trim()) {
+      setControlError($('editorBudgetVoteOther'), $('editorBudgetVoteOtherError'), 'Specify the Other budget line.');
+      toast('Specify the budget line for Other before submitting.');
+      $('editorBudgetVoteOther').focus();
       return;
     }
-    var lines = readLinesFromEditor();
-    if (lines.length === 0 || lines.every(function(l) { return !l.description.trim() && !l.product_code.trim(); })) {
-      toast('Add at least one line item with a description or code.');
+    setControlError($('editorBudgetVoteOther'), $('editorBudgetVoteOtherError'), '');
+    if (snapshot.lines.length === 0 || snapshot.lines.every(function(l) { return !String(l.description || '').trim() && !String(l.product_code || '').trim(); })) {
+      setLinesError('Add a description or supplier code.');
+      toast('Add at least one line item with a description or supplier code.');
+      focusFirstLineItem();
       return;
     }
-    ensureDraft().then(function(id) {
-      return PurchaseOrderService.replaceLines(id, lines).then(function() {
-        return PurchaseOrderService.updateDraftMeta(id, $('editorNotes').value, bv.vote, bv.other, sub);
-      }).then(function() {
-        return PurchaseOrderService.submitRequest(id);
-      });
+    setLinesError('');
+    setEditorBusy(true);
+    persistCapturedDraft(snapshot).then(function(id) {
+      markEditorClean();
+      return PurchaseOrderService.submitRequest(id);
     }).then(function() {
       toast('Submitted for approval.');
       closeEditor();
-    }).catch(function(e) { toast(e.message || 'Submit failed'); });
+    }).catch(function(e) {
+      toastDraftWriteError(e, 'Submit failed');
+      setEditorBusy(false);
+    });
   }
 
   function deleteDraftFromEditor() {
+    if (editorWriteInFlight) return;
     var id = $('editorRequestId').value;
     if (!id || !confirm('Delete this draft?')) return;
+    setEditorBusy(true);
     PurchaseOrderService.deleteDraft(id).then(function() {
       toast('Deleted.');
       closeEditor();
-    }).catch(function(e) { toast(e.message || 'Delete failed'); });
+    }).catch(function(e) {
+      toast(e.message || 'Delete failed');
+      setEditorBusy(false);
+    });
+  }
+
+  function loadProcessedAdmin() {
+    var wrap = $('processedTable');
+    if (!wrap || !canManageProcurement()) return;
+    wrap.innerHTML = loadingHtml('Loading processed orders');
+    var y = getSelectedYear();
+    PurchaseOrderService.listProcessedForAdmin(y).then(function(rows) {
+      var ids = rows.map(function(r) { return r.id; });
+      var requesterIds = rows.map(function(r) { return r.requester_id; });
+      return Promise.all([
+        PurchaseOrderService.sumLineTotalsByRequestIds(ids),
+        namesForUserIds(requesterIds)
+      ]).then(function(parts) {
+        return { rows: rows, totals: parts[0], names: parts[1] };
+      });
+    }).then(function(data) {
+      var rows = data.rows;
+      var totals = data.totals;
+      var names = data.names || {};
+      if (rows.length === 0) {
+        wrap.innerHTML = emptyStateHtml('No processed orders this year', 'When an approved order is marked processed, it appears here.');
+        return;
+      }
+      var html = '<table><thead><tr><th>PO</th><th>Subject</th><th>Requester</th><th>Processed</th><th>Total</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>';
+      rows.forEach(function(r) {
+        var sl = SUBJECTS[r.subject_code] ? SUBJECTS[r.subject_code].label : r.subject_code;
+        html += '<tr data-id="' + esc(r.id) + '"' + subjectRowClass(r.subject_code) + '><td class="mono">' + esc(r.po_number || '\u2014') + '</td><td>' + esc(sl) + '</td><td>' + esc(names[r.requester_id] || 'Staff') + '</td><td>' + esc(formatDate(r.processed_at)) + '</td><td class="po-num">' + formatMoney(totals[r.id] || 0) + '</td><td><div class="po-actions"><button type="button" class="btn btn-ghost btn-sm btn-open-processed" data-id="' + esc(r.id) + '">Open</button></div></td></tr>';
+      });
+      html += '</tbody></table>';
+      wrap.innerHTML = html;
+      wrap.querySelectorAll('.btn-open-processed').forEach(function(btn) {
+        btn.onclick = function(e) {
+          e.stopPropagation();
+          openRequest(btn.getAttribute('data-id'));
+        };
+      });
+      bindRowActivate(wrap, openRequest);
+    }).catch(function(e) {
+      wrap.innerHTML = emptyStateHtml('Could not load processed orders', (e && e.message) || 'Refresh and try again.');
+    });
   }
 
   function loadAdmin() {
     if (!canManageProcurement()) return;
     renderBudgetAdmin();
+    loadProcessedAdmin();
+    $('pendingTable').innerHTML = loadingHtml('Loading submitted requests');
+    $('approvedTable').innerHTML = loadingHtml('Loading approved orders');
     PurchaseOrderService.listSubmittedForAdmin().then(function(rows) {
       var ids = rows.map(function(r) { return r.id; });
-      return PurchaseOrderService.sumLineTotalsByRequestIds(ids).then(function(totals) {
-        return { rows: rows, totals: totals };
+      var requesterIds = rows.map(function(r) { return r.requester_id; });
+      return Promise.all([
+        PurchaseOrderService.sumLineTotalsByRequestIds(ids),
+        namesForUserIds(requesterIds)
+      ]).then(function(parts) {
+        return { rows: rows, totals: parts[0], names: parts[1] };
       });
     }).then(function(data) {
       var rows = data.rows;
       var totals = data.totals;
-      var html = '<table><thead><tr><th>Date</th><th>Subject</th><th>Requester</th><th>Total</th><th></th></tr></thead><tbody>';
-      if (rows.length === 0) html += '<tr><td colspan="5" class="empty-s">No pending requests.</td></tr>';
-      else rows.forEach(function(r) {
+      var names = data.names || {};
+      setCount('pendingCount', rows.length);
+      if (rows.length === 0) {
+        $('pendingTable').innerHTML = emptyStateHtml('Nothing waiting', 'Submitted requests from staff will appear here for approval.');
+        return;
+      }
+      var html = '<table><thead><tr><th>Submitted</th><th>Subject</th><th>Requester</th><th>Total</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>';
+      rows.forEach(function(r) {
         var sl = SUBJECTS[r.subject_code] ? SUBJECTS[r.subject_code].label : r.subject_code;
-        html += '<tr><td>' + esc((r.submitted_at || '').slice(0, 16).replace('T', ' ')) + '</td><td>' + esc(sl) + '</td><td class="mono">' + esc(r.requester_id.slice(0, 8)) + '…</td><td>' + formatMoney(totals[r.id] || 0) + '</td><td><button type="button" class="btn btn-primary btn-review" data-id="' + esc(r.id) + '">Review</button></td></tr>';
+        html += '<tr data-id="' + esc(r.id) + '"' + subjectRowClass(r.subject_code) + '><td>' + esc(formatDate(r.submitted_at)) + '</td><td>' + esc(sl) + '</td><td>' + esc(names[r.requester_id] || 'Staff') + '</td><td class="po-num">' + formatMoney(totals[r.id] || 0) + '</td><td><div class="po-actions"><button type="button" class="btn btn-primary btn-sm btn-review" data-id="' + esc(r.id) + '">Review</button></div></td></tr>';
       });
       html += '</tbody></table>';
       $('pendingTable').innerHTML = html;
       $('pendingTable').querySelectorAll('.btn-review').forEach(function(btn) {
-        btn.onclick = function() { openReview(btn.getAttribute('data-id'), 'pending'); };
+        btn.onclick = function(e) {
+          e.stopPropagation();
+          openReview(btn.getAttribute('data-id'), 'pending');
+        };
       });
+      bindRowActivate($('pendingTable'), function(id) { openReview(id, 'pending'); });
+    }).catch(function(e) {
+      $('pendingTable').innerHTML = emptyStateHtml('Could not load submitted requests', (e && e.message) || 'Refresh and try again.');
     });
 
     PurchaseOrderService.listApprovedForAdmin().then(function(rows) {
@@ -1030,89 +2062,153 @@ body.is-admin span.admin-only.inline{display:inline}
     }).then(function(data) {
       var rows = data.rows;
       var totals = data.totals;
-      var html = '<table><thead><tr><th>PO #</th><th>Subject</th><th>Approved</th><th>Total</th><th></th></tr></thead><tbody>';
-      if (rows.length === 0) html += '<tr><td colspan="5" class="empty-s">No approved orders awaiting processing.</td></tr>';
-      else rows.forEach(function(r) {
+      setCount('approvedCount', rows.length);
+      if (rows.length === 0) {
+        $('approvedTable').innerHTML = emptyStateHtml('No orders to send', 'Approved requests wait here until you print the PO and mark them processed.');
+        return;
+      }
+      var html = '<table><thead><tr><th>PO</th><th>Subject</th><th>Approved</th><th>Total</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>';
+      rows.forEach(function(r) {
         var sl = SUBJECTS[r.subject_code] ? SUBJECTS[r.subject_code].label : r.subject_code;
-        html += '<tr><td class="mono">' + esc(r.po_number) + '</td><td>' + esc(sl) + '</td><td>' + esc((r.approved_at || '').slice(0, 10)) + '</td><td>' + formatMoney(totals[r.id] || 0) + '</td><td style="display:flex;gap:.35rem;flex-wrap:wrap">' +
-          '<button type="button" class="btn btn-ghost btn-print-po" data-id="' + esc(r.id) + '">Print PO</button>' +
-          '<button type="button" class="btn btn-primary btn-process" data-id="' + esc(r.id) + '">Mark processed</button></td></tr>';
+        html += '<tr data-id="' + esc(r.id) + '"' + subjectRowClass(r.subject_code) + '><td class="mono">' + esc(r.po_number) + '</td><td>' + esc(sl) + '</td><td>' + esc(formatDate(r.approved_at)) + '</td><td class="po-num">' + formatMoney(totals[r.id] || 0) + '</td><td><div class="po-actions">' +
+          '<button type="button" class="btn btn-ghost btn-sm btn-print-po" data-id="' + esc(r.id) + '">Print PO</button>' +
+          '<button type="button" class="btn btn-primary btn-sm btn-process" data-id="' + esc(r.id) + '">Mark processed</button></div></td></tr>';
       });
       html += '</tbody></table>';
       $('approvedTable').innerHTML = html;
       $('approvedTable').querySelectorAll('.btn-print-po').forEach(function(btn) {
-        btn.onclick = function() { printPO(btn.getAttribute('data-id')); };
+        btn.onclick = function(e) {
+          e.stopPropagation();
+          printPO(btn.getAttribute('data-id'));
+        };
       });
       $('approvedTable').querySelectorAll('.btn-process').forEach(function(btn) {
-        btn.onclick = function() {
+        btn.onclick = function(e) {
+          e.stopPropagation();
           var rid = btn.getAttribute('data-id');
+          if (!rid || officeActionInFlight[rid] || btn.disabled) return;
           if (!confirm('Mark this order as processed? This moves the amount from committed to spent.')) return;
+          officeActionInFlight[rid] = 'process';
+          btn.disabled = true;
           PurchaseOrderService.markProcessed(rid).then(function() {
+            delete officeActionInFlight[rid];
             toast('Marked processed.');
             loadAdmin();
             loadDashboard();
-          }).catch(function(e) { toast(e.message || 'Failed'); });
+          }).catch(function() {
+            delete officeActionInFlight[rid];
+            btn.disabled = false;
+            toast('Could not mark this order as processed. Please try again.');
+          });
         };
       });
+      bindRowActivate($('approvedTable'), openRequest);
+    }).catch(function(e) {
+      $('approvedTable').innerHTML = emptyStateHtml('Could not load approved orders', (e && e.message) || 'Refresh and try again.');
     });
   }
 
   function openReview(id, mode) {
     PurchaseOrderService.getRequest(id).then(function(req) {
-      PurchaseOrderService.getProfile(req.requester_id).then(function(prof) {
-        var name = requesterNameForPrint(prof);
-        var lines = req.purchase_request_lines || [];
-        lines.sort(function(a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
-        var total = 0;
-        var rows = lines.map(function(l) {
-          var lt = Number(l.line_total);
-          total += lt;
-          return '<tr><td>' + esc(l.product_code) + '</td><td>' + esc(l.description) + '</td><td class="mono">' + formatMoney(l.unit_price) + '</td><td>' + esc(String(l.quantity)) + '</td><td class="mono">' + formatMoney(l.line_total) + '</td></tr>';
-        }).join('');
-        var sl = SUBJECTS[req.subject_code] ? SUBJECTS[req.subject_code].label : req.subject_code;
-        var body = '<p><strong>Requester:</strong> ' + esc(name) + '</p>' +
-          '<p><strong>Subject:</strong> ' + esc(sl) + ' · <strong>Year:</strong> ' + esc(req.academic_year) + '</p>' +
-          '<p><strong>Budget line:</strong> ' + formatBudgetVoteLine(req.budget_vote, req.budget_vote_other) + '</p>' +
-          '<p><strong>Notes:</strong> ' + esc(req.notes || '—') + '</p>' +
-          '<div class="table-wrap"><table><thead><tr><th>Code</th><th>Description</th><th>Price</th><th>Qty</th><th>Line</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
-          '<p style="margin-top:.75rem"><strong>Total:</strong> ' + formatMoney(total) + '</p>';
-        if (mode === 'pending') {
-          body += '<div style="margin-top:1rem;display:flex;gap:.5rem;flex-wrap:wrap">' +
-            '<button type="button" class="btn btn-primary" id="doApproveBtn">Approve</button>' +
-            '<button type="button" class="btn btn-danger" id="doRejectBtn">Reject</button>' +
-            '<div style="width:100%"><label class="form-label">Rejection reason (if rejecting)</label><input type="text" class="form-input" id="rejectReason" style="max-width:100%" placeholder="Reason"></div></div>';
-        }
-        $('reviewBody').innerHTML = body;
-        $('reviewModal').classList.add('visible');
-        if (mode === 'pending') {
-          $('doApproveBtn').onclick = function() {
-            PurchaseOrderService.approveRequest(id).then(function(res) {
-              var po = res && res.po_number;
-              toast('Approved. PO: ' + (po || ''));
-              $('reviewModal').classList.remove('visible');
-              loadAdmin();
-              loadDashboard();
-            }).catch(function(e) {
-              var msg = (e && (e.message || e.details || e.hint)) || (e && e.error && e.error.message) || 'Approve failed';
-              toast(msg);
-            });
-          };
-          $('doRejectBtn').onclick = function() {
-            var reason = $('rejectReason').value;
-            PurchaseOrderService.rejectRequest(id, reason).then(function() {
-              toast('Rejected.');
-              $('reviewModal').classList.remove('visible');
-              loadAdmin();
-            }).catch(function(e) { toast(e.message || 'Reject failed'); });
-          };
-        }
+      if (!req) return Promise.reject(new Error('missing'));
+      return PurchaseOrderService.getProfile(req.requester_id).then(function(prof) {
+        return { req: req, prof: prof };
       });
+    }).then(function(data) {
+      var req = data.req;
+      var name = requesterNameForPrint(data.prof);
+      var lines = req.purchase_request_lines || [];
+      lines.sort(function(a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
+      var total = 0;
+      var rows = lines.map(function(l) {
+        var lt = Number(l.line_total);
+        total += lt;
+        return '<tr><td>' + esc(l.product_code) + '</td><td>' + esc(l.description) + '</td><td class="mono">' + formatMoney(l.unit_price) + '</td><td>' + esc(String(l.quantity)) + '</td><td class="mono">' + formatMoney(l.line_total) + '</td></tr>';
+      }).join('');
+      var sl = SUBJECTS[req.subject_code] ? SUBJECTS[req.subject_code].label : req.subject_code;
+      var body = '<div class="review-meta">' +
+        '<p><span class="review-k">Requester</span><span class="review-v">' + esc(name) + '</span></p>' +
+        '<p><span class="review-k">Subject</span><span class="review-v">' + esc(sl) + ' · ' + esc(req.academic_year) + '</span></p>' +
+        '<p><span class="review-k">Budget line</span><span class="review-v">' + formatBudgetVoteLine(req.budget_vote, req.budget_vote_other) + '</span></p>' +
+        '<p><span class="review-k">Notes</span><span class="review-v">' + esc(req.notes || '\u2014') + '</span></p>' +
+        '</div>' +
+        '<div class="table-wrap"><table><thead><tr><th>Code</th><th>Description</th><th>Price</th><th>Qty</th><th>Line</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+        '<p style="margin-top:.85rem;font-family:var(--font-heading);font-weight:800;letter-spacing:-.02em">Total ' + formatMoney(total) + '</p>';
+      if (mode === 'pending') {
+        body += '<div class="review-actions">' +
+          '<button type="button" class="btn btn-primary" id="doApproveBtn">Approve</button>' +
+          '<button type="button" class="btn btn-danger" id="doRejectBtn">Reject</button>' +
+          '<div style="width:100%"><label class="form-label" for="rejectReason">Rejection reason</label><input type="text" class="form-input" id="rejectReason" style="max-width:100%" placeholder="Required"></div></div>';
+      }
+      if (canManageProcurement()) {
+        body += '<div class="po-admin-delete"><button type="button" class="po-admin-delete-btn" id="reviewAdminDeleteBtn">Delete request permanently</button></div>';
+      }
+      $('reviewBody').innerHTML = body;
+      reviewModalRequestId = req.id;
+      setOverlayOpen($('reviewModal'), true);
+      focusReviewOnOpen();
+      if (mode === 'pending') {
+        setReviewDecisionControlsBusy(!!officeActionInFlight[id]);
+        $('doApproveBtn').onclick = function() {
+          if (officeActionInFlight[id]) return;
+          officeActionInFlight[id] = 'approve';
+          setReviewDecisionControlsBusy(true);
+          PurchaseOrderService.approveRequest(id).then(function(res) {
+            delete officeActionInFlight[id];
+            var po = res && res.po_number;
+            toast('Approved. PO: ' + (po || ''));
+            closeReview();
+            loadAdmin();
+            loadDashboard();
+          }).catch(function() {
+            delete officeActionInFlight[id];
+            if (reviewModalRequestId === id) setReviewDecisionControlsBusy(false);
+            toast('Could not approve this request. Please try again.');
+          });
+        };
+        $('doRejectBtn').onclick = function() {
+          if (officeActionInFlight[id]) return;
+          var reasonEl = $('rejectReason');
+          var reason = reasonEl ? reasonEl.value : '';
+          if (!String(reason || '').trim()) {
+            toast('Enter a reason for rejecting this request.');
+            if (reasonEl) reasonEl.focus();
+            return;
+          }
+          officeActionInFlight[id] = 'reject';
+          setReviewDecisionControlsBusy(true);
+          PurchaseOrderService.rejectRequest(id, reason).then(function() {
+            delete officeActionInFlight[id];
+            toast('Rejected.');
+            closeReview();
+            loadAdmin();
+          }).catch(function() {
+            delete officeActionInFlight[id];
+            if (reviewModalRequestId === id) setReviewDecisionControlsBusy(false);
+            toast('Could not reject this request. Please try again.');
+          });
+        };
+      }
+      var adminDel = $('reviewAdminDeleteBtn');
+      if (adminDel) {
+        adminDel.onclick = function() {
+          adminPermanentDelete(req, function() {
+            closeReview();
+            loadMyRequests();
+            loadAdmin();
+            loadDashboard();
+          });
+        };
+      }
+    }).catch(function() {
+      toast('Could not open this request for review. Please try again.');
     });
   }
 
   function printPO(id) {
     PurchaseOrderService.getRequest(id).then(function(req) {
-      PurchaseOrderService.getProfile(req.requester_id).then(function(prof) {
+      if (!req) return Promise.reject(new Error('missing'));
+      return PurchaseOrderService.getProfile(req.requester_id).then(function(prof) {
         var name = requesterNameForPrint(prof);
         var lines = req.purchase_request_lines || [];
         lines.sort(function(a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
@@ -1176,13 +2272,18 @@ body.is-admin span.admin-only.inline{display:inline}
         $('printArea').setAttribute('aria-hidden', 'false');
         window.print();
       });
+    }).catch(function() {
+      toast('Could not prepare the purchase order for printing. Please try again.');
     });
   }
 
   $('yearSelect').addEventListener('change', function() {
     loadDashboard();
     loadMyRequests();
-    if (canManageProcurement()) renderBudgetAdmin();
+    if (canManageProcurement()) {
+      renderBudgetAdmin();
+      loadProcessedAdmin();
+    }
   });
   $('refreshDashBtn').onclick = function() {
     loadDashboard();
@@ -1190,12 +2291,73 @@ body.is-admin span.admin-only.inline{display:inline}
     loadAdmin();
   };
   $('newRequestBtn').onclick = openEditorNew;
-  $('editorCloseBtn').onclick = closeEditor;
-  $('reviewCloseBtn').onclick = function() { $('reviewModal').classList.remove('visible'); };
-  $('addLineBtn').onclick = function() { addLineRow(); recalcEditorTotal(); };
+  $('editorCloseBtn').onclick = requestCloseEditor;
+  $('reviewCloseBtn').onclick = closeReview;
+  $('addLineBtn').onclick = function() { if (editorWriteInFlight) return; addLineRow(); recalcEditorTotal(); };
   $('saveDraftBtn').onclick = saveDraftFromEditor;
   $('submitReqBtn').onclick = submitFromEditor;
   $('deleteDraftBtn').onclick = deleteDraftFromEditor;
+  $('adminDeleteReqBtn').onclick = function() {
+    if (editorWriteInFlight) return;
+    adminPermanentDelete(editorLoadedRequest, closeEditor);
+  };
+  $('editorKeepEditingBtn').onclick = hideDiscardConfirm;
+  $('editorDiscardBtn').onclick = function() {
+    if (editorWriteInFlight) return;
+    closeEditor();
+  };
+  $('editorDiscardModal').addEventListener('click', function(e) {
+    if (e.target === $('editorDiscardModal')) hideDiscardConfirm();
+  });
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Tab') {
+      var dlg = topmostDialog();
+      if (!dlg) return;
+      var list = getFocusable(dlg);
+      if (list.length === 0) {
+        e.preventDefault();
+        var heading = dlg.querySelector('[id$="Title"]');
+        if (heading) heading.focus();
+        return;
+      }
+      var first = list[0];
+      var last = list[list.length - 1];
+      var active = document.activeElement;
+      if (e.shiftKey) {
+        if (active === first || !dlg.contains(active)) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else if (active === last || !dlg.contains(active)) {
+        e.preventDefault();
+        first.focus();
+      }
+      return;
+    }
+    if (e.key !== 'Escape') return;
+    if (editorWriteInFlight) return;
+    if (discardConfirmIsOpen()) {
+      e.preventDefault();
+      hideDiscardConfirm();
+      return;
+    }
+    if ($('editorModal').classList.contains('visible')) {
+      e.preventDefault();
+      requestCloseEditor();
+      return;
+    }
+    if ($('reviewModal').classList.contains('visible')) {
+      e.preventDefault();
+      closeReview();
+    }
+  });
+
+  window.addEventListener('beforeunload', function(e) {
+    if (!isEditorDirty()) return;
+    e.preventDefault();
+    e.returnValue = '';
+  });
 
   $('saveDisplayNameBtn').onclick = function() {
     var v = $('requisitionDisplayName').value;
@@ -1205,7 +2367,20 @@ body.is-admin span.admin-only.inline{display:inline}
   };
 
   $('editorModal').addEventListener('change', function(e) {
-    if (e.target && e.target.name === 'editorBudgetVote') syncBudgetVoteOtherInput();
+    if (!e.target) return;
+    if (e.target.name === 'editorBudgetVote') {
+      syncBudgetVoteOtherInput();
+      if (e.target.value) setControlError($('editorBudgetVoteFieldset'), $('editorBudgetVoteError'), '');
+      if (e.target.value !== 'other') setControlError($('editorBudgetVoteOther'), $('editorBudgetVoteOtherError'), '');
+    }
+    if (e.target.id === 'editorSubject' && selectedEditorSubject()) {
+      setControlError($('editorSubject'), $('editorSubjectError'), '');
+    }
+  });
+  $('editorBudgetVoteOther').addEventListener('input', function() {
+    if (String($('editorBudgetVoteOther').value || '').trim()) {
+      setControlError($('editorBudgetVoteOther'), $('editorBudgetVoteOtherError'), '');
+    }
   });
 
   window.checkAllowlist().then(function() {

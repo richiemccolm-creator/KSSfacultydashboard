@@ -145,54 +145,63 @@
       });
     },
 
-    /**
-     * @param {string} budgetVote - one of EXPENDITURE_VOTE_* keys or empty
-     * @param {string} [budgetVoteOther] - required text when vote is `other`
-     * @param {string} [subjectCode] - drama | art_design | photography
-     */
-    updateDraftMeta: function(id, notes, budgetVote, budgetVoteOther, subjectCode) {
-      return requireSession().then(function() {
-        var vote = (budgetVote && String(budgetVote).trim()) ? String(budgetVote).trim() : null;
-        var other = null;
-        if (vote === 'other') {
-          other = (budgetVoteOther && String(budgetVoteOther).trim()) ? String(budgetVoteOther).trim() : null;
-        }
-        var patch = {
-          notes: (notes && String(notes).trim()) ? String(notes).trim() : null,
-          budget_vote: vote,
-          budget_vote_other: other
-        };
-        var sub = (subjectCode && String(subjectCode).trim()) ? String(subjectCode).trim() : '';
-        if (sub) patch.subject_code = sub;
-        return window.supabase.from('purchase_requests')
-          .update(patch)
-          .eq('id', id)
-          .eq('status', 'draft')
-          .select();
-      }).then(function(r) {
-        if (r.error) throw r.error;
-      });
+    STALE_DRAFT_MESSAGE: 'This request has changed and can no longer be edited. Close it and reopen to see the current state.',
+
+    /** True when the database refused a draft write because the request is no longer a draft. */
+    isStaleDraftError: function(err) {
+      if (err && err.code === 'PO_DRAFT_STALE') return true;
+      var parts = [
+        err && err.message,
+        err && err.details,
+        err && err.hint,
+        err && err.code
+      ].join(' ');
+      return /PO_DRAFT_STALE/.test(parts);
     },
 
-    replaceLines: function(requestId, lines) {
+    /**
+     * Atomically create or update a draft (metadata + line items) via save_purchase_draft.
+     * Does not modify the request if it is no longer a draft.
+     * @param {string|null} requestId - existing draft id, or null/empty to create
+     * @param {{academicYear:string, subject:string, notes:string, vote:string, other:string, lines:Array}} payload
+     * @returns {Promise<string>} request id
+     */
+    saveDraft: function(requestId, payload) {
+      payload = payload || {};
+      var vote = (payload.vote && String(payload.vote).trim()) ? String(payload.vote).trim() : null;
+      var other = null;
+      if (vote === 'other') {
+        other = (payload.other && String(payload.other).trim()) ? String(payload.other).trim() : null;
+      }
+      var lines = (payload.lines || []).map(function(l) {
+        return {
+          product_code: String(l.product_code || '').trim(),
+          description: String(l.description || '').trim(),
+          unit_price: Number(l.unit_price) || 0,
+          quantity: Number(l.quantity) || 1
+        };
+      });
+      var id = requestId && String(requestId).trim() ? String(requestId).trim() : null;
       return requireSession().then(function() {
-        return window.supabase.from('purchase_request_lines').delete().eq('request_id', requestId);
-      }).then(function(del) {
-        if (del.error) throw del.error;
-        if (!lines || lines.length === 0) return;
-        var rows = lines.map(function(l, i) {
-          return {
-            request_id: requestId,
-            product_code: (l.product_code || '').trim(),
-            description: (l.description || '').trim(),
-            unit_price: Number(l.unit_price) || 0,
-            quantity: Number(l.quantity) || 1,
-            sort_order: i
-          };
+        return window.supabase.rpc('save_purchase_draft', {
+          p_request_id: id,
+          p_academic_year: payload.academicYear || '',
+          p_subject_code: payload.subject || '',
+          p_notes: (payload.notes && String(payload.notes).trim()) ? String(payload.notes).trim() : null,
+          p_budget_vote: vote,
+          p_budget_vote_other: other,
+          p_lines: lines
         });
-        return window.supabase.from('purchase_request_lines').insert(rows);
-      }).then(function(ins) {
-        if (ins && ins.error) throw ins.error;
+      }).then(function(r) {
+        if (r.error) {
+          if (window.PurchaseOrderService.isStaleDraftError(r.error)) {
+            var stale = new Error(window.PurchaseOrderService.STALE_DRAFT_MESSAGE);
+            stale.code = 'PO_DRAFT_STALE';
+            throw stale;
+          }
+          throw r.error;
+        }
+        return r.data;
       });
     },
 
@@ -208,7 +217,11 @@
           .select();
       }).then(function(r) {
         if (r.error) throw r.error;
-        if (!r.data || r.data.length === 0) throw new Error('Could not submit (not draft or not owner)');
+        if (!r.data || r.data.length === 0) {
+          var stale = new Error(window.PurchaseOrderService.STALE_DRAFT_MESSAGE);
+          stale.code = 'PO_DRAFT_STALE';
+          throw stale;
+        }
       });
     },
 
@@ -224,6 +237,30 @@
 
     deleteDraft: function(requestId) {
       return window.PurchaseOrderService.deleteMyRequest(requestId);
+    },
+
+    /** Faculty Head / admin only. Permanently deletes a request in any status (RPC). */
+    adminDeleteRequest: function(requestId) {
+      return requireSession().then(function() {
+        return window.supabase.rpc('admin_delete_purchase_request', { p_request_id: requestId });
+      }).then(function(r) {
+        if (r.error) throw r.error;
+        if (r.data !== true) throw new Error('Could not delete this request.');
+      });
+    },
+
+    listProcessedForAdmin: function(academicYear) {
+      return requireSession().then(function() {
+        var q = window.supabase.from('purchase_requests')
+          .select('id, academic_year, subject_code, status, processed_at, po_number, notes, requester_id')
+          .eq('status', 'processed')
+          .order('processed_at', { ascending: false });
+        if (academicYear) q = q.eq('academic_year', academicYear);
+        return q;
+      }).then(function(r) {
+        if (r.error) throw r.error;
+        return r.data || [];
+      });
     },
 
     getMyProfile: function() {
@@ -260,11 +297,13 @@
     },
 
     rejectRequest: function(requestId, reason) {
+      var text = (reason && String(reason).trim()) ? String(reason).trim() : '';
+      if (!text) return Promise.reject(new Error('Enter a reason for rejecting this request.'));
       return requireSession().then(function() {
         return window.supabase.from('purchase_requests')
           .update({
             status: 'rejected',
-            rejected_reason: (reason || '').trim() || 'Rejected'
+            rejected_reason: text
           })
           .eq('id', requestId)
           .eq('status', 'submitted')
