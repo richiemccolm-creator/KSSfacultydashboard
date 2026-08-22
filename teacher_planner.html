@@ -967,7 +967,7 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
   .pulse-right{text-align:left}
 }
 </style>
-<link rel="stylesheet" href="teacher-planner-redesign.css?v=week-rail-1">
+<link rel="stylesheet" href="teacher-planner-redesign.css?v=today-diary-1">
 </head>
 <body>
 <script>
@@ -2946,19 +2946,39 @@ function toggleBankFavourite(id) {
 
 function getFocusLessonRow(lessonRows) {
   if (!lessonRows || !lessonRows.length) return null;
-  var unplanned = lessonRows.filter(function(r) { return r.status === 'needs-planning'; });
+  var unplanned = lessonRows.filter(function(r) { return r.kind !== 'free' && r.status === 'needs-planning'; });
   if (unplanned.length) return unplanned[0];
   var now = new Date();
   var mins = now.getHours() * 60 + now.getMinutes();
   var best = lessonRows[0];
   for (var i = 0; i < lessonRows.length; i++) {
-    var label = lessonRows[i].timeLabel || '';
+    if (lessonRows[i].kind === 'free') continue;
+    var label = lessonRows[i].startTime || lessonRows[i].timeLabel || '';
     var m = String(label).match(/(\d{1,2}):(\d{2})/);
     if (!m) continue;
     var t = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
     if (t >= mins - 10) { best = lessonRows[i]; break; }
   }
-  return best;
+  return best && best.kind === 'free' ? null : best;
+}
+
+function getNextUpLessonRow(lessonRows, isToday) {
+  var teaching = (lessonRows || []).filter(function(r) { return r && r.kind !== 'free'; });
+  if (!teaching.length) return null;
+  if (!isToday) return teaching[0];
+  var now = new Date();
+  var mins = now.getHours() * 60 + now.getMinutes();
+  var parsed = 0;
+  for (var i = 0; i < teaching.length; i++) {
+    var label = teaching[i].startTime || teaching[i].timeLabel || '';
+    var m = String(label).match(/(\d{1,2}):(\d{2})/);
+    if (!m) continue;
+    parsed++;
+    var t = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+    if (t >= mins - 10) return teaching[i];
+  }
+  if (!parsed) return teaching[0];
+  return null;
 }
 
 function collectScheduleSlots(opts) {
@@ -3153,6 +3173,29 @@ function periodTimeLabel(period) {
   if (p.start) bits.push(p.start);
   if (p.end) bits.push(p.end);
   return bits.join(' – ');
+}
+
+function periodStartTime(period) {
+  var state = PS.getState();
+  var pt = (state && state.timetable && state.timetable.periodTimes) || {};
+  var p = pt[period];
+  return (p && p.start) ? String(p.start) : '';
+}
+
+function periodDurationLabel(period) {
+  var state = PS.getState();
+  var pt = (state && state.timetable && state.timetable.periodTimes) || {};
+  var p = pt[period];
+  if (!p || !p.start || !p.end) return '';
+  function mins(s) {
+    var m = String(s).match(/(\d{1,2}):(\d{2})/);
+    if (!m) return null;
+    return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+  }
+  var a = mins(p.start);
+  var b = mins(p.end);
+  if (a == null || b == null || b <= a) return '';
+  return (b - a) + ' min';
 }
 
 function getTeacherDisplayName() {
@@ -3633,18 +3676,39 @@ function buildTodayDashboardModel() {
   PS.setCurrentWeekStart(weekStart);
   syncDayNotesPanel(dateStr);
 
-  var slotRows = getSlotsForDate(viewDate);
-  var lessonRows = slotRows.map(function(row) {
+  var dayName = weekdayFromDateStr(dateStr) || ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'][viewDate.getDay()];
+  var maxP = periodsForWeekday(dayName);
+  var slotsByPeriod = {};
+  getSlotsForDate(viewDate).forEach(function(row) { slotsByPeriod[row.period] = row; });
+
+  var lessonRows = [];
+  for (var p = 1; p <= maxP; p++) {
+    var startTime = periodStartTime(p);
+    var duration = periodDurationLabel(p);
+    var timeLabel = periodTimeLabel(p) || '';
+    var row = slotsByPeriod[p];
+    if (!row) {
+      lessonRows.push({
+        kind: 'free',
+        period: p,
+        dateStr: dateStr,
+        slotKey: slotKey(dayName, p),
+        startTime: startTime,
+        duration: duration,
+        timeLabel: timeLabel,
+        className: '',
+        subject: '',
+        title: 'Free period',
+        status: '',
+        room: '',
+        slides: null,
+        homework: null
+      });
+      continue;
+    }
     var lesson = PS.getLessonFor(dateStr, row.slotKey);
     var st = deriveLessonStatus(lesson);
-    var unit = '';
-    if (lesson && lesson.unitKey && window.getUnitFromKey) {
-      var u = window.getUnitFromKey(lesson.unitKey);
-      if (u && u.unit) unit = u.unit;
-    } else if (lesson && lesson.n5CiSession) {
-      unit = 'N5 Creative Industries';
-    }
-    var subject = row.slot.subject || '';
+    var subject = (row.slot && row.slot.subject) || '';
     var slidesAtt = window.LessonSlidesCatalog
       ? window.LessonSlidesCatalog.getAttachmentFromLesson(lesson)
       : (lesson && lesson.slidesFile ? {
@@ -3652,26 +3716,33 @@ function buildTodayDashboardModel() {
           slidesTitle: lesson.slidesTitle || 'Lesson slides',
           slidesIsHub: !!lesson.slidesIsHub
         } : null);
-    return {
-      period: row.period,
+    lessonRows.push({
+      kind: 'lesson',
+      period: p,
       slotKey: row.slotKey,
       dateStr: dateStr,
-      timeLabel: periodTimeLabel(row.period) || '',
-      className: row.slot.className || subjectLabel(subject) || 'Class',
+      startTime: startTime,
+      duration: duration,
+      timeLabel: timeLabel,
+      className: (row.slot && row.slot.className) || subjectLabel(subject) || 'Class',
       subject: subject,
       subjectLabel: subjectLabel(subject) || '',
-      title: lesson ? (lesson.title || 'Untitled') : 'No lesson plan yet',
-      unit: unit,
+      title: lesson ? String(lesson.title || '').trim() : '',
       status: st,
+      room: String((row.slot && row.slot.room) || '').trim(),
       slides: slidesAtt,
-      homework: lesson && PS.normalizeHomework ? PS.normalizeHomework(lesson.homework) : (lesson && lesson.homework) || null
-    };
-  });
+      homework: lesson && PS.normalizeHomework ? PS.normalizeHomework(lesson.homework) : (lesson && lesson.homework) || null,
+      slot: row.slot
+    });
+  }
 
-  var needPlanning = lessonRows.filter(function(r) { return r.status === 'needs-planning'; }).length;
+  var teachingRows = lessonRows.filter(function(r) { return r.kind !== 'free'; });
+  var needPlanning = teachingRows.filter(function(r) { return r.status === 'needs-planning'; }).length;
+  var plannedCount = teachingRows.filter(function(r) { return r.status && r.status !== 'needs-planning'; }).length;
   var weekStats = getWeekPlanningStats(weekStart);
-  var firstUnplanned = lessonRows.find(function(r) { return r.status === 'needs-planning'; }) || null;
-  var focus = firstUnplanned || getFocusLessonRow(lessonRows) || null;
+  var firstUnplanned = teachingRows.find(function(r) { return r.status === 'needs-planning'; }) || null;
+  var focus = firstUnplanned || getFocusLessonRow(teachingRows) || null;
+  var nextUp = getNextUpLessonRow(lessonRows, isToday) || null;
 
   var allEvents = Array.isArray(_todayCalendarEventsCache) ? _todayCalendarEventsCache : [];
   var weekEnd = new Date(weekStart);
@@ -3689,63 +3760,49 @@ function buildTodayDashboardModel() {
     return e.date && e.date >= dateStr;
   }).sort(function(a, b) { return (a.date || '').localeCompare(b.date || ''); }).slice(0, 5);
 
+  var dayRel = isToday ? 'Today' : viewDate.toLocaleDateString('en-GB', { weekday: 'long' });
   var attention = [];
-  if (needPlanning > 0) {
+  teachingRows.filter(function(r) { return r.status === 'needs-planning'; }).forEach(function(r) {
     attention.push({
-      kind: 'warn',
-      title: needPlanning + ' lesson' + (needPlanning === 1 ? '' : 's') + ' need' + (needPlanning === 1 ? 's' : '') + ' planning',
-      detail: (isToday ? 'Today' : viewDate.toLocaleDateString('en-GB', { weekday: 'long' })) + ' · use Plan to start'
-    });
-  }
-  lessonRows.filter(function(r) { return r.status === 'draft'; }).slice(0, 2).forEach(function(r) {
-    attention.push({
-      kind: 'info',
-      title: 'Finish draft · P' + r.period + ' ' + r.className,
-      detail: r.title || 'Draft lesson',
+      kind: 'plan',
+      title: 'Plan ' + (r.className || 'class') + ' · P' + r.period,
+      detail: dayRel + (r.startTime ? (' · ' + r.startTime) : ''),
       dateStr: r.dateStr,
-      slotKey: r.slotKey
+      slotKey: r.slotKey,
+      className: r.className,
+      period: r.period
     });
   });
-  if (assessments.length) {
-    attention.push({
-      kind: 'assess',
-      title: assessments.length + ' assessment' + (assessments.length === 1 ? '' : 's') + ' this week',
-      detail: 'Review deadlines in Events'
-    });
-  }
   var hwDueOnView = PS.listHomework
     ? PS.listHomework({ dueFrom: dateStr, dueTo: dateStr, uncollectedOnly: true })
     : [];
   if (hwDueOnView.length) {
+    var hwFirst = hwDueOnView[0] || {};
     attention.push({
-      kind: 'warn',
-      title: hwDueOnView.length + ' homework' + (hwDueOnView.length === 1 ? '' : ' items') + ' due ' + (isToday ? 'today' : 'this day'),
-      detail: hwDueOnView[0].className || 'Open Homework to review',
-      dateStr: hwDueOnView[0].date,
-      slotKey: hwDueOnView[0].slotKey
+      kind: 'homework',
+      title: hwDueOnView.length === 1
+        ? ('Homework due' + (hwFirst.className ? (' · ' + hwFirst.className) : ''))
+        : (hwDueOnView.length + ' homework due'),
+      detail: isToday ? 'Due today' : ('Due ' + dayRel.toLowerCase()),
+      dateStr: hwFirst.date || '',
+      slotKey: hwFirst.slotKey || '',
+      homeworkTab: true
     });
   }
   if (isToday && PS.listHomework) {
     var hwOverdueToday = PS.listHomework({ overdueOnly: true });
     if (hwOverdueToday.length) {
+      var hwOver = hwOverdueToday[0] || {};
       attention.push({
-        kind: 'warn',
+        kind: 'homework',
         title: hwOverdueToday.length + ' homework overdue',
         detail: 'Collect or update due dates',
-        dateStr: hwOverdueToday[0].date,
-        slotKey: hwOverdueToday[0].slotKey
+        dateStr: hwOver.date || '',
+        slotKey: hwOver.slotKey || '',
+        homeworkTab: true
       });
     }
   }
-  weekEvents.filter(function(e) {
-    return String(e.category || '').toLowerCase() === 'meeting';
-  }).slice(0, 2).forEach(function(e) {
-    attention.push({
-      kind: 'info',
-      title: e.title || 'Meeting',
-      detail: e.date ? e.date.slice(5) : 'This week'
-    });
-  });
 
   var dayNote = PS.getDayNote ? PS.getDayNote(dateStr) : '';
   var planPct = weekStats.teaching ? Math.round((weekStats.planned / weekStats.teaching) * 100) : 0;
@@ -3820,7 +3877,10 @@ function buildTodayDashboardModel() {
     room: getRoomDisplayName(),
     focusLesson: focus,
     firstUnplanned: firstUnplanned,
+    nextUp: nextUp,
     needPlanning: needPlanning,
+    plannedCount: plannedCount,
+    upcomingDates: buildUpcomingDatesList(allEvents, dateStr, 6),
     dayNote: dayNote,
     metrics: [
       { action: 'scroll-lessons', tone: 'blue', icon: 'calendar', value: String(lessonRows.length), label: isToday ? 'Lessons today' : 'Lessons', link: "View today's lessons" },
@@ -3842,133 +3902,162 @@ function buildTodayDashboardModel() {
   };
 }
 
-function createTodayDashboardMarkup(model) {
-  var firstUnplanned = model.firstUnplanned;
-  var planLabel = firstUnplanned
-    ? ('Plan P' + firstUnplanned.period + ' ' + (firstUnplanned.className || '').trim())
+function todayLessonActionButtons(r, opts) {
+  opts = opts || {};
+  var needsPlan = r.status === 'needs-planning';
+  var actionLabel = needsPlan ? 'Plan lesson' : 'Open lesson';
+  var actionCls = needsPlan ? 'today-lesson-action is-plan' : 'today-lesson-action is-view';
+  var slidesBtn = (r.slides && r.slides.slidesFile)
+    ? '<button type="button" class="today-lesson-action is-slides" data-slides-file="' + escAttr(r.slides.slidesFile) + '" data-slides-title="' + escAttr(r.slides.slidesTitle || '') + '" data-slides-hub="' + (r.slides.slidesIsHub ? '1' : '') + '" title="Open lesson slides">Slides</button>'
     : '';
-  var lessonsCount = model.lessons.length;
+  return (
+    '<div class="today-lesson-actions' + (opts.inline ? ' is-inline' : '') + '">' +
+      '<button type="button" class="' + actionCls + '" data-date="' + r.dateStr + '" data-slot="' + r.slotKey + '">' + actionLabel + '</button>' +
+      slidesBtn +
+    '</div>'
+  );
+}
+
+function createTodayDashboardMarkup(model) {
+  var teachingCount = (model.lessons || []).filter(function(r) { return r.kind !== 'free'; }).length;
   var needN = model.needPlanning || 0;
-  var panelSummary = lessonsCount
-    ? (lessonsCount + ' on the timetable · ' + needN + ' need' + (needN === 1 ? 's' : '') + ' planning')
+  var plannedN = model.plannedCount || 0;
+  var panelSummary = teachingCount
+    ? (teachingCount + ' lesson' + (teachingCount === 1 ? '' : 's') + ' · ' + plannedN + ' planned · ' + needN + ' need attention')
     : (model.isToday ? 'No teaching periods scheduled today' : 'No teaching periods scheduled this day');
   var lessonsHeading = model.isToday ? 'Today’s lessons' : (model.weekdayName || 'This day') + '’s lessons';
-  var emptyTitle = timetableSlotCount()
-    ? (model.isToday ? 'No teaching periods today' : 'No teaching periods on ' + (model.weekdayName || 'this day'))
-    : 'Your timetable is empty';
-  var emptyBody = timetableSlotCount()
-    ? (model.isToday
-      ? 'Looks like a free day. Open Timetable if a class is missing, or check another day in Week.'
-      : 'No classes on the timetable for this weekday. Open Timetable if something is missing.')
-    : 'Import the faculty timetable or add classes so Today can show your periods.';
+  var emptyTitle = 'Your timetable is empty';
+  var emptyBody = 'Import the faculty timetable or add classes so Today can show your periods.';
+  var glance = model.isToday ? 'Your day at a glance' : ('Viewing ' + (model.weekdayName || 'this day'));
 
   var lessonsHtml;
-  if (!model.lessons.length) {
-    lessonsHtml = timetableSlotCount()
-      ? plannerEmptyCallout({
-          title: emptyTitle,
-          body: emptyBody,
-          actions: [
-            { action: 'timetable', label: 'Open Timetable', primary: true },
-            { action: 'week', label: 'View week' }
-          ]
-        })
-      : plannerEmptyCallout({
-          title: emptyTitle,
-          body: emptyBody,
-          actions: [
-            { action: 'import', label: 'Import faculty timetable', primary: true },
-            { action: 'timetable', label: 'Open Timetable' }
-          ]
-        });
+  if (!timetableSlotCount()) {
+    lessonsHtml = plannerEmptyCallout({
+      title: emptyTitle,
+      body: emptyBody,
+      actions: [
+        { action: 'import', label: 'Import faculty timetable', primary: true },
+        { action: 'timetable', label: 'Open Timetable' }
+      ]
+    });
   } else {
     lessonsHtml = model.lessons.map(function(r) {
+      if (r.kind === 'free') {
+        var freeWhen = (r.startTime ? escHtml(r.startTime) + ' · ' : '') + 'P' + r.period;
+        return (
+          '<article class="today-lesson-item is-free">' +
+            '<div class="today-lesson-when"><span class="today-lesson-start">' + freeWhen + '</span></div>' +
+            '<div class="today-lesson-main"><span class="today-lesson-free-label">Free period</span></div>' +
+          '</article>'
+        );
+      }
       var subj = r.subject || 'other';
-      var fillStyle = classFillStyleAttrs(r.className, null);
-      var actionLabel = r.status === 'needs-planning' ? 'Plan now' : (r.status === 'complete' ? 'View summary' : 'View plan');
-      var actionCls = r.status === 'needs-planning' ? 'today-lesson-action is-plan' : 'today-lesson-action is-view';
-      var slidesBtn = (r.slides && r.slides.slidesFile)
-        ? '<button type="button" class="today-lesson-action is-slides" data-slides-file="' + escAttr(r.slides.slidesFile) + '" data-slides-title="' + escAttr(r.slides.slidesTitle || '') + '" data-slides-hub="' + (r.slides.slidesIsHub ? '1' : '') + '" title="Open lesson slides">Slides</button>'
-        : '';
+      var fillStyle = classFillStyleAttrs(r.className, r.slot || null);
+      var hasSupport = !!(r.className && PS.hasClassSupportProfile && PS.hasClassSupportProfile(r.className));
+      var supportBtn = weekClassSupportLabelHtml(r.className, r.dateStr, r.slotKey);
+      var displayTitle = r.title || 'No lesson plan';
+      var periodMeta = 'P' + r.period + (r.duration ? (' · ' + r.duration) : '');
+      var statusBits = [weekStatusLabel(r.status)];
+      if (r.room) statusBits.push(r.room);
       return (
-        '<article class="today-lesson-item is-' + r.status + ' subj-' + escHtml(subj) + ' has-class-fill" style="' + fillStyle.style + '">' +
-          '<button type="button" class="today-lesson-open" data-date="' + r.dateStr + '" data-slot="' + r.slotKey + '">' +
-            '<span class="today-lesson-period" aria-hidden="true">P' + r.period + '</span>' +
-            '<div class="today-lesson-main">' +
-              '<div class="today-lesson-topline">' +
-                '<span class="today-lesson-class">' + escHtml(r.className) + classSupportMarkHtml(r.className) + '</span>' +
-                '<span class="today-lesson-time">' + escHtml(r.timeLabel) + '</span>' +
-              '</div>' +
-              '<strong class="today-lesson-title">' + escHtml(r.title) + '</strong>' +
-              (r.unit ? '<span class="today-lesson-unit">' + escHtml(r.unit) + '</span>' : '') +
-              todayHomeworkChipHtml(r.homework) +
-            '</div>' +
-          '</button>' +
-          '<div class="today-lesson-side">' +
-            '<span class="today-lesson-status is-' + r.status + '">' + escHtml(statusLabel(r.status)) + '</span>' +
-            '<div class="today-lesson-actions">' +
-              slidesBtn +
-              '<button type="button" class="' + actionCls + '" data-date="' + r.dateStr + '" data-slot="' + r.slotKey + '">' + actionLabel + '</button>' +
-            '</div>' +
+        '<article class="today-lesson-item is-' + r.status + ' subj-' + escHtml(subj) + ' has-class-fill' + (hasSupport ? ' has-support' : '') + '" style="' + fillStyle.style + '">' +
+          '<div class="today-lesson-when">' +
+            (r.startTime ? '<strong class="today-lesson-start">' + escHtml(r.startTime) + '</strong>' : '') +
+            '<span class="today-lesson-period-meta">' + escHtml(periodMeta) + '</span>' +
           '</div>' +
+          '<div class="today-lesson-body">' +
+            '<button type="button" class="today-lesson-open" data-date="' + r.dateStr + '" data-slot="' + r.slotKey + '">' +
+              '<span class="today-lesson-class">' + escHtml(r.className) + '</span>' +
+              '<span class="today-lesson-title">' + escHtml(displayTitle) + '</span>' +
+              '<span class="today-lesson-status week-status is-' + r.status + '">' + escHtml(statusBits.join(' · ')) + '</span>' +
+            '</button>' +
+            supportBtn +
+          '</div>' +
+          '<div class="today-lesson-side">' + todayLessonActionButtons(r) + '</div>' +
         '</article>'
       );
     }).join('');
   }
 
-  function weekListHtml(items, emptyText) {
-    if (!items.length) return '<p class="today-empty">' + escHtml(emptyText) + '</p>';
-    return '<ul class="today-week-list">' + items.map(function(it) {
+  var nextUp = model.nextUp;
+  var nextUpHtml;
+  if (nextUp) {
+    var nextFill = classFillStyleAttrs(nextUp.className, nextUp.slot || null);
+    var nextTitle = nextUp.title || 'No lesson plan';
+    nextUpHtml =
+      '<div class="today-nextup-body" style="' + nextFill.style + '">' +
+        '<p class="today-nextup-kicker">Next lesson · P' + nextUp.period + '</p>' +
+        (nextUp.startTime ? '<p class="today-nextup-time">' + escHtml(nextUp.startTime) + '</p>' : '') +
+        '<p class="today-nextup-class">' + escHtml(nextUp.className) + '</p>' +
+        '<p class="today-nextup-title">' + escHtml(nextTitle) + '</p>' +
+        todayLessonActionButtons(nextUp, { inline: true }) +
+      '</div>';
+  } else if (!teachingCount) {
+    nextUpHtml = '<p class="week-empty">' + escHtml(model.isToday ? 'No lessons scheduled today.' : 'No lessons scheduled this day.') + '</p>';
+  } else if (model.isToday) {
+    nextUpHtml = '<p class="week-empty">No more lessons today.</p>';
+  } else {
+    nextUpHtml = '<p class="week-empty">No upcoming lesson on this day.</p>';
+  }
+
+  var attentionItems = model.attention || [];
+  var attentionHtml;
+  if (attentionItems.length) {
+    attentionHtml = '<div class="week-priorities-list">' + attentionItems.map(function(it) {
+      var slotParts = it.slotKey ? parseSlotKeyParts(it.slotKey) : null;
+      var periodLabel = (it.kind === 'plan' && slotParts && slotParts.period) ? ('P' + slotParts.period) : '';
+      var hwAttr = it.homeworkTab ? ' data-homework="1"' : '';
       var openAttr = (it.dateStr && it.slotKey)
         ? (' data-date="' + it.dateStr + '" data-slot="' + it.slotKey + '"')
         : '';
-      var iconStyle = '';
-      if (it.tag && typeof calendarEventFill === 'function') {
-        iconStyle = ' style="--cal-dot:' + calendarEventFill(it.tag) + '"';
-      }
       return (
-        '<li class="today-week-list-item"' + openAttr + '>' +
-          '<span class="today-week-list-icon is-' + escHtml(it.kind || 'info') + (it.tag ? ' has-cal-dot' : '') + '"' + iconStyle + ' aria-hidden="true"></span>' +
-          '<span class="today-week-list-copy">' +
-            '<strong>' + escHtml(it.title) + '</strong>' +
-            '<span>' + escHtml(it.detail || '') + '</span>' +
-          '</span>' +
-          '<span class="today-week-list-chevron" aria-hidden="true">›</span>' +
-        '</li>'
+        '<button type="button" class="week-priority-item is-action"' + openAttr + hwAttr + '>' +
+          (periodLabel ? '<span class="week-priority-period">' + escHtml(periodLabel) + '</span>' : '') +
+          '<span class="week-priority-copy"><strong>' + escHtml(it.title) + '</strong><span>' + escHtml(it.detail || '') + '</span></span>' +
+        '</button>'
       );
-    }).join('') + '</ul>';
+    }).join('') + '</div>';
+  } else {
+    attentionHtml = '<p class="week-empty">Nothing needs attention ' + (model.isToday ? 'today' : 'this day') + '.</p>';
   }
 
-  var attentionHtml = weekListHtml(model.attention, 'Nothing needing attention this week.');
-  var eventsHtml = weekListHtml(model.events, 'No upcoming events recorded.');
-  var pct = model.progress.pct;
-  var ringStyle = 'background: conic-gradient(var(--today-green) 0 ' + pct + '%, rgba(21,152,120,0.15) ' + pct + '% 100%);';
-
-  var summaryHtml = lessonsCount
-    ? (escHtml(String(lessonsCount)) + ' lesson' + (lessonsCount === 1 ? '' : 's') +
-      (needN
-        ? (' <span class="today-summary-alert">' + needN + ' need' + (needN === 1 ? 's' : '') + ' planning</span>')
-        : ' · all planned'))
-    : escHtml(model.isToday ? 'No teaching periods today' : 'No teaching periods this day');
-
-  var planBtnHtml = planLabel
-    ? '<button type="button" id="todayPlanMissing" class="today-action today-action-primary">' + escHtml(planLabel) + '</button>'
-    : '';
+  var upcomingDates = model.upcomingDates || [];
+  var upcomingHtml = upcomingDates.length
+    ? '<ul class="week-upcoming-list">' + upcomingDates.map(function(d) {
+        var sourceHint = d.source === 'shared' ? 'Shared calendar' : (d.source === 'personal' ? 'My calendar' : 'Academic Calendar');
+        var isUrgent = d.tag === 'Assessment' || d.tag === 'Reporting';
+        var metaParts = [];
+        if (d.dateLabel) metaParts.push(d.dateLabel);
+        if (d.tag) metaParts.push(d.tag);
+        var rel = weekRelativeDayText(d.date);
+        return (
+          '<li class="week-upcoming-item' + (isUrgent ? ' is-urgent' : '') + '" title="' + escAttr(sourceHint) + '">' +
+            '<div class="week-upcoming-date" aria-hidden="true"><span>' + escHtml(d.month || '') + '</span><strong>' + escHtml(d.day || '') + '</strong></div>' +
+            '<div class="week-upcoming-copy">' +
+              '<strong>' + escHtml(d.title) + '</strong>' +
+              (metaParts.length ? '<span>' + escHtml(metaParts.join(' · ')) + '</span>' : '') +
+            '</div>' +
+            (rel ? '<span class="week-upcoming-rel">' + escHtml(rel) + '</span>' : '') +
+          '</li>'
+        );
+      }).join('') + '</ul>'
+    : '<p class="week-empty">No upcoming dates from today onward.</p>';
 
   return (
       '<header class="today-strip">' +
         '<div class="today-strip-copy">' +
+          '<p class="today-kicker">Teacher Planner</p>' +
           '<div class="today-date-nav">' +
             '<button type="button" class="today-nav-btn" id="todayPrevDay" aria-label="Previous school day">&#9664;</button>' +
             '<button type="button" class="today-nav-today" id="todayJumpToday"' + (model.isToday ? ' hidden' : '') + '>Jump to today</button>' +
             '<button type="button" class="today-nav-btn" id="todayNextDay" aria-label="Next school day">&#9654;</button>' +
           '</div>' +
           '<h1 class="today-heading">' + escHtml(model.dateHeading || model.heading) + '</h1>' +
-          '<p class="today-summary">' + summaryHtml + '</p>' +
+          '<p class="today-summary">' + escHtml(glance) + '</p>' +
         '</div>' +
         '<div class="today-strip-actions">' +
-          planBtnHtml +
           '<button type="button" id="todayViewWeek" class="today-action today-action-secondary">View week</button>' +
+          '<button type="button" id="todayAddLessonAction" class="today-action today-action-primary">Create lesson</button>' +
         '</div>' +
       '</header>' +
       '<div class="today-dashboard-grid">' +
@@ -3981,42 +4070,30 @@ function createTodayDashboardMarkup(model) {
               '<div class="today-lessons-list" id="todayLessonList">' + lessonsHtml + '</div>' +
             '</div>' +
           '</section>' +
-        '</main>' +
-        '<aside class="today-sidebar">' +
-          '<section class="today-panel today-this-week-panel" id="todayAttentionCard">' +
-            '<header class="today-panel-header"><h2>This week</h2></header>' +
-            '<div class="today-week-tabs" role="tablist" aria-label="This week">' +
-              '<button type="button" class="today-week-tab is-active" role="tab" aria-selected="true" data-week-tab="attention" id="todayTabAttention">Attention</button>' +
-              '<button type="button" class="today-week-tab" role="tab" aria-selected="false" data-week-tab="events" id="todayTabEvents">Events</button>' +
-            '</div>' +
-            '<div class="today-this-week-list" id="todayWeekTabAttention" role="tabpanel" aria-labelledby="todayTabAttention">' + attentionHtml + '</div>' +
-            '<div class="today-this-week-list" id="todayWeekTabEvents" role="tabpanel" aria-labelledby="todayTabEvents" hidden>' + eventsHtml + '</div>' +
-          '</section>' +
-          '<section class="today-panel today-progress-panel">' +
-            '<header class="today-panel-header"><h2>Weekly progress</h2></header>' +
-            '<div class="today-progress-layout">' +
-              '<div class="today-progress-ring" style="' + ringStyle + '" role="img" aria-label="' + pct + ' percent of lessons planned this week">' +
-                '<div class="today-progress-ring-inner"><strong>' + pct + '%</strong><span>planned</span></div>' +
-              '</div>' +
-              '<div class="today-progress-details">' +
-                '<strong class="today-progress-heading">' + model.progress.planned + ' of ' + model.progress.teaching + ' lessons planned</strong>' +
-                '<div class="today-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + pct + '"><span style="width:' + pct + '%"></span></div>' +
-                '<div class="today-progress-legend">' +
-                  '<span class="lg-planned">Planned ' + model.progress.planned + '</span>' +
-                  '<span class="lg-needs">Unplanned ' + model.progress.unplanned + '</span>' +
-                '</div>' +
-              '</div>' +
-            '</div>' +
-          '</section>' +
-          '<section class="today-panel today-notes-panel">' +
-            '<header class="today-panel-header">' +
-              '<h2>Quick notes</h2>' +
+          '<details class="today-notes-details"' + (model.dayNote ? ' open' : '') + '>' +
+            '<summary class="today-notes-summary">' +
+              '<span>Daily notes</span>' +
+              '<span class="today-notes-toggle">Open notes</span>' +
               '<span class="today-note-save-state" id="todayNoteSaveState" aria-live="polite"></span>' +
-            '</header>' +
+            '</summary>' +
             '<div class="today-note-card">' +
               '<label class="sr-only" for="todayQuickNote">Day notes</label>' +
               '<textarea id="todayQuickNote" data-date="' + escHtml(model.dateStr) + '" placeholder="Reminders for today…" rows="4">' + escHtml(model.dayNote) + '</textarea>' +
             '</div>' +
+          '</details>' +
+        '</main>' +
+        '<aside class="today-sidebar week-sidebar week-rail" id="todayAttentionCard">' +
+          '<section class="week-rail-section today-nextup">' +
+            '<header class="week-rail-head"><h2>Next up</h2></header>' +
+            nextUpHtml +
+          '</section>' +
+          '<section class="week-rail-section week-priorities-panel">' +
+            '<header class="week-rail-head"><h2>Needs attention</h2></header>' +
+            attentionHtml +
+          '</section>' +
+          '<section class="week-rail-section week-deadlines-panel">' +
+            '<header class="week-rail-head"><h2>Key dates &amp; deadlines</h2><button type="button" id="todayViewAllDeadlines" class="week-panel-link">Calendar →</button></header>' +
+            upcomingHtml +
           '</section>' +
         '</aside>' +
       '</div>'
@@ -4027,6 +4104,14 @@ function bindTodayDashboardEvents(root, model) {
   if (!root) return;
   var firstUnplanned = (model && model.firstUnplanned) || null;
 
+  var addBtn = root.querySelector('#todayAddLessonAction');
+  if (addBtn) {
+    addBtn.addEventListener('click', function() {
+      var createBtn = document.getElementById('createNewLessonBtn');
+      if (createBtn) createBtn.click();
+      else openLessonModalForLibrary(null);
+    });
+  }
   var planBtn = root.querySelector('#todayPlanMissing');
   if (planBtn && firstUnplanned && !planBtn.disabled) {
     planBtn.addEventListener('click', function() {
@@ -4037,6 +4122,8 @@ function bindTodayDashboardEvents(root, model) {
   if (bankBtn) bankBtn.addEventListener('click', function() { switchPlannerTab('bank'); });
   var weekBtn = root.querySelector('#todayViewWeek');
   if (weekBtn) weekBtn.addEventListener('click', function() { switchPlannerTab('week'); });
+  var calBtn = root.querySelector('#todayViewAllDeadlines');
+  if (calBtn) calBtn.addEventListener('click', function() { openMonthPopover(); });
 
   var prevDay = root.querySelector('#todayPrevDay');
   if (prevDay) prevDay.addEventListener('click', function() { shiftTodayViewDate(-1); });
@@ -4060,33 +4147,6 @@ function bindTodayDashboardEvents(root, model) {
     }, { statusId: 'todayNoteSaveState' });
   }
 
-  function showWeekTab(name) {
-    var tabs = root.querySelectorAll('.today-week-tab');
-    tabs.forEach(function(tab) {
-      var on = tab.getAttribute('data-week-tab') === name;
-      tab.classList.toggle('is-active', on);
-      tab.setAttribute('aria-selected', on ? 'true' : 'false');
-    });
-    var attn = root.querySelector('#todayWeekTabAttention');
-    var ev = root.querySelector('#todayWeekTabEvents');
-    if (attn) attn.hidden = name !== 'attention';
-    if (ev) ev.hidden = name !== 'events';
-  }
-
-  root.querySelectorAll('.today-week-tab').forEach(function(tab) {
-    tab.addEventListener('click', function() {
-      showWeekTab(tab.getAttribute('data-week-tab') || 'attention');
-    });
-    tab.addEventListener('keydown', function(e) {
-      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
-      e.preventDefault();
-      var tabs = Array.prototype.slice.call(root.querySelectorAll('.today-week-tab'));
-      var i = tabs.indexOf(tab);
-      var next = e.key === 'ArrowRight' ? tabs[(i + 1) % tabs.length] : tabs[(i - 1 + tabs.length) % tabs.length];
-      if (next) { next.focus(); showWeekTab(next.getAttribute('data-week-tab') || 'attention'); }
-    });
-  });
-
   root.querySelectorAll('[data-today-action]').forEach(function(btn) {
     btn.addEventListener('click', function() {
       var act = btn.getAttribute('data-today-action');
@@ -4097,10 +4157,6 @@ function bindTodayDashboardEvents(root, model) {
         openLessonModal(firstUnplanned.dateStr, firstUnplanned.slotKey);
       } else if (act === 'view-week') {
         switchPlannerTab('week');
-      } else if (act === 'scroll-events') {
-        showWeekTab('events');
-        var panel = root.querySelector('#todayAttentionCard');
-        if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     });
   });
@@ -4108,6 +4164,14 @@ function bindTodayDashboardEvents(root, model) {
   root.querySelectorAll('.today-lesson-open[data-date][data-slot]').forEach(function(btn) {
     btn.addEventListener('click', function() {
       openLessonModal(btn.dataset.date, btn.dataset.slot);
+    });
+  });
+  root.querySelectorAll('.week-support-label').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      openLessonModal(btn.dataset.date, btn.dataset.slot);
+      openClassSupportDrawer('view');
     });
   });
   root.querySelectorAll('.today-lesson-action.is-slides').forEach(function(btn) {
@@ -4126,14 +4190,17 @@ function bindTodayDashboardEvents(root, model) {
       openLessonModal(btn.dataset.date, btn.dataset.slot);
     });
   });
-  root.querySelectorAll('.today-week-cell.has-slot[data-date][data-slot]').forEach(function(cell) {
-    cell.addEventListener('click', function() {
-      openLessonModal(cell.dataset.date, cell.dataset.slot);
-    });
-  });
-  root.querySelectorAll('.today-week-list-item[data-date][data-slot]').forEach(function(item) {
+  root.querySelectorAll('.week-priority-item.is-action').forEach(function(item) {
     item.addEventListener('click', function() {
-      openLessonModal(item.dataset.date, item.dataset.slot);
+      if (item.getAttribute('data-homework') === '1' && !(item.dataset.date && item.dataset.slot)) {
+        switchPlannerTab('homework');
+        return;
+      }
+      if (item.dataset.date && item.dataset.slot) {
+        openLessonModal(item.dataset.date, item.dataset.slot);
+        return;
+      }
+      if (item.getAttribute('data-homework') === '1') switchPlannerTab('homework');
     });
   });
   bindEmptyCalloutActions(root);
@@ -8730,8 +8797,8 @@ function initPlannerHotkeys() {
       e.preventDefault();
       var panelToday = document.getElementById('panel-today');
       if (panelToday && panelToday.classList.contains('active')) {
-        var planBtn = document.getElementById('todayPlanMissing');
-        if (planBtn && !planBtn.disabled) planBtn.click();
+        var addToday = document.getElementById('todayAddLessonAction');
+        if (addToday) addToday.click();
         else switchPlannerTab('bank');
       } else {
         var addBtn = document.getElementById('weekAddLessonAction');
