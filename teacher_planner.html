@@ -968,6 +968,7 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
 }
 </style>
 <link rel="stylesheet" href="teacher-planner-redesign.css?v=today-diary-1">
+<link rel="stylesheet" href="teacher-planner-editorial.css?v=editorial-1">
 </head>
 <body>
 <script>
@@ -1005,18 +1006,18 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
   <div class="tabs-inner">
     <button type="button" class="tab-btn planner-tab active" data-tab="today">Today</button>
     <button type="button" class="tab-btn planner-tab" data-tab="week">Week</button>
+    <button type="button" class="tab-btn planner-tab" data-tab="month">Month</button>
     <button type="button" class="tab-btn planner-tab" data-tab="homework">Homework</button>
     <button type="button" class="tab-btn planner-tab" data-tab="timetable">Timetable</button>
-    <button type="button" class="tab-btn planner-tab" data-tab="bank">Library</button>
-    <button type="button" class="tab-btn planner-tab" data-tab="schemes">Schemes of Work</button>
-    <!-- Day/Month remain as panels; opened via Week sub-nav -->
+    <button type="button" class="tab-btn planner-tab" data-tab="bank">Lesson Bank</button>
+    <button type="button" class="tab-btn planner-tab" data-tab="schemes">Schemes</button>
     <button type="button" class="tab-btn planner-tab" data-tab="day" hidden aria-hidden="true">Day View</button>
-    <button type="button" class="tab-btn planner-tab" data-tab="month" hidden aria-hidden="true">Month View</button>
     <div class="tabs-meta">
       <span class="topbar-school-chip">Knightswood Secondary</span>
       <span class="meta-badge teacher" id="topbarTeacherName">Teacher</span>
       <span class="meta-badge" id="topbarRoom">Teaching Space</span>
       <span class="meta-badge is-clickable" id="topbarAcademicYear" role="button" tabindex="0" title="Change academic year">2025–26</span>
+      <button type="button" class="meta-badge is-clickable" id="navCreateLessonBtn">Create lesson</button>
     </div>
   </div>
 </nav>
@@ -1034,6 +1035,12 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
     </span>
     <span>Week</span>
   </button>
+  <button type="button" class="planner-dock-btn" data-tab="month">
+    <span class="planner-dock-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M8 2v4M16 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>
+    </span>
+    <span>Month</span>
+  </button>
   <button type="button" class="planner-dock-btn" data-tab="homework">
     <span class="planner-dock-icon" aria-hidden="true">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h8"/><path d="M3 6h.01M3 12h.01M3 18h.01"/></svg>
@@ -1044,7 +1051,7 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
     <span class="planner-dock-icon" aria-hidden="true">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19V5l8-2 8 2v14l-8 2-8-2z"/><path d="M12 3v18"/></svg>
     </span>
-    <span>Library</span>
+    <span>Lesson Bank</span>
   </button>
   <button type="button" class="planner-dock-btn" data-tab="schemes">
     <span class="planner-dock-icon" aria-hidden="true">
@@ -1179,8 +1186,8 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
   <div id="dayViewList" class="day-list"></div>
 </div>
 
-<!-- Month view panel (popover is the live UI) -->
-<div id="panel-month" class="planner-panel panel" hidden aria-hidden="true">
+<!-- Month view panel -->
+<div id="panel-month" class="planner-panel panel">
   <div class="nav-row">
     <button type="button" class="nav-btn" id="monthPrev" aria-label="Previous month">&#9664;</button>
     <div class="nav-label" id="monthDisplay"></div>
@@ -1196,7 +1203,7 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
   <div class="library-page" id="libraryPage">
     <header class="library-page-header">
       <div class="library-page-heading">
-        <h2>Lesson Library</h2>
+        <h2>Lesson Bank</h2>
         <p>Find, adapt and schedule lessons across your courses.</p>
       </div>
       <div class="library-header-actions">
@@ -3198,6 +3205,49 @@ function periodDurationLabel(period) {
   return (b - a) + ' min';
 }
 
+function periodEndTime(period) {
+  var state = PS.getState();
+  var pt = (state && state.timetable && state.timetable.periodTimes) || {};
+  var p = pt[period];
+  return (p && p.end) ? String(p.end) : '';
+}
+
+function parseHmToMinutes(label) {
+  var m = String(label || '').match(/(\d{1,2}):(\d{2})/);
+  if (!m) return null;
+  return parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+}
+
+function periodRangeLabel(period) {
+  var start = periodStartTime(period);
+  var end = periodEndTime(period);
+  if (start && end) return start + '–' + end;
+  return periodTimeLabel(period) || (start || '');
+}
+
+function getCurrentLessonRow(lessonRows, isToday) {
+  if (!isToday) return null;
+  var teaching = (lessonRows || []).filter(function(r) { return r && r.kind !== 'free'; });
+  if (!teaching.length) return null;
+  var now = new Date();
+  var mins = now.getHours() * 60 + now.getMinutes();
+  for (var i = 0; i < teaching.length; i++) {
+    var start = parseHmToMinutes(teaching[i].startTime || teaching[i].timeLabel);
+    if (start == null) continue;
+    var end = parseHmToMinutes(periodEndTime(teaching[i].period));
+    var from = start - 10;
+    var to = end != null ? end : start + 50;
+    if (mins >= from && mins <= to) return teaching[i];
+  }
+  return null;
+}
+
+function editorialLessonStateMark(row, isCurrent) {
+  if (isCurrent) return '●';
+  if (row && row.status && row.status !== 'needs-planning') return '✓';
+  return '○';
+}
+
 function getTeacherDisplayName() {
   var el = document.getElementById('topbarTeacherName');
   return (el && el.textContent && el.textContent.trim()) || 'Teacher';
@@ -3309,7 +3359,6 @@ function updateCalendarSubnav(activeView) {
 
 function activatePlannerPanel(tabName) {
   if (tabName === 'day') tabName = 'today';
-  if (tabName === 'month') tabName = 'week';
   document.querySelectorAll('.planner-tab').forEach(function(t) {
     var dt = t.getAttribute('data-tab');
     t.classList.toggle('active', dt === tabName);
@@ -3326,10 +3375,6 @@ function activatePlannerPanel(tabName) {
 
 function switchPlannerTab(tabName, opts) {
   opts = opts || {};
-  if (tabName === 'month') {
-    openMonthPopover();
-    return;
-  }
   if (tabName === 'day') {
     tabName = 'today';
     opts.keepDate = true;
@@ -3343,6 +3388,7 @@ function switchPlannerTab(tabName, opts) {
   activatePlannerPanel(tabName);
   if (tabName === 'today') renderTodayDashboard();
   if (tabName === 'week') renderWeekView();
+  if (tabName === 'month') renderMonthView();
   if (tabName === 'homework') renderHomeworkDashboard();
   if (tabName === 'timetable') {
     renderTimetableDisplay();
@@ -3847,6 +3893,9 @@ function buildTodayDashboardModel() {
     });
   }
 
+  var currentLesson = getCurrentLessonRow(lessonRows, isToday);
+  var heroLesson = currentLesson || nextUp;
+
   var eventItems = upcoming.map(function(e) {
     var tag = calendarEventTag(e);
     var kind = tag === 'Assessment' ? 'assess'
@@ -3881,6 +3930,13 @@ function buildTodayDashboardModel() {
     needPlanning: needPlanning,
     plannedCount: plannedCount,
     upcomingDates: buildUpcomingDatesList(allEvents, dateStr, 6),
+    currentLesson: currentLesson,
+    heroLesson: heroLesson,
+    dayNumber: String(viewDate.getDate()),
+    monthName: viewDate.toLocaleDateString('en-GB', { month: 'long' }).toUpperCase(),
+    yearLabel: String(viewDate.getFullYear()),
+    isoWeek: isoWeekNumber(viewDate),
+    hwOpenCount: PS.listHomework ? PS.listHomework({ uncollectedOnly: true }).length : 0,
     dayNote: dayNote,
     metrics: [
       { action: 'scroll-lessons', tone: 'blue', icon: 'calendar', value: String(lessonRows.length), label: isToday ? 'Lessons today' : 'Lessons', link: "View today's lessons" },
@@ -3922,13 +3978,11 @@ function createTodayDashboardMarkup(model) {
   var teachingCount = (model.lessons || []).filter(function(r) { return r.kind !== 'free'; }).length;
   var needN = model.needPlanning || 0;
   var plannedN = model.plannedCount || 0;
-  var panelSummary = teachingCount
-    ? (teachingCount + ' lesson' + (teachingCount === 1 ? '' : 's') + ' · ' + plannedN + ' planned · ' + needN + ' need attention')
-    : (model.isToday ? 'No teaching periods scheduled today' : 'No teaching periods scheduled this day');
-  var lessonsHeading = model.isToday ? 'Today’s lessons' : (model.weekdayName || 'This day') + '’s lessons';
   var emptyTitle = 'Your timetable is empty';
   var emptyBody = 'Import the faculty timetable or add classes so Today can show your periods.';
-  var glance = model.isToday ? 'Your day at a glance' : ('Viewing ' + (model.weekdayName || 'this day'));
+  var currentKey = model.currentLesson ? (model.currentLesson.dateStr + '|' + model.currentLesson.slotKey) : '';
+  var hero = model.heroLesson || null;
+  var heroIsCurrent = !!(model.currentLesson && hero && model.currentLesson.slotKey === hero.slotKey);
 
   var lessonsHtml;
   if (!timetableSlotCount()) {
@@ -3941,162 +3995,148 @@ function createTodayDashboardMarkup(model) {
       ]
     });
   } else {
-    lessonsHtml = model.lessons.map(function(r) {
+    lessonsHtml = (model.lessons || []).map(function(r) {
+      var range = periodRangeLabel(r.period) || (r.startTime ? r.startTime : ('P' + r.period));
       if (r.kind === 'free') {
-        var freeWhen = (r.startTime ? escHtml(r.startTime) + ' · ' : '') + 'P' + r.period;
         return (
-          '<article class="today-lesson-item is-free">' +
-            '<div class="today-lesson-when"><span class="today-lesson-start">' + freeWhen + '</span></div>' +
-            '<div class="today-lesson-main"><span class="today-lesson-free-label">Free period</span></div>' +
-          '</article>'
+          '<div class="ed-lesson-row is-free">' +
+            '<span class="ed-lesson-time">' + escHtml(range) + '</span>' +
+            '<span class="ed-lesson-accent" aria-hidden="true"></span>' +
+            '<span class="ed-lesson-class">FREE</span>' +
+            '<span class="ed-lesson-title">Free period</span>' +
+            '<span class="ed-lesson-room"></span>' +
+            '<span class="ed-lesson-state" aria-hidden="true"></span>' +
+          '</div>'
         );
       }
-      var subj = r.subject || 'other';
       var fillStyle = classFillStyleAttrs(r.className, r.slot || null);
-      var hasSupport = !!(r.className && PS.hasClassSupportProfile && PS.hasClassSupportProfile(r.className));
       var supportBtn = weekClassSupportLabelHtml(r.className, r.dateStr, r.slotKey);
       var displayTitle = r.title || 'No lesson plan';
-      var periodMeta = 'P' + r.period + (r.duration ? (' · ' + r.duration) : '');
-      var statusBits = [weekStatusLabel(r.status)];
-      if (r.room) statusBits.push(r.room);
+      var isCurrent = currentKey === (r.dateStr + '|' + r.slotKey);
+      var slidesBtn = (r.slides && r.slides.slidesFile)
+        ? '<button type="button" class="today-lesson-action is-slides" data-slides-file="' + escAttr(r.slides.slidesFile) + '" data-slides-title="' + escAttr(r.slides.slidesTitle || '') + '" data-slides-hub="' + (r.slides.slidesIsHub ? '1' : '') + '" title="Open lesson slides">Slides</button>'
+        : '';
       return (
-        '<article class="today-lesson-item is-' + r.status + ' subj-' + escHtml(subj) + ' has-class-fill' + (hasSupport ? ' has-support' : '') + '" style="' + fillStyle.style + '">' +
-          '<div class="today-lesson-when">' +
-            (r.startTime ? '<strong class="today-lesson-start">' + escHtml(r.startTime) + '</strong>' : '') +
-            '<span class="today-lesson-period-meta">' + escHtml(periodMeta) + '</span>' +
-          '</div>' +
-          '<div class="today-lesson-body">' +
-            '<button type="button" class="today-lesson-open" data-date="' + r.dateStr + '" data-slot="' + r.slotKey + '">' +
-              '<span class="today-lesson-class">' + escHtml(r.className) + '</span>' +
-              '<span class="today-lesson-title">' + escHtml(displayTitle) + '</span>' +
-              '<span class="today-lesson-status week-status is-' + r.status + '">' + escHtml(statusBits.join(' · ')) + '</span>' +
-            '</button>' +
-            supportBtn +
-          '</div>' +
-          '<div class="today-lesson-side">' + todayLessonActionButtons(r) + '</div>' +
+        '<article class="ed-lesson-row today-lesson-open is-' + escHtml(r.status || 'draft') + (isCurrent ? ' is-current' : '') + '" role="button" tabindex="0" data-date="' + escAttr(r.dateStr) + '" data-slot="' + escAttr(r.slotKey) + '" style="' + fillStyle.style + '">' +
+          '<span class="ed-lesson-time">' + escHtml(range) + '</span>' +
+          '<span class="ed-lesson-accent" aria-hidden="true"></span>' +
+          '<span class="ed-lesson-class">' + escHtml(r.className) + supportBtn + '</span>' +
+          '<span class="ed-lesson-title">' + escHtml(displayTitle) + slidesBtn + '</span>' +
+          '<span class="ed-lesson-room">' + escHtml(r.room || '') + '</span>' +
+          '<span class="ed-lesson-state" aria-hidden="true">' + editorialLessonStateMark(r, isCurrent) + '</span>' +
         '</article>'
       );
     }).join('');
   }
 
-  var nextUp = model.nextUp;
-  var nextUpHtml;
-  if (nextUp) {
-    var nextFill = classFillStyleAttrs(nextUp.className, nextUp.slot || null);
-    var nextTitle = nextUp.title || 'No lesson plan';
-    nextUpHtml =
-      '<div class="today-nextup-body" style="' + nextFill.style + '">' +
-        '<p class="today-nextup-kicker">Next lesson · P' + nextUp.period + '</p>' +
-        (nextUp.startTime ? '<p class="today-nextup-time">' + escHtml(nextUp.startTime) + '</p>' : '') +
-        '<p class="today-nextup-class">' + escHtml(nextUp.className) + '</p>' +
-        '<p class="today-nextup-title">' + escHtml(nextTitle) + '</p>' +
-        todayLessonActionButtons(nextUp, { inline: true }) +
+  var heroHtml;
+  if (hero) {
+    var heroFill = classFillStyleAttrs(hero.className, hero.slot || null);
+    var heroTitle = hero.title || 'No lesson plan';
+    var heroRange = periodRangeLabel(hero.period) || hero.startTime || ('P' + hero.period);
+    var heroMeta = [heroRange, hero.room || '', weekStatusLabel(hero.status)].filter(Boolean).join(' · ');
+    heroHtml =
+      '<div class="ed-current-label">' + (heroIsCurrent ? 'CURRENT LESSON' : (model.isToday ? 'NEXT LESSON' : 'FIRST LESSON')) + '</div>' +
+      '<div class="ed-current-wrap" style="' + heroFill.style + '">' +
+        '<div class="ed-current-bar" aria-hidden="true"></div>' +
+        '<div>' +
+          '<div class="ed-current-class">' + escHtml(hero.className) + '</div>' +
+          '<div class="ed-current-title">' + escHtml(heroTitle) + '</div>' +
+          '<div class="ed-current-meta"><span>' + escHtml(heroMeta) + '</span></div>' +
+          '<button type="button" class="ed-view-link today-lesson-open" data-date="' + escAttr(hero.dateStr) + '" data-slot="' + escAttr(hero.slotKey) + '">View lesson plan →</button>' +
+        '</div>' +
       '</div>';
   } else if (!teachingCount) {
-    nextUpHtml = '<p class="week-empty">' + escHtml(model.isToday ? 'No lessons scheduled today.' : 'No lessons scheduled this day.') + '</p>';
+    heroHtml = '<div class="ed-current-label">TODAY</div><p class="week-empty">' + escHtml(model.isToday ? 'No lessons scheduled today.' : 'No lessons scheduled this day.') + '</p>';
   } else if (model.isToday) {
-    nextUpHtml = '<p class="week-empty">No more lessons today.</p>';
+    heroHtml = '<div class="ed-current-label">TODAY</div><p class="week-empty">No more lessons today.</p>';
   } else {
-    nextUpHtml = '<p class="week-empty">No upcoming lesson on this day.</p>';
+    heroHtml = '<div class="ed-current-label">' + escHtml((model.weekdayName || 'DAY').toUpperCase()) + '</div><p class="week-empty">No upcoming lesson on this day.</p>';
   }
 
   var attentionItems = model.attention || [];
   var attentionHtml;
   if (attentionItems.length) {
-    attentionHtml = '<div class="week-priorities-list">' + attentionItems.map(function(it) {
-      var slotParts = it.slotKey ? parseSlotKeyParts(it.slotKey) : null;
-      var periodLabel = (it.kind === 'plan' && slotParts && slotParts.period) ? ('P' + slotParts.period) : '';
+    attentionHtml = attentionItems.map(function(it) {
       var hwAttr = it.homeworkTab ? ' data-homework="1"' : '';
       var openAttr = (it.dateStr && it.slotKey)
         ? (' data-date="' + it.dateStr + '" data-slot="' + it.slotKey + '"')
         : '';
       return (
-        '<button type="button" class="week-priority-item is-action"' + openAttr + hwAttr + '>' +
-          (periodLabel ? '<span class="week-priority-period">' + escHtml(periodLabel) + '</span>' : '') +
-          '<span class="week-priority-copy"><strong>' + escHtml(it.title) + '</strong><span>' + escHtml(it.detail || '') + '</span></span>' +
+        '<button type="button" class="ed-focus-row week-priority-item is-action"' + openAttr + hwAttr + '>' +
+          '<b>' + escHtml(it.title) + '</b><span>' + escHtml(it.detail || '') + '</span>' +
         '</button>'
       );
-    }).join('') + '</div>';
+    }).join('');
   } else {
     attentionHtml = '<p class="week-empty">Nothing needs attention ' + (model.isToday ? 'today' : 'this day') + '.</p>';
   }
 
   var upcomingDates = model.upcomingDates || [];
   var upcomingHtml = upcomingDates.length
-    ? '<ul class="week-upcoming-list">' + upcomingDates.map(function(d) {
+    ? upcomingDates.map(function(d) {
         var sourceHint = d.source === 'shared' ? 'Shared calendar' : (d.source === 'personal' ? 'My calendar' : 'Academic Calendar');
         var isUrgent = d.tag === 'Assessment' || d.tag === 'Reporting';
-        var metaParts = [];
-        if (d.dateLabel) metaParts.push(d.dateLabel);
-        if (d.tag) metaParts.push(d.tag);
         var rel = weekRelativeDayText(d.date);
+        var detail = [d.tag, rel].filter(Boolean).join(' · ');
         return (
-          '<li class="week-upcoming-item' + (isUrgent ? ' is-urgent' : '') + '" title="' + escAttr(sourceHint) + '">' +
-            '<div class="week-upcoming-date" aria-hidden="true"><span>' + escHtml(d.month || '') + '</span><strong>' + escHtml(d.day || '') + '</strong></div>' +
-            '<div class="week-upcoming-copy">' +
-              '<strong>' + escHtml(d.title) + '</strong>' +
-              (metaParts.length ? '<span>' + escHtml(metaParts.join(' · ')) + '</span>' : '') +
-            '</div>' +
-            (rel ? '<span class="week-upcoming-rel">' + escHtml(rel) + '</span>' : '') +
-          '</li>'
+          '<button type="button" class="ed-event' + (isUrgent ? ' is-urgent' : '') + '" data-jump-date="' + escAttr(d.date || '') + '" title="' + escAttr(sourceHint) + '">' +
+            '<div class="ed-event-date">' + escHtml(d.month || '') + '<b>' + escHtml(d.day || '') + '</b></div>' +
+            '<div class="ed-event-bar" aria-hidden="true"></div>' +
+            '<div class="ed-event-copy"><b>' + escHtml(d.title) + '</b><span>' + escHtml(detail) + '</span></div>' +
+          '</button>'
         );
-      }).join('') + '</ul>'
+      }).join('')
     : '<p class="week-empty">No upcoming dates from today onward.</p>';
 
+  var weekdayUpper = String(model.weekdayName || '').toUpperCase();
+  var jumpHidden = model.isToday ? ' hidden' : '';
+  var taskCount = attentionItems.length;
+  var hwCount = model.hwOpenCount || 0;
+  var dateCount = upcomingDates.length;
+
   return (
-      '<header class="today-strip">' +
-        '<div class="today-strip-copy">' +
-          '<p class="today-kicker">Teacher Planner</p>' +
-          '<div class="today-date-nav">' +
-            '<button type="button" class="today-nav-btn" id="todayPrevDay" aria-label="Previous school day">&#9664;</button>' +
-            '<button type="button" class="today-nav-today" id="todayJumpToday"' + (model.isToday ? ' hidden' : '') + '>Jump to today</button>' +
-            '<button type="button" class="today-nav-btn" id="todayNextDay" aria-label="Next school day">&#9654;</button>' +
-          '</div>' +
-          '<h1 class="today-heading">' + escHtml(model.dateHeading || model.heading) + '</h1>' +
-          '<p class="today-summary">' + escHtml(glance) + '</p>' +
+    '<div class="ed-today-grid">' +
+      '<aside class="ed-date-rail">' +
+        '<div class="ed-weekday">' + escHtml(weekdayUpper) + '</div>' +
+        '<div class="ed-day-number">' + escHtml(model.dayNumber || '') + '</div>' +
+        '<div class="ed-month">' + escHtml(model.monthName || '') + '</div>' +
+        '<div class="ed-year">' + escHtml(model.yearLabel || '') + '</div>' +
+        '<div class="ed-rail-rule"></div>' +
+        '<div class="ed-time-now" id="todayLiveClock">' + escHtml(model.clock || '') + '</div>' +
+        '<div class="ed-week-label">ISO WEEK ' + escHtml(String(model.isoWeek || '')) + '</div>' +
+        '<div class="ed-date-nav">' +
+          '<button type="button" class="ed-nav-arrow" id="todayPrevDay" aria-label="Previous school day">&#9664;</button>' +
+          '<button type="button" id="todayJumpToday"' + jumpHidden + '>Jump to today</button>' +
+          '<button type="button" class="ed-nav-arrow" id="todayNextDay" aria-label="Next school day">&#9654;</button>' +
         '</div>' +
-        '<div class="today-strip-actions">' +
-          '<button type="button" id="todayViewWeek" class="today-action today-action-secondary">View week</button>' +
-          '<button type="button" id="todayAddLessonAction" class="today-action today-action-primary">Create lesson</button>' +
+      '</aside>' +
+      '<section class="ed-main-stage" id="todayLessonsCard">' +
+        heroHtml +
+        '<div class="ed-teach-head">TEACHING · ' + teachingCount + ' LESSON' + (teachingCount === 1 ? '' : 'S') + ' · ' + plannedN + ' PLANNED · ' + needN + ' NEED ATTENTION</div>' +
+        '<div id="todayLessonList">' + lessonsHtml + '</div>' +
+        '<details class="ed-day-note"' + (model.dayNote ? ' open' : '') + '>' +
+          '<summary><span>DAILY NOTES</span><span></span><span class="today-note-save-state" id="todayNoteSaveState" aria-live="polite"></span></summary>' +
+          '<label class="sr-only" for="todayQuickNote">Day notes</label>' +
+          '<textarea id="todayQuickNote" data-date="' + escHtml(model.dateStr) + '" placeholder="Reminders for today…" rows="4">' + escHtml(model.dayNote) + '</textarea>' +
+        '</details>' +
+      '</section>' +
+      '<aside class="ed-side" id="todayAttentionCard">' +
+        '<div class="ed-counter-grid">' +
+          '<div class="ed-counter is-tasks"><b>' + taskCount + '</b><span>TASKS</span></div>' +
+          '<button type="button" class="ed-counter is-homework" data-today-action="view-homework"><b>' + hwCount + '</b><span>HOMEWORK</span></button>' +
+          '<button type="button" class="ed-counter is-dates" id="todayViewAllDeadlines"><b>' + dateCount + '</b><span>DATES</span></button>' +
         '</div>' +
-      '</header>' +
-      '<div class="today-dashboard-grid">' +
-        '<main class="today-main-column">' +
-          '<section class="today-panel today-lessons-panel" id="todayLessonsCard">' +
-            '<header class="today-panel-header">' +
-              '<div><h2>' + escHtml(lessonsHeading) + '</h2><p class="today-panel-summary">' + escHtml(panelSummary) + '</p></div>' +
-            '</header>' +
-            '<div class="today-lessons-table">' +
-              '<div class="today-lessons-list" id="todayLessonList">' + lessonsHtml + '</div>' +
-            '</div>' +
-          '</section>' +
-          '<details class="today-notes-details"' + (model.dayNote ? ' open' : '') + '>' +
-            '<summary class="today-notes-summary">' +
-              '<span>Daily notes</span>' +
-              '<span class="today-notes-toggle">Open notes</span>' +
-              '<span class="today-note-save-state" id="todayNoteSaveState" aria-live="polite"></span>' +
-            '</summary>' +
-            '<div class="today-note-card">' +
-              '<label class="sr-only" for="todayQuickNote">Day notes</label>' +
-              '<textarea id="todayQuickNote" data-date="' + escHtml(model.dateStr) + '" placeholder="Reminders for today…" rows="4">' + escHtml(model.dayNote) + '</textarea>' +
-            '</div>' +
-          '</details>' +
-        '</main>' +
-        '<aside class="today-sidebar week-sidebar week-rail" id="todayAttentionCard">' +
-          '<section class="week-rail-section today-nextup">' +
-            '<header class="week-rail-head"><h2>Next up</h2></header>' +
-            nextUpHtml +
-          '</section>' +
-          '<section class="week-rail-section week-priorities-panel">' +
-            '<header class="week-rail-head"><h2>Needs attention</h2></header>' +
-            attentionHtml +
-          '</section>' +
-          '<section class="week-rail-section week-deadlines-panel">' +
-            '<header class="week-rail-head"><h2>Key dates &amp; deadlines</h2><button type="button" id="todayViewAllDeadlines" class="week-panel-link">Calendar →</button></header>' +
-            upcomingHtml +
-          '</section>' +
-        '</aside>' +
-      '</div>'
+        '<section class="ed-side-section">' +
+          '<div class="ed-side-title">NEEDS ATTENTION</div>' +
+          attentionHtml +
+        '</section>' +
+        '<section class="ed-side-section">' +
+          '<div class="ed-side-title">UPCOMING</div>' +
+          upcomingHtml +
+        '</section>' +
+      '</aside>' +
+    '</div>'
   );
 }
 
@@ -4157,13 +4197,25 @@ function bindTodayDashboardEvents(root, model) {
         openLessonModal(firstUnplanned.dateStr, firstUnplanned.slotKey);
       } else if (act === 'view-week') {
         switchPlannerTab('week');
+      } else if (act === 'view-homework') {
+        switchPlannerTab('homework');
       }
     });
   });
 
   root.querySelectorAll('.today-lesson-open[data-date][data-slot]').forEach(function(btn) {
+    function openRow() { openLessonModal(btn.dataset.date, btn.dataset.slot); }
+    btn.addEventListener('click', openRow);
+    btn.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        openRow();
+      }
+    });
+  });
+  root.querySelectorAll('.ed-event[data-jump-date]').forEach(function(btn) {
     btn.addEventListener('click', function() {
-      openLessonModal(btn.dataset.date, btn.dataset.slot);
+      if (btn.dataset.jumpDate) jumpPlannerToDate(btn.dataset.jumpDate);
     });
   });
   root.querySelectorAll('.week-support-label').forEach(function(btn) {
@@ -5264,10 +5316,6 @@ function bindWeekDashboardEvents(root, model) {
   root.querySelectorAll('.week-view-btn[data-calendar-view]').forEach(function(btn) {
     btn.addEventListener('click', function() {
       var view = btn.getAttribute('data-calendar-view');
-      if (view === 'month') {
-        openMonthPopover();
-        return;
-      }
       if (view) switchPlannerTab(view);
     });
   });
@@ -8797,9 +8845,9 @@ function initPlannerHotkeys() {
       e.preventDefault();
       var panelToday = document.getElementById('panel-today');
       if (panelToday && panelToday.classList.contains('active')) {
-        var addToday = document.getElementById('todayAddLessonAction');
+        var addToday = document.getElementById('navCreateLessonBtn') || document.getElementById('createNewLessonBtn');
         if (addToday) addToday.click();
-        else switchPlannerTab('bank');
+        else openLessonModalForLibrary(null);
       } else {
         var addBtn = document.getElementById('weekAddLessonAction');
         if (addBtn) addBtn.click();
@@ -9654,6 +9702,12 @@ function parseDocxToLessonPlan(xml) {
 document.getElementById('createNewLessonBtn').addEventListener('click', function() {
   openLessonModalForLibrary(null);
 });
+var navCreateLessonBtn = document.getElementById('navCreateLessonBtn');
+if (navCreateLessonBtn) {
+  navCreateLessonBtn.addEventListener('click', function() {
+    openLessonModalForLibrary(null);
+  });
+}
 
 (document.getElementById('lessonBankFilterSubject') || {}).addEventListener('change', function() {
   renderTemplatesList();
