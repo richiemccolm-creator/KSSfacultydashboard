@@ -967,7 +967,7 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
   .pulse-right{text-align:left}
 }
 </style>
-<link rel="stylesheet" href="teacher-planner-redesign.css?v=week-diary-1">
+<link rel="stylesheet" href="teacher-planner-redesign.css?v=week-rail-1">
 </head>
 <body>
 <script>
@@ -4825,7 +4825,7 @@ function buildWeekDashboardModel() {
           kind: 'warn',
           rank: 0,
           title: 'Plan ' + (slot.className || subjectLabel(slot.subject) || 'class') + ' · P' + p,
-          detail: weekDays[di].toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' }),
+          detail: weekDays[di].toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }),
           dateStr: dateStr,
           slotKey: k,
           className: slot.className || subjectLabel(slot.subject) || 'Class'
@@ -4902,17 +4902,19 @@ function buildWeekDashboardModel() {
   };
 }
 
-function weekUpcomingStamp(dateStr) {
-  var d = parseIsoDateLocal(dateStr);
-  if (!d) return '';
-  var day = String(d.getDate());
-  if (day.length < 2) day = '0' + day;
-  return day + ' ' + d.toLocaleDateString('en-GB', { month: 'short' }).toUpperCase();
-}
-
-function weekUpcomingWeekday(dateStr) {
-  var d = parseIsoDateLocal(dateStr);
-  return d ? d.toLocaleDateString('en-GB', { weekday: 'long' }) : '';
+function weekRelativeDayText(dateStr) {
+  var d = String(dateStr || '').slice(0, 10);
+  var todayStr = getDateStr(new Date());
+  if (!d || !todayStr) return '';
+  var t0 = parseIsoDateLocal(todayStr);
+  var t1 = parseIsoDateLocal(d);
+  if (!t0 || !t1) return '';
+  var diff = Math.round((t1.getTime() - t0.getTime()) / 86400000);
+  if (diff === 0) return 'today';
+  if (diff === 1) return 'in 1 day';
+  if (diff > 1) return 'in ' + diff + ' days';
+  if (diff === -1) return '1 day ago';
+  return Math.abs(diff) + ' days ago';
 }
 
 function createWeekDashboardMarkup(model) {
@@ -4988,15 +4990,30 @@ function createWeekDashboardMarkup(model) {
   var attentionItems = model.attentionItems || [];
   var attentionHtml =
     '<div class="week-rail-stats">' +
-      '<p><strong>' + needCount + '</strong> lesson' + (needCount === 1 ? '' : 's') + ' to plan</p>' +
-      '<p><strong>' + hwCount + '</strong> homework due</p>' +
-      (hwOverdue ? '<p><strong>' + hwOverdue + '</strong> homework overdue</p>' : '') +
+      '<div class="week-rail-stat">' +
+        '<strong>' + needCount + '</strong>' +
+        '<span>lesson' + (needCount === 1 ? '' : 's') + ' to plan next</span>' +
+      '</div>' +
+      '<div class="week-rail-stat">' +
+        '<strong>' + hwCount + '</strong>' +
+        '<span>homework due</span>' +
+      '</div>' +
+      (hwOverdue
+        ? '<div class="week-rail-stat is-overdue">' +
+            '<strong>' + hwOverdue + '</strong>' +
+            '<span>homework overdue</span>' +
+          '</div>'
+        : '') +
     '</div>';
   if (attentionItems.length) {
     attentionHtml += '<div class="week-priorities-list">' + attentionItems.map(function(it) {
+      var slotParts = it.slotKey ? parseSlotKeyParts(it.slotKey) : null;
+      var periodLabel = slotParts && slotParts.period ? ('P' + slotParts.period) : '';
+      var planTitle = 'Plan ' + (it.className || 'class');
       return (
         '<button type="button" class="week-priority-item is-action" data-date="' + it.dateStr + '" data-slot="' + it.slotKey + '">' +
-          '<span class="week-priority-copy"><strong>' + escHtml(it.title) + '</strong><span>' + escHtml(it.detail || '') + '</span></span>' +
+          (periodLabel ? '<span class="week-priority-period">' + escHtml(periodLabel) + '</span>' : '') +
+          '<span class="week-priority-copy"><strong>' + escHtml(planTitle) + '</strong><span>' + escHtml(it.detail || '') + '</span></span>' +
         '</button>'
       );
     }).join('') + '</div>';
@@ -5006,14 +5023,20 @@ function createWeekDashboardMarkup(model) {
 
   var upcomingHtml = model.upcomingDates.length
     ? '<ul class="week-upcoming-list">' + model.upcomingDates.map(function(d) {
-        var stamp = weekUpcomingStamp(d.date);
-        var weekday = weekUpcomingWeekday(d.date);
         var sourceHint = d.source === 'shared' ? 'Shared calendar' : (d.source === 'personal' ? 'My calendar' : 'Academic Calendar');
+        var isUrgent = d.tag === 'Assessment' || d.tag === 'Reporting';
+        var metaParts = [];
+        if (d.dateLabel) metaParts.push(d.dateLabel);
+        if (d.tag) metaParts.push(d.tag);
+        var rel = weekRelativeDayText(d.date);
         return (
-          '<li class="week-upcoming-item" title="' + escAttr(sourceHint) + '">' +
-            '<time datetime="' + escAttr(d.date || '') + '">' + escHtml(stamp) + '</time>' +
-            '<strong>' + escHtml(d.title) + '</strong>' +
-            (weekday ? '<span>' + escHtml(weekday) + '</span>' : '') +
+          '<li class="week-upcoming-item' + (isUrgent ? ' is-urgent' : '') + '" title="' + escAttr(sourceHint) + '">' +
+            '<div class="week-upcoming-date" aria-hidden="true"><span>' + escHtml(d.month || '') + '</span><strong>' + escHtml(d.day || '') + '</strong></div>' +
+            '<div class="week-upcoming-copy">' +
+              '<strong>' + escHtml(d.title) + '</strong>' +
+              (metaParts.length ? '<span>' + escHtml(metaParts.join(' · ')) + '</span>' : '') +
+            '</div>' +
+            (rel ? '<span class="week-upcoming-rel">' + escHtml(rel) + '</span>' : '') +
           '</li>'
         );
       }).join('') + '</ul>'
@@ -5101,13 +5124,13 @@ function createWeekDashboardMarkup(model) {
           '</div>' +
         '</details>' +
       '</main>' +
-      '<aside class="week-sidebar">' +
-        '<section class="week-panel week-priorities-panel">' +
-          '<header class="week-panel-header"><h2>Needs attention</h2></header>' +
+      '<aside class="week-sidebar week-rail">' +
+        '<section class="week-rail-section week-priorities-panel">' +
+          '<header class="week-rail-head"><h2>Needs attention</h2></header>' +
           attentionHtml +
         '</section>' +
-        '<section class="week-panel week-deadlines-panel">' +
-          '<header class="week-panel-header"><h2>Upcoming</h2><button type="button" id="weekViewAllDeadlines" class="week-panel-link">View all</button></header>' +
+        '<section class="week-rail-section week-deadlines-panel">' +
+          '<header class="week-rail-head"><h2>Key dates &amp; deadlines</h2><button type="button" id="weekViewAllDeadlines" class="week-panel-link">Calendar →</button></header>' +
           upcomingHtml +
         '</section>' +
       '</aside>' +
