@@ -967,7 +967,7 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
   .pulse-right{text-align:left}
 }
 </style>
-<link rel="stylesheet" href="teacher-planner-redesign.css?v=class-support-1">
+<link rel="stylesheet" href="teacher-planner-redesign.css?v=class-support-2">
 </head>
 <body>
 <script>
@@ -1961,7 +1961,6 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
             <p class="class-support-panel-class" id="classSupportDrawerClass"></p>
           </div>
           <div class="class-support-panel-head-actions">
-            <button type="button" class="btn-add-resource lesson-modal-chip-btn is-ghost" id="classSupportEditBtn">Edit</button>
             <button type="button" class="class-support-panel-close" id="classSupportDrawerClose" aria-label="Close class support">&times;</button>
           </div>
         </header>
@@ -7789,32 +7788,21 @@ function renderClassSupportView(profile) {
   var strategies = classSupportStrategies(considerations);
   var html = '';
   if (considerations.length) {
-    html += '<section class="class-support-section">';
-    html += '<h4>Class Support</h4>';
-    html += '<div class="class-support-chips">';
+    html += '<div class="class-support-chips is-context">';
     considerations.forEach(function(id) {
       html += classSupportChipHtml(id, classSupportCategoryLabel(id), true, false);
     });
-    html += '</div></section>';
-  }
-  if (strategies.length) {
-    html += '<section class="class-support-section">';
-    html += '<h4>Things to consider</h4>';
-    html += '<ul class="class-support-approach-list">';
-    strategies.forEach(function(s) {
-      html += '<li>' + escHtml(s.text) + '</li>';
-    });
-    html += '</ul></section>';
+    html += '</div>';
   }
   if (note) {
     html += '<section class="class-support-section">';
-    html += '<h4>What works well with this class</h4>';
+    html += '<h4>What works with this class</h4>';
     html += '<p class="class-support-note">' + escHtml(note).replace(/\n/g, '<br>') + '</p>';
     html += '</section>';
   }
   if (strategies.length) {
-    html += '<section class="class-support-section">';
-    html += '<h4>Use in this lesson</h4>';
+    html += '<section class="class-support-section class-support-lesson-section">';
+    html += '<h4>For this lesson</h4>';
     html += '<div class="class-support-pick-list">';
     strategies.forEach(function(s) {
       html += '<label class="class-support-pick">';
@@ -7823,12 +7811,14 @@ function renderClassSupportView(profile) {
       html += '</label>';
     });
     html += '</div>';
+    html += '<p class="class-support-selected-count" id="classSupportSelectedCount" hidden></p>';
     html += '<button type="button" class="btn-primary class-support-add-btn" id="classSupportAddBtn" disabled>Add to lesson</button>';
     html += '</section>';
   }
   if (!html) {
-    html = '<p class="class-support-empty">No planning considerations yet. Use Edit to add what is useful for this class.</p>';
+    html = '<p class="class-support-empty">No planning considerations yet.</p>';
   }
+  html += '<button type="button" class="class-support-edit-link" id="classSupportEditProfileBtn">Edit class profile</button>';
   return html;
 }
 
@@ -7842,22 +7832,23 @@ function renderClassSupportEdit(profile) {
   var note = profile && profile.whatWorks ? profile.whatWorks : '';
   var html = '';
   html += '<section class="class-support-section">';
-  html += '<h4>Anything particularly useful to consider when planning for this class?</h4>';
-  html += '<div class="class-support-chips" id="classSupportEditChips">';
+  html += '<h4>Planning considerations</h4>';
+  html += '<p class="class-support-hint">Choose anything particularly useful for this class.</p>';
+  html += '<div class="class-support-chips is-edit" id="classSupportEditChips">';
   cats.forEach(function(c) {
     html += classSupportChipHtml(c.id, c.label, !!selected[c.id], true);
   });
   html += '</div></section>';
+  html += '<section class="class-support-section">';
+  html += '<h4>What works well?</h4>';
+  html += '<textarea id="classSupportWhatWorks" class="form-input class-support-whatworks" rows="3" placeholder="e.g. Clear demonstrations before practical tasks. Keep instructions visible.">' + escHtml(note) + '</textarea>';
+  html += '</section>';
   html += '<section class="class-support-section class-support-optional">';
-  html += '<h4>Optional overview</h4>';
+  html += '<h4>Additional information <span>Optional</span></h4>';
   html += '<div class="class-support-counts">';
   html += '<label>ASN pupils <input type="number" id="classSupportAsnCount" min="0" max="99" inputmode="numeric" value="' + escAttr(asn) + '"></label>';
   html += '<label>EAL pupils <input type="number" id="classSupportEalCount" min="0" max="99" inputmode="numeric" value="' + escAttr(eal) + '"></label>';
   html += '</div></section>';
-  html += '<section class="class-support-section">';
-  html += '<h4>What works well with this class?</h4>';
-  html += '<textarea id="classSupportWhatWorks" class="form-input class-support-whatworks" rows="3" placeholder="e.g. Clear demonstrations before practical tasks. Keep instructions visible.">' + escHtml(note) + '</textarea>';
-  html += '</section>';
   html += '<button type="button" class="btn-primary class-support-save-btn" id="classSupportSaveBtn">Save class profile</button>';
   return html;
 }
@@ -7870,11 +7861,10 @@ function fillClassSupportPanel(mode) {
   var profile = ctx.className && PS.getClassSupportProfile ? PS.getClassSupportProfile(ctx.className) : null;
   var title = document.getElementById('classSupportDrawerTitle');
   var classLine = document.getElementById('classSupportDrawerClass');
-  var editBtn = document.getElementById('classSupportEditBtn');
   var body = document.getElementById('classSupportPanelBody');
   if (title) {
     title.textContent = mode === 'edit'
-      ? (profile ? 'Edit class support' : ('Set up support' + (ctx.className ? ' for ' + ctx.className : '')))
+      ? (profile ? 'Edit Class Support' : ('Set up support' + (ctx.className ? ' for ' + ctx.className : '')))
       : 'Class Support';
   }
   if (classLine) {
@@ -7884,7 +7874,6 @@ function fillClassSupportPanel(mode) {
     classLine.textContent = bits.join(' · ');
     classLine.hidden = !bits.length;
   }
-  if (editBtn) editBtn.hidden = mode === 'edit';
   if (body) body.innerHTML = mode === 'edit' ? renderClassSupportEdit(profile) : renderClassSupportView(profile);
 }
 
@@ -7916,11 +7905,16 @@ function selectedClassSupportStrategyTexts() {
 }
 
 function syncClassSupportAddButton() {
+  var n = selectedClassSupportStrategyTexts().length;
+  var countEl = document.getElementById('classSupportSelectedCount');
+  if (countEl) {
+    countEl.hidden = n === 0;
+    countEl.textContent = n === 1 ? '1 selected' : (n + ' selected');
+  }
   var btn = document.getElementById('classSupportAddBtn');
   if (!btn) return;
-  var n = selectedClassSupportStrategyTexts().length;
   btn.disabled = n === 0;
-  btn.textContent = n ? ('Add ' + n + ' to lesson') : 'Add to lesson';
+  btn.textContent = 'Add to lesson';
 }
 
 function collectClassSupportEditFields() {
@@ -7978,6 +7972,10 @@ function handleClassSupportPanelClick(e) {
     chip.classList.toggle('is-on', on);
     return;
   }
+  if (e.target.id === 'classSupportEditProfileBtn' || (e.target.closest && e.target.closest('#classSupportEditProfileBtn'))) {
+    fillClassSupportPanel('edit');
+    return;
+  }
   if (e.target.id === 'classSupportSaveBtn' || (e.target.closest && e.target.closest('#classSupportSaveBtn'))) {
     saveClassSupportFromPanel();
     return;
@@ -7995,6 +7993,8 @@ function handleClassSupportPanelClick(e) {
 
 function handleClassSupportPanelChange(e) {
   if (e.target && e.target.matches && e.target.matches('input[type="checkbox"][data-strategy-text]')) {
+    var row = e.target.closest('.class-support-pick');
+    if (row) row.classList.toggle('is-on', e.target.checked);
     syncClassSupportAddButton();
   }
 }
@@ -8003,7 +8003,6 @@ function initClassSupportUi() {
   var openBtn = document.getElementById('classSupportOpenBtn');
   var closeBtn = document.getElementById('classSupportDrawerClose');
   var scrim = document.getElementById('classSupportDrawerScrim');
-  var editBtn = document.getElementById('classSupportEditBtn');
   var body = document.getElementById('classSupportPanelBody');
   if (openBtn) {
     openBtn.addEventListener('click', function() {
@@ -8014,11 +8013,6 @@ function initClassSupportUi() {
   }
   if (closeBtn) closeBtn.addEventListener('click', closeClassSupportDrawer);
   if (scrim) scrim.addEventListener('click', closeClassSupportDrawer);
-  if (editBtn) {
-    editBtn.addEventListener('click', function() {
-      fillClassSupportPanel('edit');
-    });
-  }
   if (body) {
     body.addEventListener('click', handleClassSupportPanelClick);
     body.addEventListener('change', handleClassSupportPanelChange);
