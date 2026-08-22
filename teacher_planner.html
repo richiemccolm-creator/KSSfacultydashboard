@@ -40,8 +40,9 @@
 <script src="n5-ci-planner-import.js"></script>
 <script src="faculty-timetable-data.js"></script>
 <script src="faculty-timetable-planner-import.js"></script>
-<script src="planner-service.js"></script>
+<script src="planner-service.js?v=ink-4"></script>
 <script src="planner-class-support-strategies.js"></script>
+<script src="teacher-planner-lesson-ink.js?v=ink-5"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -967,9 +968,9 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
   .pulse-right{text-align:left}
 }
 </style>
-<link rel="stylesheet" href="teacher-planner-redesign.css?v=week-mobile-1">
-<link rel="stylesheet" href="teacher-planner-editorial.css?v=editorial-4">
-<link rel="stylesheet" href="teacher-planner-editorial-views.css?v=week-mobile-1">
+<link rel="stylesheet" href="teacher-planner-redesign.css?v=ink-1">
+<link rel="stylesheet" href="teacher-planner-editorial.css?v=editorial-5">
+<link rel="stylesheet" href="teacher-planner-editorial-views.css?v=ink-3">
 </head>
 <body>
 <script>
@@ -1808,49 +1809,56 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
 <!-- Lesson modal -->
 <div class="modal-overlay" id="lessonModal">
   <div class="modal modal-wide-lesson lesson-modal-shell">
-    <div class="modal-header lesson-modal-hero">
-      <div class="lesson-modal-hero-copy">
-        <h2 class="modal-title" id="lessonModalTitle">Add Lesson</h2>
-        <p class="lesson-modal-hero-class" id="lessonModalClass" hidden></p>
-        <p class="lesson-modal-hero-sub" id="lessonModalMeta">Plan the period — title, slides and the full lesson write-up</p>
-        <div class="class-support-hero-row" id="classSupportStrip" hidden>
-          <span class="class-support-hero-label" id="classSupportStripLabel"></span>
-          <button type="button" class="class-support-hero-btn" id="classSupportOpenBtn" aria-expanded="false" aria-controls="classSupportDrawer">View</button>
-        </div>
+    <header class="lesson-ws-top">
+      <button type="button" class="lesson-ws-back" id="lessonCancel">← Back to Week</button>
+      <h2 class="sr-only" id="lessonModalTitle">Add Lesson</h2>
+      <button type="button" class="sr-only" id="modalClose">Close</button>
+      <div class="lesson-ws-actions">
+        <button type="button" class="lesson-ws-btn" id="lessonCopyTo">Copy lesson</button>
+        <details class="lesson-ws-more" id="lessonMoreMenu">
+          <summary class="lesson-ws-btn" aria-label="More lesson actions">•••</summary>
+          <div class="lesson-ws-more-menu">
+            <button type="button" id="lessonSaveAsTemplate">Save as template</button>
+            <button type="button" id="useExampleBtn">Insert example</button>
+            <button type="button" id="lessonDownloadDocx" style="display:none">Download lesson plan</button>
+          </div>
+        </details>
+        <button type="button" class="lesson-ws-btn is-primary lesson-modal-save" id="lessonSave">Save lesson</button>
       </div>
-      <button class="modal-close lesson-modal-close" id="modalClose" aria-label="Close">&times;</button>
-    </div>
-    <div class="modal-body lesson-modal-body">
-      <input type="hidden" id="lessonSlotKey">
-      <input type="hidden" id="lessonDate">
+    </header>
 
-      <div class="lesson-modal-workspace">
-      <div class="lesson-modal-meta">
-      <section class="lesson-modal-panel lesson-modal-apply-section is-compact">
-        <label class="lesson-modal-apply-label" for="applyTemplateSelect">Template</label>
-        <div class="lesson-modal-apply-row">
-          <select class="form-select" id="applyTemplateSelect">
-            <option value="">— Select template —</option>
-          </select>
-          <button type="button" class="btn-add-resource lesson-modal-chip-btn" id="applyTemplateBtn">Apply</button>
+    <div class="lesson-ws-layout">
+      <div class="modal-body lesson-modal-body">
+        <input type="hidden" id="lessonSlotKey">
+        <input type="hidden" id="lessonDate">
+
+        <div class="lesson-ws-context">
+          <span class="lesson-ws-accent" id="lessonModalAccent" hidden></span>
+          <div class="lesson-ws-context-copy">
+            <p class="lesson-ws-class" id="lessonModalClass" hidden></p>
+            <p class="lesson-ws-meta" id="lessonModalMeta">Plan the period — title, slides and the full lesson write-up</p>
+          </div>
+          <div class="class-support-hero-row" id="classSupportStrip" hidden>
+            <span class="class-support-hero-label" id="classSupportStripLabel" hidden></span>
+            <button type="button" class="class-support-hero-btn" id="classSupportOpenBtn" aria-expanded="false" aria-controls="classSupportDrawer">SUPPORT</button>
+          </div>
         </div>
-      </section>
 
-      <section class="lesson-modal-panel lesson-modal-details">
-        <div class="lesson-modal-top-strip">
-          <div class="form-group">
-            <label class="form-label" for="lessonSubject">Subject</label>
+        <section class="lesson-ws-title-block">
+          <label class="lesson-ws-kicker" for="lessonTitle">Lesson title</label>
+          <input type="text" class="lesson-ws-title" id="lessonTitle" placeholder="Untitled lesson">
+          <p class="lesson-ws-subline" id="lessonModalSubline" hidden></p>
+          <div class="lesson-ws-fields">
+            <label class="sr-only" for="lessonSubject">Subject</label>
             <select class="form-select" id="lessonSubject">
-              <option value="">— Select —</option>
+              <option value="">Subject</option>
               <option value="drama">Drama</option>
               <option value="art">Art & Design</option>
               <option value="photography">Photography</option>
             </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="lessonYearGroup">Year group</label>
+            <label class="sr-only" for="lessonYearGroup">Year group</label>
             <select class="form-select" id="lessonYearGroup">
-              <option value="">— Select —</option>
+              <option value="">Year</option>
               <option value="s1">S1</option>
               <option value="s2">S2</option>
               <option value="s3">S3</option>
@@ -1860,125 +1868,183 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
               <option value="n5">N5</option>
               <option value="higher">Higher</option>
             </select>
-          </div>
-          <div class="form-group">
-            <label class="form-label" for="lessonUnit">Unit</label>
+            <label class="sr-only" for="lessonUnit">Unit</label>
             <select class="form-select" id="lessonUnit">
               <option value="">— Select unit —</option>
             </select>
+            <label class="sr-only" for="lessonNumber">Lesson number</label>
+            <input type="text" class="form-input" id="lessonNumber" placeholder="No." maxlength="24">
           </div>
-          <div class="form-group lesson-number-group">
-            <label class="form-label" for="lessonNumber">No.</label>
-            <input type="text" class="form-input" id="lessonNumber" placeholder="e.g. 3" maxlength="24">
-          </div>
-          <div class="form-group lesson-title-group">
-            <div class="lesson-title-label-row">
-              <label class="form-label" for="lessonTitle">Lesson title</label>
-              <button type="button" class="btn-add-resource lesson-modal-chip-btn is-ghost" id="useExampleBtn">Example</button>
-            </div>
-            <input type="text" class="form-input lesson-title-input" id="lessonTitle" placeholder="e.g. Warm-up and character exploration">
-          </div>
-        </div>
-      </section>
+        </section>
 
-      <section class="lesson-slides-attach lesson-modal-panel is-compact" id="lessonSlidesAttach">
-        <div class="lesson-slides-compact-row">
-          <div class="lesson-slides-compact-copy">
-            <span class="lesson-modal-apply-label">Slides</span>
-            <div class="lesson-slides-attach-meta empty" id="lessonSlidesMeta">No slides linked</div>
-          </div>
-          <div class="lesson-slides-attach-actions">
-            <button type="button" class="btn-add-resource lesson-modal-chip-btn" id="lessonSlidesOpenBtn" style="display:none">Open</button>
-            <button type="button" class="btn-add-resource lesson-modal-chip-btn is-accent" id="lessonSlidesPickBtn">Attach</button>
-            <button type="button" class="btn-add-resource lesson-modal-chip-btn" id="lessonSlidesClearBtn" style="display:none">Clear</button>
-          </div>
-        </div>
-        <input type="hidden" id="lessonSlidesSubject" value="">
-        <input type="hidden" id="lessonSlidesUnitId" value="">
-        <input type="hidden" id="lessonSlidesLessonId" value="">
-        <input type="hidden" id="lessonSlidesFile" value="">
-        <input type="hidden" id="lessonSlidesTitle" value="">
-        <input type="hidden" id="lessonSlidesIsHub" value="">
-      </section>
-      <section class="lesson-modal-panel lesson-homework-panel is-compact" id="lessonHomeworkPanel">
-        <div class="lesson-modal-panel-head">
-          <h3 class="lesson-modal-panel-title">Homework</h3>
-        </div>
-        <div class="form-group lesson-homework-task-group">
-          <label class="form-label" for="lessonHomeworkTask">Task</label>
-          <textarea id="lessonHomeworkTask" class="form-input lesson-homework-task" rows="2" placeholder="What should pupils do?"></textarea>
-        </div>
-        <div class="lesson-homework-row">
-          <div class="form-group">
-            <label class="form-label" for="lessonHomeworkDue">Due</label>
-            <input type="date" id="lessonHomeworkDue" class="form-input">
-          </div>
-          <button type="button" class="btn-add-resource lesson-modal-chip-btn is-ghost" id="lessonHomeworkNextLesson">Next lesson with this class</button>
-        </div>
-        <label class="lesson-homework-collected">
-          <input type="checkbox" id="lessonHomeworkCollected">
-          Collected
-        </label>
-        <input type="hidden" id="lessonHomeworkNotes" value="">
-      </section>
-      <details class="lesson-modal-extras lesson-modal-panel">
-        <summary>To-do &amp; resources <span>(optional)</span></summary>
-        <div class="lesson-modal-extras-body">
-          <div class="form-group">
-            <label class="form-label">To-do (prep tasks)</label>
-            <div id="todosList" class="todos-list"></div>
-            <div class="lesson-modal-inline-add">
-              <input type="text" id="todoNewInput" class="form-input" placeholder="e.g. Print handouts">
-              <button type="button" class="btn-add-resource lesson-modal-chip-btn is-accent" id="addTodo">+ Add</button>
-            </div>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Resources</label>
-            <div id="resourcesList" class="resources-list"></div>
-            <button type="button" class="btn-add-resource lesson-modal-chip-btn" id="addResource">+ Add resource (URL)</button>
-          </div>
-        </div>
-      </details>
-      <div id="copyToForm" class="form-group lesson-modal-copy" style="display:none">
-        <label class="form-label">Copy to date &amp; slot</label>
-        <div class="lesson-modal-inline-add">
-          <input type="date" id="copyToDate" class="form-input">
-          <select id="copyToPeriod" class="form-select"></select>
-          <button type="button" class="btn-primary" id="doCopy">Copy</button>
-          <button type="button" class="btn-secondary" id="cancelCopy">Cancel</button>
-        </div>
-      </div>
-      </div>
-
-      <div class="lesson-modal-write">
-      <section class="lesson-body-editor-wrap lesson-modal-panel is-editor">
-        <div class="lesson-modal-panel-head">
-          <span class="lesson-modal-panel-kicker">Plan</span>
-          <h3 class="lesson-modal-panel-title">Lesson plan</h3>
-        </div>
         <div class="lesson-body-editor-toolbar" id="lessonBodyToolbar">
           <button type="button" data-cmd="bold" title="Bold"><strong>B</strong></button>
           <button type="button" data-cmd="italic" title="Italic"><em>I</em></button>
+          <button type="button" data-cmd="ul" title="Bullet list">• List</button>
+          <button type="button" data-cmd="ol" title="Numbered list">1. List</button>
           <span class="toolbar-sep"></span>
           <button type="button" data-cmd="h2" title="Heading">Heading</button>
-          <button type="button" data-cmd="p" title="Paragraph">Paragraph</button>
+          <button type="button" id="lessonToolbarTemplate" title="Insert a template">Template</button>
           <span class="toolbar-sep"></span>
-          <button type="button" data-cmd="ul" title="Bullet list">• List</button>
+          <button type="button" class="lesson-ink-tool is-active" data-ink-mode="text" title="Type on the lesson page">Text</button>
+          <button type="button" class="lesson-ink-tool" data-ink-mode="pen" title="Handwrite or sketch">Pen</button>
+          <button type="button" class="lesson-ink-tool" data-ink-mode="highlighter" title="Highlight">Highlighter</button>
+          <button type="button" class="lesson-ink-tool" data-ink-mode="eraser" title="Erase handwriting only">Eraser</button>
+          <span class="toolbar-sep"></span>
+          <button type="button" class="lesson-ink-tool" id="lessonInkUndo" title="Undo ink" disabled>Undo</button>
+          <button type="button" class="lesson-ink-tool" id="lessonInkRedo" title="Redo ink" disabled>Redo</button>
+          <select class="lesson-ink-paper" id="lessonInkPaper" title="Paper background" aria-label="Paper background">
+            <option value="plain">Plain</option>
+            <option value="lined" selected>Lined</option>
+            <option value="grid">Grid</option>
+            <option value="dots">Dots</option>
+          </select>
+          <button type="button" class="lesson-ink-tool lesson-ink-clear" id="lessonInkClear" title="Clear handwriting and highlights" disabled>Clear ink</button>
         </div>
-        <div class="lesson-body-editor" id="lessonBodyEditor" contenteditable="true" data-placeholder="Start typing or paste your lesson here — quick notes, full plans, or copy from Word…"></div>
-      </section>
+        <div class="lesson-ink-sheet" id="lessonInkSheet">
+          <div class="lesson-ink-page is-lined" id="lessonInkPage">
+            <div class="lesson-body-editor" id="lessonBodyEditor" contenteditable="true" data-placeholder="Start typing or paste your lesson here — quick notes, full plans, or copy from Word…"></div>
+            <canvas class="lesson-ink-canvas" id="lessonInkCanvas" aria-hidden="true"></canvas>
+          </div>
+        </div>
+
+        <section class="lesson-ws-panel lesson-modal-panel lesson-modal-apply-section is-compact" id="lessonTemplatesPanel" hidden>
+          <label class="lesson-modal-apply-label" for="applyTemplateSelect">Template</label>
+          <div class="lesson-modal-apply-row">
+            <select class="form-select" id="applyTemplateSelect">
+              <option value="">— Select template —</option>
+            </select>
+            <button type="button" class="btn-add-resource lesson-modal-chip-btn" id="applyTemplateBtn">Apply</button>
+          </div>
+        </section>
+
+        <section class="lesson-ws-panel lesson-slides-attach lesson-modal-panel is-compact" id="lessonSlidesAttach" hidden>
+          <div class="lesson-slides-compact-row">
+            <div class="lesson-slides-compact-copy">
+              <span class="lesson-modal-apply-label">Slides</span>
+              <div class="lesson-slides-attach-meta empty" id="lessonSlidesMeta">No slides linked</div>
+            </div>
+            <div class="lesson-slides-attach-actions">
+              <button type="button" class="btn-add-resource lesson-modal-chip-btn" id="lessonSlidesOpenBtn" style="display:none">Open</button>
+              <button type="button" class="btn-add-resource lesson-modal-chip-btn is-accent" id="lessonSlidesPickBtn">Attach</button>
+              <button type="button" class="btn-add-resource lesson-modal-chip-btn" id="lessonSlidesClearBtn" style="display:none">Clear</button>
+            </div>
+          </div>
+          <input type="hidden" id="lessonSlidesSubject" value="">
+          <input type="hidden" id="lessonSlidesUnitId" value="">
+          <input type="hidden" id="lessonSlidesLessonId" value="">
+          <input type="hidden" id="lessonSlidesFile" value="">
+          <input type="hidden" id="lessonSlidesTitle" value="">
+          <input type="hidden" id="lessonSlidesIsHub" value="">
+        </section>
+
+        <section class="lesson-ws-panel lesson-modal-panel lesson-homework-panel is-compact" id="lessonHomeworkPanel" hidden>
+          <div class="lesson-modal-panel-head">
+            <h3 class="lesson-modal-panel-title">Homework</h3>
+          </div>
+          <div class="form-group lesson-homework-task-group">
+            <label class="form-label" for="lessonHomeworkTask">Task</label>
+            <textarea id="lessonHomeworkTask" class="form-input lesson-homework-task" rows="2" placeholder="What should pupils do?"></textarea>
+          </div>
+          <div class="lesson-homework-row">
+            <div class="form-group">
+              <label class="form-label" for="lessonHomeworkDue">Due</label>
+              <input type="date" id="lessonHomeworkDue" class="form-input">
+            </div>
+            <button type="button" class="btn-add-resource lesson-modal-chip-btn is-ghost" id="lessonHomeworkNextLesson">Next lesson with this class</button>
+          </div>
+          <label class="lesson-homework-collected">
+            <input type="checkbox" id="lessonHomeworkCollected">
+            Collected
+          </label>
+          <input type="hidden" id="lessonHomeworkNotes" value="">
+        </section>
+
+        <details class="lesson-ws-panel lesson-modal-extras lesson-modal-panel" id="lessonExtrasPanel" hidden>
+          <summary>To-do &amp; resources <span>(optional)</span></summary>
+          <div class="lesson-modal-extras-body">
+            <div class="form-group">
+              <label class="form-label">To-do (prep tasks)</label>
+              <div id="todosList" class="todos-list"></div>
+              <div class="lesson-modal-inline-add">
+                <input type="text" id="todoNewInput" class="form-input" placeholder="e.g. Print handouts">
+                <button type="button" class="btn-add-resource lesson-modal-chip-btn is-accent" id="addTodo">+ Add</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Resources</label>
+              <div id="resourcesList" class="resources-list"></div>
+              <button type="button" class="btn-add-resource lesson-modal-chip-btn" id="addResource">+ Add resource (URL)</button>
+            </div>
+          </div>
+        </details>
+        <div id="copyToForm" class="form-group lesson-modal-copy lesson-ws-panel" style="display:none">
+          <label class="form-label">Copy to date &amp; slot</label>
+          <div class="lesson-modal-inline-add">
+            <input type="date" id="copyToDate" class="form-input">
+            <select id="copyToPeriod" class="form-select"></select>
+            <button type="button" class="btn-primary" id="doCopy">Copy</button>
+            <button type="button" class="btn-secondary" id="cancelCopy">Cancel</button>
+          </div>
+        </div>
       </div>
-      </div>
-    </div>
-    <div class="modal-footer lesson-modal-footer">
-      <button class="btn-secondary lesson-modal-danger" id="lessonDelete">Delete</button>
-      <div class="lesson-modal-footer-actions">
-        <button class="btn-secondary" id="lessonSaveAsTemplate">Save as template</button>
-        <button class="btn-secondary" id="lessonCopyTo">Copy to...</button>
-        <button type="button" class="btn-secondary" id="lessonDownloadDocx" style="display:none" title="Download a formatted Word copy for your records">Download lesson plan</button>
-        <button class="btn-secondary" id="lessonCancel">Cancel</button>
-        <button class="btn-primary lesson-modal-save" id="lessonSave">Save Lesson</button>
-      </div>
+
+      <aside class="lesson-ws-rail" aria-label="Lesson tools">
+        <div class="lesson-ws-rail-head">
+          <div class="lesson-ws-kicker">Lesson tools</div>
+          <h3 id="lessonRailClass">Lesson</h3>
+          <p>Tools for this lesson</p>
+        </div>
+        <section class="lesson-ws-rail-section">
+          <div class="lesson-ws-kicker">Planning</div>
+          <button type="button" class="lesson-ws-action is-support" id="classSupportRailBtn">
+            <span class="lesson-ws-ico" aria-hidden="true">S</span>
+            <span><b>Class Support</b><small id="lessonRailSupportHint">Set up a class profile</small></span>
+            <span class="lesson-ws-chev" aria-hidden="true">›</span>
+          </button>
+          <button type="button" class="lesson-ws-action" id="lessonRailTemplatesBtn" data-lesson-panel="lessonTemplatesPanel">
+            <span class="lesson-ws-ico" aria-hidden="true">T</span>
+            <span><b>Templates</b><small>Insert a lesson structure</small></span>
+            <span class="lesson-ws-chev" aria-hidden="true">›</span>
+          </button>
+        </section>
+        <section class="lesson-ws-rail-section">
+          <div class="lesson-ws-kicker">Teaching</div>
+          <button type="button" class="lesson-ws-action" data-lesson-panel="lessonSlidesAttach">
+            <span class="lesson-ws-ico" aria-hidden="true">▣</span>
+            <span><b>Slides</b><small id="lessonRailSlidesHint">Create or open slides</small></span>
+            <span class="lesson-ws-chev" aria-hidden="true">›</span>
+          </button>
+          <button type="button" class="lesson-ws-action" data-lesson-panel="lessonHomeworkPanel" id="lessonRailHomeworkBtn">
+            <span class="lesson-ws-ico" aria-hidden="true">H</span>
+            <span><b>Homework</b><small id="lessonRailHomeworkHint">Add or review homework</small></span>
+            <span class="lesson-ws-chev" aria-hidden="true">›</span>
+          </button>
+        </section>
+        <section class="lesson-ws-rail-section">
+          <div class="lesson-ws-kicker">Lesson</div>
+          <button type="button" class="lesson-ws-action" id="lessonRailCopyBtn">
+            <span class="lesson-ws-ico" aria-hidden="true">⧉</span>
+            <span><b>Copy lesson</b><small>Reuse this plan</small></span>
+            <span class="lesson-ws-chev" aria-hidden="true">›</span>
+          </button>
+          <button type="button" class="lesson-ws-action" id="lessonRailBankBtn">
+            <span class="lesson-ws-ico" aria-hidden="true">L</span>
+            <span><b>Lesson Bank</b><small>Save or reuse lessons</small></span>
+            <span class="lesson-ws-chev" aria-hidden="true">›</span>
+          </button>
+          <button type="button" class="lesson-ws-action" data-lesson-panel="lessonExtrasPanel">
+            <span class="lesson-ws-ico" aria-hidden="true">+</span>
+            <span><b>To-do &amp; resources</b><small>Optional prep notes</small></span>
+            <span class="lesson-ws-chev" aria-hidden="true">›</span>
+          </button>
+          <button type="button" class="lesson-ws-action is-danger" id="lessonDelete">
+            <span class="lesson-ws-ico" aria-hidden="true">×</span>
+            <span><b>Delete lesson</b><small>Remove this lesson</small></span>
+            <span class="lesson-ws-chev" aria-hidden="true">›</span>
+          </button>
+        </section>
+      </aside>
     </div>
     <div class="class-support-drawer" id="classSupportDrawer" hidden>
       <button type="button" class="class-support-drawer-scrim" id="classSupportDrawerScrim" aria-label="Close class support"></button>
@@ -2270,6 +2336,7 @@ function lessonRecordToBodyHtml(record) {
 function setLessonBodyEditor(html) {
   var el = document.getElementById('lessonBodyEditor');
   if (el) el.innerHTML = html || '';
+  if (window.LessonInk) requestAnimationFrame(function() { LessonInk.syncSize(); });
 }
 
 function getLessonBodyEditorHtml() {
@@ -2286,12 +2353,14 @@ function focusLessonBodyEditor() {
 }
 
 function runLessonBodyCommand(cmd) {
+  if (window.LessonInk) LessonInk.setMode('text');
   var el = document.getElementById('lessonBodyEditor');
   if (!el) return;
   el.focus();
   if (cmd === 'h2') document.execCommand('formatBlock', false, 'h2');
   else if (cmd === 'p') document.execCommand('formatBlock', false, 'p');
   else if (cmd === 'ul') document.execCommand('insertUnorderedList', false, null);
+  else if (cmd === 'ol') document.execCommand('insertOrderedList', false, null);
   else document.execCommand(cmd, false, null);
 }
 
@@ -2934,6 +3003,54 @@ function setLessonYearGroupField(value) {
   } else {
     sel.value = '';
   }
+}
+
+function yearGroupFromClassName(className) {
+  var s = String(className || '').trim();
+  if (!s) return '';
+  if (/adv(?:anced)?\s*higher/i.test(s)) return 'higher';
+  if (/\bn5\b|\bnational\s*5\b|creative industries|\bci\b/i.test(s)) return 'n5';
+  if (/\bhigher\b/i.test(s)) return 'higher';
+  var m = s.match(/^(\d)/);
+  if (m && m[1] >= '1' && m[1] <= '6') return 's' + m[1];
+  return '';
+}
+
+function subjectFromTimetableSlot(slot) {
+  if (!slot) return '';
+  var sub = String(slot.subject || '').trim().toLowerCase();
+  var subjectSel = document.getElementById('lessonSubject');
+  if (sub && sub !== 'other' && subjectSel &&
+      Array.prototype.some.call(subjectSel.options, function(o) { return o.value === sub; })) {
+    return sub;
+  }
+  var cls = String(slot.className || '').toLowerCase();
+  if (/\bphoto/.test(cls)) return 'photography';
+  if (/\bart\b/.test(cls)) return 'art';
+  if (/\bdrama\b/.test(cls)) return 'drama';
+  return '';
+}
+
+function fillLessonWorkspaceFields(lesson, dateStr, slotKey) {
+  var sk = slotKey ? parseSlotKeyParts(slotKey) : null;
+  var slot = (sk && PS.getSlot) ? PS.getSlot(sk.day, sk.period) : null;
+  var subject = ((lesson && lesson.subject) || subjectFromTimetableSlot(slot) || '').trim();
+  var unitKey = (lesson && lesson.unitKey) || '';
+  document.getElementById('lessonTitle').value = lesson ? (lesson.title || '') : '';
+  document.getElementById('lessonSubject').value = subject;
+  populateUnitDropdown(subject);
+  document.getElementById('lessonUnit').value = unitKey;
+  if (unitKey && document.getElementById('lessonUnit').value !== unitKey) {
+    document.getElementById('lessonUnit').value = '';
+  }
+  document.getElementById('lessonNumber').value = lesson ? (lesson.lessonNumber || '') : '';
+  var yg = (lesson && lesson.yearGroup) || yearGroupFromUnitKey(unitKey) || '';
+  if (!yg && lesson) {
+    var inferred = lessonBankYearKey(lesson, unitKey && window.getUnitFromKey ? window.getUnitFromKey(unitKey) : null);
+    if (inferred && inferred !== 'other') yg = inferred;
+  }
+  if (!yg && slot) yg = yearGroupFromClassName(slot.className);
+  setLessonYearGroupField(yg);
 }
 
 function syncYearGroupFromSelectedUnit() {
@@ -8171,6 +8288,7 @@ function renderSlidesAttachUi() {
     if (clearBtn) clearBtn.style.display = 'none';
     if (pickBtn) pickBtn.textContent = 'Attach slides';
   }
+  if (typeof syncLessonToolSummaries === 'function') syncLessonToolSummaries();
 }
 
 function clearSlidesAttachmentAndResource() {
@@ -8454,6 +8572,7 @@ function addSupportStrategiesToLesson(texts) {
     li.textContent = t;
     ul.appendChild(li);
   });
+  if (window.LessonInk) requestAnimationFrame(function() { LessonInk.syncSize(); });
   return toAdd.length;
 }
 
@@ -8469,20 +8588,13 @@ function syncClassSupportStrip() {
   }
   strip.hidden = false;
   var profile = PS.getClassSupportProfile ? PS.getClassSupportProfile(ctx.className) : null;
-  var n = profile && profile.considerations ? profile.considerations.length : 0;
-  if (!profile) {
-    if (label) {
-      label.hidden = true;
-      label.textContent = '';
-    }
-    btn.textContent = 'Set up class support';
-  } else {
-    if (label) {
-      label.hidden = false;
-      label.textContent = n ? ('Class support · ' + n) : 'Class support';
-    }
-    btn.textContent = 'View';
+  if (label) {
+    label.hidden = true;
+    label.textContent = '';
   }
+  strip.hidden = false;
+  btn.textContent = profile ? 'SUPPORT' : 'Set up class support';
+  btn.classList.toggle('is-setup', !profile);
 }
 
 function classSupportChipHtml(id, label, selected, interactive) {
@@ -8497,22 +8609,27 @@ function renderClassSupportView(profile) {
   var note = profile && profile.whatWorks ? String(profile.whatWorks).trim() : '';
   var strategies = classSupportStrategies(considerations);
   var html = '';
+  html += '<section class="class-support-section">';
+  html += '<h4>Planning considerations</h4>';
   if (considerations.length) {
     html += '<div class="class-support-chips is-context">';
     considerations.forEach(function(id) {
       html += classSupportChipHtml(id, classSupportCategoryLabel(id), true, false);
     });
     html += '</div>';
+  } else {
+    html += '<p class="class-support-empty">No planning considerations yet.</p>';
   }
+  html += '</section>';
   if (note) {
     html += '<section class="class-support-section">';
     html += '<h4>What works with this class</h4>';
     html += '<p class="class-support-note">' + escHtml(note).replace(/\n/g, '<br>') + '</p>';
     html += '</section>';
   }
+  html += '<section class="class-support-section class-support-lesson-section">';
+  html += '<h4>For this lesson</h4>';
   if (strategies.length) {
-    html += '<section class="class-support-section class-support-lesson-section">';
-    html += '<h4>For this lesson</h4>';
     html += '<div class="class-support-pick-list">';
     strategies.forEach(function(s) {
       html += '<label class="class-support-pick">';
@@ -8521,14 +8638,15 @@ function renderClassSupportView(profile) {
       html += '</label>';
     });
     html += '</div>';
-    html += '<p class="class-support-selected-count" id="classSupportSelectedCount" hidden></p>';
+    html += '<div class="class-support-drawer-actions">';
+    html += '<p class="class-support-selected-count" id="classSupportSelectedCount">0 selected</p>';
     html += '<button type="button" class="btn-primary class-support-add-btn" id="classSupportAddBtn" disabled>Add to lesson</button>';
-    html += '</section>';
-  }
-  if (!html) {
-    html = '<p class="class-support-empty">No planning considerations yet.</p>';
+    html += '</div>';
+  } else {
+    html += '<p class="class-support-empty">Choose planning considerations in the class profile to see suggested approaches.</p>';
   }
   html += '<button type="button" class="class-support-edit-link" id="classSupportEditProfileBtn">Edit class profile</button>';
+  html += '</section>';
   return html;
 }
 
@@ -8550,15 +8668,17 @@ function renderClassSupportEdit(profile) {
   });
   html += '</div></section>';
   html += '<section class="class-support-section">';
-  html += '<h4>What works well?</h4>';
+  html += '<h4>What works well with this class?</h4>';
   html += '<textarea id="classSupportWhatWorks" class="form-input class-support-whatworks" rows="3" placeholder="e.g. Clear demonstrations before practical tasks. Keep instructions visible.">' + escHtml(note) + '</textarea>';
   html += '</section>';
   html += '<section class="class-support-section class-support-optional">';
   html += '<h4>Additional information <span>Optional</span></h4>';
   html += '<div class="class-support-counts">';
-  html += '<label>ASN pupils <input type="number" id="classSupportAsnCount" min="0" max="99" inputmode="numeric" value="' + escAttr(asn) + '"></label>';
-  html += '<label>EAL pupils <input type="number" id="classSupportEalCount" min="0" max="99" inputmode="numeric" value="' + escAttr(eal) + '"></label>';
-  html += '</div></section>';
+  html += '<label>ASN <input type="number" id="classSupportAsnCount" min="0" max="99" inputmode="numeric" value="' + escAttr(asn) + '"></label>';
+  html += '<label>EAL <input type="number" id="classSupportEalCount" min="0" max="99" inputmode="numeric" value="' + escAttr(eal) + '"></label>';
+  html += '</div>';
+  html += '<p class="class-support-privacy">These optional counts stay inside the class profile. They are not shown on the timetable or projected lesson overview.</p>';
+  html += '</section>';
   html += '<button type="button" class="btn-primary class-support-save-btn" id="classSupportSaveBtn">Save class profile</button>';
   return html;
 }
@@ -8572,11 +8692,7 @@ function fillClassSupportPanel(mode) {
   var title = document.getElementById('classSupportDrawerTitle');
   var classLine = document.getElementById('classSupportDrawerClass');
   var body = document.getElementById('classSupportPanelBody');
-  if (title) {
-    title.textContent = mode === 'edit'
-      ? (profile ? 'Edit Class Support' : ('Set up support' + (ctx.className ? ' for ' + ctx.className : '')))
-      : 'Class Support';
-  }
+  if (title) title.textContent = 'Class Support';
   if (classLine) {
     var bits = [];
     if (ctx.className) bits.push(ctx.className);
@@ -8618,7 +8734,7 @@ function syncClassSupportAddButton() {
   var n = selectedClassSupportStrategyTexts().length;
   var countEl = document.getElementById('classSupportSelectedCount');
   if (countEl) {
-    countEl.hidden = n === 0;
+    countEl.hidden = false;
     countEl.textContent = n === 1 ? '1 selected' : (n + ' selected');
   }
   var btn = document.getElementById('classSupportAddBtn');
@@ -8721,6 +8837,18 @@ function initClassSupportUi() {
       openClassSupportDrawer(profile ? 'view' : 'edit');
     });
   }
+  var railBtn = document.getElementById('classSupportRailBtn');
+  if (railBtn) {
+    railBtn.addEventListener('click', function() {
+      var ctx = classSupportContextFromModal();
+      if (!ctx.className) {
+        showToast('Class Support is for timetable lessons');
+        return;
+      }
+      var profile = PS.getClassSupportProfile ? PS.getClassSupportProfile(ctx.className) : null;
+      openClassSupportDrawer(profile ? 'view' : 'edit');
+    });
+  }
   if (closeBtn) closeBtn.addEventListener('click', closeClassSupportDrawer);
   if (scrim) scrim.addEventListener('click', closeClassSupportDrawer);
   if (body) {
@@ -8729,24 +8857,139 @@ function initClassSupportUi() {
   }
 }
 
+function lessonWorkspaceBackLabel() {
+  if (document.getElementById('panel-week') && document.getElementById('panel-week').classList.contains('active')) return '← Back to Week';
+  if (document.getElementById('panel-today') && document.getElementById('panel-today').classList.contains('active')) return '← Back to Today';
+  if (document.getElementById('panel-bank') && document.getElementById('panel-bank').classList.contains('active')) return '← Back to Lesson Bank';
+  if (document.getElementById('panel-homework') && document.getElementById('panel-homework').classList.contains('active')) return '← Back to Homework';
+  if (document.getElementById('panel-month') && document.getElementById('panel-month').classList.contains('active')) return '← Back to Month';
+  if (document.getElementById('panel-timetable') && document.getElementById('panel-timetable').classList.contains('active')) return '← Back to Timetable';
+  if (document.getElementById('panel-schemes') && document.getElementById('panel-schemes').classList.contains('active')) return '← Back to Schemes';
+  return '← Back';
+}
+
+function syncLessonSubline() {
+  var line = document.getElementById('lessonModalSubline');
+  if (!line) return;
+  var unitSel = document.getElementById('lessonUnit');
+  var num = ((document.getElementById('lessonNumber') || {}).value || '').trim();
+  var unitText = '';
+  if (unitSel && unitSel.selectedIndex > 0) {
+    unitText = String(unitSel.options[unitSel.selectedIndex].text || '')
+      .replace(/\s*\([^)]*\)\s*$/, '')
+      .replace(/^[^:]+:\s*/, '');
+  }
+  var parts = [];
+  if (unitText) parts.push(unitText);
+  if (num) parts.push('Lesson ' + num);
+  line.hidden = !parts.length;
+  line.textContent = parts.join(' · ');
+}
+
+function syncLessonToolSummaries() {
+  var slidesHint = document.getElementById('lessonRailSlidesHint');
+  var att = typeof getSlidesAttachmentFromFields === 'function' ? getSlidesAttachmentFromFields() : null;
+  if (slidesHint) {
+    slidesHint.textContent = (att && att.slidesFile) ? (att.slidesTitle || 'Slides attached') : 'Create or open slides';
+  }
+  var hwHint = document.getElementById('lessonRailHomeworkHint');
+  var task = ((document.getElementById('lessonHomeworkTask') || {}).value || '').trim();
+  if (hwHint) hwHint.textContent = task ? 'Homework set' : 'Add or review homework';
+  var csHint = document.getElementById('lessonRailSupportHint');
+  var ctx = classSupportContextFromModal();
+  if (csHint) {
+    if (!ctx.className) csHint.textContent = 'Timetable lessons only';
+    else if (PS.getClassSupportProfile && PS.getClassSupportProfile(ctx.className)) csHint.textContent = 'Profile available';
+    else csHint.textContent = 'Set up a class profile';
+  }
+}
+
+function resetLessonWorkspaceScroll() {
+  var body = document.querySelector('#lessonModal .lesson-modal-body');
+  var layout = document.querySelector('#lessonModal .lesson-ws-layout');
+  if (body) body.scrollTop = 0;
+  if (layout) layout.scrollTop = 0;
+}
+
+function resetLessonToolPanels() {
+  document.querySelectorAll('#lessonModal .lesson-ws-panel').forEach(function(panel) {
+    if (panel.tagName === 'DETAILS') {
+      panel.open = false;
+      panel.hidden = true;
+    } else if (panel.id !== 'copyToForm') {
+      panel.hidden = true;
+    }
+  });
+}
+
+function showLessonToolPanel(id) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  document.querySelectorAll('#lessonModal .lesson-ws-panel').forEach(function(panel) {
+    if (panel === el) return;
+    if (panel.tagName === 'DETAILS') {
+      panel.open = false;
+      panel.hidden = true;
+    } else if (panel.id !== 'copyToForm') {
+      panel.hidden = true;
+    }
+  });
+  el.hidden = false;
+  if (el.tagName === 'DETAILS') el.open = true;
+  if (el.scrollIntoView) {
+    try { el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch (err) { el.scrollIntoView(false); }
+  }
+}
+
+function syncLessonWorkspaceChrome(mode) {
+  var shell = document.querySelector('#lessonModal .lesson-modal-shell');
+  if (shell) shell.classList.toggle('is-library', mode === 'library');
+  var back = document.getElementById('lessonCancel');
+  if (back) back.textContent = lessonWorkspaceBackLabel();
+  var railClass = document.getElementById('lessonRailClass');
+  var classEl = document.getElementById('lessonModalClass');
+  if (railClass) {
+    railClass.textContent = (classEl && !classEl.hidden && classEl.textContent) ? classEl.textContent : 'Lesson';
+  }
+  var railCs = document.getElementById('classSupportRailBtn');
+  if (railCs) railCs.hidden = mode === 'library';
+  var railTpl = document.getElementById('lessonRailTemplatesBtn');
+  if (railTpl) railTpl.hidden = mode === 'library';
+  var railHw = document.getElementById('lessonRailHomeworkBtn');
+  if (railHw) railHw.hidden = mode === 'library';
+  var railCopy = document.getElementById('lessonRailCopyBtn');
+  if (railCopy) railCopy.hidden = mode === 'library';
+  var topCopy = document.getElementById('lessonCopyTo');
+  if (topCopy && mode === 'library') topCopy.style.display = 'none';
+  syncLessonSubline();
+  syncLessonToolSummaries();
+}
+
 function updateLessonModalMeta(dateStr, slotKey, mode) {
   var meta = document.getElementById('lessonModalMeta');
   var classEl = document.getElementById('lessonModalClass');
+  var accent = document.getElementById('lessonModalAccent');
   if (!meta) return;
   if (mode === 'library') {
     if (classEl) {
       classEl.hidden = true;
       classEl.textContent = '';
     }
-    meta.textContent = 'Build a reusable lesson for your bank — then drop it onto any period';
+    if (accent) {
+      accent.hidden = true;
+      accent.style.background = '';
+    }
+    meta.textContent = 'Reusable lesson for your bank — drop it onto any period';
     closeClassSupportDrawer({ silent: true });
     syncClassSupportStrip();
+    syncLessonWorkspaceChrome('library');
     return;
   }
   var classLabel = '';
+  var slot = null;
   var sk = slotKey ? parseSlotKeyParts(slotKey) : null;
   if (sk && PS.getSlot) {
-    var slot = PS.getSlot(sk.day, sk.period);
+    slot = PS.getSlot(sk.day, sk.period);
     if (slot) {
       classLabel = String(slot.className || '').trim()
         || (typeof subjectLabel === 'function' ? subjectLabel(slot.subject) : '')
@@ -8762,18 +9005,33 @@ function updateLessonModalMeta(dateStr, slotKey, mode) {
       classEl.textContent = '';
     }
   }
+  if (accent) {
+    if (classLabel && typeof classFillStyleAttrs === 'function') {
+      var fill = classFillStyleAttrs(classLabel, slot);
+      accent.hidden = false;
+      accent.style.background = fill.fill;
+    } else {
+      accent.hidden = true;
+      accent.style.background = '';
+    }
+  }
   var parts = [];
   if (dateStr) {
     var d = parseIsoDateLocal ? parseIsoDateLocal(dateStr) : null;
     if (d) parts.push(d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }));
     else parts.push(dateStr);
   }
-  if (sk) parts.push('Period ' + sk.period);
+  if (sk) {
+    var time = typeof periodTimeLabel === 'function' ? String(periodTimeLabel(sk.period) || '').replace(/\s+–\s+/g, '–') : '';
+    parts.push(time ? ('P' + sk.period + ' · ' + time) : ('P' + sk.period));
+  }
+  if (slot && slot.room) parts.push(String(slot.room).trim());
   meta.textContent = parts.length
     ? parts.join(' · ')
     : 'Plan the period — title, slides and the full lesson write-up';
   closeClassSupportDrawer({ silent: true });
   syncClassSupportStrip();
+  syncLessonWorkspaceChrome('period');
 }
 
 function openLessonModal(dateStr, slotKey) {
@@ -8784,24 +9042,13 @@ function openLessonModal(dateStr, slotKey) {
   document.getElementById('lessonDate').value = dateStr || '';
   document.getElementById('lessonModalTitle').textContent = lesson ? 'Edit Lesson' : 'Add Lesson';
   updateLessonModalMeta(dateStr, slotKey, 'period');
-  document.getElementById('lessonSubject').value = lesson ? (lesson.subject || '') : '';
-  document.getElementById('lessonUnit').value = lesson ? (lesson.unitKey || '') : '';
-  document.getElementById('lessonTitle').value = lesson ? (lesson.title || '') : '';
-  document.getElementById('lessonNumber').value = lesson ? (lesson.lessonNumber || '') : '';
+  fillLessonWorkspaceFields(lesson, dateStr, slotKey);
   setLessonBodyEditor(lessonRecordToBodyHtml(lesson));
-  populateUnitDropdown(document.getElementById('lessonSubject').value);
-  if (lesson && lesson.unitKey) document.getElementById('lessonUnit').value = lesson.unitKey;
-  var ygInit = (lesson && lesson.yearGroup) || yearGroupFromUnitKey(lesson && lesson.unitKey) || '';
-  if (!ygInit && lesson) {
-    var inferred = lessonBankYearKey(lesson, lesson.unitKey && window.getUnitFromKey ? window.getUnitFromKey(lesson.unitKey) : null);
-    if (inferred && inferred !== 'other') ygInit = inferred;
-  }
-  setLessonYearGroupField(ygInit);
   renderResourcesList(lesson ? (lesson.resources || []) : []);
   renderTodosList(lesson ? (lesson.todos || []) : []);
   fillHomeworkModal(lesson && lesson.homework);
   var hwPanel = document.getElementById('lessonHomeworkPanel');
-  if (hwPanel) hwPanel.hidden = false;
+  if (hwPanel) hwPanel.hidden = true;
   var slidesAtt = window.LessonSlidesCatalog
     ? window.LessonSlidesCatalog.getAttachmentFromLesson(lesson)
     : (lesson && lesson.slidesFile ? {
@@ -8813,18 +9060,31 @@ function openLessonModal(dateStr, slotKey) {
         slidesIsHub: !!lesson.slidesIsHub
       } : null);
   setSlidesAttachmentFields(slidesAtt);
+  resetLessonToolPanels();
   var extras = document.querySelector('.lesson-modal-extras');
-  if (extras) extras.open = lesson && ((lesson.todos && lesson.todos.length) || (lesson.resources && lesson.resources.length));
+  if (extras) {
+    var hasExtras = lesson && ((lesson.todos && lesson.todos.length) || (lesson.resources && lesson.resources.length));
+    extras.hidden = !hasExtras;
+    extras.open = !!hasExtras;
+  }
   if (lesson) PS.setEditingLessonId(lesson.id);
-  document.getElementById('lessonDelete').style.display = lesson ? 'block' : 'none';
-  document.getElementById('lessonSaveAsTemplate').style.display = 'block';
-  document.getElementById('lessonCopyTo').style.display = 'block';
+  document.getElementById('lessonDelete').style.display = lesson ? '' : 'none';
+  document.getElementById('lessonSaveAsTemplate').style.display = '';
+  document.getElementById('lessonCopyTo').style.display = '';
   var dlPast = document.getElementById('lessonDownloadDocx');
-  if (dlPast) dlPast.style.display = (lesson && lesson.date && isPastLessonDate(lesson.date)) ? 'inline-block' : 'none';
-  document.getElementById('lessonSave').textContent = 'Save Lesson';
-  document.querySelector('.lesson-modal-apply-section').style.display = 'block';
+  if (dlPast) dlPast.style.display = (lesson && lesson.date && isPastLessonDate(lesson.date)) ? '' : 'none';
+  document.getElementById('lessonSave').textContent = 'Save lesson';
+  var applySec = document.querySelector('.lesson-modal-apply-section');
+  if (applySec) {
+    applySec.style.display = '';
+    applySec.hidden = true;
+  }
   document.getElementById('copyToForm').style.display = 'none';
+  syncLessonSubline();
+  syncLessonToolSummaries();
   document.getElementById('lessonModal').classList.add('visible');
+  resetLessonWorkspaceScroll();
+  if (window.LessonInk) LessonInk.load(lesson && lesson.ink);
   syncLessonModalKeyboardInset();
   populateApplyTemplateDropdown();
 }
@@ -8866,17 +9126,30 @@ function openLessonModalForLibrary(templateId) {
         slidesIsHub: !!template.slidesIsHub
       } : null);
   setSlidesAttachmentFields(slidesAtt);
+  resetLessonToolPanels();
   var extrasLib = document.querySelector('.lesson-modal-extras');
-  if (extrasLib) extrasLib.open = template && ((template.todos && template.todos.length) || (template.resources && template.resources.length));
-  document.getElementById('lessonDelete').style.display = template ? 'block' : 'none';
+  if (extrasLib) {
+    var hasExtrasLib = template && ((template.todos && template.todos.length) || (template.resources && template.resources.length));
+    extrasLib.hidden = !hasExtrasLib;
+    extrasLib.open = !!hasExtrasLib;
+  }
+  document.getElementById('lessonDelete').style.display = template ? '' : 'none';
   document.getElementById('lessonSaveAsTemplate').style.display = 'none';
   document.getElementById('lessonCopyTo').style.display = 'none';
   var dlLib = document.getElementById('lessonDownloadDocx');
   if (dlLib) dlLib.style.display = 'none';
   document.getElementById('lessonSave').textContent = template ? 'Update lesson' : 'Save to lesson bank';
-  document.querySelector('.lesson-modal-apply-section').style.display = 'none';
+  var applyLib = document.querySelector('.lesson-modal-apply-section');
+  if (applyLib) {
+    applyLib.style.display = 'none';
+    applyLib.hidden = true;
+  }
   document.getElementById('copyToForm').style.display = 'none';
+  syncLessonSubline();
+  syncLessonToolSummaries();
   document.getElementById('lessonModal').classList.add('visible');
+  resetLessonWorkspaceScroll();
+  if (window.LessonInk) LessonInk.load(null);
   syncLessonModalKeyboardInset();
 }
 
@@ -9111,6 +9384,7 @@ function collectLessonPayloadFromModal(overrides) {
     slidesTitle: slidesAtt ? (slidesAtt.slidesTitle || '') : '',
     slidesIsHub: slidesAtt ? !!slidesAtt.slidesIsHub : false,
     homework: collectHomeworkFromModal(),
+    ink: window.LessonInk ? LessonInk.serialize() : undefined,
     updatedAt: new Date().toISOString()
   }, overrides);
 }
@@ -9194,6 +9468,7 @@ document.getElementById('lessonSave').addEventListener('click', function() {
     delete template.slotKey;
     delete template.updatedAt;
     delete template.homework;
+    delete template.ink;
     if (templateId !== 'new') template.id = templateId;
     PS.saveTemplate(template).then(function() {
       document.getElementById('lessonModal').classList.remove('visible');
@@ -9294,8 +9569,78 @@ document.getElementById('doCopy').addEventListener('click', function() {
   });
 });
 
+function initLessonWorkspaceUi() {
+  var modal = document.getElementById('lessonModal');
+  if (!modal || modal.dataset.workspaceBound) return;
+  modal.dataset.workspaceBound = '1';
+  modal.querySelectorAll('[data-lesson-panel]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      showLessonToolPanel(btn.getAttribute('data-lesson-panel'));
+    });
+  });
+  var toolbarTpl = document.getElementById('lessonToolbarTemplate');
+  if (toolbarTpl) {
+    toolbarTpl.addEventListener('mousedown', function(e) { e.preventDefault(); });
+    toolbarTpl.addEventListener('click', function() {
+      showLessonToolPanel('lessonTemplatesPanel');
+    });
+  }
+  var railCopy = document.getElementById('lessonRailCopyBtn');
+  if (railCopy) {
+    railCopy.addEventListener('click', function() {
+      var copyBtn = document.getElementById('lessonCopyTo');
+      if (copyBtn) copyBtn.click();
+    });
+  }
+  var railBank = document.getElementById('lessonRailBankBtn');
+  if (railBank) {
+    railBank.addEventListener('click', function() {
+      var saveAs = document.getElementById('lessonSaveAsTemplate');
+      if (saveAs && saveAs.style.display !== 'none') saveAs.click();
+      else {
+        closeLessonModal();
+        switchPlannerTab('bank');
+      }
+    });
+  }
+  var more = document.getElementById('lessonMoreMenu');
+  if (more) {
+    more.addEventListener('toggle', function() {
+      if (!more.open) return;
+      var closeMore = function(e) {
+        if (more.contains(e.target)) return;
+        more.open = false;
+        document.removeEventListener('pointerdown', closeMore, true);
+      };
+      document.addEventListener('pointerdown', closeMore, true);
+    });
+  }
+  ['lessonUnit', 'lessonNumber', 'lessonSubject', 'lessonYearGroup'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('change', syncLessonSubline);
+    el.addEventListener('input', syncLessonSubline);
+  });
+  var hwTask = document.getElementById('lessonHomeworkTask');
+  if (hwTask) hwTask.addEventListener('input', syncLessonToolSummaries);
+  var clearInk = document.getElementById('lessonInkClear');
+  if (clearInk && window.LessonInk) {
+    clearInk.addEventListener('click', function() {
+      plannerConfirm({
+        title: 'Clear ink?',
+        body: 'This removes handwriting and highlights only. Typed lesson content, title, Class Support, homework and slides are not deleted.',
+        confirmLabel: 'Clear ink',
+        danger: true
+      }).then(function(ok) {
+        if (ok) LessonInk.clearInk();
+      });
+    });
+  }
+}
+
 function closeLessonModal() {
   closeClassSupportDrawer({ silent: true });
+  if (window.LessonInk) LessonInk.reset();
   var modal = document.getElementById('lessonModal');
   if (modal) {
     modal.classList.remove('visible');
@@ -10753,9 +11098,11 @@ function initPlannerChromeOffset() {
 
 // Init
 initLessonBodyEditor();
+if (window.LessonInk) LessonInk.init();
 bindFacultyTtImportUi();
 bindN5CiImportUi();
 initClassSupportUi();
+initLessonWorkspaceUi();
 initPlannerInstallTip();
 initPlannerChromeOffset();
 initPlannerDock();

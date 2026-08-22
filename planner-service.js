@@ -705,6 +705,10 @@
         ? normalizeHomework(payload.homework)
         : (existing ? existing.homework : null);
       var normalized = Object.assign({}, payload, { todos: todos, homework: homework });
+      if (normalized.ink && typeof normalized.ink === 'object') {
+        try { normalized.ink = JSON.parse(JSON.stringify(normalized.ink)); }
+        catch (err) { normalized.ink = { version: 1, paper: 'lined', strokes: [] }; }
+      }
       if (editingId) {
         var idx = lessons.findIndex(function(l) { return l.id === editingId; });
         if (idx >= 0) {
