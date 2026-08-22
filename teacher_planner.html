@@ -967,7 +967,7 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
   .pulse-right{text-align:left}
 }
 </style>
-<link rel="stylesheet" href="teacher-planner-redesign.css?v=class-support-2">
+<link rel="stylesheet" href="teacher-planner-redesign.css?v=week-diary-1">
 </head>
 <body>
 <script>
@@ -2169,6 +2169,11 @@ function classSupportMarkHtml(className) {
   return '<span class="class-support-mark" title="Class support" aria-label="Class support"></span>';
 }
 
+function weekClassSupportLabelHtml(className, dateStr, slotKey) {
+  if (!className || !PS.hasClassSupportProfile || !PS.hasClassSupportProfile(className)) return '';
+  return '<button type="button" class="week-support-label" data-date="' + escAttr(dateStr) + '" data-slot="' + escAttr(slotKey) + '" title="Class support profile available" aria-label="Class support profile available">Support</button>';
+}
+
 function setHomeworkDueToNextLesson() {
   var dateStr = (document.getElementById('lessonDate') || {}).value || '';
   var slotKey = (document.getElementById('lessonSlotKey') || {}).value || '';
@@ -2777,6 +2782,13 @@ function deriveLessonStatus(lesson) {
 
 function statusLabel(status) {
   if (status === 'needs-planning') return 'Needs plan';
+  if (status === 'complete') return 'Complete';
+  if (status === 'draft') return 'Draft';
+  return 'Planned';
+}
+
+function weekStatusLabel(status) {
+  if (status === 'needs-planning') return 'Needs planning';
   if (status === 'complete') return 'Complete';
   if (status === 'draft') return 'Draft';
   return 'Planned';
@@ -4813,7 +4825,7 @@ function buildWeekDashboardModel() {
           kind: 'warn',
           rank: 0,
           title: 'Plan ' + (slot.className || subjectLabel(slot.subject) || 'class') + ' · P' + p,
-          detail: weekDays[di].toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }),
+          detail: weekDays[di].toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' }),
           dateStr: dateStr,
           slotKey: k,
           className: slot.className || subjectLabel(slot.subject) || 'Class'
@@ -4827,7 +4839,7 @@ function buildWeekDashboardModel() {
         slotKey: k,
         className: slot.className || subjectLabel(slot.subject) || 'Class',
         subject: slot.subject || '',
-        title: lesson ? (lesson.title || 'Untitled') : 'Needs planning',
+        title: lesson ? String(lesson.title || '').trim() : '',
         status: st,
         isToday: dateStr === todayStr,
         homework: lesson && PS.normalizeHomework ? PS.normalizeHomework(lesson.homework) : (lesson && lesson.homework) || null,
@@ -4842,54 +4854,10 @@ function buildWeekDashboardModel() {
     });
   }
 
-  var eventPriorities = allEvents.filter(function(e) {
-    return e.date && e.date >= weekStartStr && e.date <= weekEndStr;
-  }).map(function(e) {
-    var rank = calendarEventPriorityRank(e);
-    var tag = calendarEventTag(e);
-    var kind = tag === 'Assessment' ? 'assess'
-      : (tag === 'Meeting' ? 'meet'
-      : (tag === 'Reporting' ? 'report'
-      : (tag === 'INSET' ? 'inset'
-      : (tag === 'Holiday' ? 'holiday' : 'info'))));
-    return {
-      kind: kind,
-      tag: tag,
-      rank: rank,
-      title: e.title || 'Event',
-      detail: e.date || 'This week'
-    };
-  }).sort(function(a, b) { return a.rank - b.rank; });
-
   var hwDueThisWeek = PS.listHomework
     ? PS.listHomework({ dueFrom: weekStartStr, dueTo: weekEndStr, uncollectedOnly: true })
     : [];
   var hwOverdueWeek = PS.listHomework ? PS.listHomework({ overdueOnly: true }) : [];
-  var hwPriorities = [];
-  if (hwOverdueWeek.length) {
-    hwPriorities.push({
-      kind: 'warn',
-      rank: 0,
-      title: hwOverdueWeek.length + ' homework overdue',
-      detail: hwOverdueWeek[0].className || 'Review in Homework',
-      dateStr: hwOverdueWeek[0].date,
-      slotKey: hwOverdueWeek[0].slotKey,
-      className: hwOverdueWeek[0].className
-    });
-  }
-  if (hwDueThisWeek.length) {
-    hwPriorities.push({
-      kind: 'info',
-      rank: 1,
-      title: hwDueThisWeek.length + ' homework due this week',
-      detail: hwDueThisWeek[0].className || 'Open Homework',
-      dateStr: hwDueThisWeek[0].date,
-      slotKey: hwDueThisWeek[0].slotKey,
-      className: hwDueThisWeek[0].className
-    });
-  }
-
-  var priorities = hwPriorities.concat(needsPriorities, eventPriorities).slice(0, 4);
 
   var planPct = stats.teaching ? Math.round((stats.planned / stats.teaching) * 100) : 0;
   var note = PS.getWeekNote ? PS.getWeekNote(weekStartStr) : '';
@@ -4911,6 +4879,7 @@ function buildWeekDashboardModel() {
     planned: stats.planned,
     assessmentsDue: assessments.length,
     homeworkDue: hwDueThisWeek.length,
+    homeworkOverdue: hwOverdueWeek.length,
     statusCounts: statusCounts,
     planPct: planPct,
     weekDays: weekDays.map(function(d, i) {
@@ -4918,28 +4887,43 @@ function buildWeekDashboardModel() {
         key: dayOrder[i],
         name: dayOrder[i].charAt(0).toUpperCase() + dayOrder[i].slice(1),
         short: dayOrder[i].slice(0, 3).toUpperCase(),
-        dateLabel: d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }).toUpperCase(),
+        dateLabel: d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }),
         dateStr: getDateStr(d),
         isToday: getDateStr(d) === todayStr
       };
     }),
     maxPeriod: maxPeriod,
     cells: cells,
-    priorities: priorities,
+    needsCount: needsPriorities.length,
+    attentionItems: needsPriorities.slice(0, 6),
     upcomingDates: upcomingDates,
     note: note,
     unfinishedOnly: !!weekUnfinishedOnly
   };
 }
 
+function weekUpcomingStamp(dateStr) {
+  var d = parseIsoDateLocal(dateStr);
+  if (!d) return '';
+  var day = String(d.getDate());
+  if (day.length < 2) day = '0' + day;
+  return day + ' ' + d.toLocaleDateString('en-GB', { month: 'short' }).toUpperCase();
+}
+
+function weekUpcomingWeekday(dateStr) {
+  var d = parseIsoDateLocal(dateStr);
+  return d ? d.toLocaleDateString('en-GB', { weekday: 'long' }) : '';
+}
+
 function createWeekDashboardMarkup(model) {
+  var needPlan = (model.statusCounts && model.statusCounts['needs-planning']) || 0;
   var summary =
     model.teaching + ' teaching periods · ' +
-    model.planned + ' lessons planned · ' +
-    model.assessmentsDue + ' assessment' + (model.assessmentsDue === 1 ? '' : 's') + ' due · ' +
+    model.planned + ' planned · ' +
+    needPlan + ' need planning · ' +
     (model.homeworkDue || 0) + ' homework due';
 
-  var panelSummary = model.planned + ' of ' + model.teaching + ' lessons planned this week';
+  var panelSummary = model.planned + ' of ' + model.teaching + ' lessons planned';
 
   var dayHeaders = model.weekDays.map(function(d) {
     return (
@@ -4978,15 +4962,19 @@ function createWeekDashboardMarkup(model) {
         ? '<button type="button" class="week-slides-btn" data-slides-file="' + escAttr(c.slides.slidesFile) + '" data-slides-title="' + escAttr(c.slides.slidesTitle || '') + '" data-slides-hub="' + (c.slides.slidesIsHub ? '1' : '') + '" title="Open lesson slides">Slides</button>'
         : '';
       var hwMark = weekHomeworkMarkHtml(c.homework);
+      var hasSupport = !!(c.className && PS.hasClassSupportProfile && PS.hasClassSupportProfile(c.className));
+      var supportBtn = weekClassSupportLabelHtml(c.className, c.dateStr, c.slotKey);
+      var displayTitle = c.title || 'No lesson plan';
       grid +=
-        '<div class="week-lesson-cell is-' + c.status + ' subj-' + escHtml(c.subject || 'other') + ' has-class-fill' + (c.isToday ? ' is-today-col' : '') + (hide ? ' is-filtered-out' : '') + '" style="' + fillStyle.style + '">' +
+        '<div class="week-lesson-cell is-' + c.status + ' subj-' + escHtml(c.subject || 'other') + ' has-class-fill' + (hasSupport ? ' has-support' : '') + (c.isToday ? ' is-today-col' : '') + (hide ? ' is-filtered-out' : '') + '" style="' + fillStyle.style + '">' +
           '<button type="button" class="week-lesson-open" data-date="' + c.dateStr + '" data-slot="' + c.slotKey + '" data-plan="' + c.status + '" data-class="' + escAttr(c.className) + '" data-grid-day="' + c.dayIndex + '" data-grid-period="' + c.period + '">' +
             '<div class="week-lesson-card is-class-fill">' +
-              '<strong class="week-lesson-class">' + escHtml(c.className) + classSupportMarkHtml(c.className) + '</strong>' +
-              '<span class="week-lesson-title">' + escHtml(c.title) + '</span>' +
-              '<span class="week-status is-' + c.status + '">' + escHtml(statusLabel(c.status)) + '</span>' +
+              '<strong class="week-lesson-class">' + escHtml(c.className) + '</strong>' +
+              '<span class="week-lesson-title" title="' + escAttr(displayTitle) + '">' + escHtml(displayTitle) + '</span>' +
+              '<span class="week-status is-' + c.status + '">' + escHtml(weekStatusLabel(c.status)) + '</span>' +
             '</div>' +
           '</button>' +
+          supportBtn +
           hwMark +
           slidesBtn +
         '</div>';
@@ -4994,58 +4982,46 @@ function createWeekDashboardMarkup(model) {
   }
   grid += '</div>';
 
-  var prioritiesHtml = model.priorities.length
-    ? '<div class="week-priorities-list">' + model.priorities.map(function(it) {
-        var iconStyle = '';
-        var iconExtra = '';
-        if (it.className) {
-          var pParts = it.slotKey ? parseSlotKeyParts(it.slotKey) : null;
-          var pSlot = pParts ? PS.getSlot(pParts.day, pParts.period) : null;
-          var classFill = classFillStyleAttrs(it.className, pSlot);
-          iconStyle = ' style="--priority-dot:' + classFill.fill + '"';
-          iconExtra = ' has-priority-dot';
-        } else if (it.tag) {
-          iconStyle = ' style="--priority-dot:' + calendarEventFill(it.tag) + '"';
-          iconExtra = ' has-priority-dot';
-        }
-        var iconHtml =
-          '<span class="week-priority-icon is-' + escHtml(it.kind || 'info') + iconExtra + '"' + iconStyle + ' aria-hidden="true"></span>' +
-          '<span class="week-priority-copy"><strong>' + escHtml(it.title) + '</strong><span>' + escHtml(it.detail || '') + '</span></span>';
-        if (it.dateStr && it.slotKey) {
-          return (
-            '<button type="button" class="week-priority-item is-action" data-date="' + it.dateStr + '" data-slot="' + it.slotKey + '">' +
-              iconHtml +
-            '</button>'
-          );
-        }
-        return '<div class="week-priority-item">' + iconHtml + '</div>';
-      }).join('') + '</div>'
-    : '<p class="week-empty">No urgent priorities this week.</p>';
+  var needCount = model.needsCount || 0;
+  var hwCount = model.homeworkDue || 0;
+  var hwOverdue = model.homeworkOverdue || 0;
+  var attentionItems = model.attentionItems || [];
+  var attentionHtml =
+    '<div class="week-rail-stats">' +
+      '<p><strong>' + needCount + '</strong> lesson' + (needCount === 1 ? '' : 's') + ' to plan</p>' +
+      '<p><strong>' + hwCount + '</strong> homework due</p>' +
+      (hwOverdue ? '<p><strong>' + hwOverdue + '</strong> homework overdue</p>' : '') +
+    '</div>';
+  if (attentionItems.length) {
+    attentionHtml += '<div class="week-priorities-list">' + attentionItems.map(function(it) {
+      return (
+        '<button type="button" class="week-priority-item is-action" data-date="' + it.dateStr + '" data-slot="' + it.slotKey + '">' +
+          '<span class="week-priority-copy"><strong>' + escHtml(it.title) + '</strong><span>' + escHtml(it.detail || '') + '</span></span>' +
+        '</button>'
+      );
+    }).join('') + '</div>';
+  } else if (!needCount && !hwCount && !hwOverdue) {
+    attentionHtml += '<p class="week-empty">Nothing needs attention this week.</p>';
+  }
 
   var upcomingHtml = model.upcomingDates.length
-    ? '<ul class="week-deadlines-list">' + model.upcomingDates.map(function(d) {
-        var tagSlug = (d.tag === 'Assessment') ? 'assess'
-          : (d.tag === 'Meeting' ? 'meet'
-          : (d.tag === 'Reporting' ? 'report'
-          : (d.tag === 'INSET' ? 'inset'
-          : (d.tag === 'Holiday' ? 'holiday' : 'plan'))));
-        var fill = calendarEventFillStyle(d.tag);
+    ? '<ul class="week-upcoming-list">' + model.upcomingDates.map(function(d) {
+        var stamp = weekUpcomingStamp(d.date);
+        var weekday = weekUpcomingWeekday(d.date);
         var sourceHint = d.source === 'shared' ? 'Shared calendar' : (d.source === 'personal' ? 'My calendar' : 'Academic Calendar');
         return (
-          '<li class="week-deadline-item has-cal-fill cat-' + tagSlug + '" style="' + fill.style + '">' +
-            '<div class="week-deadline-date" aria-hidden="true"><span>' + escHtml(d.month) + '</span><strong>' + escHtml(d.day) + '</strong></div>' +
-            '<div class="week-deadline-copy">' +
-              '<strong>' + escHtml(d.title) + '</strong>' +
-              '<span>' + escHtml(d.dateLabel || d.date) + ' · ' + escHtml(sourceHint) + '</span>' +
-            '</div>' +
-            '<span class="week-deadline-tag is-' + tagSlug + '">' + escHtml(d.tag) + '</span>' +
+          '<li class="week-upcoming-item" title="' + escAttr(sourceHint) + '">' +
+            '<time datetime="' + escAttr(d.date || '') + '">' + escHtml(stamp) + '</time>' +
+            '<strong>' + escHtml(d.title) + '</strong>' +
+            (weekday ? '<span>' + escHtml(weekday) + '</span>' : '') +
           '</li>'
         );
       }).join('') + '</ul>'
-    : '<p class="week-empty">No Academic Calendar dates from this week onward. Add or share events in <strong>Academic Calendar</strong>.</p>';
+    : '<p class="week-empty">No upcoming dates from this week onward.</p>';
 
-  var filterLabel = model.unfinishedOnly ? 'Show all lessons' : 'Show unfinished only';
   var sc = model.statusCounts;
+  var drafts = sc.draft || 0;
+  var needs = sc['needs-planning'] || 0;
 
   return (
     '<section class="week-hero">' +
@@ -5070,8 +5046,13 @@ function createWeekDashboardMarkup(model) {
         '<p class="week-summary">' + escHtml(summary) + '</p>' +
         '<div class="week-hero-actions">' +
           '<button type="button" id="weekAddLessonAction" class="week-action week-action-primary">Create lesson</button>' +
-          '<button type="button" id="weekViewMonthAction" class="week-action week-action-secondary">View month</button>' +
-          '<button type="button" id="weekCopyPreviousAction" class="week-action week-action-secondary">Copy previous week</button>' +
+          '<details class="week-more" id="weekMoreMenu">' +
+            '<summary class="week-action week-action-secondary">More</summary>' +
+            '<div class="week-more-menu">' +
+              '<button type="button" id="weekCopyPreviousAction">Copy previous week</button>' +
+              '<button type="button" id="weekViewOptionsButton">Class colours</button>' +
+            '</div>' +
+          '</details>' +
         '</div>' +
       '</div>' +
     '</section>' +
@@ -5081,8 +5062,11 @@ function createWeekDashboardMarkup(model) {
           '<header class="week-panel-header">' +
             '<div><h2>This week’s timetable</h2><p class="week-panel-summary">' + escHtml(panelSummary) + '</p></div>' +
             '<div class="week-panel-actions">' +
-              '<button type="button" id="weekFilterButton" class="week-panel-control' + (model.unfinishedOnly ? ' is-on' : '') + '" aria-pressed="' + (model.unfinishedOnly ? 'true' : 'false') + '">' + escHtml(filterLabel) + '</button>' +
-              '<button type="button" id="weekViewOptionsButton" class="week-panel-control" title="Edit class colours for the week grid">Class colours</button>' +
+              '<div class="week-filter-links" role="group" aria-label="Lesson filter">' +
+                '<button type="button" class="week-filter-link' + (!model.unfinishedOnly ? ' is-on' : '') + '" data-week-filter="all" aria-pressed="' + (!model.unfinishedOnly ? 'true' : 'false') + '">All</button>' +
+                '<span class="week-filter-sep" aria-hidden="true">|</span>' +
+                '<button type="button" class="week-filter-link' + (model.unfinishedOnly ? ' is-on' : '') + '" data-week-filter="unfinished" aria-pressed="' + (model.unfinishedOnly ? 'true' : 'false') + '">Unfinished</button>' +
+              '</div>' +
             '</div>' +
           '</header>' +
           (!model.teaching
@@ -5098,16 +5082,11 @@ function createWeekDashboardMarkup(model) {
           '<div class="week-timetable-scroll">' + grid + '</div>' +
           '<p class="week-swipe-hint" id="weekSwipeHint" hidden>Swipe sideways to see the rest of the week</p>' +
           '<footer class="week-timetable-footer">' +
-            '<div class="week-status-legend" aria-label="Status legend">' +
-              '<span class="lg-planned">Planned ' + (sc.planned || 0) + '</span>' +
-              '<span class="lg-draft">Draft ' + (sc.draft || 0) + '</span>' +
-              '<span class="lg-complete">Complete ' + (sc.complete || 0) + '</span>' +
-              '<span class="lg-needs">Needs ' + (sc['needs-planning'] || 0) + '</span>' +
-            '</div>' +
             '<div class="week-footer-progress">' +
               '<span class="week-footer-progress-label">' + model.planned + ' of ' + model.teaching + ' planned · ' + model.planPct + '%</span>' +
-              '<div class="week-footer-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + model.planPct + '"><span style="width:' + model.planPct + '%"></span></div>' +
+              '<div class="week-footer-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + model.planPct + '" aria-label="Lessons planned this week"><span style="width:' + model.planPct + '%"></span></div>' +
             '</div>' +
+            '<p class="week-footer-secondary">' + drafts + ' draft' + (drafts === 1 ? '' : 's') + ' · ' + needs + ' need planning</p>' +
           '</footer>' +
         '</section>' +
         '<details class="week-panel week-notes-panel week-notes-details"' + (model.note ? ' open' : '') + '>' +
@@ -5124,11 +5103,11 @@ function createWeekDashboardMarkup(model) {
       '</main>' +
       '<aside class="week-sidebar">' +
         '<section class="week-panel week-priorities-panel">' +
-          '<header class="week-panel-header"><h2>Week priorities</h2></header>' +
-          prioritiesHtml +
+          '<header class="week-panel-header"><h2>Needs attention</h2></header>' +
+          attentionHtml +
         '</section>' +
         '<section class="week-panel week-deadlines-panel">' +
-          '<header class="week-panel-header"><h2>Upcoming dates</h2><button type="button" id="weekViewAllDeadlines" class="week-panel-link">View all</button></header>' +
+          '<header class="week-panel-header"><h2>Upcoming</h2><button type="button" id="weekViewAllDeadlines" class="week-panel-link">View all</button></header>' +
           upcomingHtml +
         '</section>' +
       '</aside>' +
@@ -5250,8 +5229,26 @@ function bindWeekDashboardEvents(root, model) {
   var monthBtn = root.querySelector('#weekViewMonthAction');
   if (monthBtn) monthBtn.addEventListener('click', function() { openMonthPopover(); });
 
+  var moreMenu = root.querySelector('#weekMoreMenu');
+  if (moreMenu) {
+    moreMenu.addEventListener('toggle', function() {
+      if (!moreMenu.open) return;
+      var closeMore = function(e) {
+        if (moreMenu.contains(e.target)) return;
+        moreMenu.open = false;
+        document.removeEventListener('pointerdown', closeMore, true);
+      };
+      document.addEventListener('pointerdown', closeMore, true);
+    });
+  }
+
   var copyPrev = root.querySelector('#weekCopyPreviousAction');
-  if (copyPrev) copyPrev.addEventListener('click', copyPreviousWeekIntoCurrent);
+  if (copyPrev) {
+    copyPrev.addEventListener('click', function() {
+      if (moreMenu) moreMenu.open = false;
+      copyPreviousWeekIntoCurrent();
+    });
+  }
 
   var swipeHint = root.querySelector('#weekSwipeHint');
   var scrollEl = root.querySelector('.week-timetable-scroll');
@@ -5261,15 +5258,21 @@ function bindWeekDashboardEvents(root, model) {
   }
 
   var optionsBtn = root.querySelector('#weekViewOptionsButton');
-  if (optionsBtn) optionsBtn.addEventListener('click', openClassColoursModal);
-
-  var filterBtn = root.querySelector('#weekFilterButton');
-  if (filterBtn) {
-    filterBtn.addEventListener('click', function() {
-      weekUnfinishedOnly = !weekUnfinishedOnly;
-      renderWeekView();
+  if (optionsBtn) {
+    optionsBtn.addEventListener('click', function() {
+      if (moreMenu) moreMenu.open = false;
+      openClassColoursModal();
     });
   }
+
+  root.querySelectorAll('[data-week-filter]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var next = btn.getAttribute('data-week-filter') === 'unfinished';
+      if (weekUnfinishedOnly === next) return;
+      weekUnfinishedOnly = next;
+      renderWeekView();
+    });
+  });
 
   var viewAll = root.querySelector('#weekViewAllDeadlines');
   if (viewAll) viewAll.addEventListener('click', function() { openMonthPopover(); });
@@ -5291,6 +5294,14 @@ function bindWeekDashboardEvents(root, model) {
   root.querySelectorAll('.week-lesson-open[data-date][data-slot]').forEach(function(btn) {
     btn.addEventListener('click', function() {
       openLessonModal(btn.dataset.date, btn.dataset.slot);
+    });
+  });
+  root.querySelectorAll('.week-support-label').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      openLessonModal(btn.dataset.date, btn.dataset.slot);
+      openClassSupportDrawer('view');
     });
   });
   root.querySelectorAll('.week-slides-btn').forEach(function(btn) {
