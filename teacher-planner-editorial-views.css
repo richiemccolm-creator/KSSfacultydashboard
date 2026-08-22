@@ -1,0 +1,1630 @@
+/* Teacher Planner editorial views — Month, Timetable, Lesson Bank, Schemes, Homework.
+   Visual language from teacher_planner_full_with_schemes_mockup.html.
+   Scoped to .planner-redesign. Production IDs and behaviour stay in teacher_planner.html. */
+
+/* ========== MONTH ========== */
+.planner-redesign #panel-month { display: none; }
+.planner-redesign #panel-month.active { display: block !important; }
+.planner-redesign #panel-month .ed-month-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 238px;
+  gap: 24px;
+  align-items: start;
+}
+.planner-redesign #panel-month .ed-month-board {
+  background: #fff;
+  border-top: 1px solid var(--ed-hair);
+  border-bottom: 1px solid var(--ed-hair);
+  min-width: 0;
+}
+.planner-redesign #panel-month .ed-month-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  border-bottom: 1px solid #d9dee4;
+}
+.planner-redesign #panel-month .ed-month-weekday {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  border-right: 1px solid #e5e8ec;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #78828d;
+}
+.planner-redesign #panel-month .ed-month-weekday:last-child { border-right: 0; }
+.planner-redesign #panel-month .ed-month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+}
+.planner-redesign #panel-month .ed-month-day {
+  min-height: 116px;
+  border-right: 1px solid #e5e8ec;
+  border-bottom: 1px solid #e5e8ec;
+  padding: 9px 10px 8px;
+  position: relative;
+  background: #fff;
+  min-width: 0;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+.planner-redesign #panel-month .ed-month-day:nth-child(7n) { border-right: 0; }
+.planner-redesign #panel-month .ed-month-day:hover { background: #f7f9fc; }
+.planner-redesign #panel-month .ed-month-day:focus-visible {
+  outline: 2px solid var(--ed-blue);
+  outline-offset: -2px;
+  z-index: 1;
+}
+.planner-redesign #panel-month .ed-month-day.is-outside {
+  background: #fcfcfa;
+  color: #b4bac0;
+}
+.planner-redesign #panel-month .ed-month-day.is-weekend { background: #fdfcf9; }
+.planner-redesign #panel-month .ed-month-day.is-focus-week { background: #fbfdff; }
+.planner-redesign #panel-month .ed-month-day.is-today {
+  background: linear-gradient(145deg, #edf4ff, #fbfdff);
+}
+.planner-redesign #panel-month .ed-month-day.is-today::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border: 1px solid #9abbed;
+  pointer-events: none;
+}
+.planner-redesign #panel-month .ed-month-day.is-selected:not(.is-today) {
+  outline: 1px solid #9abbed;
+  outline-offset: -1px;
+}
+.planner-redesign #panel-month .ed-month-date {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+.planner-redesign #panel-month .ed-month-date b {
+  font-size: 11px;
+  font-weight: 700;
+  color: #2e3743;
+}
+.planner-redesign #panel-month .ed-month-day.is-outside .ed-month-date b { color: #b4bac0; }
+.planner-redesign #panel-month .ed-month-day.is-today .ed-month-date b {
+  width: 23px;
+  height: 23px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--ed-blue);
+  color: #fff;
+}
+.planner-redesign #panel-month .ed-month-date span {
+  font-size: 6px;
+  color: #8b939c;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+}
+.planner-redesign #panel-month .ed-month-event {
+  display: grid;
+  grid-template-columns: 3px minmax(0, 1fr);
+  gap: 6px;
+  margin: 5px 0;
+  min-width: 0;
+}
+.planner-redesign #panel-month .ed-month-event i {
+  width: 3px;
+  min-height: 22px;
+  border-radius: 3px;
+  background: var(--event, #7894ba);
+}
+.planner-redesign #panel-month .ed-month-event b {
+  display: block;
+  font-size: 7.5px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 700;
+}
+.planner-redesign #panel-month .ed-month-event small {
+  display: block;
+  font-size: 6.5px;
+  color: #7f8892;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.planner-redesign #panel-month .ed-month-dots {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  margin-top: auto;
+  padding-top: 8px;
+}
+.planner-redesign #panel-month .ed-month-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--dot, #9aa6b2);
+}
+.planner-redesign #panel-month .ed-month-more {
+  font-size: 6.5px;
+  color: #7d8791;
+  margin-left: 2px;
+}
+.planner-redesign #panel-month .ed-month-rail-section {
+  padding: 0 0 18px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid #d6dbe1;
+}
+.planner-redesign #panel-month .ed-month-rail-section:last-child { border-bottom: 0; }
+.planner-redesign #panel-month .ed-month-rail-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.planner-redesign #panel-month .ed-month-rail-head b {
+  font-size: 8px;
+  letter-spacing: 0.12em;
+}
+.planner-redesign #panel-month .ed-month-rail-head span { font-size: 7px; color: #89919a; }
+.planner-redesign #panel-month .ed-month-stat {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.planner-redesign #panel-month .ed-month-stat b {
+  display: block;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--ed-title);
+}
+.planner-redesign #panel-month .ed-month-stat span {
+  display: block;
+  font-size: 6.5px;
+  color: #7d8791;
+  margin-top: 4px;
+}
+.planner-redesign #panel-month .ed-agenda-item {
+  display: grid;
+  grid-template-columns: 36px 3px minmax(0, 1fr);
+  gap: 8px;
+  padding: 8px 0;
+  border-top: 1px solid #e9edf1;
+  width: 100%;
+  background: transparent;
+  border-left: 0;
+  border-right: 0;
+  border-bottom: 0;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+.planner-redesign #panel-month .ed-agenda-item:first-of-type { border-top: 0; }
+.planner-redesign #panel-month .ed-agenda-item:hover { background: #f7f9fc; }
+.planner-redesign #panel-month .ed-agenda-date {
+  font-size: 7px;
+  color: #5f6d7c;
+  text-transform: uppercase;
+  font-weight: 800;
+}
+.planner-redesign #panel-month .ed-agenda-date b {
+  display: block;
+  font-size: 15px;
+  color: #172235;
+  margin-top: 1px;
+}
+.planner-redesign #panel-month .ed-agenda-line {
+  width: 3px;
+  background: var(--event, #7993b9);
+  border-radius: 3px;
+}
+.planner-redesign #panel-month .ed-agenda-copy b { display: block; font-size: 8px; }
+.planner-redesign #panel-month .ed-agenda-copy span {
+  display: block;
+  font-size: 7px;
+  color: #7b858f;
+  margin-top: 3px;
+  line-height: 1.3;
+}
+.planner-redesign #panel-month .ed-month-empty { font-size: 8px; color: #8a939d; line-height: 1.4; }
+.planner-redesign #panel-month .ed-month-mobile-selected {
+  display: none;
+  margin-top: 12px;
+  border-top: 1px solid #dfe4e9;
+  background: #fff;
+}
+.planner-redesign #panel-month .ed-month-mobile-selected .selected-head {
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  border-bottom: 1px solid #e5e9ed;
+}
+.planner-redesign #panel-month .ed-month-mobile-selected .selected-head b { font-size: 10px; }
+.planner-redesign #panel-month .ed-month-mobile-selected .selected-head span { font-size: 7px; color: #77818c; }
+.planner-redesign #panel-month .ed-month-mobile-event {
+  display: grid;
+  grid-template-columns: 4px 1fr auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 52px;
+  padding: 8px 10px;
+  border-bottom: 1px solid #e5e9ed;
+  width: 100%;
+  background: transparent;
+  border-left: 0;
+  border-right: 0;
+  border-top: 0;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+.planner-redesign #panel-month .ed-month-mobile-event .mline {
+  height: 30px;
+  background: var(--event, #7993b9);
+  border-radius: 2px;
+}
+.planner-redesign #panel-month .ed-month-mobile-event b { display: block; font-size: 8px; }
+.planner-redesign #panel-month .ed-month-mobile-event span {
+  display: block;
+  font-size: 7px;
+  color: #7b858f;
+  margin-top: 3px;
+}
+
+/* ========== TIMETABLE ========== */
+.planner-redesign #panel-timetable #timetableSummaryRow,
+.planner-redesign #panel-timetable #plannerInsights,
+.planner-redesign #panel-timetable #timetableFooterInsights { display: none !important; }
+.planner-redesign #panel-timetable .timetable-display-header { display: none; }
+.planner-redesign #panel-timetable .tt-actions-row { display: none; }
+.planner-redesign #panel-timetable .ed-tt-settings {
+  position: relative;
+}
+.planner-redesign #panel-timetable .ed-tt-settings > summary {
+  list-style: none;
+  height: var(--ed-control-h);
+  border: 1px solid #d7dce2;
+  background: #fff;
+  color: #374151;
+  border-radius: var(--ed-radius);
+  font-size: 8px;
+  font-weight: 800;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+.planner-redesign #panel-timetable .ed-tt-settings > summary::-webkit-details-marker { display: none; }
+.planner-redesign #panel-timetable .ed-tt-settings-body {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 8;
+  background: #fff;
+  border: 1px solid #d7dce2;
+  min-width: 220px;
+  padding: 8px;
+  display: grid;
+  gap: 4px;
+}
+.planner-redesign #panel-timetable .ed-tt-settings-body button {
+  height: 32px;
+  justify-content: flex-start;
+}
+.planner-redesign #panel-timetable .ed-tt-mobile-days {
+  display: none;
+  grid-template-columns: repeat(5, 1fr);
+  background: #fff;
+  border-top: 1px solid #dfe4e9;
+  border-bottom: 1px solid #dfe4e9;
+  margin-bottom: 12px;
+}
+.planner-redesign #panel-timetable .ed-tt-mobile-days button {
+  min-height: 50px;
+  border: 0;
+  background: transparent;
+  color: #69737e;
+  padding: 6px 2px;
+  position: relative;
+  cursor: pointer;
+}
+.planner-redesign #panel-timetable .ed-tt-mobile-days button span {
+  display: block;
+  font-size: 7px;
+  font-weight: 800;
+}
+.planner-redesign #panel-timetable .ed-tt-mobile-days button b {
+  display: block;
+  font-size: 14px;
+  margin-top: 3px;
+}
+.planner-redesign #panel-timetable .ed-tt-mobile-days button.is-active {
+  color: #173f7e;
+  background: #f4f8fd;
+}
+.planner-redesign #panel-timetable .ed-tt-mobile-days button.is-active::after {
+  content: "";
+  position: absolute;
+  left: 14px;
+  right: 14px;
+  bottom: -1px;
+  height: 2px;
+  background: var(--ed-blue);
+}
+.planner-redesign #panel-timetable .ed-tt-wrap {
+  background: #fff;
+  border-top: 1px solid var(--ed-hair);
+  border-bottom: 1px solid var(--ed-hair);
+  min-width: 0;
+}
+.planner-redesign #panel-timetable .ed-tt-grid {
+  display: grid;
+  grid-template-columns: 82px repeat(5, minmax(130px, 1fr));
+}
+.planner-redesign #panel-timetable .ed-tt-grid > * { min-width: 0; }
+.planner-redesign #panel-timetable .ed-tt-corner,
+.planner-redesign #panel-timetable .ed-tt-day {
+  min-height: 68px;
+  border-right: 1px solid #e1e6eb;
+  border-bottom: 1px solid #d7dde3;
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+.planner-redesign #panel-timetable .ed-tt-day:nth-child(6) { border-right: 0; }
+.planner-redesign #panel-timetable .ed-tt-corner b,
+.planner-redesign #panel-timetable .ed-tt-day span {
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #737e89;
+}
+.planner-redesign #panel-timetable .ed-tt-corner span {
+  font-size: 7px;
+  color: #89939e;
+  margin-top: 3px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+.planner-redesign #panel-timetable .ed-tt-day b {
+  font-size: 14px;
+  margin-top: 4px;
+  color: #182336;
+  font-weight: 700;
+}
+.planner-redesign #panel-timetable .ed-tt-day.is-current { background: #f4f8fd; }
+.planner-redesign #panel-timetable .ed-tt-period {
+  min-height: 84px;
+  border-right: 1px solid #e1e6eb;
+  border-bottom: 1px solid #e5e9ed;
+  padding: 13px 10px;
+}
+.planner-redesign #panel-timetable .ed-tt-period b {
+  display: block;
+  font-size: 9px;
+  color: #1d2837;
+}
+.planner-redesign #panel-timetable .ed-tt-period span {
+  display: block;
+  font-size: 7px;
+  line-height: 1.45;
+  color: #8a949f;
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+.planner-redesign #panel-timetable .ed-tt-slot {
+  min-height: 84px;
+  border-right: 1px solid #e1e6eb;
+  border-bottom: 1px solid #e5e9ed;
+  padding: 11px 12px;
+  position: relative;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+.planner-redesign #panel-timetable .ed-tt-slot:hover { background: #f7f9fc; }
+.planner-redesign #panel-timetable .ed-tt-slot:focus-visible {
+  outline: 2px solid var(--ed-blue);
+  outline-offset: -2px;
+  z-index: 1;
+}
+.planner-redesign #panel-timetable .ed-tt-slot.is-current-day { background: #fbfdff; }
+.planner-redesign #panel-timetable .ed-tt-mark {
+  width: 3px;
+  height: 46px;
+  border-radius: 3px;
+  background: var(--class, #cbd5e1);
+  position: absolute;
+  left: 10px;
+  top: 18px;
+}
+.planner-redesign #panel-timetable .ed-tt-copy { padding-left: 12px; }
+.planner-redesign #panel-timetable .ed-tt-class {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.01em;
+  color: #152033;
+}
+.planner-redesign #panel-timetable .ed-tt-room {
+  display: block;
+  font-size: 7.5px;
+  color: #7d8792;
+  margin-top: 6px;
+}
+.planner-redesign #panel-timetable .ed-tt-code {
+  display: block;
+  font-size: 6.5px;
+  color: #9aa2aa;
+  margin-top: 7px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.planner-redesign #panel-timetable .ed-tt-slot.is-free {
+  background: #fcfcfa;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #a0a7ae;
+  font-size: 8px;
+}
+.planner-redesign #panel-timetable .ed-tt-slot.is-na {
+  background: #f7f7f5;
+  cursor: default;
+}
+.planner-redesign #panel-timetable .ed-tt-footer {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 15px 2px 3px;
+  color: #69737e;
+  flex-wrap: wrap;
+}
+.planner-redesign #panel-timetable .ed-tt-footer strong {
+  font-size: 17px;
+  color: #162131;
+}
+.planner-redesign #panel-timetable .ed-tt-footer span {
+  font-size: 7px;
+  margin-left: 5px;
+  letter-spacing: 0.05em;
+}
+.planner-redesign #panel-timetable .ed-tt-key {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.planner-redesign #panel-timetable .ed-tt-key-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 7px;
+  color: #69737e;
+}
+.planner-redesign #panel-timetable .ed-tt-key-item i {
+  width: 15px;
+  height: 3px;
+  border-radius: 3px;
+  background: var(--key, #cbd5e1);
+}
+.planner-redesign #panel-timetable .ed-tt-mobile-list { display: none; }
+.planner-redesign #panel-timetable .ed-tt-mobile-row {
+  display: grid;
+  grid-template-columns: 58px 4px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 64px;
+  border-bottom: 1px solid #e5e9ed;
+  padding: 0 10px;
+  width: 100%;
+  background: #fff;
+  border-left: 0;
+  border-right: 0;
+  border-top: 0;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+.planner-redesign #panel-timetable .ed-tt-mobile-row .ttp { font-size: 8px; font-weight: 800; }
+.planner-redesign #panel-timetable .ed-tt-mobile-row .ttp span {
+  display: block;
+  font-size: 7.5px;
+  color: #727d88;
+  margin-top: 4px;
+  font-weight: 500;
+}
+.planner-redesign #panel-timetable .ed-tt-mobile-row .ttgo { font-size: 13px; color: #73808d; }
+.planner-redesign #panel-timetable .ed-tt-mobile-row.is-free b { color: #969da4; font-weight: 600; }
+.planner-redesign #panel-timetable #timetableDisplaySection {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+}
+.planner-redesign #panel-timetable #timetableEditSection {
+  margin-top: 18px;
+  background: #fff;
+  border-top: 1px solid var(--ed-hair);
+  border-bottom: 1px solid var(--ed-hair);
+  border-radius: 0;
+  box-shadow: none;
+}
+.planner-redesign #panel-timetable .tt-print-header { display: none; }
+
+/* ========== LESSON BANK ========== */
+.planner-redesign #panel-bank .library-page {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+}
+.planner-redesign #panel-bank .library-page-header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 22px;
+  align-items: end;
+  margin-bottom: 18px;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+}
+.planner-redesign #panel-bank .library-page-header h2 {
+  font-size: 32px;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  font-weight: 750;
+  color: var(--ed-title);
+  margin: 0;
+}
+.planner-redesign #panel-bank .library-page-header p {
+  font-size: 9px;
+  color: var(--ed-sub);
+  margin-top: 7px;
+}
+.planner-redesign #panel-bank .library-header-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.planner-redesign #panel-bank .library-btn,
+.planner-redesign #panel-bank .library-filter-button,
+.planner-redesign #panel-bank .library-sort select,
+.planner-redesign #panel-bank #librarySortSelect {
+  height: 32px;
+  border: 1px solid #d7dce2;
+  background: #fff;
+  color: #374151;
+  border-radius: 5px;
+  font-size: 8px;
+  font-weight: 800;
+  padding: 0 10px;
+}
+.planner-redesign #panel-bank .library-btn-primary {
+  background: var(--ed-hub);
+  border-color: var(--ed-hub);
+  color: #fff;
+}
+.planner-redesign #panel-bank .library-toolbar {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+  background: #fff;
+  border-top: 1px solid var(--ed-hair);
+  border-bottom: 1px solid #dce1e6;
+  padding: 9px 10px;
+  border-radius: 0;
+  box-shadow: none;
+}
+.planner-redesign #panel-bank .library-search {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  background: transparent;
+}
+.planner-redesign #panel-bank .library-search-icon { font-size: 12px; color: #87909a; }
+.planner-redesign #panel-bank .library-search input,
+.planner-redesign #panel-bank #lessonBankSearch {
+  min-width: 0;
+  width: 100%;
+  height: 30px;
+  border: 0;
+  background: transparent;
+  outline: none;
+  font: 500 10px Inter, ui-sans-serif, system-ui;
+  color: #172033;
+  box-shadow: none;
+}
+.planner-redesign #panel-bank .library-filter-panel:not([hidden]) {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(120px, 1fr)) auto;
+  gap: 10px;
+  align-items: end;
+  background: #f7f9fc;
+  border-bottom: 1px solid #dce1e6;
+  padding: 12px;
+  border-radius: 0;
+  box-shadow: none;
+}
+.planner-redesign #panel-bank .library-filter-field label {
+  display: block;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #66717c;
+  margin-bottom: 5px;
+}
+.planner-redesign #panel-bank .library-filter-field select {
+  width: 100%;
+  height: 30px;
+  border: 1px solid #d6dce2;
+  background: #fff;
+  border-radius: 5px;
+  padding: 0 8px;
+  font-size: 8px;
+  color: #3d4854;
+}
+.planner-redesign #panel-bank .library-filter-check {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 30px;
+  font-size: 8px;
+  color: #4e5965;
+}
+.planner-redesign #panel-bank .library-content-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(330px, 0.75fr);
+  gap: 24px;
+  align-items: start;
+  margin-top: 14px;
+}
+.planner-redesign #panel-bank .library-results {
+  background: #fff;
+  border-top: 1px solid var(--ed-hair);
+  border-bottom: 1px solid var(--ed-hair);
+  min-width: 0;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+}
+.planner-redesign #panel-bank .library-results-header {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 12px;
+  border-bottom: 1px solid #dce1e6;
+  background: transparent;
+}
+.planner-redesign #panel-bank .library-result-count {
+  font-size: 8px;
+  letter-spacing: 0.09em;
+  color: #5f6a75;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.planner-redesign #panel-bank .library-sort {
+  display: block;
+  font-size: 7px;
+  color: #8a939d;
+}
+.planner-redesign #panel-bank .library-lesson-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 42px;
+  align-items: stretch;
+  border-bottom: 1px solid #e7ebef;
+  position: relative;
+  background: #fff;
+  border-radius: 0;
+  box-shadow: none;
+  padding: 0;
+  gap: 0;
+  cursor: pointer;
+}
+.planner-redesign #panel-bank .library-lesson-row:last-child { border-bottom: 0; }
+.planner-redesign #panel-bank .library-lesson-row:hover { background: #fbfcfd; }
+.planner-redesign #panel-bank .library-lesson-row.is-selected {
+  background: linear-gradient(90deg, #edf4ff, #fbfdff 72%);
+}
+.planner-redesign #panel-bank .library-lesson-row.is-selected::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  background: var(--ed-blue);
+}
+.planner-redesign #panel-bank .library-course-tile { display: none; }
+.planner-redesign #panel-bank .library-lesson-main {
+  padding: 11px 12px 10px 16px;
+  min-width: 0;
+}
+.planner-redesign #panel-bank .library-lesson-title {
+  font-size: 10px;
+  font-weight: 800;
+  color: #172235;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0;
+}
+.planner-redesign #panel-bank .library-lesson-meta {
+  font-size: 7px;
+  color: #3a4653;
+  font-weight: 800;
+  margin-top: 4px;
+}
+.planner-redesign #panel-bank .library-lesson-preview {
+  font-size: 8px;
+  color: #5d6874;
+  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.planner-redesign #panel-bank .library-lesson-facts {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 7px;
+  font-size: 6.8px;
+  color: #8a939d;
+}
+.planner-redesign #panel-bank .library-row-menu-wrap,
+.planner-redesign #panel-bank .library-star {
+  border: 0;
+  background: transparent;
+  color: #b9c0c7;
+  font-size: 15px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+.planner-redesign #panel-bank .library-star.is-on { color: #d29b22; }
+.planner-redesign #panel-bank .library-preview-panel {
+  min-width: 0;
+  border-left: 1px solid #d6dbe1;
+  padding-left: 24px;
+  background: transparent;
+  border-radius: 0;
+  box-shadow: none;
+  border-top: 0;
+  border-right: 0;
+  border-bottom: 0;
+}
+.planner-redesign #panel-bank .library-preview-placeholder {
+  font-size: 9px;
+  color: #7d8791;
+  padding: 24px 0;
+}
+.planner-redesign #panel-bank .ed-preview-bar {
+  height: 3px;
+  width: 52px;
+  border-radius: 3px;
+  background: var(--preview-accent, var(--ed-blue));
+  margin-bottom: 14px;
+}
+.planner-redesign #panel-bank .ed-preview-overline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #69737e;
+  text-transform: uppercase;
+}
+.planner-redesign #panel-bank .library-preview-header h3,
+.planner-redesign #panel-bank .ed-preview-name {
+  font-size: 28px;
+  line-height: 1.03;
+  letter-spacing: -0.04em;
+  font-weight: 760;
+  color: #101b2d;
+  margin: 10px 0 0;
+}
+.planner-redesign #panel-bank .ed-preview-summary {
+  font-size: 9px;
+  line-height: 1.45;
+  color: #5b6672;
+  margin-top: 8px;
+}
+.planner-redesign #panel-bank .library-preview-footer,
+.planner-redesign #panel-bank .ed-preview-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+.planner-redesign #panel-bank .library-preview-section {
+  padding: 16px 0;
+  border-bottom: 1px solid #dfe4e8;
+}
+.planner-redesign #panel-bank .library-preview-section h4 {
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  color: #233043;
+  text-transform: uppercase;
+  margin: 0 0 10px;
+}
+.planner-redesign #panel-bank .library-preview-section p,
+.planner-redesign #panel-bank .library-preview-section li {
+  font-size: 8px;
+  line-height: 1.4;
+  color: #4f5b67;
+}
+.planner-redesign #panel-bank .preview-resources { display: grid; gap: 0; }
+.planner-redesign #panel-bank .preview-resource {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 31px;
+  border-top: 1px solid #edf0f3;
+}
+.planner-redesign #panel-bank .preview-resource:first-child { border-top: 0; }
+.planner-redesign #panel-bank .preview-resource i {
+  width: 18px;
+  height: 18px;
+  border: 1px solid #d9dfe5;
+  display: grid;
+  place-items: center;
+  font-style: normal;
+  font-size: 8px;
+  color: #5d6874;
+}
+.planner-redesign #panel-bank .preview-resource b { font-size: 8px; }
+.planner-redesign #panel-bank .preview-resource small { font-size: 7px; color: #77818b; }
+.planner-redesign #panel-bank .library-preview-close {
+  border: 0;
+  background: transparent;
+  color: #27579a;
+  font-size: 7px;
+  font-weight: 800;
+  padding: 0 0 12px;
+  cursor: pointer;
+  display: none;
+}
+.planner-redesign #panel-bank .library-empty-state,
+.planner-redesign #panel-bank .library-empty-card {
+  padding: 36px 16px;
+  text-align: center;
+  font-size: 9px;
+  color: #7d8791;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+/* ========== SCHEMES ========== */
+.planner-redesign #panel-schemes #schemesSummaryRow { display: none !important; }
+.planner-redesign #panel-schemes .scheme-schemes-header-row,
+.planner-redesign #panel-schemes .schemes-page-head { display: none; }
+.planner-redesign #panel-schemes .ed-scheme-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.planner-redesign #panel-schemes .scheme-filter-chip {
+  height: 26px;
+  border: 1px solid #d7dce2;
+  background: #fff;
+  color: #56616c;
+  border-radius: 5px;
+  font-size: 7px;
+  font-weight: 800;
+  padding: 0 9px;
+  cursor: pointer;
+}
+.planner-redesign #panel-schemes .scheme-filter-chip.is-active {
+  background: var(--ed-hub);
+  border-color: var(--ed-hub);
+  color: #fff;
+}
+.planner-redesign #panel-schemes .ed-scheme-mobile-select { display: none; }
+.planner-redesign #panel-schemes .ed-schemes-shell {
+  display: grid;
+  grid-template-columns: 232px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.planner-redesign #panel-schemes .ed-scheme-index {
+  border-top: 1px solid var(--ed-hair);
+  border-bottom: 1px solid var(--ed-hair);
+  background: #fff;
+}
+.planner-redesign #panel-schemes .ed-scheme-index-head {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 11px;
+  border-bottom: 1px solid #dce1e6;
+}
+.planner-redesign #panel-schemes .ed-scheme-index-head b {
+  font-size: 8px;
+  letter-spacing: 0.1em;
+  color: #5f6a75;
+}
+.planner-redesign #panel-schemes .ed-scheme-index-head span { font-size: 7px; color: #8a939d; }
+.planner-redesign #panel-schemes #schemeCardsGrid {
+  display: block;
+}
+.planner-redesign #panel-schemes .scheme-card,
+.planner-redesign #panel-schemes .scheme-choice {
+  width: 100%;
+  border: 0;
+  border-bottom: 1px solid #e7ebef;
+  background: #fff;
+  text-align: left;
+  padding: 12px 12px 11px 15px;
+  position: relative;
+  cursor: pointer;
+  border-radius: 0;
+  box-shadow: none;
+  display: block;
+}
+.planner-redesign #panel-schemes .scheme-card.is-filtered-out { display: none; }
+.planner-redesign #panel-schemes .scheme-card:hover { background: #fbfcfd; }
+.planner-redesign #panel-schemes .scheme-card.is-active,
+.planner-redesign #panel-schemes .scheme-choice.is-active {
+  background: linear-gradient(90deg, #edf4ff, #fbfdff);
+}
+.planner-redesign #panel-schemes .scheme-card.is-active::before,
+.planner-redesign #panel-schemes .scheme-choice.is-active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  background: var(--scheme-accent, var(--ed-blue));
+}
+.planner-redesign #panel-schemes .scheme-card .scheme-title,
+.planner-redesign #panel-schemes .scheme-choice b {
+  display: block;
+  font-size: 9px;
+  color: #172235;
+  line-height: 1.25;
+  font-weight: 800;
+}
+.planner-redesign #panel-schemes .scheme-card .scheme-sub,
+.planner-redesign #panel-schemes .scheme-choice span {
+  display: block;
+  font-size: 7.5px;
+  color: #67727d;
+  margin-top: 5px;
+}
+.planner-redesign #panel-schemes .scheme-choice small {
+  display: block;
+  font-size: 6.5px;
+  color: #949ca4;
+  margin-top: 6px;
+}
+.planner-redesign #panel-schemes .scheme-head .scheme-index,
+.planner-redesign #panel-schemes .scheme-chips,
+.planner-redesign #panel-schemes .scheme-count,
+.planner-redesign #panel-schemes .scheme-chevron,
+.planner-redesign #panel-schemes .scheme-body,
+.planner-redesign #panel-schemes .scheme-progress-wrap { display: none; }
+.planner-redesign #panel-schemes .ed-scheme-workspace { min-width: 0; }
+.planner-redesign #panel-schemes .ed-scheme-hero {
+  border-top: 3px solid var(--scheme-accent, var(--ed-blue));
+  padding: 15px 0 18px;
+  border-bottom: 1px solid var(--ed-hair);
+}
+.planner-redesign #panel-schemes .ed-scheme-hero-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 18px;
+  align-items: start;
+}
+.planner-redesign #panel-schemes .ed-scheme-overline {
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: #69737e;
+  text-transform: uppercase;
+}
+.planner-redesign #panel-schemes .ed-scheme-name {
+  font-size: 28px;
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+  font-weight: 760;
+  color: #101b2d;
+  margin-top: 8px;
+}
+.planner-redesign #panel-schemes .ed-scheme-summary {
+  font-size: 9px;
+  line-height: 1.45;
+  color: #56616d;
+  margin-top: 9px;
+  max-width: 760px;
+}
+.planner-redesign #panel-schemes .ed-scheme-hero-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.planner-redesign #panel-schemes .ed-scheme-hero-actions button {
+  height: 30px;
+  border-radius: 5px;
+  padding: 0 10px;
+  font-size: 7px;
+  font-weight: 800;
+  cursor: pointer;
+  border: 1px solid #d7dce2;
+  background: #fff;
+  color: #3f4a56;
+}
+.planner-redesign #panel-schemes .ed-scheme-hero-actions .scheme-add-lesson-btn {
+  background: var(--ed-hub);
+  border-color: var(--ed-hub);
+  color: #fff;
+}
+.planner-redesign #panel-schemes .ed-scheme-meta {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+.planner-redesign #panel-schemes .ed-scheme-meta span { font-size: 7px; color: #6d7781; }
+.planner-redesign #panel-schemes .ed-scheme-meta b {
+  color: #26313e;
+  font-weight: 800;
+  margin-right: 4px;
+}
+.planner-redesign #panel-schemes .ed-scheme-progress {
+  padding: 18px 0 15px;
+  border-bottom: 1px solid #dce1e6;
+}
+.planner-redesign #panel-schemes .ed-scheme-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.planner-redesign #panel-schemes .ed-scheme-section-head b {
+  font-size: 8px;
+  letter-spacing: 0.11em;
+  color: #243145;
+}
+.planner-redesign #panel-schemes .ed-scheme-section-head span { font-size: 7px; color: #8a939d; }
+.planner-redesign #panel-schemes .ed-progress-track {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  position: relative;
+}
+.planner-redesign #panel-schemes .ed-progress-track::before {
+  content: "";
+  position: absolute;
+  left: 5%;
+  right: 5%;
+  top: 8px;
+  height: 1px;
+  background: #cfd6dd;
+}
+.planner-redesign #panel-schemes .ed-progress-stage {
+  position: relative;
+  padding-top: 22px;
+  padding-right: 12px;
+}
+.planner-redesign #panel-schemes .ed-progress-stage::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid var(--stage, #7894b8);
+  z-index: 1;
+}
+.planner-redesign #panel-schemes .ed-progress-stage.is-done::before {
+  background: var(--stage, #7894b8);
+}
+.planner-redesign #panel-schemes .ed-progress-stage b {
+  display: block;
+  font-size: 8px;
+  color: #283442;
+}
+.planner-redesign #panel-schemes .ed-progress-stage span {
+  display: block;
+  font-size: 7px;
+  color: #7b858f;
+  margin-top: 4px;
+  line-height: 1.35;
+}
+.planner-redesign #panel-schemes .ed-sequence { padding-top: 18px; }
+.planner-redesign #panel-schemes .ed-sequence-table {
+  background: #fff;
+  border-top: 1px solid var(--ed-hair);
+  border-bottom: 1px solid var(--ed-hair);
+}
+.planner-redesign #panel-schemes .ed-sequence-head,
+.planner-redesign #panel-schemes .ed-sequence-row {
+  display: grid;
+  grid-template-columns: 48px minmax(150px, 1.5fr) minmax(90px, 0.7fr) 72px;
+  gap: 10px;
+  align-items: center;
+}
+.planner-redesign #panel-schemes .ed-sequence-head {
+  min-height: 36px;
+  padding: 0 10px;
+  border-bottom: 1px solid #dce1e6;
+  font-size: 6.8px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #7a848e;
+}
+.planner-redesign #panel-schemes .ed-sequence-row {
+  min-height: 61px;
+  padding: 8px 10px;
+  border-bottom: 1px solid #e7ebef;
+  position: relative;
+}
+.planner-redesign #panel-schemes .ed-sequence-row:last-child { border-bottom: 0; }
+.planner-redesign #panel-schemes .ed-sequence-row.is-current {
+  background: linear-gradient(90deg, #edf4ff, #fbfdff 70%);
+}
+.planner-redesign #panel-schemes .ed-sequence-row.is-current::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 9px;
+  bottom: 9px;
+  width: 3px;
+  background: var(--scheme-accent, var(--ed-blue));
+}
+.planner-redesign #panel-schemes .ed-seq-no {
+  font-size: 8px;
+  font-weight: 800;
+  color: #314052;
+}
+.planner-redesign #panel-schemes .ed-seq-focus b {
+  display: block;
+  font-size: 9px;
+  color: #172235;
+}
+.planner-redesign #panel-schemes .ed-seq-focus span {
+  display: block;
+  font-size: 7px;
+  color: #7b858f;
+  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.planner-redesign #panel-schemes .ed-seq-status {
+  font-size: 7.5px;
+  color: #58636f;
+}
+.planner-redesign #panel-schemes .ed-seq-link {
+  text-align: right;
+}
+.planner-redesign #panel-schemes .ed-seq-link button {
+  border: 0;
+  background: transparent;
+  color: #27589c;
+  font-size: 7px;
+  font-weight: 800;
+  padding: 6px 0;
+  cursor: pointer;
+}
+.planner-redesign #panel-schemes .scheme-empty {
+  padding: 20px 12px;
+  font-size: 8px;
+  color: #7d8791;
+  background: transparent;
+  border: 0;
+}
+.planner-redesign #panel-schemes .ed-scheme-empty-workspace {
+  padding: 28px 0;
+  font-size: 9px;
+  color: #7d8791;
+}
+
+/* ========== HOMEWORK ========== */
+.planner-redesign #panel-homework .homework-page {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+}
+.planner-redesign #panel-homework .today-strip,
+.planner-redesign #panel-homework .ed-page-head {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+}
+.planner-redesign #panel-homework .today-heading,
+.planner-redesign #panel-homework .ed-page-title {
+  font-size: 32px;
+  letter-spacing: -0.04em;
+  font-weight: 750;
+  color: var(--ed-title);
+}
+.planner-redesign #panel-homework .today-summary {
+  font-size: 9px;
+  color: var(--ed-sub);
+  margin-top: 7px;
+}
+.planner-redesign #panel-homework .today-action,
+.planner-redesign #panel-homework .today-nav-btn,
+.planner-redesign #panel-homework .today-nav-today {
+  height: 32px;
+  border: 1px solid #d7dce2;
+  background: #fff;
+  color: #374151;
+  border-radius: 5px;
+  font-size: 8px;
+  font-weight: 800;
+  padding: 0 10px;
+  min-height: 32px;
+}
+.planner-redesign #panel-homework .today-action-primary {
+  background: var(--ed-hub);
+  border-color: var(--ed-hub);
+  color: #fff;
+}
+.planner-redesign #panel-homework .homework-toolbar {
+  background: #fff;
+  border-top: 1px solid var(--ed-hair);
+  border-bottom: 1px solid #dce1e6;
+  padding: 10px 12px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  border-radius: 0;
+  box-shadow: none;
+}
+.planner-redesign #panel-homework .today-panel,
+.planner-redesign #panel-homework .homework-group,
+.planner-redesign #panel-homework .homework-set-panel {
+  background: #fff;
+  border-radius: 0;
+  box-shadow: none;
+  border: 0;
+  border-top: 1px solid var(--ed-hair);
+  border-bottom: 1px solid var(--ed-hair);
+  margin-top: 14px;
+  padding: 0;
+}
+.planner-redesign #panel-homework .today-panel-header {
+  min-height: 38px;
+  padding: 0 12px;
+  border-bottom: 1px solid #dce1e6;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.planner-redesign #panel-homework .today-panel-header h2 {
+  font-size: 8px;
+  letter-spacing: 0.11em;
+  color: #243145;
+  text-transform: uppercase;
+  font-weight: 800;
+  margin: 0;
+}
+.planner-redesign #panel-homework .homework-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.planner-redesign #panel-homework .homework-item,
+.planner-redesign #panel-homework .homework-item.has-class-fill {
+  display: grid;
+  grid-template-columns: 3px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  min-height: 58px;
+  border: 0;
+  border-bottom: 1px solid #e7ebef;
+  border-radius: 0;
+  box-shadow: none;
+  background: #fff;
+  color: inherit;
+  padding: 8px 12px;
+}
+.planner-redesign #panel-homework .homework-item::before {
+  content: "";
+  width: 3px;
+  height: 32px;
+  border-radius: 3px;
+  background: var(--class-fill, #cbd5e1);
+}
+.planner-redesign #panel-homework .homework-item-open {
+  background: transparent;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
+  width: auto;
+  border-radius: 0;
+}
+.planner-redesign #panel-homework .homework-item-open:hover,
+.planner-redesign #panel-homework .homework-item-open:active {
+  background: transparent;
+}
+.planner-redesign #panel-homework .homework-item-open:focus-visible {
+  outline: 2px solid var(--ed-blue);
+  outline-offset: 2px;
+}
+.planner-redesign #panel-homework .homework-item-class {
+  display: block;
+  font-size: 10px;
+  font-weight: 800;
+  color: #152033;
+  text-transform: none;
+  letter-spacing: 0.02em;
+}
+.planner-redesign #panel-homework .homework-item-task {
+  display: block;
+  font-size: 9px;
+  color: #313b47;
+  margin-top: 3px;
+  font-weight: 600;
+  font-family: inherit;
+  -webkit-line-clamp: unset;
+}
+.planner-redesign #panel-homework .homework-item-meta,
+.planner-redesign #panel-homework .homework-item.has-class-fill .homework-item-meta {
+  display: block;
+  font-size: 7px;
+  color: #7d8791;
+  margin-top: 4px;
+  opacity: 1;
+  font-weight: 600;
+}
+.planner-redesign #panel-homework .homework-item-collect {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 0 4px 0 10px;
+  border-left: 1px solid #e7ebef;
+  border-radius: 0;
+  font-size: 6.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #7a848e;
+  cursor: pointer;
+}
+.planner-redesign #panel-homework .homework-item-collect:hover {
+  background: transparent;
+  color: var(--ed-hub);
+}
+.planner-redesign #panel-homework .homework-collect-input {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--ed-hub);
+}
+.planner-redesign #panel-homework .today-status-chip {
+  height: 26px;
+  min-height: 26px;
+  border: 1px solid #d7dce2;
+  background: #fff;
+  border-radius: 5px;
+  font-size: 7px;
+  font-weight: 800;
+  padding: 0 9px;
+  box-shadow: none;
+  align-items: center;
+  gap: 6px;
+}
+.planner-redesign #panel-homework .today-status-chip-value {
+  font-size: 9px;
+  font-weight: 800;
+  color: inherit;
+}
+.planner-redesign #panel-homework .today-status-chip-label {
+  font-size: 7px;
+  font-weight: 800;
+  color: #58636f;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.planner-redesign #panel-homework .today-status-chip.is-active,
+.planner-redesign #panel-homework .homework-status-row .today-status-chip.is-active {
+  background: var(--ed-hub);
+  border-color: var(--ed-hub);
+  color: #fff;
+}
+.planner-redesign #panel-homework .today-status-chip.is-active .today-status-chip-label,
+.planner-redesign #panel-homework .today-status-chip.is-active .today-status-chip-value {
+  color: #fff;
+}
+.planner-redesign #panel-homework .homework-class-filter {
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #66717c;
+  text-transform: uppercase;
+  margin-left: auto;
+}
+.planner-redesign #panel-homework .homework-class-filter .form-select,
+.planner-redesign #panel-homework #hwClassFilter {
+  min-width: 140px;
+  min-height: 32px;
+  height: 32px;
+  border: 1px solid #d7dce2;
+  border-radius: 5px;
+  font-size: 8px;
+  font-weight: 800;
+  padding: 0 8px;
+}
+.planner-redesign #panel-homework .homework-set-grid {
+  padding: 12px;
+}
+.planner-redesign #panel-homework .homework-set-actions .today-action,
+.planner-redesign #panel-homework .homework-set-actions button {
+  height: 32px;
+  min-height: 32px;
+  border-radius: 5px;
+  font-size: 8px;
+  font-weight: 800;
+}
+.planner-redesign #panel-homework .today-empty {
+  padding: 16px 12px;
+  font-size: 8px;
+  color: #7d8791;
+  margin: 0;
+}
+
+/* ========== PRINT ========== */
+@media print {
+  body.is-printing-timetable .ed-tt-grid {
+    display: grid !important;
+    grid-template-columns: 72px repeat(5, 1fr);
+  }
+  body.is-printing-timetable .ed-tt-mobile-days,
+  body.is-printing-timetable .ed-tt-mobile-list,
+  body.is-printing-timetable .ed-page-head,
+  body.is-printing-timetable .ed-tt-settings { display: none !important; }
+}
+
+/* ========== RESPONSIVE ========== */
+@media (max-width: 1100px) {
+  .planner-redesign .ed-page-title { font-size: 28px; }
+  .planner-redesign #panel-month .ed-month-shell {
+    grid-template-columns: minmax(0, 1fr) 205px;
+    gap: 18px;
+  }
+  .planner-redesign #panel-month .ed-month-day { min-height: 102px; padding: 8px; }
+  .planner-redesign #panel-bank .library-content-grid {
+    grid-template-columns: minmax(0, 1fr) 300px;
+    gap: 18px;
+  }
+  .planner-redesign #panel-schemes .ed-schemes-shell {
+    grid-template-columns: 205px minmax(0, 1fr);
+    gap: 18px;
+  }
+}
+
+@media (max-width: 820px) {
+  .planner-redesign .ed-page-head {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    align-items: start;
+  }
+  .planner-redesign .ed-controls { justify-content: flex-start; }
+  .planner-redesign .ed-page-title { font-size: 25px; }
+  .planner-redesign .ed-page-sub { font-size: 8px; }
+  .planner-redesign .ed-rail { border-left: 0; padding-left: 0; }
+
+  .planner-redesign #panel-month .ed-month-shell { display: block; }
+  .planner-redesign #panel-month .ed-month-rail {
+    border-left: 0;
+    padding-left: 0;
+    margin-top: 16px;
+    border-top: 1px solid #d6dbe1;
+    padding-top: 16px;
+  }
+  .planner-redesign #panel-month .ed-month-event { display: none; }
+  .planner-redesign #panel-month .ed-month-day { min-height: 78px; padding: 6px; }
+  .planner-redesign #panel-month .ed-month-mobile-selected { display: block; }
+
+  .planner-redesign #panel-timetable .ed-tt-wrap { display: none; }
+  .planner-redesign #panel-timetable .ed-tt-footer { display: none; }
+  .planner-redesign #panel-timetable .ed-tt-mobile-days { display: grid; }
+  .planner-redesign #panel-timetable .ed-tt-mobile-list { display: block; background: #fff; border-top: 1px solid #dfe4e9; }
+
+  .planner-redesign #panel-bank .library-page-header {
+    grid-template-columns: 1fr;
+    align-items: start;
+    gap: 12px;
+  }
+  .planner-redesign #panel-bank .library-toolbar {
+    grid-template-columns: 1fr auto;
+  }
+  .planner-redesign #panel-bank .library-sort {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+  .planner-redesign #panel-bank .library-sort select,
+  .planner-redesign #panel-bank #librarySortSelect {
+    width: 100%;
+  }
+  .planner-redesign #panel-bank .library-content-grid { display: block; }
+  .planner-redesign #panel-bank .library-preview-panel {
+    border-left: 0;
+    padding-left: 0;
+    margin-top: 16px;
+    border-top: 1px solid #d6dbe1;
+    padding-top: 16px;
+  }
+  .planner-redesign #panel-bank .library-preview-panel:not(.is-open) .library-preview-body { display: none; }
+  .planner-redesign #panel-bank .library-preview-close { display: inline-block; }
+  .planner-redesign #panel-bank .ed-preview-name,
+  .planner-redesign #panel-bank .library-preview-header h3 { font-size: 22px; }
+  .planner-redesign #panel-bank .library-filter-panel:not([hidden]) {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .planner-redesign #panel-schemes .ed-schemes-shell { display: block; }
+  .planner-redesign #panel-schemes .ed-scheme-index { display: none; }
+  .planner-redesign #panel-schemes .ed-scheme-mobile-select {
+    display: block;
+    width: 100%;
+    height: 38px;
+    border: 1px solid #d6dce2;
+    background: #fff;
+    border-radius: 5px;
+    padding: 0 10px;
+    margin-bottom: 14px;
+    font-size: 9px;
+    color: #34404d;
+  }
+  .planner-redesign #panel-schemes .ed-scheme-hero-top { grid-template-columns: 1fr; }
+  .planner-redesign #panel-schemes .ed-scheme-name { font-size: 23px; }
+  .planner-redesign #panel-schemes .ed-sequence-head { display: none; }
+  .planner-redesign #panel-schemes .ed-sequence-row {
+    grid-template-columns: 36px minmax(0, 1fr) auto;
+    min-height: 52px;
+  }
+  .planner-redesign #panel-schemes .ed-seq-status { display: none; }
+}
+
+@media (max-width: 520px) {
+  .planner-redesign .ed-page-title { font-size: 22px; }
+  .planner-redesign #panel-month .ed-month-day { min-height: 60px; padding: 5px 4px; }
+  .planner-redesign #panel-month .ed-month-date b { font-size: 9px; }
+  .planner-redesign #panel-month .ed-month-date span { display: none; }
+  .planner-redesign #panel-timetable .ed-tt-mobile-days button { min-height: 48px; }
+  .planner-redesign #panel-bank .library-filter-panel:not([hidden]) {
+    grid-template-columns: 1fr;
+  }
+}

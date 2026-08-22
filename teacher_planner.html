@@ -968,7 +968,8 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
 }
 </style>
 <link rel="stylesheet" href="teacher-planner-redesign.css?v=today-diary-1">
-<link rel="stylesheet" href="teacher-planner-editorial.css?v=editorial-1">
+<link rel="stylesheet" href="teacher-planner-editorial.css?v=editorial-3">
+<link rel="stylesheet" href="teacher-planner-editorial-views.css?v=editorial-3">
 </head>
 <body>
 <script>
@@ -1085,23 +1086,31 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
 
 <!-- Timetable panel -->
 <div id="panel-timetable" class="planner-panel panel">
-  <div id="timetableSummaryRow" class="tt-summary-row" aria-live="polite"></div>
-  <div class="tt-actions-row">
-    <button type="button" class="rd-btn rd-btn-outline" id="editTimetableBtn">Edit all periods</button>
-    <button type="button" class="rd-btn rd-btn-outline" id="printTimetableBtn">Print timetable</button>
-    <details class="tt-settings-details" id="timetableSettingsDetails">
-      <summary>Timetable settings</summary>
-      <div class="tt-settings-body">
-        <button type="button" class="btn-primary" id="classColoursBtn" title="Choose bold colours for each class">Class colours</button>
-        <button type="button" class="btn-primary" id="importFacultyTtBtn" title="Fill your weekly timetable from the faculty timetable">Import faculty timetable</button>
-        <button type="button" class="btn-primary" id="importN5CiBtn" title="Place all N5 Creative Industries sessions into your Tue/Wed/Fri periods">Import N5 CI sessions</button>
-        <button type="button" class="btn-new-year" id="newAcademicYearBtn" title="Clear timetable to enter your new year schedule">Start new academic year</button>
-      </div>
-    </details>
+  <div class="ed-page-head">
+    <div>
+      <div class="ed-kicker">MY TIMETABLE</div>
+      <h2 class="ed-page-title">Teaching week</h2>
+      <p class="ed-page-sub" id="timetableYearSub">Recurring structure · classes and rooms only</p>
+    </div>
+    <div class="ed-controls">
+      <button type="button" class="ed-btn" id="printTimetableBtn">Print</button>
+      <button type="button" class="ed-btn ed-btn-primary edit-timetable" id="editTimetableBtn">Edit timetable</button>
+      <details class="ed-tt-settings tt-settings-details" id="timetableSettingsDetails">
+        <summary>Settings</summary>
+        <div class="ed-tt-settings-body tt-settings-body">
+          <button type="button" class="ed-btn" id="classColoursBtn" title="Choose bold colours for each class">Class colours</button>
+          <button type="button" class="ed-btn" id="importFacultyTtBtn" title="Fill your weekly timetable from the faculty timetable">Import faculty timetable</button>
+          <button type="button" class="ed-btn" id="importN5CiBtn" title="Place all N5 Creative Industries sessions into your Tue/Wed/Fri periods">Import N5 CI sessions</button>
+          <button type="button" class="ed-btn" id="newAcademicYearBtn" title="Clear timetable to enter your new year schedule">Start new academic year</button>
+        </div>
+      </details>
+    </div>
   </div>
+  <div id="timetableSummaryRow" class="tt-summary-row" aria-live="polite" hidden></div>
+  <div class="tt-actions-row" hidden></div>
   <div id="plannerInsights" class="stat-row" hidden></div>
   <div id="timetableDisplaySection" class="timetable-section">
-    <div class="timetable-display-header">
+    <div class="timetable-display-header" hidden>
       <span class="timetable-display-title">Weekly timetable</span>
       <p class="timetable-display-hint" id="timetableTapHint">Tap a period to set class, room and subject.</p>
     </div>
@@ -1188,12 +1197,18 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
 
 <!-- Month view panel -->
 <div id="panel-month" class="planner-panel panel">
-  <div class="nav-row">
-    <button type="button" class="nav-btn" id="monthPrev" aria-label="Previous month">&#9664;</button>
-    <div class="nav-label" id="monthDisplay"></div>
-    <button type="button" class="nav-btn" id="monthNext" aria-label="Next month">&#9654;</button>
-    <button type="button" class="nav-today" id="monthToday">Today</button>
-    <button type="button" class="nav-today" id="monthCourseStart" title="Jump to N5 Creative Industries course start month">CI start</button>
+  <div class="ed-page-head">
+    <div>
+      <div class="ed-kicker">MONTH VIEW</div>
+      <h2 class="ed-page-title" id="monthDisplay"></h2>
+      <p class="ed-page-sub">Deadlines, meetings, homework and school events · normal lessons stay in Week</p>
+    </div>
+    <div class="ed-controls">
+      <button type="button" class="ed-btn ed-arrow nav-btn" id="monthPrev" aria-label="Previous month">&#9664;</button>
+      <button type="button" class="ed-btn nav-today" id="monthToday">Today</button>
+      <button type="button" class="ed-btn ed-arrow nav-btn" id="monthNext" aria-label="Next month">&#9654;</button>
+      <button type="button" class="ed-btn nav-today" id="monthCourseStart" title="Jump to N5 Creative Industries course start month">CI start</button>
+    </div>
   </div>
   <div id="monthGridWrap" class="month-wrap planner-scroll-region"></div>
 </div>
@@ -1203,8 +1218,9 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
   <div class="library-page" id="libraryPage">
     <header class="library-page-header">
       <div class="library-page-heading">
+        <div class="ed-kicker">LESSON BANK</div>
         <h2>Lesson Bank</h2>
-        <p>Find, adapt and schedule lessons across your courses.</p>
+        <p>Find, inspect and reuse lessons across your courses.</p>
       </div>
       <div class="library-header-actions">
         <div class="library-header-more">
@@ -1280,6 +1296,16 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
           </div>
         </div>
       </div>
+      <label class="library-sort">
+        <span class="sr-only">Sort lessons</span>
+        <select id="librarySortSelect" aria-label="Sort lessons">
+          <option value="updated">Recently updated</option>
+          <option value="added">Recently added</option>
+          <option value="title-asc">Title A–Z</option>
+          <option value="title-desc">Title Z–A</option>
+          <option value="year">Course / year group</option>
+        </select>
+      </label>
     </div>
 
     <div class="library-active-filters" id="libraryActiveFilters" aria-live="polite"></div>
@@ -1287,17 +1313,8 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
     <div class="library-content-grid">
       <section class="library-results" aria-label="Lesson results">
         <div class="library-results-header">
-          <span class="library-result-count" id="libraryResultCount">0 lessons</span>
-          <label class="library-sort">
-            <span class="sr-only">Sort lessons</span>
-            <select id="librarySortSelect" aria-label="Sort lessons">
-              <option value="updated">Recently updated</option>
-              <option value="added">Recently added</option>
-              <option value="title-asc">Title A–Z</option>
-              <option value="title-desc">Title Z–A</option>
-              <option value="year">Course / year group</option>
-            </select>
-          </label>
+          <span class="library-result-count" id="libraryResultCount">0 LESSONS</span>
+          <span>Click a lesson to preview</span>
         </div>
         <div id="templatesList" class="library-results-list" role="list"></div>
         <div id="templatesEmpty" class="library-empty-state" style="display:none"></div>
@@ -1306,7 +1323,7 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
 
       <aside class="library-preview-panel" id="libraryPreviewPanel" aria-label="Lesson preview">
         <div class="library-preview-placeholder" id="libraryPreviewPlaceholder">
-          Select a lesson to preview its planning and resources.
+          Select a lesson to inspect its plan, then reuse it.
         </div>
         <div class="library-preview-body" id="libraryPreviewBody" hidden></div>
       </aside>
@@ -1334,35 +1351,39 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
 
 <!-- Schemes of work panel -->
 <div id="panel-schemes" class="planner-panel panel">
-  <div class="schemes-page-head">
-    <h2>Schemes of work</h2>
-    <p>Organise units, track progress and plan learning sequences.</p>
-  </div>
-  <div id="schemesSummaryRow" class="rd-stat-row"></div>
-  <div class="timetable-section">
-    <div class="timetable-header scheme-schemes-header-row">
-      <span class="scheme-schemes-header-title">Units</span>
-      <button type="button" class="btn-primary" id="schemeAddUnitHeaderBtn" style="font-size:.78rem;padding:.5rem 1rem;white-space:nowrap">+ Add unit</button>
+  <div class="ed-page-head">
+    <div>
+      <div class="ed-kicker">SCHEMES OF WORK</div>
+      <h2 class="ed-page-title">Teaching sequences</h2>
+      <p class="ed-page-sub">Units, progress and the next lesson in each course</p>
     </div>
-    <div style="padding:1rem 1.25rem">
-      <p style="font-size:.85rem;color:var(--text2);margin-bottom:1rem">Build units and ordered lesson outlines for your classes. Choose subject and year group, optionally link to a curriculum tracking period, or use a custom unit for projects. Add lessons from each card or <strong>copy from your lesson bank</strong> (snapshots — edit the bank lesson and copy again if you need an update).</p>
-      <div class="scheme-filter-wrap scheme-filter-wrap-single" id="schemeFilterWrap" role="toolbar" aria-label="Filter scheme units">
-        <button type="button" class="scheme-filter-chip scheme-filter-single is-active" data-scheme-filter="all">All</button>
-        <button type="button" class="scheme-filter-chip scheme-filter-single" data-scheme-filter="subject:drama">Drama</button>
-        <button type="button" class="scheme-filter-chip scheme-filter-single" data-scheme-filter="subject:art">Art &amp; Design</button>
-        <button type="button" class="scheme-filter-chip scheme-filter-single" data-scheme-filter="subject:photography">Photography</button>
-        <button type="button" class="scheme-filter-chip scheme-filter-single" data-scheme-filter="subject:other">Other</button>
-        <button type="button" class="scheme-filter-chip scheme-filter-single" data-scheme-filter="yg:s1">S1</button>
-        <button type="button" class="scheme-filter-chip scheme-filter-single" data-scheme-filter="yg:s2">S2</button>
-        <button type="button" class="scheme-filter-chip scheme-filter-single" data-scheme-filter="yg:s3">S3</button>
-        <button type="button" class="scheme-filter-chip scheme-filter-single" data-scheme-filter="yg:npas3">NPA S3</button>
-        <button type="button" class="scheme-filter-chip scheme-filter-single" data-scheme-filter="yg:npas4">NPA S4</button>
-        <button type="button" class="scheme-filter-chip scheme-filter-single" data-scheme-filter="yg:higher">Higher</button>
-        <button type="button" class="scheme-filter-chip scheme-filter-single" data-scheme-filter="yg:custom">Other year</button>
-      </div>
+    <div class="ed-controls">
+      <button type="button" class="ed-btn ed-btn-primary" id="schemeAddUnitHeaderBtn">+ Add unit</button>
+    </div>
+  </div>
+  <div id="schemesSummaryRow" class="rd-stat-row" hidden></div>
+  <div class="ed-scheme-filters scheme-filter-wrap scheme-filter-wrap-single" id="schemeFilterWrap" role="toolbar" aria-label="Filter scheme units">
+    <button type="button" class="scheme-filter-chip scheme-filter-single is-active" data-scheme-filter="all">All</button>
+    <button type="button" class="scheme-filter-chip scheme-filter-single" data-scheme-filter="subject:drama">Drama</button>
+    <button type="button" class="scheme-filter-chip scheme-filter-single" data-scheme-filter="subject:art">Art &amp; Design</button>
+    <button type="button" class="scheme-filter-chip scheme-filter-single" data-scheme-filter="subject:photography">Photography</button>
+    <button type="button" class="scheme-filter-chip scheme-filter-single" data-scheme-filter="subject:other">Other</button>
+    <button type="button" class="scheme-filter-chip scheme-filter-single" data-scheme-filter="yg:s1">S1</button>
+    <button type="button" class="scheme-filter-chip scheme-filter-single" data-scheme-filter="yg:s2">S2</button>
+    <button type="button" class="scheme-filter-chip scheme-filter-single" data-scheme-filter="yg:s3">S3</button>
+    <button type="button" class="scheme-filter-chip scheme-filter-single" data-scheme-filter="yg:npas3">NPA S3</button>
+    <button type="button" class="scheme-filter-chip scheme-filter-single" data-scheme-filter="yg:npas4">NPA S4</button>
+    <button type="button" class="scheme-filter-chip scheme-filter-single" data-scheme-filter="yg:higher">Higher</button>
+    <button type="button" class="scheme-filter-chip scheme-filter-single" data-scheme-filter="yg:custom">Other year</button>
+  </div>
+  <select id="schemeMobileSelect" class="ed-scheme-mobile-select" aria-label="Choose scheme"></select>
+  <div class="ed-schemes-shell">
+    <aside class="ed-scheme-index" aria-label="Scheme list">
+      <div class="ed-scheme-index-head"><b>MY SCHEMES</b><span id="schemeIndexCount"></span></div>
       <div id="schemeCardsGrid" class="scheme-cards-grid"></div>
       <div id="schemeEmptyState" class="scheme-empty" style="display:none"><strong>No units match this filter</strong><br>Choose <strong>All</strong> or add a new unit.</div>
-    </div>
+    </aside>
+    <div id="schemeWorkspace" class="ed-scheme-workspace" aria-live="polite"></div>
   </div>
 </div>
 
@@ -3934,7 +3955,7 @@ function buildTodayDashboardModel() {
     heroLesson: heroLesson,
     dayNumber: String(viewDate.getDate()),
     monthName: viewDate.toLocaleDateString('en-GB', { month: 'long' }).toUpperCase(),
-    yearLabel: String(viewDate.getFullYear()),
+    yearLabel: (PS.getAcademicYearLabel && PS.getAcademicYearLabel()) || String(viewDate.getFullYear()),
     isoWeek: isoWeekNumber(viewDate),
     hwOpenCount: PS.listHomework ? PS.listHomework({ uncollectedOnly: true }).length : 0,
     dayNote: dayNote,
@@ -4104,7 +4125,7 @@ function createTodayDashboardMarkup(model) {
         '<div class="ed-year">' + escHtml(model.yearLabel || '') + '</div>' +
         '<div class="ed-rail-rule"></div>' +
         '<div class="ed-time-now" id="todayLiveClock">' + escHtml(model.clock || '') + '</div>' +
-        '<div class="ed-week-label">ISO WEEK ' + escHtml(String(model.isoWeek || '')) + '</div>' +
+        '<div class="ed-week-label">Week ' + escHtml(String(model.isoWeek || '').padStart ? String(model.isoWeek).padStart(2, '0') : String(model.isoWeek || '')) + '</div>' +
         '<div class="ed-date-nav">' +
           '<button type="button" class="ed-nav-arrow" id="todayPrevDay" aria-label="Previous school day">&#9664;</button>' +
           '<button type="button" id="todayJumpToday"' + jumpHidden + '>Jump to today</button>' +
@@ -4113,7 +4134,7 @@ function createTodayDashboardMarkup(model) {
       '</aside>' +
       '<section class="ed-main-stage" id="todayLessonsCard">' +
         heroHtml +
-        '<div class="ed-teach-head">TEACHING · ' + teachingCount + ' LESSON' + (teachingCount === 1 ? '' : 'S') + ' · ' + plannedN + ' PLANNED · ' + needN + ' NEED ATTENTION</div>' +
+        '<div class="ed-teach-head">TODAY\'S TEACHING · ' + teachingCount + ' LESSON' + (teachingCount === 1 ? '' : 'S') + ' · ' + plannedN + ' PLANNED · ' + needN + ' NEED ATTENTION</div>' +
         '<div id="todayLessonList">' + lessonsHtml + '</div>' +
         '<details class="ed-day-note"' + (model.dayNote ? ' open' : '') + '>' +
           '<summary><span>DAILY NOTES</span><span></span><span class="today-note-save-state" id="todayNoteSaveState" aria-live="polite"></span></summary>' +
@@ -4392,7 +4413,7 @@ function renderLessonBankSidebar(allTemplates, filteredCount) {
   // Sidebar UI retired in Lesson Library; keep result-count sync for compatibility.
   var countEl = document.getElementById('libraryResultCount');
   if (countEl && typeof filteredCount === 'number') {
-    countEl.textContent = filteredCount + ' lesson' + (filteredCount === 1 ? '' : 's');
+    countEl.textContent = filteredCount + ' LESSON' + (filteredCount === 1 ? '' : 'S');
   }
   var resultEl = document.getElementById('bankResultLine');
   if (resultEl) {
@@ -4450,7 +4471,6 @@ function renderTimetable() {
 }
 
 function renderTimetableDisplay() {
-  // Keep legacy plannerInsights collapsed — summary row already covers the same stats.
   var insights = document.getElementById('plannerInsights');
   if (insights) {
     insights.hidden = true;
@@ -4465,20 +4485,91 @@ function renderTimetableDisplay() {
   var displaySection = document.getElementById('timetableDisplaySection');
   var editSection = document.getElementById('timetableEditSection');
   var gridEl = document.getElementById('timetableDisplayGrid');
+  if (!gridEl) return;
   var hint = document.getElementById('timetableTapHint');
   if (hint) {
     hint.textContent = slots.length
       ? 'Tap a period to change class, room or subject.'
       : 'Tap a period to add a class. Import from the faculty timetable if you already have one.';
   }
+  var yearEl = document.getElementById('timetableYearSub');
+  var year = (PS.getAcademicYearLabel && PS.getAcademicYearLabel()) || '';
+  if (yearEl) {
+    yearEl.textContent = (year ? year + ' · ' : '') + 'recurring structure · classes and rooms only';
+  }
   var dayLabels = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'];
-  var dayCaps = { monday: 'Mon', tuesday: 'Tue', wednesday: 'Wed', thursday: 'Thu', friday: 'Fri' };
+  var dayCaps = { monday: 'MONDAY', tuesday: 'TUESDAY', wednesday: 'WEDNESDAY', thursday: 'THURSDAY', friday: 'FRIDAY' };
+  var dayShort = { monday: 'MON', tuesday: 'TUE', wednesday: 'WED', thursday: 'THU', friday: 'FRI' };
   var dayPeriods = PERIODS_BY_DAY;
   var maxP = 7;
   var byKey = {};
   slots.forEach(function(s) { byKey[slotKey((s.day || '').toLowerCase(), s.period)] = s; });
-  var teacher = (typeof getTeacherDisplayName === 'function' && getTeacherDisplayName()) || 'Teacher';
-  var year = (PS.getAcademicYearLabel && PS.getAcademicYearLabel()) || '';
+  var todayIdx = new Date().getDay();
+  var currentDay = (todayIdx >= 1 && todayIdx <= 5) ? dayLabels[todayIdx - 1] : '';
+  if (!timetableMobileDay) timetableMobileDay = currentDay || 'monday';
+  var weekStart = (PS.getCurrentWeekStart && PS.getCurrentWeekStart()) || (PS.getWeekStart ? PS.getWeekStart(new Date()) : new Date());
+  var countsByDay = {};
+  dayLabels.forEach(function(d) { countsByDay[d] = 0; });
+  slots.forEach(function(s) {
+    var d = String(s.day || '').toLowerCase();
+    if (countsByDay[d] != null) countsByDay[d]++;
+  });
+  var classKey = [];
+  var seenClass = {};
+  slots.forEach(function(s) {
+    var name = String((s && s.className) || '').trim();
+    if (!name) return;
+    var low = name.toLowerCase();
+    if (seenClass[low]) return;
+    seenClass[low] = true;
+    var fill = classFillStyleAttrs(name, s);
+    classKey.push({ name: name, fill: fill.fill });
+  });
+  var teachingCount = slots.length;
+  var uniqueClasses = classKey.length;
+  var freeCount = 0;
+  dayLabels.forEach(function(dayName) {
+    var max = dayPeriods[dayName] || 0;
+    for (var p = 1; p <= max; p++) {
+      if (!byKey[slotKey(dayName, p)]) freeCount++;
+    }
+  });
+
+  function slotButton(dayName, period, mobile) {
+    var k = slotKey(dayName, period);
+    var slot = byKey[k];
+    var isCurrent = dayName === currentDay;
+    if (period > (dayPeriods[dayName] || 0)) {
+      return mobile ? '' : '<div class="ed-tt-slot is-na" aria-hidden="true"></div>';
+    }
+    if (!slot) {
+      if (mobile) {
+        return '<button type="button" class="ed-tt-mobile-row is-free" data-day="' + dayName + '" data-period="' + period + '" data-slot="' + k + '">' +
+          '<div class="ttp">P' + period + '<span>' + escHtml(periodRangeLabel(period) || '') + '</span></div>' +
+          '<i style="background:#cbd5e1"></i><div><b>Free</b></div><span class="ttgo">+</span></button>';
+      }
+      return '<button type="button" class="ed-tt-slot is-free' + (isCurrent ? ' is-current-day' : '') + '" data-day="' + dayName + '" data-period="' + period + '" data-slot="' + k + '" title="Tap to add a class">Free</button>';
+    }
+    var fill = classFillStyleAttrs(slot.className || subjectLabel(slot.subject) || 'Class', slot);
+    var cls = slot.className || subjectLabel(slot.subject) || 'Class';
+    var room = slot.room ? String(slot.room).trim() : '';
+    var code = subjectLabel(slot.subject) || '';
+    var support = classSupportMarkHtml(slot.className);
+    if (mobile) {
+      return '<button type="button" class="ed-tt-mobile-row" data-day="' + dayName + '" data-period="' + period + '" data-slot="' + k + '">' +
+        '<div class="ttp">P' + period + '<span>' + escHtml(periodRangeLabel(period) || '') + '</span></div>' +
+        '<i style="background:' + fill.fill + '"></i>' +
+        '<div><b>' + escHtml(cls) + support + '</b><span>' + escHtml(room || code) + '</span></div>' +
+        '<span class="ttgo">↗</span></button>';
+    }
+    return '<button type="button" class="ed-tt-slot' + (isCurrent ? ' is-current-day' : '') + '" data-day="' + dayName + '" data-period="' + period + '" data-slot="' + k + '" style="--class:' + fill.fill + '">' +
+      '<i class="ed-tt-mark"></i>' +
+      '<div class="ed-tt-copy"><div class="ed-tt-class">' + escHtml(cls) + support + '</div>' +
+      (room ? '<span class="ed-tt-room">' + escHtml(room) + '</span>' : '') +
+      (code ? '<span class="ed-tt-code">' + escHtml(code) + '</span>' : '') +
+      '</div></button>';
+  }
+
   var html = '';
   if (!slots.length) {
     html += plannerEmptyCallout({
@@ -4489,51 +4580,58 @@ function renderTimetableDisplay() {
       ]
     });
   }
+  html += '<div class="ed-tt-mobile-days" aria-label="Choose timetable day">';
+  dayLabels.forEach(function(dayName, idx) {
+    var d0 = new Date(weekStart);
+    d0.setDate(d0.getDate() + idx);
+    html += '<button type="button" data-ttday="' + dayName + '" class="' + (timetableMobileDay === dayName ? 'is-active' : '') + '"><span>' + dayShort[dayName] + '</span><b>' + d0.getDate() + '</b></button>';
+  });
+  html += '</div>';
   html += '<div class="tt-print-header"><strong>Weekly timetable</strong><span>' +
-    escHtml(teacher) + (year ? ' · ' + escHtml(year) : '') + ' · Knightswood Secondary</span></div>';
-  html += '<div class="grid-wrap"><div class="tt-grid">';
-  html += '<div class="tt-th corner"></div>';
+    escHtml((typeof getTeacherDisplayName === 'function' && getTeacherDisplayName()) || 'Teacher') + (year ? ' · ' + escHtml(year) : '') + ' · Knightswood Secondary</span></div>';
+  html += '<section class="ed-tt-wrap" aria-label="Recurring weekly timetable"><div class="ed-tt-grid">';
+  html += '<div class="ed-tt-corner"><b>PERIOD</b><span>Times</span></div>';
   dayLabels.forEach(function(dayName) {
-    html += '<div class="tt-th">' + dayCaps[dayName] + '</div>';
+    html += '<div class="ed-tt-day' + (dayName === currentDay ? ' is-current' : '') + '"><span>' + dayCaps[dayName] + '</span><b>' + (countsByDay[dayName] ? 'Teaching' : 'Free') + '</b></div>';
   });
   for (var period = 1; period <= maxP; period++) {
-    if (period > 1) html += '<div class="period-sep"></div>';
-    html += '<div class="period-lbl">P' + period + '</div>';
+    var start = periodStartTime(period);
+    var end = periodEndTime(period);
+    html += '<div class="ed-tt-period"><b>P' + period + '</b><span>' + (start ? escHtml(start) : '') + (end ? '<br>' + escHtml(end) : '') + '</span></div>';
     dayLabels.forEach(function(dayName) {
-      var k = slotKey(dayName, period);
-      var slot = byKey[k];
-      if (period > (dayPeriods[dayName] || 0)) {
-        html += '<div class="tt-cell na" aria-hidden="true"></div>';
-      } else if (slot) {
-        var s = slotChipStyle(slot);
-        var lesson = null;
-        if (PS.getLessonFor) {
-          var weekStart = (PS.getCurrentWeekStart && PS.getCurrentWeekStart()) || (PS.getWeekStart ? PS.getWeekStart(new Date()) : new Date());
-          var dayIndex = { monday:0, tuesday:1, wednesday:2, thursday:3, friday:4 };
-          var d0 = new Date(weekStart);
-          d0.setDate(d0.getDate() + (dayIndex[dayName] || 0));
-          lesson = PS.getLessonFor(getDateStr(d0), k);
-        }
-        var chipText = (lesson && lesson.title) ? escHtml(lesson.title) : '';
-        html += '<button type="button" class="tt-cell busy" data-day="' + dayName + '" data-period="' + period + '" data-slot="' + k + '"><span class="class-chip is-class-fill" style="background:' + s.bg + ';border:1.5px solid ' + s.ac + ';color:' + s.dk + '">';
-        html += '<span class="chip-cls">' + escHtml(slot.className || subjectLabel(slot.subject) || 'Class') + classSupportMarkHtml(slot.className) + '</span>';
-        if (chipText) html += '<span class="chip-lsn" style="color:' + s.dk + ';opacity:.88">' + chipText + '</span>';
-        html += '</span></button>';
-      } else {
-        html += '<button type="button" class="tt-cell free" data-day="' + dayName + '" data-period="' + period + '" data-slot="' + k + '"><span class="chip-add">Add class</span></button>';
-      }
+      html += slotButton(dayName, period, false);
     });
   }
-  html += '</div></div>';
+  html += '</div></section>';
+  html += '<div class="ed-tt-mobile-list" id="timetableMobileList">';
+  for (var p = 1; p <= maxP; p++) {
+    html += slotButton(timetableMobileDay, p, true);
+  }
+  html += '</div>';
+  html += '<div class="ed-tt-footer"><div><strong>' + teachingCount + '</strong><span>teaching periods</span></div>' +
+    '<div><strong>' + uniqueClasses + '</strong><span>classes</span></div>' +
+    '<div><strong>' + freeCount + '</strong><span>free periods</span></div>' +
+    '<div class="ed-tt-key">' + classKey.slice(0, 8).map(function(c) {
+      return '<span class="ed-tt-key-item"><i style="--key:' + escAttr(c.fill) + '"></i>' + escHtml(c.name) + '</span>';
+    }).join('') + '</div></div>';
+
   gridEl.innerHTML = html;
   bindEmptyCalloutActions(gridEl);
-  gridEl.querySelectorAll('.tt-cell[data-day][data-period]').forEach(function(cell) {
+  gridEl.querySelectorAll('[data-day][data-period]').forEach(function(cell) {
     cell.addEventListener('click', function() {
       openSlotEditModal(cell.getAttribute('data-day'), cell.getAttribute('data-period'));
     });
   });
-  displaySection.style.display = 'flex';
-  displaySection.style.flexDirection = 'column';
+  gridEl.querySelectorAll('[data-ttday]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      timetableMobileDay = btn.getAttribute('data-ttday');
+      renderTimetableDisplay();
+    });
+  });
+  if (displaySection) {
+    displaySection.style.display = 'flex';
+    displaySection.style.flexDirection = 'column';
+  }
   var bulkOpen = editSection && editSection.style.display === 'block';
   if (!bulkOpen && editSection) editSection.style.display = 'none';
 }
@@ -5783,21 +5881,20 @@ function createHomeworkDashboardMarkup(model) {
   }
 
   return (
-    '<header class="today-strip">' +
-      '<div class="today-strip-copy">' +
-        '<div class="today-date-nav">' +
-          '<button type="button" class="today-nav-btn" id="hwPrevWeek" aria-label="Previous week">&#9664;</button>' +
-          '<button type="button" class="today-nav-today" id="hwJumpThisWeek"' + (model.isThisWeek ? ' hidden' : '') + '>This week</button>' +
-          '<button type="button" class="today-nav-btn" id="hwNextWeek" aria-label="Next week">&#9654;</button>' +
-        '</div>' +
-        '<h1 class="today-heading">Homework</h1>' +
-        '<p class="today-summary">' + escHtml(model.headingRange) + ' · ' + summaryBits.join(' · ') + '</p>' +
+    '<header class="ed-page-head today-strip">' +
+      '<div>' +
+        '<div class="ed-kicker">HOMEWORK</div>' +
+        '<h1 class="ed-page-title today-heading">Homework</h1>' +
+        '<p class="ed-page-sub today-summary">' + escHtml(model.headingRange) + ' · ' + summaryBits.join(' · ') + '</p>' +
       '</div>' +
-      '<div class="today-strip-actions">' +
+      '<div class="ed-controls today-strip-actions">' +
+        '<button type="button" class="ed-btn ed-arrow today-nav-btn" id="hwPrevWeek" aria-label="Previous week">&#9664;</button>' +
+        '<button type="button" class="ed-btn today-nav-today" id="hwJumpThisWeek"' + (model.isThisWeek ? ' hidden' : '') + '>This week</button>' +
+        '<button type="button" class="ed-btn ed-arrow today-nav-btn" id="hwNextWeek" aria-label="Next week">&#9654;</button>' +
         (homeworkSetFormOpen
           ? ''
-          : '<button type="button" class="today-action today-action-primary" id="hwOpenSet">Set homework</button>') +
-        '<button type="button" class="today-action today-action-secondary" id="hwViewWeek">View week</button>' +
+          : '<button type="button" class="ed-btn ed-btn-primary today-action today-action-primary" id="hwOpenSet">Set homework</button>') +
+        '<button type="button" class="ed-btn today-action today-action-secondary" id="hwViewWeek">View week</button>' +
       '</div>' +
     '</header>' +
     '<div class="homework-toolbar">' +
@@ -6025,7 +6122,10 @@ var schemeBankImportUnitId = null;
 var schemeExpandedUnitIds = new Set();
 /** Single active filter: 'all' | 'subject:drama' | 'yg:s1' | … */
 var schemeFilterMode = 'all';
+var selectedSchemeUnitId = null;
 var schemeExportBufferText = '';
+var timetableMobileDay = null;
+var selectedMonthDateStr = '';
 
 function applySchemeCardFilters() {
   var grid = document.getElementById('schemeCardsGrid');
@@ -6427,26 +6527,29 @@ function selectLibraryLesson(templateId, opts) {
 }
 
 function renderLibraryLessonRow(vm) {
-  var tileHtml = vm.tile
-    ? '<span class="library-course-tile yg-' + escHtml(vm.ygKey) + '" aria-hidden="true">' + escHtml(vm.tile) + '</span>'
-    : '<span class="library-course-tile is-neutral" aria-hidden="true">L</span>';
+  var level = [vm.ygLabel, vm.subLabel].filter(Boolean).join(' ');
   var resLine = vm.resourceCount
-    ? '<span class="library-fact">📎 ' + vm.resourceCount + ' resource' + (vm.resourceCount === 1 ? '' : 's') + '</span>'
-    : '<span class="library-fact is-muted">No resources</span>';
+    ? vm.resourceCount + ' resource' + (vm.resourceCount === 1 ? '' : 's')
+    : 'No resources';
+  var updated = '';
+  if (vm.updatedAt) {
+    var ud = new Date(vm.updatedAt);
+    if (!isNaN(ud.getTime())) updated = 'Updated ' + ud.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+  }
   return (
     '<article class="library-lesson-row' + (vm.id === selectedLibraryLessonId ? ' is-selected' : '') + '" role="listitem" tabindex="0" data-template-id="' + escAttr(vm.id) + '" aria-selected="' + (vm.id === selectedLibraryLessonId ? 'true' : 'false') + '">' +
-      tileHtml +
       '<div class="library-lesson-main">' +
         '<h3 class="library-lesson-title">' + escHtml(vm.title) + '</h3>' +
-        (vm.meta ? '<div class="library-lesson-meta">' + escHtml(vm.meta) + '</div>' : '') +
+        (level ? '<div class="library-lesson-meta">' + escHtml(level) + '</div>' : '') +
         (vm.preview ? '<p class="library-lesson-preview">' + escHtml(vm.preview) + '</p>' : '') +
+        '<div class="library-lesson-facts">' +
+          (updated ? '<span>' + escHtml(updated) + '</span>' : '') +
+          '<span>' + escHtml(resLine) + '</span>' +
+          '<span>' + escHtml(vm.statusLabel) + '</span>' +
+        '</div>' +
       '</div>' +
-      '<div class="library-lesson-facts">' +
-        '<span class="library-status is-' + escHtml(vm.status) + '"><span aria-hidden="true">' + vm.statusIcon + '</span> ' + escHtml(vm.statusLabel) + '</span>' +
-        resLine +
-      '</div>' +
-      '<div class="library-row-menu-wrap">' +
-        '<button type="button" class="library-row-more" aria-label="More actions for ' + escAttr(vm.title) + '" aria-haspopup="true" aria-expanded="false" data-template-id="' + escAttr(vm.id) + '">⋯</button>' +
+      '<button type="button" class="library-star' + (vm.isFav ? ' is-on' : '') + '" data-lib-action="fav" data-template-id="' + escAttr(vm.id) + '" aria-label="' + (vm.isFav ? 'Remove from favourites' : 'Add to favourites') + '">★</button>' +
+      '<div class="library-row-menu-wrap" hidden>' +
         '<div class="library-menu library-row-menu" role="menu" hidden data-template-id="' + escAttr(vm.id) + '">' +
           '<button type="button" role="menuitem" data-lib-action="edit">Edit lesson</button>' +
           '<button type="button" role="menuitem" data-lib-action="schedule">Schedule lesson</button>' +
@@ -6467,7 +6570,7 @@ function renderLibraryPreview(vm) {
   if (!body || !placeholder) return;
   if (!vm) {
     placeholder.hidden = false;
-    placeholder.textContent = 'Select a lesson to preview its planning and resources.';
+    placeholder.textContent = 'Select a lesson to inspect its plan, then reuse it.';
     body.hidden = true;
     body.innerHTML = '';
     if (panel) panel.classList.remove('is-open');
@@ -6497,45 +6600,37 @@ function renderLibraryPreview(vm) {
   var assess = String(t.assessment || t.effectiveQuestions || '').trim();
   if (assess) addSection('Assessment', '<p>' + escHtml(assess) + '</p>');
   if (vm.resources.length) {
-    var resHtml = '<ul class="library-preview-resources">' + vm.resources.slice(0, 8).map(function(r) {
-      if (r.url) return '<li><a href="' + escAttr(r.url) + '" target="_blank" rel="noopener noreferrer">📎 ' + escHtml(r.label) + '</a></li>';
-      return '<li>📎 ' + escHtml(r.label) + '</li>';
-    }).join('') + '</ul>';
+    var resHtml = '<div class="preview-resources">' + vm.resources.slice(0, 8).map(function(r) {
+      var label = escHtml(r.label);
+      if (r.url) return '<div class="preview-resource"><i aria-hidden="true">↗</i><b>' + label + '</b><small><a href="' + escAttr(r.url) + '" target="_blank" rel="noopener noreferrer">Open</a></small></div>';
+      return '<div class="preview-resource"><i aria-hidden="true">·</i><b>' + label + '</b></div>';
+    }).join('') + '</div>';
     addSection('Resources', resHtml);
   }
   var notes = String(t.notes || '').trim();
   if (notes && notes !== outline) addSection('Notes', '<p class="library-preview-clamp">' + escHtml(cleanBankPreview(notes).slice(0, 240)) + '</p>');
 
-  var tileHtml = vm.tile
-    ? '<span class="library-course-tile yg-' + escHtml(vm.ygKey) + '" aria-hidden="true">' + escHtml(vm.tile) + '</span>'
-    : '<span class="library-course-tile is-neutral" aria-hidden="true">L</span>';
-
+  var level = [vm.ygLabel, vm.subLabel].filter(Boolean).join(' · ');
   body.innerHTML =
     '<button type="button" class="library-preview-close" id="libraryPreviewClose" aria-label="Close preview">← Back</button>' +
-    '<div class="library-preview-header">' +
-      '<div class="library-preview-title-row">' +
-        tileHtml +
-        '<div class="library-preview-title-wrap">' +
-          '<h3>' + escHtml(vm.title) + '</h3>' +
-          (vm.meta ? '<div class="library-lesson-meta">' + escHtml(vm.meta) + '</div>' : '') +
-          '<div class="library-status is-' + escHtml(vm.status) + '"><span aria-hidden="true">' + vm.statusIcon + '</span> ' + escHtml(vm.statusLabel) + '</div>' +
-        '</div>' +
-        '<div class="library-row-menu-wrap">' +
-          '<button type="button" class="library-row-more" aria-label="More lesson actions" aria-haspopup="true" aria-expanded="false" data-template-id="' + escAttr(vm.id) + '">⋯</button>' +
-          '<div class="library-menu library-row-menu" role="menu" hidden data-template-id="' + escAttr(vm.id) + '">' +
-            '<button type="button" role="menuitem" data-lib-action="duplicate">Duplicate</button>' +
-            '<button type="button" role="menuitem" data-lib-action="fav">' + (vm.isFav ? 'Remove from favourites' : 'Add to favourites') + '</button>' +
-            '<button type="button" role="menuitem" data-lib-action="export">Export</button>' +
-            '<button type="button" role="menuitem" data-lib-action="delete" class="is-danger">Delete</button>' +
-          '</div>' +
+    '<div class="ed-preview-bar"></div>' +
+    '<div class="ed-preview-overline"><b>' + escHtml(level || 'LESSON') + '</b><span>' + escHtml(vm.statusLabel) + '</span></div>' +
+    '<h3 class="ed-preview-name">' + escHtml(vm.title) + '</h3>' +
+    (vm.preview ? '<p class="ed-preview-summary">' + escHtml(vm.preview) + '</p>' : '') +
+    '<div class="ed-preview-actions library-preview-footer">' +
+      '<button type="button" class="library-btn library-btn-primary" id="libraryPreviewEdit">Open lesson</button>' +
+      '<button type="button" class="library-btn library-btn-secondary" id="libraryPreviewSchedule">Use on timetable</button>' +
+      '<div class="library-row-menu-wrap">' +
+        '<button type="button" class="library-row-more" aria-label="More lesson actions" aria-haspopup="true" aria-expanded="false" data-template-id="' + escAttr(vm.id) + '">⋯</button>' +
+        '<div class="library-menu library-row-menu" role="menu" hidden data-template-id="' + escAttr(vm.id) + '">' +
+          '<button type="button" role="menuitem" data-lib-action="duplicate">Duplicate</button>' +
+          '<button type="button" role="menuitem" data-lib-action="fav">' + (vm.isFav ? 'Remove from favourites' : 'Add to favourites') + '</button>' +
+          '<button type="button" role="menuitem" data-lib-action="export">Export</button>' +
+          '<button type="button" role="menuitem" data-lib-action="delete" class="is-danger">Delete</button>' +
         '</div>' +
       '</div>' +
     '</div>' +
-    '<div class="library-preview-content">' + (sections || '<p class="library-preview-empty">No planning details yet. Edit this lesson to add intentions, outline and resources.</p>') + '</div>' +
-    '<div class="library-preview-footer">' +
-      '<button type="button" class="library-btn library-btn-secondary" id="libraryPreviewEdit">Edit lesson</button>' +
-      '<button type="button" class="library-btn library-btn-primary" id="libraryPreviewSchedule">Schedule lesson</button>' +
-    '</div>';
+    '<div class="library-preview-content">' + (sections || '<p class="library-preview-empty">No planning details yet. Edit this lesson to add intentions, outline and resources.</p>') + '</div>';
 
   var closeBtn = document.getElementById('libraryPreviewClose');
   if (closeBtn) closeBtn.addEventListener('click', function() {
@@ -7126,42 +7221,141 @@ function openSchemeLessonModal(unitId, lessonId) {
   document.getElementById('schemeLessonModal').classList.add('visible');
 }
 
+function schemeAccentForSubject(subj) {
+  if (subj === 'drama') return '#2f6fed';
+  if (subj === 'art') return '#d97706';
+  if (subj === 'photography') return '#7756d8';
+  return '#258f88';
+}
+
+function schemeUnitMatchesFilter(unit) {
+  var mode = schemeFilterMode || 'all';
+  if (mode === 'all') return true;
+  var ygKey = schemeYearGroupThemeKey(unit.yearGroup);
+  var subjKey = unit.subject || 'other';
+  if (mode.indexOf('subject:') === 0) return mode.slice('subject:'.length) === subjKey;
+  if (mode.indexOf('yg:') === 0) return mode.slice('yg:'.length) === ygKey;
+  return true;
+}
+
+function renderSchemeWorkspace(unit) {
+  var el = document.getElementById('schemeWorkspace');
+  if (!el) return;
+  if (!unit) {
+    el.innerHTML = '<div class="ed-scheme-empty-workspace">Select a scheme, or add a unit to start a sequence.</div>';
+    return;
+  }
+  var subj = unit.subject || 'other';
+  var accent = schemeAccentForSubject(subj);
+  var lessons = (unit.lessons || []).slice().sort(function(a, b) { return (a.order || 0) - (b.order || 0); });
+  var pct = calculateSchemeProgress(lessons);
+  var completeN = lessons.filter(function(l) { return schemeLessonEffectiveStatus(l) === 'complete'; }).length;
+  var currentIdx = -1;
+  lessons.forEach(function(l, i) {
+    if (currentIdx === -1 && schemeLessonEffectiveStatus(l) !== 'complete') currentIdx = i;
+  });
+  var yg = yearGroupDisplayLabel(unit.yearGroup) || unit.yearGroup || 'Custom';
+  var range = formatSchemeDateRangeLabel(unit.startDate, unit.endDate);
+  var stages = [
+    { label: 'Introduce', note: 'First lessons', done: pct > 0 },
+    { label: 'Develop', note: 'Core sequence', done: pct >= 35 },
+    { label: 'Consolidate', note: 'Practice and refine', done: pct >= 70 },
+    { label: 'Assess', note: 'Evidence of learning', done: pct >= 100 }
+  ];
+  var rows = lessons.length
+    ? lessons.map(function(lesson, i) {
+        var st = schemeLessonEffectiveStatus(lesson);
+        var intent = String(lesson.learningIntention || lesson.learningIntentions || lesson.objectives || '').trim();
+        return (
+          '<div class="ed-sequence-row' + (i === currentIdx ? ' is-current' : '') + '">' +
+            '<div class="ed-seq-no">' + (i + 1) + '</div>' +
+            '<div class="ed-seq-focus"><b>' + escHtmlFromStoredText(lesson.title || 'Untitled lesson') + '</b>' +
+              (intent ? '<span>' + escHtmlFromStoredText(intent.slice(0, 90)) + '</span>' : '') + '</div>' +
+            '<div class="ed-seq-status">' + escHtml(schemeStatusBadgeLabel(st)) + '</div>' +
+            '<div class="ed-seq-link"><button type="button" class="scheme-open-lesson-btn" data-unit-id="' + escAttr(unit.id) + '" data-lesson-id="' + escAttr(lesson.id || '') + '">Open</button></div>' +
+          '</div>'
+        );
+      }).join('')
+    : '<div class="ed-sequence-row"><div class="ed-seq-focus"><b>No lessons in this unit yet</b><span>Add a lesson or copy one from the Lesson Bank.</span></div></div>';
+  el.style.setProperty('--scheme-accent', accent);
+  el.innerHTML =
+    '<section class="ed-scheme-hero">' +
+      '<div class="ed-scheme-hero-top">' +
+        '<div>' +
+          '<div class="ed-scheme-overline">' + escHtml(subjectLabel(subj)) + ' · ' + escHtml(yg) + '</div>' +
+          '<div class="ed-scheme-name">' + escHtmlFromStoredText(unit.title || 'Untitled Unit') + '</div>' +
+          (unit.overview ? '<p class="ed-scheme-summary">' + escHtmlFromStoredText(String(unit.overview).slice(0, 280)) + '</p>' : '') +
+          '<div class="ed-scheme-meta">' +
+            '<span><b>' + lessons.length + '</b> lessons</span>' +
+            '<span><b>' + completeN + '</b> complete</span>' +
+            '<span><b>' + pct + '%</b> progress</span>' +
+            (range ? '<span>' + escHtml(range) + '</span>' : '') +
+          '</div>' +
+        '</div>' +
+        '<div class="ed-scheme-hero-actions">' +
+          '<button type="button" class="ed-btn scheme-add-lesson-btn" data-unit-id="' + escAttr(unit.id) + '">Add lesson</button>' +
+          '<button type="button" class="ed-btn scheme-copy-bank-btn" data-unit-id="' + escAttr(unit.id) + '">Copy from bank</button>' +
+          '<button type="button" class="ed-btn scheme-edit-unit-btn" data-unit-id="' + escAttr(unit.id) + '">Edit unit</button>' +
+        '</div>' +
+      '</div>' +
+    '</section>' +
+    '<section class="ed-scheme-progress">' +
+      '<div class="ed-scheme-section-head"><b>PROGRESS</b><span>' + pct + '% complete</span></div>' +
+      '<div class="ed-progress-track">' +
+        stages.map(function(s) {
+          return '<div class="ed-progress-stage' + (s.done ? ' is-done' : '') + '" style="--stage:' + accent + '"><b>' + s.label + '</b><span>' + s.note + '</span></div>';
+        }).join('') +
+      '</div>' +
+    '</section>' +
+    '<section class="ed-sequence">' +
+      '<div class="ed-scheme-section-head"><b>SEQUENCE</b><span>' + lessons.length + ' lesson' + (lessons.length === 1 ? '' : 's') + '</span></div>' +
+      '<div class="ed-sequence-table">' +
+        '<div class="ed-sequence-head"><span>#</span><span>Lesson</span><span>Status</span><span></span></div>' +
+        rows +
+      '</div>' +
+    '</section>';
+}
+
 function renderSchemesPanel() {
   renderPlannerInsights();
   renderSchemesSummary();
   var units = PS.getSchemeUnits ? PS.getSchemeUnits() : [];
   var grid = document.getElementById('schemeCardsGrid');
   var empty = document.getElementById('schemeEmptyState');
+  var workspace = document.getElementById('schemeWorkspace');
   if (!grid || !empty) return;
   units = units.slice().sort(function(a, b) { return (b.updatedAt || '').localeCompare(a.updatedAt || ''); });
+  var visible = units.filter(schemeUnitMatchesFilter);
+  if (!selectedSchemeUnitId || !visible.some(function(u) { return u.id === selectedSchemeUnitId; })) {
+    selectedSchemeUnitId = visible[0] ? visible[0].id : (units[0] ? units[0].id : null);
+  }
   var html = '';
-  units.forEach(function(unit, idx) {
+  units.forEach(function(unit) {
     var subj = unit.subject || 'other';
     var ygKey = schemeYearGroupThemeKey(unit.yearGroup);
-    var bCls = subj === 'drama' ? 'drama-b' : (subj === 'art' ? 'art-b' : (subj === 'photography' ? 'photo-b' : ''));
-    var chipCls = subj === 'drama' ? 'drama-chip-s' : (subj === 'art' ? 'art-chip-s' : (subj === 'photography' ? 'photo-chip-s' : ''));
-    var lessons = (unit.lessons || []).slice().sort(function(a, b) { return (a.order || 0) - (b.order || 0); });
+    var lessons = (unit.lessons || []).slice();
     var pct = calculateSchemeProgress(lessons);
-    var completeN = lessons.filter(function(l) { return deriveLessonStatus(l) === 'complete'; }).length;
-    html += '<div class="scheme-card ' + bCls + (idx === 0 ? ' open' : '') + '" data-unit-id="' + escAttr(unit.id) + '" data-scheme-subject="' + escAttr(subj) + '" data-scheme-yg="' + escAttr(ygKey) + '">';
-    html += '<div class="scheme-head"><span class="scheme-index" aria-hidden="true">' + (idx + 1) + '</span><div class="scheme-meta"><div class="scheme-title">' + escHtmlFromStoredText(unit.title || 'Untitled Unit') + '</div><div class="scheme-sub">' + escHtml((yearGroupDisplayLabel(unit.yearGroup) || unit.yearGroup || 'Custom') + ' · ' + lessons.length + ' lessons') + '</div>';
-    if (unit.overview) html += '<div class="scheme-sub" style="margin-top:.25rem">' + escHtmlFromStoredText(String(unit.overview).slice(0, 140)) + (String(unit.overview).length > 140 ? '…' : '') + '</div>';
-    html += '<div class="scheme-progress-wrap"><div class="scheme-progress-bar" role="progressbar" aria-valuenow="' + pct + '" aria-valuemin="0" aria-valuemax="100" aria-label="Scheme progress"><span style="width:' + pct + '%"></span></div><span class="scheme-progress-pct">' + pct + '%</span></div>';
-    html += '<div class="scheme-sub">' + completeN + ' / ' + lessons.length + ' complete</div>';
-    html += '</div>';
-    html += '<div class="scheme-chips"><span class="scheme-chip ' + chipCls + '">' + escHtml(subjectLabel(subj)) + '</span><span class="scheme-chip yg-chip">' + escHtml(yearGroupDisplayLabel(unit.yearGroup) || unit.yearGroup || 'Custom') + '</span></div>';
-    html += '<span class="scheme-count">' + lessons.length + '</span><span class="scheme-chevron">›</span></div>';
-    html += '<div class="scheme-body">';
-    lessons.forEach(function(lesson, i) {
-      var st = schemeLessonEffectiveStatus(lesson);
-      html += '<div class="scheme-row"><div class="scheme-num">' + (i + 1) + '</div><div class="scheme-lesson-title">' + escHtmlFromStoredText(lesson.title || 'Untitled lesson') + '</div><span class="scheme-status st-' + st + '"><span class="rd-status rd-status-' + st + '">' + schemeStatusBadgeLabel(st) + '</span></span></div>';
-    });
-    html += '<div style="display:flex;gap:.5rem;margin-top:.7rem;flex-wrap:wrap"><button type="button" class="btn-secondary scheme-add-lesson-btn">Add lesson</button><button type="button" class="btn-secondary scheme-edit-unit-btn">Edit unit</button></div>';
-    html += '</div></div>';
+    var yg = yearGroupDisplayLabel(unit.yearGroup) || unit.yearGroup || 'Custom';
+    var active = unit.id === selectedSchemeUnitId;
+    html += '<button type="button" class="scheme-card scheme-choice' + (active ? ' is-active' : '') + '" data-unit-id="' + escAttr(unit.id) + '" data-scheme-subject="' + escAttr(subj) + '" data-scheme-yg="' + escAttr(ygKey) + '" style="--scheme-accent:' + schemeAccentForSubject(subj) + '">';
+    html += '<b class="scheme-title">' + escHtmlFromStoredText(unit.title || 'Untitled Unit') + '</b>';
+    html += '<span>' + escHtml(yg) + ' · ' + escHtml(subjectLabel(subj)) + '</span>';
+    html += '<small>' + lessons.length + ' lesson' + (lessons.length === 1 ? '' : 's') + ' · ' + pct + '%</small>';
+    html += '</button>';
   });
   grid.innerHTML = html;
+  var countEl = document.getElementById('schemeIndexCount');
+  if (countEl) countEl.textContent = visible.length + ' active';
+  var mobile = document.getElementById('schemeMobileSelect');
+  if (mobile) {
+    mobile.innerHTML = visible.map(function(u) {
+      return '<option value="' + escAttr(u.id) + '"' + (u.id === selectedSchemeUnitId ? ' selected' : '') + '>' + escHtmlFromStoredText(u.title || 'Untitled Unit') + '</option>';
+    }).join('');
+  }
   empty.style.display = units.length ? 'none' : 'block';
   applySchemeCardFilters();
+  var selected = units.filter(function(u) { return u.id === selectedSchemeUnitId; })[0] || null;
+  if (workspace) renderSchemeWorkspace(selected);
 }
 
 function bindSchemesPanelEvents() {
@@ -7174,7 +7368,7 @@ function bindSchemesPanelEvents() {
       var fv = filterChip.getAttribute('data-scheme-filter');
       if (fv === null) return;
       schemeFilterMode = fv || 'all';
-      applySchemeCardFilters();
+      renderSchemesPanel();
       return;
     }
     var addHdr = e.target.closest && e.target.closest('#schemeAddUnitHeaderBtn');
@@ -7182,28 +7376,46 @@ function bindSchemesPanelEvents() {
       openSchemeUnitModal(null);
       return;
     }
-    var sumBtn = e.target.closest && e.target.closest('.scheme-head');
-    if (sumBtn) {
-      var cardT = sumBtn.closest('.scheme-card');
-      if (cardT) cardT.classList.toggle('open');
+    var openLesson = e.target.closest && e.target.closest('.scheme-open-lesson-btn');
+    if (openLesson) {
+      var uidL = openLesson.getAttribute('data-unit-id');
+      var lid = openLesson.getAttribute('data-lesson-id');
+      if (uidL) openSchemeLessonModal(uidL, lid || null);
+      return;
+    }
+    var copyBtn = e.target.closest && e.target.closest('.scheme-copy-bank-btn');
+    if (copyBtn) {
+      var uidC = copyBtn.getAttribute('data-unit-id');
+      if (uidC) openSchemeImportFromBankModal(uidC);
       return;
     }
     var addBtn = e.target.closest && e.target.closest('.scheme-add-lesson-btn');
     if (addBtn) {
-      var cardA = addBtn.closest('.scheme-card');
-      var uidA = cardA && cardA.dataset.unitId;
+      var uidA = addBtn.getAttribute('data-unit-id') || (addBtn.closest('.scheme-card') && addBtn.closest('.scheme-card').dataset.unitId);
       if (uidA) openSchemeLessonModal(uidA, null);
       return;
     }
     var editUnit = e.target.closest && e.target.closest('.scheme-edit-unit-btn');
     if (editUnit) {
-      var card4 = editUnit.closest('.scheme-card');
-      var uid4 = card4 && card4.dataset.unitId;
+      var uid4 = editUnit.getAttribute('data-unit-id') || (editUnit.closest('.scheme-card') && editUnit.closest('.scheme-card').dataset.unitId);
       var u = uid4 && PS.getSchemeUnitById(uid4);
       if (u) openSchemeUnitModal(u);
       return;
     }
+    var choice = e.target.closest && e.target.closest('.scheme-choice, .scheme-card');
+    if (choice && choice.dataset.unitId) {
+      selectedSchemeUnitId = choice.dataset.unitId;
+      renderSchemesPanel();
+    }
   });
+  var mobileSel = document.getElementById('schemeMobileSelect');
+  if (mobileSel && !mobileSel._bound) {
+    mobileSel._bound = true;
+    mobileSel.addEventListener('change', function() {
+      selectedSchemeUnitId = mobileSel.value || null;
+      renderSchemesPanel();
+    });
+  }
 }
 
 function snapToWeekday(d) {
@@ -7444,6 +7656,62 @@ function initMonthPopover() {
   }
 }
 
+function monthDayItems(dateStr, monthEvents, homeworkRows) {
+  var items = [];
+  (monthEvents || []).forEach(function(e) {
+    if (String(e.date || '').slice(0, 10) !== dateStr) return;
+    var tag = calendarEventTag(e);
+    items.push({
+      kind: 'event',
+      title: e.title || 'Event',
+      detail: tag || '',
+      color: calendarEventFill(tag),
+      date: dateStr
+    });
+  });
+  (homeworkRows || []).forEach(function(r) {
+    var due = r.homework && r.homework.dueDate;
+    if (due !== dateStr) return;
+    items.push({
+      kind: 'homework',
+      title: (r.className ? r.className + ' homework' : 'Homework'),
+      detail: (r.homework && r.homework.task) || r.title || 'Due',
+      color: '#258f88',
+      date: dateStr,
+      slotKey: r.slotKey || ''
+    });
+  });
+  return items;
+}
+
+function monthEventLineHtml(item) {
+  return (
+    '<div class="ed-month-event">' +
+      '<i style="--event:' + escAttr(item.color || '#7894ba') + '"></i>' +
+      '<div><b>' + escHtml(item.title) + '</b><small>' + escHtml(item.detail || '') + '</small></div>' +
+    '</div>'
+  );
+}
+
+function monthMobileSelectedHtml(dateStr, items) {
+  if (!dateStr) return '';
+  var d = parseIsoDateLocal(dateStr);
+  var label = d ? d.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }) : dateStr;
+  var rows = (items || []).map(function(item) {
+    return (
+      '<button type="button" class="ed-month-mobile-event" data-jump-date="' + escAttr(dateStr) + '">' +
+        '<i class="mline" style="--event:' + escAttr(item.color || '#7894ba') + '"></i>' +
+        '<div><b>' + escHtml(item.title) + '</b><span>' + escHtml(item.detail || '') + '</span></div>' +
+        '<span aria-hidden="true">↗</span>' +
+      '</button>'
+    );
+  }).join('');
+  return (
+    '<div class="selected-head"><b>' + escHtml(label) + '</b><span>' + (items.length ? items.length + ' item' + (items.length === 1 ? '' : 's') : 'No events') + '</span></div>' +
+    (rows || '<p class="ed-month-empty" style="padding:12px 10px">No deadlines or events on this day. Open Week to plan lessons.</p>')
+  );
+}
+
 function renderMonthView() {
   renderPlannerInsights();
   var state = PS.getState();
@@ -7454,26 +7722,23 @@ function renderMonthView() {
   var daysInMonth = new Date(year, month + 1, 0).getDate();
   loadPlannerCalendarEvents().then(function(allEvents) {
     if (!Array.isArray(allEvents)) allEvents = [];
-    var slots = state.timetable.slots || [];
     var monthStartStr = year + '-' + String(month + 1).padStart(2, '0') + '-01';
     var monthEndStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(daysInMonth).padStart(2, '0');
     var monthEvents = (allEvents || []).filter(function(e) {
       var d = e.date;
       return d && d >= monthStartStr && d <= monthEndStr;
     });
+    var homeworkRows = PS.listHomework
+      ? PS.listHomework({ dueFrom: monthStartStr, dueTo: monthEndStr, uncollectedOnly: true })
+      : [];
     var monthDisplay = document.getElementById('monthDisplay');
     if (monthDisplay) monthDisplay.textContent = PS.formatMonthLabel(monthStart);
     var popTitle = document.getElementById('monthPopTitle');
     if (popTitle) popTitle.textContent = PS.formatMonthLabel(monthStart);
     var popGrid = document.getElementById('monthPopGrid');
     var legacyGrid = document.getElementById('monthGridWrap');
-    if (slots.length === 0) {
-      var empty = '<div class="week-empty-msg"><strong>No teaching slots yet</strong><br>Set up your timetable in Timetable first.</div>';
-      if (popGrid) popGrid.innerHTML = empty;
-      if (legacyGrid) legacyGrid.innerHTML = empty;
-      return;
-    }
     var dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    var weekdayFull = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
     var firstDayOfMonth = new Date(year, month, 1);
     var startOffset = ((firstDayOfMonth.getDay() - 1) + 7) % 7;
     var totalCells = startOffset + daysInMonth;
@@ -7491,74 +7756,193 @@ function renderMonthView() {
       weekEnd.setDate(weekEnd.getDate() + 4);
       weekEndStr = getDateStr(weekEnd);
     }
-    var html = '<div class="month-grid">';
-    dayNames.forEach(function(name) {
-      html += '<div class="month-head">' + name + '</div>';
-    });
-    var cellIdx = 0;
+    if (!selectedMonthDateStr) selectedMonthDateStr = todayStr;
+    var monthShort = monthStart.toLocaleDateString('en-GB', { month: 'short' }).toUpperCase();
+
+    function cellMeta(dateStr, dayNum, outside, extraLabel) {
+      var cellDate = parseIsoDateLocal(dateStr);
+      var dayOfWeek = cellDate ? cellDate.getDay() : 0;
+      var isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
+      var isToday = dateStr === todayStr;
+      var inWeek = !!(weekStartStr && dateStr >= weekStartStr && dateStr <= weekEndStr && !isWeekend);
+      var items = monthDayItems(dateStr, monthEvents, homeworkRows);
+      return {
+        dateStr: dateStr,
+        dayNum: dayNum,
+        outside: outside,
+        extraLabel: extraLabel || '',
+        isWeekend: isWeekend,
+        isToday: isToday,
+        inWeek: inWeek,
+        items: items
+      };
+    }
+
+    var prevMonthLabel = new Date(prevYear, prevMonth, 1).toLocaleDateString('en-GB', { month: 'short' }).toUpperCase();
+    var nextMonthLabel = new Date(year, month + 1, 1).toLocaleDateString('en-GB', { month: 'short' }).toUpperCase();
+    var cells = [];
     for (var i = 0; i < prevMonthDays; i++) {
       var d = prevMonthDaysInMonth - prevMonthDays + i + 1;
       var dateStr = prevYear + '-' + String(prevMonth + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
-      html += '<div class="month-cell other" data-date="' + dateStr + '"><span class="month-day-num">' + d + '</span></div>';
-      cellIdx++;
+      cells.push(cellMeta(dateStr, d, true, prevMonthLabel));
     }
     for (var d = 1; d <= daysInMonth; d++) {
       var dateStr = year + '-' + String(month + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
-      var cellDate = new Date(year, month, d);
-      var dayOfWeek = cellDate.getDay();
-      var isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
-      var isToday = dateStr === todayStr;
-      var inWeek = !!(weekStartStr && dateStr >= weekStartStr && dateStr <= weekEndStr);
-      var isHoliday = (monthEvents || []).some(function(e) { return e.date === dateStr && e.category === 'holiday'; });
-      var lessons = PS.getLessonsForDate(dateStr);
-      var dayKey = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'][dayOfWeek];
-      var daySlots = slots.filter(function(s) { return String(s.day || '').toLowerCase() === dayKey; });
-      var cellClass = 'month-cell' + (isWeekend ? ' weekend' : '') + (isToday ? ' today' : '') + (inWeek ? ' is-current-week' : '') + (isHoliday ? ' week-card-holiday' : '');
-      html += '<div class="' + cellClass + '" data-date="' + dateStr + '">';
-      html += '<span class="month-day-num">' + d + '</span>';
-      if (daySlots.length > 0) {
-        html += '<div class="month-dots">';
-        daySlots.slice(0, 6).forEach(function(s) {
-          var st = slotChipStyle(s);
-          html += '<span class="month-dot" style="background:' + (s.color || st.ac) + '"></span>';
-        });
-        html += '</div>';
-      }
-      if (lessons.length > 0) {
-        lessons.slice(0, 3).forEach(function(l) {
-          var numM = l.lessonNumber && String(l.lessonNumber).trim();
-          var line = (numM ? numM + ' · ' : '') + (l.title || 'Untitled');
-          line = line.replace(/</g, '&lt;');
-          var short = line.length > 24 ? line.slice(0, 24) + '…' : line;
-          var tip = line.replace(/"/g, '&quot;');
-          html += '<div class="month-preview" title="' + tip + '">' + short + '</div>';
-        });
-      }
-      html += '</div>';
-      cellIdx++;
+      var extra = '';
+      if (dateStr === todayStr) extra = 'TODAY';
+      else if (weekStartStr && dateStr === weekStartStr) extra = 'WK';
+      cells.push(cellMeta(dateStr, d, false, extra));
     }
     var nextMonthStart = 1;
     for (var i = 0; i < trailingCells; i++) {
       var dateStr = month === 11
         ? (year + 1) + '-01-' + String(nextMonthStart).padStart(2, '0')
         : year + '-' + String(month + 2).padStart(2, '0') + '-' + String(nextMonthStart).padStart(2, '0');
-      html += '<div class="month-cell other" data-date="' + dateStr + '"><span class="month-day-num">' + nextMonthStart + '</span></div>';
+      cells.push(cellMeta(dateStr, nextMonthStart, true, nextMonthLabel));
       nextMonthStart++;
     }
-    html += '</div>';
-    if (popGrid) popGrid.innerHTML = html;
-    if (legacyGrid) legacyGrid.innerHTML = html;
-    function bindMonthCells(root) {
+
+    var popHtml = '<div class="month-grid">';
+    dayNames.forEach(function(name) {
+      popHtml += '<div class="month-head">' + name + '</div>';
+    });
+    cells.forEach(function(c) {
+      popHtml += '<div class="month-cell' + (c.outside ? ' other' : '') + (c.isWeekend ? ' weekend' : '') + (c.isToday ? ' today' : '') + (c.inWeek ? ' is-current-week' : '') + '" data-date="' + c.dateStr + '">';
+      popHtml += '<span class="month-day-num">' + c.dayNum + '</span>';
+      if (c.items.length) {
+        popHtml += '<div class="month-dots">';
+        c.items.slice(0, 4).forEach(function(item) {
+          popHtml += '<span class="month-dot" style="background:' + item.color + '"></span>';
+        });
+        popHtml += '</div>';
+      }
+      popHtml += '</div>';
+    });
+    popHtml += '</div>';
+
+    var board = '<div class="ed-month-weekdays">';
+    weekdayFull.forEach(function(name) {
+      board += '<div class="ed-month-weekday">' + name + '</div>';
+    });
+    board += '</div><div class="ed-month-grid">';
+    cells.forEach(function(c) {
+      var cls = 'ed-month-day';
+      if (c.outside) cls += ' is-outside';
+      if (c.isWeekend) cls += ' is-weekend';
+      if (c.inWeek) cls += ' is-focus-week';
+      if (c.isToday) cls += ' is-today';
+      if (c.dateStr === selectedMonthDateStr) cls += ' is-selected';
+      var shown = c.items.slice(0, 2);
+      var rest = c.items.slice(shown.length);
+      board += '<button type="button" class="' + cls + '" data-date="' + escAttr(c.dateStr) + '">';
+      board += '<div class="ed-month-date"><b>' + c.dayNum + '</b>' + (c.extraLabel ? '<span>' + escHtml(c.extraLabel) + '</span>' : '') + '</div>';
+      shown.forEach(function(item) { board += monthEventLineHtml(item); });
+      if (c.items.length) {
+        board += '<div class="ed-month-dots">';
+        c.items.slice(0, 4).forEach(function(item) {
+          board += '<i class="ed-month-dot" style="--dot:' + escAttr(item.color) + '"></i>';
+        });
+        if (rest.length > 2) board += '<span class="ed-month-more">+' + rest.length + '</span>';
+        else if (c.items.length > 2) board += '<span class="ed-month-more">+' + (c.items.length - 2) + '</span>';
+        board += '</div>';
+      }
+      board += '</button>';
+    });
+    board += '</div>';
+
+    var keyDates = monthEvents.length;
+    var deadlines = monthEvents.filter(function(e) {
+      var tag = calendarEventTag(e);
+      return tag === 'Assessment' || tag === 'Reporting';
+    }).length;
+    var hwCount = homeworkRows.length;
+    var upcoming = [];
+    var fromStr = todayStr < monthStartStr ? monthStartStr : todayStr;
+    cells.forEach(function(c) {
+      if (c.dateStr < fromStr || c.dateStr > monthEndStr) return;
+      c.items.forEach(function(item) { upcoming.push(item); });
+    });
+    upcoming = upcoming.slice(0, 3);
+    var agendaHtml = upcoming.length
+      ? upcoming.map(function(item) {
+          var d = parseIsoDateLocal(item.date);
+          var wd = d ? d.toLocaleDateString('en-GB', { weekday: 'short' }).toUpperCase() : '';
+          var num = d ? String(d.getDate()) : '';
+          return (
+            '<button type="button" class="ed-agenda-item" data-jump-date="' + escAttr(item.date) + '">' +
+              '<div class="ed-agenda-date">' + escHtml(wd) + '<b>' + escHtml(num) + '</b></div>' +
+              '<i class="ed-agenda-line" style="--event:' + escAttr(item.color) + '"></i>' +
+              '<div class="ed-agenda-copy"><b>' + escHtml(item.title) + '</b><span>' + escHtml(item.detail || '') + '</span></div>' +
+            '</button>'
+          );
+        }).join('')
+      : '<p class="ed-month-empty">No upcoming dates from today in this month.</p>';
+
+    var selectedItems = monthDayItems(selectedMonthDateStr, monthEvents, homeworkRows);
+    var panelHtml =
+      '<div class="ed-month-shell">' +
+        '<section class="ed-month-board" aria-label="' + escAttr(PS.formatMonthLabel(monthStart)) + ' calendar">' +
+          board +
+          '<div class="ed-month-mobile-selected" id="monthMobileSelected">' + monthMobileSelectedHtml(selectedMonthDateStr, selectedItems) + '</div>' +
+        '</section>' +
+        '<aside class="ed-month-rail ed-rail">' +
+          '<section class="ed-month-rail-section">' +
+            '<div class="ed-month-rail-head"><b>' + escHtml(monthStart.toLocaleDateString('en-GB', { month: 'long' }).toUpperCase()) + '</b><span>Overview</span></div>' +
+            '<div class="ed-month-stat">' +
+              '<div><b>' + keyDates + '</b><span>key dates</span></div>' +
+              '<div><b>' + deadlines + '</b><span>deadlines</span></div>' +
+              '<div><b>' + hwCount + '</b><span>homework items</span></div>' +
+            '</div>' +
+          '</section>' +
+          '<section class="ed-month-rail-section">' +
+            '<div class="ed-month-rail-head"><b>NEXT UP</b><span>From today</span></div>' +
+            agendaHtml +
+          '</section>' +
+        '</aside>' +
+      '</div>';
+
+    if (popGrid) popGrid.innerHTML = popHtml;
+    if (legacyGrid) legacyGrid.innerHTML = panelHtml;
+
+    function bindJump(root) {
       if (!root) return;
-      root.querySelectorAll('.month-cell[data-date]').forEach(function(cell) {
+      root.querySelectorAll('[data-jump-date]').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+          e.preventDefault();
+          e.stopPropagation();
+          closeMonthPopover();
+          jumpPlannerToDate(btn.getAttribute('data-jump-date'));
+        });
+      });
+    }
+    if (popGrid) {
+      popGrid.querySelectorAll('.month-cell[data-date]').forEach(function(cell) {
         cell.addEventListener('click', function() {
           closeMonthPopover();
           jumpPlannerToDate(cell.dataset.date);
         });
       });
     }
-    bindMonthCells(popGrid);
-    bindMonthCells(legacyGrid);
+    if (legacyGrid) {
+      legacyGrid.querySelectorAll('.ed-month-day[data-date]').forEach(function(cell) {
+        cell.addEventListener('click', function() {
+          var date = cell.getAttribute('data-date');
+          selectedMonthDateStr = date;
+          if (window.matchMedia && window.matchMedia('(max-width: 820px)').matches) {
+            legacyGrid.querySelectorAll('.ed-month-day').forEach(function(el) {
+              el.classList.toggle('is-selected', el.getAttribute('data-date') === date);
+            });
+            var mobile = document.getElementById('monthMobileSelected');
+            if (mobile) mobile.innerHTML = monthMobileSelectedHtml(date, monthDayItems(date, monthEvents, homeworkRows));
+            bindJump(mobile);
+            return;
+          }
+          closeMonthPopover();
+          jumpPlannerToDate(date);
+        });
+      });
+      bindJump(legacyGrid);
+    }
   });
 }
 
