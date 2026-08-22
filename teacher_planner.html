@@ -41,6 +41,7 @@
 <script src="faculty-timetable-data.js"></script>
 <script src="faculty-timetable-planner-import.js"></script>
 <script src="planner-service.js"></script>
+<script src="planner-class-support-strategies.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -966,7 +967,7 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
   .pulse-right{text-align:left}
 }
 </style>
-<link rel="stylesheet" href="teacher-planner-redesign.css?v=homework-polish-2">
+<link rel="stylesheet" href="teacher-planner-redesign.css?v=class-support-1">
 </head>
 <body>
 <script>
@@ -1784,6 +1785,10 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
         <h2 class="modal-title" id="lessonModalTitle">Add Lesson</h2>
         <p class="lesson-modal-hero-class" id="lessonModalClass" hidden></p>
         <p class="lesson-modal-hero-sub" id="lessonModalMeta">Plan the period — title, slides and the full lesson write-up</p>
+        <div class="class-support-hero-row" id="classSupportStrip" hidden>
+          <span class="class-support-hero-label" id="classSupportStripLabel"></span>
+          <button type="button" class="class-support-hero-btn" id="classSupportOpenBtn" aria-expanded="false" aria-controls="classSupportDrawer">View</button>
+        </div>
       </div>
       <button class="modal-close lesson-modal-close" id="modalClose" aria-label="Close">&times;</button>
     </div>
@@ -1946,6 +1951,22 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
         <button class="btn-secondary" id="lessonCancel">Cancel</button>
         <button class="btn-primary lesson-modal-save" id="lessonSave">Save Lesson</button>
       </div>
+    </div>
+    <div class="class-support-drawer" id="classSupportDrawer" hidden>
+      <button type="button" class="class-support-drawer-scrim" id="classSupportDrawerScrim" aria-label="Close class support"></button>
+      <aside class="class-support-panel" id="classSupportPanel" role="dialog" aria-modal="true" aria-labelledby="classSupportDrawerTitle">
+        <header class="class-support-panel-head">
+          <div class="class-support-panel-head-copy">
+            <h3 id="classSupportDrawerTitle">Class Support</h3>
+            <p class="class-support-panel-class" id="classSupportDrawerClass"></p>
+          </div>
+          <div class="class-support-panel-head-actions">
+            <button type="button" class="btn-add-resource lesson-modal-chip-btn is-ghost" id="classSupportEditBtn">Edit</button>
+            <button type="button" class="class-support-panel-close" id="classSupportDrawerClose" aria-label="Close class support">&times;</button>
+          </div>
+        </header>
+        <div class="class-support-panel-body" id="classSupportPanelBody"></div>
+      </aside>
     </div>
   </div>
 </div>
@@ -2142,6 +2163,11 @@ function classNameForLessonSlot(dateStr, slotKey) {
   var sk = parseSlotKeyParts(slotKey);
   var slot = sk ? PS.getSlot(sk.day, sk.period) : null;
   return (slot && slot.className) ? String(slot.className).trim() : '';
+}
+
+function classSupportMarkHtml(className) {
+  if (!className || !PS.hasClassSupportProfile || !PS.hasClassSupportProfile(className)) return '';
+  return '<span class="class-support-mark" title="Class support" aria-label="Class support"></span>';
 }
 
 function setHomeworkDueToNextLesson() {
@@ -3362,6 +3388,7 @@ function renderCompactTimetable(weekStart) {
       var compactFill = classFillStyleAttrs(slot.className || subjectLabel(slot.subject) || 'Class', slot);
       html += '<button type="button" class="compact-tt-cell has-slot has-class-fill st-' + st + '" data-date="' + dateStr + '" data-slot="' + k + '" style="' + compactFill.style + '">' +
         escHtml(slot.className || subjectLabel(slot.subject) || 'Class') +
+        classSupportMarkHtml(slot.className) +
       '</button>';
     });
   }
@@ -3858,7 +3885,7 @@ function createTodayDashboardMarkup(model) {
             '<span class="today-lesson-period" aria-hidden="true">P' + r.period + '</span>' +
             '<div class="today-lesson-main">' +
               '<div class="today-lesson-topline">' +
-                '<span class="today-lesson-class">' + escHtml(r.className) + '</span>' +
+                '<span class="today-lesson-class">' + escHtml(r.className) + classSupportMarkHtml(r.className) + '</span>' +
                 '<span class="today-lesson-time">' + escHtml(r.timeLabel) + '</span>' +
               '</div>' +
               '<strong class="today-lesson-title">' + escHtml(r.title) + '</strong>' +
@@ -4359,7 +4386,7 @@ function renderTimetableDisplay() {
         }
         var chipText = (lesson && lesson.title) ? escHtml(lesson.title) : '';
         html += '<button type="button" class="tt-cell busy" data-day="' + dayName + '" data-period="' + period + '" data-slot="' + k + '"><span class="class-chip is-class-fill" style="background:' + s.bg + ';border:1.5px solid ' + s.ac + ';color:' + s.dk + '">';
-        html += '<span class="chip-cls">' + escHtml(slot.className || subjectLabel(slot.subject) || 'Class') + '</span>';
+        html += '<span class="chip-cls">' + escHtml(slot.className || subjectLabel(slot.subject) || 'Class') + classSupportMarkHtml(slot.className) + '</span>';
         if (chipText) html += '<span class="chip-lsn" style="color:' + s.dk + ';opacity:.88">' + chipText + '</span>';
         html += '</span></button>';
       } else {
@@ -4956,7 +4983,7 @@ function createWeekDashboardMarkup(model) {
         '<div class="week-lesson-cell is-' + c.status + ' subj-' + escHtml(c.subject || 'other') + ' has-class-fill' + (c.isToday ? ' is-today-col' : '') + (hide ? ' is-filtered-out' : '') + '" style="' + fillStyle.style + '">' +
           '<button type="button" class="week-lesson-open" data-date="' + c.dateStr + '" data-slot="' + c.slotKey + '" data-plan="' + c.status + '" data-class="' + escAttr(c.className) + '" data-grid-day="' + c.dayIndex + '" data-grid-period="' + c.period + '">' +
             '<div class="week-lesson-card is-class-fill">' +
-              '<strong class="week-lesson-class">' + escHtml(c.className) + '</strong>' +
+              '<strong class="week-lesson-class">' + escHtml(c.className) + classSupportMarkHtml(c.className) + '</strong>' +
               '<span class="week-lesson-title">' + escHtml(c.title) + '</span>' +
               '<span class="week-status is-' + c.status + '">' + escHtml(statusLabel(c.status)) + '</span>' +
             '</div>' +
@@ -7137,7 +7164,7 @@ function renderDayView() {
           (timeLabel ? '<span class="day-time">' + escHtml(timeLabel) + '</span>' : '') +
         '</div>' +
         '<div class="day-body">' +
-          '<div class="day-cls-label">' + escHtml(clsLabel) + '</div>' +
+          '<div class="day-cls-label">' + escHtml(clsLabel) + classSupportMarkHtml(slot.className) + '</div>' +
           (roomLabel ? '<div class="day-room-chip">' + escHtml(roomLabel) + '</div>' : '');
 
     if (lesson) {
@@ -7598,6 +7625,406 @@ function closeSlidesPickerModal() {
   if (modal) modal.classList.remove('visible');
 }
 
+var CLASS_SUPPORT_HEADING = 'Support & differentiation';
+var classSupportUi = {
+  className: '',
+  subjectLabel: '',
+  mode: 'view',
+  lastFocus: null
+};
+
+function classSupportBank() {
+  return window.PlannerClassSupportBank || null;
+}
+
+function classSupportContextFromModal() {
+  var slotKeyVal = (document.getElementById('lessonSlotKey') || {}).value || '';
+  var sk = slotKeyVal ? parseSlotKeyParts(slotKeyVal) : null;
+  var slot = (sk && PS.getSlot) ? PS.getSlot(sk.day, sk.period) : null;
+  var className = slot && slot.className ? String(slot.className).trim() : '';
+  var subj = slot && slot.subject ? subjectLabel(slot.subject) : '';
+  return { className: className, subjectLabel: subj, slot: slot };
+}
+
+function normalizeSupportBullet(s) {
+  return String(s || '').replace(/\s+/g, ' ').replace(/[.]+$/g, '').trim().toLowerCase();
+}
+
+function isClassSupportDrawerOpen() {
+  var drawer = document.getElementById('classSupportDrawer');
+  return !!(drawer && !drawer.hidden);
+}
+
+function closeClassSupportDrawer(opts) {
+  var drawer = document.getElementById('classSupportDrawer');
+  if (drawer) drawer.hidden = true;
+  var openBtn = document.getElementById('classSupportOpenBtn');
+  if (openBtn) openBtn.setAttribute('aria-expanded', 'false');
+  var restore = classSupportUi.lastFocus;
+  classSupportUi.lastFocus = null;
+  if (opts && opts.silent) return;
+  if (restore && typeof restore.focus === 'function') {
+    try { restore.focus(); } catch (e) { /* ignore */ }
+  }
+}
+
+function classSupportCategoryLabel(id) {
+  var bank = classSupportBank();
+  return (bank && bank.labelFor(id)) || id;
+}
+
+function classSupportStrategies(considerations) {
+  var bank = classSupportBank();
+  if (!bank || !bank.strategiesFor) return [];
+  return bank.strategiesFor(considerations || []);
+}
+
+function findSupportHeading(editor) {
+  var headings = editor.querySelectorAll('h2, h3');
+  for (var i = 0; i < headings.length; i++) {
+    if (normalizeSupportBullet(headings[i].textContent) === normalizeSupportBullet(CLASS_SUPPORT_HEADING)) {
+      return headings[i];
+    }
+  }
+  return null;
+}
+
+function collectExistingSupportBullets(editor) {
+  var heading = findSupportHeading(editor);
+  var set = {};
+  if (!heading) return set;
+  var n = heading.nextElementSibling;
+  while (n && !/^H[1-6]$/.test(n.tagName)) {
+    if (n.tagName === 'UL' || n.tagName === 'OL') {
+      n.querySelectorAll('li').forEach(function(li) {
+        var t = normalizeSupportBullet(li.textContent);
+        if (t) set[t] = 1;
+      });
+    }
+    n = n.nextElementSibling;
+  }
+  return set;
+}
+
+function addSupportStrategiesToLesson(texts) {
+  var editor = document.getElementById('lessonBodyEditor');
+  if (!editor) return 0;
+  var existing = collectExistingSupportBullets(editor);
+  var toAdd = [];
+  (texts || []).forEach(function(t) {
+    var n = normalizeSupportBullet(t);
+    if (!n || existing[n]) return;
+    existing[n] = 1;
+    toAdd.push(String(t).trim());
+  });
+  if (!toAdd.length) return 0;
+  var heading = findSupportHeading(editor);
+  var ul = null;
+  if (heading) {
+    var n = heading.nextElementSibling;
+    while (n && !/^H[1-6]$/.test(n.tagName)) {
+      if (n.tagName === 'UL' || n.tagName === 'OL') { ul = n; break; }
+      n = n.nextElementSibling;
+    }
+  }
+  if (!heading) {
+    if (editor.innerHTML && lessonBodyPlainText(editor.innerHTML)) {
+      editor.insertAdjacentHTML('beforeend', '<h3>' + CLASS_SUPPORT_HEADING + '</h3><ul></ul>');
+    } else {
+      editor.innerHTML = '<h3>' + CLASS_SUPPORT_HEADING + '</h3><ul></ul>';
+    }
+    heading = findSupportHeading(editor);
+    ul = heading ? heading.nextElementSibling : null;
+  } else if (!ul) {
+    heading.insertAdjacentHTML('afterend', '<ul></ul>');
+    ul = heading.nextElementSibling;
+  }
+  if (!ul) return 0;
+  toAdd.forEach(function(t) {
+    var li = document.createElement('li');
+    li.textContent = t;
+    ul.appendChild(li);
+  });
+  return toAdd.length;
+}
+
+function syncClassSupportStrip() {
+  var strip = document.getElementById('classSupportStrip');
+  var label = document.getElementById('classSupportStripLabel');
+  var btn = document.getElementById('classSupportOpenBtn');
+  if (!strip || !btn) return;
+  var ctx = classSupportContextFromModal();
+  if (!ctx.className) {
+    strip.hidden = true;
+    return;
+  }
+  strip.hidden = false;
+  var profile = PS.getClassSupportProfile ? PS.getClassSupportProfile(ctx.className) : null;
+  var n = profile && profile.considerations ? profile.considerations.length : 0;
+  if (!profile) {
+    if (label) {
+      label.hidden = true;
+      label.textContent = '';
+    }
+    btn.textContent = 'Set up class support';
+  } else {
+    if (label) {
+      label.hidden = false;
+      label.textContent = n ? ('Class support · ' + n) : 'Class support';
+    }
+    btn.textContent = 'View';
+  }
+}
+
+function classSupportChipHtml(id, label, selected, interactive) {
+  if (interactive) {
+    return '<button type="button" class="class-support-chip' + (selected ? ' is-on' : '') + '" data-consideration="' + escAttr(id) + '" aria-pressed="' + (selected ? 'true' : 'false') + '">' + escHtml(label) + '</button>';
+  }
+  return '<span class="class-support-chip is-static is-on">' + escHtml(label) + '</span>';
+}
+
+function renderClassSupportView(profile) {
+  var considerations = (profile && profile.considerations) || [];
+  var note = profile && profile.whatWorks ? String(profile.whatWorks).trim() : '';
+  var strategies = classSupportStrategies(considerations);
+  var html = '';
+  if (considerations.length) {
+    html += '<section class="class-support-section">';
+    html += '<h4>Class Support</h4>';
+    html += '<div class="class-support-chips">';
+    considerations.forEach(function(id) {
+      html += classSupportChipHtml(id, classSupportCategoryLabel(id), true, false);
+    });
+    html += '</div></section>';
+  }
+  if (strategies.length) {
+    html += '<section class="class-support-section">';
+    html += '<h4>Things to consider</h4>';
+    html += '<ul class="class-support-approach-list">';
+    strategies.forEach(function(s) {
+      html += '<li>' + escHtml(s.text) + '</li>';
+    });
+    html += '</ul></section>';
+  }
+  if (note) {
+    html += '<section class="class-support-section">';
+    html += '<h4>What works well with this class</h4>';
+    html += '<p class="class-support-note">' + escHtml(note).replace(/\n/g, '<br>') + '</p>';
+    html += '</section>';
+  }
+  if (strategies.length) {
+    html += '<section class="class-support-section">';
+    html += '<h4>Use in this lesson</h4>';
+    html += '<div class="class-support-pick-list">';
+    strategies.forEach(function(s) {
+      html += '<label class="class-support-pick">';
+      html += '<input type="checkbox" data-strategy-id="' + escAttr(s.id) + '" data-strategy-text="' + escAttr(s.text) + '">';
+      html += '<span>' + escHtml(s.text) + '</span>';
+      html += '</label>';
+    });
+    html += '</div>';
+    html += '<button type="button" class="btn-primary class-support-add-btn" id="classSupportAddBtn" disabled>Add to lesson</button>';
+    html += '</section>';
+  }
+  if (!html) {
+    html = '<p class="class-support-empty">No planning considerations yet. Use Edit to add what is useful for this class.</p>';
+  }
+  return html;
+}
+
+function renderClassSupportEdit(profile) {
+  var bank = classSupportBank();
+  var cats = (bank && bank.CATEGORIES) || [];
+  var selected = {};
+  ((profile && profile.considerations) || []).forEach(function(id) { selected[id] = 1; });
+  var asn = profile && profile.asnCount != null ? String(profile.asnCount) : '';
+  var eal = profile && profile.ealCount != null ? String(profile.ealCount) : '';
+  var note = profile && profile.whatWorks ? profile.whatWorks : '';
+  var html = '';
+  html += '<section class="class-support-section">';
+  html += '<h4>Anything particularly useful to consider when planning for this class?</h4>';
+  html += '<div class="class-support-chips" id="classSupportEditChips">';
+  cats.forEach(function(c) {
+    html += classSupportChipHtml(c.id, c.label, !!selected[c.id], true);
+  });
+  html += '</div></section>';
+  html += '<section class="class-support-section class-support-optional">';
+  html += '<h4>Optional overview</h4>';
+  html += '<div class="class-support-counts">';
+  html += '<label>ASN pupils <input type="number" id="classSupportAsnCount" min="0" max="99" inputmode="numeric" value="' + escAttr(asn) + '"></label>';
+  html += '<label>EAL pupils <input type="number" id="classSupportEalCount" min="0" max="99" inputmode="numeric" value="' + escAttr(eal) + '"></label>';
+  html += '</div></section>';
+  html += '<section class="class-support-section">';
+  html += '<h4>What works well with this class?</h4>';
+  html += '<textarea id="classSupportWhatWorks" class="form-input class-support-whatworks" rows="3" placeholder="e.g. Clear demonstrations before practical tasks. Keep instructions visible.">' + escHtml(note) + '</textarea>';
+  html += '</section>';
+  html += '<button type="button" class="btn-primary class-support-save-btn" id="classSupportSaveBtn">Save class profile</button>';
+  return html;
+}
+
+function fillClassSupportPanel(mode) {
+  var ctx = classSupportContextFromModal();
+  classSupportUi.className = ctx.className;
+  classSupportUi.subjectLabel = ctx.subjectLabel;
+  classSupportUi.mode = mode;
+  var profile = ctx.className && PS.getClassSupportProfile ? PS.getClassSupportProfile(ctx.className) : null;
+  var title = document.getElementById('classSupportDrawerTitle');
+  var classLine = document.getElementById('classSupportDrawerClass');
+  var editBtn = document.getElementById('classSupportEditBtn');
+  var body = document.getElementById('classSupportPanelBody');
+  if (title) {
+    title.textContent = mode === 'edit'
+      ? (profile ? 'Edit class support' : ('Set up support' + (ctx.className ? ' for ' + ctx.className : '')))
+      : 'Class Support';
+  }
+  if (classLine) {
+    var bits = [];
+    if (ctx.className) bits.push(ctx.className);
+    if (ctx.subjectLabel) bits.push(ctx.subjectLabel);
+    classLine.textContent = bits.join(' · ');
+    classLine.hidden = !bits.length;
+  }
+  if (editBtn) editBtn.hidden = mode === 'edit';
+  if (body) body.innerHTML = mode === 'edit' ? renderClassSupportEdit(profile) : renderClassSupportView(profile);
+}
+
+function openClassSupportDrawer(mode) {
+  var ctx = classSupportContextFromModal();
+  if (!ctx.className) return;
+  var drawer = document.getElementById('classSupportDrawer');
+  if (!drawer) return;
+  classSupportUi.lastFocus = document.activeElement;
+  var profile = PS.getClassSupportProfile ? PS.getClassSupportProfile(ctx.className) : null;
+  var nextMode = mode || (profile ? 'view' : 'edit');
+  fillClassSupportPanel(nextMode);
+  drawer.hidden = false;
+  var openBtn = document.getElementById('classSupportOpenBtn');
+  if (openBtn) openBtn.setAttribute('aria-expanded', 'true');
+  var closeBtn = document.getElementById('classSupportDrawerClose');
+  if (closeBtn) closeBtn.focus();
+}
+
+function selectedClassSupportStrategyTexts() {
+  var body = document.getElementById('classSupportPanelBody');
+  if (!body) return [];
+  var texts = [];
+  body.querySelectorAll('input[type="checkbox"][data-strategy-text]:checked').forEach(function(cb) {
+    var t = cb.getAttribute('data-strategy-text') || '';
+    if (t) texts.push(t);
+  });
+  return texts;
+}
+
+function syncClassSupportAddButton() {
+  var btn = document.getElementById('classSupportAddBtn');
+  if (!btn) return;
+  var n = selectedClassSupportStrategyTexts().length;
+  btn.disabled = n === 0;
+  btn.textContent = n ? ('Add ' + n + ' to lesson') : 'Add to lesson';
+}
+
+function collectClassSupportEditFields() {
+  var body = document.getElementById('classSupportPanelBody');
+  var considerations = [];
+  if (body) {
+    body.querySelectorAll('.class-support-chip[data-consideration][aria-pressed="true"]').forEach(function(btn) {
+      considerations.push(btn.getAttribute('data-consideration'));
+    });
+  }
+  var asnEl = document.getElementById('classSupportAsnCount');
+  var ealEl = document.getElementById('classSupportEalCount');
+  var noteEl = document.getElementById('classSupportWhatWorks');
+  return {
+    considerations: considerations,
+    asnCount: asnEl ? asnEl.value : '',
+    ealCount: ealEl ? ealEl.value : '',
+    whatWorks: noteEl ? noteEl.value : ''
+  };
+}
+
+function refreshClassSupportMarks() {
+  if (document.getElementById('panel-timetable') && document.getElementById('panel-timetable').classList.contains('active')) {
+    renderTimetableDisplay();
+  }
+  if (document.getElementById('panel-week') && document.getElementById('panel-week').classList.contains('active')) renderWeekView();
+  if (document.getElementById('panel-today') && document.getElementById('panel-today').classList.contains('active')) renderTodayDashboard();
+  if (document.getElementById('panel-day') && document.getElementById('panel-day').classList.contains('active')) renderDayView();
+}
+
+function saveClassSupportFromPanel() {
+  var ctx = classSupportContextFromModal();
+  if (!ctx.className || !PS.setClassSupportProfile) return;
+  var fields = collectClassSupportEditFields();
+  PS.setClassSupportProfile(ctx.className, fields).then(function(profile) {
+    syncClassSupportStrip();
+    refreshClassSupportMarks();
+    if (profile) {
+      fillClassSupportPanel('view');
+      showToast('Class support saved');
+    } else {
+      closeClassSupportDrawer();
+      showToast('Class support removed');
+    }
+  }).catch(function() {
+    showToast('Could not save class support');
+  });
+}
+
+function handleClassSupportPanelClick(e) {
+  var chip = e.target.closest && e.target.closest('.class-support-chip[data-consideration]');
+  if (chip) {
+    var on = chip.getAttribute('aria-pressed') !== 'true';
+    chip.setAttribute('aria-pressed', on ? 'true' : 'false');
+    chip.classList.toggle('is-on', on);
+    return;
+  }
+  if (e.target.id === 'classSupportSaveBtn' || (e.target.closest && e.target.closest('#classSupportSaveBtn'))) {
+    saveClassSupportFromPanel();
+    return;
+  }
+  if (e.target.id === 'classSupportAddBtn' || (e.target.closest && e.target.closest('#classSupportAddBtn'))) {
+    var texts = selectedClassSupportStrategyTexts();
+    var added = addSupportStrategiesToLesson(texts);
+    if (!added) {
+      showToast('Those approaches are already in the lesson');
+      return;
+    }
+    showToast(added === 1 ? 'Added 1 approach to the lesson' : ('Added ' + added + ' approaches to the lesson'));
+  }
+}
+
+function handleClassSupportPanelChange(e) {
+  if (e.target && e.target.matches && e.target.matches('input[type="checkbox"][data-strategy-text]')) {
+    syncClassSupportAddButton();
+  }
+}
+
+function initClassSupportUi() {
+  var openBtn = document.getElementById('classSupportOpenBtn');
+  var closeBtn = document.getElementById('classSupportDrawerClose');
+  var scrim = document.getElementById('classSupportDrawerScrim');
+  var editBtn = document.getElementById('classSupportEditBtn');
+  var body = document.getElementById('classSupportPanelBody');
+  if (openBtn) {
+    openBtn.addEventListener('click', function() {
+      var ctx = classSupportContextFromModal();
+      var profile = ctx.className && PS.getClassSupportProfile ? PS.getClassSupportProfile(ctx.className) : null;
+      openClassSupportDrawer(profile ? 'view' : 'edit');
+    });
+  }
+  if (closeBtn) closeBtn.addEventListener('click', closeClassSupportDrawer);
+  if (scrim) scrim.addEventListener('click', closeClassSupportDrawer);
+  if (editBtn) {
+    editBtn.addEventListener('click', function() {
+      fillClassSupportPanel('edit');
+    });
+  }
+  if (body) {
+    body.addEventListener('click', handleClassSupportPanelClick);
+    body.addEventListener('change', handleClassSupportPanelChange);
+  }
+}
+
 function updateLessonModalMeta(dateStr, slotKey, mode) {
   var meta = document.getElementById('lessonModalMeta');
   var classEl = document.getElementById('lessonModalClass');
@@ -7608,6 +8035,8 @@ function updateLessonModalMeta(dateStr, slotKey, mode) {
       classEl.textContent = '';
     }
     meta.textContent = 'Build a reusable lesson for your bank — then drop it onto any period';
+    closeClassSupportDrawer({ silent: true });
+    syncClassSupportStrip();
     return;
   }
   var classLabel = '';
@@ -7639,6 +8068,8 @@ function updateLessonModalMeta(dateStr, slotKey, mode) {
   meta.textContent = parts.length
     ? parts.join(' · ')
     : 'Plan the period — title, slides and the full lesson write-up';
+  closeClassSupportDrawer({ silent: true });
+  syncClassSupportStrip();
 }
 
 function openLessonModal(dateStr, slotKey) {
@@ -8160,6 +8591,7 @@ document.getElementById('doCopy').addEventListener('click', function() {
 });
 
 function closeLessonModal() {
+  closeClassSupportDrawer({ silent: true });
   var modal = document.getElementById('lessonModal');
   if (modal) {
     modal.classList.remove('visible');
@@ -8219,6 +8651,10 @@ function initPlannerHotkeys() {
     if (e.key === 'Escape') {
       if (confirmOpen) {
         closePlannerConfirm(plannerConfirmUsesInput() ? null : false);
+        return;
+      }
+      if (isClassSupportDrawerOpen()) {
+        closeClassSupportDrawer();
         return;
       }
       if (monthOpen) {
@@ -8484,7 +8920,7 @@ if (classColoursModal) {
 function handleNewAcademicYear() {
   plannerConfirm({
     title: 'Start a new academic year?',
-    body: 'This clears your weekly timetable so you can enter a new schedule. Lesson plans in the library and on dates are kept.',
+    body: 'This clears your weekly timetable and Class Support profiles so you can enter a new schedule. Lesson plans in the library and on dates are kept.',
     confirmLabel: 'Clear timetable',
     danger: true
   }).then(function(ok) {
@@ -9609,6 +10045,7 @@ function initPlannerChromeOffset() {
 initLessonBodyEditor();
 bindFacultyTtImportUi();
 bindN5CiImportUi();
+initClassSupportUi();
 initPlannerInstallTip();
 initPlannerChromeOffset();
 initPlannerDock();

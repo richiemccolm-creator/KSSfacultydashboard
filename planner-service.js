@@ -152,6 +152,82 @@
     blob.units.forEach(normalizeUnit);
   }
 
+  var CLASS_SUPPORT_IDS = {
+    literacy: 1, eal: 1, processing: 1, attention: 1, communication: 1,
+    confidence: 1, sensory: 1, physical: 1, groupDynamics: 1, other: 1
+  };
+  var CLASS_SUPPORT_ID_ORDER = [
+    'literacy', 'eal', 'processing', 'attention', 'communication',
+    'confidence', 'sensory', 'physical', 'groupDynamics', 'other'
+  ];
+
+  function classSupportKey(className) {
+    return String(className || '').trim().toLowerCase();
+  }
+
+  function parseClassSupportCount(value) {
+    if (value == null || value === '') return null;
+    var n = parseInt(value, 10);
+    if (isNaN(n) || n < 0) return null;
+    return n;
+  }
+
+  function orderedClassSupportConsiderations(ids) {
+    var set = {};
+    (Array.isArray(ids) ? ids : []).forEach(function(id) {
+      var key = String(id || '').trim();
+      if (CLASS_SUPPORT_IDS[key]) set[key] = 1;
+    });
+    return CLASS_SUPPORT_ID_ORDER.filter(function(id) { return set[id]; });
+  }
+
+  function normalizeClassSupportProfile(raw) {
+    if (!raw || typeof raw !== 'object') return null;
+    var considerations = orderedClassSupportConsiderations(raw.considerations);
+    var whatWorks = String(raw.whatWorks || '').trim();
+    var asnCount = parseClassSupportCount(raw.asnCount);
+    var ealCount = parseClassSupportCount(raw.ealCount);
+    if (!considerations.length && !whatWorks && asnCount == null && ealCount == null) return null;
+    return {
+      considerations: considerations,
+      asnCount: asnCount,
+      ealCount: ealCount,
+      whatWorks: whatWorks,
+      updatedAt: raw.updatedAt ? String(raw.updatedAt) : ''
+    };
+  }
+
+  function normalizeClassSupportMap(map) {
+    var out = {};
+    if (!map || typeof map !== 'object' || Array.isArray(map)) return out;
+    Object.keys(map).forEach(function(k) {
+      var key = classSupportKey(k);
+      if (!key) return;
+      var profile = normalizeClassSupportProfile(map[k]);
+      if (profile) out[key] = profile;
+    });
+    return out;
+  }
+
+  function ensureClassSupportMap() {
+    if (!state.timetable) state.timetable = { slots: [] };
+    if (!state.timetable.classSupport || typeof state.timetable.classSupport !== 'object' || Array.isArray(state.timetable.classSupport)) {
+      state.timetable.classSupport = {};
+    }
+    return state.timetable.classSupport;
+  }
+
+  function copyClassSupportProfile(profile) {
+    if (!profile) return null;
+    return {
+      considerations: (profile.considerations || []).slice(),
+      asnCount: profile.asnCount == null ? null : profile.asnCount,
+      ealCount: profile.ealCount == null ? null : profile.ealCount,
+      whatWorks: profile.whatWorks || '',
+      updatedAt: profile.updatedAt || ''
+    };
+  }
+
   window.PlannerService = {
     DAYS: DAYS,
     PERIODS: PERIODS,
@@ -167,11 +243,12 @@
         (window.DataService && DataService.get ? DataService.get('lessonPlanTemplates') : Promise.resolve(null)),
         (window.DataService && DataService.get ? DataService.get('plannerSchemesOfWork') : Promise.resolve(null))
       ]).then(function(res) {
-        state.timetable = res[0] && (res[0].slots || res[0].academicYearLabel || res[0].classColors) ? res[0] : { slots: [] };
+        state.timetable = res[0] && (res[0].slots || res[0].academicYearLabel || res[0].classColors || res[0].classSupport) ? res[0] : { slots: [] };
         if (!state.timetable.slots) state.timetable.slots = [];
         if (!state.timetable.classColors || typeof state.timetable.classColors !== 'object') {
           state.timetable.classColors = {};
         }
+        state.timetable.classSupport = normalizeClassSupportMap(state.timetable.classSupport);
         state.lessons = res[1] && res[1].lessons ? res[1] : { lessons: [] };
         if (!Array.isArray(state.lessons.lessons)) state.lessons.lessons = [];
         state.lessons.lessons.forEach(normalizeLesson);
@@ -193,6 +270,7 @@
       if (!state.timetable) state.timetable = {};
       state.timetable.academicYearLabel = formatAcademicYearLabel(nextAcademicYearStartYear());
       state.timetable.slots = [];
+      state.timetable.classSupport = {};
       return this.saveTimetable();
     },
 
@@ -250,6 +328,47 @@
         });
       }
       state.timetable.classColors = out;
+      return this.saveTimetable();
+    },
+
+    classSupportKey: classSupportKey,
+
+    getClassSupportProfile: function(className) {
+      var key = classSupportKey(className);
+      if (!key) return null;
+      var map = state.timetable && state.timetable.classSupport;
+      return copyClassSupportProfile(normalizeClassSupportProfile(map && map[key]));
+    },
+
+    hasClassSupportProfile: function(className) {
+      return !!this.getClassSupportProfile(className);
+    },
+
+    classSupportConsiderationCount: function(className) {
+      var profile = this.getClassSupportProfile(className);
+      return profile && profile.considerations ? profile.considerations.length : 0;
+    },
+
+    setClassSupportProfile: function(className, fields) {
+      var key = classSupportKey(className);
+      if (!key) return Promise.resolve(null);
+      ensureClassSupportMap();
+      var profile = normalizeClassSupportProfile(Object.assign({}, fields || {}, {
+        updatedAt: new Date().toISOString()
+      }));
+      if (!profile) {
+        delete state.timetable.classSupport[key];
+        return this.saveTimetable().then(function() { return null; });
+      }
+      state.timetable.classSupport[key] = profile;
+      return this.saveTimetable().then(function() { return copyClassSupportProfile(profile); });
+    },
+
+    deleteClassSupportProfile: function(className) {
+      var key = classSupportKey(className);
+      if (!key) return Promise.resolve();
+      ensureClassSupportMap();
+      delete state.timetable.classSupport[key];
       return this.saveTimetable();
     },
 
