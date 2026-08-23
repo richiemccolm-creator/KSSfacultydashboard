@@ -66,6 +66,7 @@
     var suppressMouseUntil = 0;
     var docListening = false;
     var diag = null;
+    var fingerScroll = null;
 
     function emptyInk() {
       var out = { version: VERSION, strokes: [] };
@@ -604,15 +605,58 @@
     function onGotCapture(evt) { diagRecord(evt); }
     function onLostCapture(evt) { diagRecord(evt, 'ignored-not-commit'); }
 
+    function nearestScrollEl() {
+      var el = page;
+      while (el && el !== document.documentElement) {
+        var cs = window.getComputedStyle(el);
+        var oy = cs.overflowY;
+        var ox = cs.overflowX;
+        if (oy === 'auto' || oy === 'scroll' || ox === 'auto' || ox === 'scroll') return el;
+        el = el.parentElement;
+      }
+      return null;
+    }
+
+    function onFingerScrollEnd() {
+      fingerScroll = null;
+    }
+
     function onTouchGuard(evt) {
-      if (!penAlways && mode === 'text') return;
       var i;
       var list = evt.changedTouches || evt.touches || [];
       for (i = 0; i < list.length; i++) {
         if (isStylusTouch(list[i])) {
           if (evt.cancelable) evt.preventDefault();
+          fingerScroll = null;
           return;
         }
+      }
+      if (penAlways) return;
+      if (mode === 'text') return;
+      // Ink-mode canvas keeps touch-action:none so Safari does not steal Pencil
+      // as a pan. Finger therefore cannot native-scroll; drive the workspace
+      // scroller instead. Do not preventDefault on stylus-free touchstart.
+      if (evt.type === 'touchstart') {
+        if (evt.touches.length !== 1) {
+          fingerScroll = null;
+          return;
+        }
+        var scroller = nearestScrollEl();
+        if (!scroller) return;
+        fingerScroll = {
+          el: scroller,
+          y: evt.touches[0].clientY,
+          x: evt.touches[0].clientX,
+          top: scroller.scrollTop,
+          left: scroller.scrollLeft
+        };
+        return;
+      }
+      if (evt.type === 'touchmove' && fingerScroll && evt.touches.length === 1) {
+        var t = evt.touches[0];
+        fingerScroll.el.scrollTop = fingerScroll.top + (fingerScroll.y - t.clientY);
+        fingerScroll.el.scrollLeft = fingerScroll.left + (fingerScroll.x - t.clientX);
+        if (evt.cancelable) evt.preventDefault();
       }
     }
 
@@ -632,6 +676,8 @@
       }
       hit.addEventListener('touchstart', onTouchGuard, opts);
       hit.addEventListener('touchmove', onTouchGuard, opts);
+      hit.addEventListener('touchend', onFingerScrollEnd, opts);
+      hit.addEventListener('touchcancel', onFingerScrollEnd, opts);
       hit.addEventListener('contextmenu', function (e) { e.preventDefault(); });
     }
 
