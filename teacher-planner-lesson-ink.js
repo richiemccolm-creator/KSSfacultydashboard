@@ -9,11 +9,11 @@
   var DEFAULT_PAPER = 'lined';
   var PAPERS = { plain: 1, lined: 1, grid: 1, dots: 1 };
   var MAX_STROKES = 600;
-  var MAX_POINTS = 480;
-  var MIN_POINT_DIST = 1.15;
+  var MAX_POINTS = 4000;
   var HISTORY_LIMIT = 80;
   var ERASE_RADIUS = 14;
   var PEN_COLOR = '#17243a';
+  var PEN_WIDTH = 2.5;
   var HIGHLIGHT_COLOR = 'rgba(47,111,214,0.22)';
   var MOUSE_SUPPRESS_MS = 800;
 
@@ -37,6 +37,8 @@
   var bound = false;
   var lastDpr = 0;
   var suppressMouseUntil = 0;
+  var docListening = false;
+  var diag = null;
 
   function emptyInk() {
     return { version: VERSION, paper: DEFAULT_PAPER, strokes: [] };
@@ -58,45 +60,23 @@
     return (page && page.clientWidth) ? page.clientWidth : 1;
   }
 
+  function pressureOf(evt) {
+    if (typeof evt.pressure === 'number' && isFinite(evt.pressure)) return evt.pressure;
+    return 0.5;
+  }
+
   function cssPoint(evt) {
     var rect = page.getBoundingClientRect();
     var w = pageWidth();
     return {
       x: (evt.clientX - rect.left) / w,
       y: evt.clientY - rect.top,
-      p: (typeof evt.pressure === 'number' && evt.pressure > 0) ? evt.pressure : 0.5
+      p: pressureOf(evt)
     };
   }
 
   function toCss(pt, width) {
     return { x: pt.x * width, y: pt.y, p: pt.p };
-  }
-
-  function cssDist2(a, b, width) {
-    var dx = (a.x - b.x) * width;
-    var dy = a.y - b.y;
-    return dx * dx + dy * dy;
-  }
-
-  function simplifyPoints(points) {
-    if (!points || points.length < 3) return points || [];
-    var w = pageWidth();
-    var min = MIN_POINT_DIST * MIN_POINT_DIST;
-    var out = [points[0]];
-    var i;
-    for (i = 1; i < points.length - 1; i++) {
-      if (cssDist2(points[i], out[out.length - 1], w) >= min) out.push(points[i]);
-    }
-    out.push(points[points.length - 1]);
-    if (out.length > MAX_POINTS) {
-      var step = out.length / MAX_POINTS;
-      var slim = [out[0]];
-      var idx;
-      for (idx = step; idx < out.length - 1; idx += step) slim.push(out[Math.floor(idx)]);
-      slim.push(out[out.length - 1]);
-      return slim;
-    }
-    return out;
   }
 
   function distPointSeg(px, py, x1, y1, x2, y2) {
@@ -126,11 +106,6 @@
     return false;
   }
 
-  function penWidth(pt) {
-    var p = (pt && typeof pt.p === 'number') ? pt.p : 0.5;
-    return 2.15 * (0.48 + 0.7 * Math.max(0.12, Math.min(1, p)));
-  }
-
   function drawStroke(stroke, width) {
     var pts = stroke.points || [];
     if (!pts.length || !ctx) return;
@@ -143,7 +118,7 @@
       ctx.globalCompositeOperation = 'multiply';
     } else {
       ctx.strokeStyle = PEN_COLOR;
-      ctx.lineWidth = penWidth(pts[0]);
+      ctx.lineWidth = PEN_WIDTH;
       ctx.globalCompositeOperation = 'source-over';
     }
     ctx.beginPath();
@@ -243,21 +218,30 @@
     if (page) page.classList.toggle('is-ink-mode', mode !== 'text');
     if (canvas) {
       canvas.style.pointerEvents = mode === 'text' ? 'none' : 'auto';
+      canvas.style.touchAction = mode === 'text' ? 'pan-x pan-y' : 'none';
       canvas.style.cursor = mode === 'eraser' ? 'cell' : (mode === 'text' ? 'default' : 'crosshair');
     }
     document.querySelectorAll('#lessonBodyToolbar [data-ink-mode]').forEach(function (btn) {
       btn.classList.toggle('is-active', btn.getAttribute('data-ink-mode') === mode);
     });
-    if (mode === 'text' && drawing) commitStroke();
+    if (mode === 'text' && drawing) commitStroke('mode-text');
   }
 
   function pointerMatches(evt) {
     return pointerId == null || !evt || evt.pointerId === pointerId;
   }
 
-  function canDraw(evt) {
+  function pointerKind(evt) {
+    return (evt && evt.pointerType) || 'mouse';
+  }
+
+  function isStylusTouch(touch) {
+    return !!(touch && (touch.touchType === 'stylus' || touch.touchType === 'pencil'));
+  }
+
+  function canStartDraw(evt) {
     if (mode === 'text') return false;
-    var type = evt.pointerType || 'mouse';
+    var type = pointerKind(evt);
     if (type === 'touch') {
       suppressMouseUntil = Date.now() + MOUSE_SUPPRESS_MS;
       return false;
@@ -266,70 +250,153 @@
     return type === 'pen' || type === 'mouse' || type === '';
   }
 
-  function commitStroke() {
+  function diagRecord(evt, extra) {
+    if (!evt) return;
+    var rec = {
+      type: evt.type,
+      pointerId: evt.pointerId,
+      pointerType: evt.pointerType,
+      isPrimary: evt.isPrimary,
+      buttons: evt.buttons,
+      pressure: evt.pressure,
+      clientX: evt.clientX,
+      clientY: evt.clientY,
+      timeStamp: evt.timeStamp
+    };
+    if (extra) rec.note = extra;
+    if (!diag || evt.type === 'pointerdown') {
+      diag = {
+        seq: [],
+        moves: 0,
+        coalesced: 0,
+        start: evt.timeStamp,
+        hasRawUpdate: typeof window.PointerEvent !== 'undefined' && 'onpointerrawupdate' in window
+      };
+    }
+    if (evt.type === 'pointermove' || evt.type === 'pointerrawupdate') {
+      diag.moves += 1;
+      if (diag.moves <= 2) diag.seq.push(rec);
+    } else {
+      diag.seq.push(rec);
+    }
+  }
+
+  function diagFinish(reason, pointCount) {
+    if (!diag) return;
+    diag.end = reason;
+    diag.points = pointCount;
+    console.log('[LessonInk stroke]', {
+      end: reason,
+      moves: diag.moves,
+      points: pointCount,
+      coalesced: diag.coalesced,
+      hasPointerRawUpdate: diag.hasRawUpdate,
+      seq: diag.seq.map(function (r) { return r.type + (r.note ? ':' + r.note : ''); })
+    });
+    root.__inkLastStroke = diag;
+    diag = null;
+  }
+
+  function listenDoc(on) {
+    if (on === docListening) return;
+    docListening = on;
+    var fn = on ? 'addEventListener' : 'removeEventListener';
+    document[fn]('pointerup', onDocPointerUp, true);
+    document[fn]('pointercancel', onDocPointerCancel, true);
+  }
+
+  function commitStroke(reason) {
+    var count = current && current.points ? current.points.length : 0;
     if (current && current.points && current.points.length) {
       pushHistory();
-      current.points = simplifyPoints(current.points);
+      if (current.points.length > MAX_POINTS) {
+        var step = current.points.length / MAX_POINTS;
+        var slim = [current.points[0]];
+        var idx;
+        for (idx = step; idx < current.points.length - 1; idx += step) slim.push(current.points[Math.floor(idx)]);
+        slim.push(current.points[current.points.length - 1]);
+        current.points = slim;
+      }
       strokes.push({ tool: current.tool, points: clonePoints(current.points) });
     }
     current = null;
     drawing = false;
     pointerId = null;
     eraseDirty = false;
+    listenDoc(false);
     requestRedraw();
     updateButtons();
+    if (reason) diagFinish(reason, count);
+  }
+
+  function appendPoint(evt) {
+    if (!current) return;
+    if (current.points.length >= MAX_POINTS) return;
+    current.points.push(cssPoint(evt));
+  }
+
+  function samplesFrom(evt) {
+    if (typeof evt.getCoalescedEvents === 'function') {
+      try {
+        var list = evt.getCoalescedEvents();
+        if (list && list.length) {
+          if (diag) diag.coalesced += list.length;
+          return list;
+        }
+      } catch (err) {}
+    }
+    return [evt];
   }
 
   function beginStroke(evt) {
     if (drawing) return;
     if (evt.isPrimary === false) return;
-    if (!canDraw(evt)) return;
-    evt.preventDefault();
-    try { canvas.setPointerCapture(evt.pointerId); } catch (err) {}
+    if (!canStartDraw(evt)) return;
+    diagRecord(evt);
+    if (evt.cancelable) evt.preventDefault();
     drawing = true;
     pointerId = evt.pointerId;
     eraseDirty = false;
-    var pt = cssPoint(evt);
+    listenDoc(true);
     if (mode === 'eraser') {
-      eraseAt(pt);
       current = null;
+      eraseAt(cssPoint(evt));
       return;
     }
     if (strokes.length >= MAX_STROKES) {
       drawing = false;
       pointerId = null;
-      try { canvas.releasePointerCapture(evt.pointerId); } catch (err2) {}
+      listenDoc(false);
       return;
     }
-    current = { tool: mode, points: [pt] };
+    current = { tool: mode, points: [cssPoint(evt)] };
     requestRedraw();
   }
 
   function moveStroke(evt) {
     if (!drawing || !pointerMatches(evt)) return;
-    if (!canDraw(evt)) return;
-    var pt = cssPoint(evt);
+    if (pointerKind(evt) === 'touch') return;
+    diagRecord(evt);
     if (mode === 'eraser') {
-      evt.preventDefault();
-      eraseAt(pt);
+      eraseAt(cssPoint(evt));
       return;
     }
     if (!current) return;
-    evt.preventDefault();
-    var last = current.points[current.points.length - 1];
-    if (cssDist2(pt, last, pageWidth()) < MIN_POINT_DIST * MIN_POINT_DIST) return;
-    current.points.push(pt);
+    var samples = samplesFrom(evt);
+    var i;
+    for (i = 0; i < samples.length; i++) appendPoint(samples[i]);
     requestRedraw();
   }
 
-  function endStroke(evt) {
+  function endStroke(evt, reason) {
     if (!pointerMatches(evt)) return;
     if (!drawing && !current) return;
-    if (evt) {
-      try { canvas.releasePointerCapture(evt.pointerId); } catch (err) {}
-    }
-    commitStroke();
+    if (evt) diagRecord(evt, reason);
+    commitStroke(reason || 'pointerup');
   }
+
+  function onDocPointerUp(evt) { endStroke(evt, 'pointerup'); }
+  function onDocPointerCancel(evt) { endStroke(evt, 'pointercancel'); }
 
   function eraseAt(pt) {
     var radius = ERASE_RADIUS;
@@ -417,6 +484,7 @@
     current = null;
     drawing = false;
     pointerId = null;
+    listenDoc(false);
     undoStack = [];
     redoStack = [];
     applyPaper(data.paper);
@@ -426,7 +494,7 @@
   }
 
   function serialize() {
-    if (drawing || current) commitStroke();
+    if (drawing || current) commitStroke('serialize');
     return {
       version: VERSION,
       paper: paper,
@@ -436,18 +504,30 @@
 
   function onPointerDown(evt) { beginStroke(evt); }
   function onPointerMove(evt) { moveStroke(evt); }
-  function onPointerUp(evt) { endStroke(evt); }
-  function onPointerCancel(evt) { endStroke(evt); }
-  function onLostCapture(evt) { endStroke(evt); }
+  function onGotCapture(evt) { diagRecord(evt); }
+  function onLostCapture(evt) { diagRecord(evt, 'ignored-not-commit'); }
+
+  function onTouchGuard(evt) {
+    if (mode === 'text') return;
+    var i;
+    var list = evt.changedTouches || evt.touches || [];
+    for (i = 0; i < list.length; i++) {
+      if (isStylusTouch(list[i])) {
+        if (evt.cancelable) evt.preventDefault();
+        return;
+      }
+    }
+  }
 
   function bind() {
     if (!canvas || canvas.dataset.inkBound) return;
     canvas.dataset.inkBound = '1';
     canvas.addEventListener('pointerdown', onPointerDown, { passive: false });
     canvas.addEventListener('pointermove', onPointerMove, { passive: false });
-    canvas.addEventListener('pointerup', onPointerUp);
-    canvas.addEventListener('pointercancel', onPointerCancel);
+    canvas.addEventListener('gotpointercapture', onGotCapture);
     canvas.addEventListener('lostpointercapture', onLostCapture);
+    canvas.addEventListener('touchstart', onTouchGuard, { passive: false });
+    canvas.addEventListener('touchmove', onTouchGuard, { passive: false });
     canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
   }
 
@@ -500,6 +580,7 @@
     drawing = false;
     current = null;
     pointerId = null;
+    listenDoc(false);
     setMode('text');
   }
 
