@@ -31,11 +31,13 @@
 <script src="department-meeting-docx-import.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="announcement-docx-import.js"></script>
+<script src="announcement-richtext.js"></script>
 <script src="parent-letter-docx.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="design-tokens.css">
 <link rel="stylesheet" href="fh-mobile-shell.css">
+<link rel="stylesheet" href="announcement-richtext.css">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--navy:#1e2d4a;--navy-dark:#16243c;--accent-drama:#4a7fd4;--accent-ad:#c0622a;--white:#fff;--bg:#f0f2f5;--card:#fff;--border:#e2e8f0;--text:#1a202c;--text2:#4a5568;--text3:#718096}
@@ -63,6 +65,7 @@ h3,h4,h5,h6{font-family:var(--font-heading);font-weight:600}
 .btn:disabled{opacity:.5;cursor:not-allowed}
 .form-input{font-size:.85rem;padding:.5rem .75rem;border:1px solid var(--border);border-radius:6px;width:100%;max-width:280px}
 .form-input:focus{outline:none;border-color:var(--navy);box-shadow:0 0 0 2px rgba(30,45,74,.15)}
+.ann-rt-wrap{max-width:none}
 .form-label{font-size:.65rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);margin-bottom:.35rem;display:block}
 
 .nav-tabs{display:flex;gap:.25rem;flex-wrap:wrap;margin-bottom:1rem;border-bottom:1px solid var(--border);padding-bottom:.5rem}
@@ -445,7 +448,6 @@ html,body{min-height:100%;margin:0;width:100%;box-sizing:border-box}
           <div class="sc-body">
             <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem;align-items:flex-end">
               <div><label class="form-label">Title</label><input type="text" id="admin-ann-title" class="form-input" placeholder="e.g. Department Meeting Reminder" style="min-width:220px"></div>
-              <div><label class="form-label">Body</label><textarea id="admin-ann-body" class="form-input" placeholder="Optional details..." rows="2" style="min-width:280px;resize:vertical"></textarea></div>
               <div><label class="form-label">Expires (optional)</label><input type="date" id="admin-ann-expires" class="form-input"></div>
               <div><label class="form-label">Priority</label><select id="admin-ann-priority" class="form-input"><option value="none">None</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
               <div style="display:flex;align-items:center;gap:.45rem;padding:.45rem .6rem;border:1px solid var(--border);border-radius:6px;background:var(--bg)">
@@ -459,6 +461,10 @@ html,body{min-height:100%;margin:0;width:100%;box-sizing:border-box}
               <button class="btn btn-primary" id="admin-ann-add-btn" onclick="adminAddAnnouncement()">Add announcement</button>
               <button class="btn btn-primary" id="admin-ann-update-btn" onclick="adminUpdateAnnouncement()" style="display:none;background:#0369a1">Update</button>
               <button class="btn btn-ghost" id="admin-ann-cancel-btn" onclick="adminCancelAnnouncementEdit()" style="display:none">Cancel</button>
+            </div>
+            <div style="margin-bottom:1rem">
+              <label class="form-label" for="admin-ann-body">Body</label>
+              <textarea id="admin-ann-body" class="form-input" placeholder="Optional details. Add a heading, emphasis, or a link." rows="4" style="min-width:100%;max-width:none;resize:vertical"></textarea>
             </div>
             <div style="margin-bottom:1rem;padding:.85rem;border:1px solid var(--border);border-radius:8px;background:var(--card)">
               <label class="form-label" for="admin-ann-docx-file">Bulk import from Word (.docx)</label>
@@ -2452,12 +2458,22 @@ function adminDeleteSharedEvent(id) {
   }).catch(function() { toast('Failed to remove event'); });
 }
 
+function adminAnnBodyHtml() {
+  var el = document.getElementById('admin-ann-body');
+  if (window.AnnouncementRichText) return AnnouncementRichText.read(el);
+  return ((el && el.value) || '').trim();
+}
+function adminAnnBodySet(html) {
+  var el = document.getElementById('admin-ann-body');
+  if (window.AnnouncementRichText) AnnouncementRichText.write(el, html || '');
+  else if (el) el.value = html || '';
+}
 function adminEditAnnouncement(id) {
   var a = adminAnnouncements.find(function(x) { return x.id === id; });
   if (!a) return;
   adminEditingAnnouncementId = id;
   document.getElementById('admin-ann-title').value = a.title || '';
-  document.getElementById('admin-ann-body').value = a.body || '';
+  adminAnnBodySet(a.body || '');
   document.getElementById('admin-ann-expires').value = a.expires_at || '';
   document.getElementById('admin-ann-priority').value = a.priority || 'none';
   document.getElementById('admin-ann-highlight').checked = !!a.highlight_priority;
@@ -2469,7 +2485,7 @@ function adminEditAnnouncement(id) {
 function adminCancelAnnouncementEdit() {
   adminEditingAnnouncementId = null;
   document.getElementById('admin-ann-title').value = '';
-  document.getElementById('admin-ann-body').value = '';
+  adminAnnBodySet('');
   document.getElementById('admin-ann-expires').value = '';
   document.getElementById('admin-ann-priority').value = 'none';
   document.getElementById('admin-ann-highlight').checked = false;
@@ -2481,7 +2497,7 @@ function adminCancelAnnouncementEdit() {
 function adminUpdateAnnouncement() {
   if (!adminEditingAnnouncementId || !window.__authGuardIsAdmin || !window.DataService) return;
   var title = document.getElementById('admin-ann-title').value.trim();
-  var body = document.getElementById('admin-ann-body').value.trim();
+  var body = adminAnnBodyHtml();
   var expires = document.getElementById('admin-ann-expires').value || null;
   var priority = document.getElementById('admin-ann-priority').value || 'none';
   var highlightPriority = !!document.getElementById('admin-ann-highlight').checked;
@@ -2496,7 +2512,7 @@ function adminUpdateAnnouncement() {
 function adminAddAnnouncement() {
   if (!window.__authGuardIsAdmin || !window.DataService) { toast('Admin only'); return; }
   var title = document.getElementById('admin-ann-title').value.trim();
-  var body = document.getElementById('admin-ann-body').value.trim();
+  var body = adminAnnBodyHtml();
   var expires = document.getElementById('admin-ann-expires').value || null;
   var priority = document.getElementById('admin-ann-priority').value || 'none';
   var highlightPriority = !!document.getElementById('admin-ann-highlight').checked;
@@ -2504,7 +2520,7 @@ function adminAddAnnouncement() {
   if (!title) { toast('Enter a title'); return; }
   DataService.createAnnouncement({ title: title, body: body || null, expires_at: expires, priority: priority, highlight_priority: highlightPriority, featured_banner: featuredBanner }).then(function() {
     document.getElementById('admin-ann-title').value = '';
-    document.getElementById('admin-ann-body').value = '';
+    adminAnnBodySet('');
     document.getElementById('admin-ann-expires').value = '';
     document.getElementById('admin-ann-priority').value = 'none';
     document.getElementById('admin-ann-highlight').checked = false;
@@ -2524,6 +2540,11 @@ function adminDeleteAnnouncement(id) {
 }
 
 updateImportStatus();
+if (window.AnnouncementRichText) {
+  AnnouncementRichText.mount(document.getElementById('admin-ann-body'), {
+    placeholder: 'Optional details. Add a heading, emphasis, or a link to a Faculty Hub page or website.'
+  });
+}
 </script>
 <script src="fh-mobile-shell.js"></script>
 </body>
