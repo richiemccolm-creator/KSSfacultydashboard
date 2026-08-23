@@ -721,7 +721,7 @@
     clearId: 'lessonNextNoteClear',
     normalizeY: true,
     penAlways: true,
-    mouseInk: false,
+    mouseInk: true,
     penOnPage: true,
     docMove: true,
     followEditor: false,

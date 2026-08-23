@@ -40,9 +40,9 @@
 <script src="n5-ci-planner-import.js"></script>
 <script src="faculty-timetable-data.js"></script>
 <script src="faculty-timetable-planner-import.js"></script>
-<script src="planner-service.js?v=ink-5"></script>
+<script src="planner-service.js?v=ink-6"></script>
 <script src="planner-class-support-strategies.js"></script>
-<script src="teacher-planner-lesson-ink.js?v=ink-7"></script>
+<script src="teacher-planner-lesson-ink.js?v=ink-8"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -968,9 +968,9 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
   .pulse-right{text-align:left}
 }
 </style>
-<link rel="stylesheet" href="teacher-planner-redesign.css?v=polish-2">
-<link rel="stylesheet" href="teacher-planner-editorial.css?v=polish-2">
-<link rel="stylesheet" href="teacher-planner-editorial-views.css?v=polish-3">
+<link rel="stylesheet" href="teacher-planner-redesign.css?v=polish-4">
+<link rel="stylesheet" href="teacher-planner-editorial.css?v=polish-4">
+<link rel="stylesheet" href="teacher-planner-editorial-views.css?v=polish-6">
 </head>
 <body>
 <script>
@@ -1811,7 +1811,6 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
   <div class="modal modal-wide-lesson lesson-modal-shell">
     <header class="lesson-ws-top">
       <button type="button" class="lesson-ws-back" id="lessonCancel">← Back to Week</button>
-      <button type="button" class="lesson-ws-tools-toggle" id="lessonToolsToggle" aria-expanded="true" aria-controls="lessonToolsRail">Tools ‹</button>
       <h2 class="sr-only" id="lessonModalTitle">Add Lesson</h2>
       <button type="button" class="sr-only" id="modalClose">Close</button>
       <div class="lesson-ws-actions">
@@ -1879,7 +1878,11 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
                 <textarea class="lesson-next-note-text" id="lessonNextNoteText" rows="3" maxlength="600" placeholder="Jot what to start with next time…"></textarea>
                 <canvas class="lesson-next-note-canvas" id="lessonNextNoteCanvas" aria-hidden="true"></canvas>
               </div>
-              <button type="button" class="lesson-next-note-clear" id="lessonNextNoteClear" hidden>Clear handwriting</button>
+              <div class="lesson-next-note-actions">
+                <button type="button" class="lesson-next-note-clear" id="lessonNextNoteClear" hidden>Clear handwriting</button>
+                <button type="button" class="lesson-next-note-carry" id="lessonNextNoteCarry">Carry to next lesson →</button>
+              </div>
+              <p class="lesson-next-note-status" id="lessonNextNoteStatus" hidden></p>
             </aside>
           </div>
           <div class="lesson-ws-fields">
@@ -2015,6 +2018,8 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
       </div>
 
       <aside class="lesson-ws-rail" id="lessonToolsRail" aria-label="Lesson tools">
+        <button type="button" class="lesson-ws-rail-handle" id="lessonToolsToggle" aria-expanded="true" aria-controls="lessonToolsRailInner" aria-label="Hide lesson tools">‹</button>
+        <div class="lesson-ws-rail-inner" id="lessonToolsRailInner">
         <div class="lesson-ws-rail-head">
           <div class="lesson-ws-kicker">Lesson tools</div>
           <h3 id="lessonRailClass">Lesson</h3>
@@ -2023,12 +2028,12 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
         <section class="lesson-ws-rail-section">
           <div class="lesson-ws-kicker">Planning</div>
           <button type="button" class="lesson-ws-action is-support" id="classSupportRailBtn" aria-pressed="false">
-            <span class="lesson-ws-ico" aria-hidden="true">S</span>
+            <span class="lesson-ws-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
             <span class="lesson-ws-copy"><b>Class Support</b><small id="lessonRailSupportHint">Set up a class profile</small></span>
             <span class="lesson-ws-chev" aria-hidden="true">›</span>
           </button>
           <button type="button" class="lesson-ws-action" id="lessonRailTemplatesBtn" data-lesson-panel="lessonTemplatesPanel">
-            <span class="lesson-ws-ico" aria-hidden="true">T</span>
+            <span class="lesson-ws-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg></span>
             <span class="lesson-ws-copy"><b>Templates</b><small>Insert a lesson structure</small></span>
             <span class="lesson-ws-chev" aria-hidden="true">›</span>
           </button>
@@ -2036,12 +2041,12 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
         <section class="lesson-ws-rail-section">
           <div class="lesson-ws-kicker">Teaching</div>
           <button type="button" class="lesson-ws-action" data-lesson-panel="lessonSlidesAttach">
-            <span class="lesson-ws-ico" aria-hidden="true">▣</span>
+            <span class="lesson-ws-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg></span>
             <span class="lesson-ws-copy"><b>Slides</b><small id="lessonRailSlidesHint">Create or open slides</small></span>
             <span class="lesson-ws-chev" aria-hidden="true">›</span>
           </button>
           <button type="button" class="lesson-ws-action" data-lesson-panel="lessonHomeworkPanel" id="lessonRailHomeworkBtn">
-            <span class="lesson-ws-ico" aria-hidden="true">H</span>
+            <span class="lesson-ws-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg></span>
             <span class="lesson-ws-copy"><b>Homework</b><small id="lessonRailHomeworkHint">Add or review homework</small></span>
             <span class="lesson-ws-chev" aria-hidden="true">›</span>
           </button>
@@ -2049,26 +2054,27 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
         <section class="lesson-ws-rail-section">
           <div class="lesson-ws-kicker">Lesson</div>
           <button type="button" class="lesson-ws-action" id="lessonRailCopyBtn">
-            <span class="lesson-ws-ico" aria-hidden="true">⧉</span>
+            <span class="lesson-ws-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg></span>
             <span class="lesson-ws-copy"><b>Copy lesson</b><small>Reuse this plan</small></span>
             <span class="lesson-ws-chev" aria-hidden="true">›</span>
           </button>
           <button type="button" class="lesson-ws-action" id="lessonRailBankBtn">
-            <span class="lesson-ws-ico" aria-hidden="true">L</span>
+            <span class="lesson-ws-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8V21H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg></span>
             <span class="lesson-ws-copy"><b>Lesson Bank</b><small>Save or reuse lessons</small></span>
             <span class="lesson-ws-chev" aria-hidden="true">›</span>
           </button>
           <button type="button" class="lesson-ws-action" data-lesson-panel="lessonExtrasPanel">
-            <span class="lesson-ws-ico" aria-hidden="true">+</span>
+            <span class="lesson-ws-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg></span>
             <span class="lesson-ws-copy"><b>To-do &amp; resources</b><small>Optional prep notes</small></span>
             <span class="lesson-ws-chev" aria-hidden="true">›</span>
           </button>
           <button type="button" class="lesson-ws-action is-danger" id="lessonDelete">
-            <span class="lesson-ws-ico" aria-hidden="true">×</span>
+            <span class="lesson-ws-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></span>
             <span class="lesson-ws-copy"><b>Delete lesson</b><small>Remove this lesson</small></span>
             <span class="lesson-ws-chev" aria-hidden="true">›</span>
           </button>
         </section>
+        </div>
       </aside>
     </div>
     <div class="class-support-drawer" id="classSupportDrawer" hidden>
@@ -5503,9 +5509,9 @@ function createWeekDashboardMarkup(model) {
       var classLabel = it.className || 'Class';
       var heading = periodLabel ? (classLabel + ' · ' + periodLabel) : classLabel;
       return (
-        '<button type="button" class="week-priority-item is-action" data-date="' + it.dateStr + '" data-slot="' + it.slotKey + '">' +
+        '<button type="button" class="week-priority-item is-action" data-date="' + it.dateStr + '" data-slot="' + it.slotKey + '" aria-label="Plan ' + escAttr(heading) + '">' +
           '<span class="week-priority-copy"><strong>' + escHtml(heading) + '</strong><span>' + escHtml(it.detail || '') + '</span></span>' +
-          '<span class="week-priority-go">Plan →</span>' +
+          '<span class="week-priority-go" aria-hidden="true">›</span>' +
         '</button>'
       );
     }).join('') + '</div>';
@@ -8638,10 +8644,11 @@ function syncClassSupportStrip() {
 }
 
 function classSupportChipHtml(id, label, selected, interactive) {
+  var cat = ' is-cat-' + String(id || 'other').replace(/[^a-zA-Z0-9_-]/g, '');
   if (interactive) {
-    return '<button type="button" class="class-support-chip' + (selected ? ' is-on' : '') + '" data-consideration="' + escAttr(id) + '" aria-pressed="' + (selected ? 'true' : 'false') + '">' + escHtml(label) + '</button>';
+    return '<button type="button" class="class-support-chip' + cat + (selected ? ' is-on' : '') + '" data-consideration="' + escAttr(id) + '" aria-pressed="' + (selected ? 'true' : 'false') + '">' + escHtml(label) + '</button>';
   }
-  return '<span class="class-support-chip is-static is-on">' + escHtml(label) + '</span>';
+  return '<span class="class-support-chip is-static is-on' + cat + '" data-consideration="' + escAttr(id) + '">' + escHtml(label) + '</span>';
 }
 
 function renderClassSupportView(profile) {
@@ -8983,7 +8990,8 @@ function setLessonToolsCollapsed(collapsed, persist) {
   if (modal) modal.classList.toggle('is-tools-collapsed', collapsed);
   if (btn) {
     btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
-    btn.textContent = collapsed ? 'Tools ›' : 'Tools ‹';
+    btn.textContent = collapsed ? '›' : '‹';
+    btn.setAttribute('aria-label', collapsed ? 'Show lesson tools' : 'Hide lesson tools');
   }
   if (persist !== false) {
     try { localStorage.setItem(LESSON_TOOLS_PREF, collapsed ? '1' : '0'); } catch (e) {}
@@ -9065,12 +9073,14 @@ function loadNextLessonNoteUi(lesson, dateStr, slotKey, opts) {
     hidePreviousNextNote();
     if (textEl) textEl.value = '';
     if (window.LessonNoteInk) LessonNoteInk.load(null);
+    setNextLessonNoteStatus('', false);
     return;
   }
   if (wrap) wrap.hidden = false;
   var note = (lesson && lesson.nextLessonNote) || { version: 1, text: '', ink: { version: 1, strokes: [] } };
   if (textEl) textEl.value = note.text || '';
   if (window.LessonNoteInk) LessonNoteInk.load(note.ink || null);
+  setNextLessonNoteStatus('', false);
   renderPreviousNextNote(lesson, dateStr, slotKey);
 }
 
@@ -9091,7 +9101,73 @@ function dismissPreviousNextNote() {
   if (PS.saveLessons) PS.saveLessons();
 }
 
+function formatNextLessonCarryLabel(occ) {
+  if (!occ) return '';
+  var parts = String(occ.date || '').split('-');
+  var d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+  var when = isNaN(d.getTime())
+    ? String(occ.date || '')
+    : d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+  return when + ' · P' + occ.period;
+}
+
+function setNextLessonNoteStatus(text, isError) {
+  var el = document.getElementById('lessonNextNoteStatus');
+  if (!el) return;
+  if (!text) {
+    el.hidden = true;
+    el.textContent = '';
+    el.classList.remove('is-error');
+    return;
+  }
+  el.hidden = false;
+  el.textContent = text;
+  el.classList.toggle('is-error', !!isError);
+}
+
+function carryNextLessonNote() {
+  var note = collectNextLessonNoteFromModal();
+  if (!PS.nextLessonNoteIsEmpty || PS.nextLessonNoteIsEmpty(note)) {
+    setNextLessonNoteStatus('Write a reminder first.', true);
+    showToast('Write a reminder first');
+    return;
+  }
+  var ctx = typeof classSupportContextFromModal === 'function' ? classSupportContextFromModal() : {};
+  var slotKeyVal = (document.getElementById('lessonSlotKey') || {}).value || '';
+  var dateStr = (document.getElementById('lessonDate') || {}).value || '';
+  var sk = slotKeyVal ? parseSlotKeyParts(slotKeyVal) : null;
+  if (!ctx.className || !sk || !PS.nextLessonOccurrenceForClass) {
+    setNextLessonNoteStatus('This reminder needs a timetable class.', true);
+    showToast('This reminder needs a timetable class');
+    return;
+  }
+  var occ = PS.nextLessonOccurrenceForClass(ctx.className, dateStr, sk.period);
+  if (!occ) {
+    setNextLessonNoteStatus('No next lesson for this class on the timetable.', true);
+    showToast('No next lesson for this class on the timetable');
+    return;
+  }
+  var payload = collectLessonPayloadFromModal();
+  PS.upsertLesson(payload, PS.getEditingLessonId && PS.getEditingLessonId());
+  var saved = PS.getLessonFor(dateStr, slotKeyVal);
+  if (saved && saved.id && PS.setEditingLessonId) PS.setEditingLessonId(saved.id);
+  var label = formatNextLessonCarryLabel(occ);
+  var finish = function() {
+    setNextLessonNoteStatus('Sent to ' + label, false);
+    showToast('Sent to ' + label);
+    refreshPlannerAfterLessonChange();
+  };
+  if (PS.saveLessons) {
+    PS.saveLessons().then(finish).catch(finish);
+  } else {
+    finish();
+  }
+}
+
 function showLessonToolPanel(id) {
+  if (document.getElementById('lessonModal') && document.getElementById('lessonModal').classList.contains('is-tools-collapsed')) {
+    setLessonToolsCollapsed(false);
+  }
   var el = document.getElementById(id);
   if (!el) return;
   document.querySelectorAll('#lessonModal .lesson-ws-panel').forEach(function(panel) {
@@ -9865,6 +9941,8 @@ function initLessonWorkspaceUi() {
       LessonNoteInk.clearInk();
     });
   }
+  var noteCarry = document.getElementById('lessonNextNoteCarry');
+  if (noteCarry) noteCarry.addEventListener('click', carryNextLessonNote);
 }
 
 function closeLessonModal() {

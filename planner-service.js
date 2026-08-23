@@ -555,6 +555,52 @@
       return null;
     },
 
+    /**
+     * Next timetable occurrence of the same className after this date/period.
+     * Same-day later period first, then following weekdays. Skips weekends.
+     */
+    nextLessonOccurrenceForClass: function(className, dateStr, period) {
+      var self = this;
+      var want = String(className || '').trim().toLowerCase();
+      var date = ymdValid(dateStr) ? String(dateStr).slice(0, 10) : '';
+      var periodNum = parseInt(period, 10) || 0;
+      if (!want || !date) return null;
+      var classSlots = (state.timetable.slots || []).filter(function(s) {
+        return String(s.className || '').trim().toLowerCase() === want;
+      });
+      if (!classSlots.length) return null;
+      var parts = date.split('-');
+      var d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+      var found = 0;
+      for (var dayOffset = 0; dayOffset < 90; dayOffset++) {
+        if (dayOffset > 0) d.setDate(d.getDate() + 1);
+        var js = d.getDay();
+        if (js < 1 || js > 5) continue;
+        var name = DAYS[js - 1];
+        var daySlots = classSlots.filter(function(s) {
+          return String(s.day || '').toLowerCase() === name;
+        }).slice().sort(function(a, b) {
+          return (parseInt(a.period, 10) || 0) - (parseInt(b.period, 10) || 0);
+        });
+        var dateI = self.getDateStr(d);
+        for (var j = 0; j < daySlots.length; j++) {
+          var p = parseInt(daySlots[j].period, 10) || 0;
+          if (dayOffset === 0 && p <= periodNum) continue;
+          var sk = self.slotKey(name, p);
+          found++;
+          return {
+            date: dateI,
+            slotKey: sk,
+            period: p,
+            className: String(daySlots[j].className || '').trim(),
+            lesson: self.getLessonFor(dateI, sk) || null
+          };
+        }
+        if (found > 24) break;
+      }
+      return null;
+    },
+
     listHomework: function(filters) {
       var self = this;
       filters = filters || {};

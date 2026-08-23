@@ -2280,30 +2280,6 @@
   display: inline-flex;
   align-items: center;
 }
-#lessonModal .lesson-ws-tools-toggle {
-  border: 0;
-  background: none;
-  color: var(--ed-sub);
-  font: inherit;
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.02em;
-  cursor: pointer;
-  padding: 0 2px;
-  height: var(--ed-control-lg);
-  min-height: var(--ed-control-lg);
-  display: inline-flex;
-  align-items: center;
-  flex-shrink: 0;
-}
-#lessonModal .lesson-ws-tools-toggle:hover {
-  color: var(--ed-title);
-}
-#lessonModal .lesson-ws-tools-toggle:focus-visible {
-  outline: 2px solid var(--ed-blue);
-  outline-offset: 2px;
-  border-radius: var(--ed-radius);
-}
 #lessonModal .lesson-ws-actions {
   margin-left: auto;
   display: flex;
@@ -2440,6 +2416,7 @@
   min-height: 0;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 280px;
+  transition: grid-template-columns 0.2s ease;
 }
 #lessonModal .lesson-modal-body {
   min-width: 0;
@@ -2645,7 +2622,7 @@
 #lessonModal .lesson-next-note-clear {
   display: inline-flex;
   align-items: center;
-  margin: 4px 0 0;
+  margin: 0;
   border: 0;
   background: none;
   color: var(--ed-muted);
@@ -2657,6 +2634,39 @@
 }
 #lessonModal .lesson-next-note-clear:hover { color: var(--ed-title); }
 #lessonModal .lesson-next-note-clear[hidden] { display: none !important; }
+#lessonModal .lesson-next-note-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  min-height: 22px;
+  margin-top: 4px;
+}
+#lessonModal .lesson-next-note-carry {
+  border: 0;
+  background: none;
+  color: var(--ed-title);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  margin-left: auto;
+}
+#lessonModal .lesson-next-note-carry:hover { color: var(--ed-hub, #071a2d); }
+#lessonModal .lesson-next-note-carry:focus-visible {
+  outline: 2px solid var(--ed-blue);
+  outline-offset: 2px;
+  border-radius: var(--ed-radius);
+}
+#lessonModal .lesson-next-note-status {
+  margin: 4px 0 0;
+  font-size: 11px;
+  font-weight: 650;
+  color: var(--ed-muted);
+}
+#lessonModal .lesson-next-note-status.is-error { color: #8a4a4a; }
+#lessonModal .lesson-next-note-status[hidden] { display: none !important; }
 #lessonModal .lesson-ws-kicker {
   font-size: 11px;
   font-weight: 800;
@@ -2887,10 +2897,49 @@
 }
 #lessonModal .lesson-ws-panel[hidden] { display: none !important; }
 #lessonModal .lesson-ws-rail {
+  position: relative;
+  z-index: 3;
   border-left: 1px solid var(--ed-line);
   background: #fbfcfd;
+  overflow: visible;
+  min-height: 0;
+}
+#lessonModal .lesson-ws-rail-inner {
+  height: 100%;
   overflow: auto;
   min-height: 0;
+}
+#lessonModal .lesson-ws-rail-handle {
+  position: absolute;
+  left: 0;
+  top: 118px;
+  z-index: 6;
+  width: 22px;
+  height: 72px;
+  margin: 0;
+  padding: 0;
+  transform: translateX(-100%);
+  border: 1px solid var(--ed-line);
+  border-right: 0;
+  border-radius: var(--ed-radius) 0 0 var(--ed-radius);
+  background: #fbfcfd;
+  color: var(--ed-sub);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+#lessonModal .lesson-ws-rail-handle:hover {
+  color: var(--ed-title);
+  background: #fff;
+}
+#lessonModal .lesson-ws-rail-handle:focus-visible {
+  outline: 2px solid var(--ed-blue);
+  outline-offset: 2px;
 }
 #lessonModal .lesson-ws-rail-head {
   padding: 14px 16px 10px;
@@ -2935,16 +2984,23 @@
 #lessonModal .lesson-ws-action:first-of-type { border-top: 0; }
 #lessonModal .lesson-ws-action[hidden] { display: none !important; }
 #lessonModal .lesson-ws-ico {
-  width: 24px;
-  height: 24px;
-  border: 1px solid var(--ed-line);
-  border-radius: var(--ed-radius);
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 0;
   display: grid;
   place-items: center;
-  background: #fff;
-  font-size: 11px;
-  line-height: 1;
+  background: transparent;
+  color: var(--ed-sub);
   flex-shrink: 0;
+}
+#lessonModal .lesson-ws-ico svg {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+#lessonModal .lesson-ws-action.is-danger .lesson-ws-ico {
+  color: #a64646;
 }
 #lessonModal .lesson-ws-copy {
   min-width: 0;
@@ -3005,10 +3061,78 @@
   line-height: 1.45;
   margin: 8px 0 0;
 }
-#lessonModal .class-support-note {
-  background: transparent;
-  border-radius: 0;
-  padding: 4px 0 4px 12px;
+#lessonModal .class-support-chips {
+  gap: 8px 8px;
+}
+#lessonModal .class-support-chips.is-edit .class-support-chip.is-cat-literacy.is-on,
+#lessonModal .class-support-chips.is-edit .class-support-chip.is-cat-literacy[aria-pressed="true"],
+#lessonModal .class-support-chips.is-context .class-support-chip.is-cat-literacy,
+#lessonModal .class-support-chip.is-static.is-cat-literacy,
+#lessonModal .class-support-chips.is-edit .class-support-chip.is-cat-communication.is-on,
+#lessonModal .class-support-chips.is-edit .class-support-chip.is-cat-communication[aria-pressed="true"],
+#lessonModal .class-support-chips.is-context .class-support-chip.is-cat-communication,
+#lessonModal .class-support-chip.is-static.is-cat-communication {
+  background: #f2f5f9;
+  border-color: #c5d0dc;
+  color: var(--ed-title);
+  box-shadow: inset 3px 0 0 #4d6480;
+}
+#lessonModal .class-support-chips.is-edit .class-support-chip.is-cat-eal.is-on,
+#lessonModal .class-support-chips.is-edit .class-support-chip.is-cat-eal[aria-pressed="true"],
+#lessonModal .class-support-chips.is-context .class-support-chip.is-cat-eal,
+#lessonModal .class-support-chip.is-static.is-cat-eal {
+  background: #f1f6f5;
+  border-color: #c5d6d2;
+  color: var(--ed-title);
+  box-shadow: inset 3px 0 0 #4d726c;
+}
+#lessonModal .class-support-chips.is-edit .class-support-chip.is-cat-processing.is-on,
+#lessonModal .class-support-chips.is-edit .class-support-chip.is-cat-processing[aria-pressed="true"],
+#lessonModal .class-support-chips.is-context .class-support-chip.is-cat-processing,
+#lessonModal .class-support-chip.is-static.is-cat-processing,
+#lessonModal .class-support-chips.is-edit .class-support-chip.is-cat-attention.is-on,
+#lessonModal .class-support-chips.is-edit .class-support-chip.is-cat-attention[aria-pressed="true"],
+#lessonModal .class-support-chips.is-context .class-support-chip.is-cat-attention,
+#lessonModal .class-support-chip.is-static.is-cat-attention {
+  background: #f3f4f8;
+  border-color: #c7cbd8;
+  color: var(--ed-title);
+  box-shadow: inset 3px 0 0 #5a5f78;
+}
+#lessonModal .class-support-chips.is-edit .class-support-chip.is-cat-confidence.is-on,
+#lessonModal .class-support-chips.is-edit .class-support-chip.is-cat-confidence[aria-pressed="true"],
+#lessonModal .class-support-chips.is-context .class-support-chip.is-cat-confidence,
+#lessonModal .class-support-chip.is-static.is-cat-confidence,
+#lessonModal .class-support-chips.is-edit .class-support-chip.is-cat-groupDynamics.is-on,
+#lessonModal .class-support-chips.is-edit .class-support-chip.is-cat-groupDynamics[aria-pressed="true"],
+#lessonModal .class-support-chips.is-context .class-support-chip.is-cat-groupDynamics,
+#lessonModal .class-support-chip.is-static.is-cat-groupDynamics {
+  background: #f3f6f3;
+  border-color: #c7d4c7;
+  color: var(--ed-title);
+  box-shadow: inset 3px 0 0 #5a705c;
+}
+#lessonModal .class-support-chips.is-edit .class-support-chip.is-cat-sensory.is-on,
+#lessonModal .class-support-chips.is-edit .class-support-chip.is-cat-sensory[aria-pressed="true"],
+#lessonModal .class-support-chips.is-context .class-support-chip.is-cat-sensory,
+#lessonModal .class-support-chip.is-static.is-cat-sensory,
+#lessonModal .class-support-chips.is-edit .class-support-chip.is-cat-physical.is-on,
+#lessonModal .class-support-chips.is-edit .class-support-chip.is-cat-physical[aria-pressed="true"],
+#lessonModal .class-support-chips.is-context .class-support-chip.is-cat-physical,
+#lessonModal .class-support-chip.is-static.is-cat-physical {
+  background: #f6f4f1;
+  border-color: #d5cfc6;
+  color: var(--ed-title);
+  box-shadow: inset 3px 0 0 #7a7064;
+}
+#lessonModal .class-support-chips.is-edit .class-support-chip.is-cat-other.is-on,
+#lessonModal .class-support-chips.is-edit .class-support-chip.is-cat-other[aria-pressed="true"],
+#lessonModal .class-support-chips.is-context .class-support-chip.is-cat-other,
+#lessonModal .class-support-chip.is-static.is-cat-other {
+  background: #f4f5f7;
+  border-color: #c9ced6;
+  color: var(--ed-title);
+  box-shadow: inset 3px 0 0 #5b6573;
 }
 
 @media (max-width: 1180px) and (min-width: 901px) {
@@ -3069,6 +3193,35 @@
     border-left: 0;
     border-top: 1px solid var(--ed-line);
     height: auto;
+    overflow: visible;
+  }
+  #lessonModal .lesson-ws-rail-handle {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    left: auto;
+    transform: none;
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--ed-line);
+    border-radius: var(--ed-radius);
+  }
+  #lessonModal.is-tools-collapsed .lesson-ws-layout {
+    grid-template-columns: 1fr;
+  }
+  #lessonModal.is-tools-collapsed .lesson-ws-rail-inner {
+    display: none;
+  }
+  #lessonModal.is-tools-collapsed .lesson-ws-rail {
+    min-height: 44px;
+    height: 56px;
+    background: #fbfcfd;
+    border-top: 1px solid var(--ed-line);
+    overflow: hidden;
+  }
+  #lessonModal.is-tools-collapsed .lesson-ws-rail-handle {
+    right: 12px;
+    top: 10px;
   }
   #lessonModal .lesson-ws-title-row {
     grid-template-columns: 1fr;
@@ -3081,20 +3234,29 @@
   #lessonModal .lesson-next-note-page { height: 128px; }
 }
 
-#lessonModal.is-tools-collapsed .lesson-ws-layout {
-  grid-template-columns: minmax(0, 1fr);
-}
-#lessonModal.is-tools-collapsed .lesson-ws-rail {
-  display: none !important;
-}
-#lessonModal.is-tools-collapsed .lesson-modal-body {
-  padding-left: 32px;
-  padding-right: 32px;
-}
-
-@media (max-width: 900px) {
+@media (min-width: 901px) {
+  #lessonModal.is-tools-collapsed .lesson-ws-layout {
+    grid-template-columns: minmax(0, 1fr) 24px;
+  }
+  #lessonModal.is-tools-collapsed .lesson-ws-rail-inner {
+    display: none;
+  }
+  #lessonModal.is-tools-collapsed .lesson-ws-rail {
+    background: transparent;
+    border-left: 0;
+    overflow: visible;
+  }
+  #lessonModal.is-tools-collapsed .lesson-ws-rail-handle {
+    left: auto;
+    right: 0;
+    transform: none;
+    border-right: 1px solid var(--ed-line);
+    border-left: 1px solid var(--ed-line);
+    border-radius: var(--ed-radius) 0 0 var(--ed-radius);
+  }
   #lessonModal.is-tools-collapsed .lesson-modal-body {
-    padding: 22px 18px 28px;
+    padding-left: 32px;
+    padding-right: 32px;
   }
 }
 
