@@ -90,6 +90,16 @@ test.describe("Faculty Head Hub page assets", () => {
     expect(await cmRes.text()).toContain("classList.add('is-embed')");
   });
 
+  test("faculty hub home includes teacher planner home-screen feature panel", async ({ request }) => {
+    const res = await request.get("/faculty-hub.html");
+    expect(res.ok()).toBeTruthy();
+    const html = await res.text();
+    expect(html).toContain('id="homePlannerFeature"');
+    expect(html).toContain("teacher-planner-icon-180.png");
+    expect(html).toContain("teacher_planner.html");
+    expect(html).toContain("Add to Home Screen");
+  });
+
   test("all fh wrapper pages include shared access and embed scripts", async ({ request }) => {
     const pages = [
       "fh_calendar.html",
