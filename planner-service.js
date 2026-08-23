@@ -484,6 +484,77 @@
       return '';
     },
 
+    nextLessonNoteIsEmpty: function(note) {
+      if (!note || typeof note !== 'object') return true;
+      if (String(note.text || '').trim()) return false;
+      return !(note.ink && Array.isArray(note.ink.strokes) && note.ink.strokes.length);
+    },
+
+    nextLessonNoteStamp: function(note) {
+      if (this.nextLessonNoteIsEmpty(note)) return '';
+      var text = String(note.text || '').trim();
+      var n = (note.ink && note.ink.strokes && note.ink.strokes.length) || 0;
+      return text.length + ':' + n + ':' + text.slice(0, 96);
+    },
+
+    stripOperationalMemory: function(obj) {
+      if (!obj || typeof obj !== 'object') return obj;
+      delete obj.nextLessonNote;
+      delete obj.nextLessonNoteAck;
+      return obj;
+    },
+
+    /**
+     * Previous timetable occurrence of the same className (case-insensitive).
+     * Same-day earlier period first, then previous weekdays. Skips weekends.
+     * If opts.requireNote, keeps walking until a lesson with a nextLessonNote exists.
+     */
+    previousLessonOccurrenceForClass: function(className, dateStr, period, opts) {
+      var self = this;
+      var want = String(className || '').trim().toLowerCase();
+      var date = ymdValid(dateStr) ? String(dateStr).slice(0, 10) : '';
+      var periodNum = parseInt(period, 10) || 0;
+      opts = opts || {};
+      if (!want || !date) return null;
+      var classSlots = (state.timetable.slots || []).filter(function(s) {
+        return String(s.className || '').trim().toLowerCase() === want;
+      });
+      if (!classSlots.length) return null;
+      var parts = date.split('-');
+      var d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+      var requireNote = !!opts.requireNote;
+      var found = 0;
+      for (var dayOffset = 0; dayOffset < 90; dayOffset++) {
+        if (dayOffset > 0) d.setDate(d.getDate() - 1);
+        var js = d.getDay();
+        if (js < 1 || js > 5) continue;
+        var name = DAYS[js - 1];
+        var daySlots = classSlots.filter(function(s) {
+          return String(s.day || '').toLowerCase() === name;
+        }).slice().sort(function(a, b) {
+          return (parseInt(a.period, 10) || 0) - (parseInt(b.period, 10) || 0);
+        });
+        var dateI = self.getDateStr(d);
+        for (var j = daySlots.length - 1; j >= 0; j--) {
+          var p = parseInt(daySlots[j].period, 10) || 0;
+          if (dayOffset === 0 && p >= periodNum) continue;
+          var sk = self.slotKey(name, p);
+          var lesson = self.getLessonFor(dateI, sk) || null;
+          found++;
+          if (requireNote && self.nextLessonNoteIsEmpty(lesson && lesson.nextLessonNote)) continue;
+          return {
+            date: dateI,
+            slotKey: sk,
+            period: p,
+            className: String(daySlots[j].className || '').trim(),
+            lesson: lesson
+          };
+        }
+        if (found > 24) break;
+      }
+      return null;
+    },
+
     listHomework: function(filters) {
       var self = this;
       filters = filters || {};
@@ -709,6 +780,14 @@
         try { normalized.ink = JSON.parse(JSON.stringify(normalized.ink)); }
         catch (err) { normalized.ink = { version: 1, paper: 'lined', strokes: [] }; }
       }
+      if (normalized.nextLessonNote && typeof normalized.nextLessonNote === 'object') {
+        try { normalized.nextLessonNote = JSON.parse(JSON.stringify(normalized.nextLessonNote)); }
+        catch (err2) { normalized.nextLessonNote = { version: 1, text: '', ink: { version: 1, strokes: [] } }; }
+      }
+      if (normalized.nextLessonNoteAck && typeof normalized.nextLessonNoteAck === 'object') {
+        try { normalized.nextLessonNoteAck = JSON.parse(JSON.stringify(normalized.nextLessonNoteAck)); }
+        catch (err3) { normalized.nextLessonNoteAck = null; }
+      }
       if (editingId) {
         var idx = lessons.findIndex(function(l) { return l.id === editingId; });
         if (idx >= 0) {
@@ -797,6 +876,7 @@
           if (clone.homework && typeof clone.homework === 'object') {
             clone.homework = Object.assign({}, clone.homework, { collected: false });
           }
+          self.stripOperationalMemory(clone);
           self.upsertLesson(clone, dest ? dest.id : null);
           var saved = self.getLessonFor(toStr, sk);
           copied.push({
@@ -841,6 +921,7 @@
       var templates = state.lessonPlanTemplates.templates || [];
       var existing = template.id ? templates.find(function(t) { return t.id === template.id; }) : null;
       var toSave = Object.assign({ id: template.id || id(), createdAt: (existing && existing.createdAt) || new Date().toISOString() }, template);
+      this.stripOperationalMemory(toSave);
       if (existing) {
         var idx = templates.indexOf(existing);
         templates[idx] = toSave;

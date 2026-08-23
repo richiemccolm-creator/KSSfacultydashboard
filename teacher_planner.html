@@ -40,9 +40,9 @@
 <script src="n5-ci-planner-import.js"></script>
 <script src="faculty-timetable-data.js"></script>
 <script src="faculty-timetable-planner-import.js"></script>
-<script src="planner-service.js?v=ink-4"></script>
+<script src="planner-service.js?v=ink-5"></script>
 <script src="planner-class-support-strategies.js"></script>
-<script src="teacher-planner-lesson-ink.js?v=ink-6"></script>
+<script src="teacher-planner-lesson-ink.js?v=ink-7"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -970,7 +970,7 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
 </style>
 <link rel="stylesheet" href="teacher-planner-redesign.css?v=polish-2">
 <link rel="stylesheet" href="teacher-planner-editorial.css?v=polish-2">
-<link rel="stylesheet" href="teacher-planner-editorial-views.css?v=polish-2">
+<link rel="stylesheet" href="teacher-planner-editorial-views.css?v=polish-3">
 </head>
 <body>
 <script>
@@ -1811,6 +1811,7 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
   <div class="modal modal-wide-lesson lesson-modal-shell">
     <header class="lesson-ws-top">
       <button type="button" class="lesson-ws-back" id="lessonCancel">← Back to Week</button>
+      <button type="button" class="lesson-ws-tools-toggle" id="lessonToolsToggle" aria-expanded="true" aria-controls="lessonToolsRail">Tools ‹</button>
       <h2 class="sr-only" id="lessonModalTitle">Add Lesson</h2>
       <button type="button" class="sr-only" id="modalClose">Close</button>
       <div class="lesson-ws-actions">
@@ -1858,9 +1859,29 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
         </div>
 
         <section class="lesson-ws-title-block">
-          <label class="sr-only" for="lessonTitle">Lesson title</label>
-          <input type="text" class="lesson-ws-title" id="lessonTitle" placeholder="Untitled lesson">
-          <p class="lesson-ws-subline" id="lessonModalSubline" hidden></p>
+          <div class="lesson-ws-title-row">
+            <div class="lesson-ws-title-main">
+              <label class="sr-only" for="lessonTitle">Lesson title</label>
+              <input type="text" class="lesson-ws-title" id="lessonTitle" placeholder="Untitled lesson">
+              <p class="lesson-ws-subline" id="lessonModalSubline" hidden></p>
+            </div>
+            <aside class="lesson-next-note" id="lessonNextNote" hidden>
+              <div class="lesson-next-note-prev" id="lessonNextNotePrev" hidden>
+                <div class="lesson-next-note-prev-head">
+                  <span class="lesson-ws-kicker">From last lesson</span>
+                  <button type="button" class="lesson-next-note-done" id="lessonNextNoteDone">Done</button>
+                </div>
+                <p class="lesson-next-note-prev-text" id="lessonNextNotePrevText" hidden></p>
+                <canvas class="lesson-next-note-prev-ink" id="lessonNextNotePrevInk" hidden aria-hidden="true"></canvas>
+              </div>
+              <label class="lesson-ws-kicker" for="lessonNextNoteText">Remember for next lesson</label>
+              <div class="lesson-next-note-page is-lined" id="lessonNextNotePage">
+                <textarea class="lesson-next-note-text" id="lessonNextNoteText" rows="3" maxlength="600" placeholder="Jot what to start with next time…"></textarea>
+                <canvas class="lesson-next-note-canvas" id="lessonNextNoteCanvas" aria-hidden="true"></canvas>
+              </div>
+              <button type="button" class="lesson-next-note-clear" id="lessonNextNoteClear" hidden>Clear handwriting</button>
+            </aside>
+          </div>
           <div class="lesson-ws-fields">
             <label class="sr-only" for="lessonSubject">Subject</label>
             <select class="form-select" id="lessonSubject">
@@ -1993,7 +2014,7 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
         </details>
       </div>
 
-      <aside class="lesson-ws-rail" aria-label="Lesson tools">
+      <aside class="lesson-ws-rail" id="lessonToolsRail" aria-label="Lesson tools">
         <div class="lesson-ws-rail-head">
           <div class="lesson-ws-kicker">Lesson tools</div>
           <h3 id="lessonRailClass">Lesson</h3>
@@ -8947,6 +8968,129 @@ function resetLessonToolPanels() {
   setCopyLessonFormOpen(false);
 }
 
+var LESSON_TOOLS_PREF = 'plannerLessonToolsCollapsed';
+var lessonNextNoteAckState = null;
+var lessonPrevNoteShown = null;
+
+function lessonToolsCollapsedPref() {
+  try { return localStorage.getItem(LESSON_TOOLS_PREF) === '1'; } catch (e) { return false; }
+}
+
+function setLessonToolsCollapsed(collapsed, persist) {
+  var modal = document.getElementById('lessonModal');
+  var btn = document.getElementById('lessonToolsToggle');
+  collapsed = !!collapsed;
+  if (modal) modal.classList.toggle('is-tools-collapsed', collapsed);
+  if (btn) {
+    btn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+    btn.textContent = collapsed ? 'Tools ›' : 'Tools ‹';
+  }
+  if (persist !== false) {
+    try { localStorage.setItem(LESSON_TOOLS_PREF, collapsed ? '1' : '0'); } catch (e) {}
+  }
+  requestAnimationFrame(function() {
+    if (window.LessonInk && LessonInk.syncSize) LessonInk.syncSize();
+    if (window.LessonNoteInk && LessonNoteInk.syncSize) LessonNoteInk.syncSize();
+  });
+}
+
+function collectNextLessonNoteFromModal() {
+  var textEl = document.getElementById('lessonNextNoteText');
+  return {
+    version: 1,
+    text: textEl ? String(textEl.value || '') : '',
+    ink: (window.LessonNoteInk && LessonNoteInk.serialize)
+      ? LessonNoteInk.serialize()
+      : { version: 1, strokes: [] }
+  };
+}
+
+function hidePreviousNextNote() {
+  var prev = document.getElementById('lessonNextNotePrev');
+  var text = document.getElementById('lessonNextNotePrevText');
+  var ink = document.getElementById('lessonNextNotePrevInk');
+  if (prev) prev.hidden = true;
+  if (text) {
+    text.hidden = true;
+    text.textContent = '';
+  }
+  if (ink) ink.hidden = true;
+  lessonPrevNoteShown = null;
+}
+
+function paintPreviousNoteInk(inkEl, raw) {
+  if (!inkEl || !window.LessonNoteInk || !LessonNoteInk.paintTo) return;
+  requestAnimationFrame(function() {
+    LessonNoteInk.paintTo(inkEl, raw);
+  });
+}
+
+function renderPreviousNextNote(lesson, dateStr, slotKey) {
+  hidePreviousNextNote();
+  var ctx = typeof classSupportContextFromModal === 'function' ? classSupportContextFromModal() : {};
+  var sk = slotKey ? parseSlotKeyParts(slotKey) : null;
+  if (!ctx.className || !sk || !PS.previousLessonOccurrenceForClass) return;
+  var occ = PS.previousLessonOccurrenceForClass(ctx.className, dateStr, sk.period);
+  if (!occ || !occ.lesson || PS.nextLessonNoteIsEmpty(occ.lesson.nextLessonNote)) return;
+  var stamp = PS.nextLessonNoteStamp(occ.lesson.nextLessonNote);
+  var ack = lessonNextNoteAckState || (lesson && lesson.nextLessonNoteAck) || null;
+  if (ack && occ.lesson.id && ack.fromLessonId === occ.lesson.id && ack.stamp === stamp) return;
+  var prev = document.getElementById('lessonNextNotePrev');
+  var textEl = document.getElementById('lessonNextNotePrevText');
+  var inkEl = document.getElementById('lessonNextNotePrevInk');
+  var note = occ.lesson.nextLessonNote;
+  var text = String(note.text || '').trim();
+  var hasInk = !!(note.ink && note.ink.strokes && note.ink.strokes.length);
+  if (prev) prev.hidden = false;
+  if (textEl) {
+    textEl.hidden = !text;
+    textEl.textContent = text ? ('“' + text + '”') : '';
+  }
+  if (inkEl) {
+    inkEl.hidden = !hasInk;
+    if (hasInk) paintPreviousNoteInk(inkEl, note.ink);
+  }
+  lessonPrevNoteShown = { fromLessonId: occ.lesson.id || '', stamp: stamp };
+}
+
+function loadNextLessonNoteUi(lesson, dateStr, slotKey, opts) {
+  opts = opts || {};
+  var wrap = document.getElementById('lessonNextNote');
+  var textEl = document.getElementById('lessonNextNoteText');
+  var shell = document.querySelector('#lessonModal .lesson-modal-shell');
+  var library = !!(opts.library || (shell && shell.classList.contains('is-library')));
+  lessonNextNoteAckState = (lesson && lesson.nextLessonNoteAck) ? Object.assign({}, lesson.nextLessonNoteAck) : null;
+  if (library) {
+    if (wrap) wrap.hidden = true;
+    hidePreviousNextNote();
+    if (textEl) textEl.value = '';
+    if (window.LessonNoteInk) LessonNoteInk.load(null);
+    return;
+  }
+  if (wrap) wrap.hidden = false;
+  var note = (lesson && lesson.nextLessonNote) || { version: 1, text: '', ink: { version: 1, strokes: [] } };
+  if (textEl) textEl.value = note.text || '';
+  if (window.LessonNoteInk) LessonNoteInk.load(note.ink || null);
+  renderPreviousNextNote(lesson, dateStr, slotKey);
+}
+
+function dismissPreviousNextNote() {
+  if (!lessonPrevNoteShown) return;
+  lessonNextNoteAckState = {
+    fromLessonId: lessonPrevNoteShown.fromLessonId,
+    stamp: lessonPrevNoteShown.stamp
+  };
+  hidePreviousNextNote();
+  var editingId = PS.getEditingLessonId && PS.getEditingLessonId();
+  if (!editingId) return;
+  var dateStr = (document.getElementById('lessonDate') || {}).value || '';
+  var slotKeyVal = (document.getElementById('lessonSlotKey') || {}).value || '';
+  var existing = PS.getLessonFor(dateStr, slotKeyVal);
+  if (!existing) return;
+  existing.nextLessonNoteAck = Object.assign({}, lessonNextNoteAckState);
+  if (PS.saveLessons) PS.saveLessons();
+}
+
 function showLessonToolPanel(id) {
   var el = document.getElementById(id);
   if (!el) return;
@@ -9128,8 +9272,10 @@ function openLessonModal(dateStr, slotKey) {
   syncLessonSubline();
   syncLessonToolSummaries();
   document.getElementById('lessonModal').classList.add('visible');
+  setLessonToolsCollapsed(lessonToolsCollapsedPref(), false);
   resetLessonWorkspaceScroll();
   if (window.LessonInk) LessonInk.load(lesson && lesson.ink);
+  loadNextLessonNoteUi(lesson, dateStr, slotKey);
   syncLessonModalKeyboardInset();
   populateApplyTemplateDropdown();
 }
@@ -9193,8 +9339,10 @@ function openLessonModalForLibrary(templateId) {
   syncLessonSubline();
   syncLessonToolSummaries();
   document.getElementById('lessonModal').classList.add('visible');
+  setLessonToolsCollapsed(lessonToolsCollapsedPref(), false);
   resetLessonWorkspaceScroll();
   if (window.LessonInk) LessonInk.load(null);
+  loadNextLessonNoteUi(null, '', '', { library: true });
   syncLessonModalKeyboardInset();
 }
 
@@ -9430,6 +9578,8 @@ function collectLessonPayloadFromModal(overrides) {
     slidesIsHub: slidesAtt ? !!slidesAtt.slidesIsHub : false,
     homework: collectHomeworkFromModal(),
     ink: window.LessonInk ? LessonInk.serialize() : undefined,
+    nextLessonNote: collectNextLessonNoteFromModal(),
+    nextLessonNoteAck: lessonNextNoteAckState ? Object.assign({}, lessonNextNoteAckState) : null,
     updatedAt: new Date().toISOString()
   }, overrides);
 }
@@ -9514,6 +9664,8 @@ document.getElementById('lessonSave').addEventListener('click', function() {
     delete template.updatedAt;
     delete template.homework;
     delete template.ink;
+    delete template.nextLessonNote;
+    delete template.nextLessonNoteAck;
     if (templateId !== 'new') template.id = templateId;
     PS.saveTemplate(template).then(function() {
       document.getElementById('lessonModal').classList.remove('visible');
@@ -9604,6 +9756,7 @@ document.getElementById('doCopy').addEventListener('click', function() {
   var dayName = weekdayFromDateStr(toDate);
   var toSlotKey = slotKey(dayName, toPeriod);
   var payload = collectLessonPayloadFromModal({ date: toDate, slotKey: toSlotKey });
+  if (PS.stripOperationalMemory) PS.stripOperationalMemory(payload);
   PS.upsertLesson(payload, null);
   PS.saveLessons().then(function() {
     setCopyLessonFormOpen(false);
@@ -9696,11 +9849,30 @@ function initLessonWorkspaceUi() {
       });
     });
   }
+  var toolsToggle = document.getElementById('lessonToolsToggle');
+  if (toolsToggle) {
+    toolsToggle.addEventListener('click', function() {
+      setLessonToolsCollapsed(!document.getElementById('lessonModal').classList.contains('is-tools-collapsed'));
+    });
+  }
+  var noteDone = document.getElementById('lessonNextNoteDone');
+  if (noteDone) {
+    noteDone.addEventListener('click', dismissPreviousNextNote);
+  }
+  var noteClear = document.getElementById('lessonNextNoteClear');
+  if (noteClear && window.LessonNoteInk) {
+    noteClear.addEventListener('click', function() {
+      LessonNoteInk.clearInk();
+    });
+  }
 }
 
 function closeLessonModal() {
   closeClassSupportDrawer({ silent: true });
   if (window.LessonInk) LessonInk.reset();
+  if (window.LessonNoteInk) LessonNoteInk.reset();
+  hidePreviousNextNote();
+  lessonNextNoteAckState = null;
   var modal = document.getElementById('lessonModal');
   if (modal) {
     modal.classList.remove('visible');
@@ -11159,6 +11331,7 @@ function initPlannerChromeOffset() {
 // Init
 initLessonBodyEditor();
 if (window.LessonInk) LessonInk.init();
+if (window.LessonNoteInk) LessonNoteInk.init();
 bindFacultyTtImportUi();
 bindN5CiImportUi();
 initClassSupportUi();
