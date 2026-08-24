@@ -404,7 +404,9 @@
     }
     document.querySelectorAll('.nav-btn').forEach(function(btn) {
       var r = btn.getAttribute('data-route');
-      btn.classList.toggle('active', r === route || (route === 'course' && r === 'courses'));
+      btn.classList.toggle('active', r === route ||
+        (route === 'course' && r === 'courses') ||
+        (route === 'overview' && r === 'dashboard'));
     });
     syncNavVisibility();
     render();
@@ -1536,6 +1538,44 @@
   }
 
   // ── Visual dashboard helpers ──────────────────────────────
+  // Chart.js draws to canvas and cannot resolve CSS custom properties, so the
+  // donut palette is mirrored here from the status colours in spt-styles.css.
+  var CHART_COLORS = {
+    green: '#166534',
+    amber: '#d97706',
+    red: '#dc2626',
+    grey: '#cbd5e1',
+    teal: '#0d9488',
+    surface: '#ffffff',
+    centre: '#0f1a30',
+    centreSub: '#64748b'
+  };
+
+  function donutCentrePlugin(mainText, subText) {
+    return {
+      id: 'sptCentreText',
+      afterDraw: function(chart) {
+        var area = chart.chartArea;
+        if (!area) return;
+        var ctx = chart.ctx;
+        var cx = (area.left + area.right) / 2;
+        var cy = (area.top + area.bottom) / 2;
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = CHART_COLORS.centre;
+        ctx.font = '700 20px "DM Sans", "Inter", system-ui, sans-serif';
+        ctx.fillText(String(mainText), cx, subText ? cy - 7 : cy);
+        if (subText) {
+          ctx.fillStyle = CHART_COLORS.centreSub;
+          ctx.font = '600 9px "DM Sans", "Inter", system-ui, sans-serif';
+          ctx.fillText(String(subText).toUpperCase(), cx, cy + 11);
+        }
+        ctx.restore();
+      }
+    };
+  }
+
   function dashboardKpis(allRows) {
     var pupilMap = {};
     allRows.forEach(function(r) { pupilMap[r.pupil.id] = r.pupil; });
@@ -1611,31 +1651,6 @@
       canvas.style.cursor = elements.length ? 'pointer' : 'default';
     }
 
-    function centreTextPlugin(mainText, subText) {
-      return {
-        id: 'sptCentreText',
-        afterDraw: function(chart) {
-          var area = chart.chartArea;
-          if (!area) return;
-          var ctx = chart.ctx;
-          var cx = (area.left + area.right) / 2;
-          var cy = (area.top + area.bottom) / 2;
-          ctx.save();
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillStyle = '#0f1a30';
-          ctx.font = '700 20px "DM Sans", "Inter", system-ui, sans-serif';
-          ctx.fillText(String(mainText), cx, subText ? cy - 7 : cy);
-          if (subText) {
-            ctx.fillStyle = '#64748b';
-            ctx.font = '600 9px "DM Sans", "Inter", system-ui, sans-serif';
-            ctx.fillText(String(subText).toUpperCase(), cx, cy + 11);
-          }
-          ctx.restore();
-        }
-      };
-    }
-
     var riskCanvas = root.querySelector('#spt-dash-risk-chart');
     if (riskCanvas) {
       var rc = { Green: 0, Amber: 0, Red: 0, Grey: 0 };
@@ -1645,7 +1660,7 @@
       var riskAttention = rc.Amber + rc.Red;
       new Chart(riskCanvas.getContext('2d'), {
         type: 'doughnut',
-        plugins: [centreTextPlugin(riskAttention, 'at risk')],
+        plugins: [donutCentrePlugin(riskAttention, 'at risk')],
         data: {
           labels: riskSegmentLabels,
           datasets: [{ data: [rc.Green, rc.Amber, rc.Red, rc.Grey],
@@ -1692,7 +1707,7 @@
         : '\u2014';
       new Chart(attCanvas.getContext('2d'), {
         type: 'doughnut',
-        plugins: [centreTextPlugin(attAvgCentre, 'avg att')],
+        plugins: [donutCentrePlugin(attAvgCentre, 'avg att')],
         data: {
           labels: attSegmentLabels,
           datasets: [{ data: [aGood, aAmb, aLow, aNo],
@@ -2029,6 +2044,494 @@
     html += '</div>'; // end spt-dash-row-bottom
     html += '</div>'; // end spt-dash-overview
     return html;
+  }
+
+  // ── Role-aware landing pages ──────────────────────────────
+  // Presentation only. Everything below reads from the existing store
+  // (getEnrichedRows / trackingEntriesForUser / SptConcerns) and from the
+  // risk_status SptRisk has already calculated. No stored record is written,
+  // defaulted or normalised by any of these functions.
+
+  function sessionLabel() {
+    return String(SptConfig.currentAcademicYear() || '').replace('-', '\u2013');
+  }
+
+  /** Most recent tracking point whose date has passed (falls back to the first). */
+  function currentTrackingPointInfo(d) {
+    var tps = SptStore.trackingPoints(d);
+    if (!tps.length) return null;
+    var today = new Date().toISOString().slice(0, 10);
+    var idx = 0;
+    tps.forEach(function(tp, i) {
+      if ((tp.tracking_point_date || '') <= today) idx = i;
+    });
+    return { tp: tps[idx], index: idx, total: tps.length, label: 'TP' + (idx + 1) };
+  }
+
+  /** True when a WG, effort or behaviour value already exists for this TP. */
+  function hasTrackingPointEntry(d, enrolmentId, tpId) {
+    var att = (d.attendance_records || []).find(function(a) {
+      return a.enrolment_id === enrolmentId && a.tracking_point_id === tpId;
+    });
+    if (att && att.attendance_score != null && att.attendance_score !== '') return true;
+    var rec = SptStore.trackingRecordFor(d, enrolmentId, tpId);
+    if (!rec) return false;
+    return SptStore.trackingScoreValue(rec, 'effort') !== '' ||
+      SptStore.trackingScoreValue(rec, 'behaviour') !== '';
+  }
+
+  function homeGroupKey(classId, courseId) {
+    return classId || ('course:' + courseId);
+  }
+
+  /** Per-class roll-up of the rows the current user may already see. */
+  function homeClassSummaries(d, allRows) {
+    var tpInfo = currentTrackingPointInfo(d);
+    var byKey = {};
+    allRows.forEach(function(r) {
+      var key = homeGroupKey(r.enrolment.class_id, r.course.id);
+      if (!byKey[key]) byKey[key] = [];
+      byKey[key].push(r);
+    });
+    return SptStore.trackingEntriesForUser(d).map(function(entry) {
+      var rows = byKey[homeGroupKey(entry.classId, entry.courseId)] || [];
+      var levels = [];
+      rows.forEach(function(r) {
+        var lvl = r.enrolment.current_level;
+        if (lvl && levels.indexOf(lvl) < 0) levels.push(lvl);
+      });
+      var recorded = 0;
+      if (tpInfo) {
+        rows.forEach(function(r) {
+          if (hasTrackingPointEntry(d, r.enrolment.id, tpInfo.tp.id)) recorded++;
+        });
+      }
+      var onTrack = rows.filter(function(r) { return r.enrolment.risk_status === 'Green'; }).length;
+      var started = rows.filter(function(r) {
+        return r.enrolment.risk_status && r.enrolment.risk_status !== 'Grey';
+      }).length;
+      return {
+        entry: entry,
+        levels: levels,
+        pupils: rows.length,
+        onTrack: onTrack,
+        started: started,
+        onTrackPct: started ? Math.round(onTrack / rows.length * 100) : null,
+        atRisk: rows.filter(function(r) {
+          return r.enrolment.risk_status === 'Red' || r.enrolment.risk_status === 'Amber';
+        }).length,
+        concerns: rows.reduce(function(n, r) { return n + (r.pending_alert_count || 0); }, 0),
+        recorded: recorded
+      };
+    }).sort(function(a, b) {
+      return (a.entry.className || '').localeCompare(b.entry.className || '');
+    });
+  }
+
+  /**
+   * One attention line per pupil, highest-priority issue only. Concerns come
+   * from SptConcerns, risk from the stored risk_status, and "no entry yet"
+   * from the absence of a tracking record — nothing is flagged or saved here.
+   */
+  function homeAttentionItems(d, allRows, tpInfo) {
+    var items = [];
+    allRows.forEach(function(r) {
+      var issue = null;
+      var detail = '';
+      var tone = 'amber';
+      if (r.pending_alert_count > 0) {
+        var flag = (r.open_flags || []).find(function(f) { return f.status === 'Open'; });
+        issue = 'Open concern';
+        detail = flag ? (flag.category || '') : '';
+        tone = 'red';
+      } else if (r.enrolment.risk_status === 'Red' || r.enrolment.risk_status === 'Amber') {
+        issue = 'At risk';
+        detail = (r.enrolment.risk_reasons || [])[0] || '';
+        tone = r.enrolment.risk_status === 'Red' ? 'red' : 'amber';
+      } else if (tpInfo && !hasTrackingPointEntry(d, r.enrolment.id, tpInfo.tp.id)) {
+        issue = 'No ' + tpInfo.label + ' entry yet';
+        tone = 'grey';
+      }
+      if (!issue) return;
+      if (detail.length > 46) detail = detail.slice(0, 43) + '\u2026';
+      items.push({
+        enrolmentId: r.enrolment.id,
+        pupil: SptStore.pupilName(d, r.pupil.id),
+        className: r.class_name,
+        course: r.course.course_name,
+        status: r.enrolment.risk_status,
+        issue: issue,
+        detail: detail,
+        tone: tone
+      });
+    });
+    var order = { red: 0, amber: 1, grey: 2 };
+    return items.sort(function(a, b) {
+      return (order[a.tone] - order[b.tone]) || a.pupil.localeCompare(b.pupil);
+    });
+  }
+
+  function homeMeterHtml(pct, tone) {
+    if (pct == null) return '<div class="spt-home-meter spt-home-meter--empty"><span></span></div>';
+    return '<div class="spt-home-meter spt-home-meter--' + tone + '">' +
+      '<span style="width:' + Math.max(0, Math.min(100, pct)) + '%"></span></div>';
+  }
+
+  function homeLegendHtml(items) {
+    var visible = items.filter(function(x) { return x.val > 0; });
+    if (!visible.length) return '';
+    return '<div class="spt-dash-legend">' + visible.map(function(item) {
+      return '<div class="spt-dash-leg-item ' + item.cls + '">' +
+        '<span class="spt-dash-leg-dot"></span>' +
+        '<span class="spt-dash-leg-lbl">' + esc(item.lbl) + '</span>' +
+        '<strong class="spt-dash-leg-val">' + item.val + '</strong></div>';
+    }).join('') + '</div>';
+  }
+
+  function homeDonutPanelHtml(opts) {
+    var html = '<div class="spt-dash-chart-panel spt-home-donut">';
+    html += '<div class="spt-dash-panel-title">' + esc(opts.title) +
+      (opts.sub ? ' <span class="spt-dash-panel-sub">' + esc(opts.sub) + '</span>' : '') + '</div>';
+    html += '<div class="spt-dash-chart-body">';
+    if (opts.hasData) {
+      html += '<canvas id="' + opts.canvasId + '" width="150" height="150"></canvas>';
+      html += homeLegendHtml(opts.legend || []);
+    } else {
+      html += '<div class="spt-dash-empty">' + (opts.empty || 'No data yet') + '</div>';
+    }
+    html += '</div></div>';
+    return html;
+  }
+
+  function attendanceBandCounts(allRows) {
+    var out = { good: 0, amber: 0, low: 0, none: 0, values: [] };
+    allRows.forEach(function(r) {
+      var pct = rowAttPct(r);
+      if (pct == null) { out.none++; return; }
+      out.values.push(pct);
+      if (pct >= 90) out.good++; else if (pct >= 75) out.amber++; else out.low++;
+    });
+    return out;
+  }
+
+  function riskBandCounts(allRows) {
+    var out = { Green: 0, Amber: 0, Red: 0, Grey: 0 };
+    allRows.forEach(function(r) {
+      var s = r.enrolment.risk_status || 'Grey';
+      out[s] = (out[s] || 0) + 1;
+    });
+    return out;
+  }
+
+  function homeTrackingCounts(d, allRows, tpInfo) {
+    var recorded = 0;
+    if (tpInfo) {
+      allRows.forEach(function(r) {
+        if (hasTrackingPointEntry(d, r.enrolment.id, tpInfo.tp.id)) recorded++;
+      });
+    }
+    return { recorded: recorded, outstanding: allRows.length - recorded };
+  }
+
+  function homeConcernCounts(d) {
+    var flags = SptConcerns.allViewableFlags(d);
+    return {
+      open: flags.filter(function(f) { return f.status === 'Open'; }).length,
+      ongoing: flags.filter(function(f) { return f.status === 'Ongoing'; }).length,
+      resolved: flags.filter(function(f) { return f.status === 'Resolved'; }).length,
+      total: flags.length
+    };
+  }
+
+  function renderFacultyHome() {
+    var d = db();
+    var r = role();
+    var allRows = SptConcerns.sortByUrgency(SptStore.getEnrichedRows(d), d);
+    var tpInfo = currentTrackingPointInfo(d);
+    var kpis = dashboardKpis(allRows);
+    var classes = homeClassSummaries(d, allRows);
+    var risk = riskBandCounts(allRows);
+    var att = attendanceBandCounts(allRows);
+    var tracking = homeTrackingCounts(d, allRows, tpInfo);
+    var concerns = homeConcernCounts(d);
+    var teacherCount = (d.teachers || []).length;
+
+    var html = alertStripHtml();
+    html += '<div class="spt-home spt-home--faculty">';
+
+    html += '<header class="spt-home-head">';
+    html += '<div class="spt-home-head-main">';
+    html += '<div class="spt-home-eyebrow">Senior Phase Tracking</div>';
+    html += '<h1>Faculty overview</h1>';
+    html += '<p class="spt-home-welcome">' +
+      esc(kpis.total + ' pupil' + (kpis.total !== 1 ? 's' : '') +
+        ' across ' + classes.length + ' class' + (classes.length !== 1 ? 'es' : '') +
+        (teacherCount ? ' and ' + teacherCount + ' teacher' + (teacherCount !== 1 ? 's' : '') : '') + '.') +
+      '</p></div>';
+    html += '<div class="spt-home-head-meta">';
+    html += '<span class="spt-home-chip">' + esc(r.label) + '</span>';
+    html += '<span class="spt-home-chip spt-home-chip--quiet">Session ' + esc(sessionLabel()) + '</span>';
+    html += '<div class="spt-home-head-actions">';
+    html += '<button type="button" class="btn btn-secondary btn-sm" data-route="overview">Detailed analytics</button>';
+    html += '<button type="button" class="btn btn-sm" data-route="register">Full register</button>';
+    html += '</div></div></header>';
+
+    // Risk and attendance reuse the dashboard canvas ids so their existing
+    // click-through drill-down works unchanged.
+    html += '<div class="spt-home-donuts">';
+    html += homeDonutPanelHtml({
+      title: 'Risk status', sub: 'click a segment', canvasId: 'spt-dash-risk-chart',
+      hasData: allRows.length > 0,
+      empty: 'No enrolments yet',
+      legend: [
+        { lbl: 'On track', val: risk.Green, cls: 'leg-green' },
+        { lbl: 'Amber', val: risk.Amber, cls: 'leg-amber' },
+        { lbl: 'Red', val: risk.Red, cls: 'leg-red' },
+        { lbl: 'Not started', val: risk.Grey, cls: 'leg-grey' }
+      ]
+    });
+    html += homeDonutPanelHtml({
+      title: tpInfo ? tpInfo.label + ' entries' : 'Tracking entries',
+      sub: tpInfo ? 'current tracking point' : '',
+      canvasId: 'spt-home-tracking-chart',
+      hasData: !!(tpInfo && allRows.length),
+      empty: 'No tracking points set up yet',
+      legend: [
+        { lbl: 'Recorded', val: tracking.recorded, cls: 'leg-green' },
+        { lbl: 'Outstanding', val: tracking.outstanding, cls: 'leg-grey' }
+      ]
+    });
+    html += homeDonutPanelHtml({
+      title: 'Concerns', sub: 'all raised this session', canvasId: 'spt-home-concern-chart',
+      hasData: concerns.total > 0,
+      empty: 'No concerns raised',
+      legend: [
+        { lbl: 'Open', val: concerns.open, cls: 'leg-red' },
+        { lbl: 'Ongoing', val: concerns.ongoing, cls: 'leg-amber' },
+        { lbl: 'Resolved', val: concerns.resolved, cls: 'leg-green' }
+      ]
+    });
+    html += homeDonutPanelHtml({
+      title: 'Attendance', sub: 'latest per pupil', canvasId: 'spt-dash-att-chart',
+      hasData: att.values.length > 0,
+      empty: 'No attendance data.<br>' +
+        '<button type="button" class="btn btn-sm" style="margin-top:0.5rem" data-route="import">Import attendance</button>',
+      legend: [
+        { lbl: '90%+', val: att.good, cls: 'leg-green' },
+        { lbl: '75\u201389%', val: att.amber, cls: 'leg-amber' },
+        { lbl: 'Under 75%', val: att.low, cls: 'leg-red' },
+        { lbl: 'No data', val: att.none, cls: 'leg-grey' }
+      ]
+    });
+    html += '</div>';
+
+    var attentionPanel = renderDashboardAttention(d, allRows);
+    if (attentionPanel) {
+      html += attentionPanel;
+    } else if (allRows.length) {
+      html += '<div class="spt-home-allclear">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20"><polyline points="20 6 9 17 4 12"/></svg>' +
+        'No open concerns and no pupils flagged at risk.</div>';
+    }
+    if (tpInfo && tracking.outstanding > 0) {
+      html += '<div class="spt-home-note">' +
+        '<strong>' + tracking.outstanding + '</strong> pupil' + (tracking.outstanding !== 1 ? 's' : '') +
+        ' still have no ' + esc(tpInfo.label) + ' working grade, effort or behaviour entry. ' +
+        'Outstanding classes are listed below.</div>';
+    }
+
+    html += '<section class="spt-home-panel">';
+    html += '<div class="spt-home-panel-head"><h2>Faculty classes</h2>' +
+      '<span class="spt-home-panel-meta">' + classes.length + ' class' + (classes.length !== 1 ? 'es' : '') + '</span>' +
+      '<button type="button" class="linkish spt-home-panel-link" data-route="courses">All class sheets</button></div>';
+    if (!classes.length) {
+      html += '<div class="empty">No classes yet' +
+        (r.canSetup ? ' — add them in <button type="button" class="linkish" data-route="setup">Setup / Cohort</button>' : '') + '.</div>';
+    } else {
+      html += '<div class="spt-home-table-wrap"><table class="data-table data-table-compact spt-home-table">';
+      html += '<thead><tr><th>Class</th><th>Teacher</th><th>Course</th><th>Level</th>' +
+        '<th class="cell-num">Pupils</th><th class="cell-num">At risk</th><th class="cell-num">Concerns</th>' +
+        '<th>' + esc(tpInfo ? tpInfo.label + ' entered' : 'Tracking') + '</th><th></th></tr></thead><tbody>';
+      classes.forEach(function(c) {
+        var e = c.entry;
+        var trackPct = c.pupils ? Math.round(c.recorded / c.pupils * 100) : null;
+        var trackTone = trackPct == null ? 'grey' : trackPct >= 100 ? 'green' : trackPct >= 50 ? 'amber' : 'red';
+        html += '<tr' + (e.type === 'unassigned' ? ' class="spt-home-row-unassigned"' : '') + '>' +
+          '<td class="spt-home-cell-class">' + esc(e.className) + '</td>' +
+          '<td>' + esc(e.teacherName || '\u2014') + '</td>' +
+          '<td>' + esc(e.courseName) + '</td>' +
+          '<td>' + esc(c.levels.join(', ') || '\u2014') + '</td>' +
+          '<td class="cell-num">' + c.pupils + '</td>' +
+          '<td class="cell-num">' + (c.atRisk ? '<span class="spt-home-num spt-home-num--red">' + c.atRisk + '</span>' : '\u2014') + '</td>' +
+          '<td class="cell-num">' + (c.concerns ? '<span class="spt-home-num spt-home-num--amber">' + c.concerns + '</span>' : '\u2014') + '</td>' +
+          '<td class="spt-home-cell-track">' +
+          (tpInfo && c.pupils
+            ? '<span class="spt-home-track-val">' + c.recorded + '/' + c.pupils + '</span>' + homeMeterHtml(trackPct, trackTone)
+            : '\u2014') +
+          '</td>' +
+          '<td class="cell-action"><button type="button" class="btn btn-secondary btn-sm" data-class-sheet' +
+          ' data-course="' + esc(e.courseId) + '"' +
+          (e.classId ? ' data-class="' + esc(e.classId) + '"' : ' data-unassigned="1"') +
+          '>Open class</button></td></tr>';
+      });
+      html += '</tbody></table></div>';
+    }
+    html += '</section>';
+
+    html += '</div>';
+    return html;
+  }
+
+  function renderTeacherHome() {
+    var d = db();
+    var allRows = SptStore.getEnrichedRows(d);
+    var tpInfo = currentTrackingPointInfo(d);
+    var classes = homeClassSummaries(d, allRows);
+    var attention = homeAttentionItems(d, allRows, tpInfo);
+    var teacher = SptStore.byId(d.teachers, d.simulated_teacher_id);
+    var firstName = teacher ? (teacher.preferred_name || teacher.first_name || '') : '';
+    var hour = new Date().getHours();
+    var greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
+    var pupilIds = {};
+    allRows.forEach(function(r) { pupilIds[r.pupil.id] = true; });
+    var pupilTotal = Object.keys(pupilIds).length;
+    var outstanding = homeTrackingCounts(d, allRows, tpInfo).outstanding;
+
+    var html = alertStripHtml();
+    html += '<div class="spt-home spt-home--teacher">';
+
+    html += '<header class="spt-home-head spt-home-head--teacher">';
+    html += '<div class="spt-home-head-main">';
+    html += '<div class="spt-home-eyebrow">Senior Phase Tracking \u00b7 Session ' + esc(sessionLabel()) + '</div>';
+    html += '<h1>' + esc(firstName ? greeting + ', ' + firstName : 'Your Senior Phase classes') + '</h1>';
+    html += '<div class="spt-home-teacher-stats">' +
+      '<span><strong>' + classes.length + '</strong> class' + (classes.length !== 1 ? 'es' : '') + '</span>' +
+      '<span><strong>' + pupilTotal + '</strong> pupil' + (pupilTotal !== 1 ? 's' : '') + '</span>' +
+      '<span class="' + (attention.length ? 'is-flagged' : '') + '"><strong>' + attention.length + '</strong> need' +
+      (attention.length === 1 ? 's' : '') + ' attention</span>' +
+      '</div></div>';
+    html += '<div class="spt-home-head-meta">' +
+      '<button type="button" class="btn btn-secondary btn-sm" data-route="courses">All class sheets</button>' +
+      '</div></header>';
+
+    if (tpInfo && outstanding > 0) {
+      html += '<div class="spt-home-note spt-home-note--teacher">' +
+        'Next up: <strong>' + esc(tpInfo.label) + '</strong> entries for ' + outstanding +
+        ' pupil' + (outstanding !== 1 ? 's' : '') + '. Open a class to record working grade, effort and behaviour.</div>';
+    }
+
+    html += '<section class="spt-home-panel spt-home-panel--plain">';
+    html += '<div class="spt-home-panel-head"><h2>My classes</h2></div>';
+    if (!classes.length) {
+      html += '<div class="empty">No classes assigned yet — ask your faculty head to add you to a class.</div>';
+    } else {
+      html += '<div class="spt-home-class-grid">';
+      classes.forEach(function(c) {
+        var e = c.entry;
+        html += '<article class="spt-home-class-card' + (c.atRisk ? ' has-attention' : '') + '">';
+        html += '<div class="spt-home-class-top">' +
+          '<h3>' + esc(e.className) + '</h3>' +
+          '<span class="spt-home-class-course">' + esc(e.courseName) +
+          (c.levels.length ? ' \u00b7 ' + esc(c.levels.join(', ')) : '') + '</span></div>';
+        html += '<div class="spt-home-class-figs">' +
+          '<div class="spt-home-fig"><strong>' + c.pupils + '</strong><span>pupils</span></div>' +
+          '<div class="spt-home-fig"><strong>' + (c.onTrackPct != null ? c.onTrackPct + '%' : '\u2014') + '</strong>' +
+          '<span>' + (c.onTrackPct != null ? 'on track' : 'not started') + '</span></div>' +
+          (tpInfo ? '<div class="spt-home-fig"><strong>' + c.recorded + '/' + c.pupils + '</strong><span>' +
+            esc(tpInfo.label) + ' entered</span></div>' : '') +
+          '</div>';
+        html += homeMeterHtml(c.onTrackPct, c.onTrackPct != null && c.onTrackPct >= 70 ? 'green' : 'teal');
+        html += '<div class="spt-home-class-foot">';
+        html += c.atRisk
+          ? '<span class="spt-home-flag spt-home-flag--red">' + c.atRisk + ' need' + (c.atRisk === 1 ? 's' : '') + ' attention</span>'
+          : '<span class="spt-home-flag spt-home-flag--ok">No pupils flagged</span>';
+        html += '<button type="button" class="btn btn-sm" data-class-sheet data-course="' + esc(e.courseId) + '"' +
+          (e.classId ? ' data-class="' + esc(e.classId) + '"' : ' data-unassigned="1"') +
+          '>Open class</button>';
+        html += '</div></article>';
+      });
+      html += '</div>';
+    }
+    html += '</section>';
+
+    if (attention.length) {
+      var shown = attention.slice(0, 8);
+      html += '<section class="spt-home-panel">';
+      html += '<div class="spt-home-panel-head"><h2>Pupils needing attention</h2>' +
+        '<span class="spt-home-panel-meta">' + attention.length + ' pupil' + (attention.length !== 1 ? 's' : '') + '</span></div>';
+      html += '<div class="spt-home-table-wrap"><table class="data-table data-table-compact spt-home-table">';
+      html += '<thead><tr><th>Pupil</th><th>Class</th><th>Issue</th><th>Detail</th><th></th></tr></thead><tbody>';
+      shown.forEach(function(item) {
+        html += '<tr>' +
+          '<td class="col-pupil">' + esc(item.pupil) + '</td>' +
+          '<td>' + esc(item.className) + '</td>' +
+          '<td><span class="spt-home-issue spt-home-issue--' + item.tone + '">' + esc(item.issue) + '</span></td>' +
+          '<td class="spt-home-cell-detail">' + esc(item.detail || '\u2014') + '</td>' +
+          '<td class="cell-action"><button type="button" class="btn btn-secondary btn-sm" data-view-enrolment="' +
+          esc(item.enrolmentId) + '">View</button></td></tr>';
+      });
+      if (attention.length > shown.length) {
+        html += '<tr><td colspan="5" class="cell-hint">' + (attention.length - shown.length) +
+          ' more — <button type="button" class="linkish" data-route="courses">open a class sheet</button></td></tr>';
+      }
+      html += '</tbody></table></div></section>';
+    } else if (allRows.length) {
+      html += '<div class="spt-home-allclear">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20"><polyline points="20 6 9 17 4 12"/></svg>' +
+        'Nothing needs attention right now.</div>';
+    }
+
+    html += '</div>';
+    return html;
+  }
+
+  /** Donuts unique to the landing pages. Risk/attendance are bound by bindDashboardCharts. */
+  function bindHomeCharts(root) {
+    if (typeof Chart === 'undefined') return;
+    var d = db();
+    var allRows = SptStore.getEnrichedRows(d);
+    var tpInfo = currentTrackingPointInfo(d);
+
+    var trackCanvas = root.querySelector('#spt-home-tracking-chart');
+    if (trackCanvas && tpInfo) {
+      var counts = homeTrackingCounts(d, allRows, tpInfo);
+      var pct = allRows.length ? Math.round(counts.recorded / allRows.length * 100) : 0;
+      new Chart(trackCanvas.getContext('2d'), {
+        type: 'doughnut',
+        plugins: [donutCentrePlugin(pct + '%', 'entered')],
+        data: {
+          labels: ['Recorded', 'Outstanding'],
+          datasets: [{ data: [counts.recorded, counts.outstanding],
+            backgroundColor: [CHART_COLORS.teal, CHART_COLORS.grey],
+            borderWidth: 2, borderColor: CHART_COLORS.surface }]
+        },
+        options: {
+          plugins: { legend: { display: false } },
+          cutout: '62%',
+          animation: { duration: 350 }
+        }
+      });
+    }
+
+    var concernCanvas = root.querySelector('#spt-home-concern-chart');
+    if (concernCanvas) {
+      var cc = homeConcernCounts(d);
+      new Chart(concernCanvas.getContext('2d'), {
+        type: 'doughnut',
+        plugins: [donutCentrePlugin(cc.open, 'open')],
+        data: {
+          labels: ['Open', 'Ongoing', 'Resolved'],
+          datasets: [{ data: [cc.open, cc.ongoing, cc.resolved],
+            backgroundColor: [CHART_COLORS.red, CHART_COLORS.amber, CHART_COLORS.green],
+            borderWidth: 2, borderColor: CHART_COLORS.surface }]
+        },
+        options: {
+          plugins: { legend: { display: false } },
+          cutout: '62%',
+          animation: { duration: 350 }
+        }
+      });
+    }
   }
 
   function renderRegister() {
@@ -4949,7 +5452,8 @@
     try {
       var html = '';
       switch (state.route) {
-        case 'dashboard': html = renderDashboard(); break;
+        case 'dashboard': html = role().viewAll ? renderFacultyHome() : renderTeacherHome(); break;
+        case 'overview': html = renderDashboard(); break;
         case 'register': html = renderRegister(); break;
         case 'alerts': html = renderAlerts(); break;
         case 'feedback': html = renderFeedback(); break;
@@ -4996,14 +5500,15 @@
       } catch (qsImportErr) {
         console.error('QS import bind error', qsImportErr);
       }
-      if (state.route === 'dashboard') bindDashboardCharts(appMain);
+      if (state.route === 'dashboard' || state.route === 'overview') bindDashboardCharts(appMain);
+      if (state.route === 'dashboard') bindHomeCharts(appMain);
       restoreGridScroll(scrollPos);
     } catch (err) {
       console.error('Senior Phase Tracking UI error', err);
       var main = document.getElementById('app-main');
       if (main) {
         main.innerHTML =
-          '<div class="card" style="margin:1.5rem;padding:1.25rem;border-left:4px solid #b45309">' +
+          '<div class="card" style="margin:1.5rem;padding:1.25rem;border:1px solid var(--amber-border);background:var(--amber-bg)">' +
           '<h2 style="margin:0 0 .5rem">Tracking UI error</h2>' +
           '<p style="margin:0 0 .75rem">Something went wrong rendering this page. Try a hard refresh. ' +
           'If it continues, open the browser console and note the error.</p>' +
