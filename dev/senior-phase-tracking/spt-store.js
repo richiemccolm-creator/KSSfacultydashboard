@@ -119,11 +119,14 @@
     });
   }
 
+  var TRACKING_MERGE_FIELDS = ['effort', 'behaviour', 'imported_from_school_tracking', 'import_batch_id'];
+  var ATTENDANCE_MERGE_FIELDS = ['attendance_score', 'attendance_percent', 'teacher_comment'];
+
   function mergeTrackingData(local, remote) {
     return mergeByCompositeKey(local, remote, function(r) {
       return r.enrolment_id + '|' + r.tracking_point_id;
     }, function(a, b) {
-      var merged = mergeFieldRecords(a, b, ['effort', 'behaviour', 'imported_from_school_tracking', 'import_batch_id']);
+      var merged = mergeFieldRecords(a, b, TRACKING_MERGE_FIELDS);
       merged.enrolment_id = a.enrolment_id || b.enrolment_id;
       merged.tracking_point_id = a.tracking_point_id || b.tracking_point_id;
       merged.id = a.id || b.id;
@@ -135,7 +138,7 @@
     return mergeByCompositeKey(local, remote, function(r) {
       return r.enrolment_id + '|' + r.tracking_point_id;
     }, function(a, b) {
-      var merged = mergeFieldRecords(a, b, ['attendance_score', 'attendance_percent', 'teacher_comment']);
+      var merged = mergeFieldRecords(a, b, ATTENDANCE_MERGE_FIELDS);
       merged.enrolment_id = a.enrolment_id || b.enrolment_id;
       merged.tracking_point_id = a.tracking_point_id || b.tracking_point_id;
       merged.id = a.id || b.id;
@@ -196,6 +199,9 @@
       base[table] = mergeById(base[table], remote[table]);
     });
     base.updated_at = recordTs(local) >= recordTs(remote) ? local.updated_at : remote.updated_at;
+    // A device still running older code can push tracking points with locally
+    // generated ids, so collapse any duplicates the union reintroduced.
+    consolidateTrackingPoints(base);
     return migrate(base);
   }
 
@@ -397,10 +403,11 @@
     };
     (global.SptConfig.TRACKING_POINT_NAMES || []).forEach(function(tp) {
       db.school_tracking_points.push({
-        id: uid('tp'),
+        id: tp.id,
         tracking_point_name: tp.tracking_point_name,
         tracking_point_date: tp.tracking_point_date,
         academic_year: tp.academic_year,
+        display_order: tp.display_order,
         created_at: ts,
         updated_at: ts
       });
@@ -409,30 +416,126 @@
     return db;
   }
 
+  function trackingPointKey(tp) {
+    var name = String((tp && tp.tracking_point_name) || '').trim().toLowerCase().replace(/\s+/g, ' ');
+    var year = String((tp && tp.academic_year) || global.SptConfig.currentAcademicYear()).trim();
+    return name + '|' + year;
+  }
+
+  /**
+   * Re-points rows onto a surviving tracking point. Where a pupil already has
+   * a row against both the duplicate and the survivor, the two are merged
+   * field by field with the most recent value winning, so no entered score is
+   * dropped.
+   */
+  function repointTrackingRefs(rows, remap, fields) {
+    var map = {};
+    var order = [];
+    (rows || []).forEach(function(r) {
+      if (!r) return;
+      var tpId = remap[r.tracking_point_id] || r.tracking_point_id;
+      var row = tpId === r.tracking_point_id ? r : Object.assign({}, r, { tracking_point_id: tpId });
+      var key = row.enrolment_id + '|' + tpId;
+      if (!map[key]) {
+        map[key] = row;
+        order.push(key);
+      } else {
+        map[key] = mergeFieldRecords(map[key], row, fields);
+      }
+    });
+    return order.map(function(k) { return map[k]; });
+  }
+
+  /**
+   * Collapses duplicate tracking points onto one record per named period and
+   * moves any tracking or attendance entries across to the survivor. Needed
+   * because cloud merges union tracking points by id and ids used to be
+   * generated per device, so a workbook could accumulate ten copies of every
+   * period — each adding four more columns to every class sheet.
+   */
+  function consolidateTrackingPoints(db) {
+    db.school_tracking_points = db.school_tracking_points || [];
+    var config = (global.SptConfig && global.SptConfig.TRACKING_POINT_NAMES) || [];
+    var configByKey = {};
+    config.forEach(function(cfg) { configByKey[trackingPointKey(cfg)] = cfg; });
+
+    var groups = {};
+    var order = [];
+    db.school_tracking_points.forEach(function(tp) {
+      if (!tp || !tp.id) return;
+      var key = trackingPointKey(tp);
+      if (!groups[key]) {
+        groups[key] = [];
+        order.push(key);
+      }
+      groups[key].push(tp);
+    });
+
+    var remap = {};
+    var survivors = [];
+    order.forEach(function(key) {
+      var copies = groups[key];
+      var cfg = configByKey[key];
+      var canonicalId = cfg ? cfg.id : null;
+      var canonical = null;
+      if (canonicalId) {
+        canonical = copies.find(function(tp) { return tp.id === canonicalId; });
+      }
+      if (!canonical) {
+        canonical = copies.slice().sort(function(a, b) {
+          return String(a.created_at || '').localeCompare(String(b.created_at || ''));
+        })[0];
+      }
+      if (!canonicalId) canonicalId = canonical.id;
+      copies.forEach(function(tp) {
+        if (tp.id !== canonicalId) remap[tp.id] = canonicalId;
+      });
+      var kept = Object.assign({}, canonical, { id: canonicalId });
+      if (cfg) {
+        kept.tracking_point_name = cfg.tracking_point_name;
+        kept.tracking_point_date = cfg.tracking_point_date;
+        kept.academic_year = cfg.academic_year;
+        kept.display_order = cfg.display_order;
+      }
+      survivors.push(kept);
+    });
+
+    var duplicateCount = Object.keys(remap).length;
+    if (!duplicateCount) return false;
+
+    db.pupil_tracking_data = repointTrackingRefs(db.pupil_tracking_data, remap, TRACKING_MERGE_FIELDS);
+    db.attendance_records = repointTrackingRefs(db.attendance_records, remap, ATTENDANCE_MERGE_FIELDS);
+    db.school_tracking_points = survivors;
+    return true;
+  }
+
   function syncTrackingPointsFromConfig(db) {
     if (!global.SptConfig || !global.SptConfig.TRACKING_POINT_NAMES) return false;
     var config = global.SptConfig.TRACKING_POINT_NAMES;
     db.school_tracking_points = db.school_tracking_points || [];
     var ts = new Date().toISOString();
-    var changed = false;
-    config.forEach(function(cfg, i) {
+    var changed = consolidateTrackingPoints(db);
+    config.forEach(function(cfg) {
       var existing = db.school_tracking_points.find(function(tp) {
-        return tp.tracking_point_name === cfg.tracking_point_name;
-      }) || db.school_tracking_points[i];
+        return tp.id === cfg.id || trackingPointKey(tp) === trackingPointKey(cfg);
+      });
       if (existing) {
         if (existing.tracking_point_date !== cfg.tracking_point_date ||
-            existing.academic_year !== cfg.academic_year) {
+            existing.academic_year !== cfg.academic_year ||
+            existing.display_order !== cfg.display_order) {
           existing.tracking_point_date = cfg.tracking_point_date;
           existing.academic_year = cfg.academic_year;
+          existing.display_order = cfg.display_order;
           existing.updated_at = ts;
           changed = true;
         }
       } else {
         db.school_tracking_points.push({
-          id: uid('tp'),
+          id: cfg.id,
           tracking_point_name: cfg.tracking_point_name,
           tracking_point_date: cfg.tracking_point_date,
           academic_year: cfg.academic_year,
+          display_order: cfg.display_order,
           created_at: ts,
           updated_at: ts
         });
@@ -689,6 +792,9 @@
 
   function trackingPoints(db) {
     return (db.school_tracking_points || []).slice().sort(function(a, b) {
+      var ao = a.display_order;
+      var bo = b.display_order;
+      if (ao != null && bo != null && ao !== bo) return ao - bo;
       return (a.tracking_point_date || '').localeCompare(b.tracking_point_date || '');
     });
   }
@@ -1393,6 +1499,7 @@
     courseName: courseName,
     className: className,
     trackingPoints: trackingPoints,
+    consolidateTrackingPoints: consolidateTrackingPoints,
     attendanceForEnrolment: attendanceForEnrolment,
     trackingRecordFor: trackingRecordFor,
     trackingDataForEnrolment: trackingDataForEnrolment,

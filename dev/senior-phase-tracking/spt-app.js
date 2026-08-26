@@ -719,14 +719,6 @@
     return ' class="' + cls + '"';
   }
 
-  function formatTpShortDate(dateStr) {
-    if (!dateStr) return '';
-    var parts = dateStr.split('-');
-    if (parts.length < 3) return dateStr;
-    var months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return months[parseInt(parts[1], 10) - 1] + ' \'' + parts[0].slice(2);
-  }
-
   function trackingScoreClass(val) {
     if (val === '' || val == null) return 'score-empty';
     var n = parseInt(val, 10);
@@ -912,11 +904,10 @@
     document.getElementById('modal-cancel').onclick = closeModal;
   }
 
-  function showDefaultTpModal(tpId, tpLabel, tpDate, enrolmentIds) {
+  function showDefaultTpModal(tpId, tpLabel, enrolmentIds) {
     if (!role().canEdit || !enrolmentIds.length) return;
     var count = enrolmentIds.length;
-    var dateNote = tpDate ? ' (' + formatTpShortDate(tpDate) + ')' : '';
-    openModal('Default scores — ' + tpLabel + dateNote,
+    openModal('Default scores — ' + tpLabel,
       '<div class="modal-note tp-default-modal">' +
       '<p>This will set <strong>Effort</strong> and <strong>Behaviour</strong> to ' +
       '<strong>4 (Good)</strong> for all <strong>' + count + '</strong> pupil' + (count !== 1 ? 's' : '') +
@@ -3509,12 +3500,10 @@
     });
     headGroup += '<th rowspan="2">Flag</th>';
     tps.forEach(function(tp, i) {
-      var date = formatTpShortDate(tp.tracking_point_date);
       headGroup += '<th colspan="4" class="tp-group-head ' + tpBandClass(i) + tpStartClass(i) + '">' +
         'TP' + (i + 1) +
-        (date ? '<span class="tp-date">' + esc(date) + '</span>' : '') +
         (canEdit && sheetEnrolmentIds ? '<button type="button" class="btn-tp-default" data-tp-default="' + esc(tp.id) +
-          '" data-tp-label="TP' + (i + 1) + '" data-tp-date="' + esc(tp.tracking_point_date || '') +
+          '" data-tp-label="TP' + (i + 1) +
           '" data-tp-enrolments="' + esc(sheetEnrolmentIds) + '" title="Set all pupils to 4 (Good) for Eff and Beh">Default Eff/Beh</button>' : '') +
         '</th>';
     });
@@ -4877,7 +4866,6 @@
         showDefaultTpModal(
           el.getAttribute('data-tp-default'),
           el.getAttribute('data-tp-label') || 'Tracking period',
-          el.getAttribute('data-tp-date') || '',
           sheetEnrolmentIdsFromButton(el)
         );
       });
