@@ -550,8 +550,16 @@
       return '';
     }
     if (variant === 'courses-list') {
-      var admin = r.canEditBaseline ? ' · bulk S3 baseline in Setup' : '';
-      return '<div class="entry-guide entry-guide-inline">Open your <strong>class sheet</strong> to record working grade (WG), effort, behaviour, S3 baseline, prelims, evidence &amp; flags' + admin + '</div>';
+      var setupLink = r.canEditBaseline
+        ? '<button type="button" class="entry-guide-action linkish" data-route="setup">Bulk S3 baseline in Setup</button>'
+        : '';
+      return '<div class="entry-guide entry-guide-courses">' +
+        '<span class="entry-guide-icon" aria-hidden="true">' +
+        '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">' +
+        '<circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg></span>' +
+        '<p class="entry-guide-copy">Open your class sheet to record Working Grade (WG), Effort, Behaviour, S3 baseline, Prelims, Evidence and Flags.</p>' +
+        setupLink +
+        '</div>';
     }
     if (variant === 'course') {
       var bits = 'WG (working grade) · effort · behaviour · S3 exam (mark → % → grade) · prior exam &amp; pathway (H/AH) · level change · withdraw · prelims · evidence · flags';
@@ -3413,6 +3421,9 @@
   function renderCoursesList() {
     var d = db();
     var r = role();
+    var allRows = SptStore.getEnrichedRows(d);
+    var tpInfo = currentTrackingPointInfo(d);
+    var classes = homeClassSummaries(d, allRows);
     var html = alertStripHtml() + '<div class="page-head page-head-compact"><h1>' +
       (r.viewAll ? 'Classes' : 'My classes') + '</h1>' +
       '<p class="page-sub">Open a class sheet to enter tracking.</p></div>' +
@@ -3420,17 +3431,16 @@
     if (state.coursesMessage) {
       html += '<p class="hub-staff-status">' + esc(state.coursesMessage) + '</p>';
     }
-    var entries = SptStore.trackingEntriesForUser(d);
-    if (!entries.length) {
+    if (!classes.length) {
       html += '<div class="empty">No classes with pupils assigned' +
-        (r.viewAll ? ' — add classes in Setup' : ' — ask your faculty head to assign you to a class') + '.</div>';
+        (r.viewAll ? '. Add classes in Setup.' : '. Ask your faculty head to assign you to a class.') + '</div>';
       return html;
     }
     var bySubject = {};
-    entries.forEach(function(entry) {
-      var area = entry.subjectArea || 'Other';
+    classes.forEach(function(c) {
+      var area = (c.entry && c.entry.subjectArea) || 'Other';
       if (!bySubject[area]) bySubject[area] = [];
-      bySubject[area].push(entry);
+      bySubject[area].push(c);
     });
     var order = SptConfig.SUBJECT_ORDER.concat(Object.keys(bySubject).filter(function(a) {
       return SptConfig.SUBJECT_ORDER.indexOf(a) < 0;
@@ -3439,28 +3449,57 @@
       var items = bySubject[area];
       if (!items || !items.length) return;
       var slug = SptConfig.subjectTileClass(area);
-      html += '<div class="course-subject-group course-subject-group--' + slug + '">' +
-        '<div class="course-subject-head"><span class="course-subject-label">' + esc(area) + '</span></div>' +
-        '<div class="course-tile-grid">';
-      items.slice().sort(function(a, b) {
-        return (a.className || '').localeCompare(b.className || '');
-      }).forEach(function(entry) {
+      html += '<section class="course-subject-group course-subject-group--' + slug + '">' +
+        '<header class="course-subject-head" aria-label="' + esc(area) + ', ' +
+        items.length + ' class' + (items.length === 1 ? '' : 'es') + '">' +
+        '<h2 class="course-subject-label">' + esc(area) + '</h2>' +
+        '<span class="course-subject-rule" aria-hidden="true"></span>' +
+        '<span class="course-subject-count" aria-hidden="true">' + items.length +
+        ' class' + (items.length === 1 ? '' : 'es') + '</span></header>' +
+        '<div class="course-tile-list" role="list">';
+      items.forEach(function(c) {
+        var entry = c.entry;
         var title = entry.type === 'class' ?
           entry.className + ' (' + entry.teacherName + ')' :
-          entry.courseName + ' — unassigned';
-        var sub = entry.type === 'class' ?
+          entry.courseName + ' (unassigned)';
+        var meta = entry.type === 'class' ?
           esc(entry.teacherName) + ' · ' + esc(entry.courseName) :
           esc(entry.courseName) + ' · click to manage';
-        html += '<div class="course-tile course-tile--' + slug +
-          (entry.type === 'unassigned' ? ' course-tile--unassigned' : '') + '" data-class-sheet data-course="' + entry.courseId + '"' +
+        var trackPct = (tpInfo && c.pupils)
+          ? Math.round(c.recorded / c.pupils * 100)
+          : null;
+        var trackTone = trackPct == null ? 'empty' :
+          trackPct >= 100 ? 'green' : trackPct >= 50 ? 'teal' : 'amber';
+        var riskCls = c.atRisk ? ' is-alert' : ' is-ok';
+        var concernCls = c.concerns ? ' is-alert' : ' is-ok';
+        html += '<article class="course-tile course-tile--' + slug +
+          (entry.type === 'unassigned' ? ' course-tile--unassigned' : '') +
+          '" role="listitem" tabindex="0" data-class-sheet data-course="' + entry.courseId + '"' +
           (entry.classId ? ' data-class="' + entry.classId + '"' : ' data-unassigned="1"') +
-          ' title="Open ' + esc(title) + '">' +
-          '<div class="course-tile-row">' +
+          ' title="Open ' + esc(title) + '" aria-label="Open ' + esc(title) + '">' +
+          '<div class="course-tile-main">' +
           '<span class="course-tile-name">' + esc(entry.className) + '</span>' +
-          '<span class="course-tile-count">' + entry.count + '</span>' +
-          '</div><div class="course-tile-sub">' + sub + '</div></div>';
+          '<span class="course-tile-meta">' + meta + '</span></div>' +
+          '<div class="course-tile-metric">' +
+          '<span class="course-tile-metric-label">Pupils</span>' +
+          '<strong class="course-tile-metric-val">' + c.pupils + '</strong></div>' +
+          '<div class="course-tile-metric' + riskCls + '">' +
+          '<span class="course-tile-metric-label">At risk</span>' +
+          '<strong class="course-tile-metric-val">' + c.atRisk + '</strong></div>' +
+          '<div class="course-tile-metric' + concernCls + '">' +
+          '<span class="course-tile-metric-label">Concerns</span>' +
+          '<strong class="course-tile-metric-val">' + c.concerns + '</strong></div>' +
+          '<div class="course-tile-metric course-tile-metric--track">' +
+          '<span class="course-tile-metric-label">Tracking</span>' +
+          '<strong class="course-tile-metric-val">' +
+          (trackPct == null ? '\u2014' : trackPct + '%') + '</strong>' +
+          '<span class="course-tile-track course-tile-track--' + trackTone + '" aria-hidden="true">' +
+          '<span style="width:' + (trackPct == null ? 0 : Math.max(0, Math.min(100, trackPct))) + '%"></span></span></div>' +
+          '<button type="button" class="course-tile-open">Open class' +
+          '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>' +
+          '</button></article>';
       });
-      html += '</div></div>';
+      html += '</div></section>';
     });
     return html;
   }
@@ -4789,13 +4828,22 @@
       });
     });
     root.querySelectorAll('[data-class-sheet]').forEach(function(el) {
-      el.addEventListener('click', function() {
+      function openClassSheet() {
         setRoute('course', {
           courseId: el.getAttribute('data-course'),
           classId: el.getAttribute('data-class') || null,
           unassignedOnly: el.hasAttribute('data-unassigned')
         });
-      });
+      }
+      el.addEventListener('click', openClassSheet);
+      if (el.tagName !== 'BUTTON' && el.getAttribute('tabindex') === '0') {
+        el.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            openClassSheet();
+          }
+        });
+      }
     });
     root.querySelectorAll('[data-course]').forEach(function(el) {
       if (el.hasAttribute('data-class-sheet')) return;
