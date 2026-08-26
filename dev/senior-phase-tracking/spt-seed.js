@@ -71,10 +71,11 @@
 
     var trackingPoints = C.TRACKING_POINT_NAMES.map(function(tp) {
       return {
-        id: uid('tp'),
+        id: tp.id,
         tracking_point_name: tp.tracking_point_name,
         tracking_point_date: tp.tracking_point_date,
         academic_year: tp.academic_year,
+        display_order: tp.display_order,
         created_at: ts,
         updated_at: ts
       };

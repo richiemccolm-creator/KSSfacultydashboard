@@ -213,10 +213,18 @@
     ]
   };
 
+  /**
+   * The four tracking periods for the session. Ids are fixed strings because
+   * cloud merges union tracking points by id: while ids were generated per
+   * device, every device contributed its own duplicate set and class sheets
+   * grew four more columns per copy. Dates order the columns and identify the
+   * current period; they are not shown in the UI.
+   */
   var TRACKING_POINT_NAMES = [
-    { tracking_point_name: 'Tracking Point 1', tracking_point_date: '2026-10-15', academic_year: '2026-27' },
-    { tracking_point_name: 'Tracking Point 2', tracking_point_date: '2026-12-10', academic_year: '2026-27' },
-    { tracking_point_name: 'Tracking Point 3', tracking_point_date: '2027-02-20', academic_year: '2026-27' }
+    { id: 'tp-2026-27-1', display_order: 1, tracking_point_name: 'Tracking Point 1', tracking_point_date: '2026-10-15', academic_year: '2026-27' },
+    { id: 'tp-2026-27-2', display_order: 2, tracking_point_name: 'Tracking Point 2', tracking_point_date: '2026-12-10', academic_year: '2026-27' },
+    { id: 'tp-2026-27-3', display_order: 3, tracking_point_name: 'Tracking Point 3', tracking_point_date: '2027-02-20', academic_year: '2026-27' },
+    { id: 'tp-2026-27-4', display_order: 4, tracking_point_name: 'Tracking Point 4', tracking_point_date: '2027-05-07', academic_year: '2026-27' }
   ];
 
   function currentAcademicYear() {
