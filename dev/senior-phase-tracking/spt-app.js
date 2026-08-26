@@ -490,7 +490,6 @@
     var r = role();
     if (state.route === 'dashboard' && r.viewAll) return '';
     var d = db();
-    var r = role();
     var html = '';
     if (r.canResolveFlags) {
       var n = SptConcerns.openFlagCount(d);
@@ -4712,6 +4711,16 @@
         '</tr></thead><tbody>' + repRows + '</tbody></table>');
     }
     var html = '<div class="page-head"><h1>Reports</h1></div>';
+    html += '<div class="report-backup-panel">' +
+      '<div class="report-backup-panel-inner">' +
+      '<h2>Export spreadsheet</h2>' +
+      '<p>Download the currently loaded pupils, classes, and tracking as Excel. Empty cells stay empty. This does not change the live workbook.</p>' +
+      '<div class="report-backup-actions">' +
+      '<button type="button" class="btn btn-sm" id="btn-export-tracking-xlsx">Export spreadsheet</button>' +
+      '</div>' +
+      '<p class="report-backup-status" id="export-tracking-status"' +
+      (state.reportsMessage ? '>' + esc(state.reportsMessage) : ' hidden>') + '</p>' +
+      '</div></div>';
     if (canManageWorkbookBackup()) {
       html += '<div class="report-backup-panel">' +
         '<div class="report-backup-panel-inner">' +
@@ -4722,9 +4731,7 @@
         'title="Full workbook JSON — pupils, classes, tracking, flags, prelims">Download full backup</button>' +
         '<label class="btn btn-secondary btn-sm report-backup-upload" for="workbook-backup-file">Restore from backup</label>' +
         '<input type="file" id="workbook-backup-file" accept=".json,application/json" hidden>' +
-        '</div>' +
-        (state.reportsMessage ? '<p class="report-backup-status">' + esc(state.reportsMessage) + '</p>' : '') +
-        '</div></div>';
+        '</div></div></div>';
     }
     html += '<div class="report-grid">';
     Object.keys(SptReports.REPORTS).forEach(function(id) {
@@ -5502,6 +5509,32 @@
       var rep = SptReports.REPORTS[id];
       SptReports.downloadCsv(rep.title.replace(/\s+/g, '_') + '.csv', SptReports.toCsv(rep.headers, rep.fn(db())));
     });
+    var trackingXlsxBtn = root.querySelector('#btn-export-tracking-xlsx');
+    if (trackingXlsxBtn) {
+      trackingXlsxBtn.addEventListener('click', function() {
+        var statusEl = document.getElementById('export-tracking-status');
+        function showExportStatus(msg) {
+          state.reportsMessage = msg;
+          if (!statusEl) return;
+          statusEl.hidden = false;
+          statusEl.textContent = msg;
+        }
+        if (!window.SptExport || typeof SptExport.downloadSpreadsheet !== 'function') {
+          showExportStatus('Export is not available. Refresh the page and try again.');
+          return;
+        }
+        var snapshot = SptStore.load();
+        if (!snapshot) {
+          showExportStatus('No tracking data loaded to export.');
+          return;
+        }
+        var res = SptExport.downloadSpreadsheet(snapshot);
+        if (res && res.error) showExportStatus(res.error);
+        else if (res && res.ok) {
+          showExportStatus('Downloaded ' + res.filename + ' (' + res.rows + ' enrolment rows).');
+        }
+      });
+    }
     var workbookBackupBtn = root.querySelector('#btn-export-workbook-backup');
     if (workbookBackupBtn) workbookBackupBtn.addEventListener('click', downloadWorkbookBackup);
     var workbookBackupFile = root.querySelector('#workbook-backup-file');
