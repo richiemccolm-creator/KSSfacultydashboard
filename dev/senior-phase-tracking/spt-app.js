@@ -45,7 +45,8 @@
     qsImportMessage: null,
     qsSyncMessage: null,
     modal: null,
-    navCollapsed: false
+    navCollapsed: false,
+    homeShowCharts: false
   };
 
   function loadNavCollapsed() {
@@ -95,6 +96,11 @@
       if (e.target.closest('#nav-edge-open')) {
         e.preventDefault();
         setNavCollapsed(false);
+        return;
+      }
+      if (e.target.closest('#nav-more-toggle')) {
+        e.preventDefault();
+        setMoreOpen(!isMoreOpen());
       }
     });
     document.addEventListener('keydown', function(e) {
@@ -284,9 +290,58 @@
     return status ? badge(status) : '—';
   }
 
+  function moreRoutesForRole(r) {
+    var routes = {
+      alerts: !!r.canResolveFlags,
+      feedback: !!(r.canFlag || r.canResolveFlags),
+      setup: !!r.canSetup,
+      evidence: true,
+      'level-changes': true,
+      interventions: true,
+      import: !!(r.canImport || r.canEdit),
+      reports: true,
+      overview: !!r.viewAll
+    };
+    if (r.viewAll) routes.attention = true;
+    return routes;
+  }
+
+  function isMoreRoute(route, r) {
+    r = r || role();
+    var map = moreRoutesForRole(r);
+    if (route === 'attention') return !!map.attention;
+    return !!map[route];
+  }
+
+  function isMoreOpen() {
+    var panel = document.getElementById('nav-more');
+    return !!(panel && !panel.hidden);
+  }
+
+  function setMoreOpen(open) {
+    var panel = document.getElementById('nav-more');
+    var btn = document.getElementById('nav-more-toggle');
+    if (!panel || !btn) return;
+    panel.hidden = !open;
+    btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    btn.classList.toggle('is-open', !!open);
+  }
+
+  function setNavCountLabel(el, base, count) {
+    if (!el) return;
+    var icon = el.querySelector('svg');
+    el.textContent = '';
+    if (icon) el.appendChild(icon);
+    el.appendChild(document.createTextNode(count ? base + ' (' + count + ')' : base));
+  }
+
   function updateNavBadge() {
     var d = db();
     var r = role();
+    var allRows = SptStore.getEnrichedRows(d);
+    var tpInfo = currentTrackingPointInfo(d);
+    var attentionCount = homeAttentionItems(d, allRows, tpInfo).length;
+    setNavCountLabel(document.getElementById('nav-attention'), 'Needs attention', attentionCount);
     var alertBtn = document.getElementById('nav-alerts');
     if (alertBtn) {
       var openFlags = r.canResolveFlags ? SptConcerns.openFlagCount(d) : 0;
@@ -302,12 +357,29 @@
 
   function syncNavVisibility() {
     var r = role();
+    var classesBtn = document.getElementById('nav-classes');
+    if (classesBtn) {
+      var icon = classesBtn.querySelector('svg');
+      classesBtn.textContent = '';
+      if (icon) classesBtn.appendChild(icon);
+      classesBtn.appendChild(document.createTextNode(r.viewAll ? 'Classes' : 'My classes'));
+    }
+    var attentionNav = document.getElementById('nav-attention');
+    if (attentionNav) attentionNav.style.display = r.viewAll ? 'none' : '';
+    var registerNav = document.getElementById('nav-register');
+    if (registerNav) registerNav.style.display = r.viewAll ? '' : 'none';
+    var moreMap = moreRoutesForRole(r);
+    var overviewNav = document.getElementById('nav-overview');
+    if (overviewNav) overviewNav.style.display = moreMap.overview ? '' : 'none';
     var alertNav = document.getElementById('nav-alerts');
     var feedbackNav = document.getElementById('nav-feedback');
-    if (alertNav) alertNav.style.display = r.canResolveFlags ? '' : 'none';
-    if (feedbackNav) feedbackNav.style.display = (r.canFlag || r.canResolveFlags) ? '' : 'none';
+    if (alertNav) alertNav.style.display = moreMap.alerts ? '' : 'none';
+    if (feedbackNav) feedbackNav.style.display = moreMap.feedback ? '' : 'none';
     var setupNav = document.getElementById('nav-setup');
-    if (setupNav) setupNav.style.display = r.canSetup ? '' : 'none';
+    if (setupNav) setupNav.style.display = moreMap.setup ? '' : 'none';
+    var importNav = document.querySelector('.nav-btn[data-route="import"]');
+    if (importNav) importNav.style.display = moreMap.import ? '' : 'none';
+    if (isMoreRoute(state.route, r)) setMoreOpen(true);
   }
 
   /** Hub: real faculty head/admin only. Seed: View as Faculty Head. */
@@ -405,8 +477,7 @@
     document.querySelectorAll('.nav-btn').forEach(function(btn) {
       var r = btn.getAttribute('data-route');
       btn.classList.toggle('active', r === route ||
-        (route === 'course' && r === 'courses') ||
-        (route === 'overview' && r === 'dashboard'));
+        (route === 'course' && r === 'courses'));
     });
     syncNavVisibility();
     render();
@@ -415,6 +486,9 @@
   }
 
   function alertStripHtml() {
+    if (state.route !== 'dashboard' && state.route !== 'attention') return '';
+    var r = role();
+    if (state.route === 'dashboard' && r.viewAll) return '';
     var d = db();
     var r = role();
     var html = '';
@@ -440,7 +514,7 @@
     if (!role().canSetup) {
       return '<div class="getting-started getting-started--readonly">' +
         '<h2>No tracking data yet</h2>' +
-        '<p>Your faculty head will set up teachers, classes, and pupil enrolments. You will then see your classes on <button type="button" class="linkish" data-route="courses">Enter tracking</button>.</p>' +
+        '<p>Your faculty head will set up teachers, classes, and pupil enrolments. You will then see your classes on <button type="button" class="linkish" data-route="courses">My classes</button>.</p>' +
         '</div>';
     }
     var step = !(d.teachers || []).length ? 1 : !(d.classes || []).length ? 2 : 3;
@@ -471,7 +545,7 @@
   function entryGuideHtml(variant) {
     var r = role();
     if (!r.canEdit && !r.canEditBaseline) {
-      return '<div class="entry-guide entry-guide-readonly"><strong>Read-only view</strong> — tracking data is entered by class teachers on <button type="button" class="linkish" data-route="courses">Enter tracking</button> course sheets.</div>';
+      return '<div class="entry-guide entry-guide-readonly"><strong>Read-only view</strong> — tracking data is entered by class teachers on <button type="button" class="linkish" data-route="courses">class sheets</button>.</div>';
     }
     if (variant === 'dashboard') {
       return '';
@@ -486,7 +560,7 @@
       return '<div class="entry-guide entry-guide-inline">' + bits + '</div>';
     }
     if (variant === 'evidence') {
-      return '<div class="entry-guide entry-guide-inline"><strong>Unit evidence</strong> — same as course sheet, pupil-by-pupil · also editable on <button type="button" class="linkish" data-route="courses">Enter tracking</button></div>';
+      return '<div class="entry-guide entry-guide-inline"><strong>Unit evidence</strong> — same as the class sheet, pupil by pupil.</div>';
     }
     return '';
   }
@@ -2241,8 +2315,6 @@
     var tpInfo = currentTrackingPointInfo(d);
     var kpis = dashboardKpis(allRows);
     var classes = homeClassSummaries(d, allRows);
-    var risk = riskBandCounts(allRows);
-    var att = attendanceBandCounts(allRows);
     var tracking = homeTrackingCounts(d, allRows, tpInfo);
     var concerns = homeConcernCounts(d);
     var teacherCount = (d.teachers || []).length;
@@ -2252,92 +2324,75 @@
 
     html += '<header class="spt-home-head">';
     html += '<div class="spt-home-head-main">';
-    html += '<div class="spt-home-eyebrow">Senior Phase Tracking</div>';
     html += '<h1>Faculty overview</h1>';
     html += '<p class="spt-home-welcome">' +
       esc(kpis.total + ' pupil' + (kpis.total !== 1 ? 's' : '') +
-        ' across ' + classes.length + ' class' + (classes.length !== 1 ? 'es' : '') +
-        (teacherCount ? ' and ' + teacherCount + ' teacher' + (teacherCount !== 1 ? 's' : '') : '') + '.') +
+        ' · ' + classes.length + ' class' + (classes.length !== 1 ? 'es' : '') +
+        (teacherCount ? ' · ' + teacherCount + ' teacher' + (teacherCount !== 1 ? 's' : '') : '') +
+        ' · ' + sessionLabel()) +
       '</p></div>';
     html += '<div class="spt-home-head-meta">';
-    html += '<span class="spt-home-chip">' + esc(r.label) + '</span>';
-    html += '<span class="spt-home-chip spt-home-chip--quiet">Session ' + esc(sessionLabel()) + '</span>';
-    html += '<div class="spt-home-head-actions">';
-    html += '<button type="button" class="btn btn-secondary btn-sm" data-route="overview">Detailed analytics</button>';
-    html += '<button type="button" class="btn btn-sm" data-route="register">Full register</button>';
-    html += '</div></div></header>';
+    html += '<button type="button" class="btn btn-secondary btn-sm" data-toggle-home-charts>' +
+      (state.homeShowCharts ? 'Hide charts' : 'View charts') + '</button>';
+    html += '<button type="button" class="btn btn-sm" data-route="register">Register</button>';
+    html += '</div></header>';
 
-    // Risk and attendance reuse the dashboard canvas ids so their existing
-    // click-through drill-down works unchanged.
-    html += '<div class="spt-home-donuts">';
-    html += homeDonutPanelHtml({
-      title: 'Risk status', sub: 'click a segment', canvasId: 'spt-dash-risk-chart',
-      hasData: allRows.length > 0,
-      empty: 'No enrolments yet',
-      legend: [
-        { lbl: 'On track', val: risk.Green, cls: 'leg-green' },
-        { lbl: 'Amber', val: risk.Amber, cls: 'leg-amber' },
-        { lbl: 'Red', val: risk.Red, cls: 'leg-red' },
-        { lbl: 'Not started', val: risk.Grey, cls: 'leg-grey' }
-      ]
-    });
-    html += homeDonutPanelHtml({
-      title: tpInfo ? tpInfo.label + ' entries' : 'Tracking entries',
-      sub: tpInfo ? 'current tracking point' : '',
-      canvasId: 'spt-home-tracking-chart',
-      hasData: !!(tpInfo && allRows.length),
-      empty: 'No tracking points set up yet',
-      legend: [
-        { lbl: 'Recorded', val: tracking.recorded, cls: 'leg-green' },
-        { lbl: 'Outstanding', val: tracking.outstanding, cls: 'leg-grey' }
-      ]
-    });
-    html += homeDonutPanelHtml({
-      title: 'Concerns', sub: 'all raised this session', canvasId: 'spt-home-concern-chart',
-      hasData: concerns.total > 0,
-      empty: 'No concerns raised',
-      legend: [
-        { lbl: 'Open', val: concerns.open, cls: 'leg-red' },
-        { lbl: 'Ongoing', val: concerns.ongoing, cls: 'leg-amber' },
-        { lbl: 'Resolved', val: concerns.resolved, cls: 'leg-green' }
-      ]
-    });
-    html += homeDonutPanelHtml({
-      title: 'Attendance', sub: 'latest per pupil', canvasId: 'spt-dash-att-chart',
-      hasData: att.values.length > 0,
-      empty: 'No attendance data.<br>' +
-        '<button type="button" class="btn btn-sm" style="margin-top:0.5rem" data-route="import">Import attendance</button>',
-      legend: [
-        { lbl: '90%+', val: att.good, cls: 'leg-green' },
-        { lbl: '75\u201389%', val: att.amber, cls: 'leg-amber' },
-        { lbl: 'Under 75%', val: att.low, cls: 'leg-red' },
-        { lbl: 'No data', val: att.none, cls: 'leg-grey' }
-      ]
-    });
+    html += '<div class="spt-home-strip">';
+    html += '<button type="button" class="spt-home-stat' + (kpis.atRisk ? ' is-alert' : '') + '" data-route="attention">' +
+      '<strong>' + kpis.atRisk + '</strong><span>at risk</span></button>';
+    html += '<button type="button" class="spt-home-stat' + (concerns.open ? ' is-alert' : '') + '" data-route="' +
+      (r.canResolveFlags ? 'alerts' : 'attention') + '">' +
+      '<strong>' + concerns.open + '</strong><span>open concern' + (concerns.open === 1 ? '' : 's') + '</span></button>';
+    html += '<button type="button" class="spt-home-stat' + (tracking.outstanding ? ' is-warn' : '') + '" data-route="courses">' +
+      '<strong>' + tracking.outstanding + '</strong><span>' +
+      (tpInfo ? esc(tpInfo.label) + ' still to enter' : 'tracking outstanding') + '</span></button>';
     html += '</div>';
 
-    var attentionPanel = renderDashboardAttention(d, allRows);
-    if (attentionPanel) {
-      html += attentionPanel;
-    } else if (allRows.length) {
-      html += '<div class="spt-home-allclear">' +
-        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20"><polyline points="20 6 9 17 4 12"/></svg>' +
-        'No open concerns and no pupils flagged at risk.</div>';
-    }
-    if (tpInfo && tracking.outstanding > 0) {
-      html += '<div class="spt-home-note">' +
-        '<strong>' + tracking.outstanding + '</strong> pupil' + (tracking.outstanding !== 1 ? 's' : '') +
-        ' still have no ' + esc(tpInfo.label) + ' working grade, effort or behaviour entry. ' +
-        'Outstanding classes are listed below.</div>';
+    if (state.homeShowCharts) {
+      var risk = riskBandCounts(allRows);
+      html += '<div class="spt-home-donuts spt-home-donuts--three">';
+      html += homeDonutPanelHtml({
+        title: 'Risk status', sub: '', canvasId: 'spt-dash-risk-chart',
+        hasData: allRows.length > 0,
+        empty: 'No enrolments yet',
+        legend: [
+          { lbl: 'On track', val: risk.Green, cls: 'leg-green' },
+          { lbl: 'Amber', val: risk.Amber, cls: 'leg-amber' },
+          { lbl: 'Red', val: risk.Red, cls: 'leg-red' },
+          { lbl: 'Not started', val: risk.Grey, cls: 'leg-grey' }
+        ]
+      });
+      html += homeDonutPanelHtml({
+        title: tpInfo ? tpInfo.label + ' entries' : 'Tracking entries',
+        sub: '',
+        canvasId: 'spt-home-tracking-chart',
+        hasData: !!(tpInfo && allRows.length),
+        empty: 'No tracking points set up yet',
+        legend: [
+          { lbl: 'Recorded', val: tracking.recorded, cls: 'leg-green' },
+          { lbl: 'Outstanding', val: tracking.outstanding, cls: 'leg-grey' }
+        ]
+      });
+      html += homeDonutPanelHtml({
+        title: 'Concerns', sub: '', canvasId: 'spt-home-concern-chart',
+        hasData: concerns.total > 0,
+        empty: 'No concerns raised',
+        legend: [
+          { lbl: 'Open', val: concerns.open, cls: 'leg-red' },
+          { lbl: 'Ongoing', val: concerns.ongoing, cls: 'leg-amber' },
+          { lbl: 'Resolved', val: concerns.resolved, cls: 'leg-green' }
+        ]
+      });
+      html += '</div>';
     }
 
     html += '<section class="spt-home-panel">';
-    html += '<div class="spt-home-panel-head"><h2>Faculty classes</h2>' +
-      '<span class="spt-home-panel-meta">' + classes.length + ' class' + (classes.length !== 1 ? 'es' : '') + '</span>' +
+    html += '<div class="spt-home-panel-head"><h2>Classes</h2>' +
+      '<span class="spt-home-panel-meta">' + classes.length + '</span>' +
       '<button type="button" class="linkish spt-home-panel-link" data-route="courses">All class sheets</button></div>';
     if (!classes.length) {
       html += '<div class="empty">No classes yet' +
-        (r.canSetup ? ' — add them in <button type="button" class="linkish" data-route="setup">Setup / Cohort</button>' : '') + '.</div>';
+        (r.canSetup ? ' — add them in <button type="button" class="linkish" data-route="setup">Setup</button>' : '') + '.</div>';
     } else {
       html += '<div class="spt-home-table-wrap"><table class="data-table data-table-compact spt-home-table">';
       html += '<thead><tr><th>Class</th><th>Teacher</th><th>Course</th><th>Level</th>' +
@@ -2393,22 +2448,18 @@
 
     html += '<header class="spt-home-head spt-home-head--teacher">';
     html += '<div class="spt-home-head-main">';
-    html += '<div class="spt-home-eyebrow">Senior Phase Tracking \u00b7 Session ' + esc(sessionLabel()) + '</div>';
-    html += '<h1>' + esc(firstName ? greeting + ', ' + firstName : 'Your Senior Phase classes') + '</h1>';
+    html += '<h1>' + esc(firstName ? greeting + ', ' + firstName : 'Your classes') + '</h1>';
     html += '<div class="spt-home-teacher-stats">' +
       '<span><strong>' + classes.length + '</strong> class' + (classes.length !== 1 ? 'es' : '') + '</span>' +
       '<span><strong>' + pupilTotal + '</strong> pupil' + (pupilTotal !== 1 ? 's' : '') + '</span>' +
       '<span class="' + (attention.length ? 'is-flagged' : '') + '"><strong>' + attention.length + '</strong> need' +
       (attention.length === 1 ? 's' : '') + ' attention</span>' +
-      '</div></div>';
-    html += '<div class="spt-home-head-meta">' +
-      '<button type="button" class="btn btn-secondary btn-sm" data-route="courses">All class sheets</button>' +
-      '</div></header>';
+      '</div></div></header>';
 
     if (tpInfo && outstanding > 0) {
       html += '<div class="spt-home-note spt-home-note--teacher">' +
-        'Next up: <strong>' + esc(tpInfo.label) + '</strong> entries for ' + outstanding +
-        ' pupil' + (outstanding !== 1 ? 's' : '') + '. Open a class to record working grade, effort and behaviour.</div>';
+        '<strong>' + esc(tpInfo.label) + '</strong> still needed for ' + outstanding +
+        ' pupil' + (outstanding !== 1 ? 's' : '') + '.</div>';
     }
 
     html += '<section class="spt-home-panel spt-home-panel--plain">';
@@ -2416,26 +2467,20 @@
     if (!classes.length) {
       html += '<div class="empty">No classes assigned yet — ask your faculty head to add you to a class.</div>';
     } else {
-      html += '<div class="spt-home-class-grid">';
+      html += '<div class="spt-home-class-list">';
       classes.forEach(function(c) {
         var e = c.entry;
-        html += '<article class="spt-home-class-card' + (c.atRisk ? ' has-attention' : '') + '">';
-        html += '<div class="spt-home-class-top">' +
+        html += '<article class="spt-home-class-row' + (c.atRisk ? ' has-attention' : '') + '">';
+        html += '<div class="spt-home-class-copy">' +
           '<h3>' + esc(e.className) + '</h3>' +
-          '<span class="spt-home-class-course">' + esc(e.courseName) +
-          (c.levels.length ? ' \u00b7 ' + esc(c.levels.join(', ')) : '') + '</span></div>';
-        html += '<div class="spt-home-class-figs">' +
-          '<div class="spt-home-fig"><strong>' + c.pupils + '</strong><span>pupils</span></div>' +
-          '<div class="spt-home-fig"><strong>' + (c.onTrackPct != null ? c.onTrackPct + '%' : '\u2014') + '</strong>' +
-          '<span>' + (c.onTrackPct != null ? 'on track' : 'not started') + '</span></div>' +
-          (tpInfo ? '<div class="spt-home-fig"><strong>' + c.recorded + '/' + c.pupils + '</strong><span>' +
-            esc(tpInfo.label) + ' entered</span></div>' : '') +
-          '</div>';
-        html += homeMeterHtml(c.onTrackPct, c.onTrackPct != null && c.onTrackPct >= 70 ? 'green' : 'teal');
-        html += '<div class="spt-home-class-foot">';
-        html += c.atRisk
-          ? '<span class="spt-home-flag spt-home-flag--red">' + c.atRisk + ' need' + (c.atRisk === 1 ? 's' : '') + ' attention</span>'
-          : '<span class="spt-home-flag spt-home-flag--ok">No pupils flagged</span>';
+          '<p>' + esc(e.courseName) +
+          (c.levels.length ? ' \u00b7 ' + esc(c.levels.join(', ')) : '') +
+          ' \u00b7 ' + c.pupils + ' pupil' + (c.pupils !== 1 ? 's' : '') + '</p></div>';
+        html += '<div class="spt-home-class-aside">';
+        if (c.atRisk) {
+          html += '<span class="spt-home-flag spt-home-flag--red">' + c.atRisk +
+            ' need' + (c.atRisk === 1 ? 's' : '') + ' attention</span>';
+        }
         html += '<button type="button" class="btn btn-sm" data-class-sheet data-course="' + esc(e.courseId) + '"' +
           (e.classId ? ' data-class="' + esc(e.classId) + '"' : ' data-unassigned="1"') +
           '>Open class</button>';
@@ -2446,32 +2491,60 @@
     html += '</section>';
 
     if (attention.length) {
-      var shown = attention.slice(0, 8);
-      html += '<section class="spt-home-panel">';
-      html += '<div class="spt-home-panel-head"><h2>Pupils needing attention</h2>' +
-        '<span class="spt-home-panel-meta">' + attention.length + ' pupil' + (attention.length !== 1 ? 's' : '') + '</span></div>';
-      html += '<div class="spt-home-table-wrap"><table class="data-table data-table-compact spt-home-table">';
-      html += '<thead><tr><th>Pupil</th><th>Class</th><th>Issue</th><th>Detail</th><th></th></tr></thead><tbody>';
-      shown.forEach(function(item) {
-        html += '<tr>' +
-          '<td class="col-pupil">' + esc(item.pupil) + '</td>' +
-          '<td>' + esc(item.className) + '</td>' +
-          '<td><span class="spt-home-issue spt-home-issue--' + item.tone + '">' + esc(item.issue) + '</span></td>' +
-          '<td class="spt-home-cell-detail">' + esc(item.detail || '\u2014') + '</td>' +
-          '<td class="cell-action"><button type="button" class="btn btn-secondary btn-sm" data-view-enrolment="' +
-          esc(item.enrolmentId) + '">View</button></td></tr>';
+      var shown = attention.slice(0, 6);
+      html += attentionTableHtml(shown, {
+        title: 'Needs attention',
+        meta: attention.length,
+        moreCount: attention.length - shown.length
       });
-      if (attention.length > shown.length) {
-        html += '<tr><td colspan="5" class="cell-hint">' + (attention.length - shown.length) +
-          ' more — <button type="button" class="linkish" data-route="courses">open a class sheet</button></td></tr>';
-      }
-      html += '</tbody></table></div></section>';
-    } else if (allRows.length) {
-      html += '<div class="spt-home-allclear">' +
-        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20"><polyline points="20 6 9 17 4 12"/></svg>' +
-        'Nothing needs attention right now.</div>';
     }
 
+    html += '</div>';
+    return html;
+  }
+
+  function attentionTableHtml(items, opts) {
+    opts = opts || {};
+    var html = '<section class="spt-home-panel">';
+    html += '<div class="spt-home-panel-head"><h2>' + esc(opts.title || 'Needs attention') + '</h2>' +
+      (opts.meta != null ? '<span class="spt-home-panel-meta">' + opts.meta + '</span>' : '') + '</div>';
+    html += '<div class="spt-home-table-wrap"><table class="data-table data-table-compact spt-home-table">';
+    html += '<thead><tr><th>Pupil</th><th>Class</th><th>Issue</th><th>Detail</th><th></th></tr></thead><tbody>';
+    items.forEach(function(item) {
+      html += '<tr>' +
+        '<td class="col-pupil">' + esc(item.pupil) + '</td>' +
+        '<td>' + esc(item.className) + '</td>' +
+        '<td><span class="spt-home-issue spt-home-issue--' + item.tone + '">' + esc(item.issue) + '</span></td>' +
+        '<td class="spt-home-cell-detail">' + esc(item.detail || '\u2014') + '</td>' +
+        '<td class="cell-action"><button type="button" class="btn btn-secondary btn-sm" data-view-enrolment="' +
+        esc(item.enrolmentId) + '">View</button></td></tr>';
+    });
+    if (opts.moreCount > 0) {
+      html += '<tr><td colspan="5" class="cell-hint">' + opts.moreCount +
+        ' more — <button type="button" class="linkish" data-route="attention">view all</button></td></tr>';
+    }
+    html += '</tbody></table></div></section>';
+    return html;
+  }
+
+  function renderAttentionPage() {
+    var d = db();
+    var allRows = SptStore.getEnrichedRows(d);
+    var tpInfo = currentTrackingPointInfo(d);
+    var attention = homeAttentionItems(d, allRows, tpInfo);
+    var html = alertStripHtml();
+    html += '<div class="spt-home">';
+    html += '<header class="spt-home-head"><div class="spt-home-head-main">';
+    html += '<h1>Needs attention</h1>';
+    html += '<p class="spt-home-welcome">' +
+      (attention.length
+        ? attention.length + ' pupil' + (attention.length !== 1 ? 's' : '') + ' to review'
+        : 'Nothing needs attention right now') +
+      '</p></div></header>';
+    if (attention.length) html += attentionTableHtml(attention, { title: 'Pupils', meta: attention.length });
+    else html += '<div class="spt-home-allclear">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20"><polyline points="20 6 9 17 4 12"/></svg>' +
+      'Nothing needs attention right now.</div>';
     html += '</div>';
     return html;
   }
@@ -3341,8 +3414,9 @@
   function renderCoursesList() {
     var d = db();
     var r = role();
-    var html = alertStripHtml() + '<div class="page-head page-head-compact"><h1>Enter tracking data</h1>' +
-      '<p class="page-sub">Open your class sheet — colours match subject area.</p></div>' +
+    var html = alertStripHtml() + '<div class="page-head page-head-compact"><h1>' +
+      (r.viewAll ? 'Classes' : 'My classes') + '</h1>' +
+      '<p class="page-sub">Open a class sheet to enter tracking.</p></div>' +
       entryGuideHtml('courses-list');
     if (state.coursesMessage) {
       html += '<p class="hub-staff-status">' + esc(state.coursesMessage) + '</p>';
@@ -3440,7 +3514,8 @@
     html += '<div class="course-focus-wrap">';
     html += '<div class="course-topbar">' +
       '<div class="course-topbar-left">' +
-      '<button type="button" class="btn btn-secondary btn-sm" data-route="courses">← Classes</button>' +
+      '<button type="button" class="btn btn-secondary btn-sm" data-route="courses">\u2190 ' +
+      (role().viewAll ? 'Classes' : 'My classes') + '</button>' +
       '<h1>' + esc(sheetTitle) + '</h1>' +
       (sheetSubtitle ? '<span class="course-topbar-meta">' + esc(sheetSubtitle) + '</span>' : '') +
       '<span class="course-topbar-meta">' + enrolments.length + ' pupils</span>' +
@@ -4673,6 +4748,12 @@
     root.querySelectorAll('[data-route]').forEach(function(el) {
       el.addEventListener('click', function() { setRoute(el.getAttribute('data-route')); });
     });
+    root.querySelectorAll('[data-toggle-home-charts]').forEach(function(el) {
+      el.addEventListener('click', function() {
+        state.homeShowCharts = !state.homeShowCharts;
+        render();
+      });
+    });
     root.querySelectorAll('[data-alerts-toggle-resolved]').forEach(function(el) {
       el.addEventListener('click', function(e) {
         e.stopPropagation();
@@ -5441,6 +5522,7 @@
       var html = '';
       switch (state.route) {
         case 'dashboard': html = role().viewAll ? renderFacultyHome() : renderTeacherHome(); break;
+        case 'attention': html = renderAttentionPage(); break;
         case 'overview': html = renderDashboard(); break;
         case 'register': html = renderRegister(); break;
         case 'alerts': html = renderAlerts(); break;
@@ -5488,8 +5570,11 @@
       } catch (qsImportErr) {
         console.error('QS import bind error', qsImportErr);
       }
-      if (state.route === 'dashboard' || state.route === 'overview') bindDashboardCharts(appMain);
-      if (state.route === 'dashboard') bindHomeCharts(appMain);
+      if (state.route === 'overview') bindDashboardCharts(appMain);
+      if (state.route === 'dashboard' && state.homeShowCharts) {
+        bindDashboardCharts(appMain);
+        bindHomeCharts(appMain);
+      }
       restoreGridScroll(scrollPos);
     } catch (err) {
       console.error('Senior Phase Tracking UI error', err);
