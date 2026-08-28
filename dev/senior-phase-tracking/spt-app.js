@@ -3474,9 +3474,7 @@
         var concernCls = c.concerns ? ' is-alert' : ' is-ok';
         html += '<article class="course-tile course-tile--' + slug +
           (entry.type === 'unassigned' ? ' course-tile--unassigned' : '') +
-          '" role="listitem" tabindex="0" data-class-sheet data-course="' + entry.courseId + '"' +
-          (entry.classId ? ' data-class="' + entry.classId + '"' : ' data-unassigned="1"') +
-          ' title="Open ' + esc(title) + '" aria-label="Open ' + esc(title) + '">' +
+          '" role="listitem">' +
           '<div class="course-tile-main">' +
           '<span class="course-tile-name">' + esc(entry.className) + '</span>' +
           '<span class="course-tile-meta">' + meta + '</span></div>' +
@@ -3495,7 +3493,9 @@
           (trackPct == null ? '\u2014' : trackPct + '%') + '</strong>' +
           '<span class="course-tile-track course-tile-track--' + trackTone + '" aria-hidden="true">' +
           '<span style="width:' + (trackPct == null ? 0 : Math.max(0, Math.min(100, trackPct))) + '%"></span></span></div>' +
-          '<button type="button" class="course-tile-open">Open class' +
+          '<button type="button" class="course-tile-open" data-class-sheet data-course="' + esc(entry.courseId) + '"' +
+          (entry.classId ? ' data-class="' + esc(entry.classId) + '"' : ' data-unassigned="1"') +
+          ' aria-label="Open ' + esc(title) + '">Open class' +
           '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>' +
           '</button></article>';
       });
