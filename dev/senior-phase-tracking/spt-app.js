@@ -65,6 +65,9 @@
     document.body.classList.toggle('tracking-focus', state.route === 'course');
     document.body.classList.toggle('dashboard-compact', state.route === 'register');
     document.body.classList.toggle('spt-visual-dashboard', state.route === 'dashboard');
+    document.body.classList.toggle('am-review-focus',
+      state.route === 'attainment-meetings' && window.SptAttainmentMeetings &&
+      window.SptAttainmentMeetings.isReviewView());
   }
 
   function updateNavToggleUi() {
@@ -4790,7 +4793,24 @@
     });
   }
 
+  function amCtx() {
+    return {
+      db: db,
+      role: role,
+      esc: esc,
+      badge: badge,
+      setRoute: setRoute,
+      openDrawer: openDrawer,
+      openModal: openModal,
+      closeModal: closeModal,
+      renderApp: render
+    };
+  }
+
   function bindMainEvents(root) {
+    if (state.route === 'attainment-meetings' && window.SptAttainmentMeetings) {
+      window.SptAttainmentMeetings.bind(root, amCtx());
+    }
     root.querySelectorAll('[data-route]').forEach(function(el) {
       el.addEventListener('click', function() { setRoute(el.getAttribute('data-route')); });
     });
@@ -5616,6 +5636,11 @@
         case 'interventions': html = renderInterventions(); break;
         case 'import': html = renderImport(); break;
         case 'reports': html = renderReports(); break;
+        case 'attainment-meetings':
+          html = window.SptAttainmentMeetings
+            ? window.SptAttainmentMeetings.render(amCtx())
+            : '<p class="empty">Attainment Meetings module failed to load.</p>';
+          break;
         default: html = renderDashboard();
       }
       document.getElementById('app-main').innerHTML = html;
@@ -5681,6 +5706,9 @@
   document.querySelectorAll('.nav-btn').forEach(function(btn) {
     btn.addEventListener('click', function() {
       var r = btn.getAttribute('data-route');
+      if (r === 'attainment-meetings' && window.SptAttainmentMeetings) {
+        window.SptAttainmentMeetings.showHome();
+      }
       if (r === 'courses') setRoute('courses');
       else setRoute(r);
     });
@@ -5810,6 +5838,13 @@
     SptSync.whenHydrated(loadHubStaffState);
   });
 
+  function hydrateMeetingStore(thenRender) {
+    if (!window.SptAttainmentMeetingStore) return;
+    window.SptAttainmentMeetingStore.hydrate(function() {
+      if (thenRender && state.route === 'attainment-meetings') render();
+    });
+  }
+
   function afterCloudHydrate(status, message, changed) {
     if (changed) {
       initRoleControls();
@@ -5819,11 +5854,14 @@
     updateSyncBanner(status, message);
     loadHubStaffState();
     refreshHubManageFlag();
+    hydrateMeetingStore(true);
   }
 
   if (!SptConfig.useSeedData && window.SptSync) {
     SptSync.hydrate(afterCloudHydrate);
+    hydrateMeetingStore(false);
   } else {
     loadHubStaffState();
+    if (window.SptAttainmentMeetingStore) window.SptAttainmentMeetingStore.hydrate();
   }
 })();
