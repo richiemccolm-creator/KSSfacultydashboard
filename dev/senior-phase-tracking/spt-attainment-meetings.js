@@ -54,7 +54,8 @@
     printCycleId: null,
     printClassId: null,
     showCreate: false,
-    addPupilOpen: false
+    addPupilOpen: false,
+    showClassNotes: false
   };
 
   var ctx = null;
@@ -529,22 +530,69 @@
     var items = [];
     (d.interventions || []).forEach(function(int) {
       if (int.enrolment_id !== enrolmentId) return;
+      var trail = global.SptInterventions && global.SptInterventions.trailForIntervention
+        ? global.SptInterventions.trailForIntervention(d, int.id) : [];
       items.push({
+        kind: 'intervention',
         title: int.intervention_description || int.concern_area || 'Intervention',
         when: int.intervention_start_date || int.created_at || '',
-        status: int.intervention_status
+        status: int.intervention_status,
+        outcome: int.impact_rating || int.outcome_notes || '',
+        trail: trail
+      });
+      trail.forEach(function(entry) {
+        items.push({
+          kind: 'trail',
+          title: entry.note || 'Support note',
+          when: entry.created_at || '',
+          status: entry.source === 'closure' ? 'Closed' : 'Follow-up',
+          outcome: ''
+        });
       });
     });
     (d.teacher_concerns || []).forEach(function(f) {
       if (f.enrolment_id !== enrolmentId) return;
-      items.push({
-        title: (f.category || 'Concern') + (f.comment ? ' — ' + f.comment : ''),
-        when: f.created_at || '',
-        status: f.status
-      });
+      if (f.resolution_note) {
+        items.push({
+          kind: 'concern',
+          title: f.resolution_note,
+          when: f.resolved_at || f.action_taken_at || f.created_at || '',
+          status: f.status,
+          outcome: f.closure_outcome || f.status
+        });
+      }
     });
     items.sort(function(a, b) { return String(b.when).localeCompare(String(a.when)); });
     return items;
+  }
+
+  function interventionsFor(d, enrolmentId) {
+    return (d.interventions || []).filter(function(int) { return int.enrolment_id === enrolmentId; });
+  }
+
+  function concernsFor(d, enrolmentId) {
+    if (global.SptConcerns && global.SptConcerns.activeFlags) {
+      return global.SptConcerns.activeFlags(d, enrolmentId);
+    }
+    return (d.teacher_concerns || []).filter(function(f) {
+      return f.enrolment_id === enrolmentId && (f.status === 'Open' || f.status === 'Ongoing');
+    });
+  }
+
+  function otherContext(d, row, cycle) {
+    var notes = [];
+    var rec = (d.attendance_records || []).find(function(a) {
+      return a.enrolment_id === row.enrolment.id && a.tracking_point_id === cycle.tracking_point_id;
+    });
+    if (rec && rec.teacher_comment) notes.push(rec.teacher_comment);
+    var track = global.SptStore.trackingRecordFor(d, row.enrolment.id, cycle.tracking_point_id);
+    if (track && track.teacher_comment && notes.indexOf(track.teacher_comment) < 0) {
+      notes.push(track.teacher_comment);
+    }
+    if (row.prelim_summary && row.prelim_summary.teacher_comment) {
+      notes.push(row.prelim_summary.teacher_comment);
+    }
+    return notes.filter(Boolean);
   }
 
   function s3Display(row) {
@@ -570,17 +618,178 @@
     if (attPct == null && row.pupil && row.pupil.end_of_year_attendance_percent != null) {
       attPct = row.pupil.end_of_year_attendance_percent;
     }
+    var attNum = attPct != null && attPct !== '' ? parseFloat(attPct) : null;
+    var belowTarget = false;
+    if (global.SptConfig && global.SptConfig.gradeRank && wg.label && wg.label !== '—' && en.target_grade) {
+      var wr = global.SptConfig.gradeRank(wg.label);
+      var tr = global.SptConfig.gradeRank(en.target_grade);
+      if (wr >= 0 && tr >= 0 && wr < tr) belowTarget = true;
+    }
+    var tps = global.SptStore.trackingPoints(d);
+    var tpHistory = tps.map(function(tp, i) {
+      var g = wgForEnrolment(d, en.id, tp.id, row.course);
+      return { label: tpShort(tp, i), value: g.label, below: false, score: g.score };
+    });
+    tpHistory.forEach(function(h) {
+      if (global.SptConfig && global.SptConfig.gradeRank && h.value && h.value !== '—' && en.target_grade) {
+        h.below = global.SptConfig.gradeRank(h.value) < global.SptConfig.gradeRank(en.target_grade);
+      }
+    });
+    var effortHist = [];
+    tps.forEach(function(tp) {
+      var rec = global.SptStore.trackingRecordFor(d, en.id, tp.id);
+      var v = rec ? global.SptStore.trackingScoreValue(rec, 'effort') : '';
+      if (v !== '' && v != null) effortHist.push(v);
+    });
+    var usualEffort = effortHist.length ? effortHist[0] : null;
+    if (effortHist.length > 1) {
+      var counts = {};
+      effortHist.forEach(function(v) { counts[v] = (counts[v] || 0) + 1; });
+      usualEffort = effortHist.reduce(function(best, v) {
+        return counts[v] > (counts[best] || 0) ? v : best;
+      }, effortHist[0]);
+    }
     return {
       wg: wg.label,
       prevWg: prev && prev.score != null ? prev.label : null,
       target: en.target_grade || '—',
-      attendance: attPct != null && attPct !== '' ? attPct + '%' : '—',
-      effort: scores.effort !== '' ? scoreLabel(scores.effort) : '—',
+      attendance: attNum != null && !isNaN(attNum) ? Math.round(attNum) + '%' : '—',
+      attendanceNum: attNum,
+      effort: scores.effort !== '' ? String(scores.effort) : '—',
+      effortRaw: scores.effort,
+      effortLabel: scores.effort !== '' ? scoreLabel(scores.effort) : '—',
+      usualEffort: usualEffort,
       behaviour: scores.behaviour !== '' ? scoreLabel(scores.behaviour) : '—',
+      behaviourRaw: scores.behaviour,
       risk: en.risk_status || 'Grey',
       s3: s3Display(row),
-      prior: row.prior_display && row.prior_display.grade && row.prior_display.grade !== '—' ? row.prior_display.grade : null
+      prior: row.prior_display && row.prior_display.grade && row.prior_display.grade !== '—' ? row.prior_display.grade : null,
+      belowTarget: belowTarget,
+      tpHistory: tpHistory,
+      openConcerns: row.open_flag_count || 0
     };
+  }
+
+  function discussionReasons(row, snap) {
+    var items = [];
+    var seen = {};
+    function add(label) {
+      if (!label || seen[label]) return;
+      seen[label] = true;
+      items.push(label);
+    }
+    (row.enrolment.risk_reasons || []).forEach(function(r) {
+      var s = String(r).toLowerCase();
+      if (s.indexOf('working grade') >= 0 || s.indexOf('below target') >= 0 || s.indexOf('wg ') >= 0) add('Below target');
+      else if (s.indexOf('attendance') >= 0) add('Attendance concern');
+      else if (s.indexOf('effort') >= 0) {
+        add(snap.effortRaw !== '' && snap.effortRaw != null ? 'Effort ' + snap.effortRaw : 'Effort concern');
+      } else if (s.indexOf('behaviour') >= 0) add('Behaviour concern');
+      else if (s.indexOf('intervention') >= 0) add('Active support');
+      else if (s.indexOf('s3') >= 0) add('S3 exam');
+      else if (s.indexOf('prelim') >= 0) add('Prelim concern');
+      else add(String(r));
+    });
+    if (snap.belowTarget) add('Below target');
+    if (snap.attendanceNum != null && !isNaN(snap.attendanceNum) && snap.attendanceNum < 90) add('Attendance concern');
+    if (snap.effortRaw === 1 || snap.effortRaw === 2 || snap.effortRaw === '1' || snap.effortRaw === '2') {
+      add('Effort ' + snap.effortRaw);
+    }
+    if ((row.open_flag_count || 0) > 0) add('Open concern');
+    if ((row.active_interventions || []).length) add('Active support');
+    return items;
+  }
+
+  function pupilInitials(d, pupilId) {
+    var p = global.SptStore.byId(d.pupils, pupilId);
+    if (!p) return '?';
+    var a = (p.preferred_name || p.first_name || '?').charAt(0);
+    var b = (p.surname || '').charAt(0);
+    return (a + b).toUpperCase();
+  }
+
+  function pupilFirstName(d, pupilId) {
+    var p = global.SptStore.byId(d.pupils, pupilId);
+    return p ? (p.preferred_name || p.first_name || 'this pupil') : 'this pupil';
+  }
+
+  function currentStaffLabel(d) {
+    var r = role();
+    var name = '';
+    if (d.simulated_teacher_id) name = global.SptStore.teacherName(d, d.simulated_teacher_id);
+    if ((!name || name === '—') && r && r.viewAll) {
+      var fh = (d.teachers || []).find(function(t) { return t && /faculty head/i.test(t.role || ''); });
+      if (fh) name = global.SptStore.teacherName(d, fh.id);
+    }
+    if (!name || name === '—') name = (r && r.label) || 'Staff';
+    return name;
+  }
+
+  function queueState(item, isActive) {
+    if (isActive) return { id: 'discussion', label: 'Discussion' };
+    if (item.review.discussion_status === 'skipped') return { id: 'skipped', label: 'Skipped' };
+    if (item.review.reviewed) return { id: 'reviewed', label: 'Reviewed' };
+    return { id: 'todo', label: 'To discuss' };
+  }
+
+  function queueSummary(snap) {
+    return 'WG ' + snap.wg + ' · Target ' + snap.target + ' · Att ' + snap.attendance;
+  }
+
+  function snapTone(kind, snap) {
+    if (kind === 'wg' && snap.belowTarget) return 'is-risk';
+    if (kind === 'att' && snap.attendanceNum != null && !isNaN(snap.attendanceNum)) {
+      if (snap.attendanceNum < 75) return 'is-risk';
+      if (snap.attendanceNum < 90) return 'is-warn';
+    }
+    if (kind === 'effort' && (snap.effortRaw === 1 || snap.effortRaw === 2 || snap.effortRaw === '1' || snap.effortRaw === '2')) {
+      return snap.effortRaw == 1 ? 'is-risk' : 'is-warn';
+    }
+    if (kind === 'behaviour' && (snap.behaviourRaw === 1 || snap.behaviourRaw === 2)) return 'is-warn';
+    return '';
+  }
+
+  function svgIcon(name) {
+    var common = ' class="am-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+    var paths = {
+      flag: '<path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/>',
+      users: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+      check: '<polyline points="20 6 9 17 4 12"/>',
+      printer: '<polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/>',
+      plus: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+      x: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+      notes: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
+      grid: '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>',
+      chevronL: '<polyline points="15 18 9 12 15 6"/>',
+      chevronR: '<polyline points="9 18 15 12 9 6"/>',
+      pencil: '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>'
+    };
+    return '<svg' + common + '>' + (paths[name] || '') + '</svg>';
+  }
+
+  function outcomeClass(outcome) {
+    var s = String(outcome || '').toLowerCase();
+    if (s.indexOf('significant') >= 0 || s.indexOf('resolved') >= 0) return 'is-good';
+    if (s.indexOf('some') >= 0) return 'is-some';
+    if (s.indexOf('not yet') >= 0 || s.indexOf('no ') >= 0) return 'is-none';
+    return '';
+  }
+
+  function setClassMeetingNotes(classReviewId, notes) {
+    var store = loadStore();
+    var cr = byId(store.class_reviews, classReviewId);
+    if (!cr) return store;
+    cr.meeting_notes = notes;
+    cr.updated_at = new Date().toISOString();
+    return saveStore(store);
+  }
+
+  function applySuggestList(cr, rows) {
+    var before = pupilReviewsForClass(loadStore(), cr.id).length;
+    var store = loadStore();
+    seedSuggested(store, cr, rows);
+    saveStore(store);
+    return pupilReviewsForClass(loadStore(), cr.id).length - before;
   }
 
   function reviewPointLabel(d, action) {
@@ -742,27 +951,113 @@
     return html;
   }
 
-  function renderQueueItems(classes, activeClassId) {
-    var html = '<aside class="am-queue"><h3>Classes</h3>';
-    classes.forEach(function(c) {
-      var cls = 'am-queue-item';
-      if (c.classId === activeClassId) cls += ' is-active';
-      if (c.status === 'complete') cls += ' is-complete';
-      var meta = c.status === 'complete'
-        ? 'Complete ✓'
-        : (c.reviewed + ' of ' + c.discuss + ' reviewed');
-      html += '<button type="button" class="' + cls + '" data-am-queue-class="' + esc(c.classId) + '">';
-      html += '<span class="am-queue-class">' + esc(c.className) + '</span>';
-      html += '<span class="am-queue-teacher">' + esc(c.teacherName) + '</span>';
-      html += '<span class="am-queue-meta">' + c.discuss + ' pupil' + (c.discuss === 1 ? '' : 's') + ' to discuss · ' + meta + '</span>';
-      html += '</button>';
-    });
-    html += '</aside>';
+  function renderChrome(d, cycle, info, canEdit) {
+    var crumb = cycle.title || 'Attainment meeting';
+    var html = '<header class="am-chrome am-no-print">';
+    html += '<div class="am-chrome-left">';
+    html += '<button type="button" class="am-chrome-back" data-am-open-cycle="' + esc(cycle.id) + '">Classes</button>';
+    html += '<h1>Attainment Meeting</h1>';
+    html += '</div>';
+    html += '<p class="am-chrome-crumb">' + esc(crumb) + '</p>';
+    html += '<div class="am-chrome-right">';
+    html += '<span class="am-chrome-you">You: ' + esc(currentStaffLabel(d)) + ' (' + esc(role().label || 'Staff') + ')</span>';
+    if (canEdit) {
+      html += '<button type="button" class="am-chrome-btn' + (ui.showClassNotes ? ' is-on' : '') +
+        '" data-am-toggle-class-notes>' + svgIcon('notes') + ' Meeting notes</button>';
+    }
+    html += '</div></header>';
     return html;
   }
 
-  function metric(dt, dd) {
-    return '<div class="am-metric"><dt>' + esc(dt) + '</dt><dd>' + dd + '</dd></div>';
+  function renderPupilQueue(d, cycle, list, currentId, canEdit) {
+    var html = '<div class="am-queue-head">';
+    html += '<h3>Pupil queue</h3>';
+    if (canEdit) {
+      html += '<button type="button" class="am-quiet-btn" data-am-suggest-list>Suggest list</button>';
+    }
+    html += '</div>';
+    html += '<div class="am-pupil-queue" role="list">';
+    if (!list.length) {
+      html += '<p class="am-empty">No pupils on the list yet. Use Suggest list to add those at risk, or add a pupil.</p>';
+    }
+    list.forEach(function(item, i) {
+      var en = item.row.enrolment;
+      var isActive = en.id === currentId;
+      var st = queueState(item, isActive);
+      var snap = snapshotMetrics(d, item.row, cycle);
+      var name = global.SptStore.pupilName(d, en.pupil_id);
+      var flagged = isSuggested(item.row);
+      var cls = 'am-q-item' + (isActive ? ' is-active' : '') + (st.id === 'skipped' ? ' is-skip' : '') +
+        (st.id === 'reviewed' ? ' is-done' : '');
+      html += '<button type="button" class="' + cls + '" role="listitem" data-am-pupil="' + esc(en.id) + '">';
+      html += '<span class="am-q-num">' + (i + 1) + '</span>';
+      html += '<span class="am-q-body">';
+      html += '<span class="am-q-top"><span class="am-q-name">' + esc(name) + '</span>';
+      if (flagged) html += '<span class="am-q-flag" title="Priority">' + svgIcon('flag') + '</span>';
+      html += '<span class="am-q-state is-' + st.id + '">' + esc(st.label) + '</span></span>';
+      html += '<span class="am-q-sum">' + esc(queueSummary(snap)) + '</span>';
+      html += '</span></button>';
+    });
+    html += '</div>';
+    return html;
+  }
+
+  function renderAside(d, row, cycle) {
+    var support = supportHistory(d, row.enrolment.id).filter(function(s) { return s.kind !== 'trail'; }).slice(0, 6);
+    var ints = interventionsFor(d, row.enrolment.id);
+    var concerns = concernsFor(d, row.enrolment.id);
+    var context = otherContext(d, row, cycle || {});
+    var html = '<aside class="am-aside">';
+
+    html += '<details class="am-panel" open><summary>Previous support</summary>';
+    if (!support.length) html += '<p class="am-empty">Nothing recorded yet.</p>';
+    html += '<ol class="am-timeline">';
+    support.forEach(function(s) {
+      html += '<li><span class="am-timeline-when">' + esc(formatDate(s.when) || '') + '</span>';
+      html += '<span class="am-timeline-title">' + esc(s.title) + '</span>';
+      if (s.outcome) {
+        html += '<span class="am-outcome ' + outcomeClass(s.outcome) + '">' + esc(s.outcome) + '</span>';
+      } else if (s.status) {
+        html += '<span class="am-outcome">' + esc(s.status) + '</span>';
+      }
+      html += '</li>';
+    });
+    html += '</ol></details>';
+
+    html += '<details class="am-panel"><summary>Interventions';
+    if (ints.length) html += '<span class="am-count">' + ints.length + '</span>';
+    html += '</summary>';
+    if (!ints.length) html += '<p class="am-empty">No interventions on record.</p>';
+    ints.forEach(function(int) {
+      var past = int.intervention_status === 'Completed';
+      html += '<div class="am-side-item"><span>' + esc(int.intervention_description || int.concern_area || 'Intervention') +
+        '</span><span class="am-pill' + (past ? ' is-past' : ' is-live') + '">' +
+        esc(past ? 'Past' : (int.intervention_status || 'Active')) + '</span></div>';
+    });
+    html += '</details>';
+
+    html += '<details class="am-panel"' + (concerns.length ? ' open' : '') + '><summary>Concerns';
+    if (concerns.length) html += '<span class="am-count is-risk">' + concerns.length + '</span>';
+    html += '</summary>';
+    if (!concerns.length) html += '<p class="am-empty">No open concerns.</p>';
+    concerns.forEach(function(f) {
+      var raiser = f.raised_by_teacher_id ? global.SptStore.teacherName(d, f.raised_by_teacher_id) : '';
+      html += '<div class="am-side-item"><div><strong>' + esc(f.category || 'Concern') + '</strong>';
+      if (f.comment) html += '<p>' + esc(f.comment) + '</p>';
+      if (raiser && raiser !== '—') html += '<span class="am-muted">Raised by ' + esc(raiser) + '</span>';
+      html += '</div><span class="am-pill is-open">' + esc(f.status || 'Open') + '</span></div>';
+    });
+    html += '</details>';
+
+    html += '<details class="am-panel"><summary>Other context</summary>';
+    if (!context.length) html += '<p class="am-empty">No extra notes in tracking.</p>';
+    else {
+      html += '<ul class="am-context">';
+      context.forEach(function(n) { html += '<li>' + esc(n) + '</li>'; });
+      html += '</ul>';
+    }
+    html += '</details></aside>';
+    return html;
   }
 
   function renderReview() {
@@ -784,61 +1079,83 @@
     var current = list.find(function(i) { return i.row.enrolment.id === ui.enrolmentId; }) || active[0] || list[0];
     if (current) ui.enrolmentId = current.row.enrolment.id;
 
-    var reviewedN = active.filter(function(i) { return i.review.reviewed; }).length;
-    var pct = active.length ? Math.round(reviewedN / active.length * 100) : 0;
-    var mins = Math.max(5, active.length * 2);
-    var actions = actionsForClass(store, cr.id);
-    var counts = countByOwner(actions);
+    var handled = list.filter(function(i) {
+      return i.review.reviewed || i.review.discussion_status === 'skipped';
+    }).length;
+    var remaining = active.filter(function(i) { return !i.review.reviewed; }).length;
+    var pct = list.length ? Math.round(handled / list.length * 100) : 0;
+    var mins = remaining * 3;
     var canEdit = canEditMeetings();
+    var saveCls = ui.saveState === 'saving' ? ' is-saving' : ui.saveState === 'saved' ? ' is-saved' : '';
+    var saveTxt = ui.saveState === 'saving' ? 'Saving…' : ui.saveState === 'saved' ? 'Saved' : '';
 
-    var html = '<div class="am-review">';
-    html += renderQueueItems(classes, classId);
-    html += '<div class="am-review-main">';
-    html += '<div class="am-review-head">';
-    html += '<p class="am-review-kicker">' + esc(cycle.title) + '</p>';
-    html += '<h2>' + esc(info ? info.className : '') + ' · ' + esc(info ? info.teacherName : '') + '</h2>';
-    html += '<div class="am-review-progress"><span>' + reviewedN + ' of ' + active.length + ' reviewed</span>';
-    html += '<div class="am-bar" aria-hidden="true"><span style="width:' + pct + '%"></span></div>';
-    html += '<span>~' + mins + ' min</span>';
-    html += '<span class="am-save-status' + (ui.saveState === 'saving' ? ' is-saving' : ui.saveState === 'saved' ? ' is-saved' : '') + '">';
-    html += ui.saveState === 'saving' ? 'Saving…' : ui.saveState === 'saved' ? 'Saved' : '';
-    html += '</span></div></div>';
+    var html = '<div class="am-workspace">';
+    html += renderChrome(d, cycle, info, canEdit);
 
-    html += '<div class="am-tabs" role="tablist">';
-    list.forEach(function(item, i) {
-      var cls = 'am-tab';
-      if (item.row.enrolment.id === ui.enrolmentId) cls += ' is-active';
-      if (item.review.discussion_status === 'skipped') cls += ' is-skip';
-      else if (item.review.reviewed) cls += ' is-done';
-      var name = global.SptStore.pupilName(d, item.row.enrolment.pupil_id);
-      html += '<button type="button" class="' + cls + '" data-am-pupil="' + esc(item.row.enrolment.id) + '">' +
-        (i + 1) + ' ' + esc(name) + '</button>';
-    });
-    if (canEdit) html += '<button type="button" class="am-tab" data-am-add-pupil>+ Add pupil</button>';
-    html += '</div>';
+    if (ui.showClassNotes && canEdit) {
+      html += '<div class="am-class-notes am-no-print">';
+      html += '<label for="am-class-notes">Class meeting notes</label>';
+      html += '<textarea id="am-class-notes" placeholder="Whole-class points that should not sit on one pupil record.">' +
+        esc(cr.meeting_notes || '') + '</textarea></div>';
+    }
 
+    html += '<div class="am-workspace-body">';
+
+    html += '<section class="am-col-queue" aria-label="Class and pupil queue">';
+    html += '<article class="am-class-card">';
+    html += '<div class="am-class-card-top"><h2>' + esc(info ? info.className : '') + '</h2>';
+    html += '<span class="am-enrolled">' + (info ? info.pupils : 0) + ' enrolled</span></div>';
+    html += '<p class="am-class-teacher">Teacher: ' + esc(info ? info.teacherName : '—') + '</p>';
+    html += '<p class="am-class-cycle">' + esc(cycle.title) + '</p>';
+    html += '<div class="am-review-progress">';
+    html += '<span>' + handled + ' of ' + list.length + ' pupils reviewed</span>';
+    html += '<div class="am-bar" role="progressbar" aria-valuenow="' + handled + '" aria-valuemin="0" aria-valuemax="' +
+      list.length + '"><span style="width:' + pct + '%"></span></div>';
+    html += '<span class="am-mins">' + (mins > 0 ? '~' + mins + ' mins remaining' : 'Queue complete') + '</span>';
+    html += '</div></article>';
+    html += renderPupilQueue(d, cycle, list, ui.enrolmentId, canEdit);
+    html += '<div class="am-queue-foot">';
+    if (canEdit) {
+      html += '<button type="button" class="am-quiet-btn" data-am-add-pupil>' +
+        svgIcon('plus') + ' Add pupil</button>';
+    }
+    html += '<button type="button" class="am-quiet-btn" data-am-class-summary="' + esc(classId) + '">' +
+      svgIcon('grid') + ' Class summary</button>';
+    html += '</div></section>';
+
+    html += '<section class="am-col-main" aria-label="Pupil discussion">';
     if (!current) {
-      html += '<div class="am-pupil"><p class="am-empty">No pupils suggested for discussion. Add a pupil to meet about someone the list missed.</p></div>';
+      html += '<div class="am-pupil am-pupil--empty"><p class="am-empty">No pupils suggested for discussion.</p>';
+      if (canEdit) {
+        html += '<p>Use Suggest list for pupils at risk, or add someone the list missed.</p>';
+      }
+      html += '</div>';
     } else {
       html += renderPupilPane(d, store, cycle, cr, current, list, canEdit);
     }
+    html += '</section>';
 
-    html += '<div class="am-review-foot am-no-print">';
-    html += '<button type="button" class="btn btn-secondary" data-am-prev-pupil>Previous pupil</button>';
-    if (canEdit) html += '<button type="button" class="btn" data-am-save-next>Save &amp; next pupil</button>';
-    html += '<button type="button" class="btn btn-secondary" data-am-next-pupil>Next pupil</button>';
-    html += '<span class="am-review-foot-spacer"></span>';
-    if (canEdit) html += '<button type="button" class="btn btn-secondary" data-am-finish-class>Finish class review</button>';
-    html += '<button type="button" class="btn btn-secondary" data-am-class-summary="' + esc(classId) + '">Class summary</button>';
-    html += '</div></div>';
+    if (current) html += renderAside(d, current.row, cycle);
+    else html += '<aside class="am-aside"><p class="am-empty">Select a pupil to see previous support.</p></aside>';
 
-    html += '<aside class="am-aside"><h3>Summary for this class</h3>';
-    html += '<div class="am-statline"><span>Teacher actions</span><strong>' + (counts.teacher || 0) + '</strong></div>';
-    html += '<div class="am-statline"><span>Faculty Head actions</span><strong>' + (counts.faculty_head || 0) + '</strong></div>';
-    html += '<div class="am-statline"><span>SLT escalations</span><strong>' + (counts.slt || 0) + '</strong></div>';
-    html += '<div class="am-statline"><span>Monitor only</span><strong>' + (counts.monitor || 0) + '</strong></div>';
-    html += '<div class="am-statline am-aside-total"><span>Total actions</span><strong>' + actions.length + '</strong></div>';
-    html += '</aside></div>';
+    html += '</div>';
+
+    html += '<footer class="am-dock am-no-print">';
+    html += '<div class="am-dock-meta"><span class="am-save-status' + saveCls + '">' + (saveTxt || '\u00a0') + '</span></div>';
+    html += '<div class="am-dock-actions">';
+    html += '<div class="am-dock-nav">';
+    if (canEdit && current) {
+      html += '<button type="button" class="am-btn-ghost" data-am-skip-pupil>Skip this pupil</button>';
+      html += '<button type="button" class="am-btn-primary" data-am-save-next>Save &amp; next pupil</button>';
+    }
+    html += '</div>';
+    html += '<div class="am-dock-end">';
+    if (canEdit) {
+      html += '<button type="button" class="am-btn-text" data-am-finish-class>Finish class review</button>';
+    }
+    html += '<button type="button" class="am-btn-text" data-am-print="class" data-am-cycle="' + esc(cycle.id) +
+      '" data-am-class="' + esc(classId) + '">Print action sheet</button>';
+    html += '</div></div></footer></div>';
     return html;
   }
 
@@ -846,104 +1163,127 @@
     var row = current.row;
     var en = row.enrolment;
     var name = global.SptStore.pupilName(d, en.pupil_id);
-    var level = [row.pupil && row.pupil.year_group, en.current_level, row.course && row.course.course_name].filter(Boolean).join(' · ');
+    var first = pupilFirstName(d, en.pupil_id);
+    var courseLabel = (row.course && row.course.course_name) || en.current_level || '';
     var snap = snapshotMetrics(d, row, cycle);
-    var reasons = [];
-    (en.risk_reasons || []).forEach(function(r) {
-      if (reasons.indexOf(r) < 0) reasons.push(r);
-    });
-    var chips = reasonChips(reasons);
-    var support = supportHistory(d, en.id).slice(0, 4);
+    var reasons = discussionReasons(row, snap);
     var pupilActions = actionsForPupil(store, cr.id, en.id);
     var draft = draftFor(en.id);
     var tps = global.SptStore.trackingPoints(d);
     if (!draft.reviewPointId) draft.reviewPointId = nextTpId(d, cycle.tracking_point_id);
+    var idx = list.findIndex(function(i) { return i.row.enrolment.id === en.id; });
+    var atRisk = snap.risk === 'Red' || snap.risk === 'Amber';
+    var openConcern = (row.open_flags && row.open_flags[0]) || null;
 
     var html = '<div class="am-pupil">';
-    html += '<div>';
-    html += '<h3 class="am-pupil-name">' + esc(name) + '</h3>';
-    html += '<p class="am-pupil-sub">' + esc(level) +
-      ' · <button type="button" class="am-link" data-am-full-tracking="' + esc(en.id) + '">View full tracking</button></p>';
-    html += '<dl class="am-metrics">';
-    html += metric('Current WG', esc(snap.wg));
-    html += metric('Target', esc(snap.target));
-    html += metric('Attendance', esc(snap.attendance));
-    html += metric('Effort', esc(snap.effort));
-    html += metric('Behaviour', esc(snap.behaviour));
-    html += metric('Risk', badge(snap.risk));
-    if (snap.prevWg) html += metric('Previous WG', esc(snap.prevWg));
-    if (snap.s3) html += metric('S3 exam', esc(snap.s3));
-    if (snap.prior) html += metric('Prior', esc(snap.prior));
-    html += '</dl>';
+    html += '<div class="am-pupil-nav">';
+    html += '<button type="button" class="am-nav-btn" data-am-prev-pupil ' + (idx <= 0 ? 'disabled' : '') + '>' +
+      svgIcon('chevronL') + ' Previous</button>';
+    html += '<div class="am-dots" aria-hidden="true">';
+    list.forEach(function(item, i) {
+      var cls = 'am-dot-step';
+      if (item.row.enrolment.id === en.id) cls += ' is-on';
+      else if (item.review.reviewed) cls += ' is-done';
+      else if (item.review.discussion_status === 'skipped') cls += ' is-skip';
+      html += '<span class="' + cls + '"></span>';
+    });
+    html += '</div>';
+    html += '<span class="am-pupil-pos">' + (idx + 1) + ' of ' + list.length + ' pupils</span>';
+    html += '<button type="button" class="am-nav-btn" data-am-next-pupil ' + (idx >= list.length - 1 ? 'disabled' : '') +
+      '>Next pupil ' + svgIcon('chevronR') + '</button>';
+    html += '</div>';
 
-    html += '<div class="am-block" style="margin-top:.75rem"><h3>Why this pupil is being discussed</h3>';
-    if (!reasons.length) html += '<p class="am-empty">Added to this meeting — no stored risk reasons.</p>';
+    html += '<div class="am-pupil-hero">';
+    html += '<div class="am-avatar" aria-hidden="true">' + esc(pupilInitials(d, en.pupil_id)) + '</div>';
+    html += '<div class="am-pupil-id">';
+    html += '<h2 class="am-pupil-name">' + esc(name) + '</h2>';
+    html += '<p class="am-pupil-sub">' + esc(courseLabel || '');
+    if (atRisk) html += ' <span class="am-risk-badge">At risk</span>';
+    html += ' · <button type="button" class="am-link" data-am-full-tracking="' + esc(en.id) + '">View full tracking</button></p>';
+    html += '</div></div>';
+
+    html += '<div class="am-why' + (reasons.length ? '' : ' is-quiet') + '">';
+    html += '<h3>Why are we discussing ' + esc(first) + '?</h3>';
+    if (!reasons.length) html += '<p>Added to this meeting. No stored risk reasons.</p>';
     else {
-      html += '<ul class="am-why">';
-      reasons.forEach(function(r) { html += '<li>' + esc(r) + '</li>'; });
-      html += '</ul>';
-    }
-    if (chips.length) {
-      html += '<div class="am-chips">';
-      chips.forEach(function(c) { html += '<span class="am-chip">' + esc(c) + '</span>'; });
+      html += '<div class="am-why-chips">';
+      reasons.forEach(function(r) { html += '<span class="am-why-chip">' + esc(r) + '</span>'; });
       html += '</div>';
     }
     html += '</div>';
 
-    html += '<div class="am-block" style="margin-top:.75rem"><h3>Previous support</h3>';
-    if (!support.length) html += '<p class="am-empty">No interventions or concerns on record.</p>';
-    support.forEach(function(s) {
-      html += '<div class="am-support-item"><strong>' + esc(s.title) + '</strong><span>' +
-        esc(s.status || '') + (s.when ? ' · ' + esc(formatDate(s.when)) : '') + '</span></div>';
-    });
-    html += '<p style="margin-top:.4rem"><button type="button" class="am-link" data-am-full-tracking="' + esc(en.id) + '">View history</button></p>';
-    html += '</div></div>';
+    html += '<dl class="am-snapshot">';
+    html += '<div class="am-snap ' + snapTone('wg', snap) + '"><dt>WG</dt><dd>' + esc(snap.wg) + '</dd></div>';
+    html += '<div class="am-snap ' + snapTone('target', snap) + '"><dt>Target</dt><dd>' + esc(snap.target) + '</dd></div>';
+    html += '<div class="am-snap ' + snapTone('att', snap) + '"><dt>Attendance</dt><dd>' + esc(snap.attendance) + '</dd></div>';
+    html += '<div class="am-snap ' + snapTone('effort', snap) + '"><dt>Effort</dt><dd>' + esc(snap.effort) + '</dd></div>';
+    html += '<div class="am-snap ' + snapTone('behaviour', snap) + '"><dt>Behaviour</dt><dd>' +
+      esc(snap.behaviourRaw !== '' && snap.behaviourRaw != null ? String(snap.behaviourRaw) : snap.behaviour) + '</dd></div>';
+    html += '</dl>';
 
-    html += '<div>';
-    html += '<div class="am-block"><h3>Agree actions</h3>';
+    html += '<section class="am-picture"><h3>Current picture</h3><div class="am-picture-grid">';
+    snap.tpHistory.forEach(function(h) {
+      html += '<div><span>' + esc(h.label) + '</span><strong class="' + (h.below ? 'is-risk' : '') + '">' +
+        esc(h.value) + '</strong></div>';
+    });
+    if (snap.s3) html += '<div><span>S3 attainment</span><strong>' + esc(snap.s3) + '</strong></div>';
+    if (snap.usualEffort != null) {
+      html += '<div><span>Usual effort</span><strong>' + esc(String(snap.usualEffort)) + '</strong></div>';
+    }
+    html += '<div><span>Open concerns</span><strong>' + snap.openConcerns;
+    if (openConcern && openConcern.comment) html += ' <em>' + esc(openConcern.comment) + '</em>';
+    html += '</strong></div></div></section>';
+
+    html += '<section class="am-notes-block"><h3>Discussion notes</h3>';
+    html += '<textarea class="am-notes-area" id="am-notes" ' + (canEdit ? '' : 'readonly ') +
+      'placeholder="What is the teacher seeing? Barriers, context, professional judgment.">' +
+      esc(current.review.notes || '') + '</textarea></section>';
+
+    html += '<section class="am-actions-block">';
+    html += '<div class="am-actions-head"><h3>Agreed actions</h3>';
+    if (canEdit) html += '<button type="button" class="am-heading-action" data-am-focus-action>Add action</button>';
+    html += '</div>';
     if (canEdit) {
+      html += '<div class="am-action-composer">';
       html += '<div class="am-owner-row">';
       OWNERS.forEach(function(o) {
-        html += '<button type="button" class="am-owner' + (draft.owner === o.id ? ' is-on' : '') +
+        html += '<button type="button" class="am-owner is-' + o.id + (draft.owner === o.id ? ' is-on' : '') +
           '" data-am-owner="' + o.id + '">' + esc(o.label) + '</button>';
       });
       html += '</div>';
-      html += '<textarea class="am-action-text" id="am-action-text" placeholder="Short action, e.g. Weekly lunchtime check-in for four weeks.">' +
+      html += '<textarea class="am-action-text" id="am-action-text" placeholder="Short next step, e.g. Weekly written-work check-in at the start of Thursday lesson.">' +
         esc(draft.text) + '</textarea>';
       html += '<div class="am-action-tools">';
-      html += '<div class="am-field" style="min-width:7.5rem"><label for="am-review-tp">Review point</label>';
+      html += '<div class="am-field"><label for="am-review-tp">Review at</label>';
       html += '<select id="am-review-tp"><option value="">None</option>';
       tps.forEach(function(tp, i) {
         html += '<option value="' + esc(tp.id) + '"' + (draft.reviewPointId === tp.id ? ' selected' : '') + '>' +
           esc(tpShort(tp, i)) + '</option>';
       });
       html += '</select></div>';
-      html += '<div class="am-field" style="min-width:9rem"><label for="am-review-date">Or date</label>';
+      html += '<div class="am-field"><label for="am-review-date">Or date</label>';
       html += '<input id="am-review-date" type="date" value="' + esc(draft.reviewDate || '') + '"></div>';
-      html += '<button type="button" class="btn" data-am-add-action>+ Add action</button>';
-      html += '</div>';
+      html += '<button type="button" class="am-composer-add" data-am-add-action>Add</button>';
+      html += '</div></div>';
     }
     html += '<ul class="am-action-list">';
-    if (!pupilActions.length) html += '<li class="am-empty" style="display:block">No actions yet — or choose Monitor if discussion is enough.</li>';
+    if (!pupilActions.length) {
+      html += '<li class="am-empty">No actions yet. Add a next step, or choose Monitor if discussion is enough.</li>';
+    }
     pupilActions.forEach(function(a) {
-      html += '<li><span class="am-action-owner">' + esc(OWNER_LABEL[a.owner_type] || a.owner_type) + '</span>';
-      html += '<span>' + esc(a.action_text) +
-        (reviewPointLabel(d, a) ? '<br><span class="am-empty">Review ' + esc(reviewPointLabel(d, a)) + '</span>' : '') +
-        '</span>';
+      html += '<li class="am-action-row">';
+      html += '<span class="am-owner-chip is-' + esc(a.owner_type) + '">' + esc(OWNER_LABEL[a.owner_type] || a.owner_type) + '</span>';
+      html += '<div class="am-action-body"><p>' + esc(a.action_text) + '</p>';
+      html += '<span class="am-action-meta">' + esc(a.status === 'complete' ? 'Complete' : (a.status === 'open' ? 'Open' : (a.status || 'Open')));
+      if (reviewPointLabel(d, a)) html += ' · Review ' + esc(reviewPointLabel(d, a));
+      html += '</span></div>';
       if (canEdit && a.status !== 'complete') {
-        html += '<button type="button" class="am-icon-btn" data-am-del-action="' + esc(a.id) + '" aria-label="Remove action">&times;</button>';
-      } else html += '<span></span>';
+        html += '<button type="button" class="am-icon-btn" data-am-del-action="' + esc(a.id) + '" aria-label="Remove action">' +
+          svgIcon('x') + '</button>';
+      }
       html += '</li>';
     });
-    html += '</ul></div>';
-
-    html += '<div class="am-block" style="margin-top:.85rem"><h3>Meeting notes</h3>';
-    html += '<textarea class="am-notes-area" id="am-notes" ' + (canEdit ? '' : 'readonly ') +
-      'placeholder="Short context only — not tracking comments.">' + esc(current.review.notes || '') + '</textarea></div>';
-    if (canEdit && current.review.discussion_status !== 'skipped') {
-      html += '<p style="margin-top:.45rem"><button type="button" class="am-link" data-am-skip-pupil>Not for discussion this cycle</button></p>';
-    }
-    html += '</div></div>';
+    html += '</ul></section></div>';
     return html;
   }
 
@@ -993,10 +1333,22 @@
     html += '</div></div>';
     html += '<article class="am-summary-doc" id="am-print-root">';
     html += '<h1>' + esc(cl ? cl.class_name : '') + ' Attainment Review</h1>';
-    html += '<p class="am-doc-meta">' + esc(cycle.tracking_point_label || '') + ' · ' + esc(cycle.year_group) +
+    html += '<p class="am-doc-meta">' + esc(cycle.title) + '<br>';
+    if (cycle.tracking_point_label && String(cycle.title).indexOf(cycle.tracking_point_label) < 0) {
+      html += esc(cycle.tracking_point_label) + ' · ';
+    }
+    html += esc(cycle.year_group) +
       '<br>Teacher: ' + esc(cl ? global.SptStore.teacherName(d, cl.teacher_id) : '—') +
-      '<br>Date: ' + esc(formatDate(cr.completed_at || cr.started_at || cr.updated_at)) +
+      '<br>Meeting date: ' + esc(formatDate(cr.completed_at || cr.started_at || cr.updated_at)) +
       '<br>Pupils discussed: ' + discussed.length + '</p>';
+    html += '<h2>Pupils in this review</h2>';
+    if (!discussed.length) html += '<p class="am-empty">No pupils marked reviewed or skipped.</p>';
+    discussed.forEach(function(p) {
+      var status = p.discussion_status === 'skipped' ? 'Skipped' : 'Reviewed';
+      html += '<p><strong>' + esc(global.SptStore.pupilName(d, p.pupil_id)) + '</strong> · ' + esc(status);
+      if (p.notes) html += '<br>' + esc(p.notes) + '';
+      html += '</p>';
+    });
     html += groupedActionsHtml(d, actions, store);
     html += '</article></div>';
     return html;
@@ -1126,15 +1478,39 @@
     refresh();
   }
 
+  function flushClassNotes() {
+    var area = document.getElementById('am-class-notes');
+    if (!area || !ui.cycleId || !ui.classId) return;
+    var cr = classReview(loadStore(), ui.cycleId, ui.classId);
+    if (!cr) return;
+    setClassMeetingNotes(cr.id, area.value);
+  }
+
   function flushNotes() {
-    if (!ui.cycleId || !ui.classId || !ui.enrolmentId) return;
+    if (!ui.cycleId || !ui.classId || !ui.enrolmentId) {
+      flushClassNotes();
+      return;
+    }
     var store = loadStore();
     var cr = classReview(store, ui.cycleId, ui.classId);
     var area = document.getElementById('am-notes');
-    if (!cr || !area) return;
-    ui.saveState = 'saving';
-    upsertPupilNotes(cr.id, ui.enrolmentId, area.value);
-    ui.saveState = 'saved';
+    if (cr && area) {
+      ui.saveState = 'saving';
+      upsertPupilNotes(cr.id, ui.enrolmentId, area.value);
+      ui.saveState = 'saved';
+    }
+    flushClassNotes();
+  }
+
+  function nextPending(fromId) {
+    var list = currentList();
+    var idx = list.findIndex(function(i) { return i.row.enrolment.id === fromId; });
+    function pending(i) {
+      return i && !i.review.reviewed && i.review.discussion_status !== 'skipped' && i.row.enrolment.id !== fromId;
+    }
+    var after = list.slice(Math.max(idx, 0) + 1).find(pending);
+    if (after) return after;
+    return list.find(pending) || list[idx + 1] || null;
   }
 
   function captureDraft() {
@@ -1338,10 +1714,12 @@
     });
     root.querySelectorAll('[data-am-owner]').forEach(function(el) {
       el.addEventListener('click', function() {
-        flushNotes();
         captureDraft();
-        draftFor(ui.enrolmentId).owner = el.getAttribute('data-am-owner');
-        refresh();
+        var owner = el.getAttribute('data-am-owner');
+        draftFor(ui.enrolmentId).owner = owner;
+        root.querySelectorAll('[data-am-owner]').forEach(function(btn) {
+          btn.classList.toggle('is-on', btn.getAttribute('data-am-owner') === owner);
+        });
       });
     });
     root.querySelectorAll('[data-am-add-action]').forEach(function(el) {
@@ -1370,11 +1748,9 @@
         flushNotes();
         var store = loadStore();
         var cr = classReview(store, ui.cycleId, ui.classId);
-        if (cr) markReviewed(cr.id, ui.enrolmentId, false);
-        var list = currentList();
-        var idx = list.findIndex(function(i) { return i.row.enrolment.id === ui.enrolmentId; });
-        var next = list[idx + 1] || list.find(function(i, n) { return n > idx && !i.review.reviewed; });
-        if (!next) next = list.find(function(i) { return !i.review.reviewed && i.row.enrolment.id !== ui.enrolmentId; });
+        var fromId = ui.enrolmentId;
+        if (cr) markReviewed(cr.id, fromId, false);
+        var next = nextPending(fromId);
         if (next) ui.enrolmentId = next.row.enrolment.id;
         ui.saveState = 'saved';
         refresh();
@@ -1388,16 +1764,43 @@
     });
     root.querySelectorAll('[data-am-skip-pupil]').forEach(function(el) {
       el.addEventListener('click', function() {
+        flushNotes();
+        captureDraft();
         var store = loadStore();
         var cr = classReview(store, ui.cycleId, ui.classId);
-        if (cr) markReviewed(cr.id, ui.enrolmentId, true);
-        var list = currentList();
-        var idx = list.findIndex(function(i) { return i.row.enrolment.id === ui.enrolmentId; });
-        var next = list[idx + 1] || list.find(function(i) {
-          return !i.review.reviewed && i.review.discussion_status !== 'skipped' && i.row.enrolment.id !== ui.enrolmentId;
-        });
+        var fromId = ui.enrolmentId;
+        if (cr) markReviewed(cr.id, fromId, true);
+        var next = nextPending(fromId);
         if (next) ui.enrolmentId = next.row.enrolment.id;
         refresh();
+      });
+    });
+    root.querySelectorAll('[data-am-suggest-list]').forEach(function(el) {
+      el.addEventListener('click', function() {
+        flushNotes();
+        var store = loadStore();
+        var cycle = byId(store.review_cycles, ui.cycleId);
+        var cr = classReview(store, ui.cycleId, ui.classId);
+        if (!cycle || !cr) return;
+        var added = applySuggestList(cr, rowsForClass(db(), cycle, ui.classId));
+        if (!added) {
+          showAddPupilModal();
+          return;
+        }
+        refresh();
+      });
+    });
+    root.querySelectorAll('[data-am-toggle-class-notes]').forEach(function(el) {
+      el.addEventListener('click', function() {
+        flushNotes();
+        ui.showClassNotes = !ui.showClassNotes;
+        refresh();
+      });
+    });
+    root.querySelectorAll('[data-am-focus-action]').forEach(function(el) {
+      el.addEventListener('click', function() {
+        var t = document.getElementById('am-action-text');
+        if (t) t.focus();
       });
     });
     root.querySelectorAll('[data-am-finish-class]').forEach(function(el) {
@@ -1413,6 +1816,7 @@
     });
     root.querySelectorAll('[data-am-print]').forEach(function(el) {
       el.addEventListener('click', function() {
+        flushNotes();
         var kind = el.getAttribute('data-am-print');
         ui.cycleId = el.getAttribute('data-am-cycle') || ui.cycleId;
         if (kind === 'class') {
@@ -1453,6 +1857,13 @@
     }
     var actionText = root.querySelector('#am-action-text');
     if (actionText) actionText.addEventListener('input', captureDraft);
+    var classNotes = root.querySelector('#am-class-notes');
+    if (classNotes) {
+      classNotes.addEventListener('input', function() {
+        clearTimeout(ui.noteTimer);
+        ui.noteTimer = setTimeout(flushClassNotes, 500);
+      });
+    }
   }
 
   function trackingFingerprint(d) {
