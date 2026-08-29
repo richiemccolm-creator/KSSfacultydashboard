@@ -2480,7 +2480,10 @@
       html += '<div class="spt-home-class-list">';
       classes.forEach(function(c) {
         var e = c.entry;
-        html += '<article class="spt-home-class-row' + (c.atRisk ? ' has-attention' : '') + '">';
+        html += '<article class="spt-home-class-row' + (c.atRisk ? ' has-attention' : '') +
+          '" role="button" tabindex="0" data-class-sheet data-course="' + esc(e.courseId) + '"' +
+          (e.classId ? ' data-class="' + esc(e.classId) + '"' : ' data-unassigned="1"') +
+          ' aria-label="Open ' + esc(e.className) + '">';
         html += '<div class="spt-home-class-copy">' +
           '<h3>' + esc(e.className) + '</h3>' +
           '<p>' + esc(e.courseName) +
@@ -2491,9 +2494,8 @@
           html += '<span class="spt-home-flag spt-home-flag--red">' + c.atRisk +
             ' need' + (c.atRisk === 1 ? 's' : '') + ' attention</span>';
         }
-        html += '<button type="button" class="btn btn-sm" data-class-sheet data-course="' + esc(e.courseId) + '"' +
-          (e.classId ? ' data-class="' + esc(e.classId) + '"' : ' data-unassigned="1"') +
-          '>Open class</button>';
+        html += '<span class="spt-home-class-chevron" aria-hidden="true">' +
+          '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg></span>';
         html += '</div></article>';
       });
       html += '</div>';
@@ -3429,7 +3431,7 @@
     var classes = homeClassSummaries(d, allRows);
     var html = alertStripHtml() + '<div class="page-head page-head-compact"><h1>' +
       (r.viewAll ? 'Classes' : 'My classes') + '</h1>' +
-      '<p class="page-sub">Open a class sheet to enter tracking.</p></div>' +
+      '<p class="page-sub">Click a class to enter tracking.</p></div>' +
       entryGuideHtml('courses-list');
     if (state.coursesMessage) {
       html += '<p class="hub-staff-status">' + esc(state.coursesMessage) + '</p>';
@@ -3459,7 +3461,7 @@
         '<span class="course-subject-rule" aria-hidden="true"></span>' +
         '<span class="course-subject-count" aria-hidden="true">' + items.length +
         ' class' + (items.length === 1 ? '' : 'es') + '</span></header>' +
-        '<div class="course-tile-list" role="list">';
+        '<div class="course-tile-list">';
       items.forEach(function(c) {
         var entry = c.entry;
         var title = entry.type === 'class' ?
@@ -3477,7 +3479,9 @@
         var concernCls = c.concerns ? ' is-alert' : ' is-ok';
         html += '<article class="course-tile course-tile--' + slug +
           (entry.type === 'unassigned' ? ' course-tile--unassigned' : '') +
-          '" role="listitem">' +
+          '" role="button" tabindex="0" data-class-sheet data-course="' + esc(entry.courseId) + '"' +
+          (entry.classId ? ' data-class="' + esc(entry.classId) + '"' : ' data-unassigned="1"') +
+          ' aria-label="Open ' + esc(title) + '">' +
           '<div class="course-tile-main">' +
           '<span class="course-tile-name">' + esc(entry.className) + '</span>' +
           '<span class="course-tile-meta">' + meta + '</span></div>' +
@@ -3496,11 +3500,9 @@
           (trackPct == null ? '\u2014' : trackPct + '%') + '</strong>' +
           '<span class="course-tile-track course-tile-track--' + trackTone + '" aria-hidden="true">' +
           '<span style="width:' + (trackPct == null ? 0 : Math.max(0, Math.min(100, trackPct))) + '%"></span></span></div>' +
-          '<button type="button" class="course-tile-open" data-class-sheet data-course="' + esc(entry.courseId) + '"' +
-          (entry.classId ? ' data-class="' + esc(entry.classId) + '"' : ' data-unassigned="1"') +
-          ' aria-label="Open ' + esc(title) + '">Open class' +
-          '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>' +
-          '</button></article>';
+          '<span class="course-tile-chevron" aria-hidden="true">' +
+          '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>' +
+          '</span></article>';
       });
       html += '</div></section>';
     });
