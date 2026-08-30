@@ -7,6 +7,28 @@
   'use strict';
 
   var SPECIAL_CLASS_CODES = ['PT meeting', 'WA', 'AfN', '5A1', '5I1 PSE'];
+  var FACULTY_HEAD_NAME = 'R. McColm';
+  var DAY_PERIODS = { Monday: 7, Tuesday: 7, Wednesday: 7, Thursday: 6, Friday: 6 };
+  var DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  /* 50-minute periods. Start 08:45, Mon-Wed lunch 13:10-13:50, Thu-Fri lunch 12:20-13:00.
+     Day lengths match Faculty_Timetable.html. Correct here if the school bells change. */
+  var PERIOD_TIMES_MON_WED = {
+    1: { start: '08:45', end: '09:35' },
+    2: { start: '09:35', end: '10:25' },
+    3: { start: '10:40', end: '11:30' },
+    4: { start: '11:30', end: '12:20' },
+    5: { start: '12:20', end: '13:10' },
+    6: { start: '13:50', end: '14:40' },
+    7: { start: '14:40', end: '15:30' }
+  };
+  var PERIOD_TIMES_THU_FRI = {
+    1: { start: '08:45', end: '09:35' },
+    2: { start: '09:35', end: '10:25' },
+    3: { start: '10:40', end: '11:30' },
+    4: { start: '11:30', end: '12:20' },
+    5: { start: '13:00', end: '13:50' },
+    6: { start: '13:50', end: '14:40' }
+  };
 
   var DRAMA_STAFF = [
     {
@@ -114,6 +136,31 @@
     return DRAMA_STAFF.concat(ART_STAFF);
   }
 
+  function periodsForDay(dayCap) {
+    return DAY_PERIODS[dayCap] || 0;
+  }
+
+  function periodTimesForDay(dayCap) {
+    if (dayCap === 'Thursday' || dayCap === 'Friday') return PERIOD_TIMES_THU_FRI;
+    if (DAY_PERIODS[dayCap]) return PERIOD_TIMES_MON_WED;
+    return null;
+  }
+
+  function dayNameFromDate(d) {
+    return DAY_NAMES[(d || new Date()).getDay()] || '';
+  }
+
+  function slotKind(code) {
+    if (!code) return 'free';
+    if (isSpecialClass(code)) return 'meeting';
+    return 'teaching';
+  }
+
+  function staffDayCodes(staff, dayCap) {
+    if (!staff || !staff.tt) return {};
+    return staff.tt[dayCap] || {};
+  }
+
   function getStaffByName(name) {
     var target = String(name || '').trim().toLowerCase();
     if (!target) return null;
@@ -186,6 +233,8 @@
 
   global.FacultyTimetableData = {
     SPECIAL_CLASS_CODES: SPECIAL_CLASS_CODES,
+    FACULTY_HEAD_NAME: FACULTY_HEAD_NAME,
+    DAY_PERIODS: DAY_PERIODS,
     DRAMA_STAFF: DRAMA_STAFF,
     ART_STAFF: ART_STAFF,
     allStaff: allStaff,
@@ -193,6 +242,11 @@
     isSpecialClass: isSpecialClass,
     inferSubject: inferSubject,
     yearLevelFromClassCode: yearLevelFromClassCode,
-    bgeClassesForStaff: bgeClassesForStaff
+    bgeClassesForStaff: bgeClassesForStaff,
+    periodsForDay: periodsForDay,
+    periodTimesForDay: periodTimesForDay,
+    dayNameFromDate: dayNameFromDate,
+    slotKind: slotKind,
+    staffDayCodes: staffDayCodes
   };
 })(typeof window !== 'undefined' ? window : this);

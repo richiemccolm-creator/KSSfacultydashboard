@@ -56,6 +56,7 @@
 <script src="academic-calendar-defaults.js"></script>
 <script src="dip-tracker-service.js"></script>
 <script src="planner-service.js"></script>
+<script src="faculty-timetable-data.js"></script>
 <script src="staff-display-name.js"></script>
 <script src="teacher-tasks-service.js"></script>
 <script src="teacher-tasks-home.js"></script>
@@ -1232,6 +1233,116 @@ a.subject-card-link{text-decoration:none;cursor:pointer}
 @media(prefers-reduced-motion:reduce){
   .home-planner-feature-copybtn,
   .home-planner-feature-open{transition:none}
+}
+
+/* Faculty Head availability — can I call */
+.home-fh-now{
+  display:flex;
+  flex-direction:column;
+  gap:.4rem;
+  padding:.4rem .65rem .5rem;
+  border-radius:10px;
+  background:var(--navy-050,#f4f6fb);
+  border:1px solid var(--navy-100,#e2e8f0);
+  color:var(--ink-900,#0b1220);
+}
+.home-fh-now[hidden]{display:none !important}
+.home-fh-now ::selection{
+  background:var(--navy-200,#c9d2e0);
+  color:var(--navy-800,#152340);
+}
+.home-fh-now-top{
+  display:flex;
+  align-items:baseline;
+  flex-wrap:wrap;
+  gap:.15rem .65rem;
+}
+.home-fh-now-title{
+  margin:0;
+  font-family:var(--font-heading);
+  font-size:var(--fs-sm,.8125rem);
+  font-weight:600;
+  letter-spacing:-0.02em;
+  line-height:1.2;
+  color:var(--ink-900,#0b1220);
+}
+.home-fh-now-status{
+  margin:0;
+  flex:1;
+  min-width:12rem;
+  font-size:var(--fs-sm,.8125rem);
+  line-height:1.3;
+  color:var(--ink-500,#475569);
+}
+.home-fh-now-status.is-free{color:var(--success-600,#15803d)}
+.home-fh-now-status.is-busy{color:var(--ink-900,#0b1220)}
+.home-fh-now-link{
+  margin-left:auto;
+  color:var(--navy-700,#1e2d4a);
+  text-decoration:none;
+  font-size:var(--fs-sm,.8125rem);
+  font-weight:500;
+  border-radius:6px;
+}
+.home-fh-now-link:hover{text-decoration:underline}
+.home-fh-now-link:focus-visible{
+  outline:3px solid rgba(74,127,212,.35);
+  outline-offset:2px;
+}
+.home-fh-now-periods{
+  display:grid;
+  gap:4px;
+  margin:0;
+  padding:0;
+  list-style:none;
+}
+.home-fh-now-p{
+  min-width:0;
+  padding:.28rem .3rem .32rem;
+  border-radius:6px;
+  background:#fff;
+  border:1px solid var(--navy-100,#e2e8f0);
+  text-align:left;
+}
+.home-fh-now-p-num{
+  display:block;
+  font-size:var(--fs-sm,.8125rem);
+  font-weight:500;
+  font-variant-numeric:tabular-nums;
+  color:var(--ink-400,#64748b);
+}
+.home-fh-now-p-code{
+  display:block;
+  margin-top:.08rem;
+  font-size:var(--fs-sm,.8125rem);
+  font-weight:500;
+  line-height:1.2;
+  color:var(--ink-900,#0b1220);
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.home-fh-now-p.is-free{
+  background:transparent;
+  border-color:transparent;
+}
+.home-fh-now-p.is-free .home-fh-now-p-code{color:var(--ink-500,#475569);font-weight:400}
+.home-fh-now-p.is-meeting{
+  background:var(--warning-100,#fef3c7);
+  border-color:transparent;
+}
+.home-fh-now-p.is-meeting .home-fh-now-p-code{color:var(--warning-600,#b45309)}
+.home-fh-now-p.is-now{
+  background:#fff;
+  border-color:var(--navy-700,#1e2d4a);
+}
+.home-fh-now-p.is-meeting.is-now{
+  background:var(--warning-100,#fef3c7);
+}
+.home-fh-now-p.is-now .home-fh-now-p-num{color:var(--navy-700,#1e2d4a)}
+@media(max-width:760px){
+  .home-fh-now-link{margin-left:0}
+  .home-fh-now-p{min-height:44px}
 }
 .staff-home-panel{
   background:#fff;
@@ -3188,7 +3299,7 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 @media print {
   /* Hide everything that isn't content */
-  .sidebar, .topbar, .slide-overlay, .sidebar-toggle-floating, .sidebar-backdrop, .home-planner-feature { display:none !important }
+  .sidebar, .topbar, .slide-overlay, .sidebar-toggle-floating, .sidebar-backdrop, .home-planner-feature, .home-fh-now { display:none !important }
   .main { margin-left:0 !important }
   .content { padding:0 !important }
 
@@ -3659,6 +3770,8 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
               </div>
               <section id="homeSuperAnnouncement" class="home-masthead-ann" hidden aria-live="polite"></section>
             </header>
+
+            <aside class="home-fh-now" id="homeFhNow" aria-labelledby="homeFhNowTitle" hidden></aside>
 
             <aside class="home-planner-feature" id="homePlannerFeature" aria-labelledby="homePlannerFeatureTitle">
               <img class="home-planner-feature-icon" src="teacher-planner-icon-180.png" width="28" height="28" alt="" aria-hidden="true">
@@ -10978,6 +11091,161 @@ function homeInitPlannerFeature(){
     });
   }
 }
+function homeFhCode(codes, p){
+  if(!codes) return '';
+  return codes[p] || codes[String(p)] || '';
+}
+function homeFhNowFirstBusy(codes, maxP, FT){
+  for(var p=1;p<=maxP;p++){
+    var code=homeFhCode(codes, p);
+    if(code) return { p:p, code:code, kind:FT.slotKind(code) };
+  }
+  return null;
+}
+function homeFhNowNextAfter(codes, maxP, times, mins, FT){
+  if(!times) return null;
+  for(var p=1;p<=maxP;p++){
+    var spec=times[p] || times[String(p)];
+    if(!spec || !spec.start) continue;
+    var start=homeParseMinutes(spec.start);
+    if(start==null || start<=mins) continue;
+    var code=homeFhCode(codes, p);
+    return { p:p, code:code, kind:FT.slotKind(code) };
+  }
+  return null;
+}
+function homeFhBusyPhrase(code, kind, room){
+  if(kind==='meeting') return String(code||'Meeting');
+  if(kind==='teaching'){
+    var bits=[String(code||'Class')];
+    if(room) bits.push(room);
+    return bits.join(' · ');
+  }
+  return 'free';
+}
+function homePaintFhNow(){
+  var el=document.getElementById('homeFhNow');
+  var FT=window.FacultyTimetableData;
+  if(!el || !FT || typeof FT.getStaffByName!=='function'){
+    if(el) el.hidden=true;
+    return;
+  }
+  var staff=FT.getStaffByName(FT.FACULTY_HEAD_NAME);
+  if(!staff){
+    el.hidden=true;
+    return;
+  }
+  var now=new Date();
+  var dayCap=FT.dayNameFromDate(now);
+  var maxP=FT.periodsForDay(dayCap);
+  var times=FT.periodTimesForDay(dayCap);
+  var codes=FT.staffDayCodes(staff, dayCap);
+  var room=String(staff.room||'').trim();
+  var name=String(staff.name||'R. McColm');
+  var statusText='';
+  var statusClass='';
+  var nowP=0;
+  var mins=(now.getHours()*60)+now.getMinutes();
+
+  if(!maxP){
+    statusText='Not in school today';
+    statusClass='is-idle';
+  }else{
+    if(times){
+      for(var i=1;i<=maxP;i++){
+        var spec=times[i] || times[String(i)];
+        if(!spec || !spec.start) continue;
+        var start=homeParseMinutes(spec.start);
+        var end=homeParseMinutes(spec.end);
+        if(start==null) continue;
+        if(end==null) end=start+50;
+        if(mins>=start && mins<end){ nowP=i; break; }
+      }
+    }
+    if(nowP){
+      var liveCode=homeFhCode(codes, nowP);
+      var liveKind=FT.slotKind(liveCode);
+      var liveLabel=homeFhBusyPhrase(liveCode, liveKind, liveKind==='teaching'?room:'');
+      if(liveKind==='free'){
+        statusText='OK to call · free P'+nowP;
+        statusClass='is-free';
+      }else if(liveKind==='meeting'){
+        statusText='In a meeting · P'+nowP+' '+liveLabel;
+        statusClass='is-busy';
+      }else{
+        statusText='In class · P'+nowP+' '+liveLabel;
+        statusClass='is-busy';
+      }
+    }else if(times){
+      var firstSpec=times[1] || times['1'];
+      var lastSpec=times[maxP] || times[String(maxP)];
+      var firstStart=firstSpec?homeParseMinutes(firstSpec.start):null;
+      var lastEnd=lastSpec?homeParseMinutes(lastSpec.end):null;
+      var next=homeFhNowNextAfter(codes, maxP, times, mins, FT);
+      var firstBusy=homeFhNowFirstBusy(codes, maxP, FT);
+      if(firstStart!=null && mins<firstStart){
+        if(firstBusy){
+          statusText='Before school · first class P'+firstBusy.p+' '+homeFhBusyPhrase(firstBusy.code, firstBusy.kind, firstBusy.kind==='teaching'?room:'');
+        }else{
+          statusText='Before school · no classes on the faculty timetable';
+        }
+        statusClass='is-idle';
+      }else if(lastEnd!=null && mins>=lastEnd){
+        statusText='Finished for today';
+        statusClass='is-idle';
+      }else if(next){
+        var nextLabel=next.code?homeFhBusyPhrase(next.code, next.kind, next.kind==='teaching'?room:''):'free';
+        var gapName='Break';
+        var nextSpec=times[next.p] || times[String(next.p)];
+        var nextStart=nextSpec?homeParseMinutes(nextSpec.start):null;
+        if(nextStart!=null && (nextStart-mins)>=30) gapName='Lunch';
+        if(next.kind==='free'){
+          statusText=gapName+' · OK to call · next P'+next.p+' free';
+          statusClass='is-free';
+        }else{
+          statusText=gapName+' · OK to call · next P'+next.p+' '+nextLabel;
+          statusClass='is-free';
+        }
+      }else{
+        statusText='Finished for today';
+        statusClass='is-idle';
+      }
+    }else{
+      statusText='Today · faculty timetable';
+      statusClass='is-idle';
+    }
+  }
+
+  var periodHtml='';
+  if(maxP){
+    var cols=[];
+    for(var p=1;p<=maxP;p++){
+      var code=homeFhCode(codes, p);
+      var kind=FT.slotKind(code);
+      var cls='home-fh-now-p is-'+kind+(nowP===p?' is-now':'');
+      var label=code?(kind==='meeting'?code:code):'Free';
+      cols.push(
+        '<li class="'+cls+'"'+(nowP===p?' aria-current="true"':'')+'>'+
+          '<span class="home-fh-now-p-num">P'+p+'</span>'+
+          '<span class="home-fh-now-p-code">'+homeEsc(label)+'</span>'+
+        '</li>'
+      );
+    }
+    periodHtml='<ol class="home-fh-now-periods" style="grid-template-columns:repeat('+maxP+',minmax(0,1fr))" aria-label="Today\'s periods">'+cols.join('')+'</ol>';
+  }
+
+  el.hidden=false;
+  el.innerHTML=
+    '<div class="home-fh-now-top">'+
+      '<h2 class="home-fh-now-title" id="homeFhNowTitle">'+homeEsc(name)+'</h2>'+
+      '<p class="home-fh-now-status '+statusClass+'" aria-live="polite">'+homeEsc(statusText)+'</p>'+
+      '<a class="home-fh-now-link" href="#" onclick="event.preventDefault();showPanel(\'embed-faculty-timetable\');return false;">Timetable</a>'+
+    '</div>'+
+    periodHtml;
+}
+function homeInitFhNow(){
+  homePaintFhNow();
+}
 function homeInitNotificationBell(){
   if(homeNotificationListenersBound) return;
   homeNotificationListenersBound=true;
@@ -11966,6 +12234,7 @@ function homeEnsureClockTimer(){
   homeClockTimer=setInterval(function(){
     homeLoadGreeting();
     if(typeof homePaintTodaySchedule==='function') homePaintTodaySchedule();
+    if(typeof homePaintFhNow==='function') homePaintFhNow();
   }, 30000);
 }
 function homeFetchCalendarNotifCtx(){
@@ -12162,6 +12431,7 @@ document.addEventListener('DOMContentLoaded',function(){
   homeBindHomeCollapses();
   if(typeof populateMapMetaFromSlides==='function') populateMapMetaFromSlides();
   homeInitPlannerFeature();
+  homeInitFhNow();
   homeInitNotificationBell();
   if(typeof calSyncAddEventFormChrome==='function') calSyncAddEventFormChrome();
   // Restore sidebar accordion state from sessionStorage

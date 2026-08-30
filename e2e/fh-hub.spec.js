@@ -100,6 +100,14 @@ test.describe("Faculty Head Hub page assets", () => {
     expect(html).toContain("Add to Home Screen");
   });
 
+  test("faculty hub home includes faculty head availability strip", async ({ request }) => {
+    const res = await request.get("/faculty-hub.html");
+    expect(res.ok()).toBeTruthy();
+    const html = await res.text();
+    expect(html).toContain('id="homeFhNow"');
+    expect(html).toContain("faculty-timetable-data.js");
+  });
+
   test("all fh wrapper pages include shared access and embed scripts", async ({ request }) => {
     const pages = [
       "fh_calendar.html",
