@@ -3425,9 +3425,12 @@ function getCurrentLessonRow(lessonRows, isToday) {
 }
 
 function editorialLessonStateMark(row, isCurrent) {
-  if (isCurrent) return '●';
-  if (row && row.status && row.status !== 'needs-planning') return '✓';
-  return '○';
+  if (isCurrent) return 'Current';
+  var st = row && row.status;
+  if (st === 'needs-planning') return 'Plan';
+  if (st === 'planned' || st === 'complete') return 'Ready';
+  if (st === 'draft') return 'Draft';
+  return st ? weekStatusLabel(st) : '';
 }
 
 function getTeacherDisplayName() {
@@ -4195,7 +4198,7 @@ function createTodayDashboardMarkup(model) {
             '<span class="ed-lesson-class">FREE</span>' +
             '<span class="ed-lesson-title">Free period</span>' +
             '<span class="ed-lesson-room"></span>' +
-            '<span class="ed-lesson-state" aria-hidden="true"></span>' +
+            '<span class="ed-lesson-state"></span>' +
           '</div>'
         );
       }
@@ -4213,7 +4216,7 @@ function createTodayDashboardMarkup(model) {
           '<span class="ed-lesson-class">' + escHtml(r.className) + supportBtn + '</span>' +
           '<span class="ed-lesson-title">' + escHtml(displayTitle) + slidesBtn + '</span>' +
           '<span class="ed-lesson-room">' + escHtml(r.room || '') + '</span>' +
-          '<span class="ed-lesson-state" aria-hidden="true">' + editorialLessonStateMark(r, isCurrent) + '</span>' +
+          '<span class="ed-lesson-state">' + editorialLessonStateMark(r, isCurrent) + '</span>' +
         '</article>'
       );
     }).join('');
@@ -4223,17 +4226,19 @@ function createTodayDashboardMarkup(model) {
   if (hero) {
     var heroFill = classFillStyleAttrs(hero.className, hero.slot || null);
     var heroTitle = hero.title || 'No lesson plan';
-    var heroRange = periodRangeLabel(hero.period) || hero.startTime || ('P' + hero.period);
-    var heroMeta = [heroRange, hero.room || '', weekStatusLabel(hero.status)].filter(Boolean).join(' · ');
+    var heroPeriod = (hero.period != null && hero.period !== '') ? ('P' + hero.period) : '';
+    var heroRange = periodRangeLabel(hero.period) || hero.startTime || '';
+    var heroMeta = [heroPeriod, heroRange, hero.room || ''].filter(Boolean).join(' · ');
+    var heroAction = (hero.status === 'needs-planning') ? 'Plan lesson' : 'Open lesson';
     heroHtml =
-      '<div class="ed-current-label">' + (heroIsCurrent ? 'CURRENT LESSON' : (model.isToday ? 'NEXT LESSON' : 'FIRST LESSON')) + '</div>' +
+      '<div class="ed-current-label">' + (heroIsCurrent ? 'Current lesson' : (model.isToday ? 'Next lesson' : 'First lesson')) + '</div>' +
       '<div class="ed-current-wrap" style="' + heroFill.style + '">' +
         '<div class="ed-current-bar" aria-hidden="true"></div>' +
-        '<div>' +
+        '<div class="ed-current-body">' +
           '<div class="ed-current-class">' + escHtml(hero.className) + '</div>' +
           '<div class="ed-current-title">' + escHtml(heroTitle) + '</div>' +
           '<div class="ed-current-meta"><span>' + escHtml(heroMeta) + '</span></div>' +
-          '<button type="button" class="ed-view-link today-lesson-open" data-date="' + escAttr(hero.dateStr) + '" data-slot="' + escAttr(hero.slotKey) + '">View lesson plan →</button>' +
+          '<button type="button" class="ed-view-link today-lesson-open" data-date="' + escAttr(hero.dateStr) + '" data-slot="' + escAttr(hero.slotKey) + '">' + escHtml(heroAction) + ' ›</button>' +
         '</div>' +
       '</div>';
   } else if (!teachingCount) {
@@ -4253,8 +4258,11 @@ function createTodayDashboardMarkup(model) {
         ? (' data-date="' + it.dateStr + '" data-slot="' + it.slotKey + '"')
         : '';
       return (
-        '<button type="button" class="ed-focus-row week-priority-item is-action"' + openAttr + hwAttr + '>' +
-          '<b>' + escHtml(it.title) + '</b><span>' + escHtml(it.detail || '') + '</span>' +
+        '<button type="button" class="ed-focus-row week-priority-item is-action is-' + escHtml(it.kind || 'plan') + '"' + openAttr + hwAttr + '>' +
+          '<span class="ed-focus-mark" aria-hidden="true"></span>' +
+          '<span class="ed-focus-copy"><b>' + escHtml(it.title) + '</b>' +
+          (it.detail ? '<span>' + escHtml(it.detail) + '</span>' : '') +
+          '</span>' +
         '</button>'
       );
     }).join('');
@@ -4269,11 +4277,19 @@ function createTodayDashboardMarkup(model) {
         var isUrgent = d.tag === 'Assessment' || d.tag === 'Reporting';
         var rel = weekRelativeDayText(d.date);
         var detail = [d.tag, rel].filter(Boolean).join(' · ');
+        var evDate = parseIsoDateLocal(d.date);
+        var evWeekday = evDate ? evDate.toLocaleDateString('en-GB', { weekday: 'short' }).toUpperCase() : '';
         return (
           '<button type="button" class="ed-event' + (isUrgent ? ' is-urgent' : '') + '" data-jump-date="' + escAttr(d.date || '') + '" title="' + escAttr(sourceHint) + '">' +
-            '<div class="ed-event-date">' + escHtml(d.month || '') + '<b>' + escHtml(d.day || '') + '</b></div>' +
+            '<div class="ed-event-date">' +
+              (evWeekday ? '<span class="ed-event-wd">' + escHtml(evWeekday) + '</span>' : '') +
+              '<b>' + escHtml(d.day || '') + '</b>' +
+              '<span class="ed-event-mo">' + escHtml(d.month || '') + '</span>' +
+            '</div>' +
             '<div class="ed-event-bar" aria-hidden="true"></div>' +
-            '<div class="ed-event-copy"><b>' + escHtml(d.title) + '</b><span>' + escHtml(detail) + '</span></div>' +
+            '<div class="ed-event-copy"><b>' + escHtml(d.title) + '</b>' +
+            (detail ? '<span>' + escHtml(detail) + '</span>' : '') +
+            '</div>' +
           '</button>'
         );
       }).join('')
@@ -4285,45 +4301,73 @@ function createTodayDashboardMarkup(model) {
   var hwCount = model.hwOpenCount || 0;
   var dateCount = upcomingDates.length;
 
+  var weekPad = String(model.isoWeek || '').padStart ? String(model.isoWeek).padStart(2, '0') : String(model.isoWeek || '');
+  var teachMeta =
+    '<span>' + teachingCount + ' lesson' + (teachingCount === 1 ? '' : 's') + '</span>' +
+    '<span>' + plannedN + ' planned</span>' +
+    '<span class="' + (needN ? 'is-attention' : '') + '">' + needN + ' need' + (needN === 1 ? 's' : '') + ' attention</span>';
+
   return (
     '<div class="ed-today-grid">' +
       '<aside class="ed-date-rail">' +
-        '<div class="ed-weekday">' + escHtml(weekdayUpper) + '</div>' +
-        '<div class="ed-day-number">' + escHtml(model.dayNumber || '') + '</div>' +
-        '<div class="ed-month">' + escHtml(model.monthName || '') + '</div>' +
-        '<div class="ed-year">' + escHtml(model.yearLabel || '') + '</div>' +
-        '<div class="ed-rail-rule"></div>' +
-        '<div class="ed-time-now" id="todayLiveClock">' + escHtml(model.clock || '') + '</div>' +
-        '<div class="ed-week-label">Week ' + escHtml(String(model.isoWeek || '').padStart ? String(model.isoWeek).padStart(2, '0') : String(model.isoWeek || '')) + '</div>' +
-        '<div class="ed-date-nav">' +
-          '<button type="button" class="ed-nav-arrow" id="todayPrevDay" aria-label="Previous school day">&#9664;</button>' +
-          '<button type="button" id="todayJumpToday"' + jumpHidden + '>Jump to today</button>' +
-          '<button type="button" class="ed-nav-arrow" id="todayNextDay" aria-label="Next school day">&#9654;</button>' +
+        '<div class="ed-date-rail-main">' +
+          '<div class="ed-weekday">' + escHtml(weekdayUpper) + '</div>' +
+          '<div class="ed-day-number">' + escHtml(model.dayNumber || '') + '</div>' +
+          '<div class="ed-month">' + escHtml(model.monthName || '') + '</div>' +
+          '<div class="ed-year">' + escHtml(model.yearLabel || '') + '</div>' +
+          '<div class="ed-rail-rule"></div>' +
+          '<div class="ed-time-row">' +
+            '<span class="ed-time-icon" aria-hidden="true">' + rdIcon('clock') + '</span>' +
+            '<div class="ed-time-now" id="todayLiveClock">' + escHtml(model.clock || '') + '</div>' +
+          '</div>' +
+          '<div class="ed-date-nav">' +
+            '<button type="button" class="ed-nav-arrow" id="todayPrevDay" aria-label="Previous school day">‹</button>' +
+            '<button type="button" id="todayJumpToday"' + jumpHidden + '>Jump to today</button>' +
+            '<button type="button" class="ed-nav-arrow" id="todayNextDay" aria-label="Next school day">›</button>' +
+          '</div>' +
+          '<div class="ed-week-label">Week ' + escHtml(weekPad) + '</div>' +
         '</div>' +
       '</aside>' +
       '<section class="ed-main-stage" id="todayLessonsCard">' +
         heroHtml +
-        '<div class="ed-teach-head">TODAY\'S TEACHING · ' + teachingCount + ' LESSON' + (teachingCount === 1 ? '' : 'S') + ' · ' + plannedN + ' PLANNED · ' + needN + ' NEED ATTENTION</div>' +
-        '<div id="todayLessonList">' + lessonsHtml + '</div>' +
+        '<div class="ed-teach-head">' +
+          '<span class="ed-teach-title">Today’s teaching</span>' +
+          '<span class="ed-teach-meta">' + teachMeta + '</span>' +
+        '</div>' +
+        '<div id="todayLessonList" class="ed-lesson-list">' + lessonsHtml + '</div>' +
         '<details class="ed-day-note"' + (model.dayNote ? ' open' : '') + '>' +
-          '<summary><span>DAILY NOTES</span><span></span><span class="today-note-save-state" id="todayNoteSaveState" aria-live="polite"></span></summary>' +
+          '<summary>' +
+            '<span class="ed-day-note-ico" aria-hidden="true">' + rdIcon('note') + '</span>' +
+            '<span class="ed-day-note-label">Daily notes</span>' +
+            '<span class="today-note-save-state" id="todayNoteSaveState" aria-live="polite"></span>' +
+          '</summary>' +
           '<label class="sr-only" for="todayQuickNote">Day notes</label>' +
-          '<textarea id="todayQuickNote" data-date="' + escHtml(model.dateStr) + '" placeholder="Reminders for today…" rows="4">' + escHtml(model.dayNote) + '</textarea>' +
+          '<textarea id="todayQuickNote" data-date="' + escHtml(model.dateStr) + '" placeholder="Reminders for today…" rows="5">' + escHtml(model.dayNote) + '</textarea>' +
         '</details>' +
       '</section>' +
       '<aside class="ed-side" id="todayAttentionCard">' +
         '<div class="ed-counter-grid">' +
-          '<div class="ed-counter is-tasks"><b>' + taskCount + '</b><span>TASKS</span></div>' +
-          '<button type="button" class="ed-counter is-homework" data-today-action="view-homework"><b>' + hwCount + '</b><span>HOMEWORK</span></button>' +
-          '<button type="button" class="ed-counter is-dates" id="todayViewAllDeadlines"><b>' + dateCount + '</b><span>DATES</span></button>' +
+          '<div class="ed-counter is-tasks">' +
+            '<span class="ed-counter-icon" aria-hidden="true">' + rdIcon('clipboard') + '</span>' +
+            '<b>' + taskCount + '</b><span>Tasks</span>' +
+          '</div>' +
+          '<button type="button" class="ed-counter is-homework" data-today-action="view-homework">' +
+            '<span class="ed-counter-icon" aria-hidden="true">' + rdIcon('book') + '</span>' +
+            '<b>' + hwCount + '</b><span>Homework</span>' +
+          '</button>' +
+          '<div class="ed-counter is-dates">' +
+            '<span class="ed-counter-icon" aria-hidden="true">' + rdIcon('calendar') + '</span>' +
+            '<b>' + dateCount + '</b><span>Dates</span>' +
+          '</div>' +
         '</div>' +
-        '<section class="ed-side-section">' +
-          '<div class="ed-side-title">NEEDS ATTENTION</div>' +
+        '<section class="ed-side-section is-attention">' +
+          '<div class="ed-side-title">Needs attention</div>' +
           attentionHtml +
         '</section>' +
-        '<section class="ed-side-section">' +
-          '<div class="ed-side-title">UPCOMING</div>' +
+        '<section class="ed-side-section is-upcoming">' +
+          '<div class="ed-side-title">Upcoming</div>' +
           upcomingHtml +
+          '<button type="button" class="ed-view-dates" id="todayViewAllDeadlines">View all dates ›</button>' +
         '</section>' +
       '</aside>' +
     '</div>'
