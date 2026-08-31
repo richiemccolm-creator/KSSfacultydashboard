@@ -1556,7 +1556,7 @@
     });
     headGroup += '<th rowspan="2">Prelim</th><th rowspan="2">Pre %</th><th rowspan="2">Pre gr</th>' +
       '<th rowspan="2">Wkg</th><th rowspan="2">Tgt</th><th rowspan="2">Risk</th></tr>';
-    var headSub = '<tr class="head-sub"><th>Mark</th><th>%</th><th>Gr</th>';
+    var headSub = '<tr class="head-sub"><th class="s3-exam-sub">Mark</th><th class="s3-exam-sub">%</th><th class="s3-exam-sub">Gr</th>';
     tps.forEach(function(_, i) {
       headSub += '<th' + tpColAttrs(i, '') + '>Att</th><th' + tpColAttrs(i, '') + '>WG</th>' +
         '<th' + tpColAttrs(i, '') + '>Eff</th><th' + tpColAttrs(i, '') + '>Beh</th>';
@@ -3650,8 +3650,8 @@
 
     var headSub = '<tr class="head-sub">';
     if (meta.hasS3) {
-      headSub += '<th>Mark</th><th>%</th><th>Grade</th>';
-      headSub += '<th>Eff</th><th>Beh</th><th>HL</th><th>Prog</th><th>CfE</th><th>EOY Att</th>';
+      headSub += '<th class="s3-exam-sub">Mark</th><th class="s3-exam-sub">%</th><th class="s3-exam-sub">Grade</th>';
+      headSub += '<th class="s3-baseline-sub">Eff</th><th class="s3-baseline-sub">Beh</th><th class="s3-baseline-sub">HL</th><th class="s3-baseline-sub">Prog</th><th class="s3-baseline-sub">CfE</th><th class="s3-baseline-sub">EOY Att</th>';
     }
     tps.forEach(function(tp, i) {
       headSub += '<th' + tpColAttrs(i, '') + ' title="Attendance %">Att</th>';
