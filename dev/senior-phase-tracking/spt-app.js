@@ -4758,7 +4758,7 @@
     html += '<div class="report-backup-panel">' +
       '<div class="report-backup-panel-inner">' +
       '<h2>Export spreadsheet</h2>' +
-      '<p>Download the currently loaded pupils, classes, and tracking as Excel. Empty cells stay empty. This does not change the live workbook.</p>' +
+      '<p>Download the currently loaded pupils, classes, tracking, and S3 baseline (exam mark, effort, behaviour, home learning, progress, CfE) as Excel. Empty cells stay empty. This does not change the live workbook.</p>' +
       '<div class="report-backup-actions">' +
       '<button type="button" class="btn btn-sm" id="btn-export-tracking-xlsx">Export spreadsheet</button>' +
       '</div>' +

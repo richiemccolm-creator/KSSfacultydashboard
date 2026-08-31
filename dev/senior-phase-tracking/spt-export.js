@@ -104,6 +104,36 @@
     return 'TP' + (index + 1);
   }
 
+  function showsS3Baseline(course, enrolment) {
+    if (global.SptBaseline && typeof global.SptBaseline.showsS3Baseline === 'function') {
+      return global.SptBaseline.showsS3Baseline(course, enrolment);
+    }
+    return !!(course && course.course_type === 'N5/N4 Combined');
+  }
+
+  function s3ExamValues(baseline) {
+    if (!baseline) return { raw: '', pct: '', grade: '' };
+    return {
+      raw: baseline.s3_exam_raw != null && baseline.s3_exam_raw !== '' ? baseline.s3_exam_raw : '',
+      pct: baseline.s3_exam_mark != null ? baseline.s3_exam_mark : '',
+      grade: baseline.s3_exam_grade || ''
+    };
+  }
+
+  function s3BaselineScores(baseline, include) {
+    if (!include || !baseline) {
+      return { effort: '', behaviour: '', homelearning: '', progress: '', cfe_level: '', notes: '' };
+    }
+    return {
+      effort: cell(baseline.effort),
+      behaviour: cell(baseline.behaviour),
+      homelearning: cell(baseline.homelearning),
+      progress: cell(baseline.progress),
+      cfe_level: cell(baseline.cfe_level),
+      notes: cell(baseline.notes)
+    };
+  }
+
   function sortedEnrolments(db, enrolments) {
     return enrolments.slice().sort(function(a, b) {
       var ca = byId(db.classes, a.class_id);
@@ -119,15 +149,17 @@
   }
 
   function trackingSheet(db, enrolments, tps) {
-    var ident = ['Pupil', 'Year', 'Class', 'Course', 'Level', 'Teacher',
-      'S3 mark', 'S3 %', 'S3 grade', 'Prior', 'Pathway', 'EOY att', 'Concern'];
     var tail = ['Prelim marks', 'Prelim %', 'Prelim grade', 'Working grade', 'Target', 'Risk'];
-    var head1 = ident.slice(0, 6).concat(['S3', '', ''], ident.slice(9));
+    var head1 = ['Pupil', 'Year', 'Class', 'Course', 'Level', 'Teacher',
+      'S3 Exam', '', '', 'S3 baseline', '', '', '', '',
+      'Prior', 'Pathway', 'EOY att', 'Concern'];
     tps.forEach(function(tp, i) {
       head1.push(tpLabel(tp, i), '', '', '');
     });
     head1 = head1.concat(tail);
-    var head2 = ['', '', '', '', '', '', 'Mark', '%', 'Gr', '', '', '', ''];
+    var head2 = ['', '', '', '', '', '',
+      'Mark', '%', 'Gr', 'Eff', 'Beh', 'HL', 'Prog', 'CfE',
+      '', '', '', ''];
     tps.forEach(function() {
       head2.push('Att', 'WG', 'Eff', 'Beh');
     });
@@ -139,7 +171,10 @@
       var course = byId(db.courses, en.course_id);
       var cl = byId(db.classes, en.class_id);
       var teacher = byId(db.teachers, en.teacher_id);
-      var baseline = findBaseline(db, en.id);
+      var includeS3 = showsS3Baseline(course, en);
+      var baseline = includeS3 ? findBaseline(db, en.id) : null;
+      var exam = s3ExamValues(baseline);
+      var scores = s3BaselineScores(baseline, includeS3);
       var prior = findPrior(db, en.pupil_id, course);
       var prelim = storedPrelim(db, en);
       var row = [
@@ -149,9 +184,14 @@
         cell(course && course.course_name),
         cell(en.current_level),
         displayTeacher(teacher),
-        cell(baseline && baseline.s3_exam_raw),
-        cell(baseline && baseline.s3_exam_mark),
-        cell(baseline && baseline.s3_exam_grade),
+        cell(exam.raw),
+        cell(exam.pct),
+        cell(exam.grade),
+        scores.effort,
+        scores.behaviour,
+        scores.homelearning,
+        scores.progress,
+        scores.cfe_level,
         cell(prior && prior.result_grade),
         cell(prior && prior.pathway_status),
         cell(pupil && pupil.end_of_year_attendance_percent),
@@ -178,20 +218,14 @@
       rows.push(row);
     });
 
-    var merges = [
-      { s: { r: 0, c: 0 }, e: { r: 1, c: 0 } },
-      { s: { r: 0, c: 1 }, e: { r: 1, c: 1 } },
-      { s: { r: 0, c: 2 }, e: { r: 1, c: 2 } },
-      { s: { r: 0, c: 3 }, e: { r: 1, c: 3 } },
-      { s: { r: 0, c: 4 }, e: { r: 1, c: 4 } },
-      { s: { r: 0, c: 5 }, e: { r: 1, c: 5 } },
-      { s: { r: 0, c: 6 }, e: { r: 0, c: 8 } },
-      { s: { r: 0, c: 9 }, e: { r: 1, c: 9 } },
-      { s: { r: 0, c: 10 }, e: { r: 1, c: 10 } },
-      { s: { r: 0, c: 11 }, e: { r: 1, c: 11 } },
-      { s: { r: 0, c: 12 }, e: { r: 1, c: 12 } }
-    ];
-    var col = 13;
+    var merges = [];
+    var identRowspan = [0, 1, 2, 3, 4, 5, 14, 15, 16, 17];
+    identRowspan.forEach(function(c) {
+      merges.push({ s: { r: 0, c: c }, e: { r: 1, c: c } });
+    });
+    merges.push({ s: { r: 0, c: 6 }, e: { r: 0, c: 8 } });
+    merges.push({ s: { r: 0, c: 9 }, e: { r: 0, c: 13 } });
+    var col = 18;
     tps.forEach(function() {
       merges.push({ s: { r: 0, c: col }, e: { r: 0, c: col + 3 } });
       col += 4;
@@ -200,6 +234,48 @@
       merges.push({ s: { r: 0, c: col + t }, e: { r: 1, c: col + t } });
     }
     return { aoa: rows, merges: merges };
+  }
+
+  function s3BaselineSheet(db, enrolments) {
+    var rows = [[
+      'Pupil', 'Year', 'Class', 'Course', 'Level', 'Teacher',
+      'S3 mark', 'S3 %', 'S3 grade',
+      'Effort', 'Behaviour', 'Home learning', 'Progress', 'CfE level',
+      'EOY att', 'Notes', 'Source', 'Locked'
+    ]];
+    var s3Enrolments = sortedEnrolments(db, enrolments).filter(function(en) {
+      return showsS3Baseline(byId(db.courses, en.course_id), en);
+    });
+    s3Enrolments.forEach(function(en) {
+      var pupil = byId(db.pupils, en.pupil_id);
+      var course = byId(db.courses, en.course_id);
+      var cl = byId(db.classes, en.class_id);
+      var teacher = byId(db.teachers, en.teacher_id);
+      var baseline = findBaseline(db, en.id);
+      var exam = s3ExamValues(baseline);
+      var scores = s3BaselineScores(baseline, true);
+      rows.push([
+        displayPupil(pupil),
+        cell(pupil && pupil.year_group),
+        cell(cl && cl.class_name),
+        cell(course && course.course_name),
+        cell(en.current_level),
+        displayTeacher(teacher),
+        cell(exam.raw),
+        cell(exam.pct),
+        cell(exam.grade),
+        scores.effort,
+        scores.behaviour,
+        scores.homelearning,
+        scores.progress,
+        scores.cfe_level,
+        cell(pupil && pupil.end_of_year_attendance_percent),
+        scores.notes,
+        cell(baseline && baseline.source),
+        baseline && baseline.locked_at ? baseline.locked_at : ''
+      ]);
+    });
+    return rows;
   }
 
   function pupilsSheet(db, enrolments) {
@@ -255,11 +331,18 @@
     return rows;
   }
 
-  function styleSheet(ws, colCount) {
-    ws['!views'] = [{ state: 'frozen', xSplit: 1, ySplit: 2, topLeftCell: 'B3', activeCell: 'A3' }];
+  function styleSheet(ws, colCount, freezeRows) {
+    var ySplit = freezeRows == null ? 2 : freezeRows;
+    ws['!views'] = [{
+      state: 'frozen',
+      xSplit: 1,
+      ySplit: ySplit,
+      topLeftCell: 'B' + (ySplit + 1),
+      activeCell: 'A' + (ySplit + 1)
+    }];
     ws['!cols'] = [];
     for (var i = 0; i < colCount; i++) {
-      ws['!cols'].push({ wch: i === 0 ? 22 : (i === 3 || i === 12 ? 18 : 12) });
+      ws['!cols'].push({ wch: i === 0 ? 22 : (i === 3 || i === 17 ? 18 : 12) });
     }
   }
 
@@ -273,11 +356,15 @@
     var enrolments = viewableEnrolments(db);
     var tps = trackingPointsCopy(db);
     var tracking = trackingSheet(db, enrolments, tps);
+    var s3Rows = s3BaselineSheet(db, enrolments);
     var wb = global.XLSX.utils.book_new();
     var trackWs = global.XLSX.utils.aoa_to_sheet(tracking.aoa);
     trackWs['!merges'] = tracking.merges;
-    styleSheet(trackWs, tracking.aoa[0].length);
+    styleSheet(trackWs, tracking.aoa[0].length, 2);
     global.XLSX.utils.book_append_sheet(wb, trackWs, 'Tracking');
+    var s3Ws = global.XLSX.utils.aoa_to_sheet(s3Rows);
+    styleSheet(s3Ws, s3Rows[0].length, 1);
+    global.XLSX.utils.book_append_sheet(wb, s3Ws, 'S3 baseline');
     global.XLSX.utils.book_append_sheet(wb, global.XLSX.utils.aoa_to_sheet(pupilsSheet(db, enrolments)), 'Pupils');
     global.XLSX.utils.book_append_sheet(wb, global.XLSX.utils.aoa_to_sheet(classesSheet(db, enrolments)), 'Classes');
     var stamp = new Date().toISOString().slice(0, 10);
