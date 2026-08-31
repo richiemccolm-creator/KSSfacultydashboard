@@ -1,7 +1,9 @@
 /**
  * Shared Expressive Arts faculty timetable data.
  * Used by Faculty_Timetable.html (display) and teacher planner import.
- * Source: Art & Drama Timetable Update 11th Aug 26.xlsx
+ * Drama source: Art & Drama Timetable Update 11th Aug 26.xlsx
+ * Art live (default): Cover Timetable Art 26-27.xlsx — J. Oliver covering P. Donald (S12).
+ * Art stored: original 11 Aug 26 timetable with P. Donald, kept for when she returns.
  */
 (function (global) {
   'use strict';
@@ -81,7 +83,7 @@
     }
   ];
 
-  var ART_STAFF = [
+  var ART_STAFF_PERMANENT = [
     {
       name: 'M. Gallacher', short: 'Gallacher', room: 'S11',
       ac: '#0077a8', bg: '#ddf0f8', dk: '#003850',
@@ -132,8 +134,133 @@
     }
   ];
 
-  function allStaff() {
-    return DRAMA_STAFF.concat(ART_STAFF);
+  var ART_STAFF_COVER = [
+    {
+      name: 'M. Gallacher', short: 'Gallacher', room: 'S11',
+      ac: '#0077a8', bg: '#ddf0f8', dk: '#003850',
+      department: 'art',
+      tt: {
+        Monday:    { 1: '5artA', 2: '5artA', 3: '4artG', 5: 'WA', 6: '3photoG', 7: '3artE' },
+        Tuesday:   { 1: '1Q', 2: '4artG', 3: '2D', 4: '3photoG', 6: '3artE' },
+        Wednesday: { 1: '3artE', 2: '3photoG', 4: '4artG', 5: 'WA', 6: '5artA', 7: '5artA' },
+        Thursday:  { 1: 'AfN', 2: '3photoG', 3: '1G', 4: '1A', 6: '2C' },
+        Friday:    { 1: '1H', 2: '2C', 3: '5artA', 4: '5artA', 5: '4artG' }
+      }
+    },
+    {
+      name: 'J. Oliver', short: 'Oliver', room: 'S12',
+      ac: '#00796b', bg: '#d9f0ea', dk: '#00382a',
+      department: 'art',
+      coverFor: 'P. Donald',
+      aliases: ['John Oliver', 'J Oliver'],
+      tt: {
+        Monday:    { 3: '2M', 6: '2G', 7: '2L' },
+        Tuesday:   { 1: '3artC', 4: '2B', 5: '1M' },
+        Wednesday: { 2: '2F', 3: '2G', 4: '3artC', 5: '1K', 7: '1E' },
+        Thursday:  { 2: '2L', 3: '3artC', 4: '1B', 5: '1P', 6: '2A' },
+        Friday:    { 1: '3artC', 2: '2B', 3: '1N', 5: '1F', 6: '2D' }
+      }
+    },
+    {
+      name: 'J. McKenzie', short: 'McKenzie', room: 'S10',
+      ac: '#3949ab', bg: '#e8e8f8', dk: '#1a1a6b',
+      department: 'art',
+      tt: {
+        Monday:    { 1: '4artD', 3: '2F', 6: '3artG', 7: '2N' },
+        Tuesday:   { 1: '5photoE', 2: '5photoE', 4: '3artG', 5: '2E', 6: '2N', 7: '4artC' },
+        Wednesday: { 2: '3artG', 3: '2M', 4: '2A', 5: '4photoF', 7: '4artD' },
+        Thursday:  { 1: '4photoF', 2: '3artG', 3: '5photoE', 4: '5photoE', 5: '4artD', 6: '4artC' },
+        Friday:    { 1: '5photoE', 2: '5photoE', 3: '4artC', 4: '4artD', 5: '2H', 6: '2E' }
+      }
+    },
+    {
+      name: 'V. Deighan', short: 'Deighan', room: 'S13',
+      ac: '#c2185b', bg: '#fde8f0', dk: '#6b0030',
+      department: 'art',
+      tt: {
+        Monday:    { 1: '3artF', 3: '5artB', 4: '5artB', 5: '4photoF', 6: '2K', 7: '2H' },
+        Tuesday:   { 1: '1D', 3: '3artF', 5: '4photoF', 6: '5artB', 7: '5artB' },
+        Wednesday: { 5: 'WA', 6: '4artC', 7: '3artF' },
+        Thursday:  { 3: '2K', 4: '1L', 5: '5artB', 6: '5artB' },
+        Friday:    { 2: '1C', 5: '3artE', 6: '3artF' }
+      }
+    }
+  ];
+
+  var DEFAULT_ART_TIMETABLE_VERSION = 'cover';
+  var ART_TIMETABLE_VERSIONS = {
+    cover: {
+      id: 'cover',
+      label: 'Cover · J. Oliver',
+      isLive: true,
+      badge: 'Cover · Art 26–27',
+      meta: 'Art & Drama  ·  Cover timetable  ·  J. Oliver for P. Donald',
+      staff: ART_STAFF_COVER
+    },
+    permanent: {
+      id: 'permanent',
+      label: 'Stored · P. Donald',
+      isLive: false,
+      badge: 'Stored · 11 Aug 26',
+      meta: 'Art & Drama  ·  Stored timetable  ·  P. Donald',
+      staff: ART_STAFF_PERMANENT
+    }
+  };
+
+  var liveArtVersion = DEFAULT_ART_TIMETABLE_VERSION;
+
+  function normalizeArtVersion(id) {
+    if (id && ART_TIMETABLE_VERSIONS[id]) return id;
+    return DEFAULT_ART_TIMETABLE_VERSION;
+  }
+
+  function getArtTimetableVersion() {
+    return liveArtVersion;
+  }
+
+  function setArtTimetableVersion(id) {
+    liveArtVersion = normalizeArtVersion(id);
+    return liveArtVersion;
+  }
+
+  function getArtTimetableMeta(versionId) {
+    return ART_TIMETABLE_VERSIONS[normalizeArtVersion(versionId)];
+  }
+
+  function listArtTimetableVersions() {
+    return [ART_TIMETABLE_VERSIONS.cover, ART_TIMETABLE_VERSIONS.permanent];
+  }
+
+  function otherArtVersion(versionId) {
+    return normalizeArtVersion(versionId) === 'cover' ? 'permanent' : 'cover';
+  }
+
+  function artStaff(versionId) {
+    return ART_TIMETABLE_VERSIONS[normalizeArtVersion(versionId || liveArtVersion)].staff;
+  }
+
+  function allStaff(versionId) {
+    return DRAMA_STAFF.concat(artStaff(versionId));
+  }
+
+  function matchingArtStaff(staff, versionId) {
+    if (!staff) return null;
+    var list = artStaff(versionId);
+    var room = String(staff.room || '');
+    for (var i = 0; i < list.length; i++) {
+      if (String(list[i].room || '') === room) return list[i];
+    }
+    return null;
+  }
+
+  function slotCode(staff, day, period) {
+    if (!staff || !staff.tt || !staff.tt[day]) return '';
+    return staff.tt[day][period] || staff.tt[day][String(period)] || '';
+  }
+
+  function slotDiffers(staff, day, period, compareVersionId) {
+    var other = matchingArtStaff(staff, compareVersionId || otherArtVersion());
+    return String(slotCode(staff, day, period)) !== String(slotCode(other, day, period));
   }
 
   function periodsForDay(dayCap) {
@@ -161,12 +288,23 @@
     return staff.tt[dayCap] || {};
   }
 
+  function staffSearchNames(staff) {
+    var names = [staff.name, staff.short];
+    if (staff.aliases && staff.aliases.length) {
+      names = names.concat(staff.aliases);
+    }
+    return names;
+  }
+
   function getStaffByName(name) {
     var target = String(name || '').trim().toLowerCase();
     if (!target) return null;
     var list = allStaff();
     for (var i = 0; i < list.length; i++) {
-      if (String(list[i].name || '').toLowerCase() === target) return list[i];
+      var names = staffSearchNames(list[i]);
+      for (var j = 0; j < names.length; j++) {
+        if (String(names[j] || '').trim().toLowerCase() === target) return list[i];
+      }
     }
     return null;
   }
@@ -231,13 +369,24 @@
     });
   }
 
-  global.FacultyTimetableData = {
+  var api = {
     SPECIAL_CLASS_CODES: SPECIAL_CLASS_CODES,
     FACULTY_HEAD_NAME: FACULTY_HEAD_NAME,
     DAY_PERIODS: DAY_PERIODS,
     DRAMA_STAFF: DRAMA_STAFF,
-    ART_STAFF: ART_STAFF,
+    ART_STAFF_COVER: ART_STAFF_COVER,
+    ART_STAFF_PERMANENT: ART_STAFF_PERMANENT,
+    ART_TIMETABLE_VERSIONS: ART_TIMETABLE_VERSIONS,
+    DEFAULT_ART_TIMETABLE_VERSION: DEFAULT_ART_TIMETABLE_VERSION,
+    artStaff: artStaff,
     allStaff: allStaff,
+    getArtTimetableVersion: getArtTimetableVersion,
+    setArtTimetableVersion: setArtTimetableVersion,
+    getArtTimetableMeta: getArtTimetableMeta,
+    listArtTimetableVersions: listArtTimetableVersions,
+    otherArtVersion: otherArtVersion,
+    matchingArtStaff: matchingArtStaff,
+    slotDiffers: slotDiffers,
     getStaffByName: getStaffByName,
     isSpecialClass: isSpecialClass,
     inferSubject: inferSubject,
@@ -249,4 +398,9 @@
     slotKind: slotKind,
     staffDayCodes: staffDayCodes
   };
+  Object.defineProperty(api, 'ART_STAFF', {
+    enumerable: true,
+    get: function () { return artStaff(); }
+  });
+  global.FacultyTimetableData = api;
 })(typeof window !== 'undefined' ? window : this);

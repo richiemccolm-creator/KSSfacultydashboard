@@ -46,6 +46,10 @@
     // Exact after normalizing punctuation
     for (var i = 0; i < list.length; i++) {
       if (normalizeName(list[i].name) === norm) return list[i].name;
+      var aliases = list[i].aliases || [];
+      for (var a = 0; a < aliases.length; a++) {
+        if (normalizeName(aliases[a]) === norm) return list[i].name;
+      }
     }
 
     // Surname match (last token)

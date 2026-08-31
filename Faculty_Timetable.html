@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Faculty Timetable — Art & Drama — 11 Aug 26</title>
+<title>Faculty Timetable — Art & Drama — Cover 26–27</title>
 <link rel="stylesheet" href="design-tokens.css">
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -109,8 +109,17 @@
     font-size: 0.8rem;
     color: #7a5200;
     font-weight: 500;
+    flex-wrap: wrap;
   }
   .cover-notice-inner svg { flex-shrink: 0; color: #e8a800; }
+  .cover-notice.is-stored .cover-notice-inner {
+    background: #f4f6f9;
+    border-color: var(--border);
+    border-left-color: var(--navy-light);
+    color: var(--text);
+  }
+  .cover-notice.is-stored .cover-notice-inner svg { color: var(--navy-light); }
+  .cover-notice-copy { flex: 1; min-width: 0; }
 
   /* ── Controls ─────────────────────────────────────────────────────────── */
   .controls {
@@ -161,6 +170,39 @@
     outline: none;
     border-color: var(--navy-light);
     box-shadow: 0 0 0 2px rgba(36, 61, 94, 0.15);
+  }
+  .version-switch {
+    display: inline-flex;
+    gap: 0.35rem;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .filter-btn.version-btn.active {
+    background: #8a6200;
+    border-color: #8a6200;
+    color: #fff;
+  }
+  .filter-btn.version-btn[data-art-version="permanent"].active {
+    background: var(--navy);
+    border-color: var(--navy);
+    color: #fff;
+  }
+  .diff-legend {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.7rem;
+    font-weight: 500;
+    color: var(--muted);
+    margin-left: 0.2rem;
+  }
+  .diff-legend-swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    border: 2px solid #e8a800;
+    background: #fffbeb;
+    flex-shrink: 0;
   }
 
   /* ── Timetable section ────────────────────────────────────────────────── */
@@ -311,6 +353,9 @@
     flex-shrink: 0;
   }
   .teacher-name-short { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .teacher-label.is-cover {
+    box-shadow: inset 3px 0 0 #e8a800;
+  }
 
   .cell {
     border-top: 1px solid var(--border);
@@ -363,6 +408,13 @@
   }
   .class-chip.special .cls-name { color: #888888; }
   .class-chip.special .cls-room { display: none; }
+  .class-chip.changed {
+    box-shadow: 0 0 0 2px #e8a800;
+  }
+  .cell.changed-empty {
+    background: #fffbeb;
+    box-shadow: inset 0 0 0 2px rgba(232, 168, 0, 0.55);
+  }
 
   .day-sep {
     grid-column: 1 / -1;
@@ -454,9 +506,9 @@
   .key-card.mon-key .key-swatch { background: #dc2626; }
 
   /* ── Embed mode (Faculty Hub iframe) ──────────────────────────────────── */
-  body.embedded .banner,
-  body.embedded .cover-notice { display: none; }
-  body.embedded .controls { padding-top: 1.15rem; }
+  body.embedded .banner { display: none; }
+  body.embedded .cover-notice { padding-top: 0.85rem; }
+  body.embedded .controls { padding-top: 0.65rem; }
 
   @media (max-width: 1024px) {
     :root { --teacher-w: 5.8rem; --day-w: 4.1rem; --cell-h: 2.9rem; }
@@ -497,14 +549,26 @@
     <div class="banner-titles">
       <div class="banner-eyebrow">Knightswood Secondary School</div>
       <h1 class="banner-title">Faculty <span>Timetable</span></h1>
-      <p class="banner-meta">Art &amp; Drama  ·  August 2026  ·  New Session</p>
+      <p class="banner-meta" id="banner-meta">Art &amp; Drama  ·  Cover timetable  ·  J. Oliver for P. Donald</p>
     </div>
-    <div class="version-badge">
+    <div class="version-badge" id="version-badge">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
       </svg>
-      Timetable  ·  11 Aug 26
+      <span id="version-badge-text">Cover · Art 26–27</span>
     </div>
+  </div>
+</div>
+
+<!-- ── Cover notice ────────────────────────────────────────────────────────── -->
+<div class="cover-notice" id="cover-notice">
+  <div class="cover-notice-inner">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+    </svg>
+    <span class="cover-notice-copy" id="cover-notice-copy">
+      <strong>Cover timetable (live):</strong> J. Oliver is covering P. Donald in S12. This temporary Art timetable is the default until P. Donald returns. Gold outlines mark classes that differ from the stored timetable.
+    </span>
   </div>
 </div>
 
@@ -519,6 +583,15 @@
   <select id="teacher-filter" class="teacher-select" aria-label="Filter timetable by teacher">
     <option value="all">All teachers</option>
   </select>
+  <span class="filter-label" style="margin-left:.4rem">Art timetable</span>
+  <div class="version-switch" role="group" aria-label="Art timetable version">
+    <button type="button" class="filter-btn version-btn active" data-art-version="cover">Cover · J. Oliver</button>
+    <button type="button" class="filter-btn version-btn" data-art-version="permanent">Stored · P. Donald</button>
+  </div>
+  <span class="diff-legend" title="Gold outline marks a class that is different in the other Art timetable">
+    <span class="diff-legend-swatch" aria-hidden="true"></span>
+    Differs from the other Art timetable
+  </span>
   <button class="filter-btn mon-btn" id="mon-toggle" style="margin-left:auto;display:none" aria-pressed="false">
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:-2px;margin-right:4px">
       <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
@@ -578,27 +651,7 @@
 <!-- ── ART ────────────────────────────────────────────────────────────────── -->
 <div class="timetable-section" id="section-art" data-subject="art">
   <p class="subject-heading">Art &amp; Photography Department</p>
-  <div class="key-row">
-    <div class="key-card" data-teacher="M. Gallacher">
-      <div class="key-swatch" style="background:#0077a8"></div>
-      M. Gallacher
-      <span class="key-room">S11</span>
-    </div>
-    <div class="key-card" data-teacher="P. Donald">
-      <div class="key-swatch" style="background:#00796b"></div>
-      P. Donald
-      <span class="key-room">S12</span>
-    </div>
-    <div class="key-card" data-teacher="J. McKenzie">
-      <div class="key-swatch" style="background:#3949ab"></div>
-      J. McKenzie
-      <span class="key-room">S10</span>
-    </div>
-    <div class="key-card" data-teacher="V. Deighan">
-      <div class="key-swatch" style="background:#c2185b"></div>
-      V. Deighan
-      <span class="key-room">S13</span>
-    </div>
+  <div class="key-row" id="art-key-row">
     <div class="key-card mon-key" id="mon-key-art" style="display:none">
       <div class="key-swatch"></div>
       Monitored
@@ -727,8 +780,31 @@ async function monInitAuth() {
 }
 /* ────────────────────────────────────────────────────────────────────────── */
 
-const DRAMA_STAFF = (window.FacultyTimetableData && window.FacultyTimetableData.DRAMA_STAFF) || [];
-const ART_STAFF = (window.FacultyTimetableData && window.FacultyTimetableData.ART_STAFF) || [];
+const FT = window.FacultyTimetableData;
+const DRAMA_STAFF = (FT && FT.DRAMA_STAFF) || [];
+const ART_VIEW_KEY = 'kss-faculty-art-tt-view';
+const COVER_NOTICE = {
+  cover: '<strong>Cover timetable (live):</strong> J. Oliver is covering P. Donald in S12. This temporary Art timetable is the default until P. Donald returns. Gold outlines mark classes that differ from the stored timetable.',
+  permanent: '<strong>Stored timetable:</strong> P. Donald\'s original Art timetable, kept for when she returns. Planner and class lists still use the live cover timetable with J. Oliver. Gold outlines mark classes that differ from cover.'
+};
+
+function readArtViewVersion() {
+  try {
+    const stored = localStorage.getItem(ART_VIEW_KEY);
+    if (stored && FT && FT.ART_TIMETABLE_VERSIONS && FT.ART_TIMETABLE_VERSIONS[stored]) return stored;
+  } catch (err) { /* ignore */ }
+  return (FT && FT.DEFAULT_ART_TIMETABLE_VERSION) || 'cover';
+}
+
+let artViewVersion = readArtViewVersion();
+
+function currentArtStaff() {
+  return (FT && typeof FT.artStaff === 'function') ? FT.artStaff(artViewVersion) : [];
+}
+
+function compareArtVersion() {
+  return (FT && typeof FT.otherArtVersion === 'function') ? FT.otherArtVersion(artViewVersion) : 'permanent';
+}
 
 function el(tag, cls) {
   const e = document.createElement(tag);
@@ -736,12 +812,13 @@ function el(tag, cls) {
   return e;
 }
 
-function buildGrid(containerId, staff) {
+function buildGrid(containerId, staff, options) {
   const container = document.getElementById(containerId);
   container.innerHTML = '';
   if (!container || !staff || !staff.length) return;
 
   const subject = containerId.replace('-grid', '');
+  const compareVersion = options && options.compareVersion;
 
   const dayCorner = el('div','th corner day-corner');
   const teacherCorner = el('div','th corner teacher-corner');
@@ -765,6 +842,10 @@ function buildGrid(containerId, staff) {
     staff.forEach(s => {
       const tLabel = el('div','teacher-label');
       tLabel.style.background = s.bg;
+      if (s.coverFor) {
+        tLabel.classList.add('is-cover');
+        tLabel.title = 'Covering ' + s.coverFor;
+      }
       const dot = el('div','teacher-dot');
       dot.style.background = s.ac;
       const tName = el('span','teacher-name-short');
@@ -777,6 +858,8 @@ function buildGrid(containerId, staff) {
       for (let p = 1; p <= MAX_P; p++) {
         const cls  = p <= nP ? (s.tt[day]?.[p] || null) : null;
         const cell = el('div', p === MAX_P ? 'cell period-end' : 'cell');
+        const differs = !!(compareVersion && FT && typeof FT.slotDiffers === 'function' &&
+          FT.slotDiffers(s, day, p, compareVersion));
 
         if (p > nP) {
           cell.classList.add('na');
@@ -793,6 +876,10 @@ function buildGrid(containerId, staff) {
             if (monitoredFlags.has(monKey)) chip.classList.add('monitored');
             chip.addEventListener('click', monHandleChipClick);
           }
+          if (differs) {
+            chip.classList.add('changed');
+            chip.title = (chip.title ? chip.title + ' · ' : '') + 'Differs from the other Art timetable';
+          }
           const cName = el('span','cls-name');
           cName.textContent = cls;
           chip.append(cName);
@@ -804,6 +891,10 @@ function buildGrid(containerId, staff) {
           cell.append(chip);
         } else {
           cell.classList.add('free');
+          if (differs) {
+            cell.classList.add('changed-empty');
+            cell.title = 'Free here, but a class sits in the other Art timetable';
+          }
         }
         container.append(cell);
       }
@@ -812,18 +903,55 @@ function buildGrid(containerId, staff) {
 }
 
 const FILTER_STATE = { subject: 'all', teacher: 'all' };
-const STAFF_BY_SUBJECT = { drama: DRAMA_STAFF, art: ART_STAFF };
+
+function staffBySubject(subject) {
+  if (subject === 'drama') return DRAMA_STAFF;
+  if (subject === 'art') return currentArtStaff();
+  return [];
+}
+
+function renderArtKeyCards() {
+  const row = document.getElementById('art-key-row');
+  if (!row) return;
+  const monKey = document.getElementById('mon-key-art');
+  row.querySelectorAll('.key-card:not(.mon-key)').forEach(card => card.remove());
+  currentArtStaff().forEach(s => {
+    const card = el('div', s.coverFor ? 'key-card cover-card' : 'key-card');
+    card.dataset.teacher = s.name;
+    const swatch = el('div', 'key-swatch');
+    swatch.style.background = s.ac;
+    card.append(swatch, document.createTextNode(' ' + s.name + ' '));
+    const room = el('span', 'key-room');
+    room.textContent = s.room;
+    card.append(room);
+    if (s.coverFor) {
+      const tag = el('span', 'cover-tag');
+      tag.textContent = 'Covering ' + s.coverFor;
+      card.append(tag);
+    }
+    row.insertBefore(card, monKey);
+  });
+}
 
 function populateTeacherFilter() {
   const select = document.getElementById('teacher-filter');
   if (!select) return;
-  const names = [...DRAMA_STAFF, ...ART_STAFF].map(s => s.name).sort((a, b) => a.localeCompare(b));
+  const previous = FILTER_STATE.teacher;
+  select.innerHTML = '';
+  const allOpt = document.createElement('option');
+  allOpt.value = 'all';
+  allOpt.textContent = 'All teachers';
+  select.append(allOpt);
+  const names = [...DRAMA_STAFF, ...currentArtStaff()].map(s => s.name).sort((a, b) => a.localeCompare(b));
   names.forEach(name => {
     const option = document.createElement('option');
     option.value = name;
     option.textContent = name;
     select.append(option);
   });
+  const stillThere = previous === 'all' || names.indexOf(previous) >= 0;
+  FILTER_STATE.teacher = stillThere ? previous : 'all';
+  select.value = FILTER_STATE.teacher;
 }
 
 function applyTeacherToKeyCards(sectionEl) {
@@ -836,10 +964,49 @@ function applyTeacherToKeyCards(sectionEl) {
   });
 }
 
+function syncVersionUi() {
+  const meta = FT && typeof FT.getArtTimetableMeta === 'function' ? FT.getArtTimetableMeta(artViewVersion) : null;
+  const notice = document.getElementById('cover-notice');
+  const copy = document.getElementById('cover-notice-copy');
+  const badge = document.getElementById('version-badge-text');
+  const bannerMeta = document.getElementById('banner-meta');
+  if (notice) notice.classList.toggle('is-stored', artViewVersion === 'permanent');
+  if (copy) copy.innerHTML = COVER_NOTICE[artViewVersion] || COVER_NOTICE.cover;
+  if (badge) badge.textContent = (meta && meta.badge) || 'Cover · Art 26–27';
+  if (bannerMeta) bannerMeta.textContent = (meta && meta.meta) || '';
+  document.querySelectorAll('.version-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.artVersion === artViewVersion);
+  });
+  document.title = artViewVersion === 'cover'
+    ? 'Faculty Timetable — Art & Drama — Cover 26–27'
+    : 'Faculty Timetable — Art & Drama — Stored (P. Donald)';
+}
+
+function mapTeacherAcrossArtVersions(name, fromVersion, toVersion) {
+  if (!FT || name === 'all') return name;
+  const fromStaff = (FT.artStaff(fromVersion) || []).find(s => s.name === name);
+  if (!fromStaff) return name;
+  const match = (FT.artStaff(toVersion) || []).find(s => s.room === fromStaff.room);
+  return match ? match.name : name;
+}
+
+function setArtViewVersion(nextVersion) {
+  if (!FT || !FT.ART_TIMETABLE_VERSIONS || !FT.ART_TIMETABLE_VERSIONS[nextVersion]) return;
+  if (nextVersion === artViewVersion) return;
+  FILTER_STATE.teacher = mapTeacherAcrossArtVersions(FILTER_STATE.teacher, artViewVersion, nextVersion);
+  artViewVersion = nextVersion;
+  try { localStorage.setItem(ART_VIEW_KEY, artViewVersion); } catch (err) { /* ignore */ }
+  syncVersionUi();
+  populateTeacherFilter();
+  renderArtKeyCards();
+  renderByFilters();
+  monUpdateKeyCards();
+}
+
 function renderByFilters() {
   ['drama', 'art'].forEach(subject => {
     const section = document.getElementById(`section-${subject}`);
-    const baseStaff = STAFF_BY_SUBJECT[subject] || [];
+    const baseStaff = staffBySubject(subject);
     const teacherFiltered = FILTER_STATE.teacher === 'all'
       ? baseStaff
       : baseStaff.filter(s => s.name === FILTER_STATE.teacher);
@@ -849,25 +1016,32 @@ function renderByFilters() {
     if (!section) return;
     section.classList.toggle('hidden', !shouldShowSection);
     if (shouldShowSection) {
-      buildGrid(`${subject}-grid`, teacherFiltered);
+      const opts = subject === 'art' ? { compareVersion: compareArtVersion() } : null;
+      buildGrid(`${subject}-grid`, teacherFiltered, opts);
       applyTeacherToKeyCards(section);
     }
   });
 }
 
+syncVersionUi();
+renderArtKeyCards();
 populateTeacherFilter();
 document.getElementById('teacher-filter').addEventListener('change', (e) => {
   FILTER_STATE.teacher = e.target.value || 'all';
   renderByFilters();
 });
 
-document.querySelectorAll('.filter-btn:not(.mon-btn)').forEach(btn => {
+document.querySelectorAll('.filter-btn:not(.mon-btn):not(.version-btn)').forEach(btn => {
   btn.addEventListener('click', () => {
-    document.querySelectorAll('.filter-btn:not(.mon-btn)').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.filter-btn:not(.mon-btn):not(.version-btn)').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     FILTER_STATE.subject = btn.dataset.filter || 'all';
     renderByFilters();
   });
+});
+
+document.querySelectorAll('.version-btn').forEach(btn => {
+  btn.addEventListener('click', () => setArtViewVersion(btn.dataset.artVersion));
 });
 
 renderByFilters();
