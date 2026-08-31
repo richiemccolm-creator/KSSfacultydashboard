@@ -40,7 +40,7 @@
 <script src="n5-ci-planner-import.js"></script>
 <script src="faculty-timetable-data.js"></script>
 <script src="faculty-timetable-planner-import.js"></script>
-<script src="planner-service.js?v=ink-6"></script>
+<script src="planner-service.js?v=ink-7"></script>
 <script src="planner-class-support-strategies.js"></script>
 <script src="teacher-planner-lesson-ink.js?v=ink-9"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -970,7 +970,7 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
 </style>
 <link rel="stylesheet" href="teacher-planner-redesign.css?v=polish-4">
 <link rel="stylesheet" href="teacher-planner-editorial.css?v=polish-4">
-<link rel="stylesheet" href="teacher-planner-editorial-views.css?v=polish-13">
+<link rel="stylesheet" href="teacher-planner-editorial-views.css?v=polish-15">
 </head>
 <body>
 <script>
@@ -2027,6 +2027,7 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
           <h3 id="lessonRailClass">Lesson</h3>
           <p>Tools for this lesson</p>
         </div>
+        <div class="lesson-ws-class-profile" id="lessonRailClassProfile" hidden></div>
         <section class="lesson-ws-rail-section">
           <div class="lesson-ws-kicker">Planning</div>
           <button type="button" class="lesson-ws-action is-support" id="classSupportRailBtn" aria-pressed="false">
@@ -8546,6 +8547,22 @@ var classSupportUi = {
   mode: 'view',
   lastFocus: null
 };
+var CLASS_SUPPORT_COUNT_FIELDS = [
+  { key: 'classSize', id: 'classSupportClassSize', label: 'Class size' },
+  { key: 'supportCount', id: 'classSupportSupportCount', label: 'Pupils with recorded support' },
+  { key: 'asnCount', id: 'classSupportAsnCount', label: 'ASN' },
+  { key: 'adhdCount', id: 'classSupportAdhdCount', label: 'ADHD' },
+  { key: 'dyslexiaCount', id: 'classSupportDyslexiaCount', label: 'Dyslexia' },
+  { key: 'autismCount', id: 'classSupportAutismCount', label: 'Autism' },
+  { key: 'ealCount', id: 'classSupportEalCount', label: 'EAL' }
+];
+var CLASS_SUPPORT_BAR_FIELDS = [
+  { key: 'asnCount', label: 'ASN' },
+  { key: 'adhdCount', label: 'ADHD' },
+  { key: 'dyslexiaCount', label: 'Dyslexia' },
+  { key: 'autismCount', label: 'Autism' },
+  { key: 'ealCount', label: 'EAL' }
+];
 
 function classSupportBank() {
   return window.PlannerClassSupportBank || null;
@@ -8689,6 +8706,180 @@ function syncClassSupportStrip() {
   btn.classList.toggle('is-setup', !profile);
 }
 
+function classSupportFiniteCount(n) {
+  return n != null && typeof n === 'number' && isFinite(n) && n >= 0 && Math.floor(n) === n;
+}
+
+function parseClassSupportCountInput(raw) {
+  if (raw == null) return { empty: true, invalid: false, value: null };
+  var s = String(raw).trim();
+  if (!s) return { empty: true, invalid: false, value: null };
+  if (!/^\d+$/.test(s)) return { empty: false, invalid: true, value: null };
+  var n = parseInt(s, 10);
+  if (!isFinite(n) || n < 0) return { empty: false, invalid: true, value: null };
+  return { empty: false, invalid: false, value: n };
+}
+
+function classSupportSupportRatio(profile) {
+  if (!profile) return null;
+  var size = profile.classSize;
+  var count = profile.supportCount;
+  if (!classSupportFiniteCount(size) || size <= 0) return null;
+  if (!classSupportFiniteCount(count)) return null;
+  var ratio = count / size;
+  if (!isFinite(ratio)) return null;
+  if (ratio < 0) ratio = 0;
+  if (ratio > 1) ratio = 1;
+  return ratio;
+}
+
+function classSupportHasAnyCount(profile) {
+  if (!profile) return false;
+  if (classSupportFiniteCount(profile.classSize) || classSupportFiniteCount(profile.supportCount)) return true;
+  var i;
+  for (i = 0; i < CLASS_SUPPORT_BAR_FIELDS.length; i++) {
+    if (classSupportFiniteCount(profile[CLASS_SUPPORT_BAR_FIELDS[i].key])) return true;
+  }
+  return false;
+}
+
+function classSupportProfileIsIncomplete(profile) {
+  if (!profile) return false;
+  return !classSupportFiniteCount(profile.classSize) || !classSupportFiniteCount(profile.supportCount);
+}
+
+function classSupportRingHtml(profile) {
+  var ratio = classSupportSupportRatio(profile);
+  var r = 32;
+  var c = 2 * Math.PI * r;
+  var size = profile && classSupportFiniteCount(profile.classSize) ? profile.classSize : null;
+  var count = profile && classSupportFiniteCount(profile.supportCount) ? profile.supportCount : null;
+  if (size == null && count == null) return '';
+  var centre = '';
+  var caption = '';
+  var aria = 'Support totals are not recorded.';
+  if (count != null && size != null) {
+    centre = '<span class="class-support-ring-num">' + escHtml(String(count)) + ' of ' + escHtml(String(size)) + '</span>';
+    caption = '<span class="class-support-ring-caption">pupils with recorded support</span>';
+    aria = count + ' of ' + size + ' pupils with recorded support';
+  } else if (count != null) {
+    centre = '<span class="class-support-ring-num">' + escHtml(String(count)) + '</span>';
+    caption = '<span class="class-support-ring-caption">pupils with recorded support</span>';
+    aria = count + ' pupils with recorded support. Class size is not recorded.';
+  } else if (size != null) {
+    centre = '<span class="class-support-ring-num">' + escHtml(String(size)) + '</span>';
+    caption = '<span class="class-support-ring-caption">class size</span>';
+    aria = 'Class size ' + size + '. Support total is not recorded.';
+  }
+  var progress = '';
+  if (ratio != null) {
+    progress = '<circle class="class-support-ring-progress" cx="40" cy="40" r="' + r +
+      '" fill="none" stroke-width="6" stroke-linecap="round" stroke-dasharray="' + c.toFixed(3) +
+      '" stroke-dashoffset="' + (c * (1 - ratio)).toFixed(3) +
+      '" transform="rotate(-90 40 40)"></circle>';
+  }
+  return '<div class="class-support-ring" role="img" aria-label="' + escAttr(aria) + '">' +
+    '<svg class="class-support-ring-svg" viewBox="0 0 80 80" width="80" height="80" aria-hidden="true" focusable="false">' +
+    '<circle class="class-support-ring-track" cx="40" cy="40" r="' + r + '" fill="none" stroke-width="6"></circle>' +
+    progress +
+    '</svg>' +
+    '<div class="class-support-ring-text" aria-hidden="true">' + centre + caption + '</div>' +
+    '</div>';
+}
+
+function classSupportBarsHtml(profile) {
+  var size = profile && classSupportFiniteCount(profile.classSize) && profile.classSize > 0
+    ? profile.classSize : null;
+  var html = '<ul class="class-support-bars">';
+  CLASS_SUPPORT_BAR_FIELDS.forEach(function(f) {
+    var n = profile ? profile[f.key] : null;
+    var has = classSupportFiniteCount(n);
+    var pct = 0;
+    if (has && size) {
+      pct = n / size;
+      if (!isFinite(pct) || pct < 0) pct = 0;
+      if (pct > 1) pct = 1;
+    }
+    var spoken = has ? (f.label + ': ' + n) : (f.label + ': not recorded');
+    html += '<li class="class-support-bar" aria-label="' + escAttr(spoken) + '">';
+    html += '<span class="class-support-bar-label">' + escHtml(f.label) + '</span>';
+    html += '<span class="class-support-bar-track" aria-hidden="true"><span class="class-support-bar-fill" style="width:' +
+      (has && size ? (pct * 100).toFixed(1) + '%' : '0') + '"></span></span>';
+    html += '<span class="class-support-bar-count">' + (has ? escHtml(String(n)) : '—') + '</span>';
+    html += '</li>';
+  });
+  html += '</ul>';
+  html += '<p class="class-support-overlap">Categories overlap</p>';
+  return html;
+}
+
+function renderClassSupportAggregate(profile) {
+  if (!profile || !classSupportHasAnyCount(profile)) return '';
+  var ring = classSupportRingHtml(profile);
+  var html = '<section class="class-support-aggregate' + (ring ? '' : ' is-bars-only') + '">';
+  html += ring;
+  html += '<div class="class-support-aggregate-bars">';
+  html += classSupportBarsHtml(profile);
+  html += '</div>';
+  if (classSupportProfileIsIncomplete(profile)) {
+    html += '<p class="class-support-incomplete">Class size or support total is missing. Recorded counts are shown; a proportion is not calculated.</p>';
+  }
+  html += '</section>';
+  return html;
+}
+
+function renderLessonRailClassProfile(className, profile) {
+  if (!className) return '';
+  if (!profile) {
+    return '<p class="lesson-ws-class-profile-empty">No class profile yet.</p>' +
+      '<button type="button" class="lesson-ws-class-profile-action" data-class-profile-action="edit">Add class profile</button>';
+  }
+  var html = '';
+  if (classSupportHasAnyCount(profile)) {
+    var ring = classSupportRingHtml(profile);
+    html += '<div class="class-support-aggregate is-rail' + (ring ? '' : ' is-bars-only') + '">';
+    html += ring;
+    html += '<div class="class-support-aggregate-bars">';
+    html += classSupportBarsHtml(profile);
+    html += '</div></div>';
+  }
+  if (classSupportProfileIsIncomplete(profile)) {
+    html += '<p class="class-support-incomplete">Add class size and the support total to complete this profile.</p>';
+  }
+  html += '<button type="button" class="lesson-ws-class-profile-action" data-class-profile-action="open">View class support →</button>';
+  return html;
+}
+
+function refreshLessonClassProfileSummary() {
+  var el = document.getElementById('lessonRailClassProfile');
+  if (!el) return;
+  var shell = document.querySelector('#lessonModal .lesson-modal-shell');
+  var library = !!(shell && shell.classList.contains('is-library'));
+  var ctx = classSupportContextFromModal();
+  if (library || !ctx.className) {
+    el.hidden = true;
+    el.innerHTML = '';
+    return;
+  }
+  var profile = PS.getClassSupportProfile ? PS.getClassSupportProfile(ctx.className) : null;
+  el.hidden = false;
+  el.innerHTML = renderLessonRailClassProfile(ctx.className, profile);
+}
+
+function classSupportWhatWorksHtml(note) {
+  var lines = String(note || '').split(/\n+/).map(function(s) { return s.trim(); }).filter(Boolean);
+  if (!lines.length) return '';
+  if (lines.length === 1) {
+    return '<p class="class-support-note">' + escHtml(lines[0]) + '</p>';
+  }
+  var html = '<ul class="class-support-works-list">';
+  lines.forEach(function(line) {
+    html += '<li>' + escHtml(line) + '</li>';
+  });
+  html += '</ul>';
+  return html;
+}
+
 function classSupportChipHtml(id, label, selected, interactive) {
   var cat = ' is-cat-' + String(id || 'other').replace(/[^a-zA-Z0-9_-]/g, '');
   if (interactive) {
@@ -8702,8 +8893,9 @@ function renderClassSupportView(profile) {
   var note = profile && profile.whatWorks ? String(profile.whatWorks).trim() : '';
   var strategies = classSupportStrategies(considerations);
   var html = '';
+  html += renderClassSupportAggregate(profile);
   html += '<section class="class-support-section">';
-  html += '<h4>Planning considerations</h4>';
+  html += '<h4 class="class-support-section-title">Planning considerations</h4>';
   if (considerations.length) {
     html += '<div class="class-support-chips is-context">';
     considerations.forEach(function(id) {
@@ -8714,14 +8906,16 @@ function renderClassSupportView(profile) {
     html += '<p class="class-support-empty">No planning considerations yet.</p>';
   }
   html += '</section>';
+  html += '<section class="class-support-section">';
+  html += '<h4 class="class-support-section-title">What works with this class</h4>';
   if (note) {
-    html += '<section class="class-support-section">';
-    html += '<h4>What works with this class</h4>';
-    html += '<p class="class-support-note">' + escHtml(note).replace(/\n/g, '<br>') + '</p>';
-    html += '</section>';
+    html += classSupportWhatWorksHtml(note);
+  } else {
+    html += '<p class="class-support-empty">No notes yet.</p>';
   }
+  html += '</section>';
   html += '<section class="class-support-section class-support-lesson-section">';
-  html += '<h4>For this lesson</h4>';
+  html += '<h4 class="class-support-section-title">For this lesson</h4>';
   if (strategies.length) {
     html += '<div class="class-support-pick-list">';
     strategies.forEach(function(s) {
@@ -8738,8 +8932,8 @@ function renderClassSupportView(profile) {
   } else {
     html += '<p class="class-support-empty">Choose planning considerations in the class profile to see suggested approaches.</p>';
   }
-  html += '<button type="button" class="class-support-edit-link" id="classSupportEditProfileBtn">Edit class profile</button>';
   html += '</section>';
+  html += '<button type="button" class="class-support-edit-link" id="classSupportEditProfileBtn">Edit class profile</button>';
   return html;
 }
 
@@ -8748,12 +8942,10 @@ function renderClassSupportEdit(profile) {
   var cats = (bank && bank.CATEGORIES) || [];
   var selected = {};
   ((profile && profile.considerations) || []).forEach(function(id) { selected[id] = 1; });
-  var asn = profile && profile.asnCount != null ? String(profile.asnCount) : '';
-  var eal = profile && profile.ealCount != null ? String(profile.ealCount) : '';
   var note = profile && profile.whatWorks ? profile.whatWorks : '';
   var html = '';
   html += '<section class="class-support-section">';
-  html += '<h4>Planning considerations</h4>';
+  html += '<h4 class="class-support-section-title">Planning considerations</h4>';
   html += '<p class="class-support-hint">Choose anything particularly useful for this class.</p>';
   html += '<div class="class-support-chips is-edit" id="classSupportEditChips">';
   cats.forEach(function(c) {
@@ -8761,18 +8953,26 @@ function renderClassSupportEdit(profile) {
   });
   html += '</div></section>';
   html += '<section class="class-support-section">';
-  html += '<h4>What works well with this class?</h4>';
+  html += '<h4 class="class-support-section-title">What works well with this class?</h4>';
   html += '<textarea id="classSupportWhatWorks" class="form-input class-support-whatworks" rows="3" placeholder="e.g. Clear demonstrations before practical tasks. Keep instructions visible.">' + escHtml(note) + '</textarea>';
   html += '</section>';
   html += '<section class="class-support-section class-support-optional">';
-  html += '<h4>Additional information <span>Optional</span></h4>';
+  html += '<h4 class="class-support-section-title">Class profile <span>Optional</span></h4>';
   html += '<div class="class-support-counts">';
-  html += '<label>ASN <input type="number" id="classSupportAsnCount" min="0" max="99" inputmode="numeric" value="' + escAttr(asn) + '"></label>';
-  html += '<label>EAL <input type="number" id="classSupportEalCount" min="0" max="99" inputmode="numeric" value="' + escAttr(eal) + '"></label>';
+  CLASS_SUPPORT_COUNT_FIELDS.forEach(function(f) {
+    var val = profile && profile[f.key] != null ? String(profile[f.key]) : '';
+    html += '<label for="' + escAttr(f.id) + '">' + escHtml(f.label) +
+      ' <input type="number" id="' + escAttr(f.id) + '" min="0" step="1" inputmode="numeric" autocomplete="off" aria-describedby="classSupportFormError" value="' + escAttr(val) + '"></label>';
+  });
   html += '</div>';
-  html += '<p class="class-support-privacy">These optional counts stay inside the class profile. They are not shown on the timetable or projected lesson overview.</p>';
+  html += '<p class="class-support-counts-hint">Class-level totals only. Categories can overlap.</p>';
+  html += '<p class="class-support-privacy"><span class="class-support-privacy-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span>These figures stay within the class profile and are not shown on timetable or projected lesson overviews.</p>';
   html += '</section>';
+  html += '<p class="class-support-form-error" id="classSupportFormError" role="alert" aria-live="assertive" hidden></p>';
+  html += '<div class="class-support-edit-footer">';
+  html += '<button type="button" class="class-support-cancel-btn" id="classSupportCancelBtn">Cancel</button>';
   html += '<button type="button" class="btn-primary class-support-save-btn" id="classSupportSaveBtn">Save class profile</button>';
+  html += '</div>';
   return html;
 }
 
@@ -8785,7 +8985,7 @@ function fillClassSupportPanel(mode) {
   var title = document.getElementById('classSupportDrawerTitle');
   var classLine = document.getElementById('classSupportDrawerClass');
   var body = document.getElementById('classSupportPanelBody');
-  if (title) title.textContent = 'Class Support';
+  if (title) title.textContent = mode === 'edit' ? 'Edit class profile' : 'Class Support';
   if (classLine) {
     var bits = [];
     if (ctx.className) bits.push(ctx.className);
@@ -8849,15 +9049,63 @@ function collectClassSupportEditFields() {
       considerations.push(btn.getAttribute('data-consideration'));
     });
   }
-  var asnEl = document.getElementById('classSupportAsnCount');
-  var ealEl = document.getElementById('classSupportEalCount');
   var noteEl = document.getElementById('classSupportWhatWorks');
-  return {
+  var fields = {
     considerations: considerations,
-    asnCount: asnEl ? asnEl.value : '',
-    ealCount: ealEl ? ealEl.value : '',
     whatWorks: noteEl ? noteEl.value : ''
   };
+  CLASS_SUPPORT_COUNT_FIELDS.forEach(function(f) {
+    var el = document.getElementById(f.id);
+    fields[f.key] = el ? el.value : '';
+  });
+  return fields;
+}
+
+function validateClassSupportEditFields(fields) {
+  var parsed = {};
+  var i;
+  var f;
+  var result;
+  for (i = 0; i < CLASS_SUPPORT_COUNT_FIELDS.length; i++) {
+    f = CLASS_SUPPORT_COUNT_FIELDS[i];
+    result = parseClassSupportCountInput(fields[f.key]);
+    if (result.invalid) {
+      return { ok: false, message: f.label + ' must be a whole number 0 or more.', fieldId: f.id };
+    }
+    parsed[f.key] = result.value;
+  }
+  var size = parsed.classSize;
+  if (size != null) {
+    if (parsed.supportCount != null && parsed.supportCount > size) {
+      return { ok: false, message: 'Pupils with recorded support cannot be more than class size.', fieldId: 'classSupportSupportCount' };
+    }
+    for (i = 0; i < CLASS_SUPPORT_BAR_FIELDS.length; i++) {
+      f = CLASS_SUPPORT_BAR_FIELDS[i];
+      if (parsed[f.key] != null && parsed[f.key] > size) {
+        var countField = CLASS_SUPPORT_COUNT_FIELDS.filter(function(item) { return item.key === f.key; })[0];
+        return { ok: false, message: f.label + ' cannot be more than class size.', fieldId: countField ? countField.id : '' };
+      }
+    }
+  }
+  return { ok: true, parsed: parsed };
+}
+
+function showClassSupportFormError(message, fieldId) {
+  CLASS_SUPPORT_COUNT_FIELDS.forEach(function(f) {
+    var input = document.getElementById(f.id);
+    if (!input) return;
+    if (fieldId && f.id === fieldId) input.setAttribute('aria-invalid', 'true');
+    else input.removeAttribute('aria-invalid');
+  });
+  var el = document.getElementById('classSupportFormError');
+  if (!el) return;
+  if (!message) {
+    el.hidden = true;
+    el.textContent = '';
+    return;
+  }
+  el.hidden = false;
+  el.textContent = message;
 }
 
 function refreshClassSupportMarks() {
@@ -8873,8 +9121,30 @@ function saveClassSupportFromPanel() {
   var ctx = classSupportContextFromModal();
   if (!ctx.className || !PS.setClassSupportProfile) return;
   var fields = collectClassSupportEditFields();
-  PS.setClassSupportProfile(ctx.className, fields).then(function(profile) {
+  var check = validateClassSupportEditFields(fields);
+  if (!check.ok) {
+    showClassSupportFormError(check.message, check.fieldId);
+    var fieldEl = check.fieldId ? document.getElementById(check.fieldId) : null;
+    if (fieldEl && typeof fieldEl.focus === 'function') {
+      try { fieldEl.focus(); } catch (e) { /* ignore */ }
+    }
+    return;
+  }
+  showClassSupportFormError('');
+  var payload = {
+    considerations: fields.considerations,
+    whatWorks: fields.whatWorks,
+    classSize: check.parsed.classSize,
+    supportCount: check.parsed.supportCount,
+    asnCount: check.parsed.asnCount,
+    adhdCount: check.parsed.adhdCount,
+    dyslexiaCount: check.parsed.dyslexiaCount,
+    autismCount: check.parsed.autismCount,
+    ealCount: check.parsed.ealCount
+  };
+  PS.setClassSupportProfile(ctx.className, payload).then(function(profile) {
     syncClassSupportStrip();
+    refreshLessonClassProfileSummary();
     refreshClassSupportMarks();
     if (profile) {
       fillClassSupportPanel('view');
@@ -8898,6 +9168,13 @@ function handleClassSupportPanelClick(e) {
   }
   if (e.target.id === 'classSupportEditProfileBtn' || (e.target.closest && e.target.closest('#classSupportEditProfileBtn'))) {
     fillClassSupportPanel('edit');
+    return;
+  }
+  if (e.target.id === 'classSupportCancelBtn' || (e.target.closest && e.target.closest('#classSupportCancelBtn'))) {
+    var cancelCtx = classSupportContextFromModal();
+    var existing = cancelCtx.className && PS.getClassSupportProfile ? PS.getClassSupportProfile(cancelCtx.className) : null;
+    if (existing) fillClassSupportPanel('view');
+    else closeClassSupportDrawer();
     return;
   }
   if (e.target.id === 'classSupportSaveBtn' || (e.target.closest && e.target.closest('#classSupportSaveBtn'))) {
@@ -8953,6 +9230,19 @@ function initClassSupportUi() {
     body.addEventListener('click', handleClassSupportPanelClick);
     body.addEventListener('change', handleClassSupportPanelChange);
   }
+  var railProfile = document.getElementById('lessonRailClassProfile');
+  if (railProfile) {
+    railProfile.addEventListener('click', function(e) {
+      var btn = e.target.closest && e.target.closest('[data-class-profile-action]');
+      if (!btn) return;
+      var ctx = classSupportContextFromModal();
+      if (!ctx.className) {
+        showToast('Class Support is for timetable lessons');
+        return;
+      }
+      openClassSupportDrawer(btn.getAttribute('data-class-profile-action') === 'edit' ? 'edit' : 'view');
+    });
+  }
 }
 
 function lessonWorkspaceBackLabel() {
@@ -9000,6 +9290,7 @@ function syncLessonToolSummaries() {
     else if (PS.getClassSupportProfile && PS.getClassSupportProfile(ctx.className)) csHint.textContent = 'Profile available';
     else csHint.textContent = 'Set up a class profile';
   }
+  refreshLessonClassProfileSummary();
 }
 
 function resetLessonWorkspaceScroll() {

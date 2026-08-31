@@ -165,11 +165,32 @@
     return String(className || '').trim().toLowerCase();
   }
 
+  var CLASS_SUPPORT_COUNT_KEYS = [
+    'classSize', 'supportCount', 'asnCount', 'adhdCount', 'dyslexiaCount', 'autismCount', 'ealCount'
+  ];
+
   function parseClassSupportCount(value) {
     if (value == null || value === '') return null;
-    var n = parseInt(value, 10);
-    if (isNaN(n) || n < 0) return null;
+    if (typeof value === 'number') {
+      if (!isFinite(value) || value < 0 || Math.floor(value) !== value) return null;
+      return value;
+    }
+    var s = String(value).trim();
+    if (!s || !/^\d+$/.test(s)) return null;
+    var n = parseInt(s, 10);
+    if (!isFinite(n) || n < 0) return null;
     return n;
+  }
+
+  function classSupportProfileHasContent(profile) {
+    if (!profile) return false;
+    if (profile.considerations && profile.considerations.length) return true;
+    if (profile.whatWorks) return true;
+    var i;
+    for (i = 0; i < CLASS_SUPPORT_COUNT_KEYS.length; i++) {
+      if (profile[CLASS_SUPPORT_COUNT_KEYS[i]] != null) return true;
+    }
+    return false;
   }
 
   function orderedClassSupportConsiderations(ids) {
@@ -185,16 +206,20 @@
     if (!raw || typeof raw !== 'object') return null;
     var considerations = orderedClassSupportConsiderations(raw.considerations);
     var whatWorks = String(raw.whatWorks || '').trim();
-    var asnCount = parseClassSupportCount(raw.asnCount);
-    var ealCount = parseClassSupportCount(raw.ealCount);
-    if (!considerations.length && !whatWorks && asnCount == null && ealCount == null) return null;
-    return {
+    var profile = {
       considerations: considerations,
-      asnCount: asnCount,
-      ealCount: ealCount,
+      classSize: parseClassSupportCount(raw.classSize),
+      supportCount: parseClassSupportCount(raw.supportCount),
+      asnCount: parseClassSupportCount(raw.asnCount),
+      adhdCount: parseClassSupportCount(raw.adhdCount),
+      dyslexiaCount: parseClassSupportCount(raw.dyslexiaCount),
+      autismCount: parseClassSupportCount(raw.autismCount),
+      ealCount: parseClassSupportCount(raw.ealCount),
       whatWorks: whatWorks,
       updatedAt: raw.updatedAt ? String(raw.updatedAt) : ''
     };
+    if (!classSupportProfileHasContent(profile)) return null;
+    return profile;
   }
 
   function normalizeClassSupportMap(map) {
@@ -221,7 +246,12 @@
     if (!profile) return null;
     return {
       considerations: (profile.considerations || []).slice(),
+      classSize: profile.classSize == null ? null : profile.classSize,
+      supportCount: profile.supportCount == null ? null : profile.supportCount,
       asnCount: profile.asnCount == null ? null : profile.asnCount,
+      adhdCount: profile.adhdCount == null ? null : profile.adhdCount,
+      dyslexiaCount: profile.dyslexiaCount == null ? null : profile.dyslexiaCount,
+      autismCount: profile.autismCount == null ? null : profile.autismCount,
       ealCount: profile.ealCount == null ? null : profile.ealCount,
       whatWorks: profile.whatWorks || '',
       updatedAt: profile.updatedAt || ''
