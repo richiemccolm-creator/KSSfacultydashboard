@@ -1,0 +1,2341 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>U1 S06 | Job Advert Takeover | N5 Creative Industries</title>
+  <script src="app-version.js"></script>
+  <script>window.SLIDE_FOLLOW_DECK_ID = 's06-job';</script>
+  <script src="config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-init.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Barlow+Condensed:wght@400;600;700;800;900&family=JetBrains+Mono:wght@500;700&family=Noto+Kufi+Arabic:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --ink: #08090b;
+      --coal: #111317;
+      --panel: #181b20;
+      --paper: #f3f0e7;
+      --white: #fffdf7;
+      --muted: #a9adb5;
+      --line: #353a43;
+      --lime: #c9ff21;
+      --cyan: #21d4ff;
+      --pink: #ff3cad;
+      --orange: #ff8a1f;
+      --danger: #ff4d45;
+      --display: "Archivo Black", Impact, sans-serif;
+      --condensed: "Barlow Condensed", Arial Narrow, sans-serif;
+      --mono: "JetBrains Mono", Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      overflow: hidden;
+      background: var(--ink);
+      color: var(--white);
+      font-family: var(--condensed);
+    }
+
+    button { font: inherit; }
+
+    #languageToggle {
+      position: fixed;
+      z-index: 20;
+      top: 10px;
+      right: 14px;
+      min-width: 88px;
+      height: 32px;
+      padding: 0 12px;
+      border: 1px solid var(--lime);
+      color: var(--lime);
+      background: rgba(7,8,10,.96);
+      box-shadow: 4px 4px 0 rgba(0,0,0,.45);
+      font: 800 11px/1 var(--mono);
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+
+    #languageToggle:hover,
+    #languageToggle:focus-visible {
+      outline: none;
+      color: #0a0c0d;
+      background: var(--lime);
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 3;
+      opacity: .25;
+      background-image:
+        radial-gradient(circle at 12% 18%, rgba(255,255,255,.08) 0 1px, transparent 1.5px),
+        radial-gradient(circle at 83% 71%, rgba(255,255,255,.055) 0 1px, transparent 1.5px);
+      background-size: 7px 7px, 11px 11px;
+      mix-blend-mode: screen;
+    }
+
+    #deck {
+      position: fixed;
+      inset: 0 0 74px 0;
+      overflow: hidden;
+      z-index: 1;
+    }
+
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: none;
+      overflow: hidden;
+      padding: clamp(38px, 5.4vh, 70px) clamp(44px, 7vw, 112px) clamp(36px, 5vh, 62px);
+      background:
+        linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px),
+        linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px),
+        var(--coal);
+      background-size: 54px 54px;
+    }
+
+    .slide.active {
+      display: flex;
+      flex-direction: column;
+      animation: enter .34s cubic-bezier(.18,.84,.27,1) both;
+    }
+
+    @keyframes enter {
+      from { opacity: 0; transform: translateY(16px) scale(.995); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .slide::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 9px;
+      background: var(--accent, var(--lime));
+      box-shadow: 11px 0 0 rgba(255,255,255,.035);
+    }
+
+    .slide::after {
+      content: attr(data-ghost);
+      position: absolute;
+      z-index: 0;
+      right: -2vw;
+      bottom: -8vh;
+      font-family: var(--display);
+      font-size: clamp(150px, 28vw, 420px);
+      line-height: .8;
+      color: var(--accent, var(--lime));
+      opacity: .035;
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    .slide > * { position: relative; z-index: 2; }
+
+    .meta {
+      position: absolute;
+      top: 18px;
+      left: clamp(44px, 7vw, 112px);
+      right: max(118px, clamp(44px, 7vw, 112px));
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      color: var(--muted);
+      font: 700 10px/1.2 var(--mono);
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      width: fit-content;
+      margin-bottom: clamp(12px, 2vh, 22px);
+      color: var(--accent, var(--lime));
+      font: 700 clamp(10px, 1vw, 13px)/1 var(--mono);
+      letter-spacing: .18em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 42px;
+      height: 5px;
+      background: currentColor;
+      transform: skewX(-24deg);
+    }
+
+    h1, h2, h3, p { margin: 0; }
+
+    h1, h2 {
+      max-width: 1100px;
+      font-family: var(--display);
+      text-transform: uppercase;
+      letter-spacing: -.035em;
+      line-height: .92;
+    }
+
+    h1 { font-size: clamp(64px, 10vw, 148px); }
+    h2 { font-size: clamp(46px, 7.2vw, 104px); }
+
+    .subhead {
+      max-width: 940px;
+      margin-top: clamp(18px, 2.6vh, 30px);
+      color: #d9dbe0;
+      font-size: clamp(22px, 2.35vw, 34px);
+      font-weight: 600;
+      line-height: 1.22;
+    }
+
+    .accent-text { color: var(--accent, var(--lime)); }
+    .pink { color: var(--pink); }
+    .cyan { color: var(--cyan); }
+    .orange { color: var(--orange); }
+
+    .kicker {
+      margin-top: 18px;
+      color: var(--muted);
+      font: 700 clamp(11px, 1.1vw, 14px)/1.4 var(--mono);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .stage-stamp {
+      position: absolute;
+      right: clamp(44px, 7vw, 112px);
+      top: 50%;
+      transform: translateY(-50%) rotate(6deg);
+      padding: 16px 22px 13px;
+      border: 4px solid var(--accent, var(--lime));
+      color: var(--accent, var(--lime));
+      font: 900 clamp(20px, 3vw, 44px)/.88 var(--condensed);
+      letter-spacing: .08em;
+      text-align: center;
+      text-transform: uppercase;
+      box-shadow: 7px 7px 0 rgba(0,0,0,.5);
+    }
+
+    .paper {
+      position: relative;
+      color: #111318;
+      background:
+        linear-gradient(transparent 31px, rgba(15,18,22,.09) 32px),
+        var(--paper);
+      background-size: 100% 32px;
+      border: 2px solid #111;
+      box-shadow: 11px 12px 0 rgba(0,0,0,.52);
+      transform: rotate(-.55deg);
+    }
+
+    .paper::before,
+    .paper::after {
+      content: "";
+      position: absolute;
+      width: 84px;
+      height: 26px;
+      background: rgba(255,240,169,.68);
+      border: 1px solid rgba(0,0,0,.1);
+      top: -15px;
+    }
+
+    .paper::before { left: 8%; transform: rotate(-4deg); }
+    .paper::after { right: 9%; transform: rotate(5deg); }
+
+    .prompt-list {
+      display: grid;
+      gap: clamp(10px, 1.4vh, 18px);
+      max-width: 1050px;
+      margin-top: clamp(22px, 3.5vh, 40px);
+    }
+
+    .prompt {
+      display: grid;
+      grid-template-columns: 58px 1fr;
+      gap: 20px;
+      align-items: start;
+      font-size: clamp(22px, 2.15vw, 32px);
+      font-weight: 700;
+      line-height: 1.18;
+    }
+
+    .prompt .num {
+      padding-top: 3px;
+      color: var(--accent, var(--lime));
+      font: 700 12px/1 var(--mono);
+      letter-spacing: .08em;
+    }
+
+    .reveal {
+      opacity: 0;
+      transform: translateY(12px);
+      transition: opacity .28s ease, transform .28s ease;
+    }
+
+    .reveal.shown { opacity: 1; transform: translateY(0); }
+
+    .tap-hint {
+      position: absolute;
+      right: clamp(44px, 7vw, 112px);
+      bottom: 22px;
+      color: var(--muted);
+      font: 700 10px/1 var(--mono);
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+
+    .tap-hint::before { content: "SPACE  →  "; color: var(--accent, var(--lime)); }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: clamp(14px, 2vw, 26px);
+      margin-top: clamp(24px, 3.5vh, 42px);
+      max-width: 1120px;
+    }
+
+    .cards.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+    .card {
+      min-height: 142px;
+      padding: clamp(18px, 2.3vw, 30px);
+      border: 1px solid var(--line);
+      border-top: 6px solid var(--card-accent, var(--accent, var(--lime)));
+      background: rgba(24,27,32,.92);
+      box-shadow: 8px 9px 0 rgba(0,0,0,.28);
+    }
+
+    .card h3 {
+      margin-bottom: 9px;
+      color: var(--card-accent, var(--accent, var(--lime)));
+      font: 900 clamp(24px, 2.4vw, 36px)/1 var(--condensed);
+      letter-spacing: .02em;
+      text-transform: uppercase;
+    }
+
+    .card p {
+      color: #d8dbe0;
+      font-size: clamp(18px, 1.6vw, 24px);
+      font-weight: 600;
+      line-height: 1.24;
+    }
+
+    .tap-card {
+      cursor: pointer;
+      transition: color .18s, background .18s, border-color .18s, transform .18s;
+      user-select: none;
+    }
+
+    .tap-card:hover { transform: translateY(-2px); border-color: var(--lime); }
+    .tap-card.selected { color: #0b0d0e; background: var(--lime); border-color: var(--lime); }
+    .tap-card.selected h3,
+    .tap-card.selected p { color: #0b0d0e; }
+
+    .mission {
+      display: grid;
+      grid-template-columns: 130px 1fr;
+      gap: clamp(20px, 3vw, 42px);
+      align-items: center;
+      max-width: 1120px;
+      margin-top: clamp(26px, 4vh, 48px);
+      padding: clamp(22px, 3vw, 38px);
+      border: 2px solid var(--accent, var(--lime));
+      background: linear-gradient(100deg, color-mix(in srgb, var(--accent, var(--lime)) 14%, transparent), transparent 60%);
+      box-shadow: 10px 10px 0 rgba(0,0,0,.32);
+    }
+
+    .mission .big-number {
+      font-family: var(--display);
+      font-size: clamp(68px, 9vw, 126px);
+      line-height: .8;
+      color: var(--accent, var(--lime));
+      text-align: center;
+    }
+
+    .mission h3 {
+      font: 900 clamp(28px, 3.2vw, 46px)/1 var(--condensed);
+      text-transform: uppercase;
+    }
+
+    .mission p {
+      margin-top: 8px;
+      color: #d9dbe0;
+      font-size: clamp(19px, 1.8vw, 27px);
+      font-weight: 600;
+      line-height: 1.25;
+    }
+
+    .action-strip {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 18px;
+      align-items: center;
+      max-width: 1160px;
+      margin-top: clamp(18px, 2.5vh, 30px);
+      padding: 14px 20px;
+      color: #0b0d0e;
+      background: var(--accent, var(--lime));
+      box-shadow: 7px 8px 0 rgba(0,0,0,.38);
+      transform: rotate(-.2deg);
+    }
+
+    .action-strip strong {
+      padding-right: 18px;
+      border-right: 2px solid rgba(0,0,0,.35);
+      font: 900 clamp(18px, 1.8vw, 27px)/1 var(--condensed);
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    .action-strip span {
+      font-size: clamp(19px, 1.9vw, 28px);
+      font-weight: 800;
+      line-height: 1.15;
+    }
+
+    .do-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: clamp(12px, 1.7vw, 22px);
+      max-width: 1160px;
+      margin-top: clamp(18px, 2.7vh, 32px);
+    }
+
+    .do-card {
+      position: relative;
+      min-height: 126px;
+      padding: 18px 20px 18px 66px;
+      border: 1px solid var(--line);
+      background: rgba(24,27,32,.94);
+    }
+
+    .do-card .do-num {
+      position: absolute;
+      top: 18px;
+      left: 18px;
+      color: var(--accent, var(--lime));
+      font: 900 28px/1 var(--display);
+    }
+
+    .do-card strong {
+      display: block;
+      margin-bottom: 6px;
+      color: var(--accent, var(--lime));
+      font: 900 clamp(21px, 2vw, 30px)/1 var(--condensed);
+      text-transform: uppercase;
+    }
+
+    .do-card p {
+      color: #e1e3e7;
+      font-size: clamp(17px, 1.55vw, 23px);
+      font-weight: 650;
+      line-height: 1.2;
+    }
+
+    /* Progressive A3 employer-map model used throughout the group challenge. */
+    .map-slide h2 { font-size: clamp(38px, 5.1vw, 76px); }
+
+    .task-visual-split {
+      display: grid;
+      grid-template-columns: minmax(320px, .78fr) minmax(500px, 1.22fr);
+      gap: clamp(24px, 3.4vw, 54px);
+      align-items: center;
+      flex: 1;
+      min-height: 0;
+      margin-top: clamp(12px, 1.8vh, 22px);
+    }
+
+    .task-copy {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .task-copy .action-strip {
+      grid-template-columns: 1fr;
+      gap: 7px;
+      margin-top: 0;
+      padding: 12px 16px;
+      transform: rotate(-.35deg);
+    }
+
+    .task-copy .action-strip strong {
+      padding: 0 0 6px;
+      border-right: 0;
+      border-bottom: 2px solid rgba(0,0,0,.3);
+    }
+
+    .task-copy .action-strip span { font-size: clamp(17px, 1.45vw, 22px); }
+
+    .mini-step-list {
+      display: grid;
+      gap: 8px;
+      margin-top: 14px;
+    }
+
+    .mini-step {
+      display: grid;
+      grid-template-columns: 34px 1fr;
+      gap: 10px;
+      align-items: start;
+      padding: 9px 11px;
+      border-left: 4px solid var(--accent, var(--lime));
+      background: rgba(24,27,32,.94);
+    }
+
+    .mini-step b {
+      color: var(--accent, var(--lime));
+      font: 900 22px/1 var(--display);
+    }
+
+    .mini-step span {
+      color: #e8e9ec;
+      font-size: clamp(16px, 1.35vw, 20px);
+      font-weight: 750;
+      line-height: 1.15;
+    }
+
+    .task-copy .finish-line {
+      margin-top: 13px;
+      padding: 11px 14px;
+      font-size: clamp(16px, 1.42vw, 21px);
+    }
+
+    .a3-example {
+      position: relative;
+      width: 100%;
+      max-height: min(52vh, 500px);
+      aspect-ratio: 1.414 / 1;
+      padding: 7.5% 3.2% 3.2%;
+      color: #17191d;
+      background:
+        linear-gradient(rgba(17,19,24,.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(17,19,24,.045) 1px, transparent 1px),
+        #f4f0e4;
+      background-size: 20px 20px;
+      border: 2px solid #090a0c;
+      box-shadow: 13px 15px 0 rgba(0,0,0,.5);
+      transform: rotate(.4deg);
+    }
+
+    .a3-example::before,
+    .a3-example::after {
+      content: "";
+      position: absolute;
+      z-index: 5;
+      top: -11px;
+      width: 70px;
+      height: 22px;
+      border: 1px solid rgba(0,0,0,.12);
+      background: rgba(255,237,158,.72);
+    }
+
+    .a3-example::before { left: 9%; transform: rotate(-5deg); }
+    .a3-example::after { right: 9%; transform: rotate(5deg); }
+
+    .example-stamp {
+      position: absolute;
+      top: 2.6%;
+      left: 3.2%;
+      padding: 4px 7px;
+      color: #111318;
+      border: 2px solid #111318;
+      font: 900 clamp(7px, .62vw, 10px)/1 var(--mono);
+      letter-spacing: .09em;
+      text-transform: uppercase;
+      transform: rotate(-1.5deg);
+    }
+
+    .map-stage-note {
+      position: absolute;
+      top: 3.1%;
+      right: 3.2%;
+      color: #42464d;
+      font: 800 clamp(7px, .62vw, 10px)/1 var(--mono);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+
+    .map-canvas {
+      display: grid;
+      grid-template-columns: 1fr .9fr 1fr;
+      grid-template-rows: .8fr 1.15fr 1fr;
+      gap: 2.2%;
+      height: 100%;
+    }
+
+    .map-advert,
+    .map-part {
+      position: relative;
+      min-width: 0;
+      overflow: hidden;
+    }
+
+    .map-advert {
+      grid-column: 2;
+      grid-row: 2;
+      padding: 7% 8%;
+      border: 1px solid #858a90;
+      background: #fff;
+      box-shadow: 3px 4px 0 rgba(0,0,0,.18);
+      transform: rotate(-1.2deg);
+    }
+
+    .map-advert strong {
+      display: block;
+      font: 900 clamp(10px, 1vw, 16px)/1 var(--condensed);
+      text-transform: uppercase;
+    }
+
+    .map-advert small {
+      display: block;
+      margin-top: 3px;
+      color: #4d525a;
+      font: 700 clamp(6px, .55vw, 9px)/1.15 var(--mono);
+      text-transform: uppercase;
+    }
+
+    .advert-lines {
+      display: grid;
+      gap: 5px;
+      margin-top: 9%;
+    }
+
+    .advert-lines i {
+      display: block;
+      height: 3px;
+      background: #b9bdc2;
+    }
+
+    .advert-lines i:nth-child(2) { width: 84%; }
+    .advert-lines i:nth-child(3) { width: 93%; }
+    .advert-lines i:nth-child(4) { width: 70%; }
+    .advert-lines i:nth-child(5) { width: 88%; }
+
+    .map-part {
+      padding: 5% 6%;
+      border: 2px dashed rgba(29,32,38,.18);
+      opacity: .16;
+      transition: opacity .25s ease, background .25s ease, border-color .25s ease;
+    }
+
+    .map-part > * { visibility: hidden; }
+
+    .map-part h4 {
+      margin: 0 0 4px;
+      padding-bottom: 3px;
+      border-bottom: 3px solid var(--map-colour, #111318);
+      color: #111318;
+      font: 900 clamp(9px, .88vw, 14px)/.95 var(--condensed);
+      letter-spacing: .02em;
+      text-transform: uppercase;
+    }
+
+    .map-part p,
+    .map-part li {
+      font-size: clamp(7px, .65vw, 10.5px);
+      font-weight: 800;
+      line-height: 1.12;
+    }
+
+    .map-part p { margin: 0; }
+    .map-part ul { margin: 3px 0 0; padding-left: 13px; }
+    .map-part li + li { margin-top: 1px; }
+
+    .map-step {
+      position: absolute;
+      top: 4px;
+      right: 5px;
+      color: var(--map-colour, #111318);
+      font: 900 clamp(8px, .72vw, 12px)/1 var(--display);
+    }
+
+    .part-job { grid-column: 1; grid-row: 1; --map-colour: var(--pink); }
+    .part-duties { grid-column: 1; grid-row: 2 / 4; --map-colour: var(--pink); }
+    .part-technical { grid-column: 3; grid-row: 1; --map-colour: var(--cyan); }
+    .part-transferable { grid-column: 3; grid-row: 2; --map-colour: var(--lime); }
+    .part-entry { grid-column: 2; grid-row: 3; --map-colour: var(--orange); }
+    .part-conditions { grid-column: 3; grid-row: 3; --map-colour: var(--orange); }
+
+    .a3-example[data-stage="1"] .part-job,
+    .a3-example[data-stage="1"] .part-duties,
+    .a3-example[data-stage="2"] .part-job,
+    .a3-example[data-stage="2"] .part-duties,
+    .a3-example[data-stage="2"] .part-technical,
+    .a3-example[data-stage="2"] .part-transferable,
+    .a3-example[data-stage="3"] .map-part,
+    .a3-example[data-stage="4"] .map-part {
+      opacity: 1;
+      border-style: solid;
+      border-color: var(--map-colour, #111318);
+      background: color-mix(in srgb, var(--map-colour, #111318) 10%, #fffdf7);
+    }
+
+    .a3-example[data-stage="1"] .part-job > *,
+    .a3-example[data-stage="1"] .part-duties > *,
+    .a3-example[data-stage="2"] .part-job > *,
+    .a3-example[data-stage="2"] .part-duties > *,
+    .a3-example[data-stage="2"] .part-technical > *,
+    .a3-example[data-stage="2"] .part-transferable > *,
+    .a3-example[data-stage="3"] .map-part > *,
+    .a3-example[data-stage="4"] .map-part > * { visibility: visible; }
+
+    .a3-example[data-stage="0"] .map-advert {
+      outline: 4px solid var(--lime);
+      outline-offset: 5px;
+    }
+
+    .map-arrow {
+      position: absolute;
+      left: 50%;
+      top: 20%;
+      width: 1px;
+      height: 15%;
+      border-left: 3px solid var(--lime);
+      transform: translateX(-50%);
+    }
+
+    .map-arrow::after {
+      content: "";
+      position: absolute;
+      left: -6px;
+      bottom: -2px;
+      width: 9px;
+      height: 9px;
+      border-right: 3px solid var(--lime);
+      border-bottom: 3px solid var(--lime);
+      transform: rotate(45deg);
+    }
+
+    .a3-example:not([data-stage="0"]) .map-arrow { display: none; }
+
+    .map-start-note {
+      position: absolute;
+      z-index: 4;
+      left: 50%;
+      top: 10.5%;
+      padding: 4px 7px;
+      color: #0b0d0e;
+      background: var(--lime);
+      font: 900 clamp(7px, .65vw, 11px)/1 var(--mono);
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      transform: translateX(-50%) rotate(-1deg);
+    }
+
+    .a3-example:not([data-stage="0"]) .map-start-note { display: none; }
+
+    .finish-line {
+      max-width: 1160px;
+      margin-top: clamp(18px, 2.6vh, 30px);
+      padding: 16px 20px;
+      border: 2px dashed var(--accent, var(--lime));
+      color: var(--white);
+      font-size: clamp(19px, 1.8vw, 27px);
+      font-weight: 800;
+      line-height: 1.2;
+    }
+
+    .finish-line strong {
+      color: var(--accent, var(--lime));
+      text-transform: uppercase;
+    }
+
+    .booklet-location {
+      display: inline-block;
+      max-width: 1160px;
+      margin-top: 16px;
+      padding: 12px 17px;
+      border-left: 7px solid var(--accent, var(--lime));
+      color: #111318;
+      background: var(--paper);
+      font: 800 clamp(17px, 1.7vw, 25px)/1.22 var(--condensed);
+      box-shadow: 6px 7px 0 rgba(0,0,0,.34);
+    }
+
+    .split {
+      display: grid;
+      grid-template-columns: minmax(0, .82fr) minmax(0, 1.18fr);
+      gap: clamp(28px, 5vw, 72px);
+      align-items: center;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .marker-key {
+      display: grid;
+      gap: 14px;
+      padding: clamp(22px, 3vw, 38px);
+    }
+
+    .marker-row {
+      display: grid;
+      grid-template-columns: 22px 1fr;
+      gap: 16px;
+      align-items: center;
+      font-size: clamp(20px, 2vw, 30px);
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+
+    .swatch { width: 22px; height: 22px; border: 2px solid #111; box-shadow: 3px 3px 0 rgba(0,0,0,.22); }
+
+    .quote {
+      max-width: 1050px;
+      margin-top: clamp(25px, 4vh, 52px);
+      padding-left: clamp(22px, 3vw, 40px);
+      border-left: 8px solid var(--accent, var(--lime));
+      font: 900 clamp(30px, 4.2vw, 60px)/1.05 var(--condensed);
+      text-transform: uppercase;
+    }
+
+    .mini-note {
+      max-width: 1000px;
+      margin-top: 18px;
+      color: var(--muted);
+      font-size: clamp(16px, 1.5vw, 22px);
+      font-weight: 600;
+      line-height: 1.3;
+    }
+
+    .search-bar {
+      max-width: 1100px;
+      margin-top: clamp(26px, 4vh, 48px);
+      padding: 18px 24px;
+      border: 3px solid var(--white);
+      background: var(--paper);
+      color: #111318;
+      font: 700 clamp(21px, 2.2vw, 32px)/1.2 var(--mono);
+      box-shadow: 11px 12px 0 var(--accent, var(--lime));
+      transform: rotate(-.3deg);
+    }
+
+    .booklet-grid {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+      max-width: 1160px;
+      margin-top: clamp(28px, 4vh, 46px);
+    }
+
+    .booklet-field {
+      min-height: 140px;
+      padding: 18px 15px;
+      border: 1px solid #b8b6ad;
+      color: #17191c;
+      background: var(--paper);
+      box-shadow: 5px 6px 0 rgba(0,0,0,.3);
+      transform: rotate(var(--r, 0deg));
+    }
+
+    .booklet-field span {
+      display: block;
+      margin-bottom: 18px;
+      color: #555b63;
+      font: 700 10px/1.2 var(--mono);
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    .booklet-field strong {
+      font: 900 clamp(20px, 1.9vw, 29px)/1.05 var(--condensed);
+      text-transform: uppercase;
+    }
+
+    .quality-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: clamp(18px, 3vw, 40px);
+      max-width: 1120px;
+      margin-top: clamp(25px, 4vh, 48px);
+    }
+
+    .quality {
+      padding: clamp(20px, 2.6vw, 34px);
+      border: 2px solid var(--line);
+      background: rgba(24,27,32,.95);
+    }
+
+    .quality.bad { border-top: 8px solid var(--danger); }
+    .quality.good { border-top: 8px solid var(--lime); }
+
+    .quality h3 {
+      margin-bottom: 15px;
+      font: 900 clamp(26px, 3vw, 42px)/1 var(--condensed);
+      text-transform: uppercase;
+    }
+
+    .quality.bad h3 { color: var(--danger); }
+    .quality.good h3 { color: var(--lime); }
+    .quality p { color: #dbdde1; font-size: clamp(18px, 1.7vw, 25px); font-weight: 600; line-height: 1.3; }
+
+    .check-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: clamp(12px, 1.6vw, 22px);
+      max-width: 1160px;
+      margin-top: clamp(24px, 4vh, 44px);
+    }
+
+    .check-card {
+      min-height: 174px;
+      padding: 24px 18px;
+      border: 2px solid var(--line);
+      background: rgba(24,27,32,.92);
+      cursor: pointer;
+      transition: .2s ease;
+    }
+
+    .check-card:hover { border-color: var(--lime); }
+    .check-card.done { background: var(--lime); border-color: var(--lime); color: #0a0c0d; transform: rotate(-1deg); }
+    .check-card .tick { font: 900 40px/1 var(--display); color: var(--lime); }
+    .check-card.done .tick { color: #0a0c0d; }
+    .check-card strong { display: block; margin-top: 18px; font-size: clamp(22px, 2vw, 31px); line-height: 1.05; text-transform: uppercase; }
+    .check-card small { display: block; margin-top: 9px; color: var(--muted); font: 700 11px/1.35 var(--mono); }
+    .check-card.done small { color: #202326; }
+
+    .working-note {
+      align-self: flex-end;
+      width: min(660px, 56vw);
+      margin-top: auto;
+      padding: clamp(26px, 4vw, 48px);
+    }
+
+    .working-note h3 {
+      font: 900 clamp(28px, 3vw, 44px)/1 var(--condensed);
+      text-transform: uppercase;
+    }
+
+    .working-note ul {
+      margin: 20px 0 0;
+      padding-left: 26px;
+      font-size: clamp(19px, 1.8vw, 27px);
+      font-weight: 700;
+      line-height: 1.36;
+    }
+
+    .bottom-message {
+      position: absolute;
+      left: clamp(44px, 7vw, 112px);
+      bottom: 22px;
+      color: var(--accent, var(--lime));
+      font: 700 11px/1 var(--mono);
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .join-panel {
+      position: absolute;
+      z-index: 4;
+      right: clamp(44px, 7vw, 112px);
+      bottom: 28px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 14px;
+      color: #111318;
+      background: var(--paper);
+      border: 2px solid #111;
+      box-shadow: 8px 8px 0 rgba(0,0,0,.45);
+      transform: rotate(-1.2deg);
+    }
+
+    .join-panel img {
+      width: 132px;
+      height: 132px;
+      background: #fffdf7;
+      display: block;
+    }
+
+    .join-copy {
+      display: grid;
+      gap: 6px;
+      min-width: 150px;
+    }
+
+    .join-copy strong {
+      font: 900 22px/1 var(--condensed);
+      letter-spacing: .04em;
+      text-transform: uppercase;
+    }
+
+    .join-copy span {
+      font: 700 13px/1.25 var(--condensed);
+      color: #33363d;
+    }
+
+    .join-copy code {
+      font: 800 20px/1 var(--mono);
+      letter-spacing: .12em;
+      color: #111318;
+    }
+
+    #followOverlay {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(8,9,11,.84);
+    }
+
+    #followOverlay[hidden] { display: none !important; }
+
+    .follow-overlay-card {
+      width: min(420px, calc(100vw - 32px));
+      padding: 28px 28px 22px;
+      text-align: center;
+      color: #111318;
+      background: var(--paper);
+      border: 2px solid #111;
+      box-shadow: 12px 14px 0 rgba(0,0,0,.5);
+    }
+
+    .follow-overlay-card img {
+      width: 240px;
+      height: 240px;
+      margin: 12px auto;
+      background: #fffdf7;
+      display: block;
+    }
+
+    .follow-kicker {
+      color: #111318;
+      font: 800 12px/1 var(--mono);
+      letter-spacing: .16em;
+      text-transform: uppercase;
+    }
+
+    .follow-pin-label {
+      margin-top: 4px;
+      font: 800 18px/1.2 var(--condensed);
+      text-transform: uppercase;
+    }
+
+    .follow-url, .follow-note {
+      margin-top: 8px;
+      color: #33363d;
+      font: 700 13px/1.35 var(--condensed);
+      word-break: break-all;
+    }
+
+    #followPill {
+      position: fixed;
+      z-index: 30;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 8px 14px;
+      color: #0a0c0d;
+      background: var(--lime);
+      font: 800 12px/1 var(--mono);
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      box-shadow: 4px 4px 0 rgba(0,0,0,.4);
+    }
+
+    #followPill[hidden] { display: none !important; }
+
+    html.is-follow #languageToggle,
+    html.is-follow #controlBar,
+    html.is-follow #timerProgress,
+    html.is-follow .join-panel,
+    html.is-follow .tap-hint { display: none !important; }
+
+    html.is-follow #deck { inset: 0; }
+    html.is-follow-waiting #deck { opacity: 0; pointer-events: none; }
+    html.is-follow:not(.is-follow-free) .tap-card,
+    html.is-follow:not(.is-follow-free) .check-card { pointer-events: none; }
+
+    html.is-host .slide[data-title="Job Advert Takeover"] .stage-stamp { top: 38%; }
+
+    /* Embedded timer and navigation: always visible, never covers the task. */
+    #controlBar {
+      position: fixed;
+      z-index: 10;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 74px;
+      display: grid;
+      grid-template-columns: minmax(230px, 1fr) auto minmax(210px, 1fr);
+      align-items: stretch;
+      background: rgba(7,8,10,.98);
+      border-top: 1px solid #343942;
+      box-shadow: 0 -10px 30px rgba(0,0,0,.35);
+    }
+
+    .nav-zone, .page-zone, .timer-zone { display: flex; align-items: center; }
+    .nav-zone { gap: 8px; padding-left: clamp(16px, 3vw, 42px); }
+    .page-zone { justify-content: center; gap: 12px; padding: 0 18px; }
+    .timer-zone { justify-content: flex-end; gap: 8px; padding-right: clamp(16px, 3vw, 42px); }
+
+    .control-btn {
+      height: 38px;
+      min-width: 42px;
+      padding: 0 13px;
+      border: 1px solid #3b414b;
+      color: #c8cbd1;
+      background: #15181d;
+      font: 700 10px/1 var(--mono);
+      letter-spacing: .09em;
+      text-transform: uppercase;
+      cursor: pointer;
+    }
+
+    .control-btn:hover, .control-btn:focus-visible { outline: none; border-color: var(--lime); color: var(--lime); }
+    .control-btn.primary { border-color: var(--lime); color: #0b0d0f; background: var(--lime); }
+    .control-btn.primary:hover { background: #d9ff64; color: #0b0d0f; }
+
+    #slideCount { color: var(--muted); font: 700 10px/1 var(--mono); letter-spacing: .12em; }
+
+    .progress-track {
+      width: clamp(80px, 9vw, 150px);
+      height: 5px;
+      overflow: hidden;
+      background: #242830;
+    }
+
+    #progressFill { height: 100%; width: 5%; background: var(--lime); transition: width .25s ease; }
+
+    .timer-label {
+      margin-right: 7px;
+      color: var(--muted);
+      font: 700 9px/1.2 var(--mono);
+      letter-spacing: .12em;
+      text-align: right;
+      text-transform: uppercase;
+    }
+
+    #timerDisplay {
+      min-width: 90px;
+      color: var(--white);
+      font: 900 36px/.8 var(--condensed);
+      letter-spacing: .035em;
+      text-align: center;
+      cursor: pointer;
+    }
+
+    #timerDisplay.urgent { color: var(--orange); }
+    #timerDisplay.finished { color: var(--danger); animation: pulse .55s ease-in-out infinite alternate; }
+
+    @keyframes pulse { to { opacity: .38; } }
+
+    #timerProgress {
+      position: fixed;
+      z-index: 11;
+      left: 0;
+      bottom: 72px;
+      height: 3px;
+      width: 100%;
+      transform-origin: left center;
+      background: var(--lime);
+      transition: transform .3s linear, background .2s;
+      pointer-events: none;
+    }
+
+    .section-lime { --accent: var(--lime); }
+    .section-cyan { --accent: var(--cyan); }
+    .section-pink { --accent: var(--pink); }
+    .section-orange { --accent: var(--orange); }
+
+    html[dir="rtl"] {
+      --display: "Noto Kufi Arabic", Tahoma, sans-serif;
+      --condensed: "Noto Kufi Arabic", Tahoma, sans-serif;
+      --mono: "Noto Kufi Arabic", Tahoma, sans-serif;
+    }
+
+    html[dir="rtl"] .slide { text-align: right; }
+    html[dir="rtl"] h1,
+    html[dir="rtl"] h2 { line-height: 1.08; letter-spacing: 0; }
+    html[dir="rtl"] .eyebrow,
+    html[dir="rtl"] .meta,
+    html[dir="rtl"] .kicker,
+    html[dir="rtl"] .bottom-message,
+    html[dir="rtl"] .tap-hint { letter-spacing: 0; }
+    html[dir="rtl"] .quote { padding-left: 0; padding-right: clamp(22px, 3vw, 40px); border-left: 0; border-right: 8px solid var(--accent, var(--lime)); }
+    html[dir="rtl"] .booklet-location { border-left: 0; border-right: 7px solid var(--accent, var(--lime)); }
+    html[dir="rtl"] .action-strip strong { padding-right: 0; padding-left: 18px; border-right: 0; border-left: 2px solid rgba(0,0,0,.35); }
+    html[dir="rtl"] .task-copy .action-strip strong { padding-left: 0; border-left: 0; }
+    html[dir="rtl"] .do-card { padding: 18px 66px 18px 20px; }
+    html[dir="rtl"] .do-card .do-num { left: auto; right: 18px; }
+    html[dir="rtl"] .working-note ul { padding-left: 0; padding-right: 26px; }
+    html[dir="rtl"] .bottom-message { left: auto; right: clamp(44px, 7vw, 112px); }
+    html[dir="rtl"] .tap-hint { right: auto; left: clamp(44px, 7vw, 112px); }
+    html[dir="rtl"] .stage-stamp { right: auto; left: clamp(44px, 7vw, 112px); }
+    html[dir="rtl"] .map-part ul { padding-left: 0; padding-right: 13px; }
+    html[dir="rtl"] .map-step { right: auto; left: 5px; }
+    html[dir="rtl"] .a3-example { direction: rtl; }
+    html[dir="rtl"] #controlBar { direction: ltr; }
+    html[dir="rtl"] #timerTask { direction: rtl; unicode-bidi: plaintext; }
+    html[dir="rtl"] #languageToggle { direction: ltr; letter-spacing: .05em; }
+    html[dir="rtl"] .tap-hint::before { content: "مسافة  ←  "; }
+
+    @media (max-width: 980px) {
+      #deck { inset-bottom: 68px; }
+      #controlBar { height: 68px; grid-template-columns: auto 1fr auto; }
+      #timerProgress { bottom: 66px; }
+      .slide { padding-left: 48px; padding-right: 42px; }
+      .meta { left: 48px; right: 112px; }
+      .cards.three { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .booklet-grid { grid-template-columns: repeat(3, minmax(0,1fr)); }
+      .booklet-field { min-height: 112px; }
+      .check-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .stage-stamp { display: none; }
+      .join-panel { transform: none; }
+      .timer-label { display: none; }
+      .nav-zone { padding-left: 10px; }
+      .timer-zone { padding-right: 10px; }
+      .control-btn { padding: 0 10px; }
+      .page-zone .progress-track { display: none; }
+      .task-visual-split { grid-template-columns: minmax(260px, .74fr) minmax(390px, 1.26fr); gap: 18px; }
+      .task-copy .action-strip span { font-size: 17px; }
+      .mini-step { padding: 7px 9px; }
+      .mini-step span { font-size: 16px; }
+      .task-copy .finish-line { font-size: 16px; }
+    }
+
+    @media (max-height: 650px) {
+      .slide { padding-top: 42px; padding-bottom: 22px; }
+      .meta { top: 12px; }
+      h1 { font-size: clamp(54px, 9vw, 112px); }
+      h2 { font-size: clamp(40px, 6.6vw, 80px); }
+      .cards, .prompt-list, .booklet-grid, .quality-row, .check-grid { margin-top: 18px; }
+      .card { min-height: 112px; padding-top: 16px; padding-bottom: 16px; }
+      .booklet-field { min-height: 102px; }
+      .mission { margin-top: 20px; padding-top: 18px; padding-bottom: 18px; }
+      .tap-hint, .bottom-message { bottom: 8px; }
+      .map-slide h2 { font-size: clamp(34px, 4.6vw, 64px); }
+      .task-visual-split { margin-top: 8px; }
+      .a3-example { max-height: 47vh; }
+      .mini-step-list { gap: 5px; margin-top: 9px; }
+      .mini-step { padding-top: 5px; padding-bottom: 5px; }
+      .task-copy .finish-line { margin-top: 8px; padding-top: 8px; padding-bottom: 8px; }
+    }
+
+    @media (max-width: 720px) {
+      .slide { padding-left: 30px; padding-right: 24px; }
+      .meta { left: 30px; right: 108px; }
+      .meta span:last-child { display: none; }
+      .cards, .cards.three, .quality-row { grid-template-columns: 1fr; }
+      .do-grid { grid-template-columns: 1fr; }
+      .split { grid-template-columns: 1fr; }
+      .map-slide { overflow-y: auto; }
+      .task-visual-split { grid-template-columns: 1fr; padding-bottom: 24px; }
+      .a3-example { width: min(100%, 590px); justify-self: center; max-height: none; }
+      .paper { transform: none; }
+      .marker-key { padding: 18px; }
+      .booklet-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .check-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .check-card { min-height: 120px; }
+      .mission { grid-template-columns: 70px 1fr; }
+      .mission .big-number { font-size: 64px; }
+      .working-note { width: 100%; }
+      .control-btn.wordy { display: none; }
+      #timerDisplay { min-width: 72px; font-size: 31px; }
+      .page-zone { padding: 0 7px; }
+    }
+
+    @media print {
+      html, body { overflow: visible; background: white; }
+      #deck { position: static; }
+      .slide { position: relative; display: flex !important; width: 13.333in; height: 7.5in; page-break-after: always; }
+      #controlBar, #timerProgress, #languageToggle { display: none; }
+      .reveal { opacity: 1; transform: none; }
+    }
+  </style>
+</head>
+<body>
+  <button id="languageToggle" type="button" aria-pressed="false" aria-label="Switch slides to Arabic">العربية</button>
+  <main id="deck" aria-live="polite">
+
+    <section class="slide active section-lime" data-title="Job Advert Takeover" data-duration="0" data-ghost="06">
+      <div class="meta"><span>U01 · S06 · Employment Opportunities</span><span>N5 Creative Industries</span></div>
+      <div class="eyebrow">Session 06 · Outcome 2 PC(a)</div>
+      <h1>Job advert<br><span class="accent-text">takeover</span></h1>
+      <p class="subhead">Today, you will work out what creative employers actually want, then hunt for opportunities you would genuinely consider.</p>
+      <div class="stage-stamp">Real jobs<br>Real evidence</div>
+      <aside class="join-panel" id="joinPanel">
+        <img data-follow-qr alt="QR code to follow the slides on an iPad" width="132" height="132" src="data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==">
+        <div class="join-copy">
+          <strong>Scan on your iPad</strong>
+          <span>Slides move when I move</span>
+          <code data-follow-pin>------</code>
+        </div>
+      </aside>
+      <p class="bottom-message">Booklet ready · One advert per team · Large paper in the centre</p>
+    </section>
+
+    <section class="slide section-pink" data-title="Do Now" data-duration="240" data-ghost="?">
+      <div class="meta"><span>U01 · S06 · Do Now</span><span>Silent first · Then compare</span></div>
+      <div class="eyebrow">Do Now · Start alone</div>
+      <h2>If you were<br><span class="accent-text">hiring today...</span></h2>
+      <div class="prompt-list">
+        <div class="prompt reveal"><span class="num">01 /</span><span>What would make you trust someone to do a creative job well?</span></div>
+        <div class="prompt reveal"><span class="num">02 /</span><span>Name one skill that matters in almost every workplace.</span></div>
+        <div class="prompt reveal"><span class="num">03 /</span><span>What evidence could prove that a person really has that skill?</span></div>
+      </div>
+      <div class="tap-hint">Reveal one prompt at a time</div>
+    </section>
+
+    <section class="slide section-cyan" data-title="Learning" data-duration="60" data-ghost="LI">
+      <div class="meta"><span>U01 · S06 · Learning</span><span>Read · Compare · Decide</span></div>
+      <div class="eyebrow">What are we learning?</div>
+      <h2>Read jobs like<br><span class="accent-text">an insider</span></h2>
+      <p class="quote">We are learning to investigate real opportunities and understand what employers value.</p>
+      <p class="mini-note">Why? A job title tells you very little. The advert reveals the work, the expectations and the skills you need to develop.</p>
+    </section>
+
+    <section class="slide section-cyan" data-title="Success Criteria" data-duration="60" data-ghost="SC">
+      <div class="meta"><span>U01 · S06 · Success Criteria</span><span>Reveal one at a time</span></div>
+      <div class="eyebrow">By the end, I can...</div>
+      <h2>Know what<br><span class="accent-text">good looks like</span></h2>
+      <div class="prompt-list">
+        <div class="prompt reveal"><span class="num">01 /</span><span>Pull duties, skills, experience and conditions from a real advert.</span></div>
+        <div class="prompt reveal"><span class="num">02 /</span><span>Separate technical skills from transferable workplace skills.</span></div>
+        <div class="prompt reveal"><span class="num">03 /</span><span>Identify patterns across different Creative Industries jobs.</span></div>
+        <div class="prompt reveal"><span class="num">04 /</span><span>Research four genuine opportunities and record accurate booklet evidence.</span></div>
+      </div>
+      <div class="tap-hint">Reveal one criterion at a time</div>
+    </section>
+
+    <section class="slide section-lime map-slide" data-title="Main Challenge" data-duration="120" data-ghost="DO">
+      <div class="meta"><span>U01 · S06 · Main Challenge</span><span>Groups of 3–4 · One advert · One A3 map</span></div>
+      <div class="eyebrow">Phase 01 · Group challenge</div>
+      <h2>Turn a job advert<br><span class="accent-text">into an employer map</span></h2>
+      <div class="task-visual-split">
+        <div class="task-copy">
+          <div class="action-strip"><strong>Main task</strong><span>Stick your advert in the centre of the large sheet. Build your group’s notes around it.</span></div>
+          <div class="mini-step-list">
+            <div class="mini-step reveal"><b>1</b><span>Place the large sheet landscape.</span></div>
+            <div class="mini-step reveal"><b>2</b><span>Stick one job advert in the centre.</span></div>
+            <div class="mini-step reveal"><b>3</b><span>Leave space around it for six sections.</span></div>
+            <div class="mini-step reveal"><b>4</b><span>Only write an answer after the group agrees.</span></div>
+          </div>
+        </div>
+        <div class="a3-example" data-stage="0" aria-label="Example of the starting A3 employer map with the advert in the centre">
+          <span class="example-stamp">Example only · A3 landscape</span>
+          <span class="map-stage-note">Setup · Start here</span>
+          <span class="map-start-note">Stick your advert here</span><span class="map-arrow"></span>
+          <div class="map-canvas">
+            <div class="map-part part-job"><span class="map-step">01</span><h4>The job</h4><p>Lighting Technician<br>Riverside Theatre</p></div>
+            <div class="map-part part-duties"><span class="map-step">01</span><h4>What they do</h4><ul><li>Set up lighting</li><li>Rig and test equipment</li><li>Operate the lighting desk</li><li>Pack equipment safely</li></ul></div>
+            <div class="map-advert"><strong>Lighting Technician</strong><small>Riverside Theatre · Vacancy</small><span class="advert-lines"><i></i><i></i><i></i><i></i><i></i></span></div>
+            <div class="map-part part-technical"><span class="map-step">02</span><h4>Technical skills</h4><p>Lighting desk<br>Rigging + safety checks</p></div>
+            <div class="map-part part-transferable"><span class="map-step">02</span><h4>Transferable skills</h4><p>Teamwork<br>Communication<br>Organisation</p></div>
+            <div class="map-part part-entry"><span class="map-step">03</span><h4>Getting the job</h4><p>Practical experience<br>Portfolio photos<br>★ 2 years’ experience</p></div>
+            <div class="map-part part-conditions"><span class="map-step">03</span><h4>Working conditions</h4><p>Pay: NOT STATED<br>Full-time · Permanent<br>Evenings + weekends<br>Glasgow</p></div>
+          </div>
+        </div>
+      </div>
+      <div class="tap-hint">Reveal the four parts</div>
+    </section>
+
+    <section class="slide section-orange" data-title="Team Roles" data-duration="180" data-ghost="TEAM">
+      <div class="meta"><span>U01 · S06 · Collaborative Roles</span><span>Choose one role each</span></div>
+      <div class="eyebrow">Before touching the advert</div>
+      <h2>Build your<br><span class="accent-text">investigation team</span></h2>
+      <div class="do-grid">
+        <article class="do-card reveal"><span class="do-num">1</span><strong>Reader</strong><p>Reads aloud and highlights or underlines evidence after the group agrees.</p></article>
+        <article class="do-card reveal"><span class="do-num">2</span><strong>Scribe</strong><p>Writes the group’s agreed answers clearly on the large sheet.</p></article>
+        <article class="do-card reveal"><span class="do-num">3</span><strong>Facilitator</strong><p>Asks the questions, includes every voice and keeps the group moving.</p></article>
+        <article class="do-card reveal"><span class="do-num">4</span><strong>Reporter</strong><p>Prepares to explain the job, the strongest evidence and what surprised the group.</p></article>
+      </div>
+      <div class="action-strip"><strong>Group of 3?</strong><span>One person combines Facilitator and Reporter. Rotate all roles after every round.</span></div>
+      <div class="finish-line"><strong>The rule:</strong> Reader finds the evidence → everyone discusses → facilitator checks agreement → scribe writes.</div>
+      <div class="tap-hint">Reveal each role</div>
+    </section>
+
+    <section class="slide section-pink map-slide" data-title="Round One" data-duration="300" data-ghost="1">
+      <div class="meta"><span>U01 · S06 · Advert Investigation · Round 01</span><span>Discuss first · Scribe writes after agreement</span></div>
+      <div class="eyebrow">Round 01 · Write on the large paper</div>
+      <h2>What would this person<br><span class="accent-text">actually do?</span></h2>
+      <div class="task-visual-split">
+        <div class="task-copy">
+          <div class="action-strip"><strong>Your task</strong><span>Add the two <b>pink</b> sections shown on the example.</span></div>
+          <div class="mini-step-list">
+            <div class="mini-step reveal"><b>1</b><span>Write the exact job title and company.</span></div>
+            <div class="mini-step reveal"><b>2</b><span>Finish: “This person is responsible for…”</span></div>
+            <div class="mini-step reveal"><b>3</b><span>List at least four duties from the advert.</span></div>
+            <div class="mini-step reveal"><b>4</b><span>Draw a line from each duty to its evidence.</span></div>
+          </div>
+          <div class="finish-line"><strong>Round 1 check:</strong> Could someone understand the job from your notes?</div>
+        </div>
+        <div class="a3-example" data-stage="1" aria-label="Example A3 employer map showing the completed job and duties sections">
+          <span class="example-stamp">Example only · A3 landscape</span>
+          <span class="map-stage-note">Round 1 · Add the pink sections</span>
+          <div class="map-canvas">
+            <div class="map-part part-job"><span class="map-step">01</span><h4>The job</h4><p>Lighting Technician<br>Riverside Theatre</p></div>
+            <div class="map-part part-duties"><span class="map-step">01</span><h4>What they do</h4><ul><li>Set up lighting</li><li>Rig and test equipment</li><li>Operate the lighting desk</li><li>Pack equipment safely</li></ul></div>
+            <div class="map-advert"><strong>Lighting Technician</strong><small>Riverside Theatre · Vacancy</small><span class="advert-lines"><i></i><i></i><i></i><i></i><i></i></span></div>
+            <div class="map-part part-technical"><span class="map-step">02</span><h4>Technical skills</h4><p>Lighting desk<br>Rigging + safety checks</p></div>
+            <div class="map-part part-transferable"><span class="map-step">02</span><h4>Transferable skills</h4><p>Teamwork<br>Communication<br>Organisation</p></div>
+            <div class="map-part part-entry"><span class="map-step">03</span><h4>Getting the job</h4><p>Practical experience<br>Portfolio photos<br>★ 2 years’ experience</p></div>
+            <div class="map-part part-conditions"><span class="map-step">03</span><h4>Working conditions</h4><p>Pay: NOT STATED<br>Full-time · Permanent<br>Evenings + weekends<br>Glasgow</p></div>
+          </div>
+        </div>
+      </div>
+      <div class="tap-hint">Reveal each action</div>
+    </section>
+
+    <section class="slide section-cyan map-slide" data-title="Round Two" data-duration="360" data-ghost="2">
+      <div class="meta"><span>U01 · S06 · Advert Investigation · Round 02</span><span>New roles · Discuss before writing</span></div>
+      <div class="eyebrow">Round 02 · Write on the large paper</div>
+      <h2>What skills does the<br><span class="accent-text">employer want?</span></h2>
+      <div class="task-visual-split">
+        <div class="task-copy">
+          <div class="action-strip"><strong>Your task</strong><span>Keep Round 1. Now add the two <b>skills</b> sections shown.</span></div>
+          <div class="mini-step-list">
+            <div class="mini-step reveal"><b>1</b><span>Write 2+ job-specific tools or technical skills.</span></div>
+            <div class="mini-step reveal"><b>2</b><span>Write 3+ transferable workplace skills.</span></div>
+            <div class="mini-step reveal"><b>3</b><span>Find a phrase or duty that proves each skill matters.</span></div>
+            <div class="mini-step reveal"><b>4</b><span>Explain: “They need ___ because they must ___.”</span></div>
+          </div>
+          <div class="finish-line"><strong>Round 2 check:</strong> 2+ technical + 3+ transferable + evidence. Pass roles clockwise.</div>
+        </div>
+        <div class="a3-example" data-stage="2" aria-label="Example A3 employer map with the job, duties and both skills sections completed">
+          <span class="example-stamp">Example only · A3 landscape</span>
+          <span class="map-stage-note">Round 2 · Add the skills sections</span>
+          <div class="map-canvas">
+            <div class="map-part part-job"><span class="map-step">01</span><h4>The job</h4><p>Lighting Technician<br>Riverside Theatre</p></div>
+            <div class="map-part part-duties"><span class="map-step">01</span><h4>What they do</h4><ul><li>Set up lighting</li><li>Rig and test equipment</li><li>Operate the lighting desk</li><li>Pack equipment safely</li></ul></div>
+            <div class="map-advert"><strong>Lighting Technician</strong><small>Riverside Theatre · Vacancy</small><span class="advert-lines"><i></i><i></i><i></i><i></i><i></i></span></div>
+            <div class="map-part part-technical"><span class="map-step">02</span><h4>Technical skills</h4><p>Lighting desk<br>Rigging + safety checks</p></div>
+            <div class="map-part part-transferable"><span class="map-step">02</span><h4>Transferable skills</h4><p>Teamwork<br>Communication<br>Organisation</p></div>
+            <div class="map-part part-entry"><span class="map-step">03</span><h4>Getting the job</h4><p>Practical experience<br>Portfolio photos<br>★ 2 years’ experience</p></div>
+            <div class="map-part part-conditions"><span class="map-step">03</span><h4>Working conditions</h4><p>Pay: NOT STATED<br>Full-time · Permanent<br>Evenings + weekends<br>Glasgow</p></div>
+          </div>
+        </div>
+      </div>
+      <div class="tap-hint">Reveal each action</div>
+    </section>
+
+    <section class="slide section-orange map-slide" data-title="Round Three" data-duration="300" data-ghost="3">
+      <div class="meta"><span>U01 · S06 · Advert Investigation · Round 03</span><span>New roles · Everyone must contribute</span></div>
+      <div class="eyebrow">Round 03 · Write on the large paper</div>
+      <h2>Could you get this job<br><span class="accent-text">tomorrow?</span></h2>
+      <div class="task-visual-split">
+        <div class="task-copy">
+          <div class="action-strip"><strong>Your task</strong><span>Keep Rounds 1–2. Add the two <b>orange</b> sections shown.</span></div>
+          <div class="mini-step-list">
+            <div class="mini-step reveal"><b>1</b><span>List qualifications, portfolio/showreel and experience.</span></div>
+            <div class="mini-step reveal"><b>2</b><span>Record pay, contract, hours, location and travel.</span></div>
+            <div class="mini-step reveal"><b>3</b><span>If the advert does not say, write <b>NOT STATED</b>.</span></div>
+            <div class="mini-step reveal"><b>4</b><span>★ Star the hardest requirement for a young applicant.</span></div>
+          </div>
+          <div class="finish-line"><strong>Round 3 check:</strong> Entry requirements + conditions + one starred barrier. Reporter gets ready.</div>
+        </div>
+        <div class="a3-example" data-stage="3" aria-label="Completed example A3 employer map with all six sections">
+          <span class="example-stamp">Example only · A3 landscape</span>
+          <span class="map-stage-note">Round 3 · Add the final sections</span>
+          <div class="map-canvas">
+            <div class="map-part part-job"><span class="map-step">01</span><h4>The job</h4><p>Lighting Technician<br>Riverside Theatre</p></div>
+            <div class="map-part part-duties"><span class="map-step">01</span><h4>What they do</h4><ul><li>Set up lighting</li><li>Rig and test equipment</li><li>Operate the lighting desk</li><li>Pack equipment safely</li></ul></div>
+            <div class="map-advert"><strong>Lighting Technician</strong><small>Riverside Theatre · Vacancy</small><span class="advert-lines"><i></i><i></i><i></i><i></i><i></i></span></div>
+            <div class="map-part part-technical"><span class="map-step">02</span><h4>Technical skills</h4><p>Lighting desk<br>Rigging + safety checks</p></div>
+            <div class="map-part part-transferable"><span class="map-step">02</span><h4>Transferable skills</h4><p>Teamwork<br>Communication<br>Organisation</p></div>
+            <div class="map-part part-entry"><span class="map-step">03</span><h4>Getting the job</h4><p>Practical experience<br>Portfolio photos<br>★ 2 years’ experience</p></div>
+            <div class="map-part part-conditions"><span class="map-step">03</span><h4>Working conditions</h4><p>Pay: NOT STATED<br>Full-time · Permanent<br>Evenings + weekends<br>Glasgow</p></div>
+          </div>
+        </div>
+      </div>
+      <div class="tap-hint">Reveal each action</div>
+    </section>
+
+    <section class="slide section-lime map-slide" data-title="Make It Visible" data-duration="180" data-ghost="A3">
+      <div class="meta"><span>U01 · S06 · Team Poster</span><span>Final two minutes: make it readable</span></div>
+      <div class="eyebrow">Final A3 check</div>
+      <h2>Is your employer map<br><span class="accent-text">ready to display?</span></h2>
+      <div class="task-visual-split">
+        <div class="task-copy">
+          <div class="action-strip"><strong>Your task</strong><span>Compare your page with the completed example. Fix anything missing.</span></div>
+          <div class="mini-step-list">
+            <div class="mini-step"><b>✓</b><span>Exact job title, company and 4+ duties</span></div>
+            <div class="mini-step"><b>✓</b><span>2+ technical and 3+ transferable skills</span></div>
+            <div class="mini-step"><b>✓</b><span>Experience, qualifications and working conditions</span></div>
+            <div class="mini-step"><b>✓</b><span>Evidence lines, one circled strength and one ★ skill gap</span></div>
+          </div>
+          <div class="finish-line"><strong>Display test:</strong> Another group should understand your map without asking questions.</div>
+        </div>
+        <div class="a3-example" data-stage="4" aria-label="Fully completed example A3 employer map ready to display">
+          <span class="example-stamp">Example only · Complete map</span>
+          <span class="map-stage-note">Final check · Make yours readable</span>
+          <div class="map-canvas">
+            <div class="map-part part-job"><span class="map-step">01</span><h4>The job</h4><p>Lighting Technician<br>Riverside Theatre</p></div>
+            <div class="map-part part-duties"><span class="map-step">01</span><h4>What they do</h4><ul><li>Set up lighting</li><li>Rig and test equipment</li><li>Operate the lighting desk</li><li>Pack equipment safely</li></ul></div>
+            <div class="map-advert"><strong>Lighting Technician</strong><small>Riverside Theatre · Vacancy</small><span class="advert-lines"><i></i><i></i><i></i><i></i><i></i></span></div>
+            <div class="map-part part-technical"><span class="map-step">02</span><h4>Technical skills</h4><p>Lighting desk<br>Rigging + safety checks</p></div>
+            <div class="map-part part-transferable"><span class="map-step">02</span><h4>Transferable skills</h4><p>Teamwork<br><u>Communication</u> ○<br>Organisation</p></div>
+            <div class="map-part part-entry"><span class="map-step">03</span><h4>Getting the job</h4><p>Practical experience<br>Portfolio photos<br>★ 2 years’ experience</p></div>
+            <div class="map-part part-conditions"><span class="map-step">03</span><h4>Working conditions</h4><p>Pay: NOT STATED<br>Full-time · Permanent<br>Evenings + weekends<br>Glasgow</p></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="slide section-pink" data-title="Prepare Report" data-duration="180" data-ghost="READY">
+      <div class="meta"><span>U01 · S06 · Group Report Preparation</span><span>Stay with your own advert</span></div>
+      <div class="eyebrow">Phase 02 · Prepare to share</div>
+      <h2>Turn your A3 map<br><span class="accent-text">into a 45-second report</span></h2>
+      <div class="action-strip"><strong>Your task</strong><span>Stay in your group. Agree what the reporter will say. Everyone helps choose the strongest evidence.</span></div>
+      <div class="do-grid">
+        <article class="do-card reveal"><span class="do-num">1</span><strong>Name the job</strong><p>“Our advert was for a ___ working for ___.”</p></article>
+        <article class="do-card reveal"><span class="do-num">2</span><strong>Explain the work</strong><p>Choose the two most important duties.</p></article>
+        <article class="do-card reveal"><span class="do-num">3</span><strong>Identify the skill</strong><p>Choose the skill the employer values most and point to evidence.</p></article>
+        <article class="do-card reveal"><span class="do-num">4</span><strong>Add one surprise</strong><p>Share one requirement, condition or duty your group did not expect.</p></article>
+      </div>
+      <div class="finish-line"><strong>Finished:</strong> Reporter practises once. The rest of the group checks that every statement is supported by the advert.</div>
+      <div class="tap-hint">Reveal each report part</div>
+    </section>
+
+    <section class="slide section-cyan" data-title="Group Reports" data-duration="360" data-ghost="45">
+      <div class="meta"><span>U01 · S06 · Group Reports</span><span>One reporter per group · 45 seconds</span></div>
+      <div class="eyebrow">Phase 02 · Listen for patterns</div>
+      <h2>Reporters share.<br><span class="accent-text">Everyone else listens.</span></h2>
+      <div class="action-strip"><strong>No gallery walk</strong><span>Remain seated with your own group. Each reporter shares the group’s advert analysis with the whole class.</span></div>
+      <div class="do-grid">
+        <article class="do-card reveal"><span class="do-num">1</span><strong>Reporter</strong><p>Stand or speak clearly from your group. Keep to 45 seconds.</p></article>
+        <article class="do-card reveal"><span class="do-num">2</span><strong>Listeners</strong><p>Listen for a skill that also appeared in your group’s advert.</p></article>
+        <article class="do-card reveal"><span class="do-num">3</span><strong>Signal a match</strong><p>Raise your hand when the reporter names a skill your employer also wanted.</p></article>
+        <article class="do-card reveal"><span class="do-num">4</span><strong>Teacher records</strong><p>Together, build one class list of the skills that keep appearing.</p></article>
+      </div>
+      <div class="finish-line"><strong>Listening challenge:</strong> Which skill appears across the greatest number of different jobs?</div>
+      <div class="tap-hint">Reveal each expectation</div>
+    </section>
+
+    <section class="slide section-lime" data-title="Employer Pattern" data-duration="300" data-ghost="VALUE">
+      <div class="meta"><span>U01 · S06 · Class Debrief</span><span>Tap a card when evidence supports it</span></div>
+      <div class="eyebrow">What did employers value?</div>
+      <h2>Build the class<br><span class="accent-text">evidence wall</span></h2>
+      <div class="cards three">
+        <article class="card tap-card" tabindex="0"><h3>Communication</h3><p>Where did it appear?</p></article>
+        <article class="card tap-card" tabindex="0"><h3>Teamwork</h3><p>What would it look like?</p></article>
+        <article class="card tap-card" tabindex="0"><h3>Organisation</h3><p>What must be managed?</p></article>
+        <article class="card tap-card" tabindex="0"><h3>Problem solving</h3><p>What might go wrong?</p></article>
+        <article class="card tap-card" tabindex="0"><h3>Creativity</h3><p>Where is originality needed?</p></article>
+        <article class="card tap-card" tabindex="0"><h3>Digital skills</h3><p>Which tools or platforms?</p></article>
+      </div>
+      <div class="finish-line"><strong>Class conclusion:</strong> “Across different Creative Industries jobs, employers repeatedly value ___ because workers need to ___.”</div>
+    </section>
+
+    <section class="slide section-orange" data-title="Switch" data-duration="60" data-ghost="YOU">
+      <div class="meta"><span>U01 · S06 · Transition</span><span>Group evidence → individual evidence</span></div>
+      <div class="eyebrow">Phase 03 · Switch focus</div>
+      <h2>Sit down.<br><span class="accent-text">Open your booklet.</span></h2>
+      <div class="booklet-location"><b>OPEN:</b> SESSION 6 · EMPLOYMENT OPPORTUNITIES RESEARCH · the two pages containing OPPORTUNITIES 1–4.</div>
+      <div class="action-strip"><strong>Next task</strong><span>Work individually. Find four real opportunities in your chosen sector and complete one booklet section for each.</span></div>
+      <p class="mini-note">Keep your group’s A3 employer map and the class skills list in view. They will help you recognise what employers are looking for.</p>
+    </section>
+
+    <section class="slide section-cyan" data-title="Search Mission" data-duration="180" data-ghost="4">
+      <div class="meta"><span>U01 · S06 · Individual Research</span><span>Devices out after the brief</span></div>
+      <div class="eyebrow">Main individual challenge</div>
+      <h2>Complete opportunities<br><span class="accent-text">1, 2, 3 and 4</span></h2>
+      <div class="action-strip"><strong>Your task</strong><span>Repeat this four-step loop until all four booklet sections are complete.</span></div>
+      <div class="do-grid">
+        <article class="do-card reveal"><span class="do-num">1</span><strong>Search</strong><p>Find one real job advert or genuine opportunity in your chosen sector.</p></article>
+        <article class="do-card reveal"><span class="do-num">2</span><strong>Read</strong><p>Check the duties, skills, experience, pay and employment type.</p></article>
+        <article class="do-card reveal"><span class="do-num">3</span><strong>Record</strong><p>Complete the matching Opportunity box in Session 6 of your booklet.</p></article>
+        <article class="do-card reveal"><span class="do-num">4</span><strong>Repeat</strong><p>Move to the next box only when the current one is complete.</p></article>
+      </div>
+      <div class="search-bar">your sector + job + vacancy + Scotland / UK</div>
+      <div class="finish-line"><strong>Finished:</strong> four different, real opportunities from your chosen sector. Choose jobs you would genuinely consider.</div>
+    </section>
+
+    <section class="slide section-pink" data-title="Booklet Evidence" data-duration="180" data-ghost="BOOKLET">
+      <div class="meta"><span>U01 · S06 · Booklet Evidence</span><span>Repeat this for opportunities 1–4</span></div>
+      <div class="eyebrow">Write directly into Session 6</div>
+      <h2>Complete every line<br><span class="accent-text">for each opportunity</span></h2>
+      <div class="booklet-location"><b>WHERE:</b> Session 6 · Opportunity 1 first. Then complete Opportunity 2, Opportunity 3 and Opportunity 4.</div>
+      <div class="booklet-grid">
+        <div class="booklet-field" style="--r:-1deg"><span>Field 01</span><strong>Job title</strong></div>
+        <div class="booklet-field" style="--r:.7deg"><span>Field 02</span><strong>Company name</strong></div>
+        <div class="booklet-field" style="--r:-.4deg"><span>Field 03</span><strong>Salary / day rate</strong></div>
+        <div class="booklet-field" style="--r:.9deg"><span>Field 04</span><strong>Employment type</strong></div>
+        <div class="booklet-field" style="--r:-.6deg"><span>Field 05</span><strong>Day-to-day responsibilities</strong></div>
+      </div>
+      <p class="mini-note">Write responsibilities as clear bullet points in your own words. If pay is missing, write “not stated” and look for a reliable typical-pay source. Never invent information.</p>
+    </section>
+
+    <section class="slide section-lime" data-title="Quality Test" data-duration="180" data-ghost="READ">
+      <div class="meta"><span>U01 · S06 · Research Quality</span><span>Understand before you record</span></div>
+      <div class="eyebrow">The quality test</div>
+      <h2>Copy less.<br><span class="accent-text">Understand more.</span></h2>
+      <div class="quality-row">
+        <article class="quality bad reveal">
+          <h3>Too weak</h3>
+          <p>“A content creator makes content and posts it online.”</p>
+        </article>
+        <article class="quality good reveal">
+          <h3>Evidence quality</h3>
+          <p>“Plans short-form videos, films and edits content, schedules posts and checks audience data to improve future campaigns.”</p>
+        </article>
+      </div>
+      <p class="kicker">Read the advert. Close the tab for a moment. Explain the role in your own words.</p>
+      <div class="tap-hint">Reveal the comparison</div>
+    </section>
+
+    <section class="slide section-cyan" data-title="Research In Progress" data-duration="1500" data-ghost="WORK">
+      <div class="meta"><span>U01 · S06 · Independent Work</span><span>The timer stays visible below</span></div>
+      <div class="eyebrow">Main task · Work through the booklet in order</div>
+      <h2>Complete<br><span class="accent-text">opportunities 1–4</span></h2>
+      <div class="paper working-note">
+        <h3>Do not move on until each box has:</h3>
+        <ul>
+          <li>Exact job title and company</li>
+          <li>Salary/day rate and employment type</li>
+          <li>Clear day-to-day responsibilities</li>
+          <li>Enough detail to prove you read the advert</li>
+        </ul>
+      </div>
+      <p class="bottom-message">Find one → read it → complete one box → check it → repeat</p>
+    </section>
+
+    <section class="slide section-orange" data-title="Checkpoint" data-duration="240" data-ghost="CHECK">
+      <div class="meta"><span>U01 · S06 · Midpoint Check</span><span>Tap each box when secure</span></div>
+      <div class="eyebrow">Stop · Check · Improve</div>
+      <h2>Is your evidence<br><span class="accent-text">complete?</span></h2>
+      <div class="check-grid">
+        <div class="check-card" tabindex="0"><span class="tick">01</span><strong>Four opportunities</strong><small>Real and within my chosen sector</small></div>
+        <div class="check-card" tabindex="0"><span class="tick">02</span><strong>Every field</strong><small>Company, pay, type and responsibilities</small></div>
+        <div class="check-card" tabindex="0"><span class="tick">03</span><strong>My own words</strong><small>I understand what I have written</small></div>
+        <div class="check-card" tabindex="0"><span class="tick">04</span><strong>Useful detail</strong><small>Specific enough to prove research</small></div>
+      </div>
+      <p class="kicker">If one box is not secure, fix that before moving on.</p>
+    </section>
+
+    <section class="slide section-pink" data-title="Freelancer Issues" data-duration="600" data-ghost="2">
+      <div class="meta"><span>U01 · S06 · Final Booklet Evidence</span><span>Two issues · Explain both</span></div>
+      <div class="eyebrow">Final booklet task</div>
+      <h2>Complete<br><span class="accent-text">freelancer issues</span></h2>
+      <div class="booklet-location"><b>WHERE:</b> Stay in Session 6. Go underneath Opportunity 4 to the box headed FREELANCER ISSUES.</div>
+      <div class="action-strip"><strong>Your task</strong><span>Choose two significant issues for freelancers in your sector. Explain each issue, not just name it.</span></div>
+      <div class="cards three">
+        <article class="card reveal" style="--card-accent:var(--pink)"><h3>1. Name it</h3><p>“One issue is irregular income...”</p></article>
+        <article class="card reveal" style="--card-accent:var(--orange)"><h3>2. Explain it</h3><p>“This means that...”</p></article>
+        <article class="card reveal" style="--card-accent:var(--cyan)"><h3>3. Make it specific</h3><p>“For a freelance ___, this could...”</p></article>
+      </div>
+      <div class="finish-line"><strong>Finished:</strong> two different issues, each explained in 2–3 clear sentences and linked to your sector.</div>
+      <div class="tap-hint">Reveal the writing structure</div>
+    </section>
+
+    <section class="slide section-lime" data-title="Final Check" data-duration="180" data-ghost="DONE">
+      <div class="meta"><span>U01 · S06 · Final Check</span><span>Outcome 2 PC(a)</span></div>
+      <div class="eyebrow">Before the booklet closes</div>
+      <h2>Show the<br><span class="accent-text">evidence</span></h2>
+      <div class="prompt-list">
+        <div class="prompt reveal"><span class="num">01 /</span><span>Four real employment opportunities completed.</span></div>
+        <div class="prompt reveal"><span class="num">02 /</span><span>Each includes company, pay, employment type and clear responsibilities.</span></div>
+        <div class="prompt reveal"><span class="num">03 /</span><span>Two significant freelancer issues identified and explained.</span></div>
+        <div class="prompt reveal"><span class="num">04 /</span><span>Your writing is accurate, specific and in your own words.</span></div>
+      </div>
+      <div class="tap-hint">Reveal each check</div>
+    </section>
+
+    <section class="slide section-orange" data-title="Do Last" data-duration="240" data-ghost="EXIT">
+      <div class="meta"><span>U01 · S06 · Do Last</span><span>Think · Write · Share</span></div>
+      <div class="eyebrow">Exit reflection</div>
+      <h2>The job I would<br><span class="accent-text">actually choose...</span></h2>
+      <div class="paper" style="max-width:1080px;margin-top:clamp(24px,4vh,48px);padding:clamp(26px,4vw,48px);">
+        <p style="font:900 clamp(26px,3.2vw,48px)/1.18 var(--condensed);text-transform:uppercase;">
+          I would consider <span style="color:#b00067">__________</span> because <span style="color:#b00067">__________</span>.
+        </p>
+        <p style="margin-top:22px;font:800 clamp(22px,2.5vw,36px)/1.22 var(--condensed);text-transform:uppercase;">
+          I already have the skill <span style="color:#006f87">__________</span>, but I need to develop <span style="color:#006f87">__________</span>.
+        </p>
+      </div>
+      <p class="kicker">This is career decision-making: evidence → choice → next step.</p>
+    </section>
+
+  </main>
+
+  <div id="timerProgress" aria-hidden="true"></div>
+  <footer id="controlBar">
+    <div class="nav-zone">
+      <button class="control-btn" id="prevBtn" type="button" aria-label="Previous slide">←</button>
+      <button class="control-btn wordy" id="revealBtn" type="button">Reveal</button>
+      <button class="control-btn" id="nextBtn" type="button" aria-label="Next slide">→</button>
+      <button class="control-btn wordy" id="qrBtn" type="button">QR</button>
+      <button class="control-btn wordy" id="lockBtn" type="button">iPads locked</button>
+    </div>
+    <div class="page-zone">
+      <span id="slideCount">01 / 22</span>
+      <span class="progress-track"><span id="progressFill"></span></span>
+    </div>
+    <div class="timer-zone">
+      <div class="timer-label"><span id="timerTask">Slide timer</span><br>stays on screen</div>
+      <button class="control-btn" id="minusBtn" type="button" title="Remove one minute">−1</button>
+      <div id="timerDisplay" role="button" tabindex="0" title="Start or pause timer">00:00</div>
+      <button class="control-btn" id="plusBtn" type="button" title="Add one minute">+1</button>
+      <button class="control-btn primary" id="startBtn" type="button">Start</button>
+      <button class="control-btn wordy" id="resetBtn" type="button">Reset</button>
+    </div>
+    </footer>
+
+  <script src="slide-follow.js"></script>
+  <script>
+    (() => {
+      const slides = [...document.querySelectorAll('.slide')];
+      const arabic = {
+        "U01 · S06 · Employment Opportunities": "الوحدة 01 · الحصة 06 · فرص العمل",
+        "N5 Creative Industries": "المستوى الوطني 5 · الصناعات الإبداعية",
+        "Session 06 · Outcome 2 PC(a)": "الحصة 06 · النتيجة 2 · المعيار (أ)",
+        "Job advert": "إعلان الوظيفة",
+        "takeover": "تحت المجهر",
+        "Today, you will work out what creative employers actually want, then hunt for opportunities you would genuinely consider.": "ستكتشف اليوم ما الذي يبحث عنه أصحاب العمل في الصناعات الإبداعية، ثم ستبحث عن فرص قد تفكر فيها بجدية.",
+        "Real jobs": "وظائف حقيقية",
+        "Real evidence": "أدلة حقيقية",
+        "Scan on your iPad": "امسح من الآيباد",
+        "Slides move when I move": "الشرائح تنتقل عندما أنتقل",
+        "Booklet ready · One advert per team · Large paper in the centre": "جهّز الكتيّب · إعلان واحد لكل فريق · ورقة كبيرة في الوسط",
+        "U01 · S06 · Do Now": "الوحدة 01 · الحصة 06 · ابدأ الآن",
+        "Silent first · Then compare": "ابدأ بصمت · ثم قارن",
+        "Do Now · Start alone": "ابدأ الآن · اعمل بمفردك أولاً",
+        "If you were": "لو كنت",
+        "hiring today...": "توظّف شخصاً اليوم...",
+        "What would make you trust someone to do a creative job well?": "ما الذي يجعلك تثق بأن شخصاً ما سيؤدي عملاً إبداعياً بإتقان؟",
+        "Name one skill that matters in almost every workplace.": "اذكر مهارة واحدة مهمة في معظم أماكن العمل.",
+        "What evidence could prove that a person really has that skill?": "ما الدليل الذي يمكن أن يثبت أن الشخص يمتلك هذه المهارة فعلاً؟",
+        "Reveal one prompt at a time": "أظهر سؤالاً واحداً في كل مرة",
+        "U01 · S06 · Learning": "الوحدة 01 · الحصة 06 · التعلّم",
+        "Read · Compare · Decide": "اقرأ · قارن · قرّر",
+        "What are we learning?": "ماذا نتعلّم؟",
+        "Read jobs like": "اقرأ الوظائف مثل",
+        "an insider": "شخص يعرف المجال",
+        "We are learning to investigate real opportunities and understand what employers value.": "نتعلّم كيف نبحث في فرص حقيقية ونفهم ما الذي يقدّره أصحاب العمل.",
+        "Why? A job title tells you very little. The advert reveals the work, the expectations and the skills you need to develop.": "لماذا؟ المسمّى الوظيفي لا يخبرك بالكثير. الإعلان يوضح العمل والتوقعات والمهارات التي تحتاج إلى تطويرها.",
+        "U01 · S06 · Success Criteria": "الوحدة 01 · الحصة 06 · معايير النجاح",
+        "Reveal one at a time": "أظهر معياراً واحداً في كل مرة",
+        "By the end, I can...": "في نهاية الحصة أستطيع أن...",
+        "Know what": "أعرف كيف يبدو",
+        "good looks like": "العمل الجيد",
+        "Pull duties, skills, experience and conditions from a real advert.": "أستخرج المهام والمهارات والخبرة وظروف العمل من إعلان حقيقي.",
+        "Separate technical skills from transferable workplace skills.": "أميّز بين المهارات التقنية والمهارات القابلة للنقل بين الوظائف.",
+        "Identify patterns across different Creative Industries jobs.": "أحدد الأشياء المشتركة بين وظائف مختلفة في الصناعات الإبداعية.",
+        "Research four genuine opportunities and record accurate booklet evidence.": "أبحث عن أربع فرص حقيقية وأسجّل معلومات دقيقة في الكتيّب.",
+        "Reveal one criterion at a time": "أظهر معياراً واحداً في كل مرة",
+        "U01 · S06 · Main Challenge": "الوحدة 01 · الحصة 06 · التحدّي الرئيسي",
+        "Groups of 3–4 · One advert · One A3 map": "مجموعات من 3 إلى 4 · إعلان واحد · خريطة واحدة على ورقة A3",
+        "Phase 01 · Group challenge": "المرحلة 01 · تحدّي المجموعة",
+        "Turn a job advert": "حوّل إعلان وظيفة",
+        "into an employer map": "إلى خريطة لصاحب العمل",
+        "Main task": "التحدّي الرئيسي",
+        "Stick your advert in the centre of the large sheet. Build your group’s notes around it.": "ألصق الإعلان في وسط الورقة الكبيرة. ابنوا ملاحظات مجموعتكم حوله.",
+        "Place the large sheet landscape.": "ضع الورقة الكبيرة بالعرض.",
+        "Stick one job advert in the centre.": "ألصق إعلان وظيفة واحداً في الوسط.",
+        "Leave space around it for six sections.": "اترك مساحة حوله لستة أقسام.",
+        "Only write an answer after the group agrees.": "لا تكتب أي إجابة حتى تتفق المجموعة.",
+        "Example only · A3 landscape": "مثال فقط · ورقة A3 بالعرض",
+        "Setup · Start here": "التجهيز · ابدأ من هنا",
+        "Stick your advert here": "ألصق إعلانك هنا",
+        "The job": "الوظيفة",
+        "Lighting Technician": "فني إضاءة",
+        "Riverside Theatre": "مسرح ريفرسايد",
+        "What they do": "ماذا يفعل؟",
+        "Set up lighting": "يجهّز الإضاءة",
+        "Rig and test equipment": "يركّب المعدات ويختبرها",
+        "Operate the lighting desk": "يشغّل لوحة التحكم بالإضاءة",
+        "Pack equipment safely": "يحزم المعدات بأمان",
+        "Riverside Theatre · Vacancy": "مسرح ريفرسايد · وظيفة شاغرة",
+        "Technical skills": "المهارات التقنية",
+        "Lighting desk": "لوحة التحكم بالإضاءة",
+        "Rigging + safety checks": "التركيب + فحوص السلامة",
+        "Transferable skills": "المهارات القابلة للنقل",
+        "Teamwork": "العمل الجماعي",
+        "Communication": "التواصل",
+        "Organisation": "التنظيم",
+        "Getting the job": "الحصول على الوظيفة",
+        "Practical experience": "خبرة عملية",
+        "Portfolio photos": "صور لملف الأعمال",
+        "★ 2 years’ experience": "★ خبرة لمدة سنتين",
+        "Working conditions": "ظروف العمل",
+        "Pay: NOT STATED": "الأجر: غير مذكور",
+        "Full-time · Permanent": "دوام كامل · عقد دائم",
+        "Evenings + weekends": "مساءً + عطلات نهاية الأسبوع",
+        "Glasgow": "غلاسكو",
+        "Reveal the four parts": "أظهر الأجزاء الأربعة",
+        "U01 · S06 · Collaborative Roles": "الوحدة 01 · الحصة 06 · أدوار التعاون",
+        "Choose one role each": "يختار كل شخص دوراً واحداً",
+        "Before touching the advert": "قبل لمس الإعلان",
+        "Build your": "كوّنوا",
+        "investigation team": "فريق التحقيق",
+        "Reader": "القارئ",
+        "Reads aloud and highlights or underlines evidence after the group agrees.": "يقرأ بصوت عالٍ ويظلّل الدليل أو يضع تحته خطاً بعد اتفاق المجموعة.",
+        "Scribe": "الكاتب",
+        "Writes the group’s agreed answers clearly on the large sheet.": "يكتب إجابات المجموعة المتفق عليها بوضوح على الورقة الكبيرة.",
+        "Facilitator": "المنسّق",
+        "Asks the questions, includes every voice and keeps the group moving.": "يطرح الأسئلة ويشرك الجميع ويحافظ على تقدّم المجموعة.",
+        "Reporter": "المتحدّث",
+        "Prepares to explain the job, the strongest evidence and what surprised the group.": "يستعد لشرح الوظيفة وأقوى دليل وما فاجأ المجموعة.",
+        "Group of 3?": "مجموعة من 3؟",
+        "One person combines Facilitator and Reporter. Rotate all roles after every round.": "يجمع شخص واحد بين دور المنسّق والمتحدّث. بدّلوا جميع الأدوار بعد كل جولة.",
+        "The rule:": "القاعدة:",
+        "Reader finds the evidence → everyone discusses → facilitator checks agreement → scribe writes.": "القارئ يجد الدليل ← يناقش الجميع ← يتأكد المنسّق من الاتفاق ← يكتب الكاتب.",
+        "Reveal each role": "أظهر كل دور",
+        "U01 · S06 · Advert Investigation · Round 01": "الوحدة 01 · الحصة 06 · تحليل الإعلان · الجولة 01",
+        "Discuss first · Scribe writes after agreement": "ناقشوا أولاً · يكتب الكاتب بعد الاتفاق",
+        "Round 01 · Write on the large paper": "الجولة 01 · اكتبوا على الورقة الكبيرة",
+        "What would this person": "ماذا سيفعل هذا الشخص",
+        "actually do?": "فعلياً؟",
+        "Your task": "مهمتكم",
+        "Add the two": "أضف القسمين",
+        "pink": "الورديين",
+        "sections shown on the example.": "الموضحين في المثال.",
+        "Write the exact job title and company.": "اكتب المسمّى الوظيفي واسم الشركة كما وردا تماماً.",
+        "Finish: “This person is responsible for…”": "أكمل: «هذا الشخص مسؤول عن...»",
+        "List at least four duties from the advert.": "اكتب أربع مهام على الأقل من الإعلان.",
+        "Draw a line from each duty to its evidence.": "ارسم خطاً من كل مهمة إلى دليلها في الإعلان.",
+        "Round 1 check:": "تحقّق الجولة 1:",
+        "Could someone understand the job from your notes?": "هل يستطيع شخص آخر فهم الوظيفة من ملاحظاتكم؟",
+        "Round 1 · Add the pink sections": "الجولة 1 · أضف القسمين الورديين",
+        "Reveal each action": "أظهر كل خطوة",
+        "U01 · S06 · Advert Investigation · Round 02": "الوحدة 01 · الحصة 06 · تحليل الإعلان · الجولة 02",
+        "New roles · Discuss before writing": "أدوار جديدة · ناقشوا قبل الكتابة",
+        "Round 02 · Write on the large paper": "الجولة 02 · اكتبوا على الورقة الكبيرة",
+        "What skills does the": "ما المهارات التي يريدها",
+        "employer want?": "صاحب العمل؟",
+        "Keep Round 1. Now add the two": "احتفظ بنتائج الجولة 1. أضف الآن قسمي",
+        "skills": "المهارات",
+        "sections shown.": "الموضحين.",
+        "Write 2+ job-specific tools or technical skills.": "اكتب أداتين أو مهارتين تقنيتين خاصتين بالوظيفة على الأقل.",
+        "Write 3+ transferable workplace skills.": "اكتب ثلاث مهارات قابلة للنقل على الأقل.",
+        "Find a phrase or duty that proves each skill matters.": "ابحث عن عبارة أو مهمة تثبت أهمية كل مهارة.",
+        "Explain: “They need ___ because they must ___.”": "اشرح: «يحتاجون إلى ___ لأن عليهم أن ___».",
+        "Round 2 check:": "تحقّق الجولة 2:",
+        "2+ technical + 3+ transferable + evidence. Pass roles clockwise.": "مهارتان تقنيتان + ثلاث مهارات قابلة للنقل + دليل. بدّلوا الأدوار.",
+        "Round 2 · Add the skills sections": "الجولة 2 · أضف قسمي المهارات",
+        "U01 · S06 · Advert Investigation · Round 03": "الوحدة 01 · الحصة 06 · تحليل الإعلان · الجولة 03",
+        "New roles · Everyone must contribute": "أدوار جديدة · يجب أن يشارك الجميع",
+        "Round 03 · Write on the large paper": "الجولة 03 · اكتبوا على الورقة الكبيرة",
+        "Could you get this job": "هل يمكنك الحصول على هذه الوظيفة",
+        "tomorrow?": "غداً؟",
+        "Keep Rounds 1–2. Add the two": "احتفظ بنتائج الجولتين 1 و2. أضف القسمين",
+        "orange": "البرتقاليين",
+        "List qualifications, portfolio/showreel and experience.": "اكتب المؤهلات وملف الأعمال أو العرض المصوّر والخبرة المطلوبة.",
+        "Record pay, contract, hours, location and travel.": "سجّل الأجر ونوع العقد والساعات والموقع والسفر.",
+        "If the advert does not say, write": "إذا لم يذكر الإعلان المعلومة، فاكتب",
+        "NOT STATED": "غير مذكور",
+        "★ Star the hardest requirement for a young applicant.": "★ ضع نجمة بجانب أصعب شرط على متقدّم شاب.",
+        "Round 3 check:": "تحقّق الجولة 3:",
+        "Entry requirements + conditions + one starred barrier. Reporter gets ready.": "شروط الدخول + ظروف العمل + عائق واحد عليه نجمة. يستعد المتحدّث.",
+        "Round 3 · Add the final sections": "الجولة 3 · أضف القسمين الأخيرين",
+        "U01 · S06 · Team Poster": "الوحدة 01 · الحصة 06 · خريطة الفريق",
+        "Final two minutes: make it readable": "الدقيقتان الأخيرتان: اجعلوها سهلة القراءة",
+        "Final A3 check": "التحقّق النهائي من ورقة A3",
+        "Is your employer map": "هل خريطة صاحب العمل",
+        "ready to display?": "جاهزة للعرض؟",
+        "Compare your page with the completed example. Fix anything missing.": "قارن صفحتكم بالمثال المكتمل. أصلحوا أي شيء ناقص.",
+        "Exact job title, company and 4+ duties": "المسمّى الدقيق، الشركة وأربع مهام على الأقل",
+        "2+ technical and 3+ transferable skills": "مهارتان تقنيتان وثلاث مهارات قابلة للنقل على الأقل",
+        "Experience, qualifications and working conditions": "الخبرة والمؤهلات وظروف العمل",
+        "Evidence lines, one circled strength and one ★ skill gap": "خطوط إلى الأدلة، مهارة قوية داخل دائرة، وفجوة مهارية عليها ★",
+        "Display test:": "اختبار العرض:",
+        "Another group should understand your map without asking questions.": "يجب أن تفهم مجموعة أخرى خريطتكم من دون طرح أسئلة.",
+        "Example only · Complete map": "مثال فقط · خريطة مكتملة",
+        "Final check · Make yours readable": "التحقّق النهائي · اجعل خريطتك واضحة"
+      };
+      Object.assign(arabic, {
+        "U01 · S06 · Group Report Preparation": "الوحدة 01 · الحصة 06 · تجهيز تقرير المجموعة",
+        "Stay with your own advert": "ابقَ مع إعلان مجموعتك",
+        "Phase 02 · Prepare to share": "المرحلة 02 · استعد للمشاركة",
+        "Turn your A3 map": "حوّل خريطة A3",
+        "into a 45-second report": "إلى تقرير مدته 45 ثانية",
+        "Stay in your group. Agree what the reporter will say. Everyone helps choose the strongest evidence.": "ابقوا في مجموعتكم. اتفقوا على ما سيقوله المتحدّث. يساعد الجميع في اختيار أقوى الأدلة.",
+        "Name the job": "اذكر الوظيفة",
+        "“Our advert was for a ___ working for ___.”": "«كان إعلاننا عن وظيفة ___ لدى ___».",
+        "Explain the work": "اشرح العمل",
+        "Choose the two most important duties.": "اختر أهم مهمتين.",
+        "Identify the skill": "حدّد المهارة",
+        "Choose the skill the employer values most and point to evidence.": "اختر المهارة التي يقدّرها صاحب العمل أكثر، وأشر إلى الدليل.",
+        "Add one surprise": "أضف شيئاً مفاجئاً",
+        "Share one requirement, condition or duty your group did not expect.": "شارك شرطاً أو ظرفاً أو مهمة لم تتوقعها مجموعتكم.",
+        "Finished:": "عند الانتهاء:",
+        "Reporter practises once. The rest of the group checks that every statement is supported by the advert.": "يتدرّب المتحدّث مرة واحدة. يتأكد بقية الفريق أن الإعلان يدعم كل معلومة.",
+        "Reveal each report part": "أظهر كل جزء من التقرير",
+        "U01 · S06 · Group Reports": "الوحدة 01 · الحصة 06 · تقارير المجموعات",
+        "One reporter per group · 45 seconds": "متحدّث واحد لكل مجموعة · 45 ثانية",
+        "Phase 02 · Listen for patterns": "المرحلة 02 · استمع إلى الأشياء المشتركة",
+        "Reporters share.": "يشارك المتحدّثون.",
+        "Everyone else listens.": "ويستمع الجميع.",
+        "No gallery walk": "لا توجد جولة بين الأوراق",
+        "Remain seated with your own group. Each reporter shares the group’s advert analysis with the whole class.": "ابقوا جالسين مع مجموعتكم. يشارك كل متحدّث تحليل إعلان مجموعته مع الصف كله.",
+        "Stand or speak clearly from your group. Keep to 45 seconds.": "قف أو تحدّث بوضوح من مكان مجموعتك. التزم بـ45 ثانية.",
+        "Listeners": "المستمعون",
+        "Listen for a skill that also appeared in your group’s advert.": "استمع إلى مهارة ظهرت أيضاً في إعلان مجموعتك.",
+        "Signal a match": "أشر عند وجود تطابق",
+        "Raise your hand when the reporter names a skill your employer also wanted.": "ارفع يدك عندما يذكر المتحدّث مهارة طلبها صاحب العمل في إعلانكم أيضاً.",
+        "Teacher records": "يسجّل المعلّم",
+        "Together, build one class list of the skills that keep appearing.": "ابنوا معاً قائمة صفية بالمهارات التي تتكرر.",
+        "Listening challenge:": "تحدّي الاستماع:",
+        "Which skill appears across the greatest number of different jobs?": "أي مهارة ظهرت في أكبر عدد من الوظائف المختلفة؟",
+        "Reveal each expectation": "أظهر كل توقّع",
+        "U01 · S06 · Class Debrief": "الوحدة 01 · الحصة 06 · مناقشة الصف",
+        "Tap a card when evidence supports it": "اضغط على البطاقة عندما يدعمها دليل",
+        "What did employers value?": "ما الذي قدّره أصحاب العمل؟",
+        "Build the class": "ابنوا جدار",
+        "evidence wall": "أدلة الصف",
+        "Where did it appear?": "أين ظهرت؟",
+        "What would it look like?": "كيف تبدو في العمل؟",
+        "What must be managed?": "ما الذي يجب تنظيمه؟",
+        "Problem solving": "حل المشكلات",
+        "What might go wrong?": "ما الذي قد يحدث بشكل خاطئ؟",
+        "Creativity": "الإبداع",
+        "Where is originality needed?": "أين نحتاج إلى أفكار أصيلة؟",
+        "Digital skills": "المهارات الرقمية",
+        "Which tools or platforms?": "ما الأدوات أو المنصات؟",
+        "Class conclusion:": "استنتاج الصف:",
+        "“Across different Creative Industries jobs, employers repeatedly value ___ because workers need to ___.”": "«في وظائف الصناعات الإبداعية المختلفة، يقدّر أصحاب العمل مهارة ___ لأن العاملين يحتاجون إلى ___».",
+        "U01 · S06 · Transition": "الوحدة 01 · الحصة 06 · الانتقال",
+        "Group evidence → individual evidence": "أدلة المجموعة ← أدلة فردية",
+        "Phase 03 · Switch focus": "المرحلة 03 · غيّر تركيزك",
+        "Sit down.": "اجلس.",
+        "Open your booklet.": "افتح كتيّبك.",
+        "OPEN:": "افتح:",
+        "SESSION 6 · EMPLOYMENT OPPORTUNITIES RESEARCH · the two pages containing OPPORTUNITIES 1–4.": "الحصة 6 · البحث في فرص العمل · الصفحتان اللتان تحتويان على الفرص 1 إلى 4.",
+        "Next task": "المهمة التالية",
+        "Work individually. Find four real opportunities in your chosen sector and complete one booklet section for each.": "اعمل بمفردك. ابحث عن أربع فرص حقيقية في قطاعك المختار، وأكمل قسماً في الكتيّب لكل فرصة.",
+        "Keep your group’s A3 employer map and the class skills list in view. They will help you recognise what employers are looking for.": "أبقِ خريطة A3 الخاصة بمجموعتك وقائمة مهارات الصف أمامك. ستساعدانك على معرفة ما يبحث عنه أصحاب العمل.",
+        "U01 · S06 · Individual Research": "الوحدة 01 · الحصة 06 · البحث الفردي",
+        "Devices out after the brief": "أخرج الأجهزة بعد شرح المهمة",
+        "Main individual challenge": "التحدّي الفردي الرئيسي",
+        "Complete opportunities": "أكمل الفرص",
+        "1, 2, 3 and 4": "1 و2 و3 و4",
+        "Repeat this four-step loop until all four booklet sections are complete.": "كرّر هذه الخطوات الأربع حتى تكتمل أقسام الفرص الأربعة في الكتيّب.",
+        "Search": "ابحث",
+        "Find one real job advert or genuine opportunity in your chosen sector.": "اعثر على إعلان وظيفة حقيقي أو فرصة حقيقية في قطاعك المختار.",
+        "Read": "اقرأ",
+        "Check the duties, skills, experience, pay and employment type.": "تحقق من المهام والمهارات والخبرة والأجر ونوع التوظيف.",
+        "Record": "سجّل",
+        "Complete the matching Opportunity box in Session 6 of your booklet.": "أكمل خانة الفرصة المناسبة في الحصة 6 من كتيّبك.",
+        "Repeat": "كرّر",
+        "Move to the next box only when the current one is complete.": "لا تنتقل إلى الخانة التالية حتى تكتمل الخانة الحالية.",
+        "your sector + job + vacancy + Scotland / UK": "اسم قطاعك بالإنجليزية + job + vacancy + Scotland / UK",
+        "four different, real opportunities from your chosen sector. Choose jobs you would genuinely consider.": "أربع فرص حقيقية ومختلفة من قطاعك المختار. اختر وظائف قد تفكر فيها بجدية.",
+        "U01 · S06 · Booklet Evidence": "الوحدة 01 · الحصة 06 · أدلة الكتيّب",
+        "Repeat this for opportunities 1–4": "كرّر هذا للفرص 1 إلى 4",
+        "Write directly into Session 6": "اكتب مباشرة في الحصة 6",
+        "Complete every line": "أكمل كل سطر",
+        "for each opportunity": "لكل فرصة",
+        "WHERE:": "أين؟",
+        "Session 6 · Opportunity 1 first. Then complete Opportunity 2, Opportunity 3 and Opportunity 4.": "الحصة 6 · ابدأ بالفرصة 1. ثم أكمل الفرصة 2 والفرصة 3 والفرصة 4.",
+        "Field 01": "الخانة 01",
+        "Job title": "المسمّى الوظيفي",
+        "Field 02": "الخانة 02",
+        "Company name": "اسم الشركة",
+        "Field 03": "الخانة 03",
+        "Salary / day rate": "الراتب / الأجر اليومي",
+        "Field 04": "الخانة 04",
+        "Employment type": "نوع التوظيف",
+        "Field 05": "الخانة 05",
+        "Day-to-day responsibilities": "المهام اليومية",
+        "Write responsibilities as clear bullet points in your own words. If pay is missing, write “not stated” and look for a reliable typical-pay source. Never invent information.": "اكتب المهام بنقاط واضحة وبكلماتك. إذا لم يُذكر الأجر، فاكتب «غير مذكور» وابحث عن مصدر موثوق للأجر المعتاد. لا تخترع معلومات.",
+        "U01 · S06 · Research Quality": "الوحدة 01 · الحصة 06 · جودة البحث",
+        "Understand before you record": "افهم قبل أن تسجّل",
+        "The quality test": "اختبار الجودة",
+        "Copy less.": "انسخ أقل.",
+        "Understand more.": "افهم أكثر.",
+        "Too weak": "إجابة ضعيفة",
+        "“A content creator makes content and posts it online.”": "«صانع المحتوى يصنع محتوى وينشره على الإنترنت».",
+        "Evidence quality": "إجابة مبنية على دليل",
+        "“Plans short-form videos, films and edits content, schedules posts and checks audience data to improve future campaigns.”": "«يخطط لمقاطع فيديو قصيرة ويصوّر المحتوى ويحرره ويجدول المنشورات ويفحص بيانات الجمهور لتحسين الحملات القادمة».",
+        "Read the advert. Close the tab for a moment. Explain the role in your own words.": "اقرأ الإعلان. أغلق علامة التبويب للحظة. اشرح الوظيفة بكلماتك.",
+        "Reveal the comparison": "أظهر المقارنة",
+        "U01 · S06 · Independent Work": "الوحدة 01 · الحصة 06 · العمل الفردي",
+        "The timer stays visible below": "يبقى المؤقّت ظاهراً في الأسفل",
+        "Main task · Work through the booklet in order": "المهمة الرئيسية · أكمل الكتيّب بالترتيب",
+        "Complete": "أكمل",
+        "opportunities 1–4": "الفرص 1 إلى 4",
+        "Do not move on until each box has:": "لا تنتقل حتى تحتوي كل خانة على:",
+        "Exact job title and company": "المسمّى الوظيفي واسم الشركة بدقة",
+        "Salary/day rate and employment type": "الراتب أو الأجر اليومي ونوع التوظيف",
+        "Clear day-to-day responsibilities": "مهام يومية واضحة",
+        "Enough detail to prove you read the advert": "تفاصيل كافية تثبت أنك قرأت الإعلان",
+        "Find one → read it → complete one box → check it → repeat": "اعثر على فرصة ← اقرأها ← أكمل خانة ← تحقّق ← كرّر",
+        "U01 · S06 · Midpoint Check": "الوحدة 01 · الحصة 06 · تحقّق منتصف المهمة",
+        "Tap each box when secure": "اضغط على كل خانة عندما تتأكد منها",
+        "Stop · Check · Improve": "توقّف · تحقّق · حسّن",
+        "Is your evidence": "هل أدلتك",
+        "complete?": "مكتملة؟",
+        "Four opportunities": "أربع فرص",
+        "Real and within my chosen sector": "حقيقية وضمن قطاعي المختار",
+        "Every field": "كل الخانات",
+        "Company, pay, type and responsibilities": "الشركة والأجر والنوع والمهام",
+        "My own words": "بكلماتي",
+        "I understand what I have written": "أفهم ما كتبته",
+        "Useful detail": "تفاصيل مفيدة",
+        "Specific enough to prove research": "محددة بما يكفي لإثبات البحث",
+        "If one box is not secure, fix that before moving on.": "إذا لم تكن إحدى الخانات مكتملة، أصلحها قبل الانتقال.",
+        "U01 · S06 · Final Booklet Evidence": "الوحدة 01 · الحصة 06 · الدليل النهائي في الكتيّب",
+        "Two issues · Explain both": "تحدّيان · اشرح كليهما",
+        "Final booklet task": "المهمة الأخيرة في الكتيّب",
+        "freelancer issues": "تحدّيات العمل الحر",
+        "Stay in Session 6. Go underneath Opportunity 4 to the box headed FREELANCER ISSUES.": "ابقَ في الحصة 6. انتقل أسفل الفرصة 4 إلى الخانة بعنوان تحدّيات العمل الحر.",
+        "Choose two significant issues for freelancers in your sector. Explain each issue, not just name it.": "اختر تحدّيين مهمّين للعاملين المستقلين في قطاعك. اشرح كل تحدٍّ، ولا تكتفِ بذكر اسمه.",
+        "1. Name it": "1. اذكر التحدّي",
+        "“One issue is irregular income...”": "«أحد التحدّيات هو عدم ثبات الدخل...»",
+        "2. Explain it": "2. اشرحه",
+        "“This means that...”": "«هذا يعني أن...»",
+        "3. Make it specific": "3. اربطه بقطاعك",
+        "“For a freelance ___, this could...”": "«بالنسبة إلى ___ يعمل بشكل مستقل، قد يؤدي هذا إلى...»",
+        "two different issues, each explained in 2–3 clear sentences and linked to your sector.": "تحدّيان مختلفان، يشرح كل منهما في جملتين أو ثلاث جمل واضحة ويرتبط بقطاعك.",
+        "Reveal the writing structure": "أظهر طريقة الكتابة",
+        "U01 · S06 · Final Check": "الوحدة 01 · الحصة 06 · التحقّق النهائي",
+        "Outcome 2 PC(a)": "النتيجة 2 · المعيار (أ)",
+        "Before the booklet closes": "قبل إغلاق الكتيّب",
+        "Show the": "أظهر",
+        "evidence": "الأدلة",
+        "Four real employment opportunities completed.": "أكملت أربع فرص عمل حقيقية.",
+        "Each includes company, pay, employment type and clear responsibilities.": "تتضمن كل فرصة الشركة والأجر ونوع التوظيف والمهام بوضوح.",
+        "Two significant freelancer issues identified and explained.": "حددت وشرحت تحدّيين مهمّين في العمل الحر.",
+        "Your writing is accurate, specific and in your own words.": "كتابتك دقيقة ومحددة وبكلماتك.",
+        "Reveal each check": "أظهر كل نقطة تحقّق",
+        "U01 · S06 · Do Last": "الوحدة 01 · الحصة 06 · المهمة الختامية",
+        "Think · Write · Share": "فكّر · اكتب · شارك",
+        "Exit reflection": "تأمّل ختامي",
+        "The job I would": "الوظيفة التي",
+        "actually choose...": "سأختارها فعلاً...",
+        "I would consider": "سأفكر في وظيفة",
+        "because": "لأن",
+        "I already have the skill": "أمتلك بالفعل مهارة",
+        ", but I need to develop": "، لكنني أحتاج إلى تطوير",
+        "This is career decision-making: evidence → choice → next step.": "هذا هو اتخاذ قرار مهني: دليل ← اختيار ← خطوة تالية.",
+        "Reveal": "أظهر",
+        "Slide timer": "مؤقّت الشريحة",
+        "stays on screen": "يبقى على الشاشة",
+        "Start": "ابدأ",
+        "Reset": "إعادة ضبط",
+        "Previous slide": "الشريحة السابقة",
+        "Next slide": "الشريحة التالية",
+        "Remove one minute": "احذف دقيقة واحدة",
+        "Add one minute": "أضف دقيقة واحدة",
+        "Start or pause timer": "ابدأ المؤقّت أو أوقفه مؤقتاً",
+        "Example of the starting A3 employer map with the advert in the centre": "مثال لبداية خريطة صاحب العمل على ورقة A3 والإعلان في الوسط",
+        "Example A3 employer map showing the completed job and duties sections": "مثال لخريطة A3 يوضح قسمي الوظيفة والمهام بعد إكمالهما",
+        "Example A3 employer map with the job, duties and both skills sections completed": "مثال لخريطة A3 بعد إكمال الوظيفة والمهام وقسمي المهارات",
+        "Completed example A3 employer map with all six sections": "مثال مكتمل لخريطة A3 بجميع الأقسام الستة",
+        "Fully completed example A3 employer map ready to display": "مثال مكتمل تماماً لخريطة A3 وجاهز للعرض"
+      });
+
+      const arabicTitles = {
+        "Job Advert Takeover": "إعلان الوظيفة تحت المجهر",
+        "Do Now": "ابدأ الآن",
+        "Learning": "التعلّم",
+        "Success Criteria": "معايير النجاح",
+        "Main Challenge": "التحدّي الرئيسي",
+        "Team Roles": "أدوار الفريق",
+        "Round One": "الجولة الأولى",
+        "Round Two": "الجولة الثانية",
+        "Round Three": "الجولة الثالثة",
+        "Make It Visible": "اجعله واضحاً",
+        "Prepare Report": "تجهيز التقرير",
+        "Group Reports": "تقارير المجموعات",
+        "Employer Pattern": "أنماط أصحاب العمل",
+        "Switch": "الانتقال",
+        "Search Mission": "مهمة البحث",
+        "Booklet Evidence": "أدلة الكتيّب",
+        "Quality Test": "اختبار الجودة",
+        "Research In Progress": "البحث جارٍ",
+        "Checkpoint": "نقطة التحقّق",
+        "Freelancer Issues": "تحدّيات العمل الحر",
+        "Final Check": "التحقّق النهائي",
+        "Do Last": "المهمة الختامية"
+      };
+      const state = slides.map(slide => ({
+        initial: Number(slide.dataset.duration || 0),
+        remaining: Number(slide.dataset.duration || 0),
+        running: false,
+        stamp: null
+      }));
+
+      const slideCount = document.getElementById('slideCount');
+      const progressFill = document.getElementById('progressFill');
+      const timerProgress = document.getElementById('timerProgress');
+      const timerDisplay = document.getElementById('timerDisplay');
+      const timerTask = document.getElementById('timerTask');
+      const startBtn = document.getElementById('startBtn');
+      const languageToggle = document.getElementById('languageToggle');
+      let current = 0;
+      let raf = null;
+      let currentLanguage = 'en';
+
+      const originalTitles = slides.map(slide => slide.dataset.title || '');
+      const textTargets = [];
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      let textNode;
+      while ((textNode = walker.nextNode())) {
+        const parent = textNode.parentElement;
+        if (!parent || parent.closest('script, style, #languageToggle, .join-panel, #followOverlay, #followPill, [data-follow-pin]')) continue;
+        const key = textNode.nodeValue.trim();
+        if (key) textTargets.push({ node: textNode, original: textNode.nodeValue, key });
+      }
+
+      const attributeTargets = [];
+      document.querySelectorAll('[aria-label], [title]').forEach(element => {
+        if (element.closest('.join-panel, #followOverlay, #followPill')) return;
+        ['aria-label', 'title'].forEach(attribute => {
+          if (element.hasAttribute(attribute)) {
+            const original = element.getAttribute(attribute);
+            attributeTargets.push({ element, attribute, original });
+          }
+        });
+      });
+
+      const timerWords = {
+        en: { pause: 'Pause', restart: 'Restart', start: 'Start', fallback: 'Slide timer' },
+        ar: { pause: 'إيقاف مؤقت', restart: 'إعادة البدء', start: 'ابدأ', fallback: 'مؤقّت الشريحة' }
+      };
+
+      function replacePreservingSpace(original, key, replacement) {
+        const at = original.indexOf(key);
+        if (at < 0) return replacement;
+        return original.slice(0, at) + replacement + original.slice(at + key.length);
+      }
+
+      function setLanguage(language) {
+        currentLanguage = language === 'ar' ? 'ar' : 'en';
+        const isArabic = currentLanguage === 'ar';
+        document.documentElement.lang = currentLanguage;
+        document.documentElement.dir = isArabic ? 'rtl' : 'ltr';
+        document.title = isArabic
+          ? 'الوحدة 1 · الحصة 6 | إعلان الوظيفة تحت المجهر'
+          : 'U1 S06 | Job Advert Takeover | N5 Creative Industries';
+
+        textTargets.forEach(item => {
+          const replacement = isArabic ? (arabic[item.key] || item.key) : item.key;
+          item.node.nodeValue = replacePreservingSpace(item.original, item.key, replacement);
+        });
+
+        attributeTargets.forEach(item => {
+          item.element.setAttribute(item.attribute, isArabic ? (arabic[item.original] || item.original) : item.original);
+        });
+
+        slides.forEach((slide, index) => {
+          const englishTitle = originalTitles[index];
+          slide.dataset.title = isArabic ? (arabicTitles[englishTitle] || englishTitle) : englishTitle;
+        });
+
+        languageToggle.textContent = isArabic ? 'English' : 'العربية';
+        languageToggle.setAttribute('aria-pressed', String(isArabic));
+        languageToggle.setAttribute('aria-label', isArabic ? 'التبديل إلى الإنجليزية' : 'Switch slides to Arabic');
+        updateTimerUI();
+      }
+
+      function formatTime(seconds) {
+        const safe = Math.max(0, Math.ceil(seconds));
+        const mins = Math.floor(safe / 60);
+        const secs = safe % 60;
+        return `${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+      }
+
+      function updateTimerUI() {
+        const s = state[current];
+        const words = timerWords[currentLanguage];
+        timerDisplay.textContent = formatTime(s.remaining);
+        timerTask.textContent = slides[current].dataset.title || words.fallback;
+        startBtn.textContent = s.running ? words.pause : (s.remaining <= 0 && s.initial > 0 ? words.restart : words.start);
+        const ratio = s.initial > 0 ? Math.max(0, Math.min(1, s.remaining / s.initial)) : 0;
+        timerProgress.style.transform = `scaleX(${ratio})`;
+        timerProgress.style.background = ratio <= .1 && s.initial > 0 ? 'var(--danger)' : ratio <= .25 && s.initial > 0 ? 'var(--orange)' : 'var(--lime)';
+        timerDisplay.classList.toggle('urgent', ratio <= .25 && ratio > 0 && s.initial > 0);
+        timerDisplay.classList.toggle('finished', s.remaining <= 0 && s.initial > 0);
+      }
+
+      function tick(now) {
+        const s = state[current];
+        if (!s.running) return;
+        if (s.stamp === null) s.stamp = now;
+        const elapsed = (now - s.stamp) / 1000;
+        s.stamp = now;
+        s.remaining = Math.max(0, s.remaining - elapsed);
+        if (s.remaining <= 0) {
+          s.running = false;
+          s.stamp = null;
+          updateTimerUI();
+          return;
+        }
+        updateTimerUI();
+        raf = requestAnimationFrame(tick);
+      }
+
+      function toggleTimer() {
+        const s = state[current];
+        if (s.initial <= 0 && s.remaining <= 0) {
+          s.initial = 60;
+          s.remaining = 60;
+        }
+        if (s.remaining <= 0) s.remaining = s.initial;
+        s.running = !s.running;
+        s.stamp = null;
+        cancelAnimationFrame(raf);
+        if (s.running) raf = requestAnimationFrame(tick);
+        updateTimerUI();
+      }
+
+      function changeMinutes(amount) {
+        const s = state[current];
+        s.remaining = Math.max(0, s.remaining + amount * 60);
+        s.initial = Math.max(s.initial, s.remaining);
+        if (s.remaining === 0) { s.running = false; s.stamp = null; }
+        updateTimerUI();
+      }
+
+      function resetTimer() {
+        const s = state[current];
+        s.running = false;
+        s.stamp = null;
+        s.remaining = s.initial;
+        cancelAnimationFrame(raf);
+        updateTimerUI();
+      }
+
+      function followerBlocked() {
+        return window.SlideFollow && window.SlideFollow.isFollow() && window.SlideFollow.isLocked();
+      }
+
+      function publishFollow() {
+        if (window.SlideFollow) window.SlideFollow.publish();
+      }
+
+      function collectToggles() {
+        return [...document.querySelectorAll('.tap-card,.check-card')].map(el => ({
+          selected: el.classList.contains('selected'),
+          done: el.classList.contains('done')
+        }));
+      }
+
+      function applyToggles(toggles) {
+        if (!Array.isArray(toggles)) return;
+        document.querySelectorAll('.tap-card,.check-card').forEach((el, i) => {
+          const item = toggles[i];
+          if (!item) return;
+          el.classList.toggle('selected', !!item.selected);
+          el.classList.toggle('done', !!item.done);
+        });
+      }
+
+      function setReveals(count) {
+        const reveals = [...slides[current].querySelectorAll('.reveal')];
+        reveals.forEach((el, i) => el.classList.toggle('shown', i < count));
+      }
+
+      function revealNext() {
+        if (followerBlocked()) return false;
+        const hidden = slides[current].querySelector('.reveal:not(.shown)');
+        if (hidden) {
+          hidden.classList.add('shown');
+          publishFollow();
+          return true;
+        }
+        return false;
+      }
+
+      function showSlide(nextIndex) {
+        if (nextIndex < 0 || nextIndex >= slides.length || nextIndex === current) return;
+        state[current].running = false;
+        state[current].stamp = null;
+        cancelAnimationFrame(raf);
+        slides[current].classList.remove('active');
+        current = nextIndex;
+        slides[current].classList.add('active');
+        slideCount.textContent = `${String(current + 1).padStart(2,'0')} / ${String(slides.length).padStart(2,'0')}`;
+        progressFill.style.width = `${((current + 1) / slides.length) * 100}%`;
+        updateTimerUI();
+      }
+
+      function next() {
+        if (followerBlocked()) return;
+        if (!revealNext()) {
+          showSlide(current + 1);
+          publishFollow();
+        }
+      }
+      function previous() {
+        if (followerBlocked()) return;
+        showSlide(current - 1);
+        publishFollow();
+      }
+
+      document.getElementById('nextBtn').addEventListener('click', next);
+      document.getElementById('prevBtn').addEventListener('click', previous);
+      document.getElementById('revealBtn').addEventListener('click', revealNext);
+      document.getElementById('startBtn').addEventListener('click', toggleTimer);
+      document.getElementById('resetBtn').addEventListener('click', resetTimer);
+      document.getElementById('minusBtn').addEventListener('click', () => changeMinutes(-1));
+      document.getElementById('plusBtn').addEventListener('click', () => changeMinutes(1));
+      languageToggle.addEventListener('click', () => {
+        setLanguage(currentLanguage === 'en' ? 'ar' : 'en');
+        publishFollow();
+      });
+      timerDisplay.addEventListener('click', toggleTimer);
+      timerDisplay.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleTimer(); } });
+
+      document.querySelectorAll('.tap-card').forEach(card => {
+        const toggle = () => {
+          if (followerBlocked()) return;
+          card.classList.toggle('selected');
+          publishFollow();
+        };
+        card.addEventListener('click', toggle);
+        card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+      });
+
+      document.querySelectorAll('.check-card').forEach(card => {
+        const toggle = () => {
+          if (followerBlocked()) return;
+          card.classList.toggle('done');
+          publishFollow();
+        };
+        card.addEventListener('click', toggle);
+        card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle(); } });
+      });
+
+      window.addEventListener('keydown', event => {
+        if (event.target.matches('button,[role="button"]')) return;
+        if (['ArrowRight','PageDown',' '].includes(event.key)) { event.preventDefault(); next(); }
+        if (['ArrowLeft','PageUp'].includes(event.key)) { event.preventDefault(); previous(); }
+        if (event.key.toLowerCase() === 't') toggleTimer();
+        if (event.key.toLowerCase() === 'r') resetTimer();
+      });
+
+      slideCount.textContent = `01 / ${String(slides.length).padStart(2,'0')}`;
+      progressFill.style.width = `${100 / slides.length}%`;
+      setLanguage('en');
+
+      if (window.SlideFollow) {
+        window.SlideFollow.init({
+          getState() {
+            return {
+              slide: current,
+              reveals: slides[current].querySelectorAll('.reveal.shown').length,
+              lang: currentLanguage,
+              toggles: collectToggles()
+            };
+          },
+          applyState(payload) {
+            if (payload.lang && payload.lang !== currentLanguage) setLanguage(payload.lang);
+            if (typeof payload.slide === 'number') showSlide(payload.slide);
+            if (typeof payload.reveals === 'number') setReveals(payload.reveals);
+            applyToggles(payload.toggles);
+          },
+          nudge(dir) {
+            if (dir > 0) next();
+            else previous();
+          }
+        });
+      }
+    })();
+  </script>
+</body>
+</html>

@@ -34,6 +34,14 @@
         session(4, 'Legal Parameters, Health & Safety + Agencies', 'ready'),
         session(5, 'O1 Completion + Sector Confirmed + O2 Launch', 'ready'),
         session(6, 'Employment Opportunities + Freelance Issues', 'ready'),
+        {
+          id: '6b',
+          title: 'Job Advert Takeover',
+          slides: 'drama-ci-s06-job-advert.html',
+          status: 'ready',
+          session: 6,
+          variant: 'alternative'
+        },
         session(7, 'Job Roles, Career Paths + Self-Eval #2', 'ready'),
         session(8, 'Focus Job Role in Depth', 'ready'),
         session(9, 'Presenting O2 Findings', 'ready'),
