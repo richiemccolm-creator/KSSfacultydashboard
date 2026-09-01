@@ -92,7 +92,7 @@
 
   function applyRemote(payload) {
     if (!payload || !hooks || typeof hooks.applyState !== 'function') return;
-    var key = [payload.slide, payload.reveals, payload.locked, payload.lang, JSON.stringify(payload.toggles || [])].join('|');
+    var key = [payload.slide, payload.reveals, payload.locked, JSON.stringify(payload.toggles || [])].join('|');
     if (key === lastApplied) return;
     lastApplied = key;
     applying = true;

@@ -1048,11 +1048,17 @@
 
     #followPill[hidden] { display: none !important; }
 
-    html.is-follow #languageToggle,
     html.is-follow #controlBar,
     html.is-follow #timerProgress,
     html.is-follow .join-panel,
     html.is-follow .tap-hint { display: none !important; }
+
+    html.is-follow #languageToggle {
+      display: block;
+      z-index: 40;
+      top: max(10px, env(safe-area-inset-top));
+      right: max(14px, env(safe-area-inset-right));
+    }
 
     html.is-follow #deck { inset: 0; }
     html.is-follow-waiting #deck { opacity: 0; pointer-events: none; }
@@ -2130,6 +2136,9 @@
         languageToggle.setAttribute('aria-pressed', String(isArabic));
         languageToggle.setAttribute('aria-label', isArabic ? 'التبديل إلى الإنجليزية' : 'Switch slides to Arabic');
         updateTimerUI();
+        if (window.SlideFollow && window.SlideFollow.isFollow()) {
+          try { sessionStorage.setItem('slide-follow-lang:s06-job', currentLanguage); } catch (e) {}
+        }
       }
 
       function formatTime(seconds) {
@@ -2312,6 +2321,12 @@
       slideCount.textContent = `01 / ${String(slides.length).padStart(2,'0')}`;
       progressFill.style.width = `${100 / slides.length}%`;
       setLanguage('en');
+      if (window.SlideFollow && window.SlideFollow.isFollow()) {
+        try {
+          const savedLang = sessionStorage.getItem('slide-follow-lang:s06-job');
+          if (savedLang === 'ar' || savedLang === 'en') setLanguage(savedLang);
+        } catch (e) {}
+      }
 
       if (window.SlideFollow) {
         window.SlideFollow.init({
@@ -2324,7 +2339,6 @@
             };
           },
           applyState(payload) {
-            if (payload.lang && payload.lang !== currentLanguage) setLanguage(payload.lang);
             if (typeof payload.slide === 'number') showSlide(payload.slide);
             if (typeof payload.reveals === 'number') setReveals(payload.reveals);
             applyToggles(payload.toggles);
