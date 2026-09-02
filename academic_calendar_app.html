@@ -315,23 +315,22 @@ function getFilteredEvents(){
   var q=(searchText||'').trim().toLowerCase();
   if(!cat&&!q)return all;
   var filtered=all;
-  if(cat){filtered=filtered.filter(function(e){return (e.category||'general')===cat;});}
+  if(cat){
+    filtered=filtered.filter(function(e){
+      return typeof calEventMatchesCategory==='function'
+        ? calEventMatchesCategory(e,cat)
+        : (e.category||'general')===cat;
+    });
+  }
   if(!q)return filtered;
-  var monthNames=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
   return filtered.filter(function(e){
+    if(typeof calEventMatchesSearch==='function') return calEventMatchesSearch(e,q,catLabels);
     var title=(e.title||'').toLowerCase();
     var desc=(e.description||'').toLowerCase();
     var date=e.date||'';
     var catLabel=(catLabels[e.category]||e.category||'').toLowerCase();
     if(title.indexOf(q)!==-1||desc.indexOf(q)!==-1||catLabel.indexOf(q)!==-1)return true;
     if(date.indexOf(q)!==-1)return true;
-    var parts=date.split('-');
-    if(parts.length>=2&&q.length>=2){
-      var yr=parts[0],mo=parts[1],dy=parts[2]||'';
-      if(yr.indexOf(q)!==-1||mo.indexOf(q)!==-1||dy.indexOf(q)!==-1)return true;
-      var monthIdx=monthNames.indexOf(q);
-      if(monthIdx>=0&&parts[1]===String(monthIdx+1).padStart(2,'0'))return true;
-    }
     return false;
   });
 }
@@ -359,6 +358,7 @@ return DataService.getCalendarMerged().then(function(merged){
 var base=merged&&Array.isArray(merged)?merged:[];
 var titles=base.map(function(e){return e.title+e.date;});
 defaultEvents.forEach(function(ev){if(titles.indexOf(ev.title+ev.date)===-1){base.push({title:ev.title,date:ev.date,category:ev.category||"general",source:"shared"});titles.push(ev.title+ev.date);}});
+if(typeof calApplyDefaultCategories==="function") calApplyDefaultCategories(base,defaultEvents);
 base.sort(function(a,b){return (a.date||"").localeCompare(b.date||"");});
 eventsCache=base;
 return eventsCache;
@@ -367,6 +367,7 @@ return eventsCache;
 return (window.DataService?DataService.get(storageKey):Promise.resolve(JSON.parse(localStorage.getItem(storageKey)||"null"))).then(function(st){
 eventsCache=st||[];
 if(eventsCache.length===0){eventsCache=defaultEvents.slice();if(window.DataService)DataService.set(storageKey,eventsCache);}
+if(typeof calApplyDefaultCategories==="function") calApplyDefaultCategories(eventsCache,defaultEvents);
 return eventsCache;
 });
 }

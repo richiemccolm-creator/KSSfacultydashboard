@@ -9520,24 +9520,21 @@ function calGetFilteredEvents(){
   if(!cat&&!q)return all;
   var filtered=all;
   if(cat){
-    filtered=filtered.filter(function(e){return (e.category||'general')===cat;});
+    filtered=filtered.filter(function(e){
+      return typeof calEventMatchesCategory==='function'
+        ? calEventMatchesCategory(e,cat)
+        : (e.category||'general')===cat;
+    });
   }
   if(!q)return filtered;
-  var monthNames=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
   return filtered.filter(function(e){
+    if(typeof calEventMatchesSearch==='function') return calEventMatchesSearch(e,q,CAL_CAT_LABELS);
     var title=(e.title||'').toLowerCase();
     var desc=(e.description||'').toLowerCase();
     var date=e.date||'';
     var catLabel=(CAL_CAT_LABELS[e.category]||e.category||'').toLowerCase();
     if(title.indexOf(q)!==-1||desc.indexOf(q)!==-1||catLabel.indexOf(q)!==-1)return true;
     if(date.indexOf(q)!==-1)return true;
-    var parts=date.split('-');
-    if(parts.length>=2&&q.length>=2){
-      var yr=parts[0],mo=parts[1],dy=parts[2]||'';
-      if(yr.indexOf(q)!==-1||mo.indexOf(q)!==-1||dy.indexOf(q)!==-1)return true;
-      var monthIdx=monthNames.indexOf(q);
-      if(monthIdx>=0&&parts[1]===String(monthIdx+1).padStart(2,'0'))return true;
-    }
     return false;
   });
 }
@@ -9562,6 +9559,7 @@ function calLoadEvents(){
       var base=merged&&Array.isArray(merged)?merged:[];
       var titles=base.map(function(e){return e.title+e.date;});
       CAL_DEFAULT_EVENTS.forEach(function(ev){if(titles.indexOf(ev.title+ev.date)===-1){base.push({title:ev.title,date:ev.date,category:ev.category||'general',source:'shared'});titles.push(ev.title+ev.date);}});
+      if(typeof calApplyDefaultCategories==='function') calApplyDefaultCategories(base,CAL_DEFAULT_EVENTS);
       base=calDedupeEvents(base);
       base.sort(function(a,b){return (a.date||'').localeCompare(b.date||'');});
       calEventsCache=base;
@@ -9572,6 +9570,7 @@ function calLoadEvents(){
     if(!stored||!Array.isArray(stored)||stored.length===0){calEventsCache=calDedupeEvents(CAL_DEFAULT_EVENTS);if(window.DataService)DataService.set(CAL_STORAGE_KEY,calEventsCache);return calEventsCache;}
     var titles=stored.map(function(e){return e.title+e.date;});
     CAL_DEFAULT_EVENTS.forEach(function(ev){if(titles.indexOf(ev.title+ev.date)===-1)stored.push(ev);});
+    if(typeof calApplyDefaultCategories==='function') calApplyDefaultCategories(stored,CAL_DEFAULT_EVENTS);
     calEventsCache=calDedupeEvents(stored);
     if(window.DataService)DataService.set(CAL_STORAGE_KEY,calEventsCache);
     return calEventsCache;
@@ -11798,12 +11797,13 @@ function homeRenderTrackingClasses(rows){
 function homeCalendarEventTag(ev){
   var cat=String((ev&&ev.category)||'').toLowerCase();
   var title=String((ev&&ev.title)||'').toLowerCase();
-  if(cat==='assessment'||cat==='exam'||/assessment|exam|working grades/i.test(title)) return 'Assessment';
+  if(typeof calIsReportingRelated==='function'?calIsReportingRelated(ev):(cat==='reporting'||/\breports?\b|\breporting\b|working grades|tracking entry/i.test(title))) return 'Reporting';
+  if(cat==='assessment'||cat==='exam'||/assessment|exam/i.test(title)) return 'Assessment';
   if(cat==='inset'||/inset/i.test(title)) return 'INSET';
   if(cat==='holiday') return 'Holiday';
   if(cat==='meeting'||/meeting|ped pod|sgm/i.test(title)) return 'Meeting';
   if(cat==='faculty-deadline'&&/\bdm\b|\bmod\b/i.test(title)&&!/report|deadline|qa\b/i.test(title)) return 'Meeting';
-  if(cat==='reporting'||cat==='deadline'||cat==='faculty-deadline'||/report|reporting|deadline|qa\b/i.test(title)) return 'Reporting';
+  if(cat==='deadline'||cat==='faculty-deadline'||/report|reporting|deadline|qa\b/i.test(title)) return 'Reporting';
   if(/\bdm\b|\bmod\b/i.test(title)) return 'Meeting';
   if(cat==='training'||cat==='cpd') return 'Event';
   return 'Event';

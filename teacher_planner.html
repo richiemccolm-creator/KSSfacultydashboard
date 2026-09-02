@@ -3464,6 +3464,7 @@ function mergePlannerCalendarDefaults(allEvents) {
   var base = Array.isArray(allEvents) ? allEvents.slice() : [];
   var titlesMap = {};
   base.forEach(function(e) { titlesMap[(e.title || '') + (e.date || '')] = true; });
+  if (typeof calApplyDefaultCategories === 'function') calApplyDefaultCategories(base, getPlannerCalendarDefaults());
   getPlannerCalendarDefaults().forEach(function(ev) {
     var key = (ev.title || '') + (ev.date || '');
     if (!titlesMap[key]) {
@@ -5070,13 +5071,14 @@ function calendarEventPriorityRank(e) {
 function calendarEventTag(e) {
   var cat = String((e && e.category) || '').toLowerCase();
   var title = String((e && e.title) || '').toLowerCase();
-  if (cat === 'assessment' || cat === 'exam' || /assessment|exam|working grades/i.test(title)) return 'Assessment';
+  if (typeof calIsReportingRelated === 'function' ? calIsReportingRelated(e) : (cat === 'reporting' || /\breports?\b|\breporting\b|working grades|tracking entry/i.test(title))) return 'Reporting';
+  if (cat === 'assessment' || cat === 'exam' || /assessment|exam/i.test(title)) return 'Assessment';
   if (cat === 'inset' || /inset/i.test(title)) return 'INSET';
   if (cat === 'holiday') return 'Holiday';
   if (cat === 'meeting' || /meeting|ped pod|sgm/i.test(title)) return 'Meeting';
   // Faculty DM / MOD slots are meetings; report/QA deadlines stay Reporting.
   if (cat === 'faculty-deadline' && /\bdm\b|\bmod\b/i.test(title) && !/report|deadline|qa\b/i.test(title)) return 'Meeting';
-  if (cat === 'reporting' || cat === 'deadline' || cat === 'faculty-deadline' || /report|reporting|deadline|qa\b/i.test(title)) return 'Reporting';
+  if (cat === 'deadline' || cat === 'faculty-deadline' || /report|reporting|deadline|qa\b/i.test(title)) return 'Reporting';
   if (/\bdm\b|\bmod\b/i.test(title)) return 'Meeting';
   return 'Event';
 }
