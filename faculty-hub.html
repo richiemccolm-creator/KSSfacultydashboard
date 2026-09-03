@@ -1747,9 +1747,39 @@ a.subject-card-link{text-decoration:none;cursor:pointer}
 .home-task-item-row.today{border-color:#fef3c7;background:#fffbeb}
 .home-task-item-body{flex:1;min-width:0}
 .home-task-item-title{font-size:0.875rem;line-height:1.3}
-.home-task-item-due{font-size:0.75rem;margin-top:2px;color:#64748b}
+.home-task-item-meta{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:6px;
+  margin-top:2px;
+}
+.home-task-item-due{font-size:0.75rem;color:#64748b}
 .home-task-item-row.overdue .home-task-item-due{color:#b91c1c}
 .home-task-item-row.today .home-task-item-due{color:#b45309}
+.home-task-priority{
+  appearance:none;
+  -webkit-appearance:none;
+  border:1px solid transparent;
+  border-radius:999px;
+  font-size:.58rem;
+  font-weight:700;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  padding:.18rem .55rem .18rem .45rem;
+  line-height:1.2;
+  cursor:pointer;
+  flex-shrink:0;
+  font-family:inherit;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath fill='%2364748b' d='M0 0l4 5 4-5z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:right .35rem center;
+  padding-right:.95rem;
+}
+.home-task-priority.high{background-color:#fdecea;color:#b91c1c;border-color:rgba(185,28,28,.28)}
+.home-task-priority.normal{background-color:rgba(113,128,150,.12);color:#475569;border-color:#dbe1eb}
+.home-task-priority.low{background-color:#f3f4f6;color:#6b7280;border-color:#e5e7eb}
+.home-task-priority:focus{outline:none;box-shadow:0 0 0 2px rgba(47,100,191,.25)}
 .home-task-toggle-btn{
   border:1px solid #cfd8e3;
   background:#fff;
@@ -1773,7 +1803,32 @@ a.subject-card-link{text-decoration:none;cursor:pointer}
   display:flex;
   gap:6px;
   flex-shrink:0;
+  align-items:stretch;
 }
+.home-task-quick-priority{
+  appearance:none;
+  -webkit-appearance:none;
+  flex-shrink:0;
+  border:1px solid #dbe1eb;
+  border-radius:6px;
+  padding:.4rem .7rem .4rem .52rem;
+  font-size:.62rem;
+  font-weight:700;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+  background:#fff;
+  color:#475569;
+  font-family:inherit;
+  cursor:pointer;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath fill='%2364748b' d='M0 0l4 5 4-5z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:right .4rem center;
+  padding-right:1rem;
+}
+.home-task-quick-priority:focus{outline:none;border-color:#4a7fd4}
+.home-task-quick-priority.high{background-color:#fdecea;color:#b91c1c;border-color:rgba(185,28,28,.28)}
+.home-task-quick-priority.normal{background-color:#fff;color:#475569}
+.home-task-quick-priority.low{background-color:#f3f4f6;color:#6b7280}
 @media(max-width:760px){
   .home-task-list-scroll{max-height:320px}
 }
@@ -12052,6 +12107,27 @@ function homeTaskActionTimeout(promise, ms){
     });
   });
 }
+function homeTaskPriorityValue(priority){
+  return priority==='high'||priority==='low'?priority:'normal';
+}
+function homeTaskPrioritySelectHtml(priority, opts){
+  opts=opts||{};
+  var p=homeTaskPriorityValue(priority);
+  var cls=opts.className||'home-task-priority';
+  var idAttr=opts.taskId?' data-task-id="'+homeEsc(opts.taskId)+'"':'';
+  var label=opts.ariaLabel||'Priority';
+  return '<select class="'+cls+' '+p+'"'+idAttr+' aria-label="'+homeEsc(label)+'" title="Priority">'+
+    '<option value="high"'+(p==='high'?' selected':'')+'>High</option>'+
+    '<option value="normal"'+(p==='normal'?' selected':'')+'>Medium</option>'+
+    '<option value="low"'+(p==='low'?' selected':'')+'>Low</option>'+
+  '</select>';
+}
+function homeSyncPrioritySelectClass(sel){
+  if(!sel) return;
+  var p=homeTaskPriorityValue(sel.value);
+  sel.classList.remove('high','normal','low');
+  sel.classList.add(p);
+}
 function homeRenderTasks(tasks, taskState){
   var parts=homeEnsureTaskChecklistStructure();
   if(!parts) return;
@@ -12074,8 +12150,10 @@ function homeRenderTasks(tasks, taskState){
       return '<div class="'+rowCls+'">'+
         '<button type="button" class="home-task-toggle-btn" data-task-id="'+homeEsc(t.id||'')+'" aria-label="'+homeEsc(t.completed?'Mark as not complete':'Mark task complete')+'" title="Mark task complete">✓</button>'+
         '<div class="home-task-item-body"><div class="home-task-item-title">'+homeEsc(t.title||'Untitled task')+'</div>'+
-        '<div class="home-task-item-due">'+homeEsc(due)+'</div></div></div>'+
-      '';
+        '<div class="home-task-item-meta">'+
+          homeTaskPrioritySelectHtml(t.priority,{taskId:t.id,ariaLabel:'Priority for '+(t.title||'task')})+
+          '<span class="home-task-item-due">'+homeEsc(due)+'</span>'+
+        '</div></div></div>';
     }).join('');
 
     Array.prototype.forEach.call(scrollEl.querySelectorAll('.home-task-toggle-btn'), function(btn){
@@ -12093,28 +12171,60 @@ function homeRenderTasks(tasks, taskState){
         });
       });
     });
+
+    Array.prototype.forEach.call(scrollEl.querySelectorAll('.home-task-priority'), function(sel){
+      homeSyncPrioritySelectClass(sel);
+      sel.addEventListener('click', function(ev){ ev.stopPropagation(); });
+      sel.addEventListener('change', function(ev){
+        ev.stopPropagation();
+        var taskId=String(sel.getAttribute('data-task-id')||'').trim();
+        var priority=homeTaskPriorityValue(sel.value);
+        homeSyncPrioritySelectClass(sel);
+        if(!taskId || !window.TeacherTasksService || typeof window.TeacherTasksService.updateTask!=='function') return;
+        sel.disabled=true;
+        homeTaskActionTimeout(TeacherTasksService.updateTask(taskId,{priority:priority}), 15000).then(function(){
+          homeRefreshTasksFromState();
+        }).catch(function(){
+          homeRefreshTasksFromState();
+          if(typeof backupToast==='function') backupToast('Priority updated on this device — cloud sync may have timed out');
+        });
+      });
+    });
   }
   var canQuickAdd=window.TeacherTasksService&&typeof window.TeacherTasksService.addTask==='function';
-  quickEl.innerHTML='<input type="text" class="staff-home-task-quick-input" placeholder="Quick add task..." aria-label="Quick add task" enterkeyhint="done" autocomplete="off" autocorrect="off"><button type="button" class="staff-home-task-quick-btn">Add</button>';
+  quickEl.innerHTML=
+    '<input type="text" class="staff-home-task-quick-input" placeholder="Quick add task..." aria-label="Quick add task" enterkeyhint="done" autocomplete="off" autocorrect="off">'+
+    homeTaskPrioritySelectHtml('normal',{className:'home-task-quick-priority',ariaLabel:'Task priority'})+
+    '<button type="button" class="staff-home-task-quick-btn">Add</button>';
   var input=quickEl.querySelector('.staff-home-task-quick-input');
+  var prioritySel=quickEl.querySelector('.home-task-quick-priority');
   var btn=quickEl.querySelector('.staff-home-task-quick-btn');
   var quickBusy=false;
+  if(prioritySel){
+    homeSyncPrioritySelectClass(prioritySel);
+    prioritySel.addEventListener('change', function(){ homeSyncPrioritySelectClass(prioritySel); });
+  }
   if(!canQuickAdd){
     btn.disabled=true;
+    if(prioritySel) prioritySel.disabled=true;
   }
   function submitQuickTask(){
     var title=String(input.value||'').trim();
     if(!title || !canQuickAdd || quickBusy) return;
+    var priority=homeTaskPriorityValue(prioritySel&&prioritySel.value);
     quickBusy=true;
     btn.disabled=true;
+    if(prioritySel) prioritySel.disabled=true;
     // Blur first — iPad Safari can stall when keyboard stays open during save/re-render.
     try{ input.blur(); }catch(e){}
-    homeTaskActionTimeout(TeacherTasksService.addTask('todo',{title:title}), 15000).then(function(){
+    homeTaskActionTimeout(TeacherTasksService.addTask('todo',{title:title,priority:priority}), 15000).then(function(){
       input.value='';
+      if(prioritySel){ prioritySel.value='normal'; homeSyncPrioritySelectClass(prioritySel); }
       homeRefreshTasksFromState();
     }).catch(function(){
       // Task is already in local state before cloud save — refresh so iPad isn't left greyed-out.
       input.value='';
+      if(prioritySel){ prioritySel.value='normal'; homeSyncPrioritySelectClass(prioritySel); }
       homeRefreshTasksFromState();
       if(typeof backupToast==='function') backupToast('Task saved on this device — cloud sync may have timed out');
     });

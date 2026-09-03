@@ -8,12 +8,6 @@
       .replace(/</g, '&lt;')
       .replace(/"/g, '&quot;');
   }
-
-  function priorityPillHtml(priority) {
-    var p = priority === 'high' || priority === 'low' ? priority : 'normal';
-    var label = p === 'high' ? 'High' : p === 'low' ? 'Low' : 'Medium';
-    return '<span class="home-task-priority ' + p + '">' + esc(label) + '</span>';
-  }
   function addDays(iso, days) {
     var p = String(iso || '').split('-');
     if (p.length !== 3) return '';
@@ -88,7 +82,11 @@
               '<span class="home-task-title">' + esc(t.title) + '</span>' +
               '<span class="home-task-status ' + status.cls + '">' + esc(status.label) + '</span>' +
               '<span class="home-task-due">' + esc(dueText) + '</span>' +
-              priorityPillHtml(t.priority);
+              '<select class="home-task-priority ' + (t.priority === 'high' || t.priority === 'low' ? t.priority : 'normal') + '" data-task-id="' + esc(t.id) + '" aria-label="Priority for ' + esc(t.title || 'task') + '">' +
+                '<option value="high"' + (t.priority === 'high' ? ' selected' : '') + '>High</option>' +
+                '<option value="normal"' + (t.priority !== 'high' && t.priority !== 'low' ? ' selected' : '') + '>Medium</option>' +
+                '<option value="low"' + (t.priority === 'low' ? ' selected' : '') + '>Low</option>' +
+              '</select>';
             var doneBtn = row.querySelector('.home-task-done');
             doneBtn.addEventListener('click', function(e) {
               e.stopPropagation();
@@ -96,8 +94,22 @@
                 window.TeacherTasksHome.render();
               }).catch(function() {});
             });
+            var priSel = row.querySelector('.home-task-priority');
+            if (priSel) {
+              priSel.addEventListener('click', function(e) { e.stopPropagation(); });
+              priSel.addEventListener('change', function(e) {
+                e.stopPropagation();
+                var priority = priSel.value === 'high' || priSel.value === 'low' ? priSel.value : 'normal';
+                priSel.className = 'home-task-priority ' + priority;
+                TeacherTasksService.updateTask(t.id, { priority: priority }).then(function() {
+                  window.TeacherTasksHome.render();
+                }).catch(function() {
+                  window.TeacherTasksHome.render();
+                });
+              });
+            }
             row.addEventListener('click', function(e) {
-              if (e.target.closest('.home-task-done')) return;
+              if (e.target.closest('.home-task-done') || e.target.closest('.home-task-priority')) return;
               var th = '#task-' + encodeURIComponent(t.id);
               if (typeof window.openEmbeddedTeacherTasks === 'function') {
                 window.openEmbeddedTeacherTasks(th);
@@ -113,10 +125,24 @@
         quick.className = 'home-task-quick';
         quick.innerHTML =
           '<input type="text" class="home-task-quick-input" placeholder="Quick add task…" aria-label="Quick add task" enterkeyhint="done" autocomplete="off">' +
+          '<select class="home-task-quick-priority normal" aria-label="Task priority">' +
+            '<option value="high">High</option>' +
+            '<option value="normal" selected>Medium</option>' +
+            '<option value="low">Low</option>' +
+          '</select>' +
           '<button type="button" class="home-task-quick-btn">Add</button>';
         var input = quick.querySelector('.home-task-quick-input');
+        var prioritySel = quick.querySelector('.home-task-quick-priority');
         var btn = quick.querySelector('.home-task-quick-btn');
         var busy = false;
+        function syncPriorityClass() {
+          if (!prioritySel) return;
+          var p = prioritySel.value === 'high' || prioritySel.value === 'low' ? prioritySel.value : 'normal';
+          prioritySel.className = 'home-task-quick-priority ' + p;
+        }
+        if (prioritySel) {
+          prioritySel.addEventListener('change', syncPriorityClass);
+        }
         function withTimeout(promise, ms) {
           var settled = false;
           return new Promise(function(resolve, reject) {
@@ -141,14 +167,26 @@
         function doQuickAdd() {
           var title = (input.value || '').trim();
           if (!title || busy) return;
+          var priority = prioritySel && (prioritySel.value === 'high' || prioritySel.value === 'low')
+            ? prioritySel.value
+            : 'normal';
           busy = true;
           btn.disabled = true;
+          if (prioritySel) prioritySel.disabled = true;
           try { input.blur(); } catch (e) {}
-          withTimeout(TeacherTasksService.addTask('todo', { title: title }), 15000).then(function() {
+          withTimeout(TeacherTasksService.addTask('todo', { title: title, priority: priority }), 15000).then(function() {
             input.value = '';
+            if (prioritySel) {
+              prioritySel.value = 'normal';
+              syncPriorityClass();
+            }
             window.TeacherTasksHome.render();
           }).catch(function() {
             input.value = '';
+            if (prioritySel) {
+              prioritySel.value = 'normal';
+              syncPriorityClass();
+            }
             window.TeacherTasksHome.render();
           });
         }
