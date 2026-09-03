@@ -2999,13 +2999,17 @@
   max-width: 680px;
   overflow: visible;
   background: transparent;
-  padding: 6px 0 14px;
+  padding: 10px 0 18px;
   margin-top: 0;
   margin-left: auto;
   margin-right: auto;
 }
 #lessonModal .lesson-ink-page {
   --lesson-paper-width: 680px;
+  --notepad-gutter: 56px;
+  --notepad-line: #d5deea;
+  --notepad-margin: rgba(196, 72, 72, 0.52);
+  --notepad-hole: #b88958;
   position: relative;
   flex: 0 0 auto;
   width: var(--lesson-paper-width);
@@ -3015,23 +3019,82 @@
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  border: 1px solid #c9d2dc;
-  background-color: #fff;
+  border: 1px solid rgba(120, 90, 55, 0.22);
+  border-radius: 1px 2px 2px 1px;
+  background-color: #fffdf7;
+  box-shadow:
+    1px 1px 0 rgba(90, 55, 25, 0.08),
+    4px 10px 22px rgba(58, 36, 14, 0.22),
+    0 1px 0 rgba(255, 255, 255, 0.75) inset;
   overflow: visible;
 }
+#lessonModal .lesson-ink-page.is-lined,
+#lessonModal .lesson-ink-page.is-grid,
+#lessonModal .lesson-ink-page.is-dots {
+  background-color: #fffdf7;
+}
+#lessonModal .lesson-ink-page.is-lined::before,
+#lessonModal .lesson-ink-page.is-grid::before,
+#lessonModal .lesson-ink-page.is-dots::before {
+  content: "";
+  position: absolute;
+  left: var(--notepad-gutter);
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--notepad-margin);
+  box-shadow: 1px 0 0 rgba(196, 72, 72, 0.08);
+  z-index: 0;
+  pointer-events: none;
+}
+#lessonModal .lesson-ink-page.is-lined::after,
+#lessonModal .lesson-ink-page.is-grid::after,
+#lessonModal .lesson-ink-page.is-dots::after {
+  content: "";
+  position: absolute;
+  left: 16px;
+  top: 36px;
+  bottom: 36px;
+  width: 16px;
+  background-image:
+    radial-gradient(circle at 50% 50%,
+      var(--notepad-hole) 0 4.5px,
+      rgba(58, 36, 14, 0.35) 5px,
+      rgba(255, 255, 255, 0.55) 5.5px,
+      transparent 6.5px);
+  background-size: 16px 48px;
+  background-repeat: repeat-y;
+  background-position: center top;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.95;
+}
 #lessonModal .lesson-ink-page.is-lined {
-  background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 31px, #dce4ed 32px);
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 31px,
+    var(--notepad-line) 32px
+  );
 }
 #lessonModal .lesson-ink-page.is-grid {
-  background-image: linear-gradient(#e7edf3 1px, transparent 1px), linear-gradient(90deg, #e7edf3 1px, transparent 1px);
+  background-image:
+    linear-gradient(var(--notepad-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--notepad-line) 1px, transparent 1px);
   background-size: 32px 32px;
 }
 #lessonModal .lesson-ink-page.is-dots {
-  background-image: radial-gradient(#c9d2dc 1px, transparent 1px);
+  background-image: radial-gradient(#c2ccd8 1px, transparent 1px);
   background-size: 24px 24px;
 }
 #lessonModal .lesson-ink-page.is-plain {
   background-image: none;
+  background-color: #fff;
+}
+#lessonModal .lesson-ink-page.is-plain::before,
+#lessonModal .lesson-ink-page.is-plain::after {
+  content: none;
+  display: none;
 }
 #lessonModal .lesson-body-editor {
   position: relative;
@@ -3040,7 +3103,7 @@
   max-height: none;
   flex: 0 0 auto;
   overflow: visible;
-  padding: 28px 22px;
+  padding: 28px 28px 28px 22px;
   outline: 0;
   font-size: 17px;
   line-height: 1.7;
@@ -3048,6 +3111,11 @@
   background: transparent;
   border: 0;
   border-radius: 0;
+}
+#lessonModal .lesson-ink-page.is-lined .lesson-body-editor,
+#lessonModal .lesson-ink-page.is-grid .lesson-body-editor,
+#lessonModal .lesson-ink-page.is-dots .lesson-body-editor {
+  padding-left: calc(var(--notepad-gutter) + 14px);
 }
 #lessonModal .lesson-body-editor:empty:before,
 #lessonModal .lesson-body-editor:empty::before {
@@ -3563,7 +3631,7 @@
 #lessonModal .lesson-body-editor-toolbar {
   background: #fff;
 }
-#lessonModal .lesson-ink-page {
+#lessonModal .lesson-ink-page.is-plain {
   background-color: #fff;
 }
 #lessonModal .lesson-ws-class {
