@@ -65,6 +65,12 @@ typography:
     fontWeight: 500
     lineHeight: 1.2
     letterSpacing: "normal"
+  handwriting:
+    fontFamily: "Caveat, Segoe Script, Bradley Hand, cursive"
+    fontSize: "1.05rem"
+    fontWeight: 600
+    lineHeight: 1.35
+    letterSpacing: "0.01em"
 rounded:
   sm: "6px"
   md: "10px"
@@ -180,10 +186,11 @@ A dark school navy holds the building. Subject colours name the room you are in.
 **Display Font:** Manrope (ui-sans-serif, system-ui)
 **Body Font:** Inter (ui-sans-serif, system-ui)
 **Label/Mono Font:** Inter for labels; system ui-monospace for codes and pasted lists only
+**Handwriting Font:** Caveat — only for Teacher Planner sticky notes (next-lesson and private notes; material metaphor, not UI chrome)
 
-**Character:** A contemporary staff pair. Manrope carries titles and key numbers. Inter carries navigation, forms, tables, and metadata. Tight tracking on titles, tabular numbers on counts, no display serif.
+**Character:** A contemporary staff pair. Manrope carries titles and key numbers. Inter carries navigation, forms, tables, and metadata. Tight tracking on titles, tabular numbers on counts, no display serif. Caveat appears only when a surface must read as handwritten paper.
 
-Tokens live in `design-tokens.css`: `--font-heading`, `--font-body`, weights 400–800.
+Tokens live in `design-tokens.css`: `--font-heading`, `--font-body`, `--font-hand`, weights 400–800.
 
 ### Hierarchy
 - **Display** (700, clamp 1.25rem to 1.6rem, 1.15): Page titles. Wide measure, two lines maximum.
@@ -191,9 +198,10 @@ Tokens live in `design-tokens.css`: `--font-heading`, `--font-body`, weights 400
 - **Title** (600, 1.05rem, 1.35): Card names, modal titles.
 - **Body** (400, 0.9375rem, 1.5): Instructions and empty states. Prefer short operational sentences.
 - **Label** (500, 0.8125rem): Buttons, field labels, chips. Field labels are sentence case, not kicker eyebrows.
+- **Handwriting** (600, ~1.05–1.1rem): Sticky notes in Edit Lesson only (next lesson and private).
 
 ### Named Rules
-**The Two-Face Rule.** Manrope is for headings, branding, and prominent statistics. Inter is for body, navigation, buttons, forms, tables, and metadata. Do not introduce a third UI family.
+**The Two-Face Rule.** Manrope is for headings, branding, and prominent statistics. Inter is for body, navigation, buttons, forms, tables, and metadata. Do not introduce a third UI family for chrome. Caveat is exempt only for the Edit Lesson sticky-note controls.
 
 **The Two-Line Title Rule.** Page titles stay wide and short. Never trap a heading in a narrow column that stacks into a poster.
 
@@ -252,13 +260,14 @@ Sticky navy-800 bar in Class Management workspace: teacher, subject toggle, stat
 
 ### Do:
 - **Do** keep Faculty Hub identity: Knightswood Navy, Kiln Terracotta, Stage Blue, Manrope headings, Inter UI.
+- **Do** use Caveat only on Teacher Planner sticky notes (next lesson and private).
 - **Do** put one filled action on a view (Load timetable, Send to tracker).
 - **Do** treat Art and Drama as the job: wash, chips, and filled subject controls only in context.
 - **Do** write staff English with no em dashes in UI copy.
 - **Do** keep skip links, 44px targets, visible focus, and respect reduced motion.
 
 ### Don't:
-- **Don't** introduce extra UI font families beyond Manrope and Inter.
+- **Don't** introduce extra UI font families beyond Manrope and Inter (Caveat sticky notes are the only exception).
 - **Don't** add gradient slabs, glass for its own sake, GSAP stagger, or hover-only actions.
 - **Don't** show stock photos of pupils or invent school evidence.
 - **Don't** offer three equal primary buttons for the same job.

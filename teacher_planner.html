@@ -46,7 +46,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="design-tokens.css">
+<link rel="stylesheet" href="design-tokens.css?v=hand-1">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
@@ -970,7 +970,7 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
 </style>
 <link rel="stylesheet" href="teacher-planner-redesign.css?v=polish-4">
 <link rel="stylesheet" href="teacher-planner-editorial.css?v=polish-4">
-<link rel="stylesheet" href="teacher-planner-editorial-views.css?v=polish-15">
+<link rel="stylesheet" href="teacher-planner-editorial-views.css?v=polish-21">
 </head>
 <body>
 <script>
@@ -1869,8 +1869,9 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
                 <p class="lesson-next-note-prev-text" id="lessonNextNotePrevText" hidden></p>
                 <canvas class="lesson-next-note-prev-ink" id="lessonNextNotePrevInk" hidden aria-hidden="true"></canvas>
               </div>
+              <div class="lesson-sticky lesson-next-sticky">
               <div class="lesson-next-note-head">
-                <label class="lesson-ws-kicker" for="lessonNextNoteText">Remember for next lesson</label>
+                <label class="lesson-sticky-title" for="lessonNextNoteText">Next lesson</label>
                 <div class="class-support-hero-row" id="classSupportStrip" hidden>
                   <span class="class-support-hero-label" id="classSupportStripLabel" hidden></span>
                   <button type="button" class="class-support-hero-btn" id="classSupportOpenBtn" aria-expanded="false" aria-controls="classSupportDrawer">SUPPORT</button>
@@ -1884,7 +1885,12 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
                 <button type="button" class="lesson-next-note-clear" id="lessonNextNoteClear" hidden>Clear handwriting</button>
                 <button type="button" class="lesson-next-note-carry" id="lessonNextNoteCarry">Carry to next lesson →</button>
               </div>
+              </div>
               <p class="lesson-next-note-status" id="lessonNextNoteStatus" hidden></p>
+              <div class="lesson-sticky lesson-private-notes" id="lessonPrivateNotes">
+                <label class="lesson-sticky-title" for="lessonPrivateNotesText">Private</label>
+                <textarea class="lesson-private-notes-text" id="lessonPrivateNotesText" rows="5" maxlength="2000" placeholder="scribble a reminder…" aria-label="Private notes — not part of the lesson plan"></textarea>
+              </div>
             </aside>
           </div>
           <div class="lesson-ws-fields">
@@ -9400,6 +9406,24 @@ function renderPreviousNextNote(lesson, dateStr, slotKey) {
   lessonPrevNoteShown = { fromLessonId: occ.lesson.id || '', stamp: stamp };
 }
 
+function loadPrivateNotesUi(lesson, opts) {
+  opts = opts || {};
+  var textEl = document.getElementById('lessonPrivateNotesText');
+  if (!textEl) return;
+  var shell = document.querySelector('#lessonModal .lesson-modal-shell');
+  var library = !!(opts.library || (shell && shell.classList.contains('is-library')));
+  if (library) {
+    textEl.value = '';
+    return;
+  }
+  textEl.value = (lesson && lesson.privateNotes) ? String(lesson.privateNotes) : '';
+}
+
+function collectPrivateNotesFromModal() {
+  var textEl = document.getElementById('lessonPrivateNotesText');
+  return textEl ? String(textEl.value || '') : '';
+}
+
 function loadNextLessonNoteUi(lesson, dateStr, slotKey, opts) {
   opts = opts || {};
   var wrap = document.getElementById('lessonNextNote');
@@ -9413,6 +9437,7 @@ function loadNextLessonNoteUi(lesson, dateStr, slotKey, opts) {
     if (textEl) textEl.value = '';
     if (window.LessonNoteInk) LessonNoteInk.load(null);
     setNextLessonNoteStatus('', false);
+    loadPrivateNotesUi(null, { library: true });
     return;
   }
   if (wrap) wrap.hidden = false;
@@ -9421,6 +9446,7 @@ function loadNextLessonNoteUi(lesson, dateStr, slotKey, opts) {
   if (window.LessonNoteInk) LessonNoteInk.load(note.ink || null);
   setNextLessonNoteStatus('', false);
   renderPreviousNextNote(lesson, dateStr, slotKey);
+  loadPrivateNotesUi(lesson);
 }
 
 function dismissPreviousNextNote() {
@@ -9995,6 +10021,7 @@ function collectLessonPayloadFromModal(overrides) {
     ink: window.LessonInk ? LessonInk.serialize() : undefined,
     nextLessonNote: collectNextLessonNoteFromModal(),
     nextLessonNoteAck: lessonNextNoteAckState ? Object.assign({}, lessonNextNoteAckState) : null,
+    privateNotes: collectPrivateNotesFromModal(),
     updatedAt: new Date().toISOString()
   }, overrides);
 }
@@ -10081,6 +10108,7 @@ document.getElementById('lessonSave').addEventListener('click', function() {
     delete template.ink;
     delete template.nextLessonNote;
     delete template.nextLessonNoteAck;
+    delete template.privateNotes;
     if (templateId !== 'new') template.id = templateId;
     PS.saveTemplate(template).then(function() {
       document.getElementById('lessonModal').classList.remove('visible');

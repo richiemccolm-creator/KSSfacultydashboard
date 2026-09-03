@@ -531,6 +531,7 @@
       if (!obj || typeof obj !== 'object') return obj;
       delete obj.nextLessonNote;
       delete obj.nextLessonNoteAck;
+      delete obj.privateNotes;
       return obj;
     },
 
