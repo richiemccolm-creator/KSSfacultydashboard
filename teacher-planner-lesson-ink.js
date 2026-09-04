@@ -17,7 +17,7 @@
   var HISTORY_LIMIT = 80;
   var ERASE_RADIUS = 14;
   var PEN_COLOR = '#17243a';
-  var PEN_WIDTH = 2.5;
+  var PEN_WIDTH = 1.6;
   var HIGHLIGHT_COLOR = 'rgba(47,111,214,0.22)';
   var MOUSE_SUPPRESS_MS = 800;
 
