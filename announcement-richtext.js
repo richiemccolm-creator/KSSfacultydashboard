@@ -34,6 +34,7 @@
     { group: 'Improvement', items: [
       { id: 'dip-main', label: 'Improvement Plan 25–26' },
       { id: 'dip-main-2627', label: 'Improvement Plan 26–27' },
+      { id: 'dip-poster-2627', label: 'FIP Poster 26–27' },
       { id: 'dip-action-plan-2627', label: 'Action Plan 26–27' },
       { id: 'embed-dip-tracker', label: 'DIP Mission Tracker' },
       { id: 'embed-qs-attainment', label: 'QS Attainment' }

@@ -42,7 +42,8 @@ window.FH_NAV = {
     {
       group: 'Faculty Leadership',
       items: [
-        { id: 'dip', label: 'Improvement Plan', href: 'faculty-hub.html?panel=dip-main' },
+        { id: 'dip', label: 'Improvement Plan', href: 'faculty-hub.html?panel=dip-main-2627' },
+        { id: 'dm-planner', label: 'DM Planner', href: 'faculty-hub.html?panel=embed-dm-planner' },
         { id: 'qs-attainment', label: 'QS Attainment', href: 'faculty-hub.html?panel=embed-qs-attainment' },
         {
           id: 'meetings',
@@ -52,7 +53,7 @@ window.FH_NAV = {
         },
         { id: 'class-visits', label: 'Class Visits', href: 'faculty-hub.html?panel=embed-class-visit' },
         { id: 'quality-cal', label: 'Quality Cal', href: 'faculty-hub.html?panel=embed-quality-calendar' },
-        { id: 'dept-targets', label: 'Dept Targets', href: 'faculty-hub.html?panel=dip-main' }
+        { id: 'dept-targets', label: 'Dept Targets', href: 'faculty-hub.html?panel=dip-main-2627' }
       ]
     },
     {
@@ -133,8 +134,15 @@ window.FH_NAV = {
           id: 'dip',
           label: 'Improvement Plan',
           sidebarLabel: 'Improvement Plan',
-          href: 'faculty-hub.html?panel=dip-main',
+          href: 'faculty-hub.html?panel=dip-main-2627',
           icon: 'dip'
+        },
+        {
+          id: 'dm-planner',
+          label: 'DM Planner',
+          sidebarLabel: 'DM Planner 26–27',
+          href: 'faculty-hub.html?panel=embed-dm-planner',
+          icon: 'gantt'
         },
         {
           id: 'qs-attainment',
@@ -169,7 +177,7 @@ window.FH_NAV = {
           id: 'dept-targets',
           label: 'Dept Targets',
           sidebarLabel: 'Department Targets',
-          href: 'faculty-hub.html?panel=dip-main',
+          href: 'faculty-hub.html?panel=dip-main-2627',
           icon: 'targets'
         }
       ]

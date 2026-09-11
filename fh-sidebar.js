@@ -24,6 +24,8 @@
       '<path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/>',
     quality:
       '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
+    gantt:
+      '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9h2v6H7zM11 12h2v3h-2zM15 8h2v7h-2z"/>',
     targets: '<path d="M4 12h16"/><path d="M12 4v16"/>',
     users:
       '<path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/>',
