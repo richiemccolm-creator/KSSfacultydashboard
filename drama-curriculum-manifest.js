@@ -76,26 +76,26 @@ window.DRAMA_CURRICULUM = {
       lessons: [
         {
           id: '1',
-          title: 'What is Mime?',
-          slides: 'Unit02_Lesson01_What_is_Mime.html',
+          title: 'Without Saying a Word',
+          slides: 'Unit02_Lesson01_Without_Saying_a_Word.html',
           status: 'ready'
         },
         {
           id: '2',
-          title: 'Developing Mime',
-          slides: 'Unit02_Lesson02_Developing_Mime.html',
+          title: 'Make the Invisible Real',
+          slides: 'Unit02_Lesson02_Make_the_Invisible_Real.html',
           status: 'ready'
         },
         {
           id: '3',
-          title: 'Character & Status',
-          slides: 'Unit02_Lesson03_Character_Status.html',
+          title: 'Character Without Words',
+          slides: 'Unit02_Lesson03_Character_Without_Words.html',
           status: 'ready'
         },
         {
           id: '4',
-          title: 'Group Mime Preparation',
-          slides: 'Unit02_Lesson04_Group_Mime_Prep.html',
+          title: 'Show What You Know',
+          slides: 'Unit02_Lesson04_Show_What_You_Know.html',
           status: 'ready'
         },
         {
