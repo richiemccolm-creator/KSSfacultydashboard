@@ -1114,6 +1114,21 @@ a.subject-card-link{text-decoration:none;cursor:pointer}
   outline:3px solid rgba(244,246,251,.45);
   outline-offset:2px;
 }
+.home-ann-update-strip{
+  display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:.5rem 1rem;
+  margin:-1.15rem -1.5rem 1.1rem;padding:.6rem 1.5rem;
+  background:#f6c453;color:#3b2600;font-weight:600;font-size:.9rem;
+}
+.home-ann-update-strip-text{display:flex;align-items:center;gap:8px;min-width:0}
+.home-ann-update-strip-btn{
+  border:1px solid rgba(59,38,0,.35);background:rgba(255,255,255,.35);color:#3b2600;
+  font:600 .78rem var(--font-body);padding:5px 12px;border-radius:7px;cursor:pointer;
+  transition:background .2s ease,transform .15s ease;
+}
+.home-ann-update-strip-btn:hover{background:rgba(255,255,255,.55)}
+.home-ann-update-strip-btn:active{transform:scale(.98)}
+.home-ann-update-strip-btn:focus-visible{outline:3px solid #3b2600;outline-offset:2px}
+.home-register-plate.has-update{border-color:#f6c453}
 .home-register-plate .home-notif-bell{
   border-color:rgba(244,246,251,.22);
   background:rgba(244,246,251,.08);
@@ -1136,6 +1151,7 @@ a.subject-card-link{text-decoration:none;cursor:pointer}
   .home-register-plate-top{flex-wrap:wrap}
   .home-masthead-ann-title{max-width:none}
   .home-masthead-ann-foot{flex-wrap:wrap}
+  .home-ann-update-strip{margin:-1rem -1.1rem 1rem;padding:.6rem 1.1rem}
 }
 
 /* Teacher Planner home-screen reminder — compact, receded */
@@ -11753,6 +11769,67 @@ function homeAnnouncementsExcludingMasthead(list){
     return !masthead || !a || a.id!==masthead.id;
   });
 }
+function homeAnnSeenStorageKey(id){
+  return 'fhAnnSeen:'+String(id||'');
+}
+function homeGetAnnSeen(id){
+  if(!id) return '';
+  try{ return localStorage.getItem(homeAnnSeenStorageKey(id))||''; }
+  catch(e){ return ''; }
+}
+function homeSetAnnSeen(id, ts){
+  if(!id || !ts) return;
+  try{ localStorage.setItem(homeAnnSeenStorageKey(id), String(ts)); }
+  catch(e){}
+}
+function homeAnnSeenIsEarlier(seen, significantAt){
+  if(!seen || !significantAt) return false;
+  var seenMs=Date.parse(seen);
+  var sigMs=Date.parse(significantAt);
+  if(!isNaN(seenMs) && !isNaN(sigMs)) return seenMs<sigMs;
+  return String(seen)<String(significantAt);
+}
+function homeClearAnnouncementUpdateStrip(plate){
+  if(!plate) plate=document.querySelector('.home-register-plate');
+  if(!plate) return;
+  var old=plate.querySelector('.home-ann-update-strip');
+  if(old && old.parentNode) old.parentNode.removeChild(old);
+  plate.classList.remove('has-update');
+}
+function homeAckAnnouncementUpdate(id, ts){
+  homeSetAnnSeen(id, ts);
+  homeClearAnnouncementUpdateStrip();
+}
+function homeMaybeRenderAnnouncementUpdateStrip(plate, featured){
+  homeClearAnnouncementUpdateStrip(plate);
+  if(!plate || !featured || !featured.id) return;
+  var sigAt=featured.significant_update_at||'';
+  var seen=homeGetAnnSeen(featured.id);
+  if(!seen){
+    homeSetAnnSeen(featured.id, sigAt||featured.created_at||'');
+    return;
+  }
+  if(!sigAt || !homeAnnSeenIsEarlier(seen, sigAt)) return;
+  var note=String(featured.update_note||'').trim();
+  var noteHtml=note?'<span class="home-ann-update-strip-note">: '+homeEsc(note)+'</span>':'';
+  var strip=document.createElement('div');
+  strip.className='home-ann-update-strip';
+  strip.setAttribute('role','status');
+  strip.innerHTML=
+    '<div class="home-ann-update-strip-text">'+
+      '<i class="ti ti-refresh" aria-hidden="true"></i>'+
+      '<span>Updated since you last read it'+noteHtml+'</span>'+
+    '</div>'+
+    '<button type="button" class="home-ann-update-strip-btn">Got it</button>';
+  var btn=strip.querySelector('.home-ann-update-strip-btn');
+  if(btn){
+    btn.addEventListener('click', function(){
+      homeAckAnnouncementUpdate(featured.id, sigAt);
+    });
+  }
+  plate.insertBefore(strip, plate.firstChild);
+  plate.classList.add('has-update');
+}
 function homeRenderSuperAnnouncement(announcements, today){
   var el=document.getElementById('homeSuperAnnouncement');
   var plate=document.querySelector('.home-register-plate');
@@ -11762,6 +11839,7 @@ function homeRenderSuperAnnouncement(announcements, today){
     el.hidden=true;
     el.innerHTML='';
     if(plate) plate.classList.remove('has-notice');
+    homeClearAnnouncementUpdateStrip(plate);
     return;
   }
     var bodyHtml = window.AnnouncementRichText
@@ -11769,6 +11847,7 @@ function homeRenderSuperAnnouncement(announcements, today){
       : (String(featured.body||'').trim() ? homeEsc(String(featured.body).trim()).replace(/\n/g,'<br>') : '');
     var metaParts=[];
     if(featured.created_at) metaParts.push('Posted '+homeFormatDateHuman(String(featured.created_at).slice(0,10)));
+    if(featured.significant_update_at) metaParts.push('Updated '+homeFormatDateHuman(String(featured.significant_update_at).slice(0,10)));
     if(featured.expires_at) metaParts.push('Expires '+homeFormatDateHuman(String(featured.expires_at).slice(0,10)));
     if(plate) plate.classList.add('has-notice');
     el.hidden=false;
@@ -11781,6 +11860,7 @@ function homeRenderSuperAnnouncement(announcements, today){
       (metaParts.length?'<p class="home-masthead-ann-meta">'+homeEsc(metaParts.join('. '))+'.</p>':'<span></span>')+
       '<a href="#" class="home-masthead-ann-link" onclick="event.preventDefault();showPanel(\'home-announcements-all\');return false;">View all <i class="ti ti-arrow-right" aria-hidden="true"></i></a>'+
     '</div>';
+    homeMaybeRenderAnnouncementUpdateStrip(plate, featured);
 }
 function homeUpdateAnnouncementsCardChrome(announcements, today){
   var card=document.getElementById('homeAnnouncementsCard');
@@ -12324,6 +12404,7 @@ function homeShowSectionLoading(){
   var plate=document.querySelector('.home-register-plate');
   if(mast){
     if(plate) plate.classList.add('has-notice');
+    homeClearAnnouncementUpdateStrip(plate);
     mast.hidden=false;
     mast.innerHTML='<div class="home-masthead-ann-copy">'+skel+'</div>';
   }

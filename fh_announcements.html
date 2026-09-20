@@ -34,6 +34,11 @@
 .ann-table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}
 .ann-table-scroll table{min-width:560px}
 .ann-toast{position:fixed;bottom:calc(var(--sp-6) + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--ink-900);color:#fff;padding:var(--sp-3) var(--sp-5);border-radius:var(--r-pill);z-index:1000;display:none}
+.ann-option-stack{display:flex;flex-direction:column;gap:var(--sp-2);margin:0.75rem 0 1.25rem}
+.ann-check{display:flex;align-items:center;gap:var(--sp-2);font-size:var(--fs-sm);color:var(--ink-500)}
+.ann-sig-wrap{padding-top:var(--sp-2)}
+.ann-sig-hint{margin:0.4rem 0 0 1.625rem;font-size:var(--fs-xs);color:var(--ink-500);line-height:1.4}
+#fhAnnUpdateNote:disabled{opacity:.5}
 </style>
 </head>
 <body class="fh-mobile-page fh-hub-page">
@@ -64,17 +69,26 @@
         <label for="fhAnnBody">Body</label>
         <textarea id="fhAnnBody" placeholder="Optional details. Add a heading, emphasis, or a link."></textarea>
       </div>
-      <div style="margin:10px 0 8px">
-        <label style="display:flex;align-items:center;gap:8px;font-size:var(--fs-sm);color:var(--ink-500)">
+      <div class="ann-option-stack">
+        <label class="ann-check">
           <input id="fhAnnHighlight" type="checkbox">
           Shade full announcement with priority colour
         </label>
-      </div>
-      <div style="margin:0 0 14px">
-        <label style="display:flex;align-items:center;gap:8px;font-size:var(--fs-sm);color:var(--ink-500)">
+        <label class="ann-check">
           <input id="fhAnnFeaturedBanner" type="checkbox">
           Show as full-width banner on home screen
         </label>
+        <div id="fhAnnSignificantUpdateWrap" class="ann-sig-wrap" hidden>
+          <label class="ann-check">
+            <input id="fhAnnSignificantUpdate" type="checkbox">
+            Flag as a significant update
+          </label>
+          <p class="ann-sig-hint">Staff who have already read this will see an alert until they acknowledge it.</p>
+          <div class="ann-field" style="margin-top:var(--sp-2)">
+            <label for="fhAnnUpdateNote">What's changed? (one line, optional)</label>
+            <input id="fhAnnUpdateNote" type="text" maxlength="140" disabled>
+          </div>
+        </div>
       </div>
       <div class="ann-actions">
         <button class="btn btn-primary" id="fhAnnCreateBtn" type="button">Add Announcement</button>
@@ -139,6 +153,9 @@ function fhSetAnnouncementsSchemaHint() {
     if (!info || !info.featuredBannerColumn) {
       warnings.push('The home-screen banner option is unavailable until the featured_banner migration is applied.');
     }
+    if (!info || !info.significantUpdateColumns) {
+      warnings.push('The significant-update alert is unavailable until the significant_update_at migration is applied.');
+    }
     if (!warnings.length) {
       el.style.display = 'none';
       return;
@@ -161,6 +178,22 @@ function fhAnnBodySet(html) {
   if (window.AnnouncementRichText) AnnouncementRichText.write(el, html || '');
   else if (el) el.value = html || '';
 }
+function fhSyncSignificantUpdateFields() {
+  var cb = document.getElementById('fhAnnSignificantUpdate');
+  var note = document.getElementById('fhAnnUpdateNote');
+  if (!cb || !note) return;
+  var on = !!cb.checked;
+  note.disabled = !on;
+}
+function fhResetSignificantUpdateFields() {
+  var cb = document.getElementById('fhAnnSignificantUpdate');
+  var note = document.getElementById('fhAnnUpdateNote');
+  var wrap = document.getElementById('fhAnnSignificantUpdateWrap');
+  if (cb) cb.checked = false;
+  if (note) note.value = '';
+  if (wrap) wrap.hidden = true;
+  fhSyncSignificantUpdateFields();
+}
 function fhResetAnnouncementForm() {
   fhEditingAnnouncementId = null;
   document.getElementById('fhAnnFormTitle').textContent = 'New Announcement';
@@ -170,19 +203,23 @@ function fhResetAnnouncementForm() {
   document.getElementById('fhAnnPriority').value = 'none';
   document.getElementById('fhAnnHighlight').checked = false;
   document.getElementById('fhAnnFeaturedBanner').checked = false;
+  fhResetSignificantUpdateFields();
   document.getElementById('fhAnnCreateBtn').style.display = 'inline-flex';
   document.getElementById('fhAnnUpdateBtn').style.display = 'none';
   document.getElementById('fhAnnCancelBtn').style.display = 'none';
 }
 
 function fhReadAnnouncementForm() {
+  var noteEl = document.getElementById('fhAnnUpdateNote');
   return {
     title: document.getElementById('fhAnnTitle').value.trim(),
     body: fhAnnBodyHtml() || null,
     expires_at: document.getElementById('fhAnnExpires').value || null,
     priority: document.getElementById('fhAnnPriority').value || 'none',
     highlight_priority: !!document.getElementById('fhAnnHighlight').checked,
-    featured_banner: !!document.getElementById('fhAnnFeaturedBanner').checked
+    featured_banner: !!document.getElementById('fhAnnFeaturedBanner').checked,
+    significant_update: !!document.getElementById('fhAnnSignificantUpdate').checked,
+    update_note: noteEl ? String(noteEl.value || '').trim() : ''
   };
 }
 
@@ -232,6 +269,13 @@ function fhEditAnnouncement(id) {
   document.getElementById('fhAnnPriority').value = a.priority || 'none';
   document.getElementById('fhAnnHighlight').checked = !!a.highlight_priority;
   document.getElementById('fhAnnFeaturedBanner').checked = !!a.featured_banner;
+  var wrap = document.getElementById('fhAnnSignificantUpdateWrap');
+  var cb = document.getElementById('fhAnnSignificantUpdate');
+  var note = document.getElementById('fhAnnUpdateNote');
+  if (wrap) wrap.hidden = false;
+  if (cb) cb.checked = false;
+  if (note) note.value = '';
+  fhSyncSignificantUpdateFields();
   document.getElementById('fhAnnCreateBtn').style.display = 'none';
   document.getElementById('fhAnnUpdateBtn').style.display = 'inline-flex';
   document.getElementById('fhAnnCancelBtn').style.display = 'inline-flex';
@@ -282,6 +326,8 @@ function fhUpdateAnnouncement() {
 document.getElementById('fhAnnCreateBtn').addEventListener('click', fhCreateAnnouncement);
 document.getElementById('fhAnnUpdateBtn').addEventListener('click', fhUpdateAnnouncement);
 document.getElementById('fhAnnCancelBtn').addEventListener('click', fhResetAnnouncementForm);
+var fhAnnSignificantUpdateEl = document.getElementById('fhAnnSignificantUpdate');
+if (fhAnnSignificantUpdateEl) fhAnnSignificantUpdateEl.addEventListener('change', fhSyncSignificantUpdateFields);
 
 if (window.AnnouncementRichText) {
   AnnouncementRichText.mount(document.getElementById('fhAnnBody'), {
