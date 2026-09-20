@@ -12,6 +12,8 @@
     HEADS_UP: "tk_heads_up_packs_v1",
     EXIT: "tk_exit_tickets_v1",
     FAVS: "tk_favs",
+    QUICK: "tk_quick",
+    RECENT: "tk_recent",
     TIMER: "tk_big_timer_v1"
   };
 

@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#050B1D">
+<title>Join Stimulus Generator — Classroom Toolkit</title>
+<script src="../app-version.js"></script>
+<script>(function(){if(window.ensureAppVersionInUrl)window.ensureAppVersionInUrl();})();</script>
+<script src="../config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../supabase-init.js"></script>
+<script src="stimulus-banks.js"></script>
+<script src="stimulus-engine.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://api.fontshare.com/v2/css?f[]=general-sans@500,600,700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#050B1D; --text:#F5F7FF; --text-2:#B6C0D9; --muted:#7D8AA8;
+  --line:rgba(124,148,205,.18); --violet:#8658F5; --amber:#F4A62A; --mint:#35C796;
+  --font:"Inter",ui-sans-serif,system-ui,sans-serif;
+  --font-display:"General Sans","Inter",sans-serif;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{color-scheme:dark}
+body{
+  margin:0;min-height:100dvh;font-family:var(--font);color:var(--text);
+  background:
+    radial-gradient(ellipse 55% 40% at 16% -8%,rgba(134,88,245,.32),transparent 52%),
+    radial-gradient(ellipse 48% 36% at 92% 8%,rgba(244,166,42,.16),transparent 48%),
+    var(--bg);
+  -webkit-font-smoothing:antialiased;
+}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+
+.sky{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.spark{
+  position:absolute;border-radius:50%;
+  background:radial-gradient(circle,#fff,rgba(200,170,255,.85) 40%,transparent 70%);
+  box-shadow:0 0 8px rgba(134,88,245,.7);
+  animation:twinkle ease-in-out infinite;
+}
+.spark.amber{
+  background:radial-gradient(circle,#fff,rgba(255,210,120,.85) 40%,transparent 70%);
+  box-shadow:0 0 8px rgba(244,166,42,.7);
+}
+@keyframes twinkle{
+  0%,100%{opacity:.22;transform:scale(.7)}
+  50%{opacity:1;transform:scale(1.2)}
+}
+
+.wrap{
+  position:relative;z-index:1;min-height:100dvh;display:flex;flex-direction:column;
+  align-items:center;padding:max(16px,env(safe-area-inset-top)) 14px max(24px,env(safe-area-inset-bottom));
+}
+.card{
+  width:min(440px,100%);border-radius:20px;padding:22px 16px 20px;
+  background:linear-gradient(150deg,rgba(134,88,245,.12),#081126 55%);
+  border:1px solid rgba(134,88,245,.3);
+  box-shadow:0 16px 40px rgba(0,0,0,.35),0 0 40px rgba(134,88,245,.12);
+}
+.logo-wrap{width:min(260px,78%);margin:0 auto 10px}
+.logo{width:100%;height:auto;display:block;filter:drop-shadow(0 0 18px rgba(134,88,245,.45))}
+h1{margin:0 0 6px;font:700 22px/1.2 var(--font-display);letter-spacing:-.02em;text-align:center}
+.sub{margin:0 0 16px;text-align:center;color:var(--muted);font:500 13.5px/1.45 var(--font)}
+label{display:block;font:600 11px/1 var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:10px 0 6px}
+input{
+  width:100%;height:48px;border-radius:12px;border:1px solid var(--line);background:#0A142C;
+  padding:12px 14px;outline:none;font:600 16px/1.35 var(--font);letter-spacing:.03em;
+}
+input:focus{border-color:rgba(134,88,245,.55);box-shadow:0 0 0 3px rgba(134,88,245,.16)}
+.btn{
+  width:100%;min-height:50px;border:none;border-radius:14px;font:700 15px/1 var(--font);
+  color:#fff;background:linear-gradient(135deg,#8658F5,#3B6CFF);
+  box-shadow:0 10px 24px -8px rgba(134,88,245,.55);margin-top:12px;
+}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-ghost{
+  background:transparent;border:1px solid var(--line);box-shadow:none;color:var(--text-2);
+}
+.err{color:#FFB4B9;font:600 13px/1.4 var(--font);min-height:1.2em;margin:0 0 8px;text-align:center}
+.ok{color:#9FE7C8;font:600 13px/1.4 var(--font);text-align:center}
+.meta{text-align:center;color:var(--text-2);font:500 13px/1.4 var(--font);margin:0 0 10px}
+.wait{text-align:center;padding:28px 8px;color:var(--text-2);font:500 15px/1.5 var(--font)}
+.hidden{display:none!important}
+
+.axis{margin:0 0 12px}
+.axis h2{
+  margin:0 0 8px;font:700 11px/1 var(--font);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);
+}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{
+  min-height:40px;padding:8px 12px;border-radius:999px;border:1px solid var(--line);
+  background:rgba(255,255,255,.04);color:var(--text-2);font:650 13px/1.2 var(--font);
+}
+.chip.on{
+  border-color:rgba(134,88,245,.55);background:rgba(134,88,245,.22);color:#fff;
+  box-shadow:0 0 12px rgba(134,88,245,.2);
+}
+.chip:disabled{opacity:.55;cursor:not-allowed}
+.chip.lock{border-color:rgba(244,166,42,.45);background:rgba(244,166,42,.12);color:#FFD899}
+
+.result-title{
+  margin:4px 0 8px;font:800 26px/1.15 var(--font-display);letter-spacing:-.03em;text-align:center;
+}
+.tagrow{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:0 0 14px}
+.tag{
+  padding:5px 10px;border-radius:999px;font:650 11px/1 var(--font);letter-spacing:.04em;text-transform:uppercase;
+  background:rgba(134,88,245,.16);border:1px solid rgba(134,88,245,.3);color:#D7CCFF;
+}
+.scenario{font:500 15.5px/1.5 var(--font);color:var(--text);margin:0 0 16px}
+.chars{display:grid;gap:8px;margin:0 0 14px}
+.char{
+  padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:rgba(10,20,44,.7);
+}
+.char strong{display:block;font:700 14.5px/1.25 var(--font-display);margin-bottom:2px}
+.char .role{color:#C4B4FF;font:600 12.5px/1.3 var(--font)}
+.char .want{margin:4px 0 0;color:var(--text-2);font:500 13px/1.4 var(--font)}
+.devising{
+  margin:0;padding:10px 12px;border-radius:12px;
+  background:rgba(244,166,42,.08);border:1px solid rgba(244,166,42,.25);
+  color:#F8D48A;font:500 13px/1.45 var(--font);
+}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+<div class="sky" id="sky" aria-hidden="true"></div>
+<div class="wrap">
+  <div class="card" id="viewJoin">
+    <div class="logo-wrap">
+      <img class="logo" src="stimulus-generator-logo.png" width="1276" height="485" alt="Stimulus Generator" decoding="async">
+    </div>
+    <h1>Join stimulus generator</h1>
+    <p class="sub">Enter the PIN from the board and a group name. Pick any filters you want — or none — then generate a starting point.</p>
+    <p class="err" id="joinErr"></p>
+    <label for="pin">PIN</label>
+    <input id="pin" inputmode="numeric" maxlength="6" placeholder="6-digit PIN" autocomplete="one-time-code">
+    <label for="nick">Group name</label>
+    <input id="nick" maxlength="24" placeholder="e.g. Group 3" autocomplete="nickname">
+    <button type="button" class="btn" id="btnJoin">Join</button>
+  </div>
+
+  <div class="card hidden" id="viewPlay">
+    <div class="logo-wrap" style="width:min(220px,72%);margin-bottom:6px">
+      <img class="logo" src="stimulus-generator-logo.png" width="1276" height="485" alt="" decoding="async">
+    </div>
+    <p class="meta" id="playMeta"></p>
+    <div id="playBody"></div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var $ = function (id) { return document.getElementById(id); };
+  var AXES = [
+    { key: "genre", title: "Genre", list: "genres" },
+    { key: "form", title: "Form", list: "forms" },
+    { key: "structure", title: "Structure", list: "structures" },
+    { key: "style", title: "Style", list: "styles" },
+    { key: "cast", title: "Characters", list: "casts" },
+    { key: "setting", title: "Setting (optional)", list: "settingTypes" },
+    { key: "time", title: "Time (optional)", list: "times" },
+    { key: "extra", title: "Extra (optional)", list: "extras" }
+  ];
+
+  var state = {
+    pin: "",
+    token: "",
+    nickname: "",
+    poll: null,
+    cache: null,
+    choices: { genre: "", form: "", structure: "", style: "", cast: "", setting: "", time: "", extra: "" },
+    result: null,
+    recent: [],
+    view: "join",
+    submitting: false,
+    playKey: ""
+  };
+
+  function buildSky() {
+    var sky = $("sky");
+    if (!sky || sky.dataset.ready) return;
+    sky.dataset.ready = "1";
+    var html = "";
+    for (var i = 0; i < 26; i++) {
+      var size = 2 + Math.random() * 5;
+      var cls = "spark" + (Math.random() > 0.55 ? " amber" : "");
+      html += '<span class="' + cls + '" style="width:' + size + "px;height:" + size +
+        "px;left:" + (Math.random() * 100) + "%;top:" + (Math.random() * 100) +
+        "%;animation-duration:" + (1.5 + Math.random() * 2.8) +
+        "s;animation-delay:" + (Math.random() * 3) + 's"></span>';
+    }
+    sky.innerHTML = html;
+  }
+
+  function esc(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  function tokenKey(pin) { return "tk_stimulus_player_" + pin; }
+
+  function getOrCreateToken(pin) {
+    var key = tokenKey(pin);
+    try {
+      var t = localStorage.getItem(key);
+      if (t && t.length >= 16) return t;
+    } catch (e) {}
+    var t2 = "p_" + Math.random().toString(36).slice(2) + Date.now().toString(36) + Math.random().toString(36).slice(2);
+    try { localStorage.setItem(key, t2); } catch (e2) {}
+    return t2;
+  }
+
+  function rpc(name, args) {
+    if (!window.supabase || !window.supabase.rpc) {
+      return Promise.reject(new Error("Connection not ready"));
+    }
+    return window.supabase.rpc(name, args).then(function (res) {
+      if (res.error) throw res.error;
+      return res.data;
+    });
+  }
+
+  function options() {
+    return window.StimulusEngine ? window.StimulusEngine.options() : {};
+  }
+
+  function locksFrom(data) {
+    return (data && data.locks) || {};
+  }
+
+  function chipRow(axis, locks) {
+    var opts = options();
+    var items = opts[axis.list] || [];
+    var locked = locks && locks[axis.key];
+    var selected = locked || state.choices[axis.key] || "";
+    var html = '<div class="axis"><h2>' + esc(axis.title) + "</h2><div class=\"chips\">";
+    var anyOn = !selected;
+    html += '<button type="button" class="chip' + (anyOn ? " on" : "") + '" data-axis="' + axis.key + '" data-id=""' +
+      (locked ? " disabled" : "") + ">Any</button>";
+    items.forEach(function (item) {
+      var on = selected === item.id;
+      var lockCls = locked && locked === item.id ? " lock" : "";
+      html += '<button type="button" class="chip' + (on ? " on" : "") + lockCls + '" data-axis="' + axis.key +
+        '" data-id="' + esc(item.id) + '"' + (locked ? " disabled" : "") + ">" + esc(item.label) + "</button>";
+    });
+    html += "</div></div>";
+    return html;
+  }
+
+  function renderStimulus(s) {
+    if (!s) return "";
+    var tags = ["genre", "form", "structure", "style", "cast"].map(function (k) {
+      return '<span class="tag">' + esc(s.labels[k]) + "</span>";
+    }).join("");
+    if (s.labels.extra) tags += '<span class="tag">' + esc(s.labels.extra) + "</span>";
+    var chars = (s.characters || []).map(function (c) {
+      return (
+        '<div class="char"><strong>' + esc(c.name) + '</strong>' +
+        '<div class="role">' + esc(c.role) + "</div>" +
+        '<p class="want">Wants: ' + esc(c.want) + (c.note ? " — " + esc(c.note) : "") + "</p></div>"
+      );
+    }).join("");
+    return (
+      '<h2 class="result-title">' + esc(s.title) + "</h2>" +
+      '<div class="tagrow">' + tags + "</div>" +
+      '<p class="scenario">' + esc(s.scenario) + "</p>" +
+      '<div class="chars">' + chars + "</div>" +
+      '<p class="devising">' + esc(s.devising) + "</p>"
+    );
+  }
+
+  function renderPlay(data) {
+    if (!data) return;
+    state.cache = data;
+    $("playMeta").textContent = (data.title || "Stimulus") + " · " + (state.nickname || data.nickname || "");
+    var body = $("playBody");
+    var status = data.status;
+    var locks = locksFrom(data);
+
+    if (status === "lobby") {
+      if (state.playKey !== "lobby") {
+        state.playKey = "lobby";
+        body.innerHTML = '<div class="wait">You\'re in!<br>Waiting for the teacher to open generating…</div>';
+      }
+      return;
+    }
+    if (status === "closed") {
+      if (state.playKey !== "closed") {
+        state.playKey = "closed";
+        body.innerHTML = '<div class="wait"><strong>Session ended.</strong><br>You can put your phone away.</div>';
+      }
+      return;
+    }
+
+    if (state.view === "result" && state.result) {
+      var resultKey = "result:" + (state.result.combo || state.result.title);
+      if (state.playKey === resultKey) return;
+      state.playKey = resultKey;
+      body.innerHTML =
+        renderStimulus(state.result) +
+        '<div class="row2">' +
+          '<button type="button" class="btn btn-ghost" id="btnBack">Change choices</button>' +
+          '<button type="button" class="btn" id="btnAgain">Generate again</button>' +
+        "</div>" +
+        '<p class="ok" id="saveMsg">On the board</p>';
+      $("btnBack").onclick = function () {
+        state.view = "pick";
+        renderPlay(state.cache);
+      };
+      $("btnAgain").onclick = function () { generateAndSend(); };
+      return;
+    }
+
+    state.view = "pick";
+    var pickKey = "pick:" + JSON.stringify(state.choices) + JSON.stringify(locks);
+    if (state.playKey === pickKey) return;
+    state.playKey = pickKey;
+    body.innerHTML =
+      AXES.map(function (axis) { return chipRow(axis, locks); }).join("") +
+      '<button type="button" class="btn" id="btnGo">Generate stimulus</button>' +
+      '<p class="err" id="genErr"></p>';
+
+    body.querySelectorAll(".chip").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        if (btn.disabled) return;
+        var axis = btn.getAttribute("data-axis");
+        var id = btn.getAttribute("data-id") || "";
+        state.choices[axis] = id;
+        renderPlay(state.cache);
+      });
+    });
+    $("btnGo").onclick = function () { generateAndSend(); };
+  }
+
+  function generateAndSend() {
+    if (state.submitting) return;
+    var engine = window.StimulusEngine;
+    if (!engine) {
+      var errEl = $("genErr");
+      if (errEl) errEl.textContent = "Generator not loaded.";
+      return;
+    }
+    var locks = locksFrom(state.cache);
+    var stimulus = engine.generate(state.choices, { locks: locks, avoid: state.recent });
+    if (stimulus.combo) {
+      state.recent.unshift(stimulus.combo);
+      if (state.recent.length > engine.RECENT_MAX) state.recent.length = engine.RECENT_MAX;
+    }
+    state.result = stimulus;
+    state.view = "result";
+    state.playKey = "";
+    state.submitting = true;
+    renderPlay(state.cache);
+    var saveEl = $("saveMsg");
+    if (saveEl) { saveEl.className = "meta"; saveEl.textContent = "Sending to the board…"; }
+    rpc("stimulus_submit_result", {
+      p_token: state.token,
+      p_choices: stimulus.tags,
+      p_stimulus: stimulus
+    }).then(function () {
+      state.submitting = false;
+      var el = $("saveMsg");
+      if (el) { el.className = "ok"; el.textContent = "On the board"; }
+    }).catch(function (err) {
+      state.submitting = false;
+      var msg = (err && err.message) || "Could not send to the board";
+      var el = $("saveMsg");
+      if (el) { el.className = "err"; el.textContent = msg; }
+    });
+  }
+
+  function poll() {
+    if (!state.pin || !state.token) return;
+    rpc("stimulus_get_session_state", { p_pin: state.pin, p_token: state.token })
+      .then(function (data) {
+        var prev = state.cache && state.cache.status;
+        if (prev === "lobby" && data.status === "open") state.view = "pick";
+        renderPlay(data);
+      })
+      .catch(function () {});
+  }
+
+  function join() {
+    var pin = String($("pin").value || "").replace(/\D/g, "").slice(0, 6);
+    var nick = String($("nick").value || "").trim();
+    $("joinErr").textContent = "";
+    if (pin.length !== 6) {
+      $("joinErr").textContent = "Enter the 6-digit PIN.";
+      return;
+    }
+    if (!nick) {
+      $("joinErr").textContent = "Enter a group name.";
+      return;
+    }
+    var token = getOrCreateToken(pin);
+    rpc("stimulus_join_session", { p_pin: pin, p_nickname: nick, p_token: token })
+      .then(function (data) {
+        state.pin = pin;
+        state.token = token;
+        state.nickname = (data && data.nickname) || nick;
+        try {
+          sessionStorage.setItem("tk_stimulus_join_pin", pin);
+          sessionStorage.setItem("tk_stimulus_join_nick", state.nickname);
+        } catch (e) {}
+        $("viewJoin").classList.add("hidden");
+        $("viewPlay").classList.remove("hidden");
+        renderPlay(data);
+        if (state.poll) clearInterval(state.poll);
+        state.poll = setInterval(poll, 1500);
+      })
+      .catch(function (err) {
+        $("joinErr").textContent = (err && err.message) || "Could not join";
+      });
+  }
+
+  buildSky();
+  $("btnJoin").onclick = join;
+  $("pin").addEventListener("keydown", function (e) { if (e.key === "Enter") $("nick").focus(); });
+  $("nick").addEventListener("keydown", function (e) { if (e.key === "Enter") join(); });
+  try {
+    var c = new URLSearchParams(location.search).get("c");
+    if (c && /^\d{6}$/.test(c)) $("pin").value = c;
+  } catch (e) {}
+})();
+</script>
+</body>
+</html>

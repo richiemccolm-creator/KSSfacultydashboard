@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Stimulus Generator — Classroom Toolkit</title>
+<script src="../app-version.js"></script>
+<script>(function(){if(window.ensureAppVersionInUrl)window.ensureAppVersionInUrl();})();</script>
+<script src="../config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../supabase-init.js"></script>
+<script src="../allowlist-check.js"></script>
+<script>window.__authGuardLoginPath='../login.html';</script>
+<script src="../auth-guard.js"></script>
+<script src="../embed-chrome.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+<script src="stimulus-banks.js"></script>
+<script src="stimulus-engine.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://api.fontshare.com/v2/css?f[]=general-sans@500,600,700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#050B1D; --surface:#0C1731;
+  --line:rgba(124,148,205,.16); --line-strong:rgba(129,156,224,.28);
+  --text:#F5F7FF; --text-2:#B6C0D9; --muted:#7D8AA8;
+  --violet:#8658F5; --amber:#F4A62A; --mint:#35C796; --blue:#3B6CFF;
+  --font:"Inter",ui-sans-serif,system-ui,sans-serif;
+  --font-display:"General Sans","Inter",sans-serif;
+  --ease:cubic-bezier(.2,.8,.2,1);
+}
+*{box-sizing:border-box}
+html{color-scheme:dark}
+body{
+  margin:0;font-family:var(--font);color:var(--text);min-height:100vh;
+  background:
+    radial-gradient(ellipse 52% 38% at 10% -8%,rgba(134,88,245,.3),transparent 55%),
+    radial-gradient(ellipse 46% 34% at 92% 0%,rgba(244,166,42,.16),transparent 52%),
+    var(--bg);
+  -webkit-font-smoothing:antialiased;
+}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:inherit;text-decoration:none}
+.hidden{display:none!important}
+
+.sky{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.spark{
+  position:absolute;border-radius:50%;
+  background:radial-gradient(circle,#fff,rgba(200,170,255,.85) 40%,transparent 70%);
+  box-shadow:0 0 8px rgba(134,88,245,.7);
+  animation:twinkle ease-in-out infinite;
+}
+.spark.amber{
+  background:radial-gradient(circle,#fff,rgba(255,210,120,.85) 40%,transparent 70%);
+  box-shadow:0 0 8px rgba(244,166,42,.7);
+}
+@keyframes twinkle{0%,100%{opacity:.2;transform:scale(.7)}50%{opacity:1;transform:scale(1.2)}}
+
+.app{position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column}
+.top{
+  display:flex;align-items:center;gap:14px;padding:14px 20px;
+  border-bottom:1px solid rgba(130,150,200,.14);
+  background:rgba(5,11,29,.88);backdrop-filter:blur(16px);position:sticky;top:0;z-index:20;
+}
+.back{
+  display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 12px;border-radius:10px;
+  border:1px solid var(--line);background:rgba(255,255,255,.02);color:var(--text-2);font:500 13px/1 var(--font);
+}
+.back:hover{color:#fff;border-color:var(--line-strong)}
+.top-brand{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:0}
+.top-logo{
+  display:block;height:clamp(48px,6.4vh,70px);width:auto;max-width:min(56vw,380px);
+  object-fit:contain;
+  filter:drop-shadow(0 0 16px rgba(134,88,245,.45)) drop-shadow(0 0 20px rgba(244,166,42,.28));
+}
+.top .sub{margin:0;font:500 12px/1.2 var(--font);color:var(--muted)}
+.top-actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+.btn{
+  height:40px;min-height:44px;padding:0 14px;border-radius:12px;border:1px solid var(--line);
+  background:#0D1831;color:var(--text-2);font:600 13.5px/1 var(--font);
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+}
+.btn:hover{color:#fff;border-color:var(--line-strong)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn-primary{
+  border:none;color:#fff;
+  background:linear-gradient(135deg,#8658F5,#3B6CFF);
+  box-shadow:0 8px 20px -8px rgba(134,88,245,.5);
+}
+.btn-ghost{background:transparent}
+.btn.on{color:#fff;border-color:rgba(134,88,245,.55);background:rgba(134,88,245,.2)}
+
+.shell{flex:1;padding:22px 20px 40px;width:min(1180px,100%);margin:0 auto}
+.hero{
+  display:grid;grid-template-columns:minmax(0,1.05fr) minmax(220px,.85fr);gap:20px;align-items:center;
+  margin-bottom:22px;
+}
+.hero h2{margin:0;font:800 clamp(28px,4vw,44px)/1.08 var(--font-display);letter-spacing:-.03em}
+.hero p{margin:8px 0 0;color:var(--muted);font:500 15px/1.45 var(--font);max-width:38rem}
+.hero-logo{
+  width:min(100%,420px);height:auto;display:block;margin:0 auto;
+  filter:drop-shadow(0 0 22px rgba(134,88,245,.45)) drop-shadow(0 0 26px rgba(244,166,42,.28));
+}
+.host-brand{width:min(100%,280px);margin:0 auto 12px}
+.host-brand img{width:100%;height:auto;display:block;filter:drop-shadow(0 0 18px rgba(134,88,245,.45))}
+@media(max-width:760px){
+  .hero{grid-template-columns:1fr}
+  .hero-logo{width:min(100%,320px)}
+}
+
+.form{display:grid;gap:16px;max-width:720px}
+.form label{display:block;font:600 11px/1 var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 6px}
+.form input{
+  width:100%;height:44px;border-radius:12px;border:1px solid var(--line);background:#0A142C;padding:0 14px;
+}
+.hint{margin:8px 0 0;color:var(--muted);font:500 12.5px/1.4 var(--font)}
+.axis h3{margin:0 0 8px;font:700 12px/1 var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{
+  min-height:38px;padding:7px 12px;border-radius:999px;border:1px solid var(--line);
+  background:rgba(255,255,255,.04);color:var(--text-2);font:650 13px/1.2 var(--font);
+}
+.chip.on{border-color:rgba(134,88,245,.55);background:rgba(134,88,245,.22);color:#fff}
+
+.host-grid{display:grid;grid-template-columns:minmax(260px,340px) minmax(0,1fr);gap:18px;align-items:start}
+.panel{
+  border-radius:18px;padding:18px;border:1px solid rgba(134,88,245,.28);
+  background:linear-gradient(165deg,#0E1A36,#060D1C);
+}
+.pin{
+  text-align:center;font:800 clamp(36px,5vw,56px)/1 var(--font-display);letter-spacing:.12em;
+  background:linear-gradient(180deg,#F5F7FF,#C4B4FF 55%,#F4A62A);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.qr-wrap{text-align:center;margin:14px 0;padding:16px;border-radius:18px;border:1px solid rgba(134,88,245,.35);background:rgba(134,88,245,.08)}
+.qr-wrap::before{content:"SCAN TO JOIN";display:block;margin:0 0 10px;font:800 11px/1 var(--font);letter-spacing:.18em;color:#C4B4FF}
+.qr-wrap img{width:min(220px,100%);border-radius:14px;background:#fff;padding:10px}
+
+.meta{color:var(--muted);font:500 13px/1.4 var(--font)}
+.player-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.player-chips .chip{min-height:28px;padding:5px 10px;font-size:12px}
+
+.feed{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
+.card{
+  text-align:left;padding:14px;border-radius:16px;border:1px solid rgba(134,88,245,.28);
+  background:rgba(10,20,44,.78);color:inherit;width:100%;
+  animation:cardIn .35s var(--ease) both;
+}
+@keyframes cardIn{from{opacity:0;transform:translateY(8px) scale(.98)}}
+.card:hover{border-color:rgba(244,166,42,.45)}
+.card .who{font:700 12px/1 var(--font);letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.card h3{margin:0 0 6px;font:750 18px/1.2 var(--font-display)}
+.card .excerpt{margin:0;color:var(--text-2);font:500 13.5px/1.4 var(--font);display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.tagrow{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}
+.tag{padding:3px 8px;border-radius:999px;font:650 10px/1 var(--font);letter-spacing:.04em;text-transform:uppercase;background:rgba(134,88,245,.16);color:#D7CCFF}
+
+.spotlight{
+  position:fixed;inset:0;z-index:40;background:rgba(5,11,29,.86);backdrop-filter:blur(10px);
+  display:flex;align-items:center;justify-content:center;padding:24px;
+}
+.spotlight .panel{width:min(820px,100%);max-height:90vh;overflow:auto;padding:24px}
+.spotlight h2{margin:0 0 8px;font:800 32px/1.15 var(--font-display)}
+.scenario{font:500 16px/1.5 var(--font);margin:0 0 16px}
+.char{padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:rgba(10,20,44,.7);margin-bottom:8px}
+.char strong{display:block;font:700 15px/1.2 var(--font-display)}
+.char .role{color:#C4B4FF;font:600 13px/1.3 var(--font)}
+.devising{margin:12px 0 0;padding:10px 12px;border-radius:12px;background:rgba(244,166,42,.08);border:1px solid rgba(244,166,42,.25);color:#F8D48A;font:500 13.5px/1.45 var(--font)}
+
+.toast{
+  position:fixed;bottom:22px;left:50%;transform:translateX(-50%);
+  background:#122048;border:1px solid var(--line-strong);color:#fff;
+  padding:10px 16px;border-radius:999px;font:600 13px/1 var(--font);
+  z-index:50;opacity:0;pointer-events:none;transition:opacity .2s;
+}
+.toast.on{opacity:1}
+body.embedded .back{display:inline-flex}
+body.spotlight-on .top{opacity:.4}
+
+@media(max-width:820px){
+  .host-grid{grid-template-columns:1fr}
+}
+
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+<script>(function(){
+  try{
+    var q=new URLSearchParams(location.search);
+    if(q.get('embed')==='1'||q.get('embed')==='true'||sessionStorage.getItem('fh-embed')==='1'){
+      document.body.classList.add('embedded');
+    }
+  }catch(e){}
+})();</script>
+
+<div class="sky" id="sky" aria-hidden="true"></div>
+<div class="app">
+  <header class="top">
+    <a class="back" id="homeLink" href="../classroom_toolkit.html" title="Back to Classroom Toolkit">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V20h5v-5h4v5h5V9.5"/></svg>
+      Home
+    </a>
+    <div class="top-brand">
+      <img class="top-logo" src="stimulus-generator-logo.png" width="1276" height="485" alt="Stimulus Generator" decoding="async">
+      <p class="sub">QR to phones — live feed of group starting points</p>
+    </div>
+    <div class="top-actions" id="topActions"></div>
+  </header>
+  <main class="shell">
+    <section id="viewSetup"></section>
+    <section class="hidden" id="viewHost"></section>
+  </main>
+</div>
+<div class="toast" id="toast" role="status"></div>
+<div class="spotlight hidden" id="spotlight" hidden></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var QR_PLACEHOLDER = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="220" height="220"><rect fill="#fff" width="220" height="220"/><text x="110" y="112" text-anchor="middle" font-size="14" fill="#081126">QR</text></svg>');
+  var $ = function (id) { return document.getElementById(id); };
+  var LOCK_AXES = [
+    { key: "genre", title: "Lock genre", list: "genres" },
+    { key: "form", title: "Lock form", list: "forms" },
+    { key: "structure", title: "Lock structure", list: "structures" },
+    { key: "style", title: "Lock style", list: "styles" },
+    { key: "cast", title: "Lock cast size", list: "casts" }
+  ];
+  var state = {
+    host: null,
+    poll: null,
+    locks: {},
+    spotlightId: null,
+    feedSig: ""
+  };
+
+  function esc(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  }
+
+  function toast(msg) {
+    var el = $("toast");
+    el.textContent = msg;
+    el.classList.add("on");
+    clearTimeout(toast._t);
+    toast._t = setTimeout(function () { el.classList.remove("on"); }, 2200);
+  }
+
+  function buildSky() {
+    var sky = $("sky");
+    if (!sky || sky.dataset.ready) return;
+    sky.dataset.ready = "1";
+    var html = "";
+    for (var i = 0; i < 30; i++) {
+      var size = 2 + Math.random() * 5;
+      html += '<span class="spark' + (Math.random() > 0.55 ? " amber" : "") + '" style="width:' + size + "px;height:" + size +
+        "px;left:" + (Math.random() * 100) + "%;top:" + (Math.random() * 100) +
+        "%;animation-duration:" + (1.4 + Math.random() * 2.8) +
+        "s;animation-delay:" + (Math.random() * 3) + 's"></span>';
+    }
+    sky.innerHTML = html;
+  }
+
+  function show(view) {
+    ["viewSetup", "viewHost"].forEach(function (id) {
+      $(id).classList.toggle("hidden", id !== view);
+    });
+  }
+
+  function setTop(html) { $("topActions").innerHTML = html || ""; }
+
+  function stopPoll() {
+    if (state.poll) { clearInterval(state.poll); state.poll = null; }
+  }
+
+  function joinUrlForPin(pin) {
+    var base = location.href.replace(/[^/]*$/, "stimulus-join.html");
+    base = base.split("#")[0].split("?")[0];
+    if (window.withAppVersion) base = window.withAppVersion(base);
+    return base + (base.indexOf("?") >= 0 ? "&" : "?") + "c=" + encodeURIComponent(pin);
+  }
+
+  function randomPin() {
+    return String(Math.floor(100000 + Math.random() * 900000));
+  }
+
+  function whenAuthReady(cb) {
+    if (window.__authReady) cb();
+    else {
+      try { window.addEventListener("auth-guard-ready", cb, { once: true }); }
+      catch (e) { window.addEventListener("auth-guard-ready", cb); }
+      setTimeout(cb, 2500);
+    }
+  }
+
+  function options() {
+    return window.StimulusEngine ? window.StimulusEngine.options() : {};
+  }
+
+  function cleanLocks(locks) {
+    var out = {};
+    Object.keys(locks || {}).forEach(function (k) {
+      if (locks[k]) out[k] = locks[k];
+    });
+    return out;
+  }
+
+  function chipRow(axis) {
+    var opts = options();
+    var items = opts[axis.list] || [];
+    var selected = state.locks[axis.key] || "";
+    var html = '<div class="axis"><h3>' + esc(axis.title) + '</h3><div class="chips">';
+    html += '<button type="button" class="chip' + (!selected ? " on" : "") + '" data-axis="' + axis.key + '" data-id="">Open</button>';
+    items.forEach(function (item) {
+      html += '<button type="button" class="chip' + (selected === item.id ? " on" : "") + '" data-axis="' + axis.key +
+        '" data-id="' + esc(item.id) + '">' + esc(item.label) + "</button>";
+    });
+    html += "</div></div>";
+    return html;
+  }
+
+  function renderSetup() {
+    stopPoll();
+    state.host = null;
+    closeSpotlight();
+    show("viewSetup");
+    setTop("");
+    var keptTitle = "";
+    try { keptTitle = ($("edTitle") && $("edTitle").value) || ""; } catch (e) {}
+    $("viewSetup").innerHTML =
+      '<div class="hero"><div><h2>Stimulus Generator</h2>' +
+      "<p>Pupils scan a QR, pick genre, form, structure, style and cast — or leave any of them as Any — and get a unique drama starting point. Their scenario and characters appear on this board as they generate.</p></div>" +
+      '<img class="hero-logo" src="stimulus-generator-logo.png" width="1276" height="485" alt="Stimulus Generator" decoding="async"></div>' +
+      '<div class="form">' +
+        '<div><label for="edTitle">Session title (optional)</label>' +
+        '<input id="edTitle" maxlength="80" placeholder="e.g. S2 devising — comedy week" value="' + esc(keptTitle) + '"></div>' +
+        LOCK_AXES.map(chipRow).join("") +
+        '<p class="hint">Locks are optional. Locked choices are pre-selected on pupil phones and cannot be changed. Leave as Open to let groups choose — or choose nothing and let the generator surprise them.</p>' +
+        '<div><button type="button" class="btn btn-primary" id="btnLaunch">Launch live session</button></div>' +
+      "</div>";
+
+    $("viewSetup").querySelectorAll(".chip").forEach(function (btn) {
+      btn.onclick = function () {
+        var axis = btn.getAttribute("data-axis");
+        var id = btn.getAttribute("data-id") || "";
+        if (id) state.locks[axis] = id;
+        else delete state.locks[axis];
+        renderSetup();
+      };
+    });
+    $("btnLaunch").onclick = function () {
+      var title = $("edTitle").value.trim() || "Stimulus Generator";
+      launchHost({ title: title, locks: cleanLocks(state.locks) });
+    };
+  }
+
+  function createLiveSession(pack) {
+    if (!window.supabase || !window.supabase.auth) {
+      return Promise.reject(new Error("Phone join is not available right now"));
+    }
+    return window.supabase.auth.getSession().then(function (r) {
+      var session = r && r.data && r.data.session;
+      if (!session || !session.user) throw new Error("Sign in required for live phone play");
+      var pin = randomPin();
+      var payload = {
+        host_id: session.user.id,
+        pin: pin,
+        title: pack.title,
+        status: "lobby",
+        locks_json: pack.locks || {}
+      };
+      return window.supabase.from("stimulus_sessions").insert(payload).select("*").single().then(function (res) {
+        if (res.error) {
+          payload.pin = randomPin();
+          return window.supabase.from("stimulus_sessions").insert(payload).select("*").single().then(function (res2) {
+            if (res2.error) throw res2.error;
+            return res2.data;
+          });
+        }
+        return res.data;
+      });
+    });
+  }
+
+  function patchSession(patch) {
+    var h = state.host;
+    if (!h || !h.sessionId || !window.supabase) return Promise.resolve();
+    return window.supabase
+      .from("stimulus_sessions")
+      .update(patch)
+      .eq("id", h.sessionId)
+      .eq("host_id", h.hostUserId)
+      .then(function (res) {
+        if (res.error) throw res.error;
+      });
+  }
+
+  function closeLiveSession() {
+    stopPoll();
+    var h = state.host;
+    if (!h || !h.sessionId || !window.supabase) return Promise.resolve();
+    return window.supabase
+      .from("stimulus_sessions")
+      .update({ status: "closed" })
+      .eq("id", h.sessionId)
+      .then(function () {});
+  }
+
+  function drawQr() {
+    var el = document.getElementById("hostQr");
+    var h = state.host;
+    if (!el || !h || !h.pin) return;
+    var url = joinUrlForPin(h.pin);
+    function fallback() {
+      el.src = "https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&data=" + encodeURIComponent(url);
+    }
+    var lib = window.QRCode;
+    if (lib && typeof lib.toDataURL === "function") {
+      lib.toDataURL(url, {
+        width: 220, margin: 1,
+        color: { dark: "#081126", light: "#ffffff" }
+      }, function (err, dataUrl) {
+        if (err || !dataUrl) fallback();
+        else el.src = dataUrl;
+      });
+      return;
+    }
+    fallback();
+  }
+
+  function launchHost(pack) {
+    show("viewHost");
+    setTop('<span class="meta">Starting live session…</span>');
+    $("viewHost").innerHTML = '<p class="meta">Connecting…</p>';
+    createLiveSession(pack).then(function (row) {
+      state.host = {
+        sessionId: row.id,
+        pin: row.pin,
+        hostUserId: row.host_id,
+        title: row.title,
+        status: row.status,
+        locks: row.locks_json || pack.locks || {},
+        players: [],
+        results: []
+      };
+      renderHost();
+      startPoll();
+    }).catch(function (err) {
+      toast((err && err.message) || "Could not start live session");
+      renderSetup();
+    });
+  }
+
+  function startPoll() {
+    stopPoll();
+    refreshHost();
+    state.poll = setInterval(refreshHost, 1500);
+  }
+
+  function refreshHost() {
+    var h = state.host;
+    if (!h || !h.sessionId || !window.supabase) return;
+    window.supabase.rpc("stimulus_list_host_state", { p_session_id: h.sessionId }).then(function (res) {
+      if (res.error) return;
+      var data = res.data || {};
+      h.status = data.status;
+      h.players = Array.isArray(data.players) ? data.players : [];
+      h.results = Array.isArray(data.results) ? data.results : [];
+      h.locks = data.locks || h.locks;
+      renderHostBody();
+    });
+  }
+
+  function renderHost() {
+    var h = state.host;
+    if (!h) return;
+    show("viewHost");
+    setTop('<button type="button" class="btn btn-ghost" id="btnEnd">End session</button>');
+    $("viewHost").innerHTML =
+      '<div class="host-grid">' +
+        '<div class="panel" id="hostLobby">' +
+          '<div class="host-brand"><img src="stimulus-generator-logo.png" width="1276" height="485" alt="Stimulus Generator" decoding="async"></div>' +
+          '<h3 style="text-align:center;margin:8px 0 0">' + esc(h.title) + "</h3>" +
+          '<p class="meta" style="text-align:center;margin:8px 0 4px">Game PIN</p>' +
+          '<div class="pin" id="hostPin">' + esc(h.pin) + "</div>" +
+          '<div class="qr-wrap"><img id="hostQr" alt="QR code to join stimulus generator" width="220" height="220" src="' + QR_PLACEHOLDER + '"></div>' +
+          '<p class="meta" style="text-align:center">Pupils scan or enter the PIN — no sign-in</p>' +
+          '<p class="meta" style="margin-top:12px"><span id="hostPlayerCount">0</span> groups joined</p>' +
+          '<div class="player-chips" id="hostPlayers"></div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px">' +
+            '<button type="button" class="btn btn-primary" id="btnOpen">Open generating</button>' +
+            '<button type="button" class="btn" id="btnCopy">Copy link</button>' +
+          "</div>" +
+        "</div>" +
+        '<div class="panel">' +
+          "<h3>Live feed</h3>" +
+          '<p class="meta" id="feedHint">Waiting for groups to generate…</p>' +
+          '<div class="feed" id="hostFeed"></div>' +
+        "</div>" +
+      "</div>";
+    drawQr();
+    document.getElementById("btnEnd").onclick = function () {
+      closeLiveSession().then(function () {
+        toast("Session ended");
+        renderSetup();
+      });
+    };
+    document.getElementById("btnOpen").onclick = function () {
+      patchSession({ status: "open" }).then(function () {
+        h.status = "open";
+        toast("Pupils can generate now");
+        renderHostBody();
+      }).catch(function (err) { toast(err.message || "Could not open"); });
+    };
+    document.getElementById("btnCopy").onclick = function () {
+      var url = joinUrlForPin(h.pin);
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(function () { toast("Link copied"); })
+          .catch(function () { window.prompt("Copy this link:", url); });
+      } else window.prompt("Copy this link:", url);
+    };
+    renderHostBody();
+  }
+
+  function tagsHtml(s) {
+    if (!s || !s.labels) return "";
+    return ["genre", "form", "structure", "style", "cast"].map(function (k) {
+      return s.labels[k] ? '<span class="tag">' + esc(s.labels[k]) + "</span>" : "";
+    }).join("");
+  }
+
+  function renderHostBody() {
+    var h = state.host;
+    if (!h) return;
+    var count = document.getElementById("hostPlayerCount");
+    var players = document.getElementById("hostPlayers");
+    var feed = document.getElementById("hostFeed");
+    var hint = document.getElementById("feedHint");
+    var openBtn = document.getElementById("btnOpen");
+    if (count) count.textContent = String(h.players.length);
+    if (players) {
+      players.innerHTML = h.players.length
+        ? h.players.map(function (p) { return '<span class="chip">' + esc(p.nickname) + "</span>"; }).join("")
+        : '<span class="meta">Waiting for groups…</span>';
+    }
+    if (openBtn) {
+      openBtn.disabled = h.status === "open" || h.status === "closed";
+      openBtn.textContent = h.status === "open" ? "Generating open" : "Open generating";
+    }
+    var results = h.results || [];
+    if (hint) {
+      hint.textContent = results.length
+        ? results.length + " stimulus" + (results.length === 1 ? "" : "es") + " on the board — tap a card to spotlight it"
+        : (h.status === "open" ? "Waiting for groups to generate…" : "Open generating when the class is ready.");
+    }
+    if (!feed) return;
+    var sig = results.map(function (r) { return r.player_id + ":" + r.updated_at; }).join("|");
+    if (sig === state.feedSig && feed.childNodes.length) return;
+    state.feedSig = sig;
+    feed.innerHTML = results.length ? results.map(function (r) {
+      var s = r.stimulus || {};
+      return (
+        '<button type="button" class="card" data-id="' + esc(r.player_id) + '">' +
+          '<div class="who">' + esc(r.nickname) + "</div>" +
+          "<h3>" + esc(s.title || "Stimulus") + "</h3>" +
+          '<div class="tagrow">' + tagsHtml(s) + "</div>" +
+          '<p class="excerpt">' + esc(s.scenario || "") + "</p>" +
+        "</button>"
+      );
+    }).join("") : "";
+    feed.querySelectorAll(".card").forEach(function (btn) {
+      btn.onclick = function () { openSpotlight(btn.getAttribute("data-id")); };
+    });
+    if (state.spotlightId) {
+      var still = results.filter(function (r) { return r.player_id === state.spotlightId; })[0];
+      if (still) openSpotlight(state.spotlightId, true);
+    }
+  }
+
+  function openSpotlight(playerId, quiet) {
+    var h = state.host;
+    var row = (h.results || []).filter(function (r) { return r.player_id === playerId; })[0];
+    var el = $("spotlight");
+    if (!row || !el) return;
+    state.spotlightId = playerId;
+    var s = row.stimulus || {};
+    var chars = (s.characters || []).map(function (c) {
+      return '<div class="char"><strong>' + esc(c.name) + '</strong><div class="role">' + esc(c.role) +
+        '</div><p class="meta" style="margin:4px 0 0">Wants: ' + esc(c.want) + (c.note ? " — " + esc(c.note) : "") + "</p></div>";
+    }).join("");
+    el.hidden = false;
+    el.classList.remove("hidden");
+    document.body.classList.add("spotlight-on");
+    el.innerHTML =
+      '<div class="panel" role="dialog" aria-modal="true">' +
+        '<p class="meta">' + esc(row.nickname) + "</p>" +
+        "<h2>" + esc(s.title || "Stimulus") + "</h2>" +
+        '<div class="tagrow">' + tagsHtml(s) + "</div>" +
+        '<p class="scenario">' + esc(s.scenario || "") + "</p>" +
+        chars +
+        (s.devising ? '<p class="devising">' + esc(s.devising) + "</p>" : "") +
+        '<button type="button" class="btn btn-primary" id="btnCloseSpot" style="margin-top:16px">Close spotlight</button>' +
+      "</div>";
+    $("btnCloseSpot").onclick = closeSpotlight;
+    if (!quiet) el.focus();
+  }
+
+  function closeSpotlight() {
+    state.spotlightId = null;
+    var el = $("spotlight");
+    el.classList.add("hidden");
+    el.hidden = true;
+    el.innerHTML = "";
+    document.body.classList.remove("spotlight-on");
+  }
+
+  $("spotlight").addEventListener("click", function (e) {
+    if (e.target === $("spotlight")) closeSpotlight();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") closeSpotlight();
+  });
+
+  function boot() {
+    if (boot.done) return;
+    boot.done = true;
+    buildSky();
+    try {
+      var home = document.getElementById("homeLink");
+      if (home && (new URLSearchParams(location.search).get("embed") === "1" || sessionStorage.getItem("fh-embed") === "1")) {
+        home.href = "../classroom_toolkit.html?embed=1";
+      }
+    } catch (e) {}
+    renderSetup();
+  }
+
+  whenAuthReady(boot);
+})();
+</script>
+</body>
+</html>

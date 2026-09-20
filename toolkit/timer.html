@@ -1182,9 +1182,31 @@ body:-webkit-full-screen .fx-mesh{opacity:1}
     } catch (e) {}
   })();
 
+  function launchQuerySec() {
+    try {
+      var q = new URLSearchParams(location.search);
+      var sec = parseInt(q.get("sec") || "", 10);
+      var mins = parseFloat(q.get("mins") || "");
+      if (isFinite(sec) && sec > 0) return Math.floor(sec);
+      if (isFinite(mins) && mins > 0) return Math.floor(mins * 60);
+    } catch (e) {}
+    return 0;
+  }
+  function applyLaunchQuery() {
+    try {
+      var q = new URLSearchParams(location.search);
+      var ring = q.get("ring");
+      if (ring === "0" || ring === "false") state.ring = false;
+      if (ring === "1" || ring === "true") state.ring = true;
+    } catch (e) {}
+    var sec = launchQuerySec();
+    if (sec) setDuration(sec, false);
+  }
+
   buildStars();
   buildBurstRays();
   loadPrefs();
+  applyLaunchQuery();
   $("activityLabel").value = state.label || "";
   $("ringArc").setAttribute("stroke-dasharray", CIRC.toFixed(2));
   syncCustomInputs();
@@ -1199,6 +1221,7 @@ body:-webkit-full-screen .fx-mesh{opacity:1}
     lib.syncValue(lib.STORE.TIMER, timerPrefsPayload()).then(function (data) {
       applyTimerPrefs(data);
       if (!state.running) state.remaining = state.total;
+      if (launchQuerySec()) applyLaunchQuery();
       cloudReady = true;
       persistPrefsLocal();
       $("activityLabel").value = state.label || "";

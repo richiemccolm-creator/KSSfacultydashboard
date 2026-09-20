@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Mini Whiteboards — Classroom Toolkit</title>
+<script src="../app-version.js"></script>
+<script>(function(){if(window.ensureAppVersionInUrl)window.ensureAppVersionInUrl();})();</script>
+<script src="../config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../supabase-init.js"></script>
+<script src="../allowlist-check.js"></script>
+<script>window.__authGuardLoginPath='../login.html';</script>
+<script src="../auth-guard.js"></script>
+<script src="../embed-chrome.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://api.fontshare.com/v2/css?f[]=general-sans@500,600,700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#050B1D; --surface:#0C1731;
+  --line:rgba(124,148,205,.16); --line-strong:rgba(129,156,224,.28);
+  --text:#F5F7FF; --text-2:#B6C0D9; --muted:#7D8AA8;
+  --paper:#F4F1E8; --ink:#1A2340;
+  --cyan:#3BD6FF; --amber:#F4A62A; --mint:#35C796; --coral:#F45E68; --blue:#3B6CFF;
+  --font:"Inter",ui-sans-serif,system-ui,sans-serif;
+  --font-display:"General Sans","Inter",sans-serif;
+  --ease:cubic-bezier(.2,.8,.2,1);
+}
+*{box-sizing:border-box}
+html{color-scheme:dark}
+body{
+  margin:0;font-family:var(--font);color:var(--text);min-height:100vh;
+  background:
+    radial-gradient(ellipse 52% 38% at 10% -8%,rgba(59,214,255,.26),transparent 55%),
+    radial-gradient(ellipse 46% 34% at 92% 0%,rgba(244,166,42,.16),transparent 52%),
+    radial-gradient(ellipse 50% 28% at 50% 110%,rgba(53,199,150,.12),transparent 55%),
+    var(--bg);
+  -webkit-font-smoothing:antialiased;overflow-x:hidden;
+}
+button,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:inherit;text-decoration:none}
+.hidden{display:none!important}
+
+.sky{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.sky::before{
+  content:"";position:absolute;inset:-18%;
+  background:
+    radial-gradient(circle at 28% 40%,rgba(59,214,255,.12),transparent 42%),
+    radial-gradient(circle at 72% 55%,rgba(244,166,42,.08),transparent 40%);
+  animation:skyPulse 7s ease-in-out infinite alternate;
+}
+@keyframes skyPulse{to{transform:scale(1.06);opacity:.85}}
+.spark{
+  position:absolute;border-radius:50%;
+  background:radial-gradient(circle,#fff,rgba(140,230,255,.85) 40%,transparent 70%);
+  box-shadow:0 0 8px rgba(59,214,255,.7);
+  animation:twinkle ease-in-out infinite;
+}
+.spark.amber{
+  background:radial-gradient(circle,#fff,rgba(255,210,120,.85) 40%,transparent 70%);
+  box-shadow:0 0 8px rgba(244,166,42,.7);
+}
+.spark.mint{
+  background:radial-gradient(circle,#fff,rgba(140,255,210,.85) 40%,transparent 70%);
+  box-shadow:0 0 8px rgba(53,199,150,.7);
+}
+@keyframes twinkle{
+  0%,100%{opacity:.2;transform:scale(.7)}
+  50%{opacity:1;transform:scale(1.2)}
+}
+.streak{
+  position:absolute;height:2px;border-radius:2px;opacity:0;
+  background:linear-gradient(90deg,transparent,rgba(59,214,255,.95),rgba(244,166,42,.75),transparent);
+  animation:streak linear infinite;
+}
+@keyframes streak{
+  0%{transform:translate3d(-25vw,0,0);opacity:0}
+  15%{opacity:.8}
+  100%{transform:translate3d(120vw,0,0);opacity:0}
+}
+
+.app{position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column}
+.top{
+  display:flex;align-items:center;gap:14px;padding:14px 20px;
+  border-bottom:1px solid rgba(130,150,200,.14);
+  background:rgba(5,11,29,.82);backdrop-filter:blur(18px);position:sticky;top:0;z-index:20;
+}
+.back{
+  display:inline-flex;align-items:center;gap:8px;height:38px;padding:0 12px;border-radius:10px;
+  border:1px solid var(--line);background:rgba(255,255,255,.02);color:var(--text-2);font:500 13px/1 var(--font);
+}
+.back:hover{color:#fff;border-color:var(--line-strong)}
+.top-brand{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:0}
+.top-logo{
+  display:block;height:clamp(48px,6.4vh,70px);width:auto;max-width:min(56vw,380px);
+  object-fit:contain;
+  filter:drop-shadow(0 0 16px rgba(59,214,255,.45)) drop-shadow(0 0 20px rgba(244,166,42,.28));
+  animation:logoFloat 3.6s ease-in-out infinite;
+}
+@keyframes logoFloat{0%,100%{transform:translateY(0)}50%{transform:translateY(-4px)}}
+.top .sub{margin:0;font:500 12px/1.2 var(--font);color:var(--muted)}
+.top-actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+
+.btn{
+  height:40px;min-height:44px;padding:0 14px;border-radius:12px;border:1px solid var(--line);
+  background:#0D1831;color:var(--text-2);font:600 13.5px/1 var(--font);
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  transition:transform .12s,filter .15s,border-color .15s,color .15s,box-shadow .15s;
+}
+.btn:hover{color:#fff;border-color:var(--line-strong);transform:translateY(-1px)}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.btn-primary{
+  border:none;color:#041018;font-weight:800;
+  background:linear-gradient(135deg,#3BD6FF 0%,#35C796 55%,#F4A62A 130%);
+  background-size:160% 160%;
+  box-shadow:0 10px 28px -8px rgba(59,214,255,.6);
+  animation:btnGlow 2.4s ease-in-out infinite, btnShift 5s ease-in-out infinite;
+}
+@keyframes btnGlow{
+  0%,100%{box-shadow:0 10px 28px -8px rgba(59,214,255,.5)}
+  50%{box-shadow:0 12px 34px -6px rgba(53,199,150,.75),0 0 24px rgba(59,214,255,.28)}
+}
+@keyframes btnShift{0%,100%{background-position:0% 50%}50%{background-position:100% 50%}}
+.btn-ghost{background:transparent}
+.btn.on{color:#fff;border-color:rgba(59,214,255,.55);background:rgba(59,214,255,.2);box-shadow:0 0 18px rgba(59,214,255,.18)}
+.btn.warn{border-color:rgba(244,94,104,.45);color:#FFB4B9}
+
+.shell{flex:1;padding:22px 20px 40px;width:min(1280px,100%);margin:0 auto}
+.hero{
+  display:grid;grid-template-columns:minmax(0,1.05fr) minmax(240px,.95fr);gap:20px;align-items:center;
+  margin-bottom:24px;animation:riseIn .7s var(--ease) both;
+}
+@keyframes riseIn{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+.hero h2{
+  margin:0;font:800 clamp(32px,4.4vw,48px)/1.05 var(--font-display);letter-spacing:-.035em;
+  background:linear-gradient(100deg,#fff 10%,#9FEFFF 45%,#FFD08A 95%);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+}
+.hero p{margin:10px 0 0;color:var(--text-2);font:500 15.5px/1.5 var(--font);max-width:36rem}
+.hero-visual{position:relative;display:grid;place-items:center;min-height:180px}
+.hero-logo{
+  position:relative;width:min(100%,460px);height:auto;
+  filter:drop-shadow(0 0 26px rgba(59,214,255,.5)) drop-shadow(0 0 32px rgba(244,166,42,.32));
+  animation:heroLogoIn .85s var(--ease) both, logoFloat 3.6s ease-in-out .85s infinite;
+}
+@keyframes heroLogoIn{from{opacity:0;transform:translateY(22px) scale(.9)}to{opacity:1;transform:none}}
+
+@media(max-width:760px){
+  .hero{grid-template-columns:1fr}
+  .hero-visual{order:-1;min-height:0}
+  .hero-logo{width:min(100%,340px)}
+}
+
+.form{
+  display:grid;gap:14px;max-width:660px;padding:20px;border-radius:20px;
+  border:1px solid rgba(59,214,255,.22);
+  background:linear-gradient(160deg,rgba(59,214,255,.08),rgba(8,17,38,.92) 48%);
+  box-shadow:0 18px 40px rgba(0,0,0,.28),0 0 40px rgba(59,214,255,.08);
+  animation:riseIn .75s var(--ease) .12s both;
+}
+label{display:block;font:700 11px/1 var(--font);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:0 0 7px}
+input,textarea{
+  width:100%;border-radius:14px;border:1px solid var(--line);background:#070f22;
+  padding:13px 15px;outline:none;transition:border-color .15s,box-shadow .15s;
+}
+input{height:48px}
+textarea{min-height:88px;resize:vertical;line-height:1.45}
+input:focus,textarea:focus{border-color:rgba(59,214,255,.55);box-shadow:0 0 0 3px rgba(59,214,255,.16)}
+.hint{margin:7px 0 0;color:var(--muted);font:500 12.5px/1.4 var(--font)}
+.check{
+  display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:14px;
+  border:1px solid var(--line);background:rgba(255,255,255,.03);
+}
+.check input{width:18px;height:18px;margin-top:1px;accent-color:#3BD6FF;flex:none}
+.check span{font:600 14px/1.35 var(--font);color:var(--text-2)}
+.form-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+
+.host-grid{display:grid;grid-template-columns:minmax(260px,320px) minmax(0,1fr);gap:18px;align-items:start}
+@media(max-width:980px){.host-grid{grid-template-columns:1fr}}
+.panel{
+  border-radius:20px;padding:18px;border:1px solid rgba(59,214,255,.2);
+  background:linear-gradient(165deg,rgba(16,28,56,.95),#070f1e);
+  box-shadow:0 16px 36px rgba(0,0,0,.28);
+  animation:riseIn .55s var(--ease) both;
+}
+.panel h3{margin:0 0 10px;font:750 15px/1.2 var(--font-display)}
+.host-brand{width:min(100%,280px);margin:0 auto 12px}
+.host-brand img{
+  width:100%;height:auto;display:block;
+  filter:drop-shadow(0 0 22px rgba(59,214,255,.5)) drop-shadow(0 0 26px rgba(244,166,42,.3));
+  animation:logoFloat 3.5s ease-in-out infinite;
+}
+.pin{
+  font:800 clamp(40px,7.5vw,64px)/1 var(--font-display);letter-spacing:.14em;
+  text-align:center;
+  background:linear-gradient(180deg,#E8FBFF,#3BD6FF 55%,#F4A62A);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 18px rgba(59,214,255,.45));
+  animation:pinPulse 2.4s ease-in-out infinite;
+}
+@keyframes pinPulse{50%{filter:drop-shadow(0 0 28px rgba(59,214,255,.75)) drop-shadow(0 0 10px rgba(244,166,42,.35))}}
+.qr-wrap{
+  text-align:center;margin:14px 0;padding:16px;border-radius:22px;
+  border:1px solid rgba(59,214,255,.4);
+  background:
+    radial-gradient(circle at 50% 0%,rgba(59,214,255,.18),transparent 55%),
+    radial-gradient(circle at 80% 100%,rgba(244,166,42,.12),transparent 50%);
+  box-shadow:0 0 40px rgba(59,214,255,.16);
+}
+.qr-wrap::before{
+  content:"SCAN TO JOIN";display:block;margin:0 0 10px;
+  font:800 11px/1 var(--font);letter-spacing:.18em;color:#9FEFFF;
+}
+.qr-wrap img{
+  width:min(210px,100%);border-radius:16px;background:#fff;padding:12px;
+  box-shadow:0 0 0 4px rgba(59,214,255,.25),0 10px 28px rgba(0,0,0,.35);
+}
+.meta{color:var(--muted);font:500 13px/1.4 var(--font)}
+.player-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.chip{
+  padding:5px 10px;border-radius:999px;font:600 12px/1 var(--font);
+  background:rgba(255,255,255,.06);border:1px solid var(--line);color:var(--text-2);
+}
+.chip.ink{border-color:rgba(59,214,255,.4);color:#9FEFFF}
+
+.wall-wrap{
+  border-radius:24px;padding:18px;min-height:320px;
+  border:1px solid rgba(59,214,255,.28);
+  background:
+    radial-gradient(circle at 12% 0%,rgba(59,214,255,.12),transparent 42%),
+    linear-gradient(165deg,#0E1A36,#060D1C);
+  box-shadow:0 0 48px rgba(59,214,255,.1),0 20px 50px rgba(0,0,0,.35);
+}
+.wall-prompt{
+  margin:0 0 4px;font:800 clamp(20px,2.8vw,32px)/1.15 var(--font-display);letter-spacing:-.025em;
+}
+.wall-sub{margin:0 0 14px;color:var(--text-2);font:500 13.5px/1.4 var(--font)}
+.wall{
+  display:grid;gap:12px;
+  grid-template-columns:repeat(auto-fill,minmax(200px,1fr));
+}
+.tile-board{
+  position:relative;aspect-ratio:4/3;border-radius:14px;overflow:hidden;cursor:pointer;
+  background:var(--paper);border:2px solid rgba(255,255,255,.14);
+  box-shadow:0 10px 24px rgba(0,0,0,.28);
+  transition:transform .12s,border-color .15s,box-shadow .15s;
+}
+.tile-board:hover,.tile-board:focus-visible{
+  transform:translateY(-2px);border-color:rgba(59,214,255,.7);
+  box-shadow:0 0 0 3px rgba(59,214,255,.25),0 14px 28px rgba(0,0,0,.35);
+  outline:none;
+}
+.tile-board canvas{width:100%;height:100%;display:block;background:var(--paper)}
+.tile-name{
+  position:absolute;left:0;right:0;bottom:0;padding:22px 10px 8px;
+  background:linear-gradient(transparent,rgba(18,24,40,.78));
+  color:#fff;font:700 13px/1.2 var(--font);letter-spacing:-.01em;
+  pointer-events:none;
+}
+.tile-board.empty::after{
+  content:"Waiting…";position:absolute;inset:0;display:grid;place-items:center;
+  color:rgba(26,35,64,.38);font:700 13px/1 var(--font);pointer-events:none;
+}
+.wall-empty{
+  grid-column:1/-1;padding:42px 16px;text-align:center;color:var(--text-2);
+  font:600 15px/1.45 var(--font);
+}
+
+.lightbox{
+  position:fixed;inset:0;z-index:60;background:rgba(4,8,18,.82);backdrop-filter:blur(10px);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;
+}
+.lightbox-card{
+  width:min(960px,100%);background:var(--paper);border-radius:20px;overflow:hidden;
+  box-shadow:0 30px 80px rgba(0,0,0,.5);
+}
+.lightbox-card canvas{width:100%;height:auto;display:block;aspect-ratio:4/3;background:var(--paper)}
+.lightbox-bar{
+  display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;
+  background:#0C1731;color:var(--text);
+}
+.lightbox-bar strong{font:750 16px/1.2 var(--font-display)}
+
+.toast{
+  position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);
+  background:linear-gradient(135deg,#152447,#0C1731);border:1px solid rgba(59,214,255,.35);color:var(--text);
+  padding:12px 18px;border-radius:999px;font:650 13.5px/1.3 var(--font);
+  box-shadow:0 12px 32px rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:70;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+.focus-exit{
+  display:none;position:fixed;top:16px;right:16px;z-index:40;
+}
+body.host-live .top .sub{display:none}
+body.board-focus .top{display:none}
+body.board-focus .shell{padding:18px;width:min(1440px,100%)}
+body.board-focus .host-grid{grid-template-columns:1fr}
+body.board-focus #hostLobby{display:none!important}
+body.board-focus .focus-exit{display:flex;gap:8px}
+body.board-focus .wall{grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
+body.embedded .back{display:inline-flex}
+
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+<script>(function(){
+  try{
+    var q=new URLSearchParams(location.search);
+    if(q.get('embed')==='1'||q.get('embed')==='true'||sessionStorage.getItem('fh-embed')==='1'){
+      document.body.classList.add('embedded');
+    }
+  }catch(e){}
+})();</script>
+
+<div class="sky" id="sky" aria-hidden="true"></div>
+<div class="app">
+  <header class="top">
+    <a class="back" id="homeLink" href="../classroom_toolkit.html" title="Back to Classroom Toolkit">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V20h5v-5h4v5h5V9.5"/></svg>
+      Home
+    </a>
+    <div class="top-brand">
+      <img class="top-logo" src="whiteboards-logo.png" width="1280" height="533" alt="Mini Whiteboards" decoding="async">
+      <p class="sub">Live mini-whiteboards — see every board at once</p>
+    </div>
+    <div class="top-actions" id="topActions"></div>
+  </header>
+  <main class="shell">
+    <section id="viewSetup"></section>
+    <section class="hidden" id="viewHost"></section>
+  </main>
+</div>
+<div class="focus-exit" id="focusExit"></div>
+<div class="lightbox hidden" id="lightbox" hidden></div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  var DEFAULT_PROMPT = "Show me your thinking";
+  var PAPER = "#F4F1E8";
+  var QR_PLACEHOLDER = "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==";
+  var $ = function (id) { return document.getElementById(id); };
+  var state = {
+    host: null,
+    poll: null,
+    boardFocus: false,
+    boards: {},
+    knownRevs: {},
+    wallSig: "",
+    enlargeId: null
+  };
+
+  function esc(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+
+  function toast(msg) {
+    var el = $("toast");
+    if (!el) return;
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(toast._t);
+    toast._t = setTimeout(function () { el.classList.remove("show"); }, 2200);
+  }
+
+  function buildSky() {
+    var sky = $("sky");
+    if (!sky || sky.dataset.ready) return;
+    sky.dataset.ready = "1";
+    var html = "";
+    var kinds = ["", " amber", " mint"];
+    for (var i = 0; i < 32; i++) {
+      var size = 2 + Math.random() * 5;
+      html += '<span class="spark' + kinds[i % kinds.length] + '" style="width:' + size + "px;height:" + size +
+        "px;left:" + (Math.random() * 100) + "%;top:" + (Math.random() * 100) +
+        "%;animation-duration:" + (1.4 + Math.random() * 2.8) +
+        "s;animation-delay:" + (Math.random() * 3) + 's"></span>';
+    }
+    for (var s = 0; s < 4; s++) {
+      html += '<span class="streak" style="width:' + (18 + Math.random() * 28) +
+        "vw;top:" + (8 + Math.random() * 80) +
+        "%;animation-duration:" + (2.2 + Math.random() * 2.4) +
+        "s;animation-delay:" + (Math.random() * 4) + 's"></span>';
+    }
+    sky.innerHTML = html;
+  }
+
+  function show(view) {
+    ["viewSetup", "viewHost"].forEach(function (id) {
+      $(id).classList.toggle("hidden", id !== view);
+    });
+    document.body.classList.toggle("host-live", view === "viewHost");
+  }
+
+  function setTop(html) {
+    $("topActions").innerHTML = html || "";
+  }
+
+  function stopPoll() {
+    if (state.poll) { clearInterval(state.poll); state.poll = null; }
+  }
+
+  function joinUrlForPin(pin) {
+    var base = location.href.replace(/[^/]*$/, "whiteboard-join.html");
+    base = base.split("#")[0].split("?")[0];
+    if (window.withAppVersion) base = window.withAppVersion(base);
+    return base + (base.indexOf("?") >= 0 ? "&" : "?") + "c=" + encodeURIComponent(pin);
+  }
+
+  function randomPin() {
+    return String(Math.floor(100000 + Math.random() * 900000));
+  }
+
+  function whenAuthReady(cb) {
+    if (window.__authReady) cb();
+    else {
+      try { window.addEventListener("auth-guard-ready", cb, { once: true }); }
+      catch (e) { window.addEventListener("auth-guard-ready", cb); }
+      setTimeout(cb, 2500);
+    }
+  }
+
+  function paintStrokes(canvas, strokes) {
+    if (!canvas) return;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
+    var cssW = canvas.clientWidth || canvas.getBoundingClientRect().width || 320;
+    var cssH = canvas.clientHeight || canvas.getBoundingClientRect().height || 240;
+    var w = Math.max(1, Math.round(cssW * dpr));
+    var h = Math.max(1, Math.round(cssH * dpr));
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+    }
+    var ctx = canvas.getContext("2d");
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.fillStyle = PAPER;
+    ctx.fillRect(0, 0, w, h);
+    var sx = w / 1000;
+    var sy = h / 750;
+    (strokes || []).forEach(function (s) {
+      var p = s && s.p;
+      if (!p || p.length < 2) return;
+      ctx.strokeStyle = s.c || "#1A2340";
+      ctx.fillStyle = ctx.strokeStyle;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.lineWidth = Math.max(1.5, (s.w || 4) * Math.min(sx, sy));
+      if (p.length < 4) {
+        ctx.beginPath();
+        ctx.arc(p[0] * sx, p[1] * sy, ctx.lineWidth / 2, 0, Math.PI * 2);
+        ctx.fill();
+        return;
+      }
+      ctx.beginPath();
+      ctx.moveTo(p[0] * sx, p[1] * sy);
+      for (var i = 2; i < p.length; i += 2) ctx.lineTo(p[i] * sx, p[i + 1] * sy);
+      ctx.stroke();
+    });
+  }
+
+  function boardLabel(board, index) {
+    var h = state.host;
+    if (h && h.anonymous) return "Board " + (index + 1);
+    return board.nickname || ("Board " + (index + 1));
+  }
+
+  function renderSetup() {
+    stopPoll();
+    state.host = null;
+    state.boards = {};
+    state.knownRevs = {};
+    state.wallSig = "";
+    state.boardFocus = false;
+    document.body.classList.remove("board-focus");
+    closeLightbox();
+    show("viewSetup");
+    setTop("");
+    $("focusExit").innerHTML = "";
+    $("viewSetup").innerHTML =
+      '<div class="hero">' +
+        "<div><h2>Mini Whiteboards</h2>" +
+        "<p>Pupils scan a QR on their iPad, write their answer, and every board appears on your screen at once — like holding up mini-whiteboards, without the scramble.</p></div>" +
+        '<div class="hero-visual">' +
+          '<img class="hero-logo" src="whiteboards-logo.png" width="1280" height="533" alt="Mini Whiteboards" decoding="async">' +
+        "</div>" +
+      "</div>" +
+      '<div class="form">' +
+        '<div><label for="edTitle">Title (optional)</label>' +
+        '<input id="edTitle" maxlength="80" placeholder="e.g. Mime — Lesson 2 check"></div>' +
+        '<div><label for="edPrompt">Question on the boards</label>' +
+        '<input id="edPrompt" maxlength="160" value="' + esc(DEFAULT_PROMPT) + '"></div>' +
+        '<label class="check"><input type="checkbox" id="edNames" checked>' +
+        "<span>Show pupil names on the wall. You can turn this off later if you want the class to look without names.</span></label>" +
+        '<p class="hint">Pupils always type a name to join. The toggle only hides names on the big screen.</p>' +
+        '<div class="form-actions">' +
+          '<button type="button" class="btn btn-primary" id="btnLaunch">Launch live boards</button>' +
+        "</div>" +
+      "</div>";
+
+    document.getElementById("btnLaunch").onclick = function () {
+      var title = $("edTitle").value.trim() || "Mini Whiteboards";
+      var prompt = $("edPrompt").value.trim() || DEFAULT_PROMPT;
+      var showNames = $("edNames").checked;
+      launchHost({ title: title, prompt: prompt, anonymous: !showNames });
+    };
+  }
+
+  function createLiveSession(pack) {
+    if (!window.supabase || !window.supabase.auth) {
+      return Promise.reject(new Error("Live boards are not available right now"));
+    }
+    return window.supabase.auth.getSession().then(function (r) {
+      var session = r && r.data && r.data.session;
+      if (!session || !session.user) throw new Error("Sign in required for live boards");
+      var pin = randomPin();
+      var payload = {
+        host_id: session.user.id,
+        pin: pin,
+        title: pack.title,
+        prompt: pack.prompt,
+        status: "open",
+        anonymous: !!pack.anonymous,
+        locked: false,
+        round: 1
+      };
+      return window.supabase.from("whiteboard_sessions").insert(payload).select("*").single().then(function (res) {
+        if (res.error) {
+          payload.pin = randomPin();
+          return window.supabase.from("whiteboard_sessions").insert(payload).select("*").single().then(function (res2) {
+            if (res2.error) throw res2.error;
+            return res2.data;
+          });
+        }
+        return res.data;
+      });
+    });
+  }
+
+  function patchSession(patch) {
+    var h = state.host;
+    if (!h || !h.sessionId || !window.supabase) return Promise.resolve();
+    return window.supabase
+      .from("whiteboard_sessions")
+      .update(patch)
+      .eq("id", h.sessionId)
+      .eq("host_id", h.hostUserId)
+      .then(function (res) {
+        if (res.error) throw res.error;
+      });
+  }
+
+  function closeLiveSession() {
+    stopPoll();
+    var h = state.host;
+    if (!h || !h.sessionId || !window.supabase) return Promise.resolve();
+    return window.supabase
+      .from("whiteboard_sessions")
+      .update({ status: "closed" })
+      .eq("id", h.sessionId)
+      .then(function () {});
+  }
+
+  function drawQr() {
+    var el = document.getElementById("hostQr");
+    var h = state.host;
+    if (!el || !h || !h.pin) return;
+    var url = joinUrlForPin(h.pin);
+    function setSrc(src) { el.src = src; }
+    function fallback() {
+      setSrc("https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=8&data=" + encodeURIComponent(url));
+    }
+    var lib = window.QRCode;
+    if (lib && typeof lib.toDataURL === "function") {
+      lib.toDataURL(url, {
+        width: 220, margin: 1,
+        color: { dark: "#081126", light: "#ffffff" }
+      }, function (err, dataUrl) {
+        if (err || !dataUrl) fallback();
+        else setSrc(dataUrl);
+      });
+      return;
+    }
+    fallback();
+  }
+
+  function launchHost(pack) {
+    show("viewHost");
+    setTop('<span class="meta">Starting live session…</span>');
+    $("viewHost").innerHTML = '<p class="meta">Connecting…</p>';
+    createLiveSession(pack).then(function (row) {
+      state.host = {
+        sessionId: row.id,
+        pin: row.pin,
+        hostUserId: row.host_id,
+        pack: pack,
+        status: row.status,
+        anonymous: !!row.anonymous,
+        locked: !!row.locked,
+        round: row.round || 1,
+        prompt: row.prompt || pack.prompt,
+        list: []
+      };
+      state.boards = {};
+      state.knownRevs = {};
+      state.wallSig = "";
+      renderHost();
+      startPoll();
+    }).catch(function (err) {
+      toast((err && err.message) || "Could not start live session");
+      renderSetup();
+    });
+  }
+
+  function startPoll() {
+    stopPoll();
+    refreshHost();
+    state.poll = setInterval(refreshHost, 1100);
+  }
+
+  function refreshHost() {
+    var h = state.host;
+    if (!h || !h.sessionId || !window.supabase) return;
+    window.supabase.rpc("wb_list_host_state", {
+      p_session_id: h.sessionId,
+      p_known: state.knownRevs
+    }).then(function (res) {
+      if (res.error) return;
+      var data = res.data || {};
+      h.status = data.status;
+      h.anonymous = !!data.anonymous;
+      h.locked = !!data.locked;
+      h.round = data.round || 1;
+      h.prompt = data.prompt || h.prompt;
+      h.pack.prompt = h.prompt;
+      var incoming = Array.isArray(data.boards) ? data.boards : [];
+      incoming.forEach(function (b) {
+        if (!state.boards[b.id]) state.boards[b.id] = { strokes: [], rev: 0 };
+        if (b.strokes != null) state.boards[b.id].strokes = b.strokes;
+        state.boards[b.id].hasInk = !!b.has_ink || (state.boards[b.id].strokes && state.boards[b.id].strokes.length);
+        state.boards[b.id].rev = b.rev || 0;
+        state.knownRevs[b.id] = b.rev || 0;
+      });
+      h.list = incoming.map(function (b) {
+        return {
+          id: b.id,
+          nickname: b.nickname,
+          joined_at: b.joined_at,
+          has_ink: state.boards[b.id] && state.boards[b.id].hasInk,
+          rev: b.rev
+        };
+      });
+      renderHostBody();
+      if (state.enlargeId) refreshLightbox();
+    });
+  }
+
+  function renderHost() {
+    var h = state.host;
+    if (!h) return;
+    show("viewHost");
+    setTop(
+      '<button type="button" class="btn' + (h.anonymous ? "" : " on") + '" id="btnNames">Names ' +
+        (h.anonymous ? "off" : "on") + "</button>" +
+      '<button type="button" class="btn' + (h.locked ? " on" : "") + '" id="btnLock">' +
+        (h.locked ? "Unlock" : "Lock boards") + "</button>" +
+      '<button type="button" class="btn" id="btnFocus">Wall focus</button>' +
+      '<button type="button" class="btn btn-ghost" id="btnEnd">End session</button>'
+    );
+    $("viewHost").innerHTML =
+      '<div class="host-grid">' +
+        '<div class="panel" id="hostLobby">' +
+          '<div class="host-brand"><img src="whiteboards-logo.png" width="1280" height="533" alt="Mini Whiteboards" decoding="async"></div>' +
+          '<h3 style="text-align:center">' + esc(h.pack.title) + "</h3>" +
+          '<p class="meta" style="text-align:center;margin:0 0 4px">Game PIN</p>' +
+          '<div class="pin" id="hostPin">' + esc(h.pin) + "</div>" +
+          '<div class="qr-wrap"><img id="hostQr" alt="QR code to join the whiteboards" width="220" height="220" src="' + QR_PLACEHOLDER + '"></div>' +
+          '<p class="meta" style="text-align:center">Pupils scan on iPad or phone — no sign-in</p>' +
+          '<p class="meta" style="margin-top:12px"><span id="hostPlayerCount">0</span> joined · <span id="hostInkCount">0</span> writing</p>' +
+          '<div class="player-chips" id="hostPlayers"></div>' +
+          '<div style="margin-top:14px"><label for="livePrompt">Question</label>' +
+          '<input id="livePrompt" maxlength="160" value="' + esc(h.prompt) + '"></div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px">' +
+            '<button type="button" class="btn btn-primary" id="btnPrompt">Update question</button>' +
+            '<button type="button" class="btn" id="btnCopy">Copy link</button>' +
+            '<button type="button" class="btn warn" id="btnWipe">Wipe all boards</button>' +
+          "</div>" +
+        "</div>" +
+        '<div class="wall-wrap" id="hostWallWrap">' +
+          '<p class="wall-prompt" id="wallPrompt"></p>' +
+          '<p class="wall-sub" id="wallSub"></p>' +
+          '<div class="wall" id="hostWall"></div>' +
+        "</div>" +
+      "</div>";
+
+    state.wallSig = "";
+    drawQr();
+    wireHostChrome();
+    renderHostBody();
+  }
+
+  function setFocusMode(on) {
+    state.boardFocus = !!on;
+    document.body.classList.toggle("board-focus", state.boardFocus);
+    var exit = $("focusExit");
+    if (state.boardFocus) {
+      exit.innerHTML =
+        '<button type="button" class="btn" id="btnFocusOut">Exit wall focus</button>' +
+        '<button type="button" class="btn btn-ghost" id="btnEndFocus">End session</button>';
+      document.getElementById("btnFocusOut").onclick = function () { setFocusMode(false); };
+      document.getElementById("btnEndFocus").onclick = function () {
+        closeLiveSession().then(function () { toast("Session ended"); renderSetup(); });
+      };
+    } else {
+      exit.innerHTML = "";
+      renderHost();
+      startPoll();
+    }
+  }
+
+  function wireHostChrome() {
+    var h = state.host;
+    var endBtn = document.getElementById("btnEnd");
+    if (endBtn) {
+      endBtn.onclick = function () {
+        closeLiveSession().then(function () {
+          toast("Session ended");
+          renderSetup();
+        });
+      };
+    }
+    var namesBtn = document.getElementById("btnNames");
+    if (namesBtn) {
+      namesBtn.onclick = function () {
+        h.anonymous = !h.anonymous;
+        patchSession({ anonymous: h.anonymous }).then(function () {
+          renderHost();
+          startPoll();
+        }).catch(function (err) { toast(err.message || "Could not update"); });
+      };
+    }
+    var lockBtn = document.getElementById("btnLock");
+    if (lockBtn) {
+      lockBtn.onclick = function () {
+        h.locked = !h.locked;
+        patchSession({ locked: h.locked }).then(function () {
+          toast(h.locked ? "Boards locked" : "Boards unlocked");
+          renderHostBody();
+          wireHostChrome();
+        }).catch(function (err) { toast(err.message || "Could not lock"); });
+      };
+    }
+    var focusBtn = document.getElementById("btnFocus");
+    if (focusBtn) focusBtn.onclick = function () { setFocusMode(true); };
+    var copyBtn = document.getElementById("btnCopy");
+    if (copyBtn) {
+      copyBtn.onclick = function () {
+        var url = joinUrlForPin(h.pin);
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(url).then(function () { toast("Link copied"); })
+            .catch(function () { prompt("Copy this link:", url); });
+        } else prompt("Copy this link:", url);
+      };
+    }
+    var promptBtn = document.getElementById("btnPrompt");
+    if (promptBtn) {
+      promptBtn.onclick = function () {
+        var next = ($("livePrompt").value || "").trim() || DEFAULT_PROMPT;
+        patchSession({ prompt: next }).then(function () {
+          h.prompt = next;
+          h.pack.prompt = next;
+          toast("Question updated");
+          renderHostBody();
+        }).catch(function (err) { toast(err.message || "Could not update question"); });
+      };
+    }
+    var wipeBtn = document.getElementById("btnWipe");
+    if (wipeBtn) {
+      wipeBtn.onclick = function () {
+        if (!confirm("Wipe every pupil board for a new round?")) return;
+        window.supabase.rpc("wb_wipe_boards", { p_session_id: h.sessionId }).then(function (res) {
+          if (res.error) throw res.error;
+          Object.keys(state.boards).forEach(function (id) {
+            state.boards[id].strokes = [];
+            state.boards[id].hasInk = false;
+          });
+          state.knownRevs = {};
+          toast("Boards wiped");
+          refreshHost();
+        }).catch(function (err) { toast((err && err.message) || "Could not wipe"); });
+      };
+    }
+  }
+
+  function renderHostBody() {
+    var h = state.host;
+    if (!h) return;
+    var count = document.getElementById("hostPlayerCount");
+    var inkCount = document.getElementById("hostInkCount");
+    var players = document.getElementById("hostPlayers");
+    var wall = document.getElementById("hostWall");
+    var promptEl = document.getElementById("wallPrompt");
+    var subEl = document.getElementById("wallSub");
+    var namesBtn = document.getElementById("btnNames");
+    var lockBtn = document.getElementById("btnLock");
+
+    if (count) count.textContent = String(h.list.length);
+    var writing = h.list.filter(function (b) { return b.has_ink; }).length;
+    if (inkCount) inkCount.textContent = String(writing);
+
+    if (players) {
+      if (h.anonymous) {
+        players.innerHTML = '<span class="meta">Names hidden on the wall — ' + h.list.length + " joined</span>";
+      } else if (h.list.length) {
+        players.innerHTML = h.list.map(function (p) {
+          return '<span class="chip' + (p.has_ink ? " ink" : "") + '">' + esc(p.nickname) + "</span>";
+        }).join("");
+      } else {
+        players.innerHTML = '<span class="meta">Waiting for pupils…</span>';
+      }
+    }
+
+    if (namesBtn) {
+      namesBtn.classList.toggle("on", !h.anonymous);
+      namesBtn.textContent = "Names " + (h.anonymous ? "off" : "on");
+    }
+    if (lockBtn) {
+      lockBtn.classList.toggle("on", !!h.locked);
+      lockBtn.textContent = h.locked ? "Unlock" : "Lock boards";
+    }
+    if (promptEl) promptEl.textContent = h.prompt || DEFAULT_PROMPT;
+    if (subEl) {
+      subEl.textContent = (h.pack.title || "Mini Whiteboards") +
+        (h.locked ? " · Locked" : " · Live") +
+        (h.anonymous ? " · Names hidden" : "") +
+        " · Round " + (h.round || 1);
+    }
+
+    if (!wall) return;
+    var sig = h.list.map(function (b) { return b.id; }).join("|") + "::" + (h.anonymous ? "a" : "n");
+    if (sig !== state.wallSig) {
+      state.wallSig = sig;
+      if (!h.list.length) {
+        wall.innerHTML = '<div class="wall-empty">Waiting for pupils to scan the QR…</div>';
+      } else {
+        wall.innerHTML = h.list.map(function (b, i) {
+          var empty = !(state.boards[b.id] && state.boards[b.id].hasInk);
+          return (
+            '<button type="button" class="tile-board' + (empty ? " empty" : "") + '" data-id="' + esc(b.id) + '" aria-label="' + esc(boardLabel(b, i)) + '">' +
+              '<canvas data-board="' + esc(b.id) + '" width="400" height="300"></canvas>' +
+              '<span class="tile-name">' + esc(boardLabel(b, i)) + "</span>" +
+            "</button>"
+          );
+        }).join("");
+        wall.querySelectorAll(".tile-board").forEach(function (btn) {
+          btn.onclick = function () { openLightbox(btn.getAttribute("data-id")); };
+        });
+      }
+    } else {
+      h.list.forEach(function (b, i) {
+        var tile = wall.querySelector('.tile-board[data-id="' + b.id + '"]');
+        if (!tile) return;
+        tile.classList.toggle("empty", !b.has_ink);
+        var name = tile.querySelector(".tile-name");
+        if (name) name.textContent = boardLabel(b, i);
+      });
+    }
+
+    requestAnimationFrame(function () {
+      h.list.forEach(function (b) {
+        var canvas = wall.querySelector('canvas[data-board="' + b.id + '"]');
+        paintStrokes(canvas, state.boards[b.id] && state.boards[b.id].strokes);
+      });
+    });
+  }
+
+  function openLightbox(id) {
+    state.enlargeId = id;
+    refreshLightbox();
+  }
+
+  function closeLightbox() {
+    state.enlargeId = null;
+    var box = $("lightbox");
+    box.classList.add("hidden");
+    box.hidden = true;
+    box.innerHTML = "";
+  }
+
+  function refreshLightbox() {
+    var id = state.enlargeId;
+    var h = state.host;
+    if (!id || !h) return;
+    var board = null;
+    var idx = 0;
+    h.list.forEach(function (b, i) {
+      if (b.id === id) { board = b; idx = i; }
+    });
+    if (!board) { closeLightbox(); return; }
+    var box = $("lightbox");
+    box.hidden = false;
+    box.classList.remove("hidden");
+    box.innerHTML =
+      '<div class="lightbox-card">' +
+        '<canvas id="lightCanvas" width="1000" height="750"></canvas>' +
+        '<div class="lightbox-bar"><strong>' + esc(boardLabel(board, idx)) + "</strong>" +
+        '<button type="button" class="btn" id="btnLightClose">Close</button></div>' +
+      "</div>";
+    box.onclick = function (e) { if (e.target === box) closeLightbox(); };
+    document.getElementById("btnLightClose").onclick = closeLightbox;
+    requestAnimationFrame(function () {
+      paintStrokes($("lightCanvas"), state.boards[id] && state.boards[id].strokes);
+    });
+  }
+
+  function boot() {
+    buildSky();
+    try {
+      var home = document.getElementById("homeLink");
+      if (home && (new URLSearchParams(location.search).get("embed") === "1" || sessionStorage.getItem("fh-embed") === "1")) {
+        home.href = "../classroom_toolkit.html?embed=1";
+      }
+    } catch (e) {}
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") {
+        if (state.enlargeId) closeLightbox();
+        else if (state.boardFocus) setFocusMode(false);
+      }
+    });
+    window.addEventListener("resize", function () {
+      if (!state.host) return;
+      var wall = document.getElementById("hostWall");
+      if (!wall) return;
+      state.host.list.forEach(function (b) {
+        var canvas = wall.querySelector('canvas[data-board="' + b.id + '"]');
+        paintStrokes(canvas, state.boards[b.id] && state.boards[b.id].strokes);
+      });
+      if (state.enlargeId) refreshLightbox();
+    });
+    renderSetup();
+  }
+
+  whenAuthReady(boot);
+})();
+</script>
+</body>
+</html>
