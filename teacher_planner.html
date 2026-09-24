@@ -969,7 +969,7 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
 }
 </style>
 <link rel="stylesheet" href="teacher-planner-redesign.css?v=polish-4">
-<link rel="stylesheet" href="teacher-planner-editorial.css?v=polish-4">
+<link rel="stylesheet" href="teacher-planner-editorial.css?v=polish-6">
 <link rel="stylesheet" href="teacher-planner-editorial-views.css?v=polish-24">
 </head>
 <body>
@@ -10119,11 +10119,39 @@ document.getElementById('lessonSave').addEventListener('click', function() {
     });
     return;
   }
+  var saveBtn = document.getElementById('lessonSave');
+  if (saveBtn && saveBtn.dataset.saving === '1') return;
   PS.upsertLesson(payload, PS.getEditingLessonId());
-  PS.saveLessons().then(function() {
-    document.getElementById('lessonModal').classList.remove('visible');
-    refreshPlannerAfterLessonChange();
-  });
+  var savedLesson = PS.getLessonFor(payload.date, payload.slotKey);
+  if (savedLesson && savedLesson.id && PS.setEditingLessonId) PS.setEditingLessonId(savedLesson.id);
+  refreshPlannerAfterLessonChange();
+  if (saveBtn) {
+    saveBtn.dataset.saving = '1';
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving…';
+  }
+  // Keep the editor open so planning can continue. Cloud save rewrites every
+  // lesson, including handwriting, so run it after the button label updates.
+  setTimeout(function() {
+    PS.saveLessons().then(function() {
+      if (saveBtn) {
+        saveBtn.dataset.saving = '';
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Saved';
+        setTimeout(function() {
+          if (saveBtn.textContent === 'Saved') saveBtn.textContent = 'Save lesson';
+        }, 1600);
+      }
+      showToast('Lesson saved');
+    }).catch(function() {
+      if (saveBtn) {
+        saveBtn.dataset.saving = '';
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save lesson';
+      }
+      showToast('Lesson not saved — check your connection and try again');
+    });
+  }, 0);
 });
 
 var lessonHomeworkNextBtn = document.getElementById('lessonHomeworkNextLesson');

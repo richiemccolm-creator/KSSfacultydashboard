@@ -15,6 +15,16 @@
   function useSupabase() {
     return window.supabase && window.supabase.auth && window.supabase.auth.getSession;
   }
+  var mutationSession = null;
+  function sessionUsable(session) {
+    if (!session || !session.user) return false;
+    if (!session.expires_at) return true;
+    return (session.expires_at * 1000) - Date.now() > 120000;
+  }
+  function rememberSession(session) {
+    if (session && session.user) mutationSession = session;
+    return session;
+  }
   function getSessionWithRetry(options) {
     var opts = options || {};
     var retries = opts.retries == null ? 1 : opts.retries;
@@ -23,7 +33,7 @@
       window.supabase.auth.getSession().then(function(_a) {
         var session = _a && _a.data ? _a.data.session : null;
         if (session || remaining <= 0) {
-          resolve(session || null);
+          resolve(rememberSession(session) || null);
           return;
         }
         setTimeout(function() { attempt(remaining - 1, resolve); }, delayMs);
@@ -180,9 +190,10 @@
     });
   }
   function ensureSessionForMutations() {
+    if (sessionUsable(mutationSession)) return Promise.resolve(mutationSession);
     return getSessionWithRetry({ retries: 4, delayMs: 250 }).then(function(session) {
       if (!session) throw new Error('Not authenticated');
-      return session;
+      return rememberSession(session);
     });
   }
   function promiseWithTimeout(promise, ms, message) {
@@ -401,8 +412,11 @@
       // Use retry + hard timeout so UI actions (e.g. home quick-add task) can recover.
       var write = ensureSessionForMutations().then(function(session) {
         var payload = { user_id: session.user.id, data_type: dataType, data: data };
+        // Return only the row id. The default response sends the whole JSON
+        // document back, which makes large planner saves wait on a second copy.
         return window.supabase.from('pupil_data')
           .upsert(payload, { onConflict: 'user_id,data_type' })
+          .select('id')
           .then(function(r) {
             if (r && r.error) throw r.error;
           });
