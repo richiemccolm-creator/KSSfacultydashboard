@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Faculty Hub">
 <link rel="apple-touch-icon" href="faculty-hub-logo.png" sizes="180x180">
@@ -113,17 +113,6 @@ html,body{max-width:100%;overscroll-behavior-x:none}
 
 .yg-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.2rem}
 @media(max-width:860px){.yg-cards{grid-template-columns:1fr}}
-@media (min-width:768px) and (max-width:1180px){
-  .hero{padding:1rem 1.25rem;margin-bottom:.8rem}
-  .hero-title{font-size:1.15rem;margin-bottom:.3rem}
-  .hero-desc{font-size:.7rem;line-height:1.45}
-  .hero-stats{gap:1rem;margin-top:.8rem}
-  .hs-num{font-size:1rem}
-  .hs-label{font-size:.5rem}
-  .tracker-ctrl{padding:.62rem .95rem;margin-bottom:.62rem}
-  .tp-tab{font-size:.58rem;padding:.24rem .52rem}
-  .tracker-meta{font-size:.58rem}
-}
 .yg-card{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:1.2rem 1.4rem;cursor:pointer;transition:all .15s;border-top:4px solid var(--accent)}
 .yg-card:hover{box-shadow:0 4px 16px rgba(192,98,42,.1);transform:translateY(-2px)}
 .yg-year{font-family:var(--font-heading);font-size:1.35rem;font-weight:800;color:var(--accent)}
@@ -157,6 +146,13 @@ html,body{max-width:100%;overscroll-behavior-x:none}
 .tp-tab{font-family:var(--font-mono);font-size:.63rem;font-weight:500;padding:.3rem .72rem;border-radius:4px;border:1px solid var(--border2);background:var(--white);color:var(--text2);cursor:pointer;transition:all .12s;white-space:nowrap;display:flex;align-items:center;gap:.28rem}
 .tp-tab:hover{border-color:var(--accent);color:var(--accent)}
 .tp-tab.active{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.tp-tab .tp-def{font-size:.5rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:.05rem .28rem;border-radius:99px;background:rgba(16,185,129,.15);color:#047857}
+.tp-tab.active .tp-def{background:rgba(255,255,255,.2);color:#fff}
+.defaults-unit-note{font-size:.62rem;color:rgba(255,255,255,.45);line-height:1.4;max-width:220px;text-align:right}
+.unit-def-row{display:flex;flex-wrap:wrap;gap:.45rem .7rem;align-items:center;width:100%;margin-top:.65rem;padding-top:.65rem;border-top:1px solid var(--border)}
+.unit-def-label{font-size:.58rem;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--text3)}
+.unit-def-check{display:inline-flex;align-items:center;gap:.28rem;font-size:.68rem;color:var(--text2);cursor:pointer}
+.unit-def-check.is-current{font-weight:700;color:var(--text)}
 .has-dot{width:5px;height:5px;border-radius:50%;background:#10b981;flex-shrink:0}
 .tracker-meta{margin-left:auto;font-size:.63rem;color:var(--text3);padding-top:.08rem;white-space:nowrap}
 
@@ -367,7 +363,7 @@ html,body{max-width:100%;overscroll-behavior-x:none}
 .modal-title{font-family:var(--font-heading);font-size:.98rem;font-weight:700;margin-bottom:.45rem}
 .modal-desc{font-size:.78rem;color:var(--text2);margin-bottom:1.4rem;line-height:1.7}
 .modal-actions{display:flex;gap:.6rem;justify-content:flex-end}
-.toast{position:fixed;bottom:1.4rem;right:1.4rem;z-index:300;background:var(--navy-dark);color:#fff;font-size:.76rem;font-weight:500;padding:.65rem 1.15rem;border-radius:6px;box-shadow:0 8px 32px rgba(0,0,0,.2);transform:translateY(80px);opacity:0;transition:all .25s cubic-bezier(.34,1.56,.64,1);pointer-events:none}
+.toast{position:fixed;bottom:1.4rem;right:1.4rem;z-index:300;background:var(--navy-dark);color:#fff;font-size:.76rem;font-weight:500;padding:.65rem 1.15rem;border-radius:6px;box-shadow:0 8px 32px rgba(0,0,0,.2);transform:translateY(80px);opacity:0;transition:all .25s cubic-bezier(.16,1,.3,1);pointer-events:none}
 .toast.show{transform:translateY(0);opacity:1}
 
 /* PUPIL PROFILES */
@@ -474,8 +470,10 @@ html,body{max-width:100%;overscroll-behavior-x:none}
   -webkit-print-color-adjust:exact;print-color-adjust:exact
 }
 </style>
+<link rel="stylesheet" href="tracker-ipad.css">
 </head>
 <body>
+<button type="button" class="ipad-backdrop" onclick="trackerIpadClose()" aria-label="Close navigation"></button>
 <aside class="sidebar">
   <div class="sb-logo">
     <button type="button" class="sb-toggle" onclick="toggleSidebar()" title="Collapse/expand navigation" aria-label="Toggle sidebar">
@@ -514,6 +512,7 @@ html,body{max-width:100%;overscroll-behavior-x:none}
 
 <div class="main">
   <div class="topbar">
+    <button type="button" class="btn btn-ghost ipad-menu" onclick="toggleSidebar()" aria-label="Open navigation">Menu</button>
     <div class="topbar-heading" id="tb-heading">Art & Design BGE <span>Tracker</span></div>
     <div id="storage-indicator" class="topbar-actions" style="font-size:.7rem;color:var(--text3);margin-right:.5rem"></div>
     <div class="topbar-actions">
@@ -901,6 +900,7 @@ function escAttr(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;'
 function avg(arr){const f=arr.filter(v=>v&&v>0);return f.length?(f.reduce((a,b)=>a+b,0)/f.length):null;}
 function pct(a){return a?((a/4)*100):0;}
 function toggleSidebar(){
+  if(window.trackerIpadToggle&&window.trackerIpadToggle())return;
   const collapsed=document.body.classList.toggle('body-sidebar-collapsed');
   try{localStorage.setItem('art-tracker-sidebar-collapsed',collapsed?'1':'0');}catch(e){}
   const icon=document.getElementById('sb-toggle-icon');if(icon)icon.setAttribute('d',collapsed?'M9 18l6-6-6-6':'M15 18l-6-6 6-6');
@@ -924,6 +924,7 @@ const HEADS={
   profiles:'<span>Pupil Profiles</span>',benchmarks:'<span>Benchmark Analysis</span>',overview:'<span>Progress Overview</span>',export:'<span>Export &amp; Send</span>',
 };
 function nav(id){
+  if(window.trackerIpadClose)window.trackerIpadClose();
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.sb-item').forEach(b=>b.classList.remove('active'));
   const panel=document.getElementById('panel-'+id);if(!panel)return;
@@ -1209,11 +1210,11 @@ function renderTracker(yg){
   if(curCls==='all')classes.forEach(c=>(S.pupils[yg][c]||[]).forEach(p=>pupils.push({...p,cls:c})));
   else(S.pupils[yg][curCls]||[]).forEach(p=>pupils.push({...p,cls:curCls}));
   const totalAll=classes.reduce((a,c)=>a+(S.pupils[yg][c]||[]).length,0);
-  const scored=pupils.filter(p=>PROC_DIMS.some(d=>S.scores[yg]?.[p.id]?.[tpId]?.[d]>0)).length;
 
   const tabsHTML=tps.map(t=>{
     const hasData=classes.some(c=>(S.pupils[yg][c]||[]).some(p=>PROC_DIMS.some(d=>S.scores[yg]?.[p.id]?.[t.id]?.[d]>0)));
-    return `<button class="tp-tab ${t.id===tpId?'active':''}" onclick="setTP('${yg}','${t.id}')">${t.label}: ${t.unit}${hasData?'<span class="has-dot"></span>':''}</button>`;
+    const unitOn=unitHasDefaultFill(yg,t.id);
+    return `<button class="tp-tab ${t.id===tpId?'active':''}" onclick="setTP('${yg}','${t.id}')">${t.label}: ${t.unit}${unitOn?'<span class="tp-def">On</span>':''}${hasData?'<span class="has-dot"></span>':''}</button>`;
   }).join('');
 
   const filterHTML=`
@@ -1255,20 +1256,11 @@ function renderTracker(yg){
       <div class="sum-l">${lbl}</div>
     </div>`).join('');
 
-  // Apply defaults only when teacher has enabled "Default settings" for this unit
-  const defaultsEnabled=S.defaultsOn?.[yg]?.[tpId]===true;
-  if(defaultsEnabled){
-    const PROC_DEFAULT=3,ATTIT_DEFAULT=4;
-    pupils.forEach(p=>{
-      if(!S.scores[yg])S.scores[yg]={};
-      if(!S.scores[yg][p.id])S.scores[yg][p.id]={};
-      if(!S.scores[yg][p.id][tpId])S.scores[yg][p.id][tpId]={};
-      const sc=S.scores[yg][p.id][tpId];
-      PROC_DIMS.forEach(d=>{if(sc[d]===undefined)sc[d]=PROC_DEFAULT;});
-      ATTIT_DIMS.forEach(d=>{if(sc[d]===undefined)sc[d]=ATTIT_DEFAULT;});
-    });
-    save();
-  }
+  // Baseline scores apply only to this unit, and only while its own default is on.
+  const defaultsEnabled=isDefaultsOn(yg,tpId);
+  if(defaultsEnabled && applyUnitDefaults(yg,tpId)) save();
+  const unitFilled=unitHasDefaultFill(yg,tpId);
+  const scoredNow=pupils.filter(p=>PROC_DIMS.some(d=>S.scores[yg]?.[p.id]?.[tpId]?.[d]>0)).length;
 
   // Bulk-apply toolbar — one score selector per dimension
   const bulkColsHTML=ALL_DIMS.map((d,i)=>{
@@ -1277,13 +1269,22 @@ function renderTracker(yg){
     return `${i===3?'<div class="bulk-divider"></div>':''}<div class="bulk-col"><span class="bulk-col-lbl">${lbl}</span>${btns}</div>`;
   }).join('');
 
+  const unitChecksHTML=tps.map(t=>{
+    const filled=unitHasDefaultFill(yg,t.id);
+    return `<label class="unit-def-check ${t.id===tpId?'is-current':''}"><input type="checkbox" ${filled?'checked':''} onchange="setUnitDefault('${yg}','${t.id}',this.checked)"> ${t.label}</label>`;
+  }).join('');
+
   const trackerCtrlHTML=`
     <div class="tracker-ctrl">
       <div style="flex:1">
         <div style="font-size:.53rem;font-weight:700;letter-spacing:.17em;text-transform:uppercase;color:var(--text3);margin-bottom:.35rem">${yg.toUpperCase()} — Select Tracking Period</div>
         <div class="tp-tabs">${tabsHTML}</div>
+        <div class="unit-def-row">
+          <span class="unit-def-label">Default on</span>
+          ${unitChecksHTML}
+        </div>
       </div>
-      <div class="tracker-meta">${scored} / ${pupils.length} scored this TP</div>
+      <div class="tracker-meta">${scoredNow} / ${pupils.length} scored this unit</div>
     </div>
   `;
 
@@ -1344,12 +1345,13 @@ function renderTracker(yg){
       </div>
       <div class="tp-right">
         <div class="defaults-toggle-wrap">
-          <span class="defaults-toggle-lbl">Default settings</span>
-          <button class="defaults-toggle-btn ${defaultsEnabled?'on':''}" onclick="toggleDefaults('${yg}','${tpId}')" title="${defaultsEnabled?'Defaults applied — Process 3, Attitudinal 4. Click to turn off.':'No defaults until you turn this on. Click to apply Process 3, Attitudinal 4 for unscored cells.'}">
+          <span class="defaults-toggle-lbl">This unit only</span>
+          <button class="defaults-toggle-btn ${unitFilled?'on':''}" onclick="setUnitDefault('${yg}','${tpId}',${!unitFilled})" title="${unitFilled?'Baseline is on for '+tp.label+' only. Uncheck to clear it.':'Off for '+tp.label+'. Tick it when you are ready to track this unit.'}">
             <span class="defaults-toggle-slider"></span>
           </button>
-          <span class="defaults-toggle-state">${defaultsEnabled?'On':'Off'}</span>
+          <span class="defaults-toggle-state">${unitFilled?'On':'Off'}</span>
         </div>
+        <div class="defaults-unit-note">${unitFilled?tp.label+' still has the default baseline (process 3, attitude 4). Uncheck this unit to clear it.':tp.label+' is not tracked yet. Tick it when you are ready to score this unit.'}</div>
         <div class="tp-timing">${tp.timing}</div>
         <div class="mode-chips">${tp.modes.map(m=>`<span class="mc ${modeMap[m]||''}">${m}</span>`).join('')}</div>
       </div>
@@ -1369,21 +1371,128 @@ function scoreCell(yg,pid,tpId,dim,current){
 function setTP(yg,id){S.curTP[yg]=id;renderTracker(yg);}
 function setCls(yg,cls){S.curCls[yg]=cls;renderTracker(yg);}
 function isDefaultsOn(yg,tpId){return S.defaultsOn?.[yg]?.[tpId]===true;}
-function toggleDefaults(yg,tpId){
-  if(roBlock())return;
-  if(!S.defaultsOn[yg])S.defaultsOn[yg]={};
-  const isCurrentlyOn=S.defaultsOn[yg][tpId]===true;
-  if(isCurrentlyOn){
-    S.defaultsOn[yg][tpId]=false;
-    save();renderTracker(yg);
+function defaultValueForDim(dim){return PROC_DIMS.includes(dim)?3:4;}
+function pupilsInYear(yg){
+  const out=[];
+  Object.keys(S.pupils[yg]||{}).forEach(c=>(S.pupils[yg][c]||[]).forEach(p=>out.push(p)));
+  return out;
+}
+function ensureScoreBucket(yg,pid,tpId){
+  if(!S.scores[yg])S.scores[yg]={};
+  if(!S.scores[yg][pid])S.scores[yg][pid]={};
+  if(!S.scores[yg][pid][tpId])S.scores[yg][pid][tpId]={};
+  return S.scores[yg][pid][tpId];
+}
+function applyUnitDefaults(yg,tpId){
+  let changed=false;
+  pupilsInYear(yg).forEach(p=>{
+    const sc=ensureScoreBucket(yg,p.id,tpId);
+    if(!Array.isArray(sc.defaultDims))sc.defaultDims=[];
+    [...PROC_DIMS,...ATTIT_DIMS].forEach(d=>{
+      if(sc[d]===undefined||sc[d]===null){
+        sc[d]=defaultValueForDim(d);
+        if(!sc.defaultDims.includes(d))sc.defaultDims.push(d);
+        changed=true;
+      }
+    });
+  });
+  return changed;
+}
+function clearUnitDefaults(yg,tpId){
+  pupilsInYear(yg).forEach(p=>{
+    const sc=S.scores[yg]?.[p.id]?.[tpId];
+    if(!sc)return;
+    const dims=[...PROC_DIMS,...ATTIT_DIMS];
+    if(Array.isArray(sc.defaultDims)){
+      sc.defaultDims.forEach(d=>{if(sc[d]===defaultValueForDim(d))delete sc[d];});
+      delete sc.defaultDims;
+      return;
+    }
+    const present=dims.filter(d=>sc[d]!==undefined&&sc[d]!==null);
+    if(present.length&&present.every(d=>sc[d]===defaultValueForDim(d)))present.forEach(d=>delete sc[d]);
+  });
+}
+function scoreIsUntouchedBaseline(sc){
+  if(!sc)return false;
+  const dims=[...PROC_DIMS,...ATTIT_DIMS];
+  const present=dims.filter(d=>sc[d]!==undefined&&sc[d]!==null);
+  if(!present.length)return false;
+  if(Array.isArray(sc.defaultDims)&&sc.defaultDims.length)return true;
+  return present.every(d=>sc[d]===defaultValueForDim(d));
+}
+function unitHasDefaultFill(yg,tpId){
+  if(isDefaultsOn(yg,tpId))return true;
+  return pupilsInYear(yg).some(p=>scoreIsUntouchedBaseline(S.scores[yg]?.[p.id]?.[tpId]));
+}
+function bindModalCancel(yg){
+  const cancelBtn=document.querySelector('#modal-overlay .btn-ghost');
+  if(cancelBtn)cancelBtn.onclick=function(){closeModal();renderTracker(yg);};
+}
+function setUnitDefault(yg,tpId,on){
+  if(roBlock()){renderTracker(yg);return;}
+  if(!S.defaultsOn[yg]||typeof S.defaultsOn[yg]!=='object')S.defaultsOn[yg]={};
+  const unit=(TPS[yg]||[]).find(t=>t.id===tpId);
+  const unitName=unit?`${unit.label}: ${unit.unit}`:tpId;
+  if(!on){
+    showModal(
+      'Uncheck '+unitName+'?',
+      'This removes the old default scores for this unit only (process 3 and attitude 4). Scores you have changed are kept. The other units stay as they are.',
+      'Uncheck this unit',
+      function(){
+        S.defaultsOn[yg][tpId]=false;
+        clearUnitDefaults(yg,tpId);
+        save();renderTracker(yg);
+      },
+      false
+    );
+    bindModalCancel(yg);
     return;
   }
   showModal(
-    'Enable default settings?',
-    'Enabling this will auto-populate default scores for any empty cells in this tracking period. This can change many records at once.',
-    'Enable defaults',
+    'Start tracking '+unitName+'?',
+    'Empty cells in this unit only will be set to process 3 (on track) and attitude 4. Other units are not changed.',
+    'Check this unit',
     function(){
       S.defaultsOn[yg][tpId]=true;
+      applyUnitDefaults(yg,tpId);
+      save();renderTracker(yg);
+    },
+    false
+  );
+  bindModalCancel(yg);
+}
+function markScoreManual(yg,pid,tpId,dim){
+  const sc=S.scores[yg]?.[pid]?.[tpId];
+  if(!sc||!Array.isArray(sc.defaultDims))return;
+  sc.defaultDims=sc.defaultDims.filter(d=>d!==dim);
+}
+function toggleDefaults(yg,tpId){
+  if(roBlock())return;
+  if(!S.defaultsOn[yg]||typeof S.defaultsOn[yg]!=='object')S.defaultsOn[yg]={};
+  const unit=(TPS[yg]||[]).find(t=>t.id===tpId);
+  const unitName=unit?`${unit.label}: ${unit.unit}`:tpId;
+  const isCurrentlyOn=S.defaultsOn[yg][tpId]===true;
+  if(isCurrentlyOn){
+    showModal(
+      'Turn off defaults for this unit?',
+      `This only affects ${unitName}. Untouched baseline scores (process 3, attitude 4) are cleared so this unit no longer counts as on track. Scores you changed stay. Other units are left as they are.`,
+      'Turn off this unit',
+      function(){
+        S.defaultsOn[yg][tpId]=false;
+        clearUnitDefaults(yg,tpId);
+        save();renderTracker(yg);
+      },
+      false
+    );
+    return;
+  }
+  showModal(
+    'Start tracking this unit?',
+    `Empty cells in ${unitName} only will be set to process 3 (on track) and attitude 4. Units you have not switched on stay blank, so pupils are not shown as on track for the rest of the year.`,
+    'Turn on this unit',
+    function(){
+      S.defaultsOn[yg][tpId]=true;
+      applyUnitDefaults(yg,tpId);
       save();renderTracker(yg);
     },
     false
@@ -1396,6 +1505,7 @@ function setScore(yg,pid,tpId,dim,val,btn){
   if(!S.scores[yg][pid][tpId])S.scores[yg][pid][tpId]={};
   const cur=S.scores[yg][pid][tpId][dim];
   S.scores[yg][pid][tpId][dim]=(cur===val)?null:val;
+  markScoreManual(yg,pid,tpId,dim);
   save();
   const cell=btn.closest('td');const nv=S.scores[yg][pid][tpId][dim];
   cell.querySelectorAll('.sc-btn').forEach(b=>b.classList.toggle('active',nv===parseInt(b.textContent)));
@@ -1436,6 +1546,7 @@ function applyBulk(yg,tpId){
     if(!S.scores[yg][pid][tpId])S.scores[yg][pid][tpId]={};
     dims.forEach(d=>{
       S.scores[yg][pid][tpId][d]=_bulkSel[d];
+      markScoreManual(yg,pid,tpId,d);
       // Update buttons in this row visually without re-rendering
       const colIdx=ALL_DIMS.indexOf(d);
       // Find score cells in row — 3 header cols (del, pupil, notes) then score cols
@@ -2289,5 +2400,6 @@ if(window.TrackerReadonlyView&&TrackerReadonlyView.isConfigured()){
     .then(function(){updateStorageIndicator();renderHome();});
 }
 </script>
+<script src="tracker-ipad.js"></script>
 </body>
 </html>
