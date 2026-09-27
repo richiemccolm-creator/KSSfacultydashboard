@@ -1030,6 +1030,27 @@
     }).filter(function (group) { return group.items.length; });
   }
 
+  var QI_SHORT = {
+    qi13: "Leadership of change",
+    qi23: "Learning & teaching",
+    qi31: "Wellbeing & inclusion",
+    qi32: "Attainment"
+  };
+
+  /* A top band split by how many items each QI has this month, plus a legend naming each code. */
+  function qcBandHTML(groups) {
+    return '<div class="qc-band" aria-hidden="true">' + groups.map(function (group) {
+      return '<span class="qi-' + esc(group.qi) + '" style="flex-grow:' + group.items.length + '"></span>';
+    }).join("") + '</div>';
+  }
+
+  function qcLegendHTML(groups) {
+    return '<ul class="qc-legend">' + groups.map(function (group) {
+      return '<li class="qi-' + esc(group.qi) + '" title="' + esc(group.code + " " + group.name) + '"><span class="qc-dot" aria-hidden="true"></span>' +
+        esc(group.code.replace(/^QI\s*/, "")) + ' ' + esc(QI_SHORT[group.qi] || group.name) + '</li>';
+    }).join("") + '</ul>';
+  }
+
   function qcTaskFor(period, item) {
     var matches = Store.getTasks().filter(function (task) {
       return task.quality && task.quality.period === period.key && task.quality.item === item;
@@ -1092,7 +1113,9 @@
       : "";
     root.innerHTML =
       '<div class="panel-head"><h2 id="quality-heading">Quality calendar' + (now ? ' <span class="qc-month">' + esc(now.month) + '</span>' : "") + '</h2>' +
-      (total ? '<p class="qc-count"><strong>' + listed + '</strong> of ' + total + ' on your list</p>' : "") + open + '</div>' + body;
+      (total ? '<p class="qc-count"><span class="qc-meter" aria-hidden="true"><span style="width:' + Math.round((listed / total) * 100) + '%"></span></span><strong>' + listed + '</strong> of ' + total + ' on your list</p>' : "") + open + '</div>' +
+      (groups.length ? qcLegendHTML(groups) : "") + body;
+    root.insertAdjacentHTML("afterbegin", groups.length ? qcBandHTML(groups) : "");
   }
 
   function renderCarry() {

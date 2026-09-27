@@ -252,6 +252,6 @@ School work is the same module run as the faculty-wide task sheet in the hub. It
 - **One count per day card.** "1 of 3 done" or "All done". The percentages live only in the glance tile.
 - **Add task is the next blank line** of a list (dashed rule, no box), in days and in the plan.
 - **Colour:** navy for every action. Burnt red (`--important`, #a33a26) is the one warm colour: the Important pill, the Important choice in Quick Add, and the carry-forward edge. Subject colour stays on Art, Drama and Photography chips only.
-- **Quality calendar:** condensed to three dense columns under the week. Each row leads with its QI code in the hub's QI colours (1.3 navy, 2.3 teal, 3.1 violet, 3.2 amber), with a round + to add it. The header counts how many items are on the teacher's list. Items already added show their day, or Done.
+- **Quality calendar:** condensed to three dense columns under the week. Each row leads with its QI code in the hub's QI colours (1.3 navy, 2.3 teal, 3.1 violet, 3.2 amber), with a round + to add it. The card has a pale teal wash, a 5px band across the top split by how many items each QI has that month, a legend naming each code, and a teal meter beside the count of items on the teacher's list. Items already added show their day, or Done.
 - **Faculty dates are tinted by type:** reporting and assessment warm red, meetings mauve, INSET and planning blue.
 - **Page wash:** a soft blue-grey gradient behind the header, fading into the navy-050 page.
