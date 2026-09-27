@@ -354,10 +354,43 @@
     chevronRight: '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M10 6l6 6-6 6"/></svg>'
   };
 
+  /* Faculty Hub panel each linked area opens. The hub routes on detail.panel. */
+  var HUB_PANELS = {
+    attainment: "embed-tracking-monitoring-hub",
+    tracking: "embed-tracking-monitoring-hub",
+    lesson: "embed-teacher-planner",
+    support: "embed-teacher-planner"
+  };
+
+  /* School work never shows the demo timetable. It shows one only when the hub injects it. */
   function getTimetable() {
     var stored = Store.getTimetable();
     if (stored && stored.monday) return stored;
+    if (schoolWork) return null;
     return clone(window.MyWeekSeed.timetable);
+  }
+
+  var facultyCodesCache = null;
+
+  /* Real class codes from the faculty timetable in School work, demo codes in My Week. */
+  function classCodes() {
+    if (!schoolWork) return window.MyWeekSeed.classCodes;
+    if (facultyCodesCache) return facultyCodesCache;
+    var data = window.FacultyTimetableData;
+    var seen = {};
+    if (data && typeof data.allStaff === "function") {
+      data.allStaff().forEach(function (staff) {
+        Object.keys(staff.tt || {}).forEach(function (day) {
+          var slots = staff.tt[day] || {};
+          Object.keys(slots).forEach(function (period) {
+            var code = String(slots[period] || "").trim();
+            if (code && !data.isSpecialClass(code)) seen[code] = true;
+          });
+        });
+      });
+    }
+    facultyCodesCache = Object.keys(seen).sort();
+    return facultyCodesCache;
   }
 
   function countable(task) {
@@ -437,6 +470,27 @@
     return Store.getFacultyEvents().filter(function (event) { return event.date === iso; });
   }
 
+  /* School work only: the holiday name when the academic calendar closes the school that day. */
+  function holidayOn(iso) {
+    if (!schoolWork) return "";
+    var hit = eventsOn(iso).find(function (event) {
+      return String(event.category).toLowerCase() === "holiday" || /^holiday\b/i.test(event.title);
+    });
+    if (!hit) return "";
+    return hit.title.replace(/^holiday\s*[–\-:·]?\s*/i, "").trim() || "Holiday";
+  }
+
+  /* The first school day on or after date that is not a holiday. Gives up after three weeks. */
+  function firstOpenDay(date) {
+    var d = Dates.schoolToday(date);
+    var guard = 0;
+    while (holidayOn(Dates.iso(d)) && guard < 15) {
+      d = Dates.nextSchoolDay(d);
+      guard += 1;
+    }
+    return d;
+  }
+
   function weekStats() {
     var days = Dates.weekDays(state.weekStart).map(function (date) {
       var iso = Dates.iso(date);
@@ -484,11 +538,13 @@
     return tasks[index];
   }
 
+  /* Every unfinished task of the teacher's own from before this week, oldest first. */
   function previousUnfinished() {
-    var prev = Dates.addDays(state.weekStart, -7);
-    var days = Dates.weekDays(prev).map(function (date) { return Dates.iso(date); });
+    var start = Dates.iso(state.weekStart);
     return Store.getTasks().filter(function (task) {
-      return task.type === "personal" && !task.completed && days.indexOf(task.date) !== -1;
+      return countable(task) && !task.completed && task.date < start;
+    }).sort(function (a, b) {
+      return a.date < b.date ? -1 : a.date > b.date ? 1 : 0;
     });
   }
 
@@ -726,11 +782,18 @@
       return;
     }
     root.hidden = false;
-    var noun = items.length === 1 ? "thing was" : "things were";
+    var lastWeek = Dates.iso(Dates.addDays(state.weekStart, -7));
+    var older = items.some(function (task) { return task.date < lastWeek; });
+    var noun = items.length === 1 ? "task was" : "tasks were";
+    var when = older ? "before this week" : "last week";
     var bulk = items.length === 1 ? "Move it to this week" : items.length === 2 ? "Move both to this week" : "Move all to this week";
-    var names = items.map(function (task) { return esc(task.title); }).join(". ") + ".";
+    var shown = items.slice(0, 5).map(function (task) { return esc(task.title); }).join(". ") + ".";
+    var names = items.length > 5 ? shown + " And " + (items.length - 5) + " more." : shown;
     var list = items.map(function (task) {
-      var was = DAY_NAMES[Dates.parse(task.date).getDay() - 1];
+      var taskDate = Dates.parse(task.date);
+      var was = task.date < lastWeek
+        ? DAY_SHORT[taskDate.getDay() - 1] + " " + formatShort(taskDate)
+        : DAY_NAMES[taskDate.getDay() - 1];
       var picks = DAY_SHORT.map(function (label, index) {
         var on = state.carryChoices[task.id] === index;
         return '<button type="button" class="btn" data-action="carry-pick" data-id="' + esc(task.id) + '" data-day="' + index + '" aria-pressed="' + (on ? "true" : "false") + '" aria-label="Move ' + esc(task.title) + ' to ' + DAY_NAMES[index] + '">' + label + '</button>';
@@ -741,8 +804,8 @@
       ? '<p class="carry-hint">Choose a day under a task, then move selected.</p><ul class="carry-list">' + list + '</ul>'
       : "";
     root.innerHTML =
-      '<h2 class="visually-hidden" id="carry-heading">Unfinished from last week</h2>' +
-      '<p class="carry-lead">' + items.length + ' ' + noun + ' left unfinished last week.</p>' +
+      '<h2 class="visually-hidden" id="carry-heading">Unfinished from earlier weeks</h2>' +
+      '<p class="carry-lead">' + items.length + ' ' + noun + ' left unfinished ' + when + '.</p>' +
       '<p class="carry-names">' + names + '</p>' +
       '<div class="carry-actions">' +
       '<button type="button" class="btn" data-action="carry-all">' + bulk + '</button>' +
@@ -763,9 +826,12 @@
         ? name + " " + formatShort(day.date) + ". " + day.progress.pct + " percent, " + day.progress.done + " of " + day.progress.total + " done. Open the day."
         : name + " " + formatShort(day.date) + ". No tasks yet. Open the day.";
       var own = day.tasks.filter(countable);
+      var holiday = holidayOn(day.iso);
       var middle;
       if (!day.tasks.length) {
-        var emptyCopy = schoolWork
+        var emptyCopy = holiday
+          ? '<p>School closed.</p>'
+          : schoolWork
           ? '<p>No tasks yet.</p>'
           : '<p>Nothing on your list yet.</p><p>Enjoy it while it lasts.</p>';
         var emptyLabel = schoolWork ? "Add task" : "Add something";
@@ -778,10 +844,11 @@
       }
       var pctText = day.progress.pct == null ? "–" : day.progress.pct + "%";
       var cardDate = day.date.getDate() + " " + MONTHS[day.date.getMonth()];
-      return '<article class="day-card' + (day.iso === today ? " is-today" : "") + '" id="day-' + day.iso + '">' +
-        '<div class="day-head"><button type="button" class="day-open" data-action="open-day" data-date="' + day.iso + '" aria-label="' + esc(spoken) + '">' +
+      return '<article class="day-card' + (day.iso === today ? " is-today" : "") + (holiday ? " is-holiday" : "") + '" id="day-' + day.iso + '">' +
+        '<div class="day-head"><button type="button" class="day-open" data-action="open-day" data-date="' + day.iso + '" aria-label="' + esc((holiday ? "Holiday, " + holiday + ". " : "") + spoken) + '">' +
         '<span class="day-name">' + name + '</span><span class="day-date">' + esc(cardDate) + '</span>' +
-        (day.iso === today ? '<span class="today-mark">Today</span>' : "") + '</button>' +
+        (day.iso === today ? '<span class="today-mark">Today</span>' : "") +
+        (holiday ? '<span class="holiday-mark">' + esc(holiday) + '</span>' : "") + '</button>' +
         '<div class="mini-ring" aria-hidden="true">' + ringSVG(day.progress.pct, prev) + '<strong>' + pctText + '</strong></div></div>' +
         middle + '</article>';
     }).join("") + '</div>';
@@ -900,7 +967,8 @@
   function dayBody(iso) {
     var date = Dates.parse(iso);
     var key = DAY_KEYS[date.getDay() - 1];
-    var periods = getTimetable()[key] || [];
+    var table = getTimetable();
+    var periods = table ? table[key] || [] : [];
     var periodHTML = periods.map(function (period) {
       if (period.planStatus === "free") {
         return '<li class="period is-free"><span class="period-name">' + esc(period.period) + '</span><div><p class="lesson-title">Free</p></div></li>';
@@ -916,9 +984,16 @@
     var progress = progressOf(tasks);
     var list = tasks.length
       ? '<ul class="task-list">' + tasks.map(taskHTML).join("") + '</ul>'
+      : schoolWork
+      ? '<div class="empty"><p>No tasks yet.</p></div>'
       : '<div class="empty"><p>Nothing on your list yet.</p><p>Enjoy it while it lasts.</p></div>';
     var count = progress.total ? '<p class="day-count">' + progress.done + ' done · ' + progress.remaining + ' remaining</p>' : "";
-    return '<div class="sheet-block"><h3>My timetable</h3><ul class="period-list">' + periodHTML + '</ul></div>' +
+    var holiday = holidayOn(iso);
+    var holidayBlock = holiday ? '<p class="holiday-note">School closed · ' + esc(holiday) + '</p>' : "";
+    var timetableBlock = periods.length
+      ? '<div class="sheet-block"><h3>My timetable</h3><ul class="period-list">' + periodHTML + '</ul></div>'
+      : "";
+    return holidayBlock + timetableBlock +
       '<div class="sheet-block"><h3>My tasks</h3>' + count + list +
       '<button type="button" class="add-task" data-action="add-day" data-date="' + iso + '">' + Icons.plus + ' Add task</button></div>';
   }
@@ -1035,7 +1110,10 @@
     var importantLabel = task.priority === "important" ? "Clear importance" : "Mark important";
     var noteLabel = task.notes ? "Edit note" : "Add note";
     var delLabel = state.menuConfirm ? "Confirm delete" : "Delete";
-    menu.innerHTML =
+    var openItem = task.type === "linked" && schoolWork
+      ? '<button type="button" role="menuitem" data-action="open-linked" data-id="' + esc(task.id) + '">Open in ' + esc(linkedAreaName(task)) + '</button>'
+      : "";
+    menu.innerHTML = openItem +
       '<button type="button" role="menuitem" data-action="edit-task" data-id="' + esc(task.id) + '">Edit</button>' +
       '<button type="button" role="menuitem" data-action="note-task" data-id="' + esc(task.id) + '">' + noteLabel + '</button>' +
       '<button type="button" role="menuitem" data-action="important-task" data-id="' + esc(task.id) + '">' + importantLabel + '</button>' +
@@ -1079,7 +1157,7 @@
   }
 
   function classList() {
-    return window.MyWeekSeed.classCodes.map(function (code) {
+    return classCodes().map(function (code) {
       return '<option value="' + esc(code) + '"></option>';
     }).join("");
   }
@@ -1092,8 +1170,8 @@
     closeMenu();
     state.sheetKind = "quick";
     state.sheetDate = null;
-    var today = Dates.iso(Dates.schoolToday(new Date()));
-    var tomorrow = Dates.iso(Dates.nextSchoolDay(Dates.parse(today)));
+    var today = Dates.iso(firstOpenDay(new Date()));
+    var tomorrow = Dates.iso(firstOpenDay(Dates.nextSchoolDay(Dates.parse(today))));
     var friday = Dates.iso(Dates.addDays(state.weekStart, 4));
     var when = "today";
     var dateValue = presetIso || today;
@@ -1141,9 +1219,9 @@
 
   function resolveWhen(form) {
     var when = form.elements.when.value;
-    var today = Dates.schoolToday(new Date());
+    var today = firstOpenDay(new Date());
     if (when === "today") return { date: today };
-    if (when === "tomorrow") return { date: Dates.nextSchoolDay(today) };
+    if (when === "tomorrow") return { date: firstOpenDay(Dates.nextSchoolDay(today)) };
     if (when === "week") return { date: Dates.addDays(state.weekStart, 4) };
     var value = form.elements.date.value;
     if (!value) return { error: "Choose a date." };
@@ -1158,7 +1236,12 @@
     var el = document.getElementById("when-preview");
     if (!el || !form) return;
     var result = resolveWhen(form);
-    el.textContent = result.error ? result.error : "Adds to " + formatHeading(result.date) + ".";
+    if (result.error) {
+      el.textContent = result.error;
+      return;
+    }
+    var holiday = holidayOn(Dates.iso(result.date));
+    el.textContent = "Adds to " + formatHeading(result.date) + "." + (holiday ? " School is closed that day (" + holiday + ")." : "");
   }
 
   function showFieldError(id, input, message) {
@@ -1233,6 +1316,9 @@
     if (schoolWork) {
       openSheet(task.title,
         '<form id="edit-form" class="task-detail" novalidate data-id="' + esc(task.id) + '">' +
+        (task.type === "linked"
+          ? '<p class="linked-jump"><button type="button" class="btn" data-action="open-linked" data-id="' + esc(task.id) + '">Open in ' + esc(linkedAreaName(task)) + (task.linkedId ? " · " + esc(task.linkedId) : "") + '</button></p>'
+          : "") +
         '<label class="field"><span class="field-label">Task</span>' +
         '<input name="title" type="text" maxlength="140" autocomplete="off" value="' + esc(task.title) + '" aria-describedby="edit-title-error">' +
         '<p class="form-error" id="edit-title-error" role="alert" hidden></p></label>' +
@@ -1348,6 +1434,10 @@
     openSheet(formatHeading(Dates.parse(iso)), dayBody(iso));
   }
 
+  function linkedAreaName(task) {
+    return window.MyWeekSeed.linkedAreas[task.linkedArea] || task.linkedArea || "Faculty Hub";
+  }
+
   function openFacultyCalendar() {
     document.dispatchEvent(new CustomEvent("facultyHubNavigate", {
       detail: { panel: "academic-calendar" }
@@ -1358,13 +1448,17 @@
     var task = Store.getTasks().find(function (item) { return item.id === id; });
     if (!task) return;
     closeMenu();
+    var areaName = linkedAreaName(task);
+    document.dispatchEvent(new CustomEvent("facultyHubNavigate", {
+      detail: { area: task.linkedArea, id: task.linkedId, panel: HUB_PANELS[task.linkedArea] || "" }
+    }));
+    if (schoolWork) {
+      closeSheet();
+      if (window.parent === window) toast("Open School work inside the Faculty Hub to go to " + areaName + ".");
+      return;
+    }
     state.sheetKind = "linked";
     state.sheetDate = null;
-    var areas = window.MyWeekSeed.linkedAreas;
-    var areaName = areas[task.linkedArea] || task.linkedArea || "Faculty Hub";
-    document.dispatchEvent(new CustomEvent("facultyHubNavigate", {
-      detail: { area: task.linkedArea, id: task.linkedId }
-    }));
     openSheet("Linked task",
       '<div class="linked-open"><p>' + esc(task.title) + '</p>' +
       '<p>This task will open:</p>' +
@@ -1921,7 +2015,7 @@
       addTask: function (task) {
         var title = String((task && task.title) || "").trim();
         if (!title) return null;
-        var today = Dates.iso(Dates.schoolToday(new Date()));
+        var today = Dates.iso(firstOpenDay(new Date()));
         var next = {
           id: (task && task.id) || uid("task"),
           title: title,
