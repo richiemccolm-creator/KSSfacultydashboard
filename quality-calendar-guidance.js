@@ -35,6 +35,19 @@ window.QualityCalendarGuidance = {
     { key: 'HMIE Questionnaire', re: /hmie questionnaire/i }
   ];
 
+  /*
+   * Who acts on an item. "leader" items are run by SLT, faculty heads or PTs
+   * (link meetings, DIP review, Insight, SQA analysis, report QA, attainment
+   * meetings, leavers, attendance, PRD review). Everything else, such as learner
+   * conversations, observations, pupil feedback, the environment checklist,
+   * tracking analysis and completing PRD, involves every teacher.
+   */
+  var leaderOnly = /link meeting|dip review|insight data|sqa analysis|quality assur|attainment meeting|leaver destination|attendance|exclusion|prd process review/i;
+
+  window.QualityCalendarAudienceFor = function (label) {
+    return leaderOnly.test(String(label || '')) ? 'leader' : 'all';
+  };
+
   window.QualityCalendarGuidanceFor = function (label) {
     var text = String(label || '');
     if (!text) return '';

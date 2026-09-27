@@ -88,7 +88,9 @@
     lastFocus: null,
     sheetKind: null,
     sheetDate: null,
-    addingPlan: false
+    addingPlan: false,
+    quickQuality: null,
+    qcNextOpen: false
   };
 
   function clone(value) {
@@ -787,7 +789,8 @@
       : (task.priority === "important" ? '<span class="tag tag-hot">Important</span>' : "");
     /* School work labels only what tells the teacher something: where a linked task goes, the subject, importance. */
     var metaInner = schoolWork
-      ? (task.type === "linked" ? '<span class="tag">' + esc(linkedAreaName(task)) + '</span>' : "") + subjectChip(subjectOf(task)) + priorityMark
+      ? (task.quality ? '<span class="tag">' + esc(qiLabel(task.quality.qi)) + '</span>' : "") +
+        (task.type === "linked" ? '<span class="tag">' + esc(linkedAreaName(task)) + '</span>' : "") + subjectChip(subjectOf(task)) + priorityMark
       : '<span class="tag">' + typeLabel + '</span>' + subjectChip(subjectOf(task)) + priorityMark;
     var bodyInner = '<p class="task-title">' + esc(task.title) + '</p>' +
       (metaInner ? '<p class="task-meta">' + metaInner + '</p>' : "") +
@@ -809,6 +812,11 @@
       '</div>' +
       '<button type="button" class="icon-btn" data-action="open-menu" data-id="' + esc(task.id) + '" aria-haspopup="menu" aria-expanded="false" aria-label="Actions for ' + esc(task.title) + '">' + Icons.more + '</button>' +
       '</li>';
+  }
+
+  function qiLabel(qi) {
+    var match = /^qi(\d)(\d)$/.exec(String(qi || ""));
+    return match ? "QI " + match[1] + "." + match[2] : "Quality calendar";
   }
 
   function subjectKey(value) {
@@ -965,6 +973,109 @@
       : "";
     document.getElementById("faculty").innerHTML =
       '<div class="panel-head"><h2 id="faculty-heading">Faculty this week</h2>' + calendarLink + '</div>' + body;
+  }
+
+  /*
+   * Quality calendar (School work only).
+   * Source: quality-calendar-qi-focus.js, the same monthly QI lists as the hub
+   * home. Each item can become a dated task; the task remembers the item and
+   * the month so the card can say when it is on the teacher's list.
+   */
+  var QC_MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "June", null, "Aug", "Sept", "Oct", "Nov", "Dec"];
+
+  function qcPeriod(date) {
+    var label = QC_MONTHS[date.getMonth()];
+    if (!label) return null;
+    var start = date.getMonth() >= 7 ? date.getFullYear() : date.getFullYear() - 1;
+    return { label: label, month: MONTHS[date.getMonth()], session: start + "–" + String(start + 1).slice(-2), key: start + "-" + label };
+  }
+
+  function isLeader() {
+    function flags(win) {
+      return !!(win && (win.__authGuardCanManageSchool || win.__authGuardIsAdmin || win.__authGuardIsFacultyHead));
+    }
+    try {
+      if (window.parent && window.parent !== window && flags(window.parent)) return true;
+    } catch (err) {
+      /* not inside the hub */
+    }
+    return flags(window);
+  }
+
+  /* The month's QI groups, trimmed to the items this viewer acts on. */
+  function qcGroups(period) {
+    if (!period || !Array.isArray(window.QualityCalendarQiFocus)) return [];
+    var block = window.QualityCalendarQiFocus.find(function (row) { return row.month === period.label; });
+    if (!block) return [];
+    var leader = isLeader();
+    var audience = window.QualityCalendarAudienceFor || function () { return "all"; };
+    return (block.categories || []).map(function (cat) {
+      var match = /^(QI \d\.\d)\s*(.*)$/.exec(cat.name || "");
+      return {
+        qi: cat.qi,
+        code: match ? match[1] : cat.name,
+        name: match ? match[2] : "",
+        items: (cat.items || []).filter(function (item) { return leader || audience(item) !== "leader"; })
+      };
+    }).filter(function (group) { return group.items.length; });
+  }
+
+  function qcTaskFor(period, item) {
+    var matches = Store.getTasks().filter(function (task) {
+      return task.quality && task.quality.period === period.key && task.quality.item === item;
+    });
+    return matches.find(function (task) { return !task.completed; }) || matches[0] || null;
+  }
+
+  function qcItemHTML(period, group, item) {
+    var task = qcTaskFor(period, item);
+    var action;
+    if (task && task.completed) {
+      action = '<button type="button" class="qc-status is-done" data-action="open-task" data-id="' + esc(task.id) + '" aria-label="' + esc(item) + ', done. Open the task.">' + Icons.check + ' Done</button>';
+    } else if (task) {
+      var on = Dates.parse(task.date);
+      action = '<button type="button" class="qc-status" data-action="open-task" data-id="' + esc(task.id) + '" aria-label="' + esc(item) + ', on your list for ' + esc(formatHeading(on)) + '. Open the task.">' + DAY_SHORT[on.getDay() - 1] + " " + formatShort(on) + '</button>';
+    } else {
+      action = '<button type="button" class="qc-add" data-action="qc-add" data-period="' + esc(period.key) + '" data-qi="' + esc(group.qi) + '" data-item="' + esc(item) + '" aria-label="Add ' + esc(item) + ' to my week">' + Icons.plus + ' Add</button>';
+    }
+    return '<li class="qc-item"><span class="qc-title">' + esc(item) + '</span>' + action + '</li>';
+  }
+
+  function qcGridHTML(period, groups) {
+    return '<div class="qc-grid">' + groups.map(function (group) {
+      return '<div class="qc-group"><p class="qc-qi"><span class="qc-code">' + esc(group.code) + '</span> ' + esc(group.name) + '</p>' +
+        '<ul class="qc-list">' + group.items.map(function (item) { return qcItemHTML(period, group, item); }).join("") + '</ul></div>';
+    }).join("") + '</div>';
+  }
+
+  function renderQuality() {
+    var root = document.getElementById("quality");
+    if (!root) return;
+    if (!schoolWork) {
+      root.hidden = true;
+      return;
+    }
+    root.hidden = false;
+    var now = qcPeriod(Dates.addDays(state.weekStart, 2));
+    var next = qcPeriod(Dates.addDays(state.weekStart, 9));
+    var groups = qcGroups(now);
+    var body = groups.length
+      ? qcGridHTML(now, groups)
+      : '<p class="empty-line">No quality calendar items ' + (now ? "for " + now.month : "over the summer") + '.</p>';
+    if (next && (!now || next.key !== now.key)) {
+      var nextGroups = qcGroups(next);
+      var count = nextGroups.reduce(function (sum, group) { return sum + group.items.length; }, 0);
+      if (count) {
+        body += '<details class="qc-next" id="qc-next"' + (state.qcNextOpen ? " open" : "") + '><summary>Coming in ' + esc(next.month) + ' · ' + count + (count === 1 ? " item" : " items") + '</summary>' +
+          qcGridHTML(next, nextGroups) + '</details>';
+      }
+    }
+    var open = isLeader()
+      ? '<button type="button" class="btn" data-action="open-quality-calendar">Open Quality Calendar</button>'
+      : "";
+    root.innerHTML =
+      '<div class="panel-head"><div><h2 id="quality-heading">Quality calendar</h2>' +
+      (now ? '<p class="panel-sub">' + esc(now.month) + ' · ' + esc(now.session) + ' session</p>' : "") + '</div>' + open + '</div>' + body;
   }
 
   function renderCarry() {
@@ -1210,7 +1321,8 @@
   function refreshSurfaces(focus) {
     if (schoolWork) hubCalendarCache = null;
     var stats = weekStats();
-    renderOverview(stats);
+    if (schoolWork) renderQuality();
+    else renderOverview(stats);
     renderDays(stats);
     syncSheet(focus && focus.sheet);
     var days = {};
@@ -1366,8 +1478,11 @@
     return '<label class="chip"><input type="radio" name="' + name + '" value="' + value + '"' + (checked ? " checked" : "") + '><span>' + label + '</span></label>';
   }
 
-  function openQuickAdd(presetIso) {
+  function openQuickAdd(presetIso, preset) {
     closeMenu();
+    state.quickQuality = preset && preset.quality ? preset.quality : null;
+    var presetTitle = preset && preset.title ? preset.title : "";
+    var guide = presetTitle && window.QualityCalendarGuidanceFor ? window.QualityCalendarGuidanceFor(presetTitle) : "";
     state.sheetKind = "quick";
     state.sheetDate = null;
     var today = Dates.iso(firstOpenDay(new Date()));
@@ -1381,11 +1496,12 @@
       else if (presetIso === friday) when = "week";
       else when = "date";
     }
-    openSheet("Quick add",
+    openSheet(state.quickQuality ? "Add to my week" : "Quick add",
       '<form id="quick-form" novalidate>' +
       '<label class="field"><span class="field-label">What do you need to remember?</span>' +
-      '<input name="title" type="text" maxlength="140" autocomplete="off" aria-describedby="title-error">' +
-      '<p class="form-error" id="title-error" role="alert" hidden></p></label>' +
+      '<input name="title" type="text" maxlength="140" autocomplete="off" value="' + esc(presetTitle) + '" aria-describedby="title-error' + (guide ? ' qc-guide' : '') + '">' +
+      '<p class="form-error" id="title-error" role="alert" hidden></p>' +
+      (state.quickQuality ? '<p class="hint qc-hint" id="qc-guide">From the quality calendar' + (guide ? '. ' + esc(guide) : '.') + '</p>' : '') + '</label>' +
       '<fieldset><legend>When?</legend><div class="choices">' +
       chip("when", "today", "Today", when === "today") +
       chip("when", "tomorrow", "Tomorrow", when === "tomorrow") +
@@ -1496,6 +1612,8 @@
       notes: "",
       createdAt: nowStamp()
     };
+    if (state.quickQuality) task.quality = state.quickQuality;
+    state.quickQuality = null;
     var tasks = Store.getTasks();
     tasks.push(task);
     markCustom();
@@ -1970,6 +2088,15 @@
       case "open-calendar":
         openFacultyCalendar();
         break;
+      case "open-quality-calendar":
+        document.dispatchEvent(new CustomEvent("facultyHubNavigate", { detail: { panel: "embed-quality-calendar" } }));
+        break;
+      case "qc-add":
+        openQuickAdd(null, {
+          title: actionEl.dataset.item,
+          quality: { qi: actionEl.dataset.qi, item: actionEl.dataset.item, period: actionEl.dataset.period }
+        });
+        break;
       case "edit-task":
         openEdit(id, false);
         break;
@@ -2189,6 +2316,9 @@
         addPlanItem(planInput ? planInput.value : "");
       }
     });
+    document.addEventListener("toggle", function (event) {
+      if (event.target && event.target.id === "qc-next") state.qcNextOpen = event.target.open;
+    }, true);
     document.addEventListener("input", function (event) {
       if (event.target.id === "focus-input") state.focusDraft = event.target.value;
       if (event.target.name === "title" || event.target.name === "linkedId") {
