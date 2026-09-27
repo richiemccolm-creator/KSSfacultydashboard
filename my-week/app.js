@@ -895,14 +895,18 @@
     var root = document.getElementById("focus");
     if (schoolWork && !state.editingFocus) {
       var line = focusFor(iso);
+      var when = termLabel(state.weekStart);
+      root.classList.toggle("is-empty", !line);
       root.innerHTML =
-        '<h2 id="focus-heading" class="sw-focus-label">Focus this week</h2>' +
+        '<div class="sw-focus-top"><h2 id="focus-heading" class="sw-focus-label">Focus this week' + (when ? '<span class="sw-focus-when"> · ' + esc(when) + '</span>' : "") + '</h2>' +
+        '<button type="button" class="sw-focus-edit" data-action="edit-focus">' + (line ? "Edit" : "Set a focus") + '</button></div>' +
         (line
-          ? '<p class="sw-focus-text">' + esc(line) + '</p><button type="button" class="sw-link" data-action="edit-focus">Edit</button>'
-          : '<p class="sw-focus-text is-empty">No focus set.</p><button type="button" class="sw-link" data-action="edit-focus">Set a focus</button>');
+          ? '<blockquote class="sw-focus-quote"><p class="sw-focus-text">' + esc(line) + '</p></blockquote>'
+          : '<p class="sw-focus-text is-empty">What is the one thing you want to get better at this week?</p>');
       return;
     }
     if (state.editingFocus) {
+      root.classList.remove("is-empty");
       root.innerHTML =
         '<form id="focus-form" class="focus-editor"><label class="field-label" for="focus-input" id="focus-heading">This week\'s focus</label>' +
         '<textarea id="focus-input" maxlength="180" rows="3">' + esc(state.focusDraft) + '</textarea>' +
