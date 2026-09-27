@@ -789,7 +789,7 @@
       : (task.priority === "important" ? '<span class="tag tag-hot">Important</span>' : "");
     /* School work labels only what tells the teacher something: where a linked task goes, the subject, importance. */
     var metaInner = schoolWork
-      ? (task.quality ? '<span class="tag">' + esc(qiLabel(task.quality.qi)) + '</span>' : "") +
+      ? (task.quality ? '<span class="tag tag-qi qi-' + esc(task.quality.qi) + '">' + esc(qiLabel(task.quality.qi)) + '</span>' : "") +
         (task.type === "linked" ? '<span class="tag">' + esc(linkedAreaName(task)) + '</span>' : "") + subjectChip(subjectOf(task)) + priorityMark
       : '<span class="tag">' + typeLabel + '</span>' + subjectChip(subjectOf(task)) + priorityMark;
     var bodyInner = '<p class="task-title">' + esc(task.title) + '</p>' +
@@ -930,11 +930,12 @@
         : null;
       var from = !motionOK() || prev == null ? (day.progress.pct == null ? 0 : day.progress.pct) : prev;
       var to = day.progress.pct == null ? 0 : day.progress.pct;
-      var label = day.progress.pct == null ? "None" : day.progress.pct + "%";
+      var closed = holidayOn(day.iso);
+      var label = closed && !day.progress.total ? "Closed" : day.progress.pct == null ? "None" : day.progress.pct + "%";
       var spoken = day.progress.total
         ? DAY_NAMES[day.date.getDay() - 1] + ", " + day.progress.pct + " percent, " + day.progress.done + " of " + day.progress.total + " done"
         : DAY_NAMES[day.date.getDay() - 1] + ", no tasks";
-      return '<button type="button" class="ov-day' + (day.iso === today ? " is-today" : "") + '" data-action="jump-day" data-date="' + day.iso + '" aria-label="' + esc(spoken) + '">' +
+      return '<button type="button" class="ov-day' + (day.iso === today ? " is-today" : "") + (closed ? " is-closed" : "") + '" data-action="jump-day" data-date="' + day.iso + '" aria-label="' + esc(spoken) + '">' +
         '<span class="ov-name">' + DAY_SHORT[day.date.getDay() - 1] + '</span>' +
         '<span class="ov-track" aria-hidden="true"><span class="ov-fill" data-kind="bar" data-target="' + to + '" style="height:' + from + '%"></span></span>' +
         '<span class="ov-pct">' + label + '</span></button>';
@@ -1045,9 +1046,9 @@
       var on = Dates.parse(task.date);
       action = '<button type="button" class="qc-status" data-action="open-task" data-id="' + esc(task.id) + '" aria-label="' + esc(item) + ', on your list for ' + esc(formatHeading(on)) + '. Open the task.">' + DAY_SHORT[on.getDay() - 1] + " " + formatShort(on) + '</button>';
     } else {
-      action = '<button type="button" class="qc-add" data-action="qc-add" data-period="' + esc(period.key) + '" data-qi="' + esc(group.qi) + '" data-item="' + esc(item) + '" aria-label="Add ' + esc(item) + ' to my week">' + Icons.plus + ' Add</button>';
+      action = '<button type="button" class="qc-add" data-action="qc-add" data-period="' + esc(period.key) + '" data-qi="' + esc(group.qi) + '" data-item="' + esc(item) + '" aria-label="Add ' + esc(item) + ' to my week" title="Add to my week">' + Icons.plus + '</button>';
     }
-    return '<li class="qc-item"><span class="qc-code" title="' + esc(group.code + " " + group.name) + '">' + esc(group.code) + '</span><span class="qc-title">' + esc(item) + '</span>' + action + '</li>';
+    return '<li class="qc-item"><span class="qc-code qi-' + esc(group.qi) + '" title="' + esc(group.code + " " + group.name) + '">' + esc(group.code.replace(/^QI\s*/, "")) + '</span><span class="qc-title">' + esc(item) + '</span>' + action + '</li>';
   }
 
   function qcGridHTML(period, groups) {
@@ -1067,6 +1068,14 @@
     var now = qcPeriod(Dates.addDays(state.weekStart, 2));
     var next = qcPeriod(Dates.addDays(state.weekStart, 9));
     var groups = qcGroups(now);
+    var total = 0;
+    var listed = 0;
+    groups.forEach(function (group) {
+      group.items.forEach(function (item) {
+        total += 1;
+        if (qcTaskFor(now, item)) listed += 1;
+      });
+    });
     var body = groups.length
       ? qcGridHTML(now, groups)
       : '<p class="empty-line">No quality calendar items ' + (now ? "for " + now.month : "over the summer") + '.</p>';
@@ -1082,8 +1091,8 @@
       ? '<button type="button" class="btn" data-action="open-quality-calendar">Open Quality Calendar</button>'
       : "";
     root.innerHTML =
-      '<div class="panel-head"><div><h2 id="quality-heading">Quality calendar</h2>' +
-      (now ? '<p class="panel-sub">' + esc(now.month) + ' · ' + esc(now.session) + ' session</p>' : "") + '</div>' + open + '</div>' + body;
+      '<div class="panel-head"><h2 id="quality-heading">Quality calendar' + (now ? ' <span class="qc-month">' + esc(now.month) + '</span>' : "") + '</h2>' +
+      (total ? '<p class="qc-count"><strong>' + listed + '</strong> of ' + total + ' on your list</p>' : "") + open + '</div>' + body;
   }
 
   function renderCarry() {
@@ -1162,7 +1171,7 @@
       }) : [];
       var eventsHTML = dayEvents.length
         ? '<ul class="day-events" aria-label="Faculty dates">' + dayEvents.map(function (event) {
-          return '<li><button type="button" class="day-event" data-action="open-calendar" aria-label="' + esc(event.title) + '. Open the academic calendar."><span class="dot dot-' + facultyCalendarTone(event) + '" aria-hidden="true"></span>' + esc(event.title) + '</button></li>';
+          return '<li><button type="button" class="day-event tone-' + facultyCalendarTone(event) + '" data-action="open-calendar" aria-label="' + esc(event.title) + '. Open the academic calendar."><span class="dot dot-' + facultyCalendarTone(event) + '" aria-hidden="true"></span>' + esc(event.title) + '</button></li>';
         }).join("") + '</ul>'
         : "";
       /* School work: one plain count per day. My Week keeps its ring. */
@@ -1339,7 +1348,7 @@
     if (schoolWork) hubCalendarCache = null;
     var stats = weekStats();
     if (schoolWork) renderQuality();
-    else renderOverview(stats);
+    renderOverview(stats);
     renderDays(stats);
     syncSheet(focus && focus.sheet);
     var days = {};
@@ -2312,11 +2321,16 @@
     if (!schoolWork) return;
     var module = document.querySelector(".my-week-module");
     if (!module) return;
+    var top = document.createElement("div");
+    top.className = "sw-top";
+    top.appendChild(document.getElementById("focus"));
+    top.appendChild(document.getElementById("overview"));
     var lower = document.createElement("div");
     lower.className = "sw-lower";
     lower.appendChild(document.getElementById("quality"));
     lower.appendChild(document.getElementById("routines"));
-    ["focus", "carry", "days"].forEach(function (id) { module.appendChild(document.getElementById(id)); });
+    module.appendChild(top);
+    ["carry", "days"].forEach(function (id) { module.appendChild(document.getElementById(id)); });
     module.appendChild(lower);
   }
 

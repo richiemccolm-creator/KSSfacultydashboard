@@ -246,9 +246,12 @@ One dialog for Quick Add, edit, day detail, settings, and linked-task informatio
 
 School work is the same module run as the faculty-wide task sheet in the hub. It reads as a week-planner sheet, and the week leads.
 
-- **Order:** header, a one-line focus strip, the carry-forward row (only when something is unfinished), the five days, then a margin row with the Quality calendar (2fr) and My Professional Learning Plan (1fr). The summary row, Week at a glance and the Faculty this week card are not shown.
+- **Order:** header; a top row with the one-line focus strip on the left and the Week at a glance tile on the right; the carry-forward row (only when something is unfinished); the five days; then a margin row with the Quality calendar (2.4fr) and My Professional Learning Plan (1fr). The summary row and the Faculty this week card are not shown.
+- **Week at a glance** is a dark navy tile: five bars and the week ring in a pale blue fill, today's bar white, holiday days hatched and labelled Closed. It is a count of the teacher's own tasks, not a score.
 - **Faculty dates live in the day.** Academic calendar items sit at the top of the day they fall on, as tinted rows that open the calendar. Holidays mark the whole day instead.
-- **One count per day.** "1 of 3 done" or "All done". No rings, no percentages.
+- **One count per day card.** "1 of 3 done" or "All done". The percentages live only in the glance tile.
 - **Add task is the next blank line** of a list (dashed rule, no box), in days and in the plan.
 - **Colour:** navy for every action. Burnt red (`--important`, #a33a26) is the one warm colour: the Important pill, the Important choice in Quick Add, and the carry-forward edge. Subject colour stays on Art, Drama and Photography chips only.
-- **Quality calendar:** a flat two-column list, each row led by its QI code. Items the viewer has added show their day, or Done.
+- **Quality calendar:** condensed to three dense columns under the week. Each row leads with its QI code in the hub's QI colours (1.3 navy, 2.3 teal, 3.1 violet, 3.2 amber), with a round + to add it. The header counts how many items are on the teacher's list. Items already added show their day, or Done.
+- **Faculty dates are tinted by type:** reporting and assessment warm red, meetings mauve, INSET and planning blue.
+- **Page wash:** a soft blue-grey gradient behind the header, fading into the navy-050 page.
