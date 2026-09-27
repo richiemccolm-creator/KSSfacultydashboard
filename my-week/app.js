@@ -1,6 +1,9 @@
 /**
  * My Week
- * Standalone teacher planner. Local only. No network.
+ * Teacher planner stays on this device (myweek.*).
+ * School work (school=1) also keeps a copy here, and when the Faculty Hub
+ * data service is available it syncs one bundle, schoolworkV1, so the same
+ * signed-in account can open the list on another device.
  *
  * INTEGRATION INTO FACULTY HUB
  * Keep these sources separate so the hub can replace each one
@@ -33,14 +36,17 @@
 (function () {
   "use strict";
 
+  var schoolWork = document.documentElement.classList.contains("is-school-work");
+  var storePrefix = schoolWork ? "schoolwork." : "myweek.";
+
   var KEYS = {
-    tasks: "myweek.tasks",
-    focus: "myweek.focus",
-    routines: "myweek.routines",
-    settings: "myweek.settings",
-    faculty: "myweek.faculty",
-    timetable: "myweek.timetable",
-    meta: "myweek.meta"
+    tasks: storePrefix + "tasks",
+    focus: storePrefix + "focus",
+    routines: storePrefix + "routines",
+    settings: storePrefix + "settings",
+    faculty: storePrefix + "faculty",
+    timetable: storePrefix + "timetable",
+    meta: storePrefix + "meta"
   };
 
   var DEFAULT_SETTINGS = {
@@ -81,7 +87,8 @@
     toastTimer: null,
     lastFocus: null,
     sheetKind: null,
-    sheetDate: null
+    sheetDate: null,
+    addingPlan: false
   };
 
   function clone(value) {
@@ -114,25 +121,95 @@
    */
   var Store = {
     getTasks: function () { return read(KEYS.tasks, []); },
-    saveTasks: function (tasks) { write(KEYS.tasks, tasks); },
+    saveTasks: function (tasks) { write(KEYS.tasks, tasks); queueSchoolCloud(); },
     getFocuses: function () { return read(KEYS.focus, []); },
-    saveFocuses: function (rows) { write(KEYS.focus, rows); },
+    saveFocuses: function (rows) { write(KEYS.focus, rows); queueSchoolCloud(); },
     getRoutines: function () { return read(KEYS.routines, []); },
     saveRoutines: function (rows) { write(KEYS.routines, rows); },
+    getPlan: function () { return read("schoolwork.plplan", []); },
+    savePlan: function (items) { write("schoolwork.plplan", items); queueSchoolCloud(); },
     getFacultyEvents: function () { return read(KEYS.faculty, []); },
     saveFacultyEvents: function (rows) { write(KEYS.faculty, rows); },
     getTimetable: function () { return read(KEYS.timetable, null); },
     saveTimetable: function (table) { write(KEYS.timetable, table); },
     getMeta: function () { return read(KEYS.meta, {}); },
-    saveMeta: function (meta) { write(KEYS.meta, meta); },
+    saveMeta: function (meta) { write(KEYS.meta, meta); queueSchoolCloud(); },
     getSettings: function () {
       var saved = read(KEYS.settings, {});
       var merged = Object.assign({}, DEFAULT_SETTINGS, saved);
       merged.carryDismissed = Object.assign({}, saved.carryDismissed || {});
       return merged;
     },
-    saveSettings: function (settings) { write(KEYS.settings, settings); }
+    saveSettings: function (settings) { write(KEYS.settings, settings); queueSchoolCloud(); }
   };
+
+  var SCHOOL_CLOUD_KEY = "schoolworkV1";
+  var schoolCloudTimer = null;
+  var applyingSchoolCloud = false;
+
+  function schoolCloudApi() {
+    try {
+      if (window.DataService && window.DataService.get && window.DataService.set) return window.DataService;
+      if (window.parent && window.parent !== window && window.parent.DataService && window.parent.DataService.get && window.parent.DataService.set) {
+        return window.parent.DataService;
+      }
+    } catch (err) {
+      /* the page is not inside the hub */
+    }
+    return null;
+  }
+
+  function schoolBundle() {
+    return {
+      version: 1,
+      tasks: Store.getTasks(),
+      focus: Store.getFocuses(),
+      plan: Store.getPlan(),
+      settings: Store.getSettings(),
+      meta: Store.getMeta()
+    };
+  }
+
+  function applySchoolBundle(bundle) {
+    if (!bundle || typeof bundle !== "object") return;
+    applyingSchoolCloud = true;
+    try {
+      if (Array.isArray(bundle.tasks)) Store.saveTasks(bundle.tasks);
+      if (Array.isArray(bundle.focus)) Store.saveFocuses(bundle.focus);
+      if (Array.isArray(bundle.plan)) Store.savePlan(bundle.plan);
+      if (bundle.settings && typeof bundle.settings === "object") Store.saveSettings(bundle.settings);
+      if (bundle.meta && typeof bundle.meta === "object") Store.saveMeta(bundle.meta);
+    } finally {
+      applyingSchoolCloud = false;
+    }
+  }
+
+  function queueSchoolCloud() {
+    if (!schoolWork || applyingSchoolCloud) return;
+    var api = schoolCloudApi();
+    if (!api) return;
+    clearTimeout(schoolCloudTimer);
+    schoolCloudTimer = setTimeout(function () {
+      api.set(SCHOOL_CLOUD_KEY, schoolBundle()).catch(function () {});
+    }, 400);
+  }
+
+  function migrateSchoolWork() {
+    if (!schoolWork) return Promise.resolve(false);
+    var api = schoolCloudApi();
+    if (!api) return Promise.resolve(false);
+    return api.get(SCHOOL_CLOUD_KEY).then(function (cloud) {
+      if (cloud && typeof cloud === "object" && cloud.version) {
+        applySchoolBundle(cloud);
+        applySettings(Store.getSettings());
+        return true;
+      }
+      var local = schoolBundle();
+      var hasLocal = (local.tasks && local.tasks.length) || (local.focus && local.focus.length) || (local.plan && local.plan.length);
+      if (!hasLocal) return false;
+      return api.set(SCHOOL_CLOUD_KEY, local).then(function () { return false; });
+    }).catch(function () { return false; });
+  }
 
   var Dates = {
     parse: function (iso) {
@@ -259,10 +336,15 @@
     return task.type === "personal" || task.type === "linked";
   }
 
+  function typeRank(task) {
+    if (task.type === "faculty") return 1;
+    return 0;
+  }
+
   function sortTasks(list) {
     return list.slice().sort(function (a, b) {
-      var af = a.type === "faculty" ? 1 : 0;
-      var bf = b.type === "faculty" ? 1 : 0;
+      var af = typeRank(a);
+      var bf = typeRank(b);
       if (af !== bf) return af - bf;
       if (a.createdAt === b.createdAt) return a.id < b.id ? -1 : 1;
       return a.createdAt < b.createdAt ? -1 : 1;
@@ -270,7 +352,8 @@
   }
 
   function tasksOn(iso) {
-    return sortTasks(Store.getTasks().filter(function (task) { return task.date === iso; }));
+    var own = Store.getTasks().filter(function (task) { return task.date === iso; });
+    return sortTasks(own);
   }
 
   function progressOf(list) {
@@ -284,7 +367,45 @@
     };
   }
 
+  var hubCalendarCache = null;
+
+  function readHubCalendar() {
+    var raw = null;
+    try {
+      if (window.parent && window.parent !== window && typeof window.parent.calGetEvents === "function") {
+        raw = window.parent.calGetEvents();
+      }
+    } catch (err) {
+      raw = null;
+    }
+    if (!Array.isArray(raw) || !raw.length) {
+      try {
+        var stored = JSON.parse(localStorage.getItem("academicCalendarEvents") || "null");
+        if (Array.isArray(stored) && stored.length) raw = stored;
+      } catch (err2) {
+        raw = null;
+      }
+    }
+    if (!Array.isArray(raw) || !raw.length) raw = window.ACADEMIC_CALENDAR_DEFAULT_EVENTS || [];
+    var seen = {};
+    return raw.map(function (event) {
+      if (!event || !event.title || !event.date) return null;
+      var date = String(event.date).slice(0, 10);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+      var title = String(event.title).trim();
+      if (!title) return null;
+      var key = date + "\n" + title;
+      if (seen[key]) return null;
+      seen[key] = true;
+      return { id: String(event.id || key), date: date, title: title, category: event.category || "" };
+    }).filter(Boolean);
+  }
+
   function eventsOn(iso) {
+    if (schoolWork) {
+      if (!hubCalendarCache) hubCalendarCache = readHubCalendar();
+      return hubCalendarCache.filter(function (event) { return event.date === iso; });
+    }
     return Store.getFacultyEvents().filter(function (event) { return event.date === iso; });
   }
 
@@ -387,15 +508,26 @@
     }
     var done = !!task.completed;
     var typeLabel = task.type === "linked" ? "Linked" : "My task";
-    var title = task.type === "linked"
-      ? '<button type="button" class="task-link" data-action="open-linked" data-id="' + esc(task.id) + '"><span class="task-title">' + esc(task.title) + '</span></button>'
-      : '<p class="task-title">' + esc(task.title) + '</p>';
+    var priorityMark = schoolWork
+      ? '<span class="priority-pill' + (task.priority === "important" ? " is-important" : "") + '">' + (task.priority === "important" ? "Important" : "Normal") + '</span>'
+      : (task.priority === "important" ? '<span class="tag tag-hot">Important</span>' : "");
+    var bodyInner = '<p class="task-title">' + esc(task.title) + '</p>' +
+      '<p class="task-meta"><span class="tag">' + typeLabel + '</span>' + subjectChip(subjectOf(task)) + priorityMark + '</p>' +
+      (task.notes ? '<p class="task-notes">' + esc(task.notes) + '</p>' : "");
+    var title;
+    if (schoolWork) {
+      title = '<button type="button" class="task-open" data-action="open-task" data-id="' + esc(task.id) + '" aria-label="Open ' + esc(task.title) + '">' + bodyInner + '</button>';
+    } else if (task.type === "linked") {
+      title = '<button type="button" class="task-link" data-action="open-linked" data-id="' + esc(task.id) + '"><span class="task-title">' + esc(task.title) + '</span></button>' +
+        '<p class="task-meta"><span class="tag">' + typeLabel + '</span>' + subjectChip(subjectOf(task)) + priorityMark + '</p>' +
+        (task.notes ? '<p class="task-notes">' + esc(task.notes) + '</p>' : "");
+    } else {
+      title = bodyInner;
+    }
     var classes = "task" + (done ? " is-done" : "") + (task.priority === "important" ? " is-important" : "");
     return '<li class="' + classes + '">' +
       '<button type="button" class="check" data-action="toggle-task" data-id="' + esc(task.id) + '" aria-pressed="' + (done ? "true" : "false") + '" aria-label="' + (done ? "Mark not done: " : "Mark done: ") + esc(task.title) + '"><span class="box">' + (done ? Icons.check : "") + '</span></button>' +
       '<div class="task-body">' + title +
-      '<p class="task-meta"><span class="tag">' + typeLabel + '</span>' + subjectChip(subjectOf(task)) + (task.priority === "important" ? '<span class="tag tag-hot">Important</span>' : "") + '</p>' +
-      (task.notes ? '<p class="task-notes">' + esc(task.notes) + '</p>' : "") +
       '</div>' +
       '<button type="button" class="icon-btn" data-action="open-menu" data-id="' + esc(task.id) + '" aria-haspopup="menu" aria-expanded="false" aria-label="Actions for ' + esc(task.title) + '">' + Icons.more + '</button>' +
       '</li>';
@@ -432,6 +564,22 @@
     return "navy";
   }
 
+  /* Same category colours as the Faculty Hub home Key dates. */
+  function facultyCalendarTone(event) {
+    var cat = String((event && event.category) || "").toLowerCase();
+    var title = String((event && event.title) || "");
+    if (cat === "reporting" || /\breports?\b|\breporting\b|working grades|tracking entry/i.test(title)) return "report";
+    if (cat === "assessment" || cat === "exam" || /assessment|exam/i.test(title)) return "assess";
+    if (cat === "inset" || /inset/i.test(title)) return "inset";
+    if (cat === "holiday") return "holiday";
+    if (cat === "meeting" || /meeting|ped pod|sgm/i.test(title)) return "meet";
+    if (cat === "faculty-deadline" && /\bdm\b|\bmod\b/i.test(title) && !/report|deadline|qa\b/i.test(title)) return "meet";
+    if (cat === "deadline" || cat === "faculty-deadline" || /report|reporting|deadline|qa\b/i.test(title)) return "report";
+    if (/\bdm\b|\bmod\b/i.test(title)) return "meet";
+    if (cat === "training" || cat === "cpd") return "plan";
+    return "plan";
+  }
+
   function applySettings(settings) {
     document.documentElement.dataset.compact = settings.compact ? "true" : "false";
     var meta = document.querySelector('meta[name="theme-color"]');
@@ -445,14 +593,15 @@
     var meta = Store.getMeta();
     var sample = meta.sample !== false && !meta.customized && meta.anchorWeek === Dates.iso(state.weekStart);
     var line = formatRange(state.weekStart, friday) + (term ? " · " + term : "") + (sample ? " · Sample" : "");
+    var pageName = document.documentElement.classList.contains("is-school-work") ? "School work" : "My Week";
     document.getElementById("mast").innerHTML =
-      '<div><h1>My Week</h1><p class="week-range">' + esc(line) + '</p></div><div class="mast-actions">' +
+      '<div><h1>' + pageName + '</h1><p class="week-range">' + esc(line) + '</p></div><div class="mast-actions">' +
       '<button type="button" class="btn" data-action="prev-week" aria-label="Previous week">' + Icons.chevronLeft + ' Previous week</button>' +
       '<button type="button" class="btn" data-action="today" aria-pressed="' + (onCurrent ? "true" : "false") + '">Today</button>' +
       '<button type="button" class="btn" data-action="next-week" aria-label="Next week">Next week ' + Icons.chevronRight + '</button>' +
       '<button type="button" class="btn solid" data-action="quick-add" aria-keyshortcuts="Q">' + Icons.plus + ' Quick Add</button>' +
       '<button type="button" class="btn" data-action="settings">Settings</button></div>';
-    document.title = "My Week · " + formatRange(state.weekStart, friday);
+    document.title = pageName + " · " + formatRange(state.weekStart, friday);
   }
 
   function renderFocus() {
@@ -510,6 +659,7 @@
   }
 
   function renderFaculty() {
+    if (schoolWork) hubCalendarCache = null;
     var days = Dates.weekDays(state.weekStart);
     var any = days.some(function (date) { return eventsOn(Dates.iso(date)).length; });
     var body;
@@ -522,13 +672,21 @@
           return '<li class="faculty-row"><span class="faculty-dow">' + DAY_SHORT[date.getDay() - 1] + '</span><span class="dot dot-none" aria-hidden="true"></span><span class="faculty-empty">No faculty deadlines</span></li>';
         }
         return items.map(function (event, index) {
-          var tone = facultyTone(event.title);
-          return '<li class="faculty-row"><span class="faculty-dow">' + (index === 0 ? DAY_SHORT[date.getDay() - 1] : "") + '</span><span class="dot dot-' + tone + '" aria-hidden="true"></span><span>' + esc(event.title) + '</span></li>';
+          var tone = schoolWork ? facultyCalendarTone(event) : facultyTone(event.title);
+          var day = index === 0 ? DAY_SHORT[date.getDay() - 1] : "";
+          var title = esc(event.title);
+          if (schoolWork) {
+            return '<li><button type="button" class="faculty-row" data-action="open-calendar" aria-label="Open ' + title + ' in the academic calendar"><span class="faculty-dow">' + day + '</span><span class="dot dot-' + tone + '" aria-hidden="true"></span><span>' + title + '</span></button></li>';
+          }
+          return '<li class="faculty-row"><span class="faculty-dow">' + day + '</span><span class="dot dot-' + tone + '" aria-hidden="true"></span><span>' + title + '</span></li>';
         }).join("");
       }).join("") + '</ul>';
     }
+    var calendarLink = schoolWork
+      ? '<button type="button" class="btn" data-action="open-calendar">Calendar</button>'
+      : "";
     document.getElementById("faculty").innerHTML =
-      '<div class="panel-head"><h2 id="faculty-heading">Faculty this week</h2></div>' + body;
+      '<div class="panel-head"><h2 id="faculty-heading">Faculty this week</h2>' + calendarLink + '</div>' + body;
   }
 
   function renderCarry() {
@@ -579,7 +737,11 @@
       var own = day.tasks.filter(countable);
       var middle;
       if (!day.tasks.length) {
-        middle = '<div class="empty"><p>Nothing on your list yet.</p><p>Enjoy it while it lasts.</p><button type="button" class="add-task" data-action="add-day" data-date="' + day.iso + '">' + Icons.plus + ' Add something</button></div>';
+        var emptyCopy = schoolWork
+          ? '<p>No tasks yet.</p>'
+          : '<p>Nothing on your list yet.</p><p>Enjoy it while it lasts.</p>';
+        var emptyLabel = schoolWork ? "Add task" : "Add something";
+        middle = '<div class="empty">' + emptyCopy + '<button type="button" class="add-task" data-action="add-day" data-date="' + day.iso + '">' + Icons.plus + ' ' + emptyLabel + '</button></div>';
       } else {
         var tally = own.length ? "Tasks (" + day.progress.done + "/" + day.progress.total + ")" : "Tasks";
         var count = own.length ? '<p class="day-count">' + day.progress.done + ' done · ' + day.progress.remaining + ' remaining</p>' : "";
@@ -597,7 +759,79 @@
     }).join("") + '</div>';
   }
 
+  function renderLearningPlan() {
+    var root = document.getElementById("routines");
+    root.hidden = false;
+    var items = Store.getPlan().slice().sort(function (a, b) {
+      if (!!a.done !== !!b.done) return a.done ? 1 : -1;
+      return a.createdAt < b.createdAt ? -1 : 1;
+    });
+    var body;
+    if (state.addingPlan) {
+      body = '<form id="plan-form" class="pl-form"><label class="field-label" for="plan-input">What are you working on?</label>' +
+        '<input id="plan-input" type="text" maxlength="140" required>' +
+        '<div class="focus-actions"><button type="submit" class="btn solid">Add</button>' +
+        '<button type="button" class="btn" data-action="cancel-plan">Cancel</button></div></form>';
+    } else if (!items.length) {
+      body = '<div class="empty"><p>Nothing on your plan yet.</p></div>' +
+        '<button type="button" class="add-task" data-action="add-plan">' + Icons.plus + ' Add to plan</button>';
+    } else {
+      var list = items.map(function (item) {
+        var done = !!item.done;
+        return '<li class="pl-item' + (done ? " is-done" : "") + '">' +
+          '<button type="button" class="check" data-action="toggle-plan" data-id="' + esc(item.id) + '" aria-pressed="' + (done ? "true" : "false") + '" aria-label="' + (done ? "Mark not done: " : "Mark done: ") + esc(item.title) + '"><span class="box">' + (done ? Icons.check : "") + '</span></button>' +
+          '<div><p class="pl-title">' + esc(item.title) + '</p>' +
+          '<button type="button" class="pl-remove" data-action="delete-plan" data-id="' + esc(item.id) + '">Remove</button></div></li>';
+      }).join("");
+      body = '<ul class="pl-list">' + list + '</ul>' +
+        '<button type="button" class="add-task" data-action="add-plan">' + Icons.plus + ' Add to plan</button>';
+    }
+    root.innerHTML =
+      '<div class="panel-head"><h2 id="routines-heading">My Professional Learning Plan</h2></div>' + body;
+    if (state.addingPlan) {
+      var input = document.getElementById("plan-input");
+      if (input) input.focus();
+    }
+  }
+
+  function addPlanItem(title) {
+    var text = String(title || "").trim();
+    if (!text) return;
+    var items = Store.getPlan();
+    items.push({ id: uid("plan"), title: text, done: false, createdAt: new Date().toISOString() });
+    Store.savePlan(items);
+    state.addingPlan = false;
+    renderLearningPlan();
+    toast("Added to your plan.");
+  }
+
+  function togglePlan(id) {
+    var items = Store.getPlan();
+    var item = items.find(function (row) { return row.id === id; });
+    if (!item) return;
+    item.done = !item.done;
+    Store.savePlan(items);
+    renderLearningPlan();
+    var next = document.querySelector('[data-action="toggle-plan"][data-id="' + CSS.escape(id) + '"]');
+    if (next) next.focus();
+  }
+
+  function deletePlan(id, button) {
+    if (button.dataset.confirm !== "yes") {
+      button.dataset.confirm = "yes";
+      button.textContent = "Confirm";
+      return;
+    }
+    Store.savePlan(Store.getPlan().filter(function (item) { return item.id !== id; }));
+    renderLearningPlan();
+    toast("Removed from your plan.");
+  }
+
   function renderRoutines() {
+    if (schoolWork) {
+      renderLearningPlan();
+      return;
+    }
     var root = document.getElementById("routines");
     if (!Store.getSettings().showRoutines) {
       root.hidden = true;
@@ -671,6 +905,7 @@
   }
 
   function refreshSurfaces(focus) {
+    if (schoolWork) hubCalendarCache = null;
     var stats = weekStats();
     renderOverview(stats);
     renderDays(stats);
@@ -844,7 +1079,7 @@
       '<form id="quick-form" novalidate>' +
       '<label class="field"><span class="field-label">What do you need to remember?</span>' +
       '<input name="title" type="text" maxlength="140" autocomplete="off" aria-describedby="title-error">' +
-      '<p class="form-error" id="title-error" hidden></p></label>' +
+      '<p class="form-error" id="title-error" role="alert" hidden></p></label>' +
       '<fieldset><legend>When?</legend><div class="choices">' +
       chip("when", "today", "Today", when === "today") +
       chip("when", "tomorrow", "Tomorrow", when === "tomorrow") +
@@ -861,7 +1096,7 @@
       '<label class="field"><span class="field-label">Class or record</span>' +
       '<input name="linkedId" type="text" list="class-codes" maxlength="24" autocomplete="off" aria-describedby="link-error">' +
       '<datalist id="class-codes">' + classList() + '</datalist>' +
-      '<p class="form-error" id="link-error" hidden></p></label></div>' +
+      '<p class="form-error" id="link-error" role="alert" hidden></p></label></div>' +
       '<fieldset><legend>Priority</legend><div class="choices">' +
       chip("priority", "normal", "Normal", true) +
       chip("priority", "important", "Important", false) +
@@ -967,6 +1202,40 @@
     closeMenu();
     state.sheetKind = "edit";
     state.sheetDate = null;
+    if (schoolWork) {
+      openSheet(task.title,
+        '<form id="edit-form" class="task-detail" novalidate data-id="' + esc(task.id) + '">' +
+        '<label class="field"><span class="field-label">Task</span>' +
+        '<input name="title" type="text" maxlength="140" autocomplete="off" value="' + esc(task.title) + '" aria-describedby="edit-title-error">' +
+        '<p class="form-error" id="edit-title-error" role="alert" hidden></p></label>' +
+        '<label class="field"><span class="field-label">Notes</span>' +
+        '<textarea name="notes" id="task-notes" maxlength="500" rows="6" placeholder="Add notes">' + esc(task.notes || "") + '</textarea></label>' +
+        '<label class="field"><span class="field-label">When</span>' +
+        '<input name="date" type="date" value="' + esc(task.date) + '" aria-describedby="edit-date-error">' +
+        '<p class="form-error" id="edit-date-error" role="alert" hidden></p></label>' +
+        '<fieldset><legend>Priority</legend><div class="choices">' +
+        chip("priority", "normal", "Normal", task.priority !== "important") +
+        chip("priority", "important", "Important", task.priority === "important") +
+        '</div></fieldset>' +
+        '<fieldset><legend>Type</legend><div class="choices">' +
+        chip("type", "personal", "My task", task.type !== "linked") +
+        chip("type", "linked", "Linked task", task.type === "linked") +
+        '</div></fieldset>' +
+        '<div class="linked-fields"><label class="field"><span class="field-label">Opens in</span><select name="linkedArea">' + areaOptions(task.linkedArea || "attainment") + '</select></label>' +
+        '<label class="field"><span class="field-label">Class or record</span>' +
+        '<input name="linkedId" type="text" list="class-codes" maxlength="24" autocomplete="off" value="' + esc(task.linkedId || "") + '" aria-describedby="edit-link-error">' +
+        '<datalist id="class-codes">' + classList() + '</datalist>' +
+        '<p class="form-error" id="edit-link-error" role="alert" hidden></p></label></div>' +
+        '<div class="form-actions"><button type="submit" class="btn solid">Save</button>' +
+        '<button type="button" class="btn" data-action="close-sheet">Cancel</button>' +
+        '<button type="button" class="btn" data-action="delete-from-edit" data-id="' + esc(task.id) + '">Delete</button></div></form>',
+        function () {
+          var form = document.getElementById("edit-form");
+          if (focusNotes || !String(task.notes || "").trim()) form.elements.notes.focus();
+          else form.elements.title.focus();
+        });
+      return;
+    }
     openSheet("Edit task",
       '<form id="edit-form" novalidate data-id="' + esc(task.id) + '">' +
       '<label class="field"><span class="field-label">What do you need to remember?</span>' +
@@ -1051,6 +1320,12 @@
     openSheet(formatHeading(Dates.parse(iso)), dayBody(iso));
   }
 
+  function openFacultyCalendar() {
+    document.dispatchEvent(new CustomEvent("facultyHubNavigate", {
+      detail: { panel: "academic-calendar" }
+    }));
+  }
+
   function openLinked(id) {
     var task = Store.getTasks().find(function (item) { return item.id === id; });
     if (!task) return;
@@ -1078,8 +1353,8 @@
       '<fieldset><legend>Default week</legend><div class="choices">' +
       '<button type="button" class="btn" aria-pressed="true">Current week</button></div>' +
       '<p class="hint">The planner opens on the current school week.</p></fieldset>' +
-      '<div class="setting"><p id="lab-routines">Show routines</p>' +
-      '<button type="button" class="switch" role="switch" aria-checked="' + (settings.showRoutines ? "true" : "false") + '" aria-labelledby="lab-routines" data-action="toggle-routines">' + (settings.showRoutines ? "On" : "Off") + '</button></div>' +
+      (schoolWork ? "" : '<div class="setting"><p id="lab-routines">Show routines</p>' +
+      '<button type="button" class="switch" role="switch" aria-checked="' + (settings.showRoutines ? "true" : "false") + '" aria-labelledby="lab-routines" data-action="toggle-routines">' + (settings.showRoutines ? "On" : "Off") + '</button></div>') +
       '<div class="setting"><p id="lab-compact">Compact daily cards</p>' +
       '<button type="button" class="switch" role="switch" aria-checked="' + (settings.compact ? "true" : "false") + '" aria-labelledby="lab-compact" data-action="toggle-compact">' + (settings.compact ? "On" : "Off") + '</button></div>' +
       '<p class="settings-note">Press Q for Quick Add. Esc closes a panel.</p>');
@@ -1353,8 +1628,14 @@
       case "open-menu":
         onOpenMenu(id, actionEl);
         break;
+      case "open-task":
+        openEdit(id, false);
+        break;
       case "open-linked":
         openLinked(id);
+        break;
+      case "open-calendar":
+        openFacultyCalendar();
         break;
       case "edit-task":
         openEdit(id, false);
@@ -1410,6 +1691,20 @@
         break;
       case "toggle-routine":
         toggleRoutine(id, actionEl.dataset.day, actionEl);
+        break;
+      case "add-plan":
+        state.addingPlan = true;
+        renderLearningPlan();
+        break;
+      case "cancel-plan":
+        state.addingPlan = false;
+        renderLearningPlan();
+        break;
+      case "toggle-plan":
+        togglePlan(id);
+        break;
+      case "delete-plan":
+        deletePlan(id, actionEl);
         break;
       case "carry-all":
         moveAllCarry();
@@ -1520,6 +1815,7 @@
   }
 
   function initData() {
+    if (schoolWork) return;
     var meta = Store.getMeta();
     if (meta.seeded) return;
     if (Store.getTasks().length) {
@@ -1554,6 +1850,10 @@
         state.editingFocus = false;
         renderFocus();
         toast(text ? "Focus saved." : "Focus cleared.");
+      } else if (event.target.id === "plan-form") {
+        event.preventDefault();
+        var planInput = document.getElementById("plan-input");
+        addPlanItem(planInput ? planInput.value : "");
       }
     });
     document.addEventListener("input", function (event) {
@@ -1647,10 +1947,23 @@
       setTimetable: function (table) {
         Store.saveTimetable(table || null);
         refresh();
-      }
+      },
+      sync: migrateSchoolWork
     };
 
+    window.addEventListener("storage", function (event) {
+      var schoolKeys = [KEYS.tasks, KEYS.focus, KEYS.settings, KEYS.meta, "schoolwork.plplan"];
+      if (event.key === KEYS.tasks || (schoolWork && (event.key === "academicCalendarEvents" || schoolKeys.indexOf(event.key) !== -1))) {
+        if (schoolWork && event.key === "academicCalendarEvents") renderFaculty();
+        if (schoolWork) applySettings(Store.getSettings());
+        refreshSurfaces();
+      }
+    });
+
     setWeek(new Date(), { silent: true });
+    migrateSchoolWork().then(function (pulled) {
+      if (pulled) refresh();
+    });
   }
 
   init();

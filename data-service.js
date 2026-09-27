@@ -9,7 +9,7 @@
     'bge_art_reports_v1', 'bge_drama_tracker_export_v1', 'bge_art_tracker_export_v1',
     'dipSelfEvaluation', 'moderation-data',
     'plannerTimetable', 'plannerLessons', 'plannerWeekNotes', 'plannerDaySlotNotes', 'plannerDayNotes', 'lessonPlanTemplates', 'plannerSchemesOfWork',
-    'clplProgress', 'teacherTasksV1', 'stickyNotesV1'
+    'clplProgress', 'teacherTasksV1', 'stickyNotesV1', 'schoolworkV1'
   ];
 
   function useSupabase() {
@@ -482,7 +482,8 @@
           'plannerSchemesOfWork': all['plannerSchemesOfWork'],
           'clplProgress': all['clplProgress'],
           'teacherTasksV1': all['teacherTasksV1'],
-          'stickyNotesV1': all['stickyNotesV1']
+          'stickyNotesV1': all['stickyNotesV1'],
+          'schoolworkV1': all['schoolworkV1']
         };
       });
     },
