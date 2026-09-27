@@ -2,7 +2,8 @@
  * My Week
  * Teacher planner stays on this device (myweek.*).
  * School work (school=1) loads Supabase itself and syncs one bundle,
- * schoolworkV1, to the signed-in account.
+ * schoolworkV1, to the signed-in account. Devices are merged row by row
+ * on every save, on load, when the tab regains focus and every two minutes.
  *
  * INTEGRATION INTO FACULTY HUB
  * Keep these sources separate so the hub can replace each one
@@ -117,16 +118,32 @@
   /**
    * All persistence goes through Store.
    * Swap read/write when the hub replaces local storage.
+   * In School work, saving tasks, focus or plan stamps changed rows with
+   * updatedAt and records deletions, so devices can be merged row by row.
    */
   var Store = {
     getTasks: function () { return read(KEYS.tasks, []); },
-    saveTasks: function (tasks) { write(KEYS.tasks, tasks); queueSchoolCloud(); },
+    saveTasks: function (tasks) {
+      stampChanges("task", Store.getTasks(), tasks, byId);
+      write(KEYS.tasks, tasks);
+      queueSchoolCloud();
+    },
     getFocuses: function () { return read(KEYS.focus, []); },
-    saveFocuses: function (rows) { write(KEYS.focus, rows); queueSchoolCloud(); },
+    saveFocuses: function (rows) {
+      stampChanges("focus", Store.getFocuses(), rows, byWeek);
+      write(KEYS.focus, rows);
+      queueSchoolCloud();
+    },
     getRoutines: function () { return read(KEYS.routines, []); },
     saveRoutines: function (rows) { write(KEYS.routines, rows); },
     getPlan: function () { return read("schoolwork.plplan", []); },
-    savePlan: function (items) { write("schoolwork.plplan", items); queueSchoolCloud(); },
+    savePlan: function (items) {
+      stampChanges("plan", Store.getPlan(), items, byId);
+      write("schoolwork.plplan", items);
+      queueSchoolCloud();
+    },
+    getDeleted: function () { return read(storePrefix + "deleted", {}); },
+    saveDeleted: function (map) { write(storePrefix + "deleted", pruneDeleted(map)); },
     getFacultyEvents: function () { return read(KEYS.faculty, []); },
     saveFacultyEvents: function (rows) { write(KEYS.faculty, rows); },
     getTimetable: function () { return read(KEYS.timetable, null); },
@@ -142,10 +159,107 @@
     saveSettings: function (settings) { write(KEYS.settings, settings); queueSchoolCloud(); }
   };
 
+  /*
+   * School work sync.
+   * The account holds one bundle, schoolworkV1. Every save and every pull
+   * reads it, merges it with this device row by row (newest updatedAt wins,
+   * deletions win over older edits), then writes back only if it changed.
+   * A device left open all day can no longer wipe tasks added elsewhere.
+   */
   var SCHOOL_CLOUD_KEY = "schoolworkV1";
+  var CLOUD_SEEN_KEY = "schoolwork.cloudSeen";
+  var DELETED_KEEP_DAYS = 120;
+  var PULL_EVERY_MS = 120000;
   var schoolCloudTimer = null;
   var applyingSchoolCloud = false;
   var schoolCloudWarned = false;
+  var syncChain = Promise.resolve(false);
+  var lastPullAt = 0;
+
+  function byId(row) { return row.id; }
+  function byWeek(row) { return row.weekStart; }
+
+  function rowContent(row) {
+    var copy = Object.assign({}, row);
+    delete copy.updatedAt;
+    return JSON.stringify(copy);
+  }
+
+  /* Stamp new or edited rows and record removed ones. Cloud applies are not local edits. */
+  function stampChanges(kind, before, after, keyOf) {
+    if (!schoolWork || applyingSchoolCloud) return;
+    var now = new Date().toISOString();
+    var old = {};
+    before.forEach(function (row) { old[keyOf(row)] = row; });
+    var kept = {};
+    after.forEach(function (row) {
+      var key = keyOf(row);
+      kept[key] = true;
+      var prev = old[key];
+      if (!prev || rowContent(prev) !== rowContent(row)) row.updatedAt = now;
+      else if (prev.updatedAt) row.updatedAt = prev.updatedAt;
+    });
+    var gone = before.filter(function (row) { return !kept[keyOf(row)]; });
+    if (!gone.length) return;
+    var deleted = Store.getDeleted();
+    gone.forEach(function (row) { deleted[kind + ":" + keyOf(row)] = now; });
+    Store.saveDeleted(deleted);
+  }
+
+  function pruneDeleted(map) {
+    var cutoff = new Date(Date.now() - DELETED_KEEP_DAYS * 86400000).toISOString();
+    var out = {};
+    Object.keys(map || {}).forEach(function (key) {
+      if (map[key] >= cutoff) out[key] = map[key];
+    });
+    return out;
+  }
+
+  function mergeDeleted(a, b) {
+    var out = Object.assign({}, a || {});
+    Object.keys(b || {}).forEach(function (key) {
+      if (!out[key] || b[key] > out[key]) out[key] = b[key];
+    });
+    return pruneDeleted(out);
+  }
+
+  /* Cloud order first, then rows only this device has. Newest updatedAt wins. */
+  function mergeRows(kind, cloudRows, localRows, keyOf, deleted) {
+    var order = [];
+    var pick = {};
+    function consider(row) {
+      if (!row) return;
+      var key = keyOf(row);
+      if (key == null) return;
+      if (!Object.prototype.hasOwnProperty.call(pick, key)) {
+        order.push(key);
+        pick[key] = row;
+      } else if ((row.updatedAt || "") > (pick[key].updatedAt || "")) {
+        pick[key] = row;
+      }
+    }
+    (cloudRows || []).forEach(consider);
+    (localRows || []).forEach(consider);
+    return order.map(function (key) { return pick[key]; }).filter(function (row) {
+      var gone = deleted[kind + ":" + keyOf(row)];
+      return !gone || gone < (row.updatedAt || "");
+    });
+  }
+
+  function mergeBundles(local, cloud) {
+    var deleted = mergeDeleted(cloud.deleted, local.deleted);
+    var settings = Object.assign({}, cloud.settings || {}, local.settings || {});
+    settings.carryDismissed = Object.assign({}, (cloud.settings || {}).carryDismissed, (local.settings || {}).carryDismissed);
+    return {
+      version: 2,
+      tasks: mergeRows("task", cloud.tasks, local.tasks, byId, deleted),
+      focus: mergeRows("focus", cloud.focus, local.focus, byWeek, deleted),
+      plan: mergeRows("plan", cloud.plan, local.plan, byId, deleted),
+      settings: settings,
+      meta: Object.assign({}, cloud.meta || {}, local.meta || {}),
+      deleted: deleted
+    };
+  }
 
   function usableCloudApi(api) {
     if (!api || !api.get || !api.set || !api.isUsingCloud) return null;
@@ -176,12 +290,13 @@
 
   function schoolBundle() {
     return {
-      version: 1,
+      version: 2,
       tasks: Store.getTasks(),
       focus: Store.getFocuses(),
       plan: Store.getPlan(),
       settings: Store.getSettings(),
-      meta: Store.getMeta()
+      meta: Store.getMeta(),
+      deleted: Store.getDeleted()
     };
   }
 
@@ -194,49 +309,118 @@
       if (Array.isArray(bundle.plan)) Store.savePlan(bundle.plan);
       if (bundle.settings && typeof bundle.settings === "object") Store.saveSettings(bundle.settings);
       if (bundle.meta && typeof bundle.meta === "object") Store.saveMeta(bundle.meta);
+      if (bundle.deleted && typeof bundle.deleted === "object") Store.saveDeleted(bundle.deleted);
     } finally {
       applyingSchoolCloud = false;
     }
   }
 
-  function queueSchoolCloud() {
-    if (!schoolWork || applyingSchoolCloud) return;
+  /* Key-sorted JSON with rows in key order, so order alone never counts as a change. */
+  function stableText(value) {
+    if (Array.isArray(value)) return "[" + value.map(stableText).join(",") + "]";
+    if (value && typeof value === "object") {
+      return "{" + Object.keys(value).sort().map(function (key) {
+        return JSON.stringify(key) + ":" + stableText(value[key]);
+      }).join(",") + "}";
+    }
+    return JSON.stringify(value === undefined ? null : value);
+  }
+
+  function sortedRows(rows, keyOf) {
+    return (rows || []).slice().sort(function (a, b) {
+      var ka = String(keyOf(a));
+      var kb = String(keyOf(b));
+      return ka < kb ? -1 : ka > kb ? 1 : 0;
+    });
+  }
+
+  function canonical(bundle) {
+    return stableText({
+      tasks: sortedRows(bundle.tasks, byId),
+      focus: sortedRows(bundle.focus, byWeek),
+      plan: sortedRows(bundle.plan, byId),
+      settings: Object.assign({}, DEFAULT_SETTINGS, bundle.settings || {}),
+      meta: bundle.meta || {},
+      deleted: bundle.deleted || {}
+    });
+  }
+
+  function hasSchoolData(bundle) {
+    return !!((bundle.tasks && bundle.tasks.length) || (bundle.focus && bundle.focus.length) || (bundle.plan && bundle.plan.length));
+  }
+
+  /*
+   * One read-merge-write pass. Resolves true when this device's data changed.
+   * DataService.get resolves null for "no row" and for a failed read alike,
+   * so once this device has seen an account copy, null means "could not read"
+   * and nothing is written over the account.
+   */
+  function runSchoolSync(fromSave) {
     var api = schoolCloudApi();
     if (!api) {
-      warnSchoolCloud();
-      return;
+      if (fromSave) warnSchoolCloud();
+      return Promise.resolve(false);
     }
-    clearTimeout(schoolCloudTimer);
-    schoolCloudTimer = setTimeout(function () {
-      api.set(SCHOOL_CLOUD_KEY, schoolBundle()).then(function () {
+    lastPullAt = Date.now();
+    return api.get(SCHOOL_CLOUD_KEY).then(function (cloud) {
+      var hasCloud = !!(cloud && typeof cloud === "object" && cloud.version);
+      var local = schoolBundle();
+      if (!hasCloud) {
+        if (read(CLOUD_SEEN_KEY, false)) {
+          if (fromSave) warnSchoolCloud();
+          return false;
+        }
+        if (!hasSchoolData(local)) return false;
+        return api.set(SCHOOL_CLOUD_KEY, local).then(function () {
+          write(CLOUD_SEEN_KEY, true);
+          schoolCloudWarned = false;
+          return false;
+        });
+      }
+      write(CLOUD_SEEN_KEY, true);
+      var merged = mergeBundles(local, cloud);
+      var mergedText = canonical(merged);
+      var localChanged = mergedText !== canonical(local);
+      if (localChanged) applySchoolBundle(merged);
+      if (mergedText === canonical(cloud)) return localChanged;
+      return api.set(SCHOOL_CLOUD_KEY, merged).then(function () {
         schoolCloudWarned = false;
-      }).catch(function () {
-        warnSchoolCloud();
+        return localChanged;
       });
-    }, 400);
+    }).catch(function () {
+      if (fromSave) warnSchoolCloud();
+      return false;
+    });
+  }
+
+  /* Passes run one at a time so two saves never race each other. */
+  function syncSchoolWork(fromSave) {
+    if (!schoolWork) return Promise.resolve(false);
+    syncChain = syncChain.then(function () {
+      return runSchoolSync(fromSave);
+    }, function () {
+      return runSchoolSync(fromSave);
+    }).then(function (changed) {
+      if (changed && state.weekStart) refreshFromCloud();
+      return changed;
+    });
+    return syncChain;
+  }
+
+  function queueSchoolCloud() {
+    if (!schoolWork || applyingSchoolCloud) return;
+    clearTimeout(schoolCloudTimer);
+    schoolCloudTimer = setTimeout(function () { syncSchoolWork(true); }, 400);
+  }
+
+  function pullSchoolWork() {
+    if (!schoolWork || document.visibilityState === "hidden") return;
+    if (Date.now() - lastPullAt < 10000) return;
+    syncSchoolWork(false);
   }
 
   function migrateSchoolWork() {
-    if (!schoolWork) return Promise.resolve(false);
-    var api = schoolCloudApi();
-    if (!api) return Promise.resolve(false);
-    return api.get(SCHOOL_CLOUD_KEY).then(function (cloud) {
-      if (cloud && typeof cloud === "object" && cloud.version) {
-        applySchoolBundle(cloud);
-        applySettings(Store.getSettings());
-        return true;
-      }
-      var local = schoolBundle();
-      var hasLocal = (local.tasks && local.tasks.length) || (local.focus && local.focus.length) || (local.plan && local.plan.length);
-      if (!hasLocal) return false;
-      return api.set(SCHOOL_CLOUD_KEY, local).then(function () { return false; }).catch(function () {
-        warnSchoolCloud();
-        return false;
-      });
-    }).catch(function () {
-      warnSchoolCloud();
-      return false;
-    });
+    return syncSchoolWork(false);
   }
 
   var Dates = {
@@ -524,7 +708,7 @@
   function saveFocus(iso, text) {
     markCustom();
     var rows = Store.getFocuses().filter(function (item) { return item.weekStart !== iso; });
-    if (text) rows.push({ weekStart: iso, focus: text });
+    if (text || schoolWork) rows.push({ weekStart: iso, focus: text });
     Store.saveFocuses(rows);
   }
 
@@ -1692,6 +1876,17 @@
     renderAll();
   }
 
+  /* Repaint after a pull without throwing away a focus or plan the teacher is typing. */
+  function refreshFromCloud() {
+    applySettings(Store.getSettings());
+    renderHeader();
+    if (!state.editingFocus) renderFocus();
+    renderCarry();
+    if (!state.addingPlan) renderRoutines();
+    if (menuOpen()) closeMenu();
+    refreshSurfaces();
+  }
+
   function isTyping(el) {
     if (!el || !el.tagName) return false;
     var tag = el.tagName;
@@ -2083,9 +2278,12 @@
     });
 
     setWeek(new Date(), { silent: true });
-    migrateSchoolWork().then(function (pulled) {
-      if (pulled) refresh();
-    });
+    migrateSchoolWork();
+    if (schoolWork) {
+      document.addEventListener("visibilitychange", pullSchoolWork);
+      window.addEventListener("focus", pullSchoolWork);
+      window.setInterval(pullSchoolWork, PULL_EVERY_MS);
+    }
   }
 
   init();
