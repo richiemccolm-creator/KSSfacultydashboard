@@ -1,9 +1,8 @@
 /**
  * My Week
  * Teacher planner stays on this device (myweek.*).
- * School work (school=1) also keeps a copy here, and when the Faculty Hub
- * data service is available it syncs one bundle, schoolworkV1, so the same
- * signed-in account can open the list on another device.
+ * School work (school=1) loads Supabase itself and syncs one bundle,
+ * schoolworkV1, to the signed-in account.
  *
  * INTEGRATION INTO FACULTY HUB
  * Keep these sources separate so the hub can replace each one
@@ -146,17 +145,33 @@
   var SCHOOL_CLOUD_KEY = "schoolworkV1";
   var schoolCloudTimer = null;
   var applyingSchoolCloud = false;
+  var schoolCloudWarned = false;
+
+  function usableCloudApi(api) {
+    if (!api || !api.get || !api.set || !api.isUsingCloud) return null;
+    try {
+      if (!api.isUsingCloud()) return null;
+    } catch (err) {
+      return null;
+    }
+    return api;
+  }
 
   function schoolCloudApi() {
+    var own = usableCloudApi(window.DataService);
+    if (own) return own;
     try {
-      if (window.DataService && window.DataService.get && window.DataService.set) return window.DataService;
-      if (window.parent && window.parent !== window && window.parent.DataService && window.parent.DataService.get && window.parent.DataService.set) {
-        return window.parent.DataService;
-      }
+      if (window.parent && window.parent !== window) return usableCloudApi(window.parent.DataService);
     } catch (err) {
       /* the page is not inside the hub */
     }
     return null;
+  }
+
+  function warnSchoolCloud() {
+    if (schoolCloudWarned) return;
+    schoolCloudWarned = true;
+    toast("Could not save to your account. This list is only on this device.");
   }
 
   function schoolBundle() {
@@ -187,10 +202,17 @@
   function queueSchoolCloud() {
     if (!schoolWork || applyingSchoolCloud) return;
     var api = schoolCloudApi();
-    if (!api) return;
+    if (!api) {
+      warnSchoolCloud();
+      return;
+    }
     clearTimeout(schoolCloudTimer);
     schoolCloudTimer = setTimeout(function () {
-      api.set(SCHOOL_CLOUD_KEY, schoolBundle()).catch(function () {});
+      api.set(SCHOOL_CLOUD_KEY, schoolBundle()).then(function () {
+        schoolCloudWarned = false;
+      }).catch(function () {
+        warnSchoolCloud();
+      });
     }, 400);
   }
 
@@ -207,8 +229,14 @@
       var local = schoolBundle();
       var hasLocal = (local.tasks && local.tasks.length) || (local.focus && local.focus.length) || (local.plan && local.plan.length);
       if (!hasLocal) return false;
-      return api.set(SCHOOL_CLOUD_KEY, local).then(function () { return false; });
-    }).catch(function () { return false; });
+      return api.set(SCHOOL_CLOUD_KEY, local).then(function () { return false; }).catch(function () {
+        warnSchoolCloud();
+        return false;
+      });
+    }).catch(function () {
+      warnSchoolCloud();
+      return false;
+    });
   }
 
   var Dates = {
