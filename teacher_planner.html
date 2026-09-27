@@ -1007,6 +1007,7 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
 <nav class="tabs-bar" aria-label="Planner sections">
   <div class="tabs-inner">
     <button type="button" class="tab-btn planner-tab active" data-tab="today">Today</button>
+    <button type="button" class="tab-btn planner-tab" data-tab="myweek">My Week</button>
     <button type="button" class="tab-btn planner-tab" data-tab="week">Week</button>
     <button type="button" class="tab-btn planner-tab" data-tab="month">Month</button>
     <button type="button" class="tab-btn planner-tab" data-tab="homework">Homework</button>
@@ -1030,6 +1031,12 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>
     </span>
     <span>Today</span>
+  </button>
+  <button type="button" class="planner-dock-btn" data-tab="myweek">
+    <span class="planner-dock-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="5" width="16" height="15" rx="2"/><path d="M8 3.5v3M16 3.5v3M4 10h16"/></svg>
+    </span>
+    <span>My Week</span>
   </button>
   <button type="button" class="planner-dock-btn" data-tab="week">
     <span class="planner-dock-icon" aria-hidden="true">
@@ -1151,6 +1158,11 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
     </div>
   </div>
   <div id="timetableFooterInsights" class="tt-footer-insights"></div>
+</div>
+
+<!-- My Week: personal control centre. The lesson Week panel stays separate. -->
+<div id="panel-myweek" class="planner-panel panel">
+  <iframe id="myWeekFrame" class="myweek-frame" title="My Week" data-src="my-week/index.html?embed=1"></iframe>
 </div>
 
 <!-- Week view panel -->
@@ -3543,6 +3555,12 @@ function getWeekPlanningStats(weekStart) {
   return { teaching: teaching, planned: planned };
 }
 
+function ensureMyWeekFrame() {
+  var frame = document.getElementById('myWeekFrame');
+  if (!frame || frame.getAttribute('src')) return;
+  frame.src = frame.getAttribute('data-src') || 'my-week/index.html?embed=1';
+}
+
 function updateCalendarSubnav(activeView) {
   var sub = document.getElementById('calendarSubnav');
   if (!sub) return;
@@ -3588,6 +3606,7 @@ function switchPlannerTab(tabName, opts) {
   }
   activatePlannerPanel(tabName);
   if (tabName === 'today') renderTodayDashboard();
+  if (tabName === 'myweek') ensureMyWeekFrame();
   if (tabName === 'week') renderWeekView();
   if (tabName === 'month') renderMonthView();
   if (tabName === 'homework') renderHomeworkDashboard();
@@ -11839,7 +11858,27 @@ PS.load().then(function() {
   renderWeekView();
   renderMonthView();
   renderSchemesPanel();
-  switchPlannerTab('today');
+  var startTab = 'today';
+  try {
+    var requested = new URLSearchParams(window.location.search).get('tab');
+    if (requested && document.getElementById('panel-' + requested)) startTab = requested;
+  } catch (err) {}
+  switchPlannerTab(startTab);
+});
+
+window.addEventListener('message', function(event) {
+  if (event.origin !== window.location.origin) return;
+  if (!event.data || event.data.type !== 'facultyHubNavigate') return;
+  var frame = document.getElementById('myWeekFrame');
+  if (!frame || event.source !== frame.contentWindow) return;
+  var area = event.data.detail && event.data.detail.area;
+  if (area === 'lesson') {
+    switchPlannerTab('bank');
+    return;
+  }
+  if (window.parent && window.parent !== window) {
+    window.parent.postMessage(event.data, window.location.origin);
+  }
 });
 
 })();

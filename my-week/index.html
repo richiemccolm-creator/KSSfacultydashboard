@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f4f6fb">
+  <title>My Week</title>
+  <link rel="stylesheet" href="styles.css">
+  <!-- Compact cards before first paint. Store owns every later read and write. -->
+  <script>
+    (function () {
+      try {
+        if (new URLSearchParams(location.search).get("embed") === "1") {
+          document.documentElement.classList.add("is-embedded");
+        }
+        var saved = JSON.parse(localStorage.getItem("myweek.settings") || "{}");
+        if (saved.compact) document.documentElement.setAttribute("data-compact", "true");
+      } catch (err) {}
+    })();
+  </script>
+</head>
+<body>
+  <!--
+  THESIS: My Week is the teacher's weekly control centre inside the Faculty Hub. Personal tasks, not a staff score.
+  OWN-WORLD: Knightswood navy shell, pale navy page, white operational cards, Manrope and Inter. Subject colour only when the work is Art, Drama, or Photography.
+  STORY: The teacher sees the week, writes a professional focus, ticks their own tasks, checks faculty deadlines and routines, and chooses what to carry forward.
+  FIRST VIEWPORT: Navy sidebar. Title and week controls, with Quick Add as the one filled action. Four summary cards, then five day columns.
+  FORM: Faculty Hub design system. The paper diary is retired. The brief fixed the world, so no concept roll was run.
+  -->
+  <a class="skip" href="#days">Skip to days</a>
+  <noscript class="noscript">My Week needs JavaScript to keep your list on this device.</noscript>
+
+  <div class="hub-shell">
+    <aside class="hub-sidebar" id="hub-sidebar">
+      <div class="hub-brand">
+        <p class="hub-mark">KSS</p>
+        <p class="hub-name">Faculty Hub</p>
+        <p class="hub-faculty">Art · Drama · Photography</p>
+      </div>
+      <nav class="hub-nav" aria-label="Faculty Hub">
+        <p class="visually-hidden">Preview shell. My Week is the only working page in this prototype.</p>
+        <button type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1z"></path></svg>Today</button>
+        <button type="button" class="is-active" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"></rect><path d="M8 3.5v3M16 3.5v3M4 10h16"></path></svg>My Week</button>
+        <button type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 11a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM16.5 11.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM3.5 19.5v-1.2A3.8 3.8 0 0 1 7.3 14.5h1.4a3.8 3.8 0 0 1 3.8 3.8v1.2M14 19.5v-1a3 3 0 0 1 3-3h.2a3 3 0 0 1 3 3v1"></path></svg>Classes</button>
+        <button type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 21s7-4.4 7-10a7 7 0 1 0-14 0c0 5.6 7 10 7 10z"></path><circle cx="12" cy="11" r="2.2"></circle></svg>Class Support</button>
+        <button type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3.5h7l5 5V20a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V4.5a1 1 0 0 1 1-1z"></path><path d="M14 3.5V9h5M8.5 13h7M8.5 16.5h5"></path></svg>Lesson Planner</button>
+        <button type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="15" rx="2"></rect><path d="M8 3.5v3M16 3.5v3M4 10h16M8 14h.01M12 14h.01M16 14h.01M8 17.5h.01M12 17.5h.01"></path></svg>Faculty Calendar</button>
+        <button type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 19V5M5 19h14"></path><path d="M8 15l3.2-3.2 2.3 2.2L19 8"></path></svg>Attainment</button>
+      </nav>
+      <div class="hub-side-foot">
+        <button type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M12 3.5v2.2M12 18.3v2.2M3.5 12h2.2M18.3 12h2.2M6 6l1.6 1.6M16.4 16.4 18 18M18 6l-1.6 1.6M7.6 16.4 6 18"></path></svg>Settings</button>
+        <p class="hub-school">Knightswood Secondary School<br>Faculty of Creative Arts</p>
+      </div>
+    </aside>
+    <button type="button" class="hub-backdrop" data-shell="close" aria-label="Close navigation" tabindex="-1"></button>
+
+    <main class="hub-main">
+      <section class="my-week-module">
+        <button type="button" class="hub-menu" aria-expanded="false" aria-controls="hub-sidebar">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>
+          Menu
+        </button>
+        <header class="mast" id="mast"></header>
+        <div class="summary">
+          <section class="panel focus" id="focus" aria-labelledby="focus-heading"></section>
+          <section class="panel overview" id="overview" aria-labelledby="progress-heading"></section>
+          <section class="panel faculty" id="faculty" aria-labelledby="faculty-heading"></section>
+          <section class="panel routines" id="routines" aria-labelledby="routines-heading"></section>
+        </div>
+        <section class="carry" id="carry" aria-labelledby="carry-heading" hidden></section>
+        <section id="days" aria-label="Monday to Friday"></section>
+      </section>
+    </main>
+  </div>
+
+  <div id="status" class="status" role="status" hidden></div>
+  <div id="live" class="visually-hidden" aria-live="polite"></div>
+
+  <dialog id="sheet" class="sheet" aria-labelledby="sheet-title">
+    <div class="sheet-head">
+      <h2 id="sheet-title"></h2>
+      <button type="button" class="icon-btn" data-action="close-sheet" aria-label="Close panel">
+        <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>
+      </button>
+    </div>
+    <div class="sheet-body" id="sheet-body"></div>
+  </dialog>
+
+  <div id="menu" popover="manual" role="menu" aria-label="Task actions"></div>
+
+  <script>
+    (function () {
+      var shell = document.querySelector(".hub-shell");
+      var menu = document.querySelector(".hub-menu");
+      if (!shell || !menu) return;
+      function setOpen(open) {
+        shell.classList.toggle("is-nav-open", open);
+        menu.setAttribute("aria-expanded", open ? "true" : "false");
+      }
+      menu.addEventListener("click", function () { setOpen(!shell.classList.contains("is-nav-open")); });
+      shell.addEventListener("click", function (event) {
+        if (event.target.closest("[data-shell='close']")) setOpen(false);
+      });
+    })();
+  </script>
+  <script>
+    document.addEventListener("facultyHubNavigate", function (event) {
+      if (window.parent === window) return;
+      window.parent.postMessage({ type: "facultyHubNavigate", detail: event.detail || {} }, window.location.origin);
+    });
+  </script>
+  <script src="seed-data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
