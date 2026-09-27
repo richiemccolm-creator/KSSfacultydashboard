@@ -591,6 +591,12 @@
       var af = typeRank(a);
       var bf = typeRank(b);
       if (af !== bf) return af - bf;
+      if (schoolWork) {
+        if (!!a.completed !== !!b.completed) return a.completed ? 1 : -1;
+        var ai = a.priority === "important" ? 0 : 1;
+        var bi = b.priority === "important" ? 0 : 1;
+        if (ai !== bi) return ai - bi;
+      }
       if (a.createdAt === b.createdAt) return a.id < b.id ? -1 : 1;
       return a.createdAt < b.createdAt ? -1 : 1;
     });
@@ -777,10 +783,14 @@
     var done = !!task.completed;
     var typeLabel = task.type === "linked" ? "Linked" : "My task";
     var priorityMark = schoolWork
-      ? '<span class="priority-pill' + (task.priority === "important" ? " is-important" : "") + '">' + (task.priority === "important" ? "Important" : "Normal") + '</span>'
+      ? (task.priority === "important" ? '<span class="priority-pill is-important">Important</span>' : "")
       : (task.priority === "important" ? '<span class="tag tag-hot">Important</span>' : "");
+    /* School work labels only what tells the teacher something: where a linked task goes, the subject, importance. */
+    var metaInner = schoolWork
+      ? (task.type === "linked" ? '<span class="tag">' + esc(linkedAreaName(task)) + '</span>' : "") + subjectChip(subjectOf(task)) + priorityMark
+      : '<span class="tag">' + typeLabel + '</span>' + subjectChip(subjectOf(task)) + priorityMark;
     var bodyInner = '<p class="task-title">' + esc(task.title) + '</p>' +
-      '<p class="task-meta"><span class="tag">' + typeLabel + '</span>' + subjectChip(subjectOf(task)) + priorityMark + '</p>' +
+      (metaInner ? '<p class="task-meta">' + metaInner + '</p>' : "") +
       (task.notes ? '<p class="task-notes">' + esc(task.notes) + '</p>' : "");
     var title;
     if (schoolWork) {
@@ -884,7 +894,7 @@
       return;
     }
     var text = focusFor(iso);
-    var support = text === "Make questioning more deliberate."
+    var support = !schoolWork && text === "Make questioning more deliberate."
       ? '<p class="focus-support">Be more intentional with questions, give pupils longer thinking time and make evaluation visible.</p>'
       : "";
     var body = text
@@ -1007,7 +1017,7 @@
         : null;
       var name = DAY_NAMES[day.date.getDay() - 1];
       var spoken = day.progress.total
-        ? name + " " + formatShort(day.date) + ". " + day.progress.pct + " percent, " + day.progress.done + " of " + day.progress.total + " done. Open the day."
+        ? name + " " + formatShort(day.date) + ". " + (schoolWork ? "" : day.progress.pct + " percent, ") + day.progress.done + " of " + day.progress.total + " done. Open the day."
         : name + " " + formatShort(day.date) + ". No tasks yet. Open the day.";
       var own = day.tasks.filter(countable);
       var holiday = holidayOn(day.iso);
@@ -1022,18 +1032,22 @@
         middle = '<div class="empty">' + emptyCopy + '<button type="button" class="add-task" data-action="add-day" data-date="' + day.iso + '">' + Icons.plus + ' ' + emptyLabel + '</button></div>';
       } else {
         var tally = own.length ? "Tasks (" + day.progress.done + "/" + day.progress.total + ")" : "Tasks";
-        var count = own.length ? '<p class="day-count">' + day.progress.done + ' done · ' + day.progress.remaining + ' remaining</p>' : "";
-        middle = '<p class="task-kicker">' + tally + '</p><ul class="task-list">' + day.tasks.map(taskHTML).join("") + '</ul><div class="day-foot">' + count +
+        var count = own.length && !schoolWork ? '<p class="day-count">' + day.progress.done + ' done · ' + day.progress.remaining + ' remaining</p>' : "";
+        middle = (schoolWork ? "" : '<p class="task-kicker">' + tally + '</p>') + '<ul class="task-list">' + day.tasks.map(taskHTML).join("") + '</ul><div class="day-foot">' + count +
           '<button type="button" class="add-task" data-action="add-day" data-date="' + day.iso + '">' + Icons.plus + ' Add task</button></div>';
       }
       var pctText = day.progress.pct == null ? "–" : day.progress.pct + "%";
+      /* School work: one plain count per day. My Week keeps its ring. */
+      var dayTally = schoolWork
+        ? (own.length ? '<p class="day-tally" aria-hidden="true">' + (day.progress.remaining ? day.progress.done + " of " + day.progress.total + " done" : "All done") + '</p>' : "")
+        : '<div class="mini-ring" aria-hidden="true">' + ringSVG(day.progress.pct, prev) + '<strong>' + pctText + '</strong></div>';
       var cardDate = day.date.getDate() + " " + MONTHS[day.date.getMonth()];
       return '<article class="day-card' + (day.iso === today ? " is-today" : "") + (holiday ? " is-holiday" : "") + '" id="day-' + day.iso + '">' +
         '<div class="day-head"><button type="button" class="day-open" data-action="open-day" data-date="' + day.iso + '" aria-label="' + esc((holiday ? "Holiday, " + holiday + ". " : "") + spoken) + '">' +
         '<span class="day-name">' + name + '</span><span class="day-date">' + esc(cardDate) + '</span>' +
         (day.iso === today ? '<span class="today-mark">Today</span>' : "") +
         (holiday ? '<span class="holiday-mark">' + esc(holiday) + '</span>' : "") + '</button>' +
-        '<div class="mini-ring" aria-hidden="true">' + ringSVG(day.progress.pct, prev) + '<strong>' + pctText + '</strong></div></div>' +
+        dayTally + '</div>' +
         middle + '</article>';
     }).join("") + '</div>';
   }
@@ -1171,7 +1185,9 @@
       : schoolWork
       ? '<div class="empty"><p>No tasks yet.</p></div>'
       : '<div class="empty"><p>Nothing on your list yet.</p><p>Enjoy it while it lasts.</p></div>';
-    var count = progress.total ? '<p class="day-count">' + progress.done + ' done · ' + progress.remaining + ' remaining</p>' : "";
+    var count = !progress.total ? ""
+      : schoolWork ? '<p class="day-count">' + (progress.remaining ? progress.done + " of " + progress.total + " done" : "All done") + '</p>'
+      : '<p class="day-count">' + progress.done + ' done · ' + progress.remaining + ' remaining</p>';
     var holiday = holidayOn(iso);
     var holidayBlock = holiday ? '<p class="holiday-note">School closed · ' + esc(holiday) + '</p>' : "";
     var timetableBlock = periods.length
@@ -1393,7 +1409,7 @@
       '</div></fieldset>' +
       '<div class="form-actions"><button type="submit" class="btn solid">Add task</button>' +
       '<button type="button" class="btn" data-action="close-sheet">Cancel</button></div>' +
-      '<p class="hint">Esc closes this panel.</p></form>',
+      (schoolWork ? "" : '<p class="hint">Esc closes this panel.</p>') + '</form>',
       function () {
         var form = document.getElementById("quick-form");
         updateWhenPreview(form);
