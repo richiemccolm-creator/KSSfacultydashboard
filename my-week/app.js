@@ -893,6 +893,15 @@
   function renderFocus() {
     var iso = Dates.iso(state.weekStart);
     var root = document.getElementById("focus");
+    if (schoolWork && !state.editingFocus) {
+      var line = focusFor(iso);
+      root.innerHTML =
+        '<h2 id="focus-heading" class="sw-focus-label">Focus this week</h2>' +
+        (line
+          ? '<p class="sw-focus-text">' + esc(line) + '</p><button type="button" class="sw-link" data-action="edit-focus">Edit</button>'
+          : '<p class="sw-focus-text is-empty">No focus set.</p><button type="button" class="sw-link" data-action="edit-focus">Set a focus</button>');
+      return;
+    }
     if (state.editingFocus) {
       root.innerHTML =
         '<form id="focus-form" class="focus-editor"><label class="field-label" for="focus-input" id="focus-heading">This week\'s focus</label>' +
@@ -1038,14 +1047,13 @@
     } else {
       action = '<button type="button" class="qc-add" data-action="qc-add" data-period="' + esc(period.key) + '" data-qi="' + esc(group.qi) + '" data-item="' + esc(item) + '" aria-label="Add ' + esc(item) + ' to my week">' + Icons.plus + ' Add</button>';
     }
-    return '<li class="qc-item"><span class="qc-title">' + esc(item) + '</span>' + action + '</li>';
+    return '<li class="qc-item"><span class="qc-code" title="' + esc(group.code + " " + group.name) + '">' + esc(group.code) + '</span><span class="qc-title">' + esc(item) + '</span>' + action + '</li>';
   }
 
   function qcGridHTML(period, groups) {
-    return '<div class="qc-grid">' + groups.map(function (group) {
-      return '<div class="qc-group"><p class="qc-qi"><span class="qc-code">' + esc(group.code) + '</span> ' + esc(group.name) + '</p>' +
-        '<ul class="qc-list">' + group.items.map(function (item) { return qcItemHTML(period, group, item); }).join("") + '</ul></div>';
-    }).join("") + '</div>';
+    return '<ul class="qc-list">' + groups.map(function (group) {
+      return group.items.map(function (item) { return qcItemHTML(period, group, item); }).join("");
+    }).join("") + '</ul>';
   }
 
   function renderQuality() {
@@ -1148,6 +1156,15 @@
           '<button type="button" class="add-task" data-action="add-day" data-date="' + day.iso + '">' + Icons.plus + ' Add task</button></div>';
       }
       var pctText = day.progress.pct == null ? "–" : day.progress.pct + "%";
+      /* School work: faculty dates sit in the day they happen, not in a separate card. */
+      var dayEvents = schoolWork ? day.events.filter(function (event) {
+        return String(event.category).toLowerCase() !== "holiday" && !/^holiday\b/i.test(event.title);
+      }) : [];
+      var eventsHTML = dayEvents.length
+        ? '<ul class="day-events" aria-label="Faculty dates">' + dayEvents.map(function (event) {
+          return '<li><button type="button" class="day-event" data-action="open-calendar" aria-label="' + esc(event.title) + '. Open the academic calendar."><span class="dot dot-' + facultyCalendarTone(event) + '" aria-hidden="true"></span>' + esc(event.title) + '</button></li>';
+        }).join("") + '</ul>'
+        : "";
       /* School work: one plain count per day. My Week keeps its ring. */
       var dayTally = schoolWork
         ? (own.length ? '<p class="day-tally" aria-hidden="true">' + (day.progress.remaining ? day.progress.done + " of " + day.progress.total + " done" : "All done") + '</p>' : "")
@@ -1159,7 +1176,7 @@
         (day.iso === today ? '<span class="today-mark">Today</span>' : "") +
         (holiday ? '<span class="holiday-mark">' + esc(holiday) + '</span>' : "") + '</button>' +
         dayTally + '</div>' +
-        middle + '</article>';
+        eventsHTML + middle + '</article>';
     }).join("") + '</div>';
   }
 
@@ -2290,7 +2307,21 @@
     Store.saveMeta({ seeded: true, anchorWeek: Dates.iso(monday) });
   }
 
+  /* School work reads as a week-planner sheet: the days lead, context sits underneath. */
+  function arrangeSchoolLayout() {
+    if (!schoolWork) return;
+    var module = document.querySelector(".my-week-module");
+    if (!module) return;
+    var lower = document.createElement("div");
+    lower.className = "sw-lower";
+    lower.appendChild(document.getElementById("quality"));
+    lower.appendChild(document.getElementById("routines"));
+    ["focus", "carry", "days"].forEach(function (id) { module.appendChild(document.getElementById(id)); });
+    module.appendChild(lower);
+  }
+
   function init() {
+    arrangeSchoolLayout();
     initData();
     applySettings(Store.getSettings());
     document.addEventListener("click", onClick);

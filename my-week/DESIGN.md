@@ -241,3 +241,14 @@ One dialog for Quick Add, edit, day detail, settings, and linked-task informatio
 - **Don't** invent a subject chip when the task has no class code.
 - **Don't** mix faculty calendar items into personal task completion.
 - **Don't** add a second theme. This screen inherits the Faculty Hub.
+
+## School work variant (`?school=1`)
+
+School work is the same module run as the faculty-wide task sheet in the hub. It reads as a week-planner sheet, and the week leads.
+
+- **Order:** header, a one-line focus strip, the carry-forward row (only when something is unfinished), the five days, then a margin row with the Quality calendar (2fr) and My Professional Learning Plan (1fr). The summary row, Week at a glance and the Faculty this week card are not shown.
+- **Faculty dates live in the day.** Academic calendar items sit at the top of the day they fall on, as tinted rows that open the calendar. Holidays mark the whole day instead.
+- **One count per day.** "1 of 3 done" or "All done". No rings, no percentages.
+- **Add task is the next blank line** of a list (dashed rule, no box), in days and in the plan.
+- **Colour:** navy for every action. Burnt red (`--important`, #a33a26) is the one warm colour: the Important pill, the Important choice in Quick Add, and the carry-forward edge. Subject colour stays on Art, Drama and Photography chips only.
+- **Quality calendar:** a flat two-column list, each row led by its QI code. Items the viewer has added show their day, or Done.
