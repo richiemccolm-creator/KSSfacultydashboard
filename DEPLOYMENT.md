@@ -43,6 +43,7 @@
    | 19 | `supabase/migrations/20260527100000_hgios4_toolkit.sql` (HGIOS 4 Toolkit cloud sync) |
    | 20 | `supabase/migrations/20260527120000_hgios4_toolkit_management_rls.sql` (Faculty Head can read/write toolkit) |
    | 21 | `supabase/migrations/20250601120000_calendar_event_requests.sql` (staff calendar approval → shared calendar + home notifications) |
+   | 22 | `supabase/migrations/20260927190000_faculty_weekly_focus.sql` (faculty focus of the week for School work and the hub home; needs `is_school_manager()` from #21) |
 
 #### Apply migrations with Supabase CLI (optional)
 

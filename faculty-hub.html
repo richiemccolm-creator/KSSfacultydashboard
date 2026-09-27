@@ -66,6 +66,7 @@
 <script src="quality-calendar-months.js"></script>
 <script src="quality-calendar-qi-focus.js"></script>
 <script src="quality-calendar-guidance.js"></script>
+<script src="faculty-focus-service.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <script src="insight-data.js"></script>
 <script src="dip-insight-charts.js"></script>
@@ -3330,6 +3331,21 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
 .home-quality-focus-cat.cat-qi23{color:#0d9488}
 .home-quality-focus-cat.cat-qi31{color:#7c3aed}
 .home-quality-focus-cat.cat-qi32{color:#b45309}
+/* Faculty focus of the week: the headline under the greeting. Matches the School work focus card. */
+.home-focus{position:relative;display:flex;align-items:center;gap:1rem 1.5rem;margin:0 0 1.1rem;padding:1.15rem 1.4rem 1.2rem 1.6rem;overflow:hidden;border-left:6px solid var(--navy);border-radius:16px;background:radial-gradient(90% 140% at 100% 100%,rgba(158,192,240,.45) 0%,rgba(158,192,240,0) 60%),linear-gradient(135deg,#eef3fb 0%,#e1e9f7 100%);box-shadow:0 10px 26px rgba(15,26,48,.08)}
+.home-focus::before{content:"\201C";position:absolute;top:-.55rem;right:9.5rem;color:rgba(158,192,240,.7);font-family:var(--font-heading);font-size:7rem;font-weight:800;line-height:1;pointer-events:none}
+.home-focus-body{position:relative;flex:1 1 auto;min-width:0}
+.home-focus-label{margin:0 0 .3rem;color:#2a3f62;font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.home-focus-quote{margin:0}
+.home-focus-quote p{margin:0;max-width:38ch;color:#0f1a30;font-family:var(--font-heading);font-size:clamp(1.4rem,2.6vw,2.2rem);font-weight:800;line-height:1.12;letter-spacing:-.028em;text-wrap:balance}
+.home-focus-by{margin:.4rem 0 0;color:#2a3f62;font-size:.8rem;font-weight:600}
+.home-focus-empty{margin:0;color:#64748b;font-family:var(--font-heading);font-size:1.15rem;font-weight:700}
+.home-focus.is-empty{border-left-style:dashed;border-left-color:#c9d2e0}
+.home-focus-btn{position:relative;flex:none;min-height:44px;padding:0 1rem;border:1px solid rgba(30,45,74,.18);border-radius:999px;background:rgba(255,255,255,.75);color:var(--navy);font:inherit;font-size:.82rem;font-weight:600;cursor:pointer}
+.home-focus-btn:hover{border-color:var(--navy);background:#fff}
+.home-focus-btn.is-primary{border-color:var(--navy);background:var(--navy);color:#fff}
+.home-focus-btn.is-primary:hover{background:#2a3f62}
+@media (max-width:720px){.home-focus{flex-direction:column;align-items:flex-start;padding:1rem 1.1rem 1.1rem 1.2rem}.home-focus::before{font-size:5.5rem;top:-.4rem;right:1rem}}
 .home-quality-focus-item{padding:8px 14px 10px;border-bottom:.5px solid #f1f4f9}
 .home-quality-focus-item:last-child{border-bottom:none}
 .home-quality-focus-item-title{font-size:0.875rem;font-weight:500;color:#1e293b;line-height:1.35}
@@ -3866,6 +3882,8 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
               </div>
               <section id="homeSuperAnnouncement" class="home-masthead-ann" hidden aria-live="polite"></section>
             </header>
+
+            <section class="home-focus" id="homeFocus" aria-labelledby="homeFocusLabel" hidden></section>
 
             <aside class="home-fh-now" id="homeFhNow" aria-labelledby="homeFhNowTitle" hidden></aside>
 
@@ -10989,6 +11007,40 @@ function homeQualityCalendarSessionKey(){
   var y1=y0+1;
   return String(y0)+'\u2013'+String(y1).slice(-2);
 }
+/* Faculty focus of the week: the headline at the top of home. Set in School work by a faculty head or admin. */
+function homeRenderFacultyFocus(){
+  var el=document.getElementById('homeFocus');
+  if(!el||!window.FacultyFocus) return;
+  var esc=function(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
+  var iso=window.FacultyFocus.mondayISO(new Date());
+  var parts=iso.split('-');
+  var monday=new Date(Number(parts[0]),Number(parts[1])-1,Number(parts[2]));
+  var weekLabel='Week of '+monday.getDate()+' '+['January','February','March','April','May','June','July','August','September','October','November','December'][monday.getMonth()];
+  var paint=function(row){
+    var leader=window.FacultyFocus.canEdit();
+    if(!row){
+      if(!leader){ el.hidden=true; el.innerHTML=''; return; }
+      el.hidden=false;
+      el.className='home-focus is-empty';
+      el.innerHTML='<div class="home-focus-body"><p class="home-focus-label" id="homeFocusLabel">Faculty focus \u00b7 '+esc(weekLabel)+'</p>'+
+        '<p class="home-focus-empty">No faculty focus set for this week yet.</p></div>'+
+        '<button type="button" class="home-focus-btn is-primary" onclick="showPanel(\'embed-operations\')">Set it in School work</button>';
+      return;
+    }
+    el.hidden=false;
+    el.className='home-focus';
+    el.innerHTML='<div class="home-focus-body"><p class="home-focus-label" id="homeFocusLabel">Faculty focus \u00b7 '+esc(weekLabel)+'</p>'+
+      '<blockquote class="home-focus-quote"><p>'+esc(row.focus)+'</p></blockquote>'+
+      (row.setByName?'<p class="home-focus-by">Set by '+esc(row.setByName)+'</p>':'')+'</div>'+
+      '<button type="button" class="home-focus-btn" onclick="showPanel(\'embed-operations\')">Open School work</button>';
+  };
+  var known=window.FacultyFocus.cached(iso);
+  if(known!==undefined) paint(known);
+  window.FacultyFocus.get(iso).then(paint);
+}
+window.addEventListener('storage',function(ev){
+  if(ev.key==='facultyFocus.cache.v1') homeRenderFacultyFocus();
+});
 function homeRenderQualityFocus(){
   var content=document.getElementById('homeQualityFocusContent');
   if(!content||!window.QualityCalendarQiFocus){
@@ -12466,6 +12518,7 @@ function homeApplyDashboardData(ctx){
   }
   if(!skipTracking) homeRenderTrackingClasses(trackingRows);
   homeRenderUpcomingEvents(upcomingEvents);
+  homeRenderFacultyFocus();
   homeRenderQualityFocus();
   homeRenderTasks(tasks.filter(function(t){ return t.status!=='completed'&&!t.completed; }), taskState);
   if(window.StickyNotesHome&&typeof window.StickyNotesHome.render==='function'){

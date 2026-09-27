@@ -90,7 +90,12 @@
     sheetDate: null,
     addingPlan: false,
     quickQuality: null,
-    qcNextOpen: false
+    qcNextOpen: false,
+    facultyFocus: null,
+    facultyFocusWeek: null,
+    editingFacultyFocus: false,
+    facultyDraft: "",
+    facultySaving: false
   };
 
   function clone(value) {
@@ -418,6 +423,7 @@
   function pullSchoolWork() {
     if (!schoolWork || document.visibilityState === "hidden") return;
     if (Date.now() - lastPullAt < 10000) return;
+    loadFacultyFocus();
     syncSchoolWork(false);
   }
 
@@ -893,13 +899,43 @@
   function renderFocus() {
     var iso = Dates.iso(state.weekStart);
     var root = document.getElementById("focus");
+    if (schoolWork && state.editingFacultyFocus) {
+      root.classList.remove("is-empty");
+      root.innerHTML =
+        '<form id="faculty-focus-form" class="focus-editor"><label class="field-label" for="faculty-focus-input" id="focus-heading">Faculty focus for the week</label>' +
+        '<textarea id="faculty-focus-input" maxlength="180" rows="2" aria-describedby="faculty-focus-hint faculty-focus-error">' + esc(state.facultyDraft) + '</textarea>' +
+        '<p class="hint" id="faculty-focus-hint">Everyone in the faculty sees this at the top of School work and on the hub home.</p>' +
+        '<p class="form-error" id="faculty-focus-error" role="alert" hidden></p>' +
+        '<div class="focus-actions"><button type="submit" class="btn solid"' + (state.facultySaving ? " disabled" : "") + '>' + (state.facultySaving ? "Saving…" : "Save for everyone") + '</button>' +
+        '<button type="button" class="btn" data-action="cancel-faculty-focus">Cancel</button>' +
+        (state.facultyFocus ? '<button type="button" class="btn" data-action="clear-faculty-focus">Clear faculty focus</button>' : "") +
+        '</div></form>';
+      return;
+    }
     if (schoolWork && !state.editingFocus) {
       var line = focusFor(iso);
       var when = termLabel(state.weekStart);
+      var faculty = state.facultyFocusWeek === iso ? state.facultyFocus : null;
+      var leader = !!(window.FacultyFocus && window.FacultyFocus.canEdit());
+      if (faculty) {
+        root.classList.remove("is-empty");
+        root.classList.add("is-faculty");
+        root.innerHTML =
+          '<div class="sw-focus-top"><h2 id="focus-heading" class="sw-focus-label">Faculty focus' + (when ? '<span class="sw-focus-when"> · ' + esc(when) + '</span>' : "") + '</h2>' +
+          (leader ? '<button type="button" class="sw-focus-edit" data-action="edit-faculty-focus">Edit</button>' : "") + '</div>' +
+          '<blockquote class="sw-focus-quote"><p class="sw-focus-text">' + esc(faculty.focus) + '</p></blockquote>' +
+          (faculty.setByName ? '<p class="sw-focus-by">Set by ' + esc(faculty.setByName) + '</p>' : "") +
+          (line
+            ? '<p class="sw-focus-mine"><span class="sw-focus-mine-label">My take</span> ' + esc(line) + ' <button type="button" class="sw-link" data-action="edit-focus">Edit</button></p>'
+            : '<p class="sw-focus-mine"><button type="button" class="sw-link" data-action="edit-focus">Add my take</button></p>');
+        return;
+      }
+      root.classList.remove("is-faculty");
       root.classList.toggle("is-empty", !line);
       root.innerHTML =
         '<div class="sw-focus-top"><h2 id="focus-heading" class="sw-focus-label">Focus this week' + (when ? '<span class="sw-focus-when"> · ' + esc(when) + '</span>' : "") + '</h2>' +
-        '<button type="button" class="sw-focus-edit" data-action="edit-focus">' + (line ? "Edit" : "Set a focus") + '</button></div>' +
+        '<button type="button" class="sw-focus-edit" data-action="edit-focus">' + (line ? "Edit" : "Set a focus") + '</button>' +
+        (leader ? '<button type="button" class="sw-focus-edit is-faculty-set" data-action="edit-faculty-focus">Set for the faculty</button>' : "") + '</div>' +
         (line
           ? '<blockquote class="sw-focus-quote"><p class="sw-focus-text">' + esc(line) + '</p></blockquote>'
           : '<p class="sw-focus-text is-empty">What is the one thing you want to get better at this week?</p>');
@@ -907,8 +943,9 @@
     }
     if (state.editingFocus) {
       root.classList.remove("is-empty");
+      var takeLabel = schoolWork && state.facultyFocusWeek === iso && state.facultyFocus ? "My take on the faculty focus" : "This week\'s focus";
       root.innerHTML =
-        '<form id="focus-form" class="focus-editor"><label class="field-label" for="focus-input" id="focus-heading">This week\'s focus</label>' +
+        '<form id="focus-form" class="focus-editor"><label class="field-label" for="focus-input" id="focus-heading">' + takeLabel + '</label>' +
         '<textarea id="focus-input" maxlength="180" rows="3">' + esc(state.focusDraft) + '</textarea>' +
         '<div class="focus-actions"><button type="submit" class="btn solid">Save</button>' +
         '<button type="button" class="btn" data-action="cancel-focus">Cancel</button></div></form>';
@@ -2051,7 +2088,9 @@
     state.carryExpanded = false;
     state.carryChoices = {};
     state.progress = null;
+    state.editingFacultyFocus = false;
     closeMenu();
+    loadFacultyFocus();
     renderAll();
     if (!options || !options.silent) {
       announce("Showing " + formatRange(state.weekStart, Dates.addDays(state.weekStart, 4)) + ".");
@@ -2067,7 +2106,7 @@
   function refreshFromCloud() {
     applySettings(Store.getSettings());
     renderHeader();
-    if (!state.editingFocus) renderFocus();
+    if (!state.editingFocus && !state.editingFacultyFocus) renderFocus();
     renderCarry();
     if (!state.addingPlan) renderRoutines();
     if (menuOpen()) closeMenu();
@@ -2112,6 +2151,24 @@
         state.focusDraft = focusFor(Dates.iso(state.weekStart));
         renderFocus();
         document.getElementById("focus-input").focus();
+        break;
+      case "edit-faculty-focus":
+        state.editingFacultyFocus = true;
+        state.facultyDraft = state.facultyFocus ? state.facultyFocus.focus : "";
+        renderFocus();
+        document.getElementById("faculty-focus-input").focus();
+        break;
+      case "cancel-faculty-focus":
+        state.editingFacultyFocus = false;
+        renderFocus();
+        break;
+      case "clear-faculty-focus":
+        if (actionEl.dataset.confirm !== "yes") {
+          actionEl.dataset.confirm = "yes";
+          actionEl.textContent = "Confirm clear";
+          return;
+        }
+        saveFacultyFocus("");
         break;
       case "cancel-focus":
         state.editingFocus = false;
@@ -2251,8 +2308,9 @@
       if (back && typeof back.focus === "function") back.focus();
       return;
     }
-    if (event.key === "Escape" && state.editingFocus && !sheet().open) {
+    if (event.key === "Escape" && (state.editingFocus || state.editingFacultyFocus) && !sheet().open) {
       state.editingFocus = false;
+      state.editingFacultyFocus = false;
       renderFocus();
       return;
     }
@@ -2343,6 +2401,49 @@
     Store.saveMeta({ seeded: true, anchorWeek: Dates.iso(monday) });
   }
 
+  /*
+   * Faculty focus (School work only). Paints the cached value at once, then
+   * refreshes from the shared table and repaints if it changed.
+   */
+  function loadFacultyFocus() {
+    if (!schoolWork || !window.FacultyFocus || !state.weekStart) return;
+    var iso = Dates.iso(state.weekStart);
+    var known = window.FacultyFocus.cached(iso);
+    if (state.facultyFocusWeek !== iso) {
+      state.facultyFocusWeek = iso;
+      state.facultyFocus = known === undefined ? null : known;
+    }
+    window.FacultyFocus.get(iso).then(function (row) {
+      if (state.facultyFocusWeek !== iso) return;
+      var changed = JSON.stringify(row) !== JSON.stringify(state.facultyFocus);
+      state.facultyFocus = row;
+      if (changed && !state.editingFocus && !state.editingFacultyFocus) renderFocus();
+    });
+  }
+
+  function saveFacultyFocus(text) {
+    var iso = Dates.iso(state.weekStart);
+    state.facultySaving = true;
+    state.facultyDraft = text;
+    renderFocus();
+    window.FacultyFocus.set(iso, text).then(function (row) {
+      state.facultySaving = false;
+      state.facultyFocusWeek = iso;
+      state.facultyFocus = row;
+      state.editingFacultyFocus = false;
+      renderFocus();
+      toast(row ? "Faculty focus saved. Everyone will see it." : "Faculty focus cleared.");
+    }).catch(function (err) {
+      state.facultySaving = false;
+      renderFocus();
+      var el = document.getElementById("faculty-focus-error");
+      if (el) {
+        el.hidden = false;
+        el.textContent = (err && err.message) || "Could not save the faculty focus.";
+      }
+    });
+  }
+
   /* School work reads as a week-planner sheet: the days lead, context sits underneath. */
   function arrangeSchoolLayout() {
     if (!schoolWork) return;
@@ -2382,6 +2483,20 @@
         state.editingFocus = false;
         renderFocus();
         toast(text ? "Focus saved." : "Focus cleared.");
+      } else if (event.target.id === "faculty-focus-form") {
+        event.preventDefault();
+        var facultyInput = document.getElementById("faculty-focus-input");
+        var facultyText = (facultyInput ? facultyInput.value : state.facultyDraft).trim();
+        if (!facultyText) {
+          var facultyErr = document.getElementById("faculty-focus-error");
+          if (facultyErr) {
+            facultyErr.hidden = false;
+            facultyErr.textContent = state.facultyFocus ? "Write the focus, or use Clear faculty focus." : "Write the focus for the week.";
+          }
+          if (facultyInput) facultyInput.focus();
+          return;
+        }
+        saveFacultyFocus(facultyText);
       } else if (event.target.id === "plan-form") {
         event.preventDefault();
         var planInput = document.getElementById("plan-input");
@@ -2393,6 +2508,7 @@
     }, true);
     document.addEventListener("input", function (event) {
       if (event.target.id === "focus-input") state.focusDraft = event.target.value;
+      if (event.target.id === "faculty-focus-input") state.facultyDraft = event.target.value;
       if (event.target.name === "title" || event.target.name === "linkedId") {
         event.target.removeAttribute("aria-invalid");
         var errId = event.target.getAttribute("aria-describedby");
