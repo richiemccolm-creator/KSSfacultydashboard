@@ -983,7 +983,7 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
   if (skin === 'binder') document.documentElement.classList.add('skin-binder');
 })();
 </script>
-<link rel="stylesheet" href="teacher-planner-binder.css?v=binder-6">
+<link rel="stylesheet" href="teacher-planner-binder.css?v=binder-8">
 </head>
 <body>
 <script>
@@ -3568,10 +3568,18 @@ function getWeekPlanningStats(weekStart) {
   return { teaching: teaching, planned: planned };
 }
 
+// My Week (in the iframe) reads the academic calendar from here for "Faculty this week".
+var myWeekCalendarEvents = [];
+window.calGetEvents = function() { return myWeekCalendarEvents; };
+
 function ensureMyWeekFrame() {
   var frame = document.getElementById('myWeekFrame');
   if (!frame || frame.getAttribute('src')) return;
   frame.src = frame.getAttribute('data-src') || 'my-week/index.html?embed=1';
+  loadPlannerCalendarEvents().then(function(events) {
+    myWeekCalendarEvents = Array.isArray(events) ? events : [];
+    if (frame.contentWindow) frame.contentWindow.postMessage({ type: 'plannerCalendarReady' }, window.location.origin);
+  });
 }
 
 function updateCalendarSubnav(activeView) {

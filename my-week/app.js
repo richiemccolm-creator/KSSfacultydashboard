@@ -654,16 +654,20 @@
       var key = date + "\n" + title;
       if (seen[key]) return null;
       seen[key] = true;
-      return { id: String(event.id || key), date: date, title: title, category: event.category || "" };
+      return { id: String(event.id || key), date: date, title: title, category: event.category || "", fromCalendar: true };
     }).filter(Boolean);
   }
 
+  /* School work shows the academic calendar. My Week adds it to any faculty
+     events saved here, so "Faculty this week" matches the calendar too. */
   function eventsOn(iso) {
-    if (schoolWork) {
-      if (!hubCalendarCache) hubCalendarCache = readHubCalendar();
-      return hubCalendarCache.filter(function (event) { return event.date === iso; });
-    }
-    return Store.getFacultyEvents().filter(function (event) { return event.date === iso; });
+    if (!hubCalendarCache) hubCalendarCache = readHubCalendar();
+    var calendar = hubCalendarCache.filter(function (event) { return event.date === iso; });
+    if (schoolWork) return calendar;
+    var own = Store.getFacultyEvents().filter(function (event) { return event.date === iso; });
+    var seen = {};
+    own.forEach(function (event) { seen[String(event.title).trim().toLowerCase()] = true; });
+    return own.concat(calendar.filter(function (event) { return !seen[event.title.toLowerCase()]; }));
   }
 
   /* School work only: the holiday name when the academic calendar closes the school that day. */
@@ -992,7 +996,7 @@
   }
 
   function renderFaculty() {
-    if (schoolWork) hubCalendarCache = null;
+    hubCalendarCache = null;
     var days = Dates.weekDays(state.weekStart);
     var any = days.some(function (date) { return eventsOn(Dates.iso(date)).length; });
     var body;
@@ -1005,7 +1009,7 @@
           return '<li class="faculty-row"><span class="faculty-dow">' + DAY_SHORT[date.getDay() - 1] + '</span><span class="dot dot-none" aria-hidden="true"></span><span class="faculty-empty">No faculty deadlines</span></li>';
         }
         return items.map(function (event, index) {
-          var tone = schoolWork ? facultyCalendarTone(event) : facultyTone(event.title);
+          var tone = schoolWork || event.fromCalendar ? facultyCalendarTone(event) : facultyTone(event.title);
           var day = index === 0 ? DAY_SHORT[date.getDay() - 1] : "";
           var title = esc(event.title);
           if (schoolWork) {
@@ -1405,7 +1409,7 @@
   }
 
   function refreshSurfaces(focus) {
-    if (schoolWork) hubCalendarCache = null;
+    hubCalendarCache = null;
     var stats = weekStats();
     if (schoolWork) renderQuality();
     renderOverview(stats);
@@ -2626,6 +2630,14 @@
         if (schoolWork) applySettings(Store.getSettings());
         refreshSurfaces();
       }
+    });
+
+    /* The Teacher Planner posts this once its academic calendar has loaded. */
+    window.addEventListener("message", function (event) {
+      if (event.origin !== window.location.origin || event.source !== window.parent) return;
+      if (!event.data || event.data.type !== "plannerCalendarReady") return;
+      renderFaculty();
+      refreshSurfaces();
     });
 
     setWeek(new Date(), { silent: true });
