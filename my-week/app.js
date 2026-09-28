@@ -1,9 +1,11 @@
 /**
  * My Week
- * Teacher planner stays on this device (myweek.*).
- * School work (school=1) loads Supabase itself and syncs one bundle,
- * schoolworkV1, to the signed-in account. Devices are merged row by row
- * on every save, on load, when the tab regains focus and every two minutes.
+ * Inside the Teacher Planner, My Week uses the planner's DataService and
+ * syncs one bundle, myweekV1, to the signed-in account. Opened on its own
+ * it stays on this device (myweek.*).
+ * School work (school=1) loads Supabase itself and syncs schoolworkV1.
+ * Both merge devices row by row on every save, on load, when the tab
+ * regains focus and every two minutes.
  *
  * INTEGRATION INTO FACULTY HUB
  * Keep these sources separate so the hub can replace each one
@@ -142,7 +144,11 @@
       queueSchoolCloud();
     },
     getRoutines: function () { return read(KEYS.routines, []); },
-    saveRoutines: function (rows) { write(KEYS.routines, rows); },
+    saveRoutines: function (rows) {
+      stampChanges("routine", Store.getRoutines(), rows, byRoutine);
+      write(KEYS.routines, rows);
+      queueSchoolCloud();
+    },
     getPlan: function () { return read("schoolwork.plplan", []); },
     savePlan: function (items) {
       stampChanges("plan", Store.getPlan(), items, byId);
@@ -173,8 +179,8 @@
    * deletions win over older edits), then writes back only if it changed.
    * A device left open all day can no longer wipe tasks added elsewhere.
    */
-  var SCHOOL_CLOUD_KEY = "schoolworkV1";
-  var CLOUD_SEEN_KEY = "schoolwork.cloudSeen";
+  var SCHOOL_CLOUD_KEY = schoolWork ? "schoolworkV1" : "myweekV1";
+  var CLOUD_SEEN_KEY = storePrefix + "cloudSeen";
   var DELETED_KEEP_DAYS = 120;
   var PULL_EVERY_MS = 120000;
   var schoolCloudTimer = null;
@@ -185,6 +191,17 @@
 
   function byId(row) { return row.id; }
   function byWeek(row) { return row.weekStart; }
+  function byRoutine(row) { return row.weekStart + ":" + row.id; }
+
+  /* School work always syncs. My Week syncs when the planner around it is signed in. */
+  function cloudSyncOn() {
+    return schoolWork || !!schoolCloudApi();
+  }
+
+  function hasTicks(row) {
+    var done = row && row.completion;
+    return !!done && Object.keys(done).some(function (key) { return done[key]; });
+  }
 
   function rowContent(row) {
     var copy = Object.assign({}, row);
@@ -194,7 +211,7 @@
 
   /* Stamp new or edited rows and record removed ones. Cloud applies are not local edits. */
   function stampChanges(kind, before, after, keyOf) {
-    if (!schoolWork || applyingSchoolCloud) return;
+    if (applyingSchoolCloud) return;
     var now = new Date().toISOString();
     var old = {};
     before.forEach(function (row) { old[keyOf(row)] = row; });
@@ -203,6 +220,9 @@
       var key = keyOf(row);
       kept[key] = true;
       var prev = old[key];
+      /* Each device makes blank routine rows for a new week. Leave them
+         unstamped so they never replace ticks made on another device. */
+      if (!prev && kind === "routine" && !hasTicks(row)) return;
       if (!prev || rowContent(prev) !== rowContent(row)) row.updatedAt = now;
       else if (prev.updatedAt) row.updatedAt = prev.updatedAt;
     });
@@ -261,6 +281,7 @@
       version: 2,
       tasks: mergeRows("task", cloud.tasks, local.tasks, byId, deleted),
       focus: mergeRows("focus", cloud.focus, local.focus, byWeek, deleted),
+      routines: mergeRows("routine", cloud.routines, local.routines, byRoutine, deleted),
       plan: mergeRows("plan", cloud.plan, local.plan, byId, deleted),
       settings: settings,
       meta: Object.assign({}, cloud.meta || {}, local.meta || {}),
@@ -300,7 +321,8 @@
       version: 2,
       tasks: Store.getTasks(),
       focus: Store.getFocuses(),
-      plan: Store.getPlan(),
+      routines: Store.getRoutines(),
+      plan: schoolWork ? Store.getPlan() : [],
       settings: Store.getSettings(),
       meta: Store.getMeta(),
       deleted: Store.getDeleted()
@@ -313,7 +335,8 @@
     try {
       if (Array.isArray(bundle.tasks)) Store.saveTasks(bundle.tasks);
       if (Array.isArray(bundle.focus)) Store.saveFocuses(bundle.focus);
-      if (Array.isArray(bundle.plan)) Store.savePlan(bundle.plan);
+      if (Array.isArray(bundle.routines)) Store.saveRoutines(bundle.routines);
+      if (schoolWork && Array.isArray(bundle.plan)) Store.savePlan(bundle.plan);
       if (bundle.settings && typeof bundle.settings === "object") Store.saveSettings(bundle.settings);
       if (bundle.meta && typeof bundle.meta === "object") Store.saveMeta(bundle.meta);
       if (bundle.deleted && typeof bundle.deleted === "object") Store.saveDeleted(bundle.deleted);
@@ -345,6 +368,7 @@
     return stableText({
       tasks: sortedRows(bundle.tasks, byId),
       focus: sortedRows(bundle.focus, byWeek),
+      routines: sortedRows(bundle.routines, byRoutine),
       plan: sortedRows(bundle.plan, byId),
       settings: Object.assign({}, DEFAULT_SETTINGS, bundle.settings || {}),
       meta: bundle.meta || {},
@@ -353,7 +377,8 @@
   }
 
   function hasSchoolData(bundle) {
-    return !!((bundle.tasks && bundle.tasks.length) || (bundle.focus && bundle.focus.length) || (bundle.plan && bundle.plan.length));
+    return !!((bundle.tasks && bundle.tasks.length) || (bundle.focus && bundle.focus.length) ||
+      (bundle.plan && bundle.plan.length) || (bundle.routines || []).some(hasTicks));
   }
 
   /*
@@ -402,7 +427,7 @@
 
   /* Passes run one at a time so two saves never race each other. */
   function syncSchoolWork(fromSave) {
-    if (!schoolWork) return Promise.resolve(false);
+    if (!cloudSyncOn()) return Promise.resolve(false);
     syncChain = syncChain.then(function () {
       return runSchoolSync(fromSave);
     }, function () {
@@ -415,13 +440,13 @@
   }
 
   function queueSchoolCloud() {
-    if (!schoolWork || applyingSchoolCloud) return;
+    if (applyingSchoolCloud || !cloudSyncOn()) return;
     clearTimeout(schoolCloudTimer);
     schoolCloudTimer = setTimeout(function () { syncSchoolWork(true); }, 400);
   }
 
   function pullSchoolWork() {
-    if (!schoolWork || document.visibilityState === "hidden") return;
+    if (!cloudSyncOn() || document.visibilityState === "hidden") return;
     if (Date.now() - lastPullAt < 10000) return;
     loadFacultyFocus();
     syncSchoolWork(false);
@@ -2642,7 +2667,7 @@
 
     setWeek(new Date(), { silent: true });
     migrateSchoolWork();
-    if (schoolWork) {
+    if (cloudSyncOn()) {
       document.addEventListener("visibilitychange", pullSchoolWork);
       window.addEventListener("focus", pullSchoolWork);
       window.setInterval(pullSchoolWork, PULL_EVERY_MS);
