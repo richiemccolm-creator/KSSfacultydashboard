@@ -1826,6 +1826,21 @@
       });
     },
 
+    /** Pupils in the signed-in teacher's own classes for a subject (for filling tracker classes). */
+    listMyClassPupilsForTracker: function(options) {
+      if (!useSupabase()) return Promise.resolve([]);
+      var self = this;
+      var opts = options || {};
+      return getSessionWithRetry({ retries: 4, delayMs: 250 }).then(function(session) {
+        if (!session) throw new Error('Not authenticated');
+        return self.listTeacherClassPupilsForLoader({
+          teacherId: session.user.id,
+          subject: opts.subject,
+          academicYearLabel: String(opts.academicYearLabel || '').trim() || currentAcademicYearLabel()
+        });
+      });
+    },
+
     listMyAssignedClassesForTracker: function(options) {
       if (!useSupabase()) return Promise.resolve([]);
       var opts = options || {};

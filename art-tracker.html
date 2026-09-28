@@ -17,6 +17,7 @@
 <script src="tracker-sync.js"></script>
 <script src="tracker-column-view.js"></script>
 <script src="tracker-keyboard.js"></script>
+<script src="tracker-roster.js"></script>
 <script src="tracker-promote-archive.js"></script>
 <script src="tracker-readonly-view.js"></script>
 <script src="report-builder-bridge.js"></script>
@@ -473,7 +474,7 @@ html,body{max-width:100%;overscroll-behavior-x:none}
   -webkit-print-color-adjust:exact;print-color-adjust:exact
 }
 </style>
-<link rel="stylesheet" href="tracker-ipad.css?v=kbd1">
+<link rel="stylesheet" href="tracker-ipad.css?v=roster1">
 </head>
 <body>
 <button type="button" class="ipad-backdrop" onclick="trackerIpadClose()" aria-label="Close navigation"></button>
@@ -876,6 +877,57 @@ function syncAssignedArtClasses(){
   }).catch(function(){});
 }
 
+// ── PUPILS FROM CLASS MANAGEMENT (matching in tracker-roster.js) ──
+// Empty classes fill themselves; classes that already have pupils show who is missing and wait for the teacher.
+let _roster={};          // {yg:{className:[roster pupil]}} for this teacher's art classes this year
+let _rosterLoaded=false;
+function syncRosterPupils(opts){
+  const manual=!!(opts&&opts.manual);
+  if(!SYNC.isLoaded()||!window.DataService||!DataService.listMyClassPupilsForTracker||!window.TrackerRoster)return Promise.resolve();
+  return DataService.listMyClassPupilsForTracker({subject:'art',academicYearLabel:currentAcademicYearLabel()}).then(function(rows){
+    _roster=TrackerRoster.groupRows(rows);_rosterLoaded=true;
+    const res=TrackerRoster.sync(S,_roster,uid);
+    if(res.filled||res.linked)save();
+    const waiting=rosterWaitingCount();
+    if(res.filled)toast(`Added ${res.filled} pupil${res.filled!==1?'s':''} to ${res.classes} class${res.classes!==1?'es':''} from Class Management`,3500);
+    else if(manual)toast(waiting?`${waiting} pupil${waiting!==1?'s are':' is'} in Class Management but not in your classes yet`:'Your classes match Class Management',3500);
+  }).catch(function(){if(manual)toast('Could not read class lists from Class Management',3500);});
+}
+function syncFromClassManagement(opts){return syncAssignedArtClasses().then(function(){return syncRosterPupils(opts);});}
+function rosterMissing(yg,cls){return _rosterLoaded?TrackerRoster.missing(S,_roster,yg,cls):[];}
+function rosterWaitingCount(){
+  let n=0;
+  ['s1','s2','s3'].forEach(yg=>Object.keys(S.pupils[yg]||{}).forEach(cls=>{n+=rosterMissing(yg,cls).length;}));
+  return n;
+}
+function rosterBannerHTML(yg,cls){
+  const miss=rosterMissing(yg,cls);
+  if(!miss.length)return '';
+  const names=miss.slice(0,6).map(p=>escText(p.name)).join(', ')+(miss.length>6?` and ${miss.length-6} more`:'');
+  const c=escAttr(cls).replace(/'/g,"\\'");
+  return `<div class="roster-note"><div class="roster-note-text"><strong>${miss.length} pupil${miss.length!==1?'s':''} in Class Management ${miss.length!==1?'aren\'t':'isn\'t'} in this class yet:</strong> ${names}</div>
+    <div class="roster-note-actions"><button class="btn btn-primary" onclick="addRosterPupils('${yg}','${c}')">Add ${miss.length===1?'pupil':miss.length+' pupils'}</button><button class="btn btn-ghost" onclick="ignoreRosterPupils('${yg}','${c}')">Don't add</button></div></div>`;
+}
+function addRosterPupils(yg,cls){
+  if(roBlock())return;
+  const added=TrackerRoster.addPupils(S,yg,cls,rosterMissing(yg,cls),uid);
+  save();renderSetup(yg);toast(`Added ${added} pupil${added!==1?'s':''} to ${cls}`);
+}
+function ignoreRosterPupils(yg,cls){
+  if(roBlock())return;
+  TrackerRoster.ignore(S,yg,cls,rosterMissing(yg,cls).map(p=>p.rosterId));
+  save();renderSetup(yg);toast('OK — they won\'t be suggested for this class again');
+}
+function refreshFromClassManagement(yg){
+  if(roBlock())return;
+  syncFromClassManagement({manual:true}).then(function(){renderSetup(yg);});
+}
+// A pupil the teacher removes is not suggested again for that class.
+function forgetRosterPupil(yg,cls,pid){
+  const p=(S.pupils[yg][cls]||[]).find(x=>x.id===pid);
+  if(p&&p.rosterId&&window.TrackerRoster)TrackerRoster.ignore(S,yg,cls,[p.rosterId]);
+}
+
 // ── UTILS ──
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2)}
 let _toastTimer=null;
@@ -972,7 +1024,7 @@ function renderSetup(yg){
         </div>`;
   el.innerHTML=`
     <div class="sc" style="margin-bottom:1.2rem">
-      <div class="sc-header"><div><div class="sc-title">${yg.toUpperCase()} Art &amp; Design</div><div class="sc-sub">${classes.length?'Add a pupil in the class below.':'Add the first class, then the pupil names.'}</div></div><div style="display:flex;gap:.4rem"><input type="file" id="artImportFile-${yg}" accept=".json" style="display:none" onchange="handleImportFile(event)"><button class="btn btn-ghost" onclick="document.getElementById('artImportFile-${yg}').click()">Import from teacher</button></div></div>
+      <div class="sc-header"><div><div class="sc-title">${yg.toUpperCase()} Art &amp; Design</div><div class="sc-sub">${classes.length?'Add a pupil in the class below.':'Add the first class, then the pupil names.'}</div></div><div style="display:flex;gap:.4rem;flex-wrap:wrap"><button class="btn btn-ghost" onclick="refreshFromClassManagement('${yg}')">Update from Class Management</button><input type="file" id="artImportFile-${yg}" accept=".json" style="display:none" onchange="handleImportFile(event)"><button class="btn btn-ghost" onclick="document.getElementById('artImportFile-${yg}').click()">Import from teacher</button></div></div>
       <div class="sc-body">
         ${classes.length?`<details class="task-more"><summary>Add another class</summary><div class="task-more-body">${addClassForm}</div></details>`:addClassForm}
       </div>
@@ -1048,6 +1100,7 @@ function classCard(yg,cls){
       </details>
     </div>
     <div class="sc-body">
+      ${rosterBannerHTML(yg,cls)}
       <div class="form-row" style="margin-bottom:.65rem">
         <div class="form-group"><input class="form-input" id="np-${yg}-${cls.replace(/\s/g,'_')}" placeholder="Pupil name" onkeydown="if(event.key==='Enter')addPupil('${yg}','${cls}')" /></div>
         <button class="btn btn-primary" onclick="addPupil('${yg}','${cls}')">Add</button>
@@ -1098,6 +1151,7 @@ function delPupil(yg,cls,pid){
   const name=pupil?escAttr(pupil.name):'this pupil';
   const scored=Object.keys(S.scores[yg]?.[pid]||{}).length;
   showModal(`Remove ${name}?`,`This removes <strong>${name}</strong> from <strong>${escAttr(cls)}</strong>${scored?` and deletes their scores for ${scored} unit${scored!==1?'s':''}`:''}. This cannot be undone.`,'Remove pupil',()=>{
+    forgetRosterPupil(yg,cls,pid);
     S.pupils[yg][cls]=S.pupils[yg][cls].filter(p=>p.id!==pid);
     delete S.scores[yg][pid];if(S.profiles[yg])delete S.profiles[yg][pid];save();renderSetup(yg);toast('Pupil removed');
   });
@@ -1648,6 +1702,7 @@ function removePupilFromTracker(yg,cls,pid){
     `This will permanently remove <strong>${name}</strong> from <strong>${cls}</strong> and delete all their scores. This cannot be undone.`,
     'Remove Pupil',
     ()=>{
+      forgetRosterPupil(yg,cls,pid);
       S.pupils[yg][cls]=S.pupils[yg][cls].filter(p=>p.id!==pid);
       delete S.scores[yg][pid];if(S.profiles[yg])delete S.profiles[yg][pid];
       save();
@@ -2502,7 +2557,7 @@ function rerenderAfterRemote(){
 function retryLoad(){
   load().then(function(){
     if(!SYNC.isLoaded())return;
-    return syncAssignedArtClasses().then(function(){rerenderCurrent();toast('Tracker loaded');});
+    return syncFromClassManagement().then(function(){rerenderCurrent();toast('Tracker loaded');});
   });
 }
 annotateSidebarItems();
@@ -2516,13 +2571,13 @@ TrackerKeyboard.init({
 if(window.TrackerReadonlyView&&TrackerReadonlyView.isConfigured()){
   TrackerReadonlyView.boot({
     state:S,dataType:'art-v2',subjectLabel:'Art & Design BGE tracker',
-    loadOwn:load,syncClasses:syncAssignedArtClasses,
+    loadOwn:load,syncClasses:syncFromClassManagement,
     afterLoad:function(){migrateLegacyArtScores();},
     onReady:function(){updateStorageIndicator();renderHome();}
   });
 }else{
   load()
-    .then(function(){ return syncAssignedArtClasses(); })
+    .then(function(){ return syncFromClassManagement(); })
     .then(function(){updateStorageIndicator();renderHome();});
 }
 </script>
