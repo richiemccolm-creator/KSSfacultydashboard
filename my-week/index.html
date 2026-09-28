@@ -13,15 +13,21 @@
         var params = new URLSearchParams(location.search);
         if (params.get("embed") === "1") {
           document.documentElement.classList.add("is-embedded");
-          // Inside the Teacher Planner's folder skin, match its look.
-          if (window.parent !== window && window.parent.document.documentElement.classList.contains("skin-binder")) {
-            document.documentElement.classList.add("skin-binder", "mw-binder");
-            document.write('<link rel="stylesheet" href="../teacher-planner-binder.css?v=binder-8">');
-          }
         }
         if (params.get("school") === "1") {
           document.documentElement.classList.add("is-school-work");
           document.title = "School work";
+        }
+        // Inside the Teacher Planner's folder skin, match its look. Reading the
+        // parent throws when the browser blocks it (file:// pages), so it has
+        // its own try and runs after School work is marked.
+        if (params.get("embed") === "1" && params.get("school") !== "1") {
+          try {
+            if (window.parent !== window && window.parent.document.documentElement.classList.contains("skin-binder")) {
+              document.documentElement.classList.add("skin-binder", "mw-binder");
+              document.write('<link rel="stylesheet" href="../teacher-planner-binder.css?v=binder-8">');
+            }
+          } catch (parentErr) {}
         }
         var settingsKey = params.get("school") === "1" ? "schoolwork.settings" : "myweek.settings";
         var saved = JSON.parse(localStorage.getItem(settingsKey) || "{}");
@@ -138,6 +144,6 @@
       );
     })();
   </script>
-  <script src="app.js?v=sync-1"></script>
+  <script src="app.js?v=sync-2"></script>
 </body>
 </html>
