@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Faculty Head Hub">
-<title>Faculty Head Hub — Admin Dashboard</title>
+<title>Faculty Head Hub — Overview</title>
 <link rel="icon" type="image/png" href="faculty-hub-logo.png">
 <script src="config.js"></script>
 <script src="embed-chrome.js"></script>
@@ -15,606 +15,414 @@
 <script src="auth-guard.js"></script>
 <script src="fh-access.js"></script>
 <script src="data-service.js"></script>
-<script src="announcement-richtext.js"></script>
+<script src="calendar-request-service.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="design-tokens.css">
+<link rel="stylesheet" href="faculty-shell.css">
 <link rel="stylesheet" href="fh-mobile-shell.css">
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
-:root{
-  --font-ui:var(--font-body);
-  --navy:#0f1630;
-  --navy2:#1b1f4f;
-  --navy3:#2a1e63;
-  --bg:#f4f6fb;
-  --card:#ffffff;
-  --border:#e5eaf4;
-  --text:#121a32;
-  --text2:#4f5c79;
-  --text3:#7a87a6;
-  --purple:#5b3fd1;
-  --green:#1e9c61;
-  --amber:#c6921a;
-  --gray:#7a859e;
-  --shadow:0 6px 20px rgba(18,26,50,.06);
-}
-body{
-  font-family:var(--font-ui);
-  background:var(--bg);
-  color:var(--text);
-  min-height:100vh;
-  min-height:100dvh;
-}
-html{font-family:var(--font-ui)}
-body,body *{font-family:var(--font-ui) !important}
-button,input,select,textarea,table,th,td{font:inherit}
-h1,h2{font-weight:700;letter-spacing:-.01em}
-h3,h4,h5,h6{font-weight:600;letter-spacing:-.01em}
-.main{
-  max-width:1280px;
-  margin:0 auto;
-  padding:1.2rem 1.35rem 1.25rem;
-  padding-bottom:calc(1.25rem + env(safe-area-inset-bottom,0px));
-}
-.topbar{
-  background:var(--card);
-  border:1px solid var(--border);
-  border-radius:14px;
-  box-shadow:var(--shadow);
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:1rem;
-  padding:1rem 1.15rem;
-}
-.topbar-heading{flex:1;min-width:0}
-.head-title{font-family:var(--font-heading);font-size:1.24rem;font-weight:700;letter-spacing:-.02em;line-height:1.2}
-.head-sub{margin-top:.24rem;font-size:.78rem;color:var(--text3);font-weight:400;line-height:1.55}
-.topbar-right{display:flex;align-items:center;gap:.65rem}
-.icon-btn{
-  border-radius:999px;border:1px solid var(--border);
-  display:inline-flex;align-items:center;justify-content:center;background:#fff;color:var(--text2);
-  cursor:pointer;-webkit-tap-highlight-color:transparent
-}
-.profile{
-  display:flex;align-items:center;gap:.55rem;padding:.2rem .45rem .2rem .2rem;border-radius:999px;border:1px solid var(--border);
-}
-.avatar{
-  width:29px;height:29px;border-radius:50%;background:var(--navy2);color:#fff;
-  display:flex;align-items:center;justify-content:center;font-size:.67rem;font-weight:700
-}
-.p-name{font-size:.72rem;font-weight:500;line-height:1.2}
-.p-role{font-size:.64rem;color:var(--text3);font-weight:400}
-.add-btn{
-  border:none;border-radius:9px;background:var(--purple);color:#fff;
-  display:flex;align-items:center;gap:.35rem;padding:.58rem .84rem;font-size:.73rem;font-weight:500;cursor:pointer
-}
+.ov{max-width:1180px;margin:0 auto;padding:16px;padding-bottom:calc(24px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:16px}
+.ov *{box-sizing:border-box}
+.ov-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.ov-date{margin:0;font-size:var(--fs-sm);color:var(--ink-500)}
+.ov-head h1{margin:2px 0 0;font-family:var(--font-heading);font-size:var(--fs-2xl);font-weight:700;letter-spacing:-.02em;color:var(--ink-900);line-height:1.15}
+.ov-actions{display:flex;gap:8px;flex-wrap:wrap}
+.ov .btn{min-height:44px;justify-content:center;text-decoration:none}
+.ov .btn-sm{min-height:36px;padding:6px 12px;font-size:var(--fs-xs)}
+.ov .btn[disabled]{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
 
-.grid{margin-top:1rem;display:grid;gap:.9rem}
-.actions-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
-.action-card{
-  background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);
-  padding:1rem 1.02rem;min-height:118px
-}
-.action-head{display:flex;align-items:flex-start;gap:.55rem}
-.icon-wrap{
-  width:31px;height:31px;border-radius:8px;background:#f3f0ff;color:var(--purple);display:flex;align-items:center;justify-content:center;flex-shrink:0
-}
-.icon-wrap svg{width:16px;height:16px}
-.a-title{font-size:.81rem;font-weight:600}
-.a-desc{margin-top:.25rem;font-size:.69rem;color:var(--text3);line-height:1.5;font-weight:400}
-.a-link{margin-top:.62rem;display:inline-flex;gap:.3rem;align-items:center;color:var(--purple);font-size:.7rem;font-weight:500;text-decoration:none}
+.ov-panel{background:#fff;border:1px solid var(--navy-100);border-radius:var(--r-lg);overflow:hidden;display:flex;flex-direction:column}
+.ov-panel-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;padding:14px 16px 10px}
+.ov-panel-head h2{margin:0;font-size:var(--fs-md);font-weight:700;color:var(--ink-900)}
+.ov-panel-head a{font-size:var(--fs-sm);font-weight:600;color:var(--navy-700);text-decoration:none;white-space:nowrap;min-height:32px;display:inline-flex;align-items:center}
+.ov-panel-head a:hover{text-decoration:underline}
+.ov-muted{margin:0;padding:4px 16px 16px;font-size:var(--fs-sm);color:var(--ink-500);line-height:1.45}
 
-.main-cards{grid-template-columns:1.1fr 1fr 1fr}
-.card{
-  background:var(--card);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow);
-}
-.card-head{
-  padding:.92rem 1rem .72rem;
-  border-bottom:1px solid var(--border);
-  display:flex;justify-content:space-between;align-items:flex-start;gap:.5rem;
-}
-.card-title{font-size:.88rem;font-weight:600}
-.card-sub{margin-top:.24rem;font-size:.68rem;color:var(--text3);line-height:1.5;font-weight:400}
-.card-link{font-size:.68rem;color:var(--purple);font-weight:500;text-decoration:none;white-space:nowrap}
-.rows{padding:.3rem .55rem}
-.row{
-  display:grid;
-  grid-template-columns:auto 1fr auto auto;
-  gap:.55rem;
-  align-items:center;
-  padding:.5rem .3rem;
-  border-bottom:1px solid var(--border);
-}
-.row:last-child{border-bottom:none}
-.row-placeholder{
-  padding:.7rem .35rem;
-  font-size:.68rem;
-  color:var(--text3);
-}
-.date-badge{
-  width:40px;min-height:40px;border-radius:9px;background:#f7f8fc;border:1px solid var(--border);
-  display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.15
-}
-.date-badge .m{font-size:.55rem;letter-spacing:.08em;color:var(--text3);font-weight:700}
-.date-badge .d{font-size:.92rem;font-weight:700}
-.item-title{font-size:.73rem;font-weight:700;line-height:1.35}
-.item-meta{margin-top:.14rem;font-size:.64rem;color:var(--text3)}
-.dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:.27rem}
-.dot-purple{background:var(--purple)}
-.dot-red{background:#c23643}
-.menu-btn{border:none;background:none;color:#9ca8c1;font-size:1.1rem;cursor:pointer}
+.ov-todo{list-style:none;margin:0;padding:0}
+.ov-todo li{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:12px 16px;border-top:1px solid var(--navy-100)}
+.ov-dot{width:10px;height:10px;border-radius:50%;background:var(--navy-400)}
+.ov-dot.is-request{background:#5b3fd1}
+.ov-dot.is-warn{background:var(--warning-600)}
+.ov-dot.is-draft{background:var(--ink-400)}
+.ov-todo-title{font-size:var(--fs-base);font-weight:600;color:var(--ink-900);line-height:1.35;overflow-wrap:anywhere}
+.ov-todo-detail{margin-top:2px;font-size:var(--fs-sm);color:var(--ink-500);line-height:1.4;overflow-wrap:anywhere}
+.ov-todo-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.ov-clear{display:flex;align-items:center;gap:10px;margin:0;padding:4px 16px 16px;font-size:var(--fs-sm);color:var(--success-600);font-weight:600}
+.ov-clear svg{width:18px;height:18px}
 
-.status-pill{
-  display:inline-flex;align-items:center;padding:.15rem .44rem;border-radius:999px;
-  font-size:.57rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase
-}
-.pill-scheduled{background:#efeaff;color:#593dbf}
-.pill-active{background:#e6f7ed;color:#1f8f59}
-.pill-draft{background:#eef2f8;color:#59637b}
+.ov-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;align-items:start}
+.ov-counts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:0 16px 12px}
+.ov-count{padding:10px;border-radius:var(--r-md);background:var(--navy-050);text-decoration:none;color:inherit;min-height:44px}
+.ov-count strong{display:block;font-size:var(--fs-xl);font-weight:700;color:var(--ink-900);line-height:1.1}
+.ov-count span{font-size:var(--fs-xs);color:var(--ink-500)}
+.ov-list{list-style:none;margin:0;padding:0 0 6px}
+.ov-list li{display:flex;gap:12px;align-items:flex-start;padding:10px 16px;border-top:1px solid var(--navy-100)}
+.ov-when{flex-shrink:0;width:44px;text-align:center;border-radius:8px;background:var(--navy-050);padding:5px 0;line-height:1.1}
+.ov-when b{display:block;font-size:var(--fs-md);color:var(--ink-900)}
+.ov-when small{font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--ink-500);text-transform:uppercase}
+.ov-item-title{font-size:var(--fs-sm);font-weight:600;color:var(--ink-900);line-height:1.35;overflow-wrap:anywhere}
+.ov-item-meta{margin-top:2px;font-size:var(--fs-xs);color:var(--ink-500)}
+.pill{display:inline-flex;align-items:center;padding:1px 7px;border-radius:99px;font-size:11px;font-weight:700;margin-right:4px}
+.pill-scheduled{background:#efeaff;color:#5b3fd1}
+.pill-live{background:#e6f7ed;color:#15803d}
+.pill-meeting{background:var(--navy-050);color:var(--navy-700)}
+.ov-bar{height:6px;border-radius:99px;background:var(--navy-050);overflow:hidden;margin-top:6px}
+.ov-bar i{display:block;height:100%;border-radius:99px;background:var(--navy-700)}
+.ov-bar i.is-done{background:var(--success-600)}
+.ov-track{flex:1;min-width:0}
+.ov-track-row{display:flex;justify-content:space-between;gap:8px}
+.ov-skel{margin:0;padding:4px 16px 16px;font-size:var(--fs-sm);color:var(--ink-400)}
 
-.status-badge{
-  display:inline-flex;padding:.16rem .42rem;border-radius:999px;font-size:.57rem;font-weight:700;text-transform:uppercase
-}
-.b-complete{background:#e5f7ee;color:var(--green)}
-.b-progress{background:#fff4df;color:var(--amber)}
-.b-not{background:#eef1f6;color:#69748d}
-.go-btn{
-  width:100%;
-  margin:.4rem .55rem .55rem;
-  max-width:calc(100% - 1.1rem);
-  border:none;border-radius:8px;background:var(--purple);color:#fff;padding:.5rem .6rem;
-  font-size:.71rem;font-weight:700;cursor:pointer
-}
+.ov-toast{position:fixed;bottom:calc(24px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);max-width:calc(100vw - 32px);background:var(--ink-900);color:#fff;padding:12px 18px;border-radius:var(--r-pill);z-index:1000;display:none;font-size:var(--fs-sm)}
+.ov-toast.show{display:block}
 
-.lower-grid{grid-template-columns:1.25fr 1fr}
-.metrics{
-  padding:.8rem;
-  display:grid;
-  grid-template-columns:repeat(4,minmax(0,1fr));
-  gap:.55rem;
+@media (max-width:1000px){
+  .ov-grid{grid-template-columns:1fr 1fr}
+  .ov-grid > .ov-panel:first-child{grid-column:1 / -1}
 }
-.metric{
-  background:#f8f9fd;border:1px solid var(--border);border-radius:9px;padding:.52rem .58rem
-}
-.metric-num{font-size:1.02rem;font-weight:700}
-.metric-label{margin-top:.16rem;font-size:.63rem;color:var(--text3);line-height:1.4;font-weight:400}
-
-.quick-actions{
-  padding:.82rem;
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:.45rem;
-}
-.qa-btn{
-  border:1px solid var(--border);background:#fff;border-radius:9px;padding:.5rem .55rem;
-  font-size:.67rem;font-weight:500;color:var(--text2);display:flex;align-items:center;gap:.35rem;cursor:pointer;text-align:left
-}
-.qa-btn svg{width:14px;height:14px;flex-shrink:0;color:var(--purple)}
-
-.info-strip{
-  margin-top:.75rem;
-  background:#fff;
-  border:1px solid var(--border);
-  border-radius:11px;
-  box-shadow:var(--shadow);
-  padding:.62rem .75rem;
-  display:flex;align-items:center;justify-content:space-between;gap:.6rem;flex-wrap:wrap
-}
-.info-text{font-size:.67rem;color:var(--text2);font-weight:400}
-.info-link{font-size:.67rem;font-weight:500;color:var(--purple);text-decoration:none}
-
-@media (max-width:1260px){
-  .actions-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .main-cards{grid-template-columns:1fr}
-  .lower-grid{grid-template-columns:1fr}
-}
-@media (max-width:880px){
-  .main{padding:.75rem;padding-bottom:calc(.75rem + env(safe-area-inset-bottom,0px))}
-  .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .quick-actions{grid-template-columns:1fr}
-}
-@media (max-width:820px){
-  .topbar{padding:.7rem .75rem}
-}
-@media (max-width:480px){
-  .topbar-right{flex-wrap:wrap;gap:.5rem}
-  .profile{min-width:0}
-  .profile>div{min-width:0}
-  .p-name,.p-role{max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:680px){
+  .ov-grid{grid-template-columns:1fr}
+  .ov-head h1{font-size:var(--fs-xl)}
+  .ov-actions{width:100%}
+  .ov-actions .btn{flex:1}
+  .ov-todo li{grid-template-columns:auto 1fr}
+  .ov-todo-actions{grid-column:2;justify-content:flex-start}
 }
 </style>
 </head>
 <body class="fh-mobile-page fh-hub-page">
-  <main class="main">
-    <header class="topbar">
-      <div class="topbar-heading">
-        <h1 class="head-title">Faculty Head Hub</h1>
-        <div class="head-sub">Manage, update and communicate across the Faculty of Art &amp; Drama.</div>
-      </div>
-      <div class="topbar-right">
-        <button class="icon-btn" type="button" title="Help" aria-label="Help" id="fhHelpBtn">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 1 1 5.8 1c0 2-3 2-3 4"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-        </button>
-        <div class="profile">
-          <div class="avatar" id="userAvatar">FH</div>
-          <div>
-            <div class="p-name" id="userName">Faculty Head</div>
-            <div class="p-role" id="userRole">Admin Control</div>
-          </div>
-        </div>
-        <div class="fh-add-menu-wrap">
-          <button class="add-btn" type="button" id="fhAddToggle" aria-expanded="false" aria-controls="fhAddMenu" aria-haspopup="true">
-            <span>Add New</span>
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
-          <div class="fh-add-menu" id="fhAddMenu" role="menu" aria-hidden="true">
-            <a href="fh_calendar.html" role="menuitem">Calendar event</a>
-            <a href="fh_announcements.html?new=1" role="menuitem">Announcement</a>
-            <a href="fh_tracking.html" role="menuitem">Tracking data</a>
-            <a href="fh_class_management.html" role="menuitem">Class resource</a>
-          </div>
-        </div>
-      </div>
-    </header>
+<main class="ov">
+  <header class="ov-head">
+    <div>
+      <p class="ov-date" id="ovDate"></p>
+      <h1 id="ovGreeting">Faculty Head Hub</h1>
+    </div>
+    <div class="ov-actions">
+      <a class="btn" href="fh_calendar.html">Add calendar event</a>
+      <a class="btn btn-primary" href="fh_announcements.html?new=1">New announcement</a>
+    </div>
+  </header>
 
-    <section class="grid actions-grid">
-      <div class="action-card">
-        <div class="action-head">
-          <div class="icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg></div>
-          <div><div class="a-title">Add Calendar Event</div><div class="a-desc">Add events, deadlines or important dates.</div></div>
-        </div>
-        <a class="a-link" href="fh_calendar.html">Go to Calendar <span>→</span></a>
-      </div>
-      <div class="action-card">
-        <div class="action-head">
-          <div class="icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11v2a2 2 0 0 0 2 2h3l5 4V5L8 9H5a2 2 0 0 0-2 2z"/></svg></div>
-          <div><div class="a-title">New Announcement</div><div class="a-desc">Create and send faculty-wide announcements.</div></div>
-        </div>
-        <a class="a-link" href="fh_announcements.html?new=1">Create Announcement <span>→</span></a>
-      </div>
-      <div class="action-card">
-        <div class="action-head">
-          <div class="icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="20" x2="4" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="20" y1="20" x2="20" y2="13"/></svg></div>
-          <div><div class="a-title">Enter Tracking Data</div><div class="a-desc">Add or update tracking information for classes.</div></div>
-        </div>
-        <a class="a-link" href="fh_tracking.html">Go to Tracking <span>→</span></a>
-      </div>
-      <div class="action-card">
-        <div class="action-head">
-          <div class="icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14"/><path d="M5 12h14"/></svg></div>
-          <div><div class="a-title">Upload Resource</div><div class="a-desc">Add new resources for staff to access.</div></div>
-        </div>
-        <a class="a-link" href="fh_class_management.html">Upload Resource <span>→</span></a>
-      </div>
+  <section class="ov-panel" aria-labelledby="ovTodoHeading">
+    <div class="ov-panel-head"><h2 id="ovTodoHeading">Needs your attention</h2></div>
+    <div id="ovTodo" aria-live="polite"><p class="ov-skel">Checking…</p></div>
+  </section>
+
+  <div class="ov-grid">
+    <section class="ov-panel" aria-labelledby="ovAnnHeading">
+      <div class="ov-panel-head"><h2 id="ovAnnHeading">Announcements</h2><a href="fh_announcements.html">Manage</a></div>
+      <div id="ovAnn"><p class="ov-skel">Loading…</p></div>
     </section>
-
-    <section class="grid main-cards">
-      <div class="card">
-        <div class="card-head">
-          <div><div class="card-title">Calendar Management</div><div class="card-sub">Add, edit and manage shared faculty events.</div></div>
-          <a class="card-link" href="fh_calendar.html">View Calendar</a>
-        </div>
-        <div class="rows" id="calendarRows">
-          <div class="row-placeholder">Loading shared events…</div>
-        </div>
-        <button class="go-btn" type="button" onclick="fhGo('fh_calendar.html')">+ Add New Event</button>
-      </div>
-
-      <div class="card">
-        <div class="card-head">
-          <div><div class="card-title">Announcements Management</div><div class="card-sub">Create, edit and schedule announcements.</div></div>
-          <a class="card-link" href="fh_announcements.html">View All</a>
-        </div>
-        <div class="rows" id="announcementRows">
-          <div class="row-placeholder">Loading announcements…</div>
-        </div>
-        <button class="go-btn" type="button" onclick="fhGo('fh_announcements.html?new=1')">+ New Announcement</button>
-      </div>
-
-      <div class="card">
-        <div class="card-head">
-          <div><div class="card-title">Tracking Data Manager</div><div class="card-sub">Enter and manage tracking information.</div></div>
-          <a class="card-link" href="fh_tracking.html">View All</a>
-        </div>
-        <div class="rows" id="trackingRows">
-          <div class="row-placeholder">Loading tracking completion…</div>
-        </div>
-        <button class="go-btn" type="button" onclick="fhGo('fh_tracking.html')">Go to Tracking Manager</button>
-      </div>
+    <section class="ov-panel" aria-labelledby="ovSoonHeading">
+      <div class="ov-panel-head"><h2 id="ovSoonHeading">Coming up</h2><a href="fh_calendar.html">Calendar</a></div>
+      <div id="ovSoon"><p class="ov-skel">Loading…</p></div>
     </section>
-
-    <section class="grid lower-grid">
-      <div class="card">
-        <div class="card-head">
-          <div><div class="card-title">Data &amp; Updates Overview</div><div class="card-sub">A summary of the latest updates across the faculty.</div></div>
-        </div>
-        <div class="metrics">
-          <div class="metric"><div class="metric-num" id="metricUpcoming">—</div><div class="metric-label">Upcoming Events<br>next 30 days</div></div>
-          <div class="metric"><div class="metric-num" id="metricActiveAnnouncements">—</div><div class="metric-label">Active Announcements<br>visible to staff</div></div>
-          <div class="metric"><div class="metric-num" id="metricClassesPending">—</div><div class="metric-label">Classes to Track<br>pending TP2 data</div></div>
-          <div class="metric"><div class="metric-num" id="metricStaffMembers">—</div><div class="metric-label">Staff Members<br>in faculty hub</div></div>
-        </div>
-      </div>
-      <div class="card">
-        <div class="card-head">
-          <div><div class="card-title">Quick Actions</div><div class="card-sub">Admin shortcuts.</div></div>
-        </div>
-        <div class="quick-actions">
-          <button class="qa-btn" type="button" data-fh-href="fh_staff.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/></svg>Manage Users</button>
-          <button class="qa-btn" type="button" data-fh-href="fh_tracking.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/></svg>Import Tracking Data</button>
-          <button class="qa-btn" type="button" data-fh-href="fh_staff.html"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16"/><path d="M7 20V8h10v12"/></svg>Staff Reports</button>
-          <button class="qa-btn" type="button" data-fh-href="faculty-hub.html?panel=data-backup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/></svg>Backup Now</button>
-        </div>
-      </div>
+    <section class="ov-panel" aria-labelledby="ovTrackHeading">
+      <div class="ov-panel-head"><h2 id="ovTrackHeading">Tracking</h2><a href="fh_tracking.html">Open</a></div>
+      <div id="ovTrack"><p class="ov-skel">Loading…</p></div>
     </section>
-
-    <section class="info-strip">
-      <div class="info-text">All changes you make here will be visible to faculty staff in real time.</div>
-      <a class="info-link" href="fh_staff.html">Open staff data manager</a>
-    </section>
-  </main>
+  </div>
+</main>
+<div id="ovToast" class="ov-toast" role="status" aria-live="polite"></div>
 
 <script>
-function canManage() {
-  return window.fhCanManage ? window.fhCanManage() : (
-    !!window.__authGuardCanManageSchool || !!window.__authGuardIsAdmin || !!window.__authGuardIsFacultyHead
-  );
-}
-function enforceAccess() {
-  if (window.fhEnforceAccess) window.fhEnforceAccess();
-  else if (!canManage()) window.location.replace('faculty-hub.html');
-}
-function fhGo(href) {
-  if (window.fhNavGo) window.fhNavGo(href);
-  else window.location.href = href;
-}
-function initFhOverviewChrome() {
-  if (window.fhNavPatchPageLinks) window.fhNavPatchPageLinks(document.querySelector('.main'));
-  document.querySelectorAll('[data-fh-href]').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      fhGo(btn.getAttribute('data-fh-href'));
-    });
-  });
-  var addToggle = document.getElementById('fhAddToggle');
-  var addMenu = document.getElementById('fhAddMenu');
-  if (addToggle && addMenu) {
-    addToggle.addEventListener('click', function(e) {
-      e.stopPropagation();
-      var open = addMenu.classList.toggle('open');
-      addToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-      addMenu.setAttribute('aria-hidden', open ? 'false' : 'true');
-    });
-    addMenu.querySelectorAll('a').forEach(function(a) {
-      a.addEventListener('click', function() {
-        addMenu.classList.remove('open');
-        addToggle.setAttribute('aria-expanded', 'false');
-        addMenu.setAttribute('aria-hidden', 'true');
-      });
-    });
-    document.addEventListener('click', function() {
-      addMenu.classList.remove('open');
-      addToggle.setAttribute('aria-expanded', 'false');
-      addMenu.setAttribute('aria-hidden', 'true');
-    });
+(function() {
+  'use strict';
+
+  var SOON_DAYS = 14;
+  var MINUTES_LOOKBACK_DAYS = 45;
+
+  function $(id) { return document.getElementById(id); }
+  function esc(v) {
+    return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
-  var helpBtn = document.getElementById('fhHelpBtn');
-  if (helpBtn) {
-    helpBtn.addEventListener('click', function() {
-      alert(
-        'Faculty Head Hub help\n\n' +
-        '• Use the tabs along the top to move between sections.\n' +
-        '• Add New creates calendar events, announcements, tracking entries, or resources.\n' +
-        '• Staff Hub, top left, takes you back to the hub your staff see.\n' +
-        '• Announcements can be saved as drafts or scheduled to go live later.'
-      );
-    });
+  function href(h) { return window.fhNavHref ? fhNavHref(h) : h; }
+  var toastTimer = null;
+  function toast(msg) {
+    var t = $('ovToast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function() { t.classList.remove('show'); }, 3200);
   }
-}
-function titleCase(v) {
-  return String(v || '')
-    .replace(/[_\-\.]/g, ' ')
-    .split(' ')
-    .filter(Boolean)
-    .map(function(part) { return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase(); })
-    .join(' ');
-}
-function initProfile() {
-  if (!window.supabase || !window.supabase.auth) return;
-  window.supabase.auth.getSession().then(function(res) {
-    var session = res && res.data ? res.data.session : null;
-    if (!session || !session.user) return;
-    var email = String(session.user.email || '').trim();
-    if (!email) return;
-    var namePart = email.split('@')[0];
-    var pretty = titleCase(namePart);
-    var initials = pretty.split(' ').slice(0, 2).map(function(x) { return x.charAt(0).toUpperCase(); }).join('') || 'FH';
-    var role = window.__authGuardRole || (window.__authGuardIsAdmin ? 'admin' : 'faculty_head');
-    var roleLabel = role === 'admin' ? 'Admin' : role === 'faculty_head' ? 'Faculty Head' : titleCase(role);
-    document.getElementById('userAvatar').textContent = initials;
-    document.getElementById('userName').textContent = pretty;
-    document.getElementById('userRole').textContent = roleLabel;
-  }).catch(function() {});
-}
-function esc(v){
-  return String(v == null ? '' : v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-function isoDateLocal(d){
-  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-}
-function dateBadgeHtml(iso){
-  var d = String(iso || '').slice(0, 10).split('-');
-  if (d.length !== 3) return '<div class="date-badge"><span class="m">—</span><span class="d">—</span></div>';
-  var months = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-  var m = months[Math.max(0, Math.min(11, Number(d[1]) - 1))] || '—';
-  var day = Number(d[2]) || '—';
-  return '<div class="date-badge"><span class="m">' + m + '</span><span class="d">' + day + '</span></div>';
-}
-function renderCalendarRows(events){
-  var wrap = document.getElementById('calendarRows');
-  if (!wrap) return;
-  if (!events.length) {
-    wrap.innerHTML = '<div class="row-placeholder">No shared calendar events yet.</div>';
-    return;
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function ymd(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function addDays(d, n) { var x = new Date(d); x.setDate(x.getDate() + n); return x; }
+  function parseYmd(s) { return new Date(String(s).slice(0, 10) + 'T12:00:00'); }
+  function dayLabel(d) {
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+    var that = new Date(d); that.setHours(0, 0, 0, 0);
+    var diff = Math.round((that - today) / 86400000);
+    if (diff === 0) return 'Today';
+    if (diff === 1) return 'Tomorrow';
+    if (diff === -1) return 'Yesterday';
+    return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
   }
-  wrap.innerHTML = events.map(function(e){
-    var cat = String(e.category || 'general').toLowerCase();
-    var isDeadline = cat === 'deadline' || cat === 'assessment' || cat === 'reporting';
-    var pill = isDeadline ? '<span class="status-pill pill-scheduled">Deadline</span>' : '<span></span>';
-    return '<div class="row">' +
-      dateBadgeHtml(e.date) +
-      '<div><div class="item-title">' + esc(e.title || 'Untitled event') + '</div>' +
-      '<div class="item-meta">All Day</div>' +
-      '<div class="item-meta"><span class="dot ' + (isDeadline ? 'dot-red' : 'dot-purple') + '"></span>Visible to all faculty staff</div></div>' +
-      pill +
-      '<button class="menu-btn" type="button" title="Manage in Calendar Manager" onclick="fhGo(\'fh_calendar.html\')">⋮</button>' +
-    '</div>';
-  }).join('');
-}
-// Shows what needs attention first: drafts, then the next scheduled posts, then what is live.
-function renderAnnouncementRows(list){
-  var wrap = document.getElementById('announcementRows');
-  if (!wrap) return;
-  var order = { draft: 0, scheduled: 1, live: 2 };
-  var shown = list.filter(function(a){ return a && order[a.state] != null; });
-  if (!shown.length) {
-    wrap.innerHTML = '<div class="row-placeholder">No drafts, scheduled or live announcements.</div>';
-    return;
-  }
-  shown.sort(function(a, b){
-    if (order[a.state] !== order[b.state]) return order[a.state] - order[b.state];
-    if (a.state === 'scheduled') return String(a.publish_at).localeCompare(String(b.publish_at));
-    return String(b.posted_at || b.updated_at || '').localeCompare(String(a.posted_at || a.updated_at || ''));
-  });
-  var pills = {
-    draft: '<span class="status-pill pill-draft">Draft</span>',
-    scheduled: '<span class="status-pill pill-scheduled">Scheduled</span>',
-    live: '<span class="status-pill pill-active">Live</span>'
-  };
-  function when(a){
-    var iso = a.state === 'scheduled' ? a.publish_at : a.state === 'live' ? a.posted_at : a.updated_at;
+  function whenLabel(iso) {
     var d = new Date(iso);
-    if (isNaN(d.getTime())) return '';
-    var label = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) + ', ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
-    return (a.state === 'scheduled' ? 'Goes live ' : a.state === 'live' ? 'Live since ' : 'Edited ') + label;
+    return isNaN(d.getTime()) ? '' : dayLabel(d) + ', ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
   }
-  wrap.innerHTML = shown.slice(0, 4).map(function(a){
-    return '<div class="row">' +
-      '<div>' + pills[a.state] + '</div>' +
-      '<div><div class="item-title">' + esc(a.title || 'Untitled announcement') + '</div>' +
-      '<div class="item-meta">' + esc(when(a)) + '</div></div>' +
-      '<span></span>' +
-      '<button class="menu-btn" type="button" title="Manage in Announcements" onclick="fhGo(\'fh_announcements.html\')">⋮</button>' +
-    '</div>';
-  }).join('');
-}
-function extractTrackingCompletion(rows){
-  var out = [];
-  (rows || []).forEach(function(r){
-    if (!r || (r.data_type !== 'drama-v3' && r.data_type !== 'art-v2')) return;
-    var subj = r.data_type === 'drama-v3' ? 'Drama' : 'Art & Design';
-    var data = r.data || {};
-    var pupilsRoot = data.pupils || {};
-    var scoresRoot = data.scores || {};
-    ['s1','s2','s3','s4','s5','s6','s56'].forEach(function(yg){
-      var classes = pupilsRoot[yg] || {};
-      Object.keys(classes).forEach(function(cls){
-        var classPupils = Array.isArray(classes[cls]) ? classes[cls] : [];
-        if (!classPupils.length) return;
-        var scored = 0;
-        classPupils.forEach(function(p){
-          var pid = p && p.id ? p.id : null;
-          if (!pid) return;
-          if (scoresRoot[yg] && scoresRoot[yg][pid] && Object.keys(scoresRoot[yg][pid]).length) scored += 1;
-        });
-        var status = scored === 0 ? 'Not Started' : scored < classPupils.length ? 'In Progress' : 'Complete';
-        out.push({
-          label: (yg || '').toUpperCase() + ' ' + subj,
-          detail: 'TP2 Data',
-          status: status,
-          ratio: scored + '/' + classPupils.length,
-          sortWeight: status === 'Not Started' ? 0 : status === 'In Progress' ? 1 : 2
+  function plural(n, one, many) { return n + ' ' + (n === 1 ? one : (many || one + 's')); }
+  // A source that fails resolves to null, so one outage doesn't blank the page.
+  function safe(p) { return Promise.resolve(p).catch(function() { return null; }); }
+
+  // ---- Header -----------------------------------------------------------
+  function renderHeader() {
+    var now = new Date();
+    $('ovDate').textContent = now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+    var h = now.getHours();
+    var greeting = h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+    $('ovGreeting').textContent = greeting;
+    if (!window.supabase || !window.supabase.auth) return;
+    window.supabase.auth.getSession().then(function(res) {
+      var user = res && res.data && res.data.session && res.data.session.user;
+      var first = user ? String(user.email || '').split('@')[0].split(/[._-]/)[0] : '';
+      if (first) $('ovGreeting').textContent = greeting + ', ' + first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
+    }).catch(function() {});
+  }
+
+  // ---- Tracking ---------------------------------------------------------
+  // One row per class: how many pupils have any scores entered.
+  function trackingByClass(rows) {
+    var out = [];
+    (rows || []).forEach(function(r) {
+      if (!r || (r.data_type !== 'drama-v3' && r.data_type !== 'art-v2')) return;
+      var subj = r.data_type === 'drama-v3' ? 'Drama' : 'Art & Design';
+      var data = r.data || {};
+      var pupilsRoot = data.pupils || {};
+      var scoresRoot = data.scores || {};
+      Object.keys(pupilsRoot).forEach(function(yg) {
+        var classes = pupilsRoot[yg] || {};
+        Object.keys(classes).forEach(function(cls) {
+          var pupils = Array.isArray(classes[cls]) ? classes[cls] : [];
+          if (!pupils.length) return;
+          var scored = pupils.filter(function(p) {
+            var s = p && p.id && scoresRoot[yg] && scoresRoot[yg][p.id];
+            return s && Object.keys(s).length;
+          }).length;
+          out.push({ label: cls + ' ' + subj, teacher: r.teacherName && r.teacherName !== 'Unknown' ? r.teacherName : '', scored: scored, total: pupils.length });
         });
       });
     });
-  });
-  out.sort(function(a,b){ return a.sortWeight - b.sortWeight || a.label.localeCompare(b.label); });
-  return out.slice(0, 5);
-}
-function renderTrackingRows(items){
-  var wrap = document.getElementById('trackingRows');
-  if (!wrap) return;
-  if (!items.length) {
-    wrap.innerHTML = '<div class="row-placeholder">No tracking classes found yet. Load data in Tracking Manager.</div>';
-    return;
+    out.sort(function(a, b) { return (a.scored / a.total) - (b.scored / b.total) || a.label.localeCompare(b.label); });
+    return out;
   }
-  wrap.innerHTML = items.map(function(it){
-    var cls = it.status === 'Complete' ? 'b-complete' : it.status === 'In Progress' ? 'b-progress' : 'b-not';
-    return '<div class="row">' +
-      '<div class="item-title">' + esc(it.label) + '</div>' +
-      '<div class="item-meta">' + esc(it.detail) + ' · ' + esc(it.ratio) + '</div>' +
-      '<span class="status-badge ' + cls + '">' + esc(it.status) + '</span>' +
-      '<button class="menu-btn" type="button" title="Open Tracking Manager" onclick="fhGo(\'fh_tracking.html\')">›</button>' +
-    '</div>';
-  }).join('');
-}
-function setMetric(id, value){
-  var el = document.getElementById(id);
-  if (el) el.textContent = String(value);
-}
-function loadDashboardData(){
-  if (!window.DataService) return;
-  Promise.all([
-    (typeof DataService.getSharedCalendarEvents === 'function' ? DataService.getSharedCalendarEvents() : Promise.resolve([])),
-    (typeof DataService.getAnnouncementsForManage === 'function' ? DataService.getAnnouncementsForManage().catch(function(){ return []; }) : Promise.resolve([])),
-    (typeof DataService.getAllForMonitoring === 'function' ? DataService.getAllForMonitoring() : Promise.resolve([])),
-    (typeof DataService.getStaffListWithWorkForAdmin === 'function' ? DataService.getStaffListWithWorkForAdmin() : Promise.resolve([]))
-  ]).then(function(res){
-    var sharedEvents = Array.isArray(res[0]) ? res[0] : [];
-    var announcements = Array.isArray(res[1]) ? res[1] : [];
-    var monitoringRows = Array.isArray(res[2]) ? res[2] : [];
-    var staffList = Array.isArray(res[3]) ? res[3] : [];
-    var today = isoDateLocal(new Date());
-    var in30 = new Date();
-    in30.setDate(in30.getDate() + 30);
-    var in30s = isoDateLocal(in30);
-    var upcomingEvents = sharedEvents
-      .filter(function(e){ var d = String(e.date || '').slice(0,10); return d && d >= today; })
-      .sort(function(a,b){ return String(a.date || '').localeCompare(String(b.date || '')); });
-    renderCalendarRows(upcomingEvents.slice(0, 4));
-    renderAnnouncementRows(announcements);
-    var trackingCompletion = extractTrackingCompletion(monitoringRows);
-    renderTrackingRows(trackingCompletion);
-    var activeAnnouncements = announcements.filter(function(a){ return a.state === 'live'; });
-    setMetric('metricUpcoming', upcomingEvents.filter(function(e){ var d = String(e.date || '').slice(0,10); return d && d <= in30s; }).length);
-    setMetric('metricActiveAnnouncements', activeAnnouncements.length);
-    setMetric('metricClassesPending', trackingCompletion.filter(function(it){ return it.status !== 'Complete'; }).length);
-    setMetric('metricStaffMembers', staffList.length || new Set(monitoringRows.map(function(r){ return r && r.user_id; }).filter(Boolean)).size);
-  }).catch(function(){
-    renderCalendarRows([]);
-    renderAnnouncementRows([]);
-    renderTrackingRows([]);
-    setMetric('metricUpcoming', 0);
-    setMetric('metricActiveAnnouncements', 0);
-    setMetric('metricClassesPending', 0);
-    setMetric('metricStaffMembers', 0);
+
+  // ---- Needs your attention --------------------------------------------
+  function renderTodo(d) {
+    var items = [];
+    var failed = [];
+
+    if (d.requests == null) failed.push('calendar requests');
+    (d.requests || []).forEach(function(r) {
+      var who = d.requesters[r.requester_id] || 'A member of staff';
+      var dates = CalendarRequestService.formatDateRange(r).split(' – ').map(function(x) { return dayLabel(parseYmd(x)); }).join(' – ');
+      items.push({
+        kind: 'request',
+        title: 'Calendar request: ' + r.title,
+        detail: who + ' · ' + dates,
+        actions: '<button class="btn btn-primary btn-sm" type="button" data-approve="' + esc(r.id) + '">Approve</button>' +
+                 '<button class="btn btn-sm" type="button" data-decline="' + esc(r.id) + '">Decline</button>'
+      });
+    });
+
+    if (d.announcements == null) failed.push('announcements');
+    var anns = d.announcements || [];
+    var drafts = anns.filter(function(a) { return a.state === 'draft'; });
+    if (drafts.length) {
+      items.push({
+        kind: 'draft',
+        title: plural(drafts.length, 'announcement draft') + ' not posted yet',
+        detail: drafts.slice(0, 2).map(function(a) { return a.title; }).join(' · ') + (drafts.length > 2 ? ' …' : ''),
+        actions: '<a class="btn btn-sm" href="' + esc(href('fh_announcements.html?tab=draft')) + '">Review drafts</a>'
+      });
+    }
+    if (d.announcements && !anns.some(function(a) { return a.state === 'live'; })) {
+      items.push({
+        kind: 'warn',
+        title: 'Nothing is live on the staff home page',
+        detail: 'Staff see an empty announcements card.',
+        actions: '<a class="btn btn-sm" href="' + esc(href('fh_announcements.html?new=1')) + '">Post one</a>'
+      });
+    }
+
+    if (d.meetings == null) failed.push('meetings');
+    var today = ymd(new Date());
+    var since = ymd(addDays(new Date(), -MINUTES_LOOKBACK_DAYS));
+    (d.meetings || []).filter(function(m) {
+      var md = String(m.meeting_date || '').slice(0, 10);
+      return md && md < today && md >= since && m.minutes_recording_status !== 'complete';
+    }).slice(0, 3).forEach(function(m) {
+      items.push({
+        kind: 'warn',
+        title: 'Minutes not finished: ' + (m.title || 'Department meeting'),
+        detail: 'Meeting on ' + dayLabel(parseYmd(m.meeting_date)),
+        actions: '<a class="btn btn-sm" href="' + esc(href('fh_department_meetings.html')) + '">Open minutes</a>'
+      });
+    });
+
+    if (d.tracking == null) failed.push('tracking');
+    var gaps = (d.tracking || []).filter(function(t) { return t.scored < t.total; });
+    if (gaps.length) {
+      items.push({
+        kind: 'warn',
+        title: plural(gaps.length, 'class', 'classes') + ' with pupils missing scores',
+        detail: gaps.slice(0, 3).map(function(t) { return t.label + ' (' + t.scored + '/' + t.total + ')'; }).join(' · ') + (gaps.length > 3 ? ' …' : ''),
+        actions: '<a class="btn btn-sm" href="' + esc(href('fh_tracking.html')) + '">Open tracking</a>'
+      });
+    }
+
+    var html = '';
+    if (items.length) {
+      html = '<ul class="ov-todo">' + items.map(function(it) {
+        return '<li><span class="ov-dot is-' + it.kind + '" aria-hidden="true"></span>' +
+          '<div><div class="ov-todo-title">' + esc(it.title) + '</div>' +
+          (it.detail ? '<div class="ov-todo-detail">' + esc(it.detail) + '</div>' : '') + '</div>' +
+          '<div class="ov-todo-actions">' + it.actions + '</div></li>';
+      }).join('') + '</ul>';
+    } else if (!failed.length) {
+      html = '<p class="ov-clear"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>You’re all caught up.</p>';
+    }
+    if (failed.length) {
+      html += '<p class="ov-muted">Couldn’t check ' + esc(failed.join(', ')) + '. Refresh to try again.</p>';
+    }
+    $('ovTodo').innerHTML = html;
+  }
+
+  // ---- Announcements panel ---------------------------------------------
+  function renderAnnouncements(anns) {
+    var el = $('ovAnn');
+    if (anns == null) { el.innerHTML = '<p class="ov-muted">Announcements didn’t load.</p>'; return; }
+    var by = function(s) { return anns.filter(function(a) { return a.state === s; }); };
+    var live = by('live'), scheduled = by('scheduled'), drafts = by('draft');
+    var count = function(n, label, tab) {
+      return '<a class="ov-count" href="' + esc(href('fh_announcements.html?tab=' + tab)) + '"><strong>' + n + '</strong><span>' + label + '</span></a>';
+    };
+    scheduled.sort(function(a, b) { return String(a.publish_at).localeCompare(String(b.publish_at)); });
+    live.sort(function(a, b) { return String(b.posted_at).localeCompare(String(a.posted_at)); });
+    var rows = scheduled.slice(0, 2).map(function(a) {
+      return '<li><div><div class="ov-item-title"><span class="pill pill-scheduled">Scheduled</span>' + esc(a.title) + '</div>' +
+        '<div class="ov-item-meta">Goes live ' + esc(whenLabel(a.publish_at)) + '</div></div></li>';
+    }).concat(live.slice(0, 3).map(function(a) {
+      return '<li><div><div class="ov-item-title"><span class="pill pill-live">Live</span>' + esc(a.title) + '</div>' +
+        '<div class="ov-item-meta">Since ' + esc(whenLabel(a.posted_at)) + (a.featured_banner ? ' · Home banner' : '') + '</div></div></li>';
+    }));
+    el.innerHTML = '<div class="ov-counts">' + count(live.length, 'Live', 'live') + count(scheduled.length, 'Scheduled', 'scheduled') + count(drafts.length, 'Drafts', 'draft') + '</div>' +
+      (rows.length ? '<ul class="ov-list">' + rows.join('') + '</ul>' : '<p class="ov-muted">No live or scheduled announcements.</p>');
+  }
+
+  // ---- Coming up panel --------------------------------------------------
+  function renderSoon(events, meetings) {
+    var el = $('ovSoon');
+    if (events == null && meetings == null) { el.innerHTML = '<p class="ov-muted">The calendar didn’t load.</p>'; return; }
+    var today = ymd(new Date());
+    var until = ymd(addDays(new Date(), SOON_DAYS));
+    var list = [];
+    (events || []).forEach(function(e) {
+      var d = String(e.date || '').slice(0, 10);
+      if (d >= today && d <= until) list.push({ date: d, title: e.title || 'Untitled event', meta: e.category && e.category !== 'general' ? e.category : '' });
+    });
+    (meetings || []).forEach(function(m) {
+      var d = String(m.meeting_date || '').slice(0, 10);
+      if (d >= today && d <= until) list.push({ date: d, title: m.title || 'Department meeting', meeting: true });
+    });
+    list.sort(function(a, b) { return a.date.localeCompare(b.date); });
+    if (!list.length) { el.innerHTML = '<p class="ov-muted">Nothing on the shared calendar in the next ' + SOON_DAYS + ' days.</p>'; return; }
+    el.innerHTML = '<ul class="ov-list">' + list.slice(0, 6).map(function(it) {
+      var d = parseYmd(it.date);
+      return '<li><div class="ov-when"><small>' + esc(d.toLocaleDateString('en-GB', { month: 'short' })) + '</small><b>' + d.getDate() + '</b></div>' +
+        '<div><div class="ov-item-title">' + (it.meeting ? '<span class="pill pill-meeting">Meeting</span>' : '') + esc(it.title) + '</div>' +
+        '<div class="ov-item-meta">' + esc(dayLabel(d)) + (it.meta ? ' · ' + esc(it.meta) : '') + '</div></div></li>';
+    }).join('') + '</ul>';
+  }
+
+  // ---- Tracking panel ---------------------------------------------------
+  function renderTracking(classes) {
+    var el = $('ovTrack');
+    if (classes == null) { el.innerHTML = '<p class="ov-muted">Tracking data didn’t load.</p>'; return; }
+    if (!classes.length) { el.innerHTML = '<p class="ov-muted">No classes in the Drama or Art trackers yet.</p>'; return; }
+    var done = classes.filter(function(c) { return c.scored >= c.total; }).length;
+    el.innerHTML = '<p class="ov-muted" style="padding-bottom:10px">' + done + ' of ' + plural(classes.length, 'class', 'classes') + ' have scores for every pupil.</p>' +
+      '<ul class="ov-list">' + classes.slice(0, 6).map(function(c) {
+        var pct = Math.round((c.scored / c.total) * 100);
+        return '<li><div class="ov-track"><div class="ov-track-row"><span class="ov-item-title">' + esc(c.label) + '</span>' +
+          '<span class="ov-item-meta">' + c.scored + '/' + c.total + '</span></div>' +
+          (c.teacher ? '<div class="ov-item-meta">' + esc(c.teacher) + '</div>' : '') +
+          '<div class="ov-bar" role="img" aria-label="' + pct + '% of pupils have scores"><i class="' + (pct >= 100 ? 'is-done' : '') + '" style="width:' + pct + '%"></i></div></div></li>';
+      }).join('') + '</ul>';
+  }
+
+  // ---- Load -------------------------------------------------------------
+  function load() {
+    var ds = window.DataService || {};
+    var crs = window.CalendarRequestService;
+    return Promise.all([
+      safe(ds.getAnnouncementsForManage && ds.getAnnouncementsForManage()),
+      safe(ds.getSharedCalendarEvents && ds.getSharedCalendarEvents()),
+      safe(ds.listDepartmentMeetings && ds.listDepartmentMeetings()),
+      safe(ds.getAllForMonitoring && ds.getAllForMonitoring()),
+      safe(crs && crs.listPendingForReview())
+    ]).then(function(res) {
+      var requests = res[4];
+      var ids = (requests || []).map(function(r) { return r.requester_id; });
+      return safe(requests && requests.length ? crs.getRequesterProfiles(ids) : {}).then(function(profiles) {
+        var d = {
+          announcements: res[0],
+          events: res[1],
+          meetings: res[2],
+          tracking: res[3] == null ? null : trackingByClass(res[3]),
+          requests: requests,
+          requesters: profiles || {}
+        };
+        renderTodo(d);
+        renderAnnouncements(d.announcements);
+        renderSoon(d.events, d.meetings);
+        renderTracking(d.tracking);
+        if (window.fhNavPatchPageLinks) fhNavPatchPageLinks(document.querySelector('.ov'));
+      });
+    });
+  }
+
+  // Approve or decline calendar requests without leaving the overview.
+  $('ovTodo').addEventListener('click', function(e) {
+    var approve = e.target.closest('[data-approve]');
+    var decline = e.target.closest('[data-decline]');
+    if (!approve && !decline) return;
+    var btn = approve || decline;
+    var id = btn.getAttribute(approve ? 'data-approve' : 'data-decline');
+    var action;
+    if (approve) {
+      action = CalendarRequestService.approveRequest(id);
+    } else {
+      var reason = window.prompt('Reason for declining (optional, shown to the teacher):', '');
+      if (reason === null) return;
+      action = CalendarRequestService.rejectRequest(id, reason);
+    }
+    var buttons = btn.closest('li').querySelectorAll('button');
+    buttons.forEach(function(b) { b.disabled = true; });
+    action.then(function() {
+      toast(approve ? 'Approved. It’s on the shared calendar.' : 'Request declined.');
+      return load();
+    }).catch(function(err) {
+      buttons.forEach(function(b) { b.disabled = false; });
+      toast((err && err.message) || 'That didn’t work. Try again.');
+    });
   });
-}
-// Run once, after sign-in has finished (fh-access.js handles the redirect).
-var fhOverviewStarted = false;
-function startOverview() {
-  if (fhOverviewStarted) return;
-  fhOverviewStarted = true;
-  enforceAccess();
-  initProfile();
-  loadDashboardData();
-}
-if (window.__authReady) startOverview();
-else window.addEventListener('auth-guard-ready', startOverview);
+
+  renderHeader();
+  var started = false;
+  function start() {
+    if (started) return;
+    started = true;
+    load();
+  }
+  if (window.__authReady) start();
+  else window.addEventListener('auth-guard-ready', start);
+})();
 </script>
 <script src="fh-nav-config.js"></script>
 <script src="fh-top-nav.js"></script>
-<script>if (typeof initFhOverviewChrome === 'function') initFhOverviewChrome();</script>
+<script>if (window.fhNavPatchPageLinks) fhNavPatchPageLinks(document.querySelector('.ov'));</script>
 </body>
 </html>

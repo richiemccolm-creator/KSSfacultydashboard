@@ -439,7 +439,7 @@
       items = list || [];
       var firstLoad = !loaded;
       loaded = true;
-      if (firstLoad && !recall(TAB_KEY) && !byState('live').length && byState('draft').length) tab = 'draft';
+      if (firstLoad && !linkTab && !recall(TAB_KEY) && !byState('live').length && byState('draft').length) tab = 'draft';
       render();
     }).catch(showLoadError);
   }
@@ -897,7 +897,9 @@
   // Scheduled posts go live on their own; refresh the list so they change tab.
   setInterval(function() { if (loaded && $('annDrawer').hidden && !busy) load(); }, 60000);
 
-  var savedTab = recall(TAB_KEY);
+  // A link can pick the tab (?tab=draft); otherwise reopen the last one used.
+  var linkTab = (location.search.match(/[?&]tab=([a-z]+)/) || [])[1];
+  var savedTab = STATES.indexOf(linkTab) !== -1 ? linkTab : recall(TAB_KEY);
   if (STATES.indexOf(savedTab) !== -1) tab = savedTab;
   render();
 
