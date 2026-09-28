@@ -17,6 +17,7 @@
 <script src="data-service.js"></script>
 <script src="tracker-sync.js"></script>
 <script src="tracker-column-view.js"></script>
+<script src="tracker-keyboard.js"></script>
 <script src="tracker-promote-archive.js"></script>
 <script src="tracker-readonly-view.js"></script>
 <script src="report-builder-bridge.js"></script>
@@ -470,7 +471,7 @@ html,body{max-width:100%;overscroll-behavior-x:none}
   -webkit-print-color-adjust:exact;print-color-adjust:exact
 }
 </style>
-<link rel="stylesheet" href="tracker-ipad.css?v=col1">
+<link rel="stylesheet" href="tracker-ipad.css?v=kbd1">
 </head>
 <body>
 <button type="button" class="ipad-backdrop" onclick="trackerIpadClose()" aria-label="Close navigation"></button>
@@ -1358,15 +1359,17 @@ function renderTracker(yg){
       </div>
     </details>
     ${bulkHTML}
-    ${pupils.length?`<div class="score-view-bar">${TrackerColumnView.switchHTML(yg,scoreView)}</div>`:''}
+    ${pupils.length?`<div class="score-view-bar"><span class="kbd-hint">Keyboard: <kbd>↑</kbd><kbd>↓</kbd> pupil · <kbd>←</kbd><kbd>→</kbd> column · <kbd>1</kbd>–<kbd>4</kbd> score · <kbd>0</kbd> N/A · <kbd>Delete</kbd> clear</span>${TrackerColumnView.switchHTML(yg,scoreView)}</div>`:''}
     <div class="score-area" id="score-area-${yg}">${pupils.length&&scoreView==='column'?columnViewHTML(yg):tableHTML}</div>
   `;
+  TrackerKeyboard.prepare(el);
 }
 
 function scoreCell(yg,pid,tpId,dim,current){
   const btns=[1,2,3,4].map(n=>`<button class="sc-btn s${n} ${current===n?'active':''}" onclick="setScore('${yg}','${pid}','${tpId}','${dim}',${n},this)">${n}</button>`).join('');
   const na=`<button class="na-btn ${current===0?'active':''}" onclick="setScore('${yg}','${pid}','${tpId}','${dim}',0,this)" title="Not assessed this TP">N/A</button>`;
-  return `<div class="sc-wrap"><div class="sc-group">${btns}${na}</div></div>`;
+  const lbl=PROC_LABELS[dim]||ATTIT_LABELS[dim]||dim;
+  return `<div class="sc-wrap"><div class="sc-group" data-score-cell data-pid="${escAttr(pid)}" data-dim="${dim}" role="group" aria-label="${lbl}">${btns}${na}</div></div>`;
 }
 function setTP(yg,id){S.curTP[yg]=id;renderTracker(yg);}
 function setCls(yg,cls){S.curCls[yg]=cls;renderTracker(yg);}
@@ -1388,7 +1391,7 @@ function columnViewOpts(yg){
   };
 }
 function columnViewHTML(yg){return TrackerColumnView.render(columnViewOpts(yg));}
-function renderScoreArea(yg){const el=document.getElementById('score-area-'+yg);if(el)el.innerHTML=columnViewHTML(yg);}
+function renderScoreArea(yg){const el=document.getElementById('score-area-'+yg);if(el){el.innerHTML=columnViewHTML(yg);TrackerKeyboard.prepare(document.getElementById('panel-tracker-'+yg));}}
 function setScoreView(yg,mode){TrackerColumnView.setMode(mode);renderTracker(yg);}
 function setColDim(yg,dim,jump){
   _colDim[yg]=dim;renderScoreArea(yg);
@@ -2476,6 +2479,12 @@ function retryLoad(){
 }
 annotateSidebarItems();
 initSidebarState();
+TrackerKeyboard.init({
+  dims:[...PROC_DIMS,...ATTIT_DIMS],
+  current:(yg,pid,dim)=>S.scores[yg]?.[pid]?.[S.curTP[yg]]?.[dim],
+  setScore:(yg,pid,dim,val,btn)=>setScore(yg,pid,S.curTP[yg],dim,val,btn),
+  switchDim:(yg,dim)=>setColDim(yg,dim),
+});
 if(window.TrackerReadonlyView&&TrackerReadonlyView.isConfigured()){
   TrackerReadonlyView.boot({
     state:S,dataType:'drama-v3',subjectLabel:'Drama BGE tracker',
@@ -2488,6 +2497,6 @@ if(window.TrackerReadonlyView&&TrackerReadonlyView.isConfigured()){
     .then(function(){updateStorageIndicator();renderHome();});
 }
 </script>
-<script src="tracker-ipad.js?v=rail2"></script>
+<script src="tracker-ipad.js?v=kbd1"></script>
 </body>
 </html>

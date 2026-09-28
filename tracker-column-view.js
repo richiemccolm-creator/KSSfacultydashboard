@@ -77,7 +77,7 @@
       '<div class="col-name"><span class="col-pupil">' + esc(p.name) + '</span>' +
       (o.showClass ? '<span class="col-cls">' + esc(p.cls) + '</span>' : '') +
       (cell.isDefault ? '<span class="col-default" title="Starting score, not yet changed">Default</span>' : '') + '</div>' +
-      '<div class="col-score sc-group" data-score-cell>' + btns + '</div>' +
+      '<div class="col-score sc-group" data-score-cell data-pid="' + esc(p.id) + '" data-dim="' + o.dim + '" role="group" aria-label="' + esc(p.name) + ', ' + dimInfo(o.dim).lbl + '">' + btns + '</div>' +
       '<button type="button" class="col-note-btn' + (note ? ' has-note' : '') + '" aria-expanded="false" onclick="toggleColNote(this)">Note</button>' +
       '<div class="col-note" hidden><textarea class="notes-inp" rows="2" placeholder="Note for this unit…" oninput="setNote(\'' + o.yg + '\',\'' + jsq(p.id) + '\',\'' + o.tpId + '\',this.value);this.closest(\'.col-row\').querySelector(\'.col-note-btn\').classList.toggle(\'has-note\',!!this.value)">' + esc(note) + '</textarea></div>' +
       '</div>';

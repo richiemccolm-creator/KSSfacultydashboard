@@ -28,7 +28,9 @@
   function apply() {
     markYearRails();
     var next = mode();
-    document.documentElement.dataset.ipad = next;
+    // Remove rather than blank: html[data-ipad] matches an empty value, which put iPad styles on desktop.
+    if (next) document.documentElement.dataset.ipad = next;
+    else delete document.documentElement.dataset.ipad;
     if (next === current) return;
     current = next;
     document.body.classList.remove('ipad-nav-open');
