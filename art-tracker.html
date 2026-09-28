@@ -18,6 +18,7 @@
 <script src="tracker-column-view.js"></script>
 <script src="tracker-keyboard.js"></script>
 <script src="tracker-roster.js"></script>
+<script src="tracker-home.js"></script>
 <script src="tracker-promote-archive.js"></script>
 <script src="tracker-readonly-view.js"></script>
 <script src="report-builder-bridge.js"></script>
@@ -474,7 +475,7 @@ html,body{max-width:100%;overscroll-behavior-x:none}
   -webkit-print-color-adjust:exact;print-color-adjust:exact
 }
 </style>
-<link rel="stylesheet" href="tracker-ipad.css?v=roster1">
+<link rel="stylesheet" href="tracker-ipad.css?v=home2">
 </head>
 <body>
 <button type="button" class="ipad-backdrop" onclick="trackerIpadClose()" aria-label="Close navigation"></button>
@@ -535,6 +536,8 @@ html,body{max-width:100%;overscroll-behavior-x:none}
         <div class="hero-desc">Enter scores for the class in front of you.</div>
         <div class="hero-stats" id="home-stats"></div>
       </div>
+
+      <div id="home-todo"></div>
 
       <details class="task-more">
         <summary>What the scores mean</summary>
@@ -1009,6 +1012,22 @@ function renderHome(){
     <div><div class="hs-num">${total}</div><div class="hs-label">Pupils Registered</div></div>
     <div><div class="hs-num">${allScores.length}</div><div class="hs-label">Process Scores</div></div>
   `;
+  const todo=document.getElementById('home-todo');
+  if(todo&&window.TrackerHome)todo.innerHTML=TrackerHome.render(TrackerHome.build({S,TPS,dims:[...PROC_DIMS,...ATTIT_DIMS],rosterMissing}));
+}
+// From a To do item: open that class and unit, on the first column with gaps.
+function openTodo(yg,cls,tpId,dim){
+  S.curCls[yg]=cls;
+  if(tpId)S.curTP[yg]=tpId;
+  if(dim)_colDim[yg]=dim;
+  nav('tracker-'+yg);
+  const area=document.getElementById('score-area-'+yg);
+  if(!area)return;
+  area.scrollIntoView({block:'start'});
+  // First pupil without a score in that column, in either view
+  const cells=[...area.querySelectorAll(dim?`[data-score-cell][data-dim="${dim}"]`:'[data-score-cell]')];
+  const gap=cells.find(c=>!c.querySelector('.active'));
+  if(gap&&!document.documentElement.dataset.ipad)gap.focus();
 }
 
 // ══════════════════════════════════════════════════════════
