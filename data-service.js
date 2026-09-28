@@ -568,6 +568,93 @@
       return promiseWithTimeout(write, 20000, 'Save timed out');
     },
 
+    /**
+     * Like get(), but tells "no data yet" apart from "could not load".
+     * Resolves { data, updatedAt, userId, local }. Rejects when signed out or the read fails,
+     * so callers never mistake a failed load for an empty tracker.
+     */
+    getWithVersion: function(dataType) {
+      if (!useSupabase()) {
+        try {
+          var raw = localStorage.getItem(dataType);
+          return Promise.resolve({ data: raw ? JSON.parse(raw) : null, updatedAt: null, userId: null, local: true });
+        } catch (e) {
+          return Promise.reject(e);
+        }
+      }
+      var read = getSessionWithRetry({ retries: 4, delayMs: 250 }).then(function(session) {
+        if (!session) {
+          var err = new Error('Not signed in');
+          err.code = 'no-session';
+          throw err;
+        }
+        rememberSession(session);
+        return window.supabase.from('pupil_data')
+          .select('data, updated_at')
+          .eq('user_id', session.user.id)
+          .eq('data_type', dataType)
+          .maybeSingle()
+          .then(function(r) {
+            if (r.error) throw r.error;
+            return {
+              data: r.data ? r.data.data : null,
+              updatedAt: r.data ? r.data.updated_at : null,
+              userId: session.user.id,
+              local: false
+            };
+          });
+      });
+      return promiseWithTimeout(read, 20000, 'Load timed out');
+    },
+
+    /**
+     * Write only if the row is unchanged since expectedUpdatedAt (null = row must not exist yet).
+     * Resolves { updatedAt }. Rejects with err.code === 'conflict' when another device saved first.
+     */
+    setIfUnchanged: function(dataType, data, expectedUpdatedAt) {
+      if (!useSupabase()) {
+        try {
+          localStorage.setItem(dataType, JSON.stringify(data));
+          return Promise.resolve({ updatedAt: null });
+        } catch (e) {
+          return Promise.reject(e);
+        }
+      }
+      function conflict() {
+        var err = new Error('Changed on another device');
+        err.code = 'conflict';
+        return err;
+      }
+      var write = ensureSessionForMutations().then(function(session) {
+        if (expectedUpdatedAt) {
+          return window.supabase.from('pupil_data')
+            .update({ data: data })
+            .eq('user_id', session.user.id)
+            .eq('data_type', dataType)
+            .eq('updated_at', expectedUpdatedAt)
+            .select('updated_at')
+            .maybeSingle()
+            .then(function(r) {
+              if (r.error) throw r.error;
+              if (!r.data) throw conflict();
+              return { updatedAt: r.data.updated_at };
+            });
+        }
+        return window.supabase.from('pupil_data')
+          .insert({ user_id: session.user.id, data_type: dataType, data: data })
+          .select('updated_at')
+          .maybeSingle()
+          .then(function(r) {
+            if (r.error) {
+              if (r.error.code === '23505') throw conflict();
+              throw r.error;
+            }
+            return { updatedAt: r.data ? r.data.updated_at : null };
+          });
+      });
+      return promiseWithTimeout(write, 20000, 'Save timed out');
+    },
+
     getAll: function() {
       return new Promise(function(resolve) {
         if (!useSupabase()) {

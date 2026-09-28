@@ -14,6 +14,7 @@
 <script src="allowlist-check.js"></script>
 <script src="auth-guard.js"></script>
 <script src="data-service.js"></script>
+<script src="tracker-sync.js"></script>
 <script src="tracker-promote-archive.js"></script>
 <script src="tracker-readonly-view.js"></script>
 <script src="report-builder-bridge.js"></script>
@@ -470,7 +471,7 @@ html,body{max-width:100%;overscroll-behavior-x:none}
   -webkit-print-color-adjust:exact;print-color-adjust:exact
 }
 </style>
-<link rel="stylesheet" href="tracker-ipad.css?v=rail2">
+<link rel="stylesheet" href="tracker-ipad.css?v=sync1">
 </head>
 <body>
 <button type="button" class="ipad-backdrop" onclick="trackerIpadClose()" aria-label="Close navigation"></button>
@@ -796,6 +797,8 @@ let S={
   curCls:{s1:'all',s2:'all',s3:'all'},
   defaultsOn:{}, // {s1:{tp1:false,tp2:false,...}, s2:{...}, s3:{...}} — per-unit default settings toggle
 };
+// Cloud saving: see tracker-sync.js. S keeps its identity; merges replace its contents in place.
+const SYNC=TrackerSync.create({dataType:'art-v2',state:S,onStatus:renderSaveStatus,onRemoteChange:rerenderAfterRemote});
 function migrateLegacyArtScores(){
   let changed=false;
   ['s1','s2','s3'].forEach(function(yg){
@@ -818,17 +821,20 @@ function migrateLegacyArtScores(){
   return changed;
 }
 function load(){
-  return (window.DataService?DataService.get('art-v2'):Promise.resolve(null))
-    .then(function(d){
-      if(d)Object.assign(S,d);
-      ensureTrackerShape();
-      if(migrateLegacyArtScores())return save();
-    })
-    .catch(function(){});
+  return SYNC.load().then(function(r){
+    if(!r.ok)return r;
+    ensureTrackerShape();
+    if(migrateLegacyArtScores())save();
+    return r;
+  });
 }
-function save(){if(window.TrackerReadonlyView&&TrackerReadonlyView.isActive())return Promise.resolve();if(window.DataService){return DataService.set('art-v2',S).catch(function(){toast('Save failed — sign in to save to cloud');});}else{try{localStorage.setItem('art-v2',JSON.stringify(S));}catch(e){}return Promise.resolve();}}
-function roBlock(){return window.TrackerReadonlyView&&TrackerReadonlyView.block();}
-function autoSave(){save().then(function(){toast(window.DataService&&window.DataService.isUsingCloud&&window.DataService.isUsingCloud()?'Saved to cloud':'Saved');}).catch(function(){toast('Save failed — sign in to save to cloud');});}
+function save(){return SYNC.save();}
+function roBlock(){
+  if(window.TrackerReadonlyView&&TrackerReadonlyView.block())return true;
+  if(!SYNC.isLoaded()){toast('Your tracker has not loaded, so this change would not be saved. Tap Retry at the top.',4000);return true;}
+  return false;
+}
+function autoSave(){SYNC.flush().then(function(r){toast(r.ok?'All changes saved':'Not saved yet. It will keep trying, and your changes are kept on this device.',3500);});}
 function currentAcademicYearLabel(){
   const now=new Date();
   const start=now.getMonth()>=7?now.getFullYear():now.getFullYear()-1;
@@ -847,7 +853,7 @@ function ensureTrackerShape(){
   if(window.TrackerPromoteArchive)TrackerPromoteArchive.ensureArchivedShape(S);
 }
 function syncAssignedArtClasses(){
-  if(!window.DataService||!DataService.listMyAssignedClassesForTracker)return Promise.resolve();
+  if(!SYNC.isLoaded()||!window.DataService||!DataService.listMyAssignedClassesForTracker)return Promise.resolve();
   return DataService.listMyAssignedClassesForTracker({
     subject:'art',
     academicYearLabel:currentAcademicYearLabel()
@@ -870,7 +876,15 @@ function syncAssignedArtClasses(){
 
 // ── UTILS ──
 function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2)}
-function toast(msg,ms=2300){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),ms);}
+let _toastTimer=null;
+function toast(msg,ms=2300){const t=document.getElementById('toast');t.classList.remove('has-action');t.textContent=msg;t.classList.add('show');clearTimeout(_toastTimer);_toastTimer=setTimeout(()=>t.classList.remove('show'),ms);}
+function toastAction(msg,label,fn,ms=8000){
+  const t=document.getElementById('toast');t.textContent='';
+  const m=document.createElement('span');m.textContent=msg;
+  const b=document.createElement('button');b.type='button';b.className='toast-action';b.textContent=label;
+  b.onclick=()=>{clearTimeout(_toastTimer);t.classList.remove('show');fn();};
+  t.append(m,b);t.classList.add('show','has-action');clearTimeout(_toastTimer);_toastTimer=setTimeout(()=>t.classList.remove('show'),ms);
+}
 function closeModal(){document.getElementById('modal-overlay').classList.remove('open')}
 function showModal(title,desc,okLbl,okFn,danger=true){
   document.getElementById('m-title').textContent=title;
@@ -879,6 +893,7 @@ function showModal(title,desc,okLbl,okFn,danger=true){
   b.onclick=()=>{if(okFn()!==false)closeModal();};
   document.getElementById('modal-overlay').classList.add('open');
 }
+function escText(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;');}
 function escAttr(s){return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
 function avg(arr){const f=arr.filter(v=>v&&v>0);return f.length?(f.reduce((a,b)=>a+b,0)/f.length):null;}
 function pct(a){return a?((a/4)*100):0;}
@@ -1077,8 +1092,13 @@ function addPupil(yg,cls){
 }
 function delPupil(yg,cls,pid){
   if(roBlock())return;
-  S.pupils[yg][cls]=S.pupils[yg][cls].filter(p=>p.id!==pid);
-  delete S.scores[yg][pid];if(S.profiles[yg])delete S.profiles[yg][pid];save();renderSetup(yg);toast('Pupil removed');
+  const pupil=(S.pupils[yg][cls]||[]).find(p=>p.id===pid);
+  const name=pupil?escAttr(pupil.name):'this pupil';
+  const scored=Object.keys(S.scores[yg]?.[pid]||{}).length;
+  showModal(`Remove ${name}?`,`This removes <strong>${name}</strong> from <strong>${escAttr(cls)}</strong>${scored?` and deletes their scores for ${scored} unit${scored!==1?'s':''}`:''}. This cannot be undone.`,'Remove pupil',()=>{
+    S.pupils[yg][cls]=S.pupils[yg][cls].filter(p=>p.id!==pid);
+    delete S.scores[yg][pid];if(S.profiles[yg])delete S.profiles[yg][pid];save();renderSetup(yg);toast('Pupil removed');
+  });
 }
 let _bYG='',_bCLS='';
 function bulkAdd(yg,cls){
@@ -1163,6 +1183,7 @@ function handleImportFile(ev){
       const targetCls=d.className;
       // Find existing class to replace (exact match or previous "imported" variant) — refresh instead of duplicate
       const existingCls=Object.keys(S.pupils[yg]||{}).find(c=>c===targetCls||c.startsWith(targetCls+' (imported '));
+      const applyImport=()=>{
       if(existingCls){
         (S.pupils[yg][existingCls]||[]).forEach(p=>{if(S.scores[yg])delete S.scores[yg][p.id];if(S.profiles[yg])delete S.profiles[yg][p.id];});
         delete S.pupils[yg][existingCls];
@@ -1173,7 +1194,12 @@ function handleImportFile(ev){
       Object.entries(d.scores||{}).forEach(([oldPid,sc])=>{const newPid=pidMap[oldPid];if(newPid)S.scores[yg][newPid]=sc;});
       if(!S.profiles[yg])S.profiles[yg]={};
       Object.entries(d.profiles||{}).forEach(([oldPid,prof])=>{const newPid=pidMap[oldPid];if(newPid)S.profiles[yg][newPid]=prof;});
-      save();renderSetup(yg);toast(existingCls?`Refreshed "${targetCls}" — ${newPupils.length} pupils`:`Imported "${targetCls}" — ${newPupils.length} pupils`);
+      save();renderSetup(yg);toast(existingCls?`Replaced "${targetCls}" — ${newPupils.length} pupils`:`Imported "${targetCls}" — ${newPupils.length} pupils`);
+      };
+      if(existingCls){
+        const have=(S.pupils[yg][existingCls]||[]).length;
+        showModal(`Replace ${escAttr(existingCls)}?`,`You already have <strong>${escAttr(existingCls)}</strong> in ${yg.toUpperCase()} with ${have} pupil${have!==1?'s':''}. Importing replaces that class, its pupils and all their scores and notes with the ${d.pupils.length} pupil${d.pupils.length!==1?'s':''} in this file. This cannot be undone.`,'Replace class',applyImport);
+      }else applyImport();
     }catch(e){toast('Could not parse file');}
   };
   r.readAsText(f);ev.target.value='';
@@ -1277,6 +1303,7 @@ function renderTracker(yg){
         <div class="bulk-bar">
           <span class="bulk-bar-label">Set all to</span>
           ${bulkColsHTML}
+          <label class="bulk-keep"><input type="checkbox" id="bulk-keep-${yg}" checked> Keep scores already entered</label>
           <button class="bulk-apply-btn" onclick="applyBulk('${yg}','${tpId}')">Apply to all visible pupils</button>
         </div>
       </div>
@@ -1312,7 +1339,7 @@ function renderTracker(yg){
                 </button>
               </td>
               <td><div class="p-name-th">${p.name}</div><div class="p-cls-th">${p.cls}</div></td>
-              <td><textarea class="notes-inp" placeholder="Notes…" onblur="setNote('${yg}','${p.id}','${tpId}',this.value)">${sc.notes||''}</textarea></td>
+              <td><textarea class="notes-inp" placeholder="Notes…" oninput="setNote('${yg}','${p.id}','${tpId}',this.value)">${escText(sc.notes)}</textarea></td>
               ${PROC_DIMS.map((d,i)=>`<td class="${i===0?'grp-start':''}">${scoreCell(yg,p.id,tpId,d,sc[d])}</td>`).join('')}
               ${ATTIT_DIMS.map((d,i)=>`<td class="${i===0?'grp-start':''}">${scoreCell(yg,p.id,tpId,d,sc[d])}</td>`).join('')}
             </tr>`;
@@ -1532,34 +1559,46 @@ function applyBulk(yg,tpId){
   if(roBlock())return;
   const dims=Object.keys(_bulkSel).filter(d=>_bulkSel[d]!=null);
   if(!dims.length){toast('Select a score for at least one column first');return;}
-
-  // Get currently visible pupils from the table rows
-  const rows=document.querySelectorAll(`#panel-tracker-${yg} tbody tr[data-pid]`);
-  let count=0;
-  rows.forEach(row=>{
-    const pid=row.dataset.pid;
-    if(!pid)return;
-    if(!S.scores[yg])S.scores[yg]={};
-    if(!S.scores[yg][pid])S.scores[yg][pid]={};
-    if(!S.scores[yg][pid][tpId])S.scores[yg][pid][tpId]={};
+  const keepEl=document.getElementById('bulk-keep-'+yg);
+  const keep=keepEl?keepEl.checked:true;
+  const allDims=[...PROC_DIMS,...ATTIT_DIMS];
+  const undo=[];let changed=0,kept=0;
+  // Visible rows = the class filter currently on screen
+  document.querySelectorAll(`#panel-tracker-${yg} tbody tr[data-pid]`).forEach(row=>{
+    const pid=row.dataset.pid;if(!pid)return;
+    const sc=ensureScoreBucket(yg,pid,tpId);
+    const cells=row.querySelectorAll('td');
     dims.forEach(d=>{
-      S.scores[yg][pid][tpId][d]=_bulkSel[d];
+      const prev=sc[d];
+      const wasDefault=Array.isArray(sc.defaultDims)&&sc.defaultDims.includes(d);
+      const entered=prev!==undefined&&prev!==null&&!wasDefault;
+      if(prev===_bulkSel[d]&&!wasDefault)return;
+      if(keep&&entered){kept++;return;}
+      undo.push({pid,d,prev,wasDefault});
+      sc[d]=_bulkSel[d];
       markScoreManual(yg,pid,tpId,d);
-      // Update buttons in this row visually without re-rendering
-      const colIdx=ALL_DIMS.indexOf(d);
-      // Find score cells in row — 3 header cols (del, pupil, notes) then score cols
-      const cells=row.querySelectorAll('td');
-      // Score cells start at index 3
-      const scoreCell=cells[3+colIdx];
-      if(scoreCell){
-        scoreCell.querySelectorAll('.sc-btn').forEach(b=>b.classList.toggle('active',parseInt(b.textContent)===_bulkSel[d]));
-        scoreCell.querySelectorAll('.na-btn').forEach(b=>b.classList.remove('active'));
+      changed++;
+      // Score cells start after the delete, pupil and notes columns
+      const cell=cells[3+allDims.indexOf(d)];
+      if(cell){
+        cell.querySelectorAll('.sc-btn').forEach(b=>b.classList.toggle('active',parseInt(b.textContent)===_bulkSel[d]));
+        cell.querySelectorAll('.na-btn').forEach(b=>b.classList.remove('active'));
       }
     });
-    count++;
   });
+  if(!changed){toast(kept?`Nothing changed — all ${kept} score${kept!==1?'s were':' was'} already entered`:'Nothing to change');return;}
   save();
-  toast(`Applied to ${count} pupil${count!==1?'s':''} — adjust individually as needed`);
+  const msg=`Set ${changed} score${changed!==1?'s':''}${kept?` · kept ${kept} already entered`:''}`;
+  toastAction(msg,'Undo',()=>undoBulk(yg,tpId,undo));
+}
+function undoBulk(yg,tpId,undo){
+  if(roBlock())return;
+  undo.forEach(({pid,d,prev,wasDefault})=>{
+    const sc=ensureScoreBucket(yg,pid,tpId);
+    if(prev===undefined||prev===null)delete sc[d];else sc[d]=prev;
+    if(wasDefault){if(!Array.isArray(sc.defaultDims))sc.defaultDims=[];if(!sc.defaultDims.includes(d))sc.defaultDims.push(d);}
+  });
+  save();renderTracker(yg);toast('Undone');
 }
 
 // ── REMOVE PUPIL from tracker (also removes from class list) ──
@@ -1794,11 +1833,11 @@ function renderProfiles(){
         </div>
         <div class="profile-section no-print">
           <div class="profile-section-title">Teacher notes — for learner conversation</div>
-          <textarea class="profile-ta" placeholder="Add notes about this pupil's progress to share during learner conversations…" onblur="saveProfileField('${_profYG}','${pupil.id}','teacherNotes',this.value)">${(prof.teacherNotes||'').replace(/</g,'&lt;')}</textarea>
+          <textarea class="profile-ta" placeholder="Add notes about this pupil's progress to share during learner conversations…" oninput="saveProfileField('${_profYG}','${pupil.id}','teacherNotes',this.value)">${escText(prof.teacherNotes)}</textarea>
         </div>
         <div class="profile-section no-print">
           <div class="profile-section-title">Pupil reflection</div>
-          <textarea class="profile-ta" placeholder="Pupil can complete this before or during the conversation…" onblur="saveProfileField('${_profYG}','${pupil.id}','pupilReflection',this.value)">${(prof.pupilReflection||'').replace(/</g,'&lt;')}</textarea>
+          <textarea class="profile-ta" placeholder="Pupil can complete this before or during the conversation…" oninput="saveProfileField('${_profYG}','${pupil.id}','pupilReflection',this.value)">${escText(prof.pupilReflection)}</textarea>
         </div>
         <details class="task-more no-print">
           <summary>Question prompts</summary>
@@ -2378,11 +2417,56 @@ const ICONS = {
 };
 
 // ── INIT ──
-function updateStorageIndicator(){
-  var el=document.getElementById('storage-indicator');
-  if(!el)return;
-  if(window.DataService&&window.DataService.isUsingCloud&&window.DataService.isUsingCloud()){el.innerHTML='<span style="color:var(--accent);font-weight:600">● Cloud</span>';el.title='Data saves to the cloud — available on other devices';}
-  else{el.innerHTML='<span style="color:#b45309">● Local only</span>';el.title='Data saved in this browser only — sign in to sync to cloud';}
+const SAVE_STATUS={
+  loading:['Loading…','muted','Loading your tracker'],
+  saved:['Saved','ok','Everything is saved to the cloud'],
+  pending:['Saving…','muted','Saving your changes'],
+  saving:['Saving…','muted','Saving your changes'],
+  retrying:['Not saved — retrying','warn','Saving failed. It will keep trying; your changes are kept on this device.'],
+  offline:['Offline — kept on this device','warn','No connection. Changes are kept on this device and saved when you are back online.'],
+  'load-failed':['Not loaded','bad','Your tracker did not load. Nothing is saved until it does.'],
+  'signed-out':['Signed out','bad','You are signed out. Sign in again to load and save your tracker.'],
+  local:['Saved on this device only','warn','Not connected to the cloud. Data is saved in this browser only.'],
+};
+function renderSaveStatus(status){
+  if(window.TrackerReadonlyView&&TrackerReadonlyView.isActive())return;
+  const el=document.getElementById('storage-indicator');
+  const cfg=SAVE_STATUS[status]||SAVE_STATUS.saved;
+  if(el){el.innerHTML=`<span class="save-status save-status--${cfg[1]}">${cfg[0]}</span>`;el.title=cfg[2];}
+  const banner=document.getElementById('sync-banner');
+  if(status==='load-failed'||status==='signed-out'){
+    const html=status==='signed-out'
+      ?`<span>You're signed out, so your tracker can't load or save.</span><a class="btn btn-primary" href="login.html?redirect=${encodeURIComponent(location.pathname.replace(/^\//,'')+location.search)}" target="_top">Sign in again</a>`
+      :`<span>Your tracker didn't load, so nothing you change here will be saved.</span><button type="button" class="btn btn-primary" onclick="retryLoad()">Retry</button>`;
+    if(banner)banner.innerHTML=html;
+    else{const b=document.createElement('div');b.id='sync-banner';b.className='sync-banner';b.setAttribute('role','alert');b.innerHTML=html;const c=document.querySelector('.content');if(c)c.insertBefore(b,c.firstChild);}
+  }else if(banner&&status!=='loading')banner.remove();
+}
+function updateStorageIndicator(){renderSaveStatus(SYNC.status());}
+function currentPanelId(){const p=document.querySelector('.panel.active');return p?p.id.replace('panel-',''):'home';}
+function rerenderCurrent(){
+  const id=currentPanelId();
+  if(id==='home')renderHome();
+  else if(id.startsWith('setup-'))renderSetup(id.replace('setup-',''));
+  else if(id.startsWith('tracker-'))renderTracker(id.replace('tracker-',''));
+  else if(id==='profiles')renderProfiles();
+  else if(id==='benchmarks')renderBenchmarks();
+  else if(id==='overview')renderOverview();
+  else if(id==='export')renderExportPreview();
+}
+// Another device saved. Leave the screen alone while someone is typing; the data is already merged.
+function rerenderAfterRemote(){
+  ensureTrackerShape();
+  const a=document.activeElement;
+  if(a&&/^(TEXTAREA|INPUT|SELECT)$/.test(a.tagName))return;
+  rerenderCurrent();
+  toast('Updated with changes saved on another device');
+}
+function retryLoad(){
+  load().then(function(){
+    if(!SYNC.isLoaded())return;
+    return syncAssignedArtClasses().then(function(){rerenderCurrent();toast('Tracker loaded');});
+  });
 }
 annotateSidebarItems();
 initSidebarState();
