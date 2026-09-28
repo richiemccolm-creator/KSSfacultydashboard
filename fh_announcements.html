@@ -15,6 +15,7 @@
 <script src="data-service.js"></script>
 <script src="announcement-richtext.js"></script>
 <script src="announcement-docx-import.js"></script>
+<script src="announcement-ai-import.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="design-tokens.css">
@@ -126,6 +127,29 @@
 .pv-new{display:inline-flex;padding:1px 6px;border-radius:99px;background:#fcebea;color:#a8322d;font-size:.69rem;font-weight:600}
 .pv-empty{color:rgba(244,246,251,.5);font-style:italic}
 
+/* Draft with AI */
+.ai-drawer{width:min(820px,100vw)}
+.ai-body{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:16px;display:flex;flex-direction:column;gap:16px}
+.ai-step h3{margin:0;display:flex;align-items:center;gap:10px;font-size:var(--fs-md);font-weight:700;color:var(--ink-900)}
+.ai-step[hidden]{display:none}
+.ai-num{width:26px;height:26px;border-radius:50%;background:var(--navy-700);color:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:var(--fs-sm);flex-shrink:0}
+.ai-text{width:100%;min-height:130px;padding:10px;border:1px solid var(--navy-100);border-radius:var(--r-md);font:var(--fs-sm)/1.45 var(--font-sans);color:var(--ink-900);background:#fff;resize:vertical}
+.ai-text:focus-visible{outline:none;box-shadow:var(--sh-ring)}
+.ai-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ai-see summary{cursor:pointer;font-size:var(--fs-sm);color:var(--navy-700);font-weight:600;min-height:32px;display:flex;align-items:center}
+.ai-see .ai-text{margin-top:8px;min-height:220px;font-family:var(--font-mono,monospace);font-size:12px}
+.ai-item{display:grid;grid-template-columns:auto 1fr auto;gap:8px 12px;align-items:start;padding:12px 0;border-top:1px solid var(--navy-100)}
+.ai-item input[type="checkbox"]{width:20px;height:20px;margin-top:2px;accent-color:var(--navy-700)}
+.ai-item-title{font-weight:600;color:var(--ink-900);font-size:var(--fs-base);line-height:1.35;overflow-wrap:anywhere}
+.ai-item-meta{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:4px;font-size:var(--fs-xs);color:var(--ink-500)}
+.ai-item-text{margin-top:4px;font-size:var(--fs-sm);color:var(--ink-500);line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.ai-warn{margin-top:6px;font-size:var(--fs-xs);color:var(--warning-600);font-weight:600}
+.ai-item.is-saved .ai-item-title,.ai-item.is-saved .ai-item-text{opacity:.55}
+.pill-saved{background:#e6f7ed;color:#15803d}
+@media (max-width:600px){
+  .ai-item{grid-template-columns:auto 1fr}
+  .ai-item > .btn{grid-column:2;justify-self:start}
+}
 .ann-toast{position:fixed;bottom:calc(24px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);max-width:calc(100vw - 32px);background:var(--ink-900);color:#fff;padding:12px 18px;border-radius:var(--r-pill);z-index:1000;display:none;font-size:var(--fs-sm);box-shadow:var(--sh-md)}
 .ann-toast.show{display:block}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
@@ -156,11 +180,10 @@
       <p>Write, schedule and manage what staff see on the Faculty Hub home page.</p>
     </div>
     <div class="ann-head-actions">
-      <button class="btn" type="button" id="annImportBtn">Import from Word</button>
+      <button class="btn" type="button" id="aiOpenBtn">Draft with AI</button>
       <button class="btn btn-primary" type="button" id="annNewBtn">New announcement</button>
     </div>
   </header>
-  <input type="file" id="annImportFile" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>
 
   <p id="annSchemaNotice" class="ann-notice" hidden></p>
 
@@ -173,7 +196,6 @@
   <div id="annList" class="ann-list" role="tabpanel" aria-live="polite">
     <div class="ann-empty">Loading announcements…</div>
   </div>
-  <p class="ann-hint">Need a template for bulk import? <a href="#" id="annTemplateLink">Download the Word template</a>. Imported announcements are saved as drafts for you to check.</p>
 </main>
 
 <div class="ann-scrim" id="annScrim"></div>
@@ -257,6 +279,65 @@
   </footer>
 </section>
 
+<section class="ann-drawer ai-drawer" id="aiDrawer" role="dialog" aria-modal="true" aria-labelledby="aiTitle" hidden>
+  <header class="ann-drawer-head">
+    <h2 id="aiTitle">Draft announcements with AI</h2>
+    <button class="btn btn-ghost" type="button" id="aiCloseBtn" aria-label="Close">Close</button>
+  </header>
+  <div class="ai-body">
+    <section class="ann-panel ai-step">
+      <h3><span class="ai-num">1</span>Tell the AI what staff need to know</h3>
+      <div class="ann-field">
+        <label for="aiNotes">Your notes</label>
+        <textarea id="aiNotes" class="ai-text" placeholder="e.g.&#10;- S4 folio deadline moved to Fri 16 Oct&#10;- Dept meeting Thursday 3.30 in D12, bring tracking&#10;- Reminder: return props to the drama store"></textarea>
+        <p class="ann-hint">Rough bullet points are fine. Include dates, times and rooms. Leave out pupils’ names.</p>
+      </div>
+      <fieldset class="ann-field" style="border:0;padding:0;margin:0">
+        <legend class="ann-legend" style="margin-bottom:6px">Tone</legend>
+        <div class="ann-seg">
+          <label><input type="radio" name="aiTone" value="friendly" checked><strong>Friendly</strong><span>Warm but professional</span></label>
+          <label><input type="radio" name="aiTone" value="formal"><strong>Formal</strong><span>For official notices</span></label>
+          <label><input type="radio" name="aiTone" value="brief"><strong>Brief</strong><span>Two sentences at most</span></label>
+        </div>
+      </fieldset>
+      <div class="ai-row">
+        <button class="btn btn-primary" type="button" id="aiCopyBtn">Copy prompt</button>
+        <span class="ann-hint" id="aiCopyHint">Then paste it into ChatGPT, Claude or Copilot.</span>
+      </div>
+      <details class="ai-see" id="aiSee">
+        <summary>See the prompt</summary>
+        <textarea id="aiPromptView" class="ai-text" readonly aria-label="Prompt text"></textarea>
+      </details>
+    </section>
+
+    <section class="ann-panel ai-step">
+      <h3><span class="ai-num">2</span>Bring the AI’s reply back</h3>
+      <div class="ann-field">
+        <label for="aiReply">Paste the reply</label>
+        <textarea id="aiReply" class="ai-text" placeholder="Paste everything the AI wrote. It starts with === ANNOUNCEMENT ==="></textarea>
+      </div>
+      <div class="ai-row">
+        <button class="btn btn-primary" type="button" id="aiCheckBtn">Check announcements</button>
+        <button class="btn" type="button" id="aiFileBtn">Upload a file instead</button>
+        <input type="file" id="aiFile" accept=".txt,.md,.docx,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>
+      </div>
+      <p class="ann-hint">A saved reply works too: a .txt, .md or Word file.</p>
+    </section>
+
+    <section class="ann-panel ai-step" id="aiReview" hidden>
+      <h3><span class="ai-num">3</span>Choose what to keep</h3>
+      <p class="ann-hint">They’re saved as drafts, so staff see nothing until you post them. Open one in the editor to change it, schedule it or post it straight away.</p>
+      <div id="aiList"></div>
+    </section>
+  </div>
+  <footer class="ann-drawer-foot">
+    <span class="ann-foot-hint" id="aiFootHint"></span>
+    <span class="spacer"></span>
+    <button class="btn" type="button" id="aiDoneBtn">Close</button>
+    <button class="btn btn-primary" type="button" id="aiSaveBtn" disabled>Save as drafts</button>
+  </footer>
+</section>
+
 <div id="annToast" class="ann-toast" role="status" aria-live="polite"></div>
 
 <script>
@@ -272,7 +353,7 @@
   var tab = 'live';
   var loaded = false;
   var busy = false;
-  var editor = { id: null, original: null, snapshot: '', saveTimer: null, lastFocus: null };
+  var editor = { id: null, original: null, snapshot: '', saveTimer: null, lastFocus: null, noLocal: false, aiIndex: null };
 
   function $(id) { return document.getElementById(id); }
   function esc(v) {
@@ -361,7 +442,10 @@
     return live[0] || null;
   }
   function stateMeta(a) {
-    if (a.state === 'draft') return '<span class="pill pill-draft">Draft</span><span>Edited ' + esc(whenLabel(a.updated_at || a.created_at)) + '</span>';
+    if (a.state === 'draft') {
+      var suggested = a.publish_at && Date.parse(a.publish_at) > Date.now() ? '<span>· Planned for ' + esc(whenLabel(a.publish_at)) + '</span>' : '';
+      return '<span class="pill pill-draft">Draft</span><span>Edited ' + esc(whenLabel(a.updated_at || a.created_at)) + '</span>' + suggested;
+    }
     if (a.state === 'scheduled') return '<span class="pill pill-scheduled">Scheduled</span><span>Goes live ' + esc(whenLabel(a.publish_at)) + '</span>';
     if (a.state === 'expired') return '<span class="pill pill-expired">Expired</span><span>Taken down after ' + esc(dateLabel(a.expires_at)) + '</span>';
     var s = '<span class="pill pill-live">Live</span><span>Since ' + esc(whenLabel(a.posted_at)) + '</span>';
@@ -513,7 +597,9 @@
       expires: a && a.expires_at && !opts.clearExpiry ? String(a.expires_at).slice(0, 10) : '',
       when: 'now', date: '', time: '', sig: false, sigNote: ''
     };
-    if (a && a.state === 'scheduled' && !opts.asCopy) {
+    // Scheduled posts, and drafts with a planned time, open with Schedule chosen.
+    var planned = a && a.publish_at && Date.parse(a.publish_at) > Date.now() && (a.state === 'scheduled' || a.state === 'draft');
+    if (planned && (!opts.asCopy || opts.keepSchedule)) {
       var d = new Date(a.publish_at);
       s.when = 'schedule';
       s.date = ymd(d);
@@ -633,7 +719,7 @@
   }
   function localKey() { return LOCAL_KEY + (editor.id || 'new'); }
   function saveLocal() {
-    if ($('annDrawer').hidden) return;
+    if ($('annDrawer').hidden || editor.noLocal) return;
     var snap = JSON.stringify(formState());
     if (snap === editor.snapshot) { store(localKey(), null); return; }
     store(localKey(), JSON.stringify({ at: new Date().toISOString(), state: formState() }));
@@ -647,6 +733,8 @@
     editor.id = record && !opts.asCopy ? record.id : null;
     editor.original = record && !opts.asCopy ? record : null;
     editor.lastFocus = document.activeElement;
+    editor.noLocal = !!opts.asCopy;
+    editor.aiIndex = opts.aiIndex == null ? null : opts.aiIndex;
     var base = stateFromRecord(record, opts);
     applyState(base);
     editor.snapshot = JSON.stringify(formState());
@@ -684,9 +772,9 @@
       $('annTitle').focus();
     });
   }
-  function closeEditor(force) {
+  function closeEditor(force, saved) {
     if (!force && isDirty() && !confirm('Discard your changes to this announcement?')) return;
-    store(localKey(), null);
+    if (!editor.noLocal) store(localKey(), null);
     clearTimeout(editor.saveTimer);
     var drawer = $('annDrawer');
     drawer.classList.remove('open');
@@ -695,6 +783,14 @@
     setTimeout(function() { drawer.hidden = true; }, 250);
     editor.id = null;
     editor.original = null;
+    // Back to the AI review list if that's where this draft came from.
+    var aiIndex = editor.aiIndex;
+    editor.aiIndex = null;
+    if (aiIndex != null) {
+      if (saved && ai.items[aiIndex]) ai.items[aiIndex].saved = true;
+      setTimeout(function() { openAi(); }, 260);
+      return;
+    }
     if (editor.lastFocus && editor.lastFocus.focus) editor.lastFocus.focus();
   }
 
@@ -717,7 +813,8 @@
     if (!schema.scheduleColumns) return p;
     if (mode === 'draft') {
       p.status = 'draft';
-      p.publish_at = null;
+      // A draft remembers the time you picked, ready for when you post it.
+      p.publish_at = s.when === 'schedule' && scheduledIso() ? scheduledIso() : null;
     } else if (rec && rec.state === 'live') {
       // Editing a live post leaves its publish time alone.
     } else if (s.when === 'schedule') {
@@ -758,7 +855,7 @@
       else if (editor.id && editingRecord() && editingRecord().state === 'live') { msg = 'Changes saved'; nextTab = 'live'; }
       else { msg = 'Posted. Staff can see it now'; nextTab = 'live'; }
       busy = false;
-      closeEditor(true);
+      closeEditor(true, true);
       tab = nextTab;
       store(TAB_KEY, tab);
       toast(msg);
@@ -816,48 +913,218 @@
     }
   }
 
-  // ---- Word import -------------------------------------------------------
+  // ---- Draft with AI -----------------------------------------------------
+  var AI_NOTES_KEY = 'fhAnnAiNotes';
+  var ai = { items: [] };
+
   function loadScript(src, globalName) {
     if (window[globalName]) return Promise.resolve();
     return new Promise(function(resolve, reject) {
-      var s = document.createElement('script');
-      s.src = src;
-      s.onload = function() { resolve(); };
-      s.onerror = function() { reject(new Error('Could not load the Word tools. Check your connection.')); };
-      document.head.appendChild(s);
+      var el = document.createElement('script');
+      el.src = src;
+      el.onload = function() { resolve(); };
+      el.onerror = function() { reject(new Error('Could not load the Word reader. Check your connection.')); };
+      document.head.appendChild(el);
     });
   }
-  function importDocx(file) {
-    if (!file || !window.AnnouncementDocxImport) return;
-    loadScript('https://cdn.jsdelivr.net/npm/mammoth@1.9.0/mammoth.browser.min.js', 'mammoth').then(function() {
-      return AnnouncementDocxImport.parseFile(file);
-    }).then(function(parsed) {
-      var list = parsed && Array.isArray(parsed.announcements) ? parsed.announcements : [];
-      if (!list.length) { toast('No announcements found in that file. Use the template format.'); return; }
-      var asDraft = !!schema.scheduleColumns;
-      if (!asDraft && !confirm('Drafts aren’t switched on yet, so these ' + list.length + ' announcement(s) will go live straight away. Continue?')) return;
-      var chain = Promise.resolve();
-      list.forEach(function(entry) {
-        var p = Object.assign({}, entry);
-        if (asDraft) { p.status = 'draft'; p.publish_at = null; }
-        chain = chain.then(function() { return DataService.createAnnouncement(p); });
+  function aiTone() {
+    var el = document.querySelector('input[name="aiTone"]:checked');
+    return el ? el.value : 'friendly';
+  }
+  function aiPrompt() {
+    return AnnouncementAIImport.buildPrompt({ notes: $('aiNotes').value, tone: aiTone() });
+  }
+  function openAi() {
+    var drawer = $('aiDrawer');
+    if (!$('aiNotes').value) $('aiNotes').value = recall(AI_NOTES_KEY) || '';
+    $('aiPromptView').value = aiPrompt();
+    renderAiList();
+    drawer.hidden = false;
+    document.body.style.overflow = 'hidden';
+    requestAnimationFrame(function() {
+      drawer.classList.add('open');
+      $('annScrim').classList.add('open');
+      (ai.items.length ? $('aiSaveBtn') : $('aiNotes')).focus();
+    });
+  }
+  function closeAi() {
+    var drawer = $('aiDrawer');
+    drawer.classList.remove('open');
+    $('annScrim').classList.remove('open');
+    document.body.style.overflow = '';
+    setTimeout(function() { drawer.hidden = true; }, 250);
+    $('aiOpenBtn').focus();
+  }
+  function copyPrompt() {
+    var text = aiPrompt();
+    $('aiPromptView').value = text;
+    var done = function() {
+      $('aiCopyHint').textContent = 'Copied. Paste it into ChatGPT, Claude or Copilot, then bring the reply back below.';
+      toast('Prompt copied');
+    };
+    var manual = function() {
+      $('aiSee').open = true;
+      $('aiPromptView').focus();
+      $('aiPromptView').select();
+      $('aiCopyHint').textContent = 'Couldn’t copy automatically. The prompt is selected below: press Ctrl+C (or ⌘C).';
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function() {
+        $('aiPromptView').select();
+        try { if (document.execCommand('copy')) { done(); return; } } catch (e) { /* fall through */ }
+        manual();
       });
-      return runAction(chain, 'Imported ' + list.length + (asDraft ? ' as drafts. Check them, then post.' : ' announcement(s)'), asDraft ? 'draft' : 'live').then(function() {
-        if (parsed.warnings && parsed.warnings.length) toast(parsed.warnings[0]);
+    } else {
+      manual();
+    }
+  }
+  function aiFuture(iso) { return iso && Date.parse(iso) > Date.now() ? iso : null; }
+  function renderAiList() {
+    var review = $('aiReview');
+    review.hidden = !ai.items.length;
+    var pending = ai.items.filter(function(it) { return !it.saved && it.include; }).length;
+    $('aiSaveBtn').disabled = !pending || busy;
+    $('aiSaveBtn').textContent = pending ? 'Save ' + pending + ' as draft' + (pending === 1 ? '' : 's') : 'Save as drafts';
+    var left = ai.items.filter(function(it) { return !it.saved; }).length;
+    $('aiFootHint').textContent = ai.items.length ? (left ? left + ' of ' + ai.items.length + ' still to save' : 'All saved') : '';
+    $('aiList').innerHTML = ai.items.map(function(it, i) {
+      var meta = [];
+      if (it.saved) meta.push('<span class="pill pill-saved">Saved</span>');
+      if (it.featured_banner) meta.push('<span class="pill pill-banner">Home banner</span>');
+      if (it.priority === 'high') meta.push('<span class="pill pill-priority">Priority</span>');
+      if (it.priority === 'low') meta.push('<span class="pill pill-reminder">Reminder</span>');
+      if (aiFuture(it.publish_at)) meta.push('<span>Post ' + esc(whenLabel(it.publish_at)) + '</span>');
+      if (it.expires_at) meta.push('<span>Take down after ' + esc(dateLabel(it.expires_at)) + '</span>');
+      var text = plain(it.body).trim();
+      return '<div class="ai-item' + (it.saved ? ' is-saved' : '') + '">' +
+        '<input type="checkbox" data-ai-include="' + i + '" aria-label="Include ' + esc(it.title) + '"' + (it.include && !it.saved ? ' checked' : '') + (it.saved ? ' disabled' : '') + '>' +
+        '<div><div class="ai-item-title">' + esc(it.title) + '</div>' +
+          (meta.length ? '<div class="ai-item-meta">' + meta.join('') + '</div>' : '') +
+          (text ? '<div class="ai-item-text">' + esc(text) + '</div>' : '') +
+          (it.needs_check && !it.saved ? '<div class="ai-warn">Has [CHECK] gaps to fill in before posting.</div>' : '') +
+        '</div>' +
+        (it.saved ? '<span></span>' : '<button class="btn btn-sm" type="button" data-ai-open="' + i + '">Open in editor</button>') +
+      '</div>';
+    }).join('');
+  }
+  function useReply(text, fallbackItems) {
+    var found = AnnouncementAIImport.parse(text);
+    if (!found.length && fallbackItems) found = fallbackItems;
+    if (!found.length) {
+      toast('No announcements found. Paste the whole reply, starting from === ANNOUNCEMENT ===.');
+      return;
+    }
+    ai.items = found.map(function(it) {
+      return Object.assign({}, it, {
+        body: window.AnnouncementRichText ? AnnouncementRichText.sanitize(it.body || '') : (it.body || ''),
+        include: true,
+        saved: false
       });
+    });
+    renderAiList();
+    $('aiReview').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  function readReplyFile(file) {
+    if (!file) return;
+    var name = String(file.name || '').toLowerCase();
+    var job;
+    if (/\.docx$/.test(name)) {
+      job = loadScript('https://cdn.jsdelivr.net/npm/mammoth@1.9.0/mammoth.browser.min.js', 'mammoth').then(function() {
+        return file.arrayBuffer();
+      }).then(function(buf) {
+        return mammoth.extractRawText({ arrayBuffer: buf }).then(function(r) {
+          var text = r.value || '';
+          if (AnnouncementAIImport.parse(text).length || !window.AnnouncementDocxImport) return { text: text };
+          // Files made with the old Word template still import.
+          return AnnouncementDocxImport.parseArrayBuffer(buf).then(function(old) {
+            var list = (old && old.announcements) || [];
+            return { text: text, fallback: list.map(function(a) {
+              return {
+                title: a.title,
+                body: AnnouncementAIImport.markdownToHtml(a.body || ''),
+                priority: a.priority === 'high' || a.priority === 'low' ? a.priority : 'none',
+                featured_banner: !!a.featured_banner,
+                expires_at: a.expires_at || null,
+                publish_at: null,
+                needs_check: false
+              };
+            }) };
+          });
+        });
+      });
+    } else {
+      job = file.text().then(function(text) { return { text: text }; });
+    }
+    job.then(function(res) {
+      $('aiReply').value = res.text;
+      useReply(res.text, res.fallback);
     }).catch(function(err) {
-      toast(errText(err, 'Could not read that Word file'));
+      toast(errText(err, 'Couldn’t read that file'));
     }).then(function() {
-      $('annImportFile').value = '';
+      $('aiFile').value = '';
     });
   }
-  function downloadTemplate(e) {
-    e.preventDefault();
-    loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js', 'JSZip').then(function() {
-      return AnnouncementDocxImport.downloadTemplate();
-    }).catch(function(err) {
-      toast(errText(err, 'Could not create the template'));
+  function aiPayload(it) {
+    var p = {
+      title: it.title,
+      body: it.body || null,
+      priority: it.priority,
+      featured_banner: it.featured_banner,
+      expires_at: it.expires_at || null
+    };
+    if (schema.scheduleColumns) {
+      p.status = 'draft';
+      p.publish_at = aiFuture(it.publish_at);
+    }
+    return p;
+  }
+  function saveAiItems() {
+    var chosen = ai.items.filter(function(it) { return it.include && !it.saved; });
+    if (!chosen.length || busy) return;
+    if (!schema.scheduleColumns && !confirm('Drafts aren’t switched on yet, so ' + (chosen.length === 1 ? 'this announcement goes' : 'these ' + chosen.length + ' announcements go') + ' live straight away. Continue?')) return;
+    busy = true;
+    renderAiList();
+    var saved = 0;
+    var chain = Promise.resolve();
+    chosen.forEach(function(it) {
+      chain = chain.then(function() {
+        return DataService.createAnnouncement(aiPayload(it)).then(function() { it.saved = true; saved += 1; });
+      });
     });
+    chain.then(function() {
+      busy = false;
+      tab = schema.scheduleColumns ? 'draft' : 'live';
+      store(TAB_KEY, tab);
+      toast('Saved ' + saved + (schema.scheduleColumns ? ' as draft' + (saved === 1 ? '' : 's') : ' announcement' + (saved === 1 ? '' : 's')));
+      renderAiList();
+      if (ai.items.every(function(it) { return it.saved; })) closeAi();
+      return load();
+    }).catch(function(err) {
+      busy = false;
+      renderAiList();
+      toast((saved ? 'Saved ' + saved + ', then stopped: ' : '') + errText(err, 'Could not save the drafts'));
+      load();
+    });
+  }
+  function openAiItemInEditor(i) {
+    var it = ai.items[i];
+    if (!it) return;
+    var planned = aiFuture(it.publish_at);
+    var record = {
+      title: it.title,
+      body: it.body,
+      priority: it.priority,
+      featured_banner: it.featured_banner,
+      expires_at: it.expires_at,
+      publish_at: planned,
+      state: planned ? 'scheduled' : 'draft'
+    };
+    var drawer = $('aiDrawer');
+    drawer.classList.remove('open');
+    setTimeout(function() {
+      drawer.hidden = true;
+      openEditor(record, { asCopy: true, keepSchedule: true, aiIndex: i, title: 'Review AI draft' });
+    }, 200);
   }
 
   // ---- Wiring ------------------------------------------------------------
@@ -881,18 +1148,46 @@
   });
   $('annNewBtn').addEventListener('click', function() { openEditor(null); });
   $('annCloseBtn').addEventListener('click', function() { closeEditor(false); });
-  $('annScrim').addEventListener('click', function() { closeEditor(false); });
+  $('annScrim').addEventListener('click', function() {
+    if (!$('annDrawer').hidden) closeEditor(false);
+    else if (!$('aiDrawer').hidden) closeAi();
+  });
   $('annDraftBtn').addEventListener('click', function() { save('draft'); });
   $('annPrimaryBtn').addEventListener('click', function() { save('post'); });
   $('annList').addEventListener('click', onListClick);
-  $('annImportBtn').addEventListener('click', function() { $('annImportFile').click(); });
-  $('annImportFile').addEventListener('change', function() { importDocx(this.files && this.files[0]); });
-  $('annTemplateLink').addEventListener('click', downloadTemplate);
+  $('aiOpenBtn').addEventListener('click', openAi);
+  $('aiCloseBtn').addEventListener('click', closeAi);
+  $('aiDoneBtn').addEventListener('click', closeAi);
+  $('aiCopyBtn').addEventListener('click', copyPrompt);
+  $('aiNotes').addEventListener('input', function() {
+    store(AI_NOTES_KEY, this.value || null);
+    $('aiPromptView').value = aiPrompt();
+  });
+  document.querySelectorAll('input[name="aiTone"]').forEach(function(r) {
+    r.addEventListener('change', function() { $('aiPromptView').value = aiPrompt(); });
+  });
+  $('aiCheckBtn').addEventListener('click', function() { useReply($('aiReply').value); });
+  $('aiFileBtn').addEventListener('click', function() { $('aiFile').click(); });
+  $('aiFile').addEventListener('change', function() { readReplyFile(this.files && this.files[0]); });
+  $('aiSaveBtn').addEventListener('click', saveAiItems);
+  $('aiList').addEventListener('change', function(e) {
+    var box = e.target.closest('[data-ai-include]');
+    if (!box) return;
+    var it = ai.items[Number(box.getAttribute('data-ai-include'))];
+    if (it) it.include = box.checked;
+    renderAiList();
+  });
+  $('aiList').addEventListener('click', function(e) {
+    var btn = e.target.closest('[data-ai-open]');
+    if (btn) openAiItemInEditor(Number(btn.getAttribute('data-ai-open')));
+  });
   document.querySelectorAll('.ann-tab').forEach(function(t) {
     t.addEventListener('click', function() { setTab(t.getAttribute('data-tab')); });
   });
   document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape' && !$('annDrawer').hidden) closeEditor(false);
+    if (e.key !== 'Escape') return;
+    if (!$('annDrawer').hidden) closeEditor(false);
+    else if (!$('aiDrawer').hidden) closeAi();
   });
   // Scheduled posts go live on their own; refresh the list so they change tab.
   setInterval(function() { if (loaded && $('annDrawer').hidden && !busy) load(); }, 60000);

@@ -1,6 +1,6 @@
 /**
- * Announcement Word import/export helper.
- * Supports bulk parsing from .docx and downloading a .docx template.
+ * Reads announcements from Word files made with the old import template,
+ * so those files still work in the "Draft with AI" upload.
  */
 (function(global) {
   function norm(s) {
@@ -213,113 +213,8 @@
     return file.arrayBuffer().then(parseArrayBuffer);
   }
 
-  function escapeXml(s) {
-    return String(s == null ? '' : s)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&apos;');
-  }
-
-  function paragraphXml(line) {
-    var text = escapeXml(String(line || ''));
-    return '<w:p><w:r><w:t xml:space="preserve">' + text + '</w:t></w:r></w:p>';
-  }
-
-  function buildTemplateDocxBlob() {
-    if (!global.JSZip) return Promise.reject(new Error('Template generator unavailable. Refresh and try again.'));
-    var lines = [
-      'Faculty Hub Announcements Import Template',
-      'Use one announcement block at a time, then keep the --- separator.',
-      '',
-      'Title: Example 1 - Department meeting reminder',
-      'Body: Please join us in Room 2.14 at 3:45pm. Bring moderation samples.',
-      'Expires: 2026-06-20',
-      'Priority: medium',
-      'Highlight: yes',
-      '---',
-      'Title: Example 2 - S3 report deadline',
-      'Body: S3 reports must be completed and checked by Friday 12 June.',
-      'Expires: 2026-06-12',
-      'Priority: high',
-      'Highlight: yes',
-      '---',
-      'Title: Example 3 - Optional body',
-      'Body:',
-      'Expires:',
-      'Priority: none',
-      'Highlight: no'
-    ];
-
-    var documentXml = ''
-      + '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
-      + '<w:document xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas" '
-      + 'xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" '
-      + 'xmlns:o="urn:schemas-microsoft-com:office:office" '
-      + 'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" '
-      + 'xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" '
-      + 'xmlns:v="urn:schemas-microsoft-com:vml" '
-      + 'xmlns:wp14="http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing" '
-      + 'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" '
-      + 'xmlns:w10="urn:schemas-microsoft-com:office:word" '
-      + 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
-      + 'xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml" '
-      + 'xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup" '
-      + 'xmlns:wpi="http://schemas.microsoft.com/office/word/2010/wordprocessingInk" '
-      + 'xmlns:wne="http://schemas.microsoft.com/office/word/2006/wordml" '
-      + 'xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" mc:Ignorable="w14 wp14">'
-      + '<w:body>'
-      + lines.map(paragraphXml).join('')
-      + '<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="708" w:footer="708" w:gutter="0"/></w:sectPr>'
-      + '</w:body></w:document>';
-
-    var zip = new global.JSZip();
-    zip.file('[Content_Types].xml',
-      '<?xml version="1.0" encoding="UTF-8"?>'
-      + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
-      + '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
-      + '<Default Extension="xml" ContentType="application/xml"/>'
-      + '<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>'
-      + '</Types>'
-    );
-    zip.file('_rels/.rels',
-      '<?xml version="1.0" encoding="UTF-8"?>'
-      + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
-      + '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>'
-      + '</Relationships>'
-    );
-    zip.file('word/document.xml', documentXml);
-    zip.file('word/_rels/document.xml.rels',
-      '<?xml version="1.0" encoding="UTF-8"?>'
-      + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
-    );
-    return zip.generateAsync({
-      type: 'blob',
-      mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    });
-  }
-
-  function triggerBlobDownload(blob, filename) {
-    var url = URL.createObjectURL(blob);
-    var a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(function() { URL.revokeObjectURL(url); }, 1200);
-  }
-
-  function downloadTemplate() {
-    return buildTemplateDocxBlob().then(function(blob) {
-      triggerBlobDownload(blob, 'Announcement_Import_Template.docx');
-    });
-  }
-
   global.AnnouncementDocxImport = {
     parseFile: parseFile,
-    parseArrayBuffer: parseArrayBuffer,
-    downloadTemplate: downloadTemplate
+    parseArrayBuffer: parseArrayBuffer
   };
 })(typeof window !== 'undefined' ? window : this);
