@@ -65,6 +65,33 @@
     }).filter(Boolean).join('\n');
   }
 
+  function roundTo(value, places) {
+    var f = Math.pow(10, places);
+    return Math.round(value * f) / f;
+  }
+
+  // Handwriting is most of the saved planner and every save uploads all lessons.
+  // Round points saved before the ink module rounded them (same rules as
+  // compactPoint in teacher-planner-lesson-ink.js). Safe to run repeatedly.
+  function compactInk(ink) {
+    if (!ink || !Array.isArray(ink.strokes)) return;
+    ink.strokes.forEach(function(stroke) {
+      if (!stroke || !Array.isArray(stroke.points)) return;
+      stroke.points.forEach(function(pt) {
+        if (!pt || typeof pt.x !== 'number' || typeof pt.y !== 'number') return;
+        pt.x = roundTo(pt.x, 4);
+        pt.y = roundTo(pt.y, Math.abs(pt.y) <= 1 ? 4 : 1);
+        if (typeof pt.p === 'number') pt.p = roundTo(pt.p, 2);
+      });
+    });
+  }
+
+  function compactLessonInk(les) {
+    if (!les) return;
+    compactInk(les.ink);
+    if (les.nextLessonNote) compactInk(les.nextLessonNote.ink);
+  }
+
   function normalizeLesson(les) {
     if (!les || typeof les !== 'object') return;
     if (les.learningIntention === undefined) les.learningIntention = '';
@@ -403,6 +430,7 @@
     },
 
     saveLessons: function() {
+      ((state.lessons && state.lessons.lessons) || []).forEach(compactLessonInk);
       return window.DataService ? DataService.set('plannerLessons', state.lessons) : Promise.resolve();
     },
 

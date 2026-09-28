@@ -20,6 +20,24 @@
   var PEN_WIDTH = 1.6;
   var HIGHLIGHT_COLOR = 'rgba(47,111,214,0.22)';
   var MOUSE_SUPPRESS_MS = 800;
+  // Ink is uploaded with every lesson save, so keep points only as precise as
+  // the eye can see and skip Pencil samples that barely move.
+  var MIN_STEP_PX = 0.75;
+
+  function roundTo(value, places) {
+    var f = Math.pow(10, places);
+    return Math.round(value * f) / f;
+  }
+
+  // x (and y when normalised) is a 0–1 fraction of the page; 4 places is ~0.07px
+  // on the 680px notebook. Page-pixel y keeps 1 place.
+  function compactPoint(pt, yNormalised) {
+    return {
+      x: roundTo(pt.x, 4),
+      y: roundTo(pt.y, yNormalised ? 4 : 1),
+      p: roundTo(pt.p, 2)
+    };
+  }
 
   function createInkSurface(userConfig) {
     var config = userConfig || {};
@@ -103,12 +121,11 @@
       var rect = page.getBoundingClientRect();
       var w = pageWidth();
       var h = pageHeight();
-      var pt = {
+      return compactPoint({
         x: (evt.clientX - rect.left) / w,
         y: normalizeY ? ((evt.clientY - rect.top) / h) : (evt.clientY - rect.top),
         p: pressureOf(evt)
-      };
-      return pt;
+      }, normalizeY);
     }
 
     function toCss(pt, width) {
@@ -403,7 +420,14 @@
     function appendPoint(evt) {
       if (!current) return;
       if (current.points.length >= MAX_POINTS) return;
-      current.points.push(cssPoint(evt));
+      var pt = cssPoint(evt);
+      var last = current.points[current.points.length - 1];
+      if (last) {
+        var dx = (pt.x - last.x) * pageWidth();
+        var dy = normalizeY ? (pt.y - last.y) * pageHeight() : (pt.y - last.y);
+        if (dx * dx + dy * dy < MIN_STEP_PX * MIN_STEP_PX) return;
+      }
+      current.points.push(pt);
     }
 
     function samplesFrom(evt) {
@@ -542,11 +566,11 @@
           p = pts[j];
           if (!p || typeof p.x !== 'number' || typeof p.y !== 'number') continue;
           if (!isFinite(p.x) || !isFinite(p.y)) continue;
-          clean.push({
+          clean.push(compactPoint({
             x: p.x,
             y: p.y,
             p: (typeof p.p === 'number' && isFinite(p.p)) ? p.p : 0.5
-          });
+          }, normalizeY));
         }
         if (clean.length) out.strokes.push({ tool: s.tool, points: clean });
       }
