@@ -16,6 +16,7 @@
 <script src="auth-guard.js"></script>
 <script src="data-service.js"></script>
 <script src="tracker-sync.js"></script>
+<script src="tracker-column-view.js"></script>
 <script src="tracker-promote-archive.js"></script>
 <script src="tracker-readonly-view.js"></script>
 <script src="report-builder-bridge.js"></script>
@@ -469,7 +470,7 @@ html,body{max-width:100%;overscroll-behavior-x:none}
   -webkit-print-color-adjust:exact;print-color-adjust:exact
 }
 </style>
-<link rel="stylesheet" href="tracker-ipad.css?v=sync1">
+<link rel="stylesheet" href="tracker-ipad.css?v=col1">
 </head>
 <body>
 <button type="button" class="ipad-backdrop" onclick="trackerIpadClose()" aria-label="Close navigation"></button>
@@ -1259,6 +1260,7 @@ function renderTracker(yg){
     return `<label class="unit-def-check ${t.id===tpId?'is-current':''}"><input type="checkbox" ${filled?'checked':''} onchange="setUnitDefault('${yg}','${t.id}',this.checked)"> ${t.label}</label>`;
   }).join('');
 
+  const scoreView=TrackerColumnView.getMode();
   const trackerCtrlHTML=`
     <div class="tracker-ctrl">
       <div style="flex:1">
@@ -1356,7 +1358,8 @@ function renderTracker(yg){
       </div>
     </details>
     ${bulkHTML}
-    ${tableHTML}
+    ${pupils.length?`<div class="score-view-bar">${TrackerColumnView.switchHTML(yg,scoreView)}</div>`:''}
+    <div class="score-area" id="score-area-${yg}">${pupils.length&&scoreView==='column'?columnViewHTML(yg):tableHTML}</div>
   `;
 }
 
@@ -1367,6 +1370,35 @@ function scoreCell(yg,pid,tpId,dim,current){
 }
 function setTP(yg,id){S.curTP[yg]=id;renderTracker(yg);}
 function setCls(yg,cls){S.curCls[yg]=cls;renderTracker(yg);}
+
+// ── ONE-COLUMN SCORING (markup in tracker-column-view.js) ──
+const _colDim={s1:'creating',s2:'creating',s3:'creating'};
+function trackerPupils(yg){
+  const curCls=S.curCls[yg];const out=[];
+  const classes=curCls==='all'?Object.keys(S.pupils[yg]).sort():[curCls];
+  classes.forEach(c=>(S.pupils[yg][c]||[]).forEach(p=>out.push({...p,cls:c})));
+  return out;
+}
+function columnViewOpts(yg){
+  const tpId=S.curTP[yg];
+  return {
+    yg,tpId,dim:_colDim[yg],pupils:trackerPupils(yg),showClass:S.curCls[yg]==='all',
+    getCell:(pid,dim)=>{const sc=S.scores[yg]?.[pid]?.[tpId]||{};return {value:sc[dim],isDefault:Array.isArray(sc.defaultDims)&&sc.defaultDims.includes(dim)};},
+    getNote:pid=>S.scores[yg]?.[pid]?.[tpId]?.notes||'',
+  };
+}
+function columnViewHTML(yg){return TrackerColumnView.render(columnViewOpts(yg));}
+function renderScoreArea(yg){const el=document.getElementById('score-area-'+yg);if(el)el.innerHTML=columnViewHTML(yg);}
+function setScoreView(yg,mode){TrackerColumnView.setMode(mode);renderTracker(yg);}
+function setColDim(yg,dim,jump){
+  _colDim[yg]=dim;renderScoreArea(yg);
+  if(jump){const el=document.getElementById('score-area-'+yg);if(el)el.scrollIntoView({block:'start',behavior:'smooth'});}
+}
+function toggleColNote(btn){
+  const box=btn.closest('.col-row').querySelector('.col-note');
+  const open=box.hidden;box.hidden=!open;btn.setAttribute('aria-expanded',String(open));
+  if(open)box.querySelector('textarea').focus();
+}
 function isDefaultsOn(yg,tpId){return S.defaultsOn?.[yg]?.[tpId]===true;}
 function defaultValueForDim(dim){return PROC_DIMS.includes(dim)?3:4;}
 function pupilsInYear(yg){
@@ -1504,9 +1536,10 @@ function setScore(yg,pid,tpId,dim,val,btn){
   S.scores[yg][pid][tpId][dim]=(cur===val)?null:val;
   markScoreManual(yg,pid,tpId,dim);
   save();
-  const cell=btn.closest('td');const nv=S.scores[yg][pid][tpId][dim];
+  const cell=btn.closest('[data-score-cell]')||btn.closest('td');const nv=S.scores[yg][pid][tpId][dim];
   cell.querySelectorAll('.sc-btn').forEach(b=>b.classList.toggle('active',nv===parseInt(b.textContent)));
   cell.querySelectorAll('.na-btn').forEach(b=>b.classList.toggle('active',nv===0));
+  if(btn.closest('.col-view'))TrackerColumnView.refresh(document.getElementById('score-area-'+yg),columnViewOpts(yg));
 }
 function setNote(yg,pid,tpId,val){
   if(roBlock())return;
@@ -1536,7 +1569,7 @@ function applyBulk(yg,tpId){
   const allDims=[...PROC_DIMS,...ATTIT_DIMS];
   const undo=[];let changed=0,kept=0;
   // Visible rows = the class filter currently on screen
-  document.querySelectorAll(`#panel-tracker-${yg} tbody tr[data-pid]`).forEach(row=>{
+  document.querySelectorAll(`#panel-tracker-${yg} tbody tr[data-pid], #panel-tracker-${yg} .col-row[data-pid]`).forEach(row=>{
     const pid=row.dataset.pid;if(!pid)return;
     const sc=ensureScoreBucket(yg,pid,tpId);
     const cells=row.querySelectorAll('td');
@@ -1558,6 +1591,7 @@ function applyBulk(yg,tpId){
       }
     });
   });
+  if(document.querySelector(`#score-area-${yg} .col-view`))renderScoreArea(yg);
   if(!changed){toast(kept?`Nothing changed — all ${kept} score${kept!==1?'s were':' was'} already entered`:'Nothing to change');return;}
   save();
   const msg=`Set ${changed} score${changed!==1?'s':''}${kept?` · kept ${kept} already entered`:''}`;

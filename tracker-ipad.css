@@ -16,13 +16,17 @@
 }
 .sb-toggle:hover { background: rgba(255, 255, 255, 0.12); color: #fff; }
 
+/* clip, not hidden: hidden makes body a scroll box, which stops the top bar
+   and the score column tabs from staying pinned. */
 html[data-ipad] {
   overflow-x: hidden;
+  overflow-x: clip;
 }
 html[data-ipad] body {
   min-height: 100vh;
   min-height: 100dvh;
   overflow-x: hidden;
+  overflow-x: clip;
   font-size: var(--fs-base);
   max-width: 100%;
 }
@@ -530,3 +534,126 @@ html[data-ipad] .toast-action { min-height: 44px; min-width: 44px; }
 .bulk-keep input { accent-color: var(--accent); width: 16px; height: 16px; }
 html[data-ipad] .bulk-keep { min-height: 44px; }
 html[data-ipad] .bulk-keep input { width: 22px; height: 22px; }
+
+/* One-column scoring (tracker-column-view.js): one score column at a time, no sideways scrolling. */
+.score-view-bar { display: flex; justify-content: flex-end; max-width: 920px; margin: 0 0 0.6rem; }
+.sv-switch { display: inline-flex; padding: 3px; gap: 3px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-md); }
+.sv-btn {
+  font-family: var(--font-body);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  color: var(--text2);
+  background: none;
+  border: 0;
+  border-radius: var(--r-sm);
+  padding: 0.35rem 0.85rem;
+  min-height: 34px;
+  cursor: pointer;
+}
+.sv-btn.active { background: var(--white); color: var(--text); box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12); }
+.score-area { scroll-margin-top: 4.5rem; }
+
+.col-view { max-width: 920px; background: var(--white); border: 1px solid var(--border); border-radius: var(--r-md); }
+.col-view > :first-child { border-radius: var(--r-md) var(--r-md) 0 0; }
+.col-view > :last-child { border-radius: 0 0 var(--r-md) var(--r-md); }
+.col-dims {
+  position: sticky;
+  top: 3.4rem;
+  z-index: 6;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.65rem 0.75rem;
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+}
+.col-dims-gap { width: 1px; align-self: stretch; margin: 0.15rem 0.2rem; background: var(--border2); }
+.col-dim {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 40px;
+  padding: 0.3rem 0.75rem;
+  border: 1px solid var(--border2);
+  border-radius: var(--r-pill);
+  background: var(--white);
+  color: var(--dim);
+  font-family: var(--font-body);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  cursor: pointer;
+}
+.col-dim:hover { border-color: var(--dim); }
+.col-dim.active { background: var(--dim); border-color: var(--dim); color: #fff; }
+.col-dim-count { font-family: var(--font-mono); font-size: var(--fs-xs); font-weight: 600; opacity: 0.8; }
+.col-dim.complete:not(.active) .col-dim-count::after { content: " ✓"; }
+
+.col-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0.4rem 0.75rem;
+  padding: 0.45rem 0.75rem 0.45rem 0.9rem;
+  border-bottom: 1px solid var(--border);
+  border-left: 4px solid transparent;
+}
+.col-row:last-child { border-bottom: 0; }
+.col-row.is-empty { border-left-color: var(--dim); background: #fafbfc; }
+.col-name { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.2rem 0.5rem; min-width: 0; }
+.col-pupil { font-weight: 600; font-size: var(--fs-base); color: var(--text); overflow-wrap: anywhere; }
+.col-cls { font-size: var(--fs-xs); color: var(--text3); }
+.col-default {
+  font-size: var(--fs-xs);
+  font-weight: 700;
+  color: var(--text3);
+  border: 1px dashed var(--border2);
+  border-radius: var(--r-sm);
+  padding: 0 0.35rem;
+}
+.col-view .col-score { gap: 6px; }
+.col-view .sc-btn,
+.col-view .na-btn { width: 40px; height: 40px; font-size: var(--fs-sm); }
+.col-view .na-btn { font-size: var(--fs-xs); }
+.col-note-btn {
+  min-height: 40px;
+  padding: 0 0.7rem;
+  border: 1px solid var(--border2);
+  border-radius: var(--r-sm);
+  background: var(--white);
+  color: var(--text2);
+  font-family: var(--font-body);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+.col-note-btn.has-note { border-color: var(--accent); color: var(--accent); }
+.col-note-btn.has-note::before { content: "● "; }
+.col-note { grid-column: 1 / -1; }
+.col-note .notes-inp { height: auto; min-height: 60px; border-color: var(--border2); background: var(--white); resize: vertical; }
+.col-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.75rem 0.9rem;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+}
+.col-foot-msg { font-size: var(--fs-sm); color: var(--text2); font-weight: 600; }
+
+html[data-ipad] .sv-btn { min-height: 44px; font-size: var(--fs-base) !important; }
+html[data-ipad] .col-dims { top: 66px; }
+html[data-ipad] .col-dim { min-height: 44px; font-size: var(--fs-base); }
+html[data-ipad] .col-view .sc-btn,
+html[data-ipad] .col-view .na-btn { width: 52px !important; height: 52px !important; font-size: var(--fs-md) !important; }
+html[data-ipad] .col-view .col-score { gap: 8px; }
+html[data-ipad] .col-note-btn { min-height: 52px; min-width: 52px; }
+html[data-ipad] .col-row { padding-top: 0.55rem; padding-bottom: 0.55rem; }
+/* Buttons drop under the name only when the list itself is too narrow for one line. */
+.col-view { container-type: inline-size; }
+@container (max-width: 560px) {
+  .col-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .col-score { grid-column: 1 / 2; grid-row: 2; }
+  .col-note-btn { grid-column: 2; grid-row: 2; }
+}
