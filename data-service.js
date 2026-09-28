@@ -49,31 +49,63 @@
   // null = unknown, true = priority columns available, false = legacy schema.
   var announcementsPrioritySchemaKnown = null;
   var announcementsFeaturedBannerSchemaKnown = null;
-  var announcementsUpdatedAtSchemaKnown = null;
   var announcementsSignificantUpdateSchemaKnown = null;
+  var announcementsScheduleSchemaKnown = null;
   function localTodayYMD() {
     var d = new Date();
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
+  // When staff first see an announcement: its publish time, or when it was created.
+  function announcementPostedAt(a) {
+    var created = a && a.created_at ? String(a.created_at) : '';
+    var publish = a && a.publish_at ? String(a.publish_at) : '';
+    if (!publish) return created;
+    if (!created) return publish;
+    return Date.parse(publish) > Date.parse(created) ? publish : created;
+  }
+  // draft | scheduled | live | expired, as the faculty head sees it.
+  function announcementState(a, today, nowMs) {
+    if (a && a.status === 'draft') return 'draft';
+    var exp = a && a.expires_at ? String(a.expires_at).slice(0, 10) : '';
+    if (exp && exp < today) return 'expired';
+    var pub = a && a.publish_at ? Date.parse(a.publish_at) : NaN;
+    if (!isNaN(pub) && pub > nowMs) return 'scheduled';
+    return 'live';
+  }
+  function mapAnnouncementRow(a) {
+    return {
+      id: a.id,
+      title: a.title,
+      body: a.body,
+      expires_at: a.expires_at,
+      created_at: a.created_at,
+      updated_at: a.updated_at || a.created_at,
+      priority: a.priority || 'none',
+      highlight_priority: !!a.highlight_priority,
+      featured_banner: !!a.featured_banner,
+      significant_update_at: a.significant_update_at || null,
+      update_note: a.update_note || null,
+      status: a.status || 'published',
+      publish_at: a.publish_at || a.created_at || null
+    };
+  }
+  // Staff list: live announcements only. Row security hides drafts and scheduled
+  // posts once the drafts migration is applied; this filter also covers databases
+  // without it. created_at becomes the moment the post went live, so "New",
+  // "Posted" and notifications on the staff home follow the scheduled time.
   function mapAnnouncementsList(rows) {
     var today = localTodayYMD();
+    var nowMs = Date.now();
     return (rows || []).filter(function(a) {
-      var exp = a && a.expires_at ? String(a.expires_at).slice(0, 10) : '';
-      return !exp || exp >= today;
+      return a && announcementState(a, today, nowMs) === 'live';
     }).map(function(a) {
-      return {
-        id: a.id,
-        title: a.title,
-        body: a.body,
-        expires_at: a.expires_at,
-        created_at: a.created_at,
-        updated_at: a.updated_at || a.created_at,
-        priority: a.priority || 'none',
-        highlight_priority: !!a.highlight_priority,
-        featured_banner: !!a.featured_banner,
-        significant_update_at: a.significant_update_at || null,
-        update_note: a.update_note || null
-      };
+      var out = mapAnnouncementRow(a);
+      var posted = announcementPostedAt(a);
+      out.created_at = posted;
+      if (!out.updated_at || Date.parse(out.updated_at) < Date.parse(posted)) out.updated_at = posted;
+      return out;
+    }).sort(function(a, b) {
+      return String(b.created_at || '').localeCompare(String(a.created_at || ''));
     });
   }
   function isAnnouncementsPrioritySchemaError(err) {
@@ -86,15 +118,39 @@
     var msg = String(err.message || err.details || '');
     return err.code === '42703' || /featured_banner/i.test(msg);
   }
-  function isAnnouncementsUpdatedAtSchemaError(err) {
-    if (!err) return false;
-    var msg = String(err.message || err.details || '').replace(/significant_update_at/gi, '');
-    return err.code === '42703' || /updated_at/i.test(msg);
-  }
   function isAnnouncementsSignificantUpdateSchemaError(err) {
     if (!err) return false;
     var msg = String(err.message || err.details || '');
     return err.code === '42703' || /significant_update_at|update_note/i.test(msg);
+  }
+  function isAnnouncementsScheduleSchemaError(err) {
+    if (!err) return false;
+    var msg = String(err.message || err.details || '');
+    return err.code === '42703' || /\bstatus\b|publish_at/i.test(msg);
+  }
+  function canUseAnnouncementsScheduleColumns() {
+    if (announcementsScheduleSchemaKnown != null) {
+      return Promise.resolve(announcementsScheduleSchemaKnown);
+    }
+    if (!useSupabase()) {
+      announcementsScheduleSchemaKnown = false;
+      return Promise.resolve(false);
+    }
+    return window.supabase.from('announcements')
+      .select('status, publish_at')
+      .limit(1)
+      .then(function(r) {
+        if (r && r.error) {
+          announcementsScheduleSchemaKnown = !isAnnouncementsScheduleSchemaError(r.error);
+          return announcementsScheduleSchemaKnown;
+        }
+        announcementsScheduleSchemaKnown = true;
+        return true;
+      })
+      .catch(function() {
+        announcementsScheduleSchemaKnown = false;
+        return false;
+      });
   }
   function canUseAnnouncementsPriorityColumns() {
     if (announcementsPrioritySchemaKnown != null) {
@@ -187,6 +243,94 @@
       return q.then(function(r) {
         if (r && r.error) throw r.error;
       });
+    });
+  }
+  // Create (id null) or update an announcement. Returns the row id.
+  // status ('draft' | 'published') and publish_at are only written when given,
+  // so older callers that omit them leave an announcement's schedule alone.
+  function saveAnnouncement(id, obj) {
+    if (!useSupabase()) return Promise.reject(new Error('Supabase required'));
+    obj = obj || {};
+    var isCreate = !id;
+    var priority = String(obj.priority || 'none').toLowerCase();
+    if (['none', 'low', 'medium', 'high'].indexOf(priority) === -1) priority = 'none';
+    var featuredBanner = !!obj.featured_banner;
+    return ensureSessionForMutations().then(function() {
+      return Promise.all([
+        canUseAnnouncementsPriorityColumns(),
+        canUseAnnouncementsFeaturedBannerColumn(),
+        canUseAnnouncementsSignificantUpdateColumns(),
+        canUseAnnouncementsScheduleColumns()
+      ]);
+    }).then(function(flags) {
+      var canUsePriority = flags[0];
+      var canUseFeatured = flags[1];
+      var canUseSignificant = flags[2];
+      var canUseSchedule = flags[3];
+      var nowIso = new Date().toISOString();
+      var row = {
+        title: (obj.title || '').trim(),
+        body: (obj.body || '').trim() || null,
+        expires_at: obj.expires_at || null
+      };
+      if (canUsePriority) {
+        row.priority = priority;
+        row.highlight_priority = !!obj.highlight_priority;
+      }
+      if (canUseFeatured) row.featured_banner = featuredBanner;
+      var hasStatus = obj.status === 'draft' || obj.status === 'published';
+      var hasPublishAt = Object.prototype.hasOwnProperty.call(obj, 'publish_at');
+      if (canUseSchedule) {
+        if (hasStatus) row.status = obj.status;
+        else if (isCreate) row.status = 'published';
+        if (hasPublishAt) row.publish_at = obj.publish_at || nowIso;
+        else if (isCreate) row.publish_at = nowIso;
+      } else if ((hasStatus && obj.status === 'draft') ||
+          (hasPublishAt && obj.publish_at && Date.parse(obj.publish_at) > Date.now())) {
+        throw new Error('Drafts and scheduled posts need the announcements drafts migration on the database. Nothing was saved.');
+      }
+      applySignificantUpdateFields(row, obj, canUseSignificant);
+
+      // Only a post that is live now replaces the current home banner. A
+      // scheduled banner takes over on the staff home once it goes live.
+      var liveNow = row.status !== 'draft' && (!row.publish_at || Date.parse(row.publish_at) <= Date.now());
+      var prep = featuredBanner && canUseFeatured && liveNow ? clearOtherFeaturedBanners(id) : Promise.resolve();
+
+      function write(r) {
+        var q = isCreate
+          ? window.supabase.from('announcements').insert(r)
+          : window.supabase.from('announcements').update(r).eq('id', id);
+        return q.select('id');
+      }
+      function attempt(r, tries) {
+        return write(r).then(function(res) {
+          if (!res.error) {
+            var data = Array.isArray(res.data) ? res.data[0] : res.data;
+            if (!isCreate && !data) throw new Error('That announcement could not be saved. It may have been deleted, or your account cannot edit it.');
+            return (data && data.id) || id;
+          }
+          if (tries < 3) {
+            if ('significant_update_at' in r && isAnnouncementsSignificantUpdateSchemaError(res.error)) {
+              announcementsSignificantUpdateSchemaKnown = false;
+              stripSignificantUpdateFields(r);
+              return attempt(r, tries + 1);
+            }
+            if ('featured_banner' in r && isAnnouncementsFeaturedBannerSchemaError(res.error)) {
+              announcementsFeaturedBannerSchemaKnown = false;
+              delete r.featured_banner;
+              return attempt(r, tries + 1);
+            }
+            if ('priority' in r && isAnnouncementsPrioritySchemaError(res.error)) {
+              announcementsPrioritySchemaKnown = false;
+              delete r.priority;
+              delete r.highlight_priority;
+              return attempt(r, tries + 1);
+            }
+          }
+          throw res.error;
+        });
+      }
+      return prep.then(function() { return attempt(row, 0); });
     });
   }
   function ensureSessionForMutations() {
@@ -860,186 +1004,48 @@
         if (!useSupabase()) { resolve([]); return; }
         getSessionWithRetry({ retries: 4, delayMs: 250 }).then(function(session) {
           if (!session) { resolve([]); return; }
-          Promise.all([
-            canUseAnnouncementsPriorityColumns(),
-            canUseAnnouncementsFeaturedBannerColumn(),
-            canUseAnnouncementsSignificantUpdateColumns()
-          ]).then(function(flags) {
-            var canUsePriority = flags[0];
-            var canUseFeatured = flags[1];
-            var canUseSignificant = flags[2];
-            var fields = ['id', 'title', 'body', 'expires_at', 'created_at', 'updated_at'];
-            if (canUsePriority) fields.push('priority', 'highlight_priority');
-            if (canUseFeatured) fields.push('featured_banner');
-            if (canUseSignificant) fields.push('significant_update_at', 'update_note');
-            window.supabase.from('announcements')
-              .select(fields.join(', '))
-              .order('created_at', { ascending: false })
-              .then(function(r) {
-                if (!r.error) {
-                  resolve(mapAnnouncementsList(r.data || []));
-                  return;
-                }
-                if (canUseSignificant && isAnnouncementsSignificantUpdateSchemaError(r.error)) {
-                  announcementsSignificantUpdateSchemaKnown = false;
-                  canUseSignificant = false;
-                }
-                if (isAnnouncementsUpdatedAtSchemaError(r.error)) {
-                  announcementsUpdatedAtSchemaKnown = false;
-                }
-                if (canUseFeatured && isAnnouncementsFeaturedBannerSchemaError(r.error)) {
-                  announcementsFeaturedBannerSchemaKnown = false;
-                  canUseFeatured = false;
-                }
-                if (canUsePriority && isAnnouncementsPrioritySchemaError(r.error)) {
-                  announcementsPrioritySchemaKnown = false;
-                  canUsePriority = false;
-                }
-                var retryFields = ['id', 'title', 'body', 'expires_at', 'created_at'];
-                if (announcementsUpdatedAtSchemaKnown !== false) retryFields.push('updated_at');
-                if (canUsePriority) retryFields.push('priority', 'highlight_priority');
-                if (canUseFeatured) retryFields.push('featured_banner');
-                if (canUseSignificant) retryFields.push('significant_update_at', 'update_note');
-                window.supabase.from('announcements')
-                  .select(retryFields.join(', '))
-                  .order('created_at', { ascending: false })
-                  .then(function(retry) {
-                    if (retry.error) { resolve([]); return; }
-                    var rows = (retry.data || []).map(function(a) {
-                      return Object.assign({}, a, {
-                        priority: a.priority || 'none',
-                        highlight_priority: !!a.highlight_priority,
-                        featured_banner: !!a.featured_banner,
-                        significant_update_at: a.significant_update_at || null,
-                        update_note: a.update_note || null
-                      });
-                    });
-                    resolve(mapAnnouncementsList(rows));
-                  });
-              });
-          });
+          // select('*') returns whichever optional columns this database has.
+          window.supabase.from('announcements')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .then(function(r) {
+              resolve(r.error ? [] : mapAnnouncementsList(r.data || []));
+            }, function() { resolve([]); });
         }).catch(function() {
           resolve([]);
         });
       });
     },
 
-    createAnnouncement: function(obj) {
+    // Faculty Head Hub list: every announcement including drafts, scheduled and
+    // expired ones, each with a state. Rejects on failure so the page can say so.
+    getAnnouncementsForManage: function() {
       if (!useSupabase()) return Promise.reject(new Error('Supabase required'));
-      var priority = String(obj.priority || 'none').toLowerCase();
-      if (['none', 'low', 'medium', 'high'].indexOf(priority) === -1) priority = 'none';
-      var featuredBanner = !!obj.featured_banner;
-      var baseRow = {
-        title: (obj.title || '').trim(),
-        body: (obj.body || '').trim() || null,
-        expires_at: obj.expires_at || null
-      };
-      return ensureSessionForMutations().then(function() {
-        return Promise.all([
-          canUseAnnouncementsPriorityColumns(),
-          canUseAnnouncementsFeaturedBannerColumn(),
-          canUseAnnouncementsSignificantUpdateColumns()
-        ]).then(function(flags) {
-          var canUsePriority = flags[0];
-          var canUseFeatured = flags[1];
-          var canUseSignificant = flags[2];
-          var row = Object.assign({}, baseRow);
-          if (canUsePriority) {
-            row.priority = priority;
-            row.highlight_priority = !!obj.highlight_priority;
-          }
-          if (canUseFeatured) row.featured_banner = featuredBanner;
-          applySignificantUpdateFields(row, obj, canUseSignificant);
-          var prep = featuredBanner && canUseFeatured ? clearOtherFeaturedBanners(null) : Promise.resolve();
-          return prep.then(function() {
-            return window.supabase.from('announcements').insert(row).then(function(r) {
-              if (!r.error) { return; }
-              if (canUseSignificant && isAnnouncementsSignificantUpdateSchemaError(r.error)) {
-                announcementsSignificantUpdateSchemaKnown = false;
-                stripSignificantUpdateFields(row);
-                return window.supabase.from('announcements').insert(row).then(function(rSig) {
-                  if (rSig.error) throw rSig.error;
-                });
-              }
-              if (canUseFeatured && isAnnouncementsFeaturedBannerSchemaError(r.error)) {
-                announcementsFeaturedBannerSchemaKnown = false;
-                delete row.featured_banner;
-                return window.supabase.from('announcements').insert(row).then(function(rFb) {
-                  if (rFb.error) throw rFb.error;
-                });
-              }
-              if (canUsePriority && isAnnouncementsPrioritySchemaError(r.error)) {
-                announcementsPrioritySchemaKnown = false;
-                delete row.priority;
-                delete row.highlight_priority;
-                return window.supabase.from('announcements').insert(baseRow).then(function(r2) {
-                  if (r2.error) throw r2.error;
-                });
-              }
-              throw r.error;
+      return getSessionWithRetry({ retries: 12, delayMs: 250 }).then(function(session) {
+        if (!session) throw new Error('You are not signed in. Refresh the page and sign in again.');
+        return window.supabase.from('announcements')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .then(function(r) {
+            if (r.error) throw r.error;
+            var today = localTodayYMD();
+            var nowMs = Date.now();
+            return (r.data || []).map(function(a) {
+              var out = mapAnnouncementRow(a);
+              out.state = announcementState(a, today, nowMs);
+              out.posted_at = announcementPostedAt(a);
+              return out;
             });
           });
-        });
       });
     },
 
+    createAnnouncement: function(obj) {
+      return saveAnnouncement(null, obj);
+    },
+
     updateAnnouncement: function(id, obj) {
-      if (!useSupabase()) return Promise.reject(new Error('Supabase required'));
-      var priority = String(obj.priority || 'none').toLowerCase();
-      if (['none', 'low', 'medium', 'high'].indexOf(priority) === -1) priority = 'none';
-      var featuredBanner = !!obj.featured_banner;
-      var baseRow = {
-        title: (obj.title || '').trim(),
-        body: (obj.body || '').trim() || null,
-        expires_at: obj.expires_at || null
-      };
-      return ensureSessionForMutations().then(function() {
-        return Promise.all([
-          canUseAnnouncementsPriorityColumns(),
-          canUseAnnouncementsFeaturedBannerColumn(),
-          canUseAnnouncementsSignificantUpdateColumns()
-        ]).then(function(flags) {
-          var canUsePriority = flags[0];
-          var canUseFeatured = flags[1];
-          var canUseSignificant = flags[2];
-          var row = Object.assign({}, baseRow);
-          if (canUsePriority) {
-            row.priority = priority;
-            row.highlight_priority = !!obj.highlight_priority;
-          }
-          if (canUseFeatured) row.featured_banner = featuredBanner;
-          applySignificantUpdateFields(row, obj, canUseSignificant);
-          var prep = featuredBanner && canUseFeatured ? clearOtherFeaturedBanners(id) : Promise.resolve();
-          return prep.then(function() {
-            return window.supabase.from('announcements').update(row).eq('id', id).then(function(r) {
-              if (!r.error) { return; }
-              if (canUseSignificant && isAnnouncementsSignificantUpdateSchemaError(r.error)) {
-                announcementsSignificantUpdateSchemaKnown = false;
-                stripSignificantUpdateFields(row);
-                return window.supabase.from('announcements').update(row).eq('id', id).then(function(rSig) {
-                  if (rSig.error) throw rSig.error;
-                });
-              }
-              if (canUseFeatured && isAnnouncementsFeaturedBannerSchemaError(r.error)) {
-                announcementsFeaturedBannerSchemaKnown = false;
-                delete row.featured_banner;
-                return window.supabase.from('announcements').update(row).eq('id', id).then(function(rFb) {
-                  if (rFb.error) throw rFb.error;
-                });
-              }
-              if (canUsePriority && isAnnouncementsPrioritySchemaError(r.error)) {
-                announcementsPrioritySchemaKnown = false;
-                delete row.priority;
-                delete row.highlight_priority;
-                return window.supabase.from('announcements').update(baseRow).eq('id', id).then(function(r2) {
-                  if (r2.error) throw r2.error;
-                });
-              }
-              throw r.error;
-            });
-          });
-        });
-      });
+      return saveAnnouncement(id, obj);
     },
 
     deleteAnnouncement: function(id) {
@@ -1052,13 +1058,19 @@
     },
 
     getAnnouncementsSchemaSupport: function() {
-      if (!useSupabase()) return Promise.resolve({ priorityColumns: false, featuredBannerColumn: false, significantUpdateColumns: false });
+      if (!useSupabase()) return Promise.resolve({ priorityColumns: false, featuredBannerColumn: false, significantUpdateColumns: false, scheduleColumns: false });
       return Promise.all([
         canUseAnnouncementsPriorityColumns(),
         canUseAnnouncementsFeaturedBannerColumn(),
-        canUseAnnouncementsSignificantUpdateColumns()
+        canUseAnnouncementsSignificantUpdateColumns(),
+        canUseAnnouncementsScheduleColumns()
       ]).then(function(flags) {
-        return { priorityColumns: !!flags[0], featuredBannerColumn: !!flags[1], significantUpdateColumns: !!flags[2] };
+        return {
+          priorityColumns: !!flags[0],
+          featuredBannerColumn: !!flags[1],
+          significantUpdateColumns: !!flags[2],
+          scheduleColumns: !!flags[3]
+        };
       });
     },
 

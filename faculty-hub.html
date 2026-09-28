@@ -4176,7 +4176,7 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
               </div>
               <div style="display:flex;align-items:center;gap:.65rem;flex-shrink:0;">
                 <a href="#" onclick="event.preventDefault();showPanel('home');return false;" style="font-size:.78rem;color:var(--text2);text-decoration:none;display:inline-flex;align-items:center;gap:4px;">← Back to home</a>
-                <a href="#" id="homeAnnManageLink" onclick="event.preventDefault();showPanel('embed-admin-console');return false;" style="display:none;font-size:.78rem;color:#2f64bf;text-decoration:none;align-items:center;gap:3px;">Manage <i class="ti ti-arrow-right" style="font-size:11px;"></i></a>
+                <a href="#" id="homeAnnManageLink" onclick="event.preventDefault();homeOpenAnnouncementsManager();return false;" style="display:none;font-size:.78rem;color:#2f64bf;text-decoration:none;align-items:center;gap:3px;">Manage <i class="ti ti-arrow-right" style="font-size:11px;"></i></a>
               </div>
             </div>
           </div>
@@ -12074,12 +12074,11 @@ function homeSortAnnouncements(list){
     return bDate.localeCompare(aDate);
   });
 }
+// The newest banner wins, so a scheduled banner takes over when it goes live.
 function homeFindFeaturedAnnouncement(list){
-  var sorted=homeSortAnnouncements(list||[]);
-  for(var i=0;i<sorted.length;i++){
-    if(sorted[i]&&sorted[i].featured_banner) return sorted[i];
-  }
-  return null;
+  var featured=(list||[]).filter(function(a){ return a&&a.featured_banner; });
+  featured.sort(function(a,b){ return String(b.created_at||'').localeCompare(String(a.created_at||'')); });
+  return featured[0]||null;
 }
 function homePickMastheadAnnouncement(list){
   var featured=homeFindFeaturedAnnouncement(list);
@@ -12256,8 +12255,14 @@ function homeRenderAnnouncements(announcements, today){
 function homeUpdateAnnouncementsManageLink(){
   var link=document.getElementById('homeAnnManageLink');
   if(!link) return;
-  var isAdmin=!!window.__authGuardIsAdmin;
-  link.style.display=isAdmin?'inline-flex':'none';
+  var canManage=!!(window.__authGuardCanManageSchool||window.__authGuardIsAdmin||window.__authGuardIsFacultyHead);
+  link.style.display=canManage?'inline-flex':'none';
+}
+// Opens the Faculty Head Hub panel straight on its Announcements page.
+function homeOpenAnnouncementsManager(){
+  var frame=document.querySelector('#embed-admin-console iframe');
+  if(frame) frame.setAttribute('src','fh_announcements.html?embed=1');
+  showPanel('embed-admin-console');
 }
 function homeRenderAllAnnouncementsPanel(announcements, today){
   homeUpdateAnnouncementsManageLink();

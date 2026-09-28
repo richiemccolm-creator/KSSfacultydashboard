@@ -340,7 +340,7 @@ h3,h4,h5,h6{font-weight:600;letter-spacing:-.01em}
           </button>
           <div class="fh-add-menu" id="fhAddMenu" role="menu" aria-hidden="true">
             <a href="fh_calendar.html" role="menuitem">Calendar event</a>
-            <a href="fh_announcements.html" role="menuitem">Announcement</a>
+            <a href="fh_announcements.html?new=1" role="menuitem">Announcement</a>
             <a href="fh_tracking.html" role="menuitem">Tracking data</a>
             <a href="fh_class_management.html" role="menuitem">Class resource</a>
           </div>
@@ -361,7 +361,7 @@ h3,h4,h5,h6{font-weight:600;letter-spacing:-.01em}
           <div class="icon-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11v2a2 2 0 0 0 2 2h3l5 4V5L8 9H5a2 2 0 0 0-2 2z"/></svg></div>
           <div><div class="a-title">New Announcement</div><div class="a-desc">Create and send faculty-wide announcements.</div></div>
         </div>
-        <a class="a-link" href="fh_announcements.html">Create Announcement <span>→</span></a>
+        <a class="a-link" href="fh_announcements.html?new=1">Create Announcement <span>→</span></a>
       </div>
       <div class="action-card">
         <div class="action-head">
@@ -399,7 +399,7 @@ h3,h4,h5,h6{font-weight:600;letter-spacing:-.01em}
         <div class="rows" id="announcementRows">
           <div class="row-placeholder">Loading announcements…</div>
         </div>
-        <button class="go-btn" type="button" onclick="fhGo('fh_announcements.html')">+ New Announcement</button>
+        <button class="go-btn" type="button" onclick="fhGo('fh_announcements.html?new=1')">+ New Announcement</button>
       </div>
 
       <div class="card">
@@ -562,26 +562,38 @@ function renderCalendarRows(events){
     '</div>';
   }).join('');
 }
+// Shows what needs attention first: drafts, then the next scheduled posts, then what is live.
 function renderAnnouncementRows(list){
   var wrap = document.getElementById('announcementRows');
   if (!wrap) return;
-  if (!list.length) {
-    wrap.innerHTML = '<div class="row-placeholder">No announcements yet.</div>';
+  var order = { draft: 0, scheduled: 1, live: 2 };
+  var shown = list.filter(function(a){ return a && order[a.state] != null; });
+  if (!shown.length) {
+    wrap.innerHTML = '<div class="row-placeholder">No drafts, scheduled or live announcements.</div>';
     return;
   }
-  var today = isoDateLocal(new Date());
-  wrap.innerHTML = list.slice(0, 3).map(function(a){
-    var expires = String(a.expires_at || '').slice(0, 10);
-    var created = String(a.created_at || '').slice(0, 10);
-    var statusCls = 'pill-active';
-    var statusTxt = 'Active';
-    if (expires && expires < today) { statusCls = 'pill-draft'; statusTxt = 'Expired'; }
-    else if (created && created === today) { statusCls = 'pill-scheduled'; statusTxt = 'New'; }
+  shown.sort(function(a, b){
+    if (order[a.state] !== order[b.state]) return order[a.state] - order[b.state];
+    if (a.state === 'scheduled') return String(a.publish_at).localeCompare(String(b.publish_at));
+    return String(b.posted_at || b.updated_at || '').localeCompare(String(a.posted_at || a.updated_at || ''));
+  });
+  var pills = {
+    draft: '<span class="status-pill pill-draft">Draft</span>',
+    scheduled: '<span class="status-pill pill-scheduled">Scheduled</span>',
+    live: '<span class="status-pill pill-active">Live</span>'
+  };
+  function when(a){
+    var iso = a.state === 'scheduled' ? a.publish_at : a.state === 'live' ? a.posted_at : a.updated_at;
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    var label = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) + ', ' + String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    return (a.state === 'scheduled' ? 'Goes live ' : a.state === 'live' ? 'Live since ' : 'Edited ') + label;
+  }
+  wrap.innerHTML = shown.slice(0, 4).map(function(a){
     return '<div class="row">' +
-      '<div><span class="status-pill ' + statusCls + '">' + esc(statusTxt) + '</span></div>' +
+      '<div>' + pills[a.state] + '</div>' +
       '<div><div class="item-title">' + esc(a.title || 'Untitled announcement') + '</div>' +
-      '<div class="item-meta">' + esc((window.AnnouncementRichText ? AnnouncementRichText.plainText(a.body) : String(a.body || '')).slice(0, 86) || 'No summary provided.') + '</div>' +
-      '<div class="item-meta">' + (created ? ('Updated ' + esc(created)) : 'No date') + '</div></div>' +
+      '<div class="item-meta">' + esc(when(a)) + '</div></div>' +
       '<span></span>' +
       '<button class="menu-btn" type="button" title="Manage in Announcements" onclick="fhGo(\'fh_announcements.html\')">⋮</button>' +
     '</div>';
@@ -645,7 +657,7 @@ function loadDashboardData(){
   if (!window.DataService) return;
   Promise.all([
     (typeof DataService.getSharedCalendarEvents === 'function' ? DataService.getSharedCalendarEvents() : Promise.resolve([])),
-    (typeof DataService.getAnnouncements === 'function' ? DataService.getAnnouncements() : Promise.resolve([])),
+    (typeof DataService.getAnnouncementsForManage === 'function' ? DataService.getAnnouncementsForManage().catch(function(){ return []; }) : Promise.resolve([])),
     (typeof DataService.getAllForMonitoring === 'function' ? DataService.getAllForMonitoring() : Promise.resolve([])),
     (typeof DataService.getStaffListWithWorkForAdmin === 'function' ? DataService.getStaffListWithWorkForAdmin() : Promise.resolve([]))
   ]).then(function(res){
@@ -664,10 +676,7 @@ function loadDashboardData(){
     renderAnnouncementRows(announcements);
     var trackingCompletion = extractTrackingCompletion(monitoringRows);
     renderTrackingRows(trackingCompletion);
-    var activeAnnouncements = announcements.filter(function(a){
-      var ex = String(a.expires_at || '').slice(0,10);
-      return !ex || ex >= today;
-    });
+    var activeAnnouncements = announcements.filter(function(a){ return a.state === 'live'; });
     setMetric('metricUpcoming', upcomingEvents.filter(function(e){ var d = String(e.date || '').slice(0,10); return d && d <= in30s; }).length);
     setMetric('metricActiveAnnouncements', activeAnnouncements.length);
     setMetric('metricClassesPending', trackingCompletion.filter(function(it){ return it.status !== 'Complete'; }).length);

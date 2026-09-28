@@ -14,6 +14,7 @@
 <script src="fh-access.js"></script>
 <script src="data-service.js"></script>
 <script src="announcement-richtext.js"></script>
+<script src="announcement-docx-import.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="design-tokens.css">
@@ -21,321 +22,901 @@
 <link rel="stylesheet" href="fh-mobile-shell.css">
 <link rel="stylesheet" href="announcement-richtext.css">
 <style>
-.top-home{padding:14px 18px 0;padding-top:calc(14px + env(safe-area-inset-top,0px))}
-.top-home a{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;min-height:44px;border:1px solid var(--navy-100);border-radius:999px;text-decoration:none;color:var(--ink-700);font-size:var(--fs-sm);font-weight:600;background:#fff;-webkit-tap-highlight-color:transparent}
-.ann-stack{margin:14px 18px 18px;margin-bottom:calc(18px + env(safe-area-inset-bottom,0px))}
-.ann-stack{display:flex;flex-direction:column;gap:var(--sp-4)}
-.ann-form-grid{display:grid;gap:var(--sp-3);grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}
-.ann-field{display:flex;flex-direction:column;gap:var(--sp-1)}
-.ann-field label{font-size:var(--fs-xs);font-weight:600;color:var(--ink-500);text-transform:uppercase;letter-spacing:.06em}
-.ann-field input,.ann-field select,.ann-field textarea{width:100%;padding:10px;border:1px solid var(--navy-100);border-radius:var(--r-md);font:var(--fs-sm)/1.3 var(--font-sans)}
+.ann-page{max-width:1080px;margin:0 auto;padding:16px;padding-bottom:calc(24px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:14px}
+.ann-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.ann-head h1{font-family:var(--font-heading);font-size:var(--fs-xl);font-weight:700;letter-spacing:-.02em;color:var(--ink-900);margin:0}
+.ann-head p{margin:4px 0 0;color:var(--ink-500);font-size:var(--fs-sm);line-height:1.45}
+.ann-head-actions{display:flex;gap:8px;flex-wrap:wrap}
+.ann-page .btn{min-height:44px;justify-content:center}
+.btn-sm{min-height:36px !important;padding:6px 12px;font-size:var(--fs-xs)}
+.btn[hidden]{display:none !important}
+.btn[disabled]{opacity:.5;cursor:not-allowed;transform:none;box-shadow:none}
+.btn-danger-ghost{background:transparent;border-color:transparent;color:var(--danger-600)}
+
+.ann-notice{padding:10px 12px;border-radius:var(--r-md);font-size:var(--fs-sm);line-height:1.45;border:1px solid #fcd34d;background:#fffbeb;color:#92400e}
+.ann-notice[hidden]{display:none}
+.ann-notice.is-error{border-color:#fecaca;background:#fef2f2;color:var(--danger-600)}
+
+.ann-tabs{display:flex;gap:4px;border-bottom:1px solid var(--navy-100);overflow-x:auto;-webkit-overflow-scrolling:touch}
+.ann-tab{appearance:none;border:0;background:none;padding:10px 12px;min-height:44px;font:600 var(--fs-sm)/1 var(--font-sans);color:var(--ink-500);border-bottom:2px solid transparent;margin-bottom:-1px;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+.ann-tab[aria-selected="true"]{color:var(--navy-700);border-bottom-color:var(--navy-700)}
+.ann-tab-count{min-width:20px;padding:1px 6px;border-radius:99px;background:var(--navy-050);color:var(--ink-700);font-size:var(--fs-xs);font-weight:600;text-align:center}
+.ann-tab[aria-selected="true"] .ann-tab-count{background:var(--navy-700);color:#fff}
+
+.ann-list{display:flex;flex-direction:column;gap:10px}
+.ann-item{background:#fff;border:1px solid var(--navy-100);border-radius:var(--r-lg);padding:14px 16px;display:grid;grid-template-columns:1fr auto;gap:10px 16px;align-items:start}
+.ann-item-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:var(--fs-xs);color:var(--ink-500)}
+.ann-item-title{margin:6px 0 0;font-size:var(--fs-md);font-weight:600;color:var(--ink-900);line-height:1.35;overflow-wrap:anywhere}
+.ann-item-text{margin:4px 0 0;font-size:var(--fs-sm);color:var(--ink-500);line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;overflow-wrap:anywhere}
+.ann-item-actions{display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.pill{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:700;letter-spacing:.02em}
+.pill-draft{background:#eef2f8;color:#475569}
+.pill-scheduled{background:#efeaff;color:#5b3fd1}
+.pill-live{background:#e6f7ed;color:#15803d}
+.pill-expired{background:#f1f5f9;color:#64748b}
+.pill-priority{background:#fcebea;color:#a8322d}
+.pill-reminder{background:#f1f5f9;color:#475569}
+.pill-banner{background:var(--navy-700);color:#fff}
+.ann-empty{padding:28px 16px;text-align:center;color:var(--ink-500);font-size:var(--fs-sm);border:1px dashed var(--navy-100);border-radius:var(--r-lg);background:#fff;line-height:1.5}
+.ann-empty strong{display:block;color:var(--ink-900);font-size:var(--fs-base);margin-bottom:4px}
+
+/* Editor drawer */
+.ann-scrim{position:fixed;inset:0;background:rgba(11,18,32,.42);z-index:900;opacity:0;pointer-events:none;transition:opacity .2s ease}
+.ann-scrim.open{opacity:1;pointer-events:auto}
+.ann-drawer{position:fixed;top:0;right:0;bottom:0;width:min(1040px,100vw);background:var(--bg-muted,#f4f6fb);z-index:901;display:flex;flex-direction:column;transform:translateX(100%);transition:transform .25s ease;box-shadow:-12px 0 32px rgba(15,26,48,.18)}
+.ann-drawer.open{transform:none}
+.ann-drawer[hidden]{display:none}
+.ann-drawer-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 16px;padding-top:calc(12px + env(safe-area-inset-top,0px));background:#fff;border-bottom:1px solid var(--navy-100)}
+.ann-drawer-head h2{margin:0;font-size:var(--fs-lg);font-weight:700;color:var(--ink-900)}
+.ann-drawer-body{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:16px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,380px);gap:16px;align-items:start}
+.ann-drawer-foot{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;padding:12px 16px;padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));background:#fff;border-top:1px solid var(--navy-100)}
+.ann-drawer-foot .spacer{flex:1}
+.ann-foot-hint{font-size:var(--fs-xs);color:var(--ink-500)}
+.ann-panel{background:#fff;border:1px solid var(--navy-100);border-radius:var(--r-lg);padding:16px;display:flex;flex-direction:column;gap:16px}
+.ann-field{display:flex;flex-direction:column;gap:6px;min-width:0}
+.ann-page *,.ann-drawer *{box-sizing:border-box}
+.ann-field > label,.ann-legend{font-size:var(--fs-xs);font-weight:700;color:var(--ink-700);text-transform:uppercase;letter-spacing:.06em}
+.ann-field input[type="text"],.ann-field input[type="date"],.ann-field input[type="time"]{width:100%;min-height:44px;padding:10px;border:1px solid var(--navy-100);border-radius:var(--r-md);font:var(--fs-base)/1.3 var(--font-sans);background:#fff;color:var(--ink-900)}
+.ann-field input:focus-visible{outline:none;box-shadow:var(--sh-ring)}
 .ann-field .ann-rt-wrap{max-width:none}
-.ann-actions{display:flex;gap:var(--sp-2);flex-wrap:wrap}
-.ann-table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;max-width:100%}
-.ann-table-scroll table{min-width:560px}
-.ann-toast{position:fixed;bottom:calc(var(--sp-6) + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--ink-900);color:#fff;padding:var(--sp-3) var(--sp-5);border-radius:var(--r-pill);z-index:1000;display:none}
-.ann-option-stack{display:flex;flex-direction:column;gap:var(--sp-2);margin:0.75rem 0 1.25rem}
-.ann-check{display:flex;align-items:center;gap:var(--sp-2);font-size:var(--fs-sm);color:var(--ink-500)}
-.ann-sig-wrap{padding-top:var(--sp-2)}
-.ann-sig-hint{margin:0.4rem 0 0 1.625rem;font-size:var(--fs-xs);color:var(--ink-500);line-height:1.4}
-#fhAnnUpdateNote:disabled{opacity:.5}
+.ann-hint{margin:0;font-size:var(--fs-xs);color:var(--ink-500);line-height:1.45}
+.ann-restored{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 10px;border-radius:var(--r-md);background:var(--info-100,#e0f2fe);color:var(--info-600,#0369a1);font-size:var(--fs-xs)}
+.ann-restored[hidden]{display:none}
+.ann-restored button{background:none;border:0;color:inherit;font:inherit;font-weight:700;text-decoration:underline;cursor:pointer;min-height:32px}
+.ann-seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.ann-seg label{position:relative;display:flex;flex-direction:column;gap:2px;padding:10px;border:1px solid var(--navy-100);border-radius:var(--r-md);cursor:pointer;background:#fff;min-height:44px}
+.ann-seg input{position:absolute;opacity:0;pointer-events:none}
+.ann-seg label:has(input:checked){border-color:var(--navy-700);box-shadow:inset 0 0 0 1px var(--navy-700);background:var(--navy-050)}
+.ann-seg label:has(input:focus-visible){box-shadow:var(--sh-ring)}
+.ann-seg label:has(input:disabled){opacity:.5;cursor:not-allowed}
+.ann-seg strong{font-size:var(--fs-sm);color:var(--ink-900)}
+.ann-seg span{font-size:11px;color:var(--ink-500);line-height:1.35}
+.ann-switch{display:flex;align-items:flex-start;gap:10px;cursor:pointer;min-height:44px}
+.ann-switch input{width:20px;height:20px;margin-top:2px;flex-shrink:0;accent-color:var(--navy-700)}
+.ann-switch strong{display:block;font-size:var(--fs-sm);color:var(--ink-900)}
+.ann-when{display:flex;flex-direction:column;gap:10px;padding:12px;border-radius:var(--r-md);background:var(--navy-050);border:1px solid var(--navy-100)}
+.ann-when[hidden]{display:none}
+.ann-when-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ann-seg-2{grid-template-columns:repeat(2,1fr)}
+.ann-chips{display:flex;gap:6px;flex-wrap:wrap}
+.ann-chip{appearance:none;border:1px solid var(--navy-100);background:#fff;border-radius:99px;padding:6px 12px;min-height:36px;font:600 var(--fs-xs)/1 var(--font-sans);color:var(--ink-700);cursor:pointer}
+.ann-chip:hover{border-color:var(--navy-400)}
+.ann-sig{padding:12px;border-radius:var(--r-md);border:1px solid var(--navy-100)}
+.ann-sig[hidden]{display:none}
+.ann-live-note{font-size:var(--fs-sm);color:var(--ink-700);padding:10px 12px;border-radius:var(--r-md);background:#e6f7ed}
+.ann-live-note[hidden]{display:none}
+
+/* Preview: mirrors the staff home page */
+.ann-preview{position:sticky;top:0;display:flex;flex-direction:column;gap:10px}
+.ann-preview-label{font-size:var(--fs-xs);font-weight:700;color:var(--ink-500);text-transform:uppercase;letter-spacing:.06em}
+.pv-plate{background:#1e2d4a;color:#f4f6fb;border-radius:14px;padding:1.1rem 1.25rem 1.2rem;box-shadow:0 12px 32px rgba(15,26,48,.16)}
+.pv-plate h3{margin:0;font-family:var(--font-heading);font-size:1.3rem;font-weight:600;letter-spacing:-.02em;line-height:1.2;color:#fff;overflow-wrap:anywhere}
+.pv-plate .pv-text{margin-top:.5rem;font-size:.9rem;line-height:1.5;color:rgba(244,246,251,.88);display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden}
+.pv-plate .pv-text a{color:#fff}
+.pv-plate .pv-meta{margin-top:.8rem;font-size:.78rem;color:rgba(244,246,251,.62)}
+.pv-card{background:#f7f9fc;border:1px solid #e3e8ef;border-radius:12px;overflow:hidden}
+.pv-card-head{padding:10px 14px;font-size:.8rem;font-weight:600;color:#16243c;background:#fff;border-bottom:1px solid #e3e8ef}
+.pv-row{display:flex;gap:10px;padding:11px 14px;background:#fff}
+.pv-row.is-featured{background:#f4f6fb}
+.pv-bar{width:3px;align-self:stretch;border-radius:99px;background:#cbd5e0;flex-shrink:0}
+.pv-bar.is-red{background:#c2413b}
+.pv-row-meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:.75rem;color:#64748b;margin-bottom:3px}
+.pv-row-title{font-size:.94rem;font-weight:500;color:#16243c;line-height:1.35;overflow-wrap:anywhere}
+.pv-row-text{font-size:.81rem;color:#475569;line-height:1.45;margin-top:3px;overflow-wrap:anywhere}
+.pv-new{display:inline-flex;padding:1px 6px;border-radius:99px;background:#fcebea;color:#a8322d;font-size:.69rem;font-weight:600}
+.pv-empty{color:rgba(244,246,251,.5);font-style:italic}
+
+.ann-toast{position:fixed;bottom:calc(24px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);max-width:calc(100vw - 32px);background:var(--ink-900);color:#fff;padding:12px 18px;border-radius:var(--r-pill);z-index:1000;display:none;font-size:var(--fs-sm);box-shadow:var(--sh-md)}
+.ann-toast.show{display:block}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
+
+@media (max-width:900px){
+  .ann-drawer-body{grid-template-columns:1fr}
+  .ann-preview{position:static}
+}
+@media (max-width:600px){
+  .ann-item{grid-template-columns:1fr}
+  .ann-item-actions{justify-content:flex-start}
+  .ann-seg{grid-template-columns:1fr}
+  .ann-seg-2{grid-template-columns:1fr 1fr}
+  .ann-drawer-foot .ann-foot-hint{flex-basis:100%;order:-1}
+  .ann-drawer-foot .spacer{display:none}
+  .ann-drawer-foot .btn{flex:1}
+}
+@media (prefers-reduced-motion:reduce){
+  .ann-drawer,.ann-scrim{transition:none}
+}
 </style>
 </head>
 <body class="fh-mobile-page fh-hub-page">
-  <section class="ann-stack">
-    <div class="card">
-      <h2 id="fhAnnFormTitle">New Announcement</h2>
-      <p style="color:var(--ink-500);margin:6px 0 14px">Announcements appear on the Faculty Hub home page for staff.</p>
-      <div class="ann-form-grid">
-        <div class="ann-field" style="grid-column:1/-1">
-          <label for="fhAnnTitle">Title</label>
-          <input id="fhAnnTitle" type="text" placeholder="e.g. Department Meeting Reminder">
-        </div>
-        <div class="ann-field">
-          <label for="fhAnnExpires">Expires (optional)</label>
-          <input id="fhAnnExpires" type="date">
-        </div>
-        <div class="ann-field">
-          <label for="fhAnnPriority">Priority</label>
-          <select id="fhAnnPriority">
-            <option value="none">None</option>
-            <option value="low">Low</option>
-            <option value="medium">Medium</option>
-            <option value="high">High</option>
-          </select>
-        </div>
+<main class="ann-page">
+  <header class="ann-head">
+    <div>
+      <h1>Announcements</h1>
+      <p>Write, schedule and manage what staff see on the Faculty Hub home page.</p>
+    </div>
+    <div class="ann-head-actions">
+      <button class="btn" type="button" id="annImportBtn">Import from Word</button>
+      <button class="btn btn-primary" type="button" id="annNewBtn">New announcement</button>
+    </div>
+  </header>
+  <input type="file" id="annImportFile" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>
+
+  <p id="annSchemaNotice" class="ann-notice" hidden></p>
+
+  <div class="ann-tabs" role="tablist" aria-label="Announcement status">
+    <button class="ann-tab" role="tab" type="button" data-tab="draft" aria-selected="false">Drafts <span class="ann-tab-count" data-count="draft">0</span></button>
+    <button class="ann-tab" role="tab" type="button" data-tab="scheduled" aria-selected="false">Scheduled <span class="ann-tab-count" data-count="scheduled">0</span></button>
+    <button class="ann-tab" role="tab" type="button" data-tab="live" aria-selected="true">Live <span class="ann-tab-count" data-count="live">0</span></button>
+    <button class="ann-tab" role="tab" type="button" data-tab="expired" aria-selected="false">Expired <span class="ann-tab-count" data-count="expired">0</span></button>
+  </div>
+  <div id="annList" class="ann-list" role="tabpanel" aria-live="polite">
+    <div class="ann-empty">Loading announcements…</div>
+  </div>
+  <p class="ann-hint">Need a template for bulk import? <a href="#" id="annTemplateLink">Download the Word template</a>. Imported announcements are saved as drafts for you to check.</p>
+</main>
+
+<div class="ann-scrim" id="annScrim"></div>
+<section class="ann-drawer" id="annDrawer" role="dialog" aria-modal="true" aria-labelledby="annDrawerTitle" hidden>
+  <header class="ann-drawer-head">
+    <h2 id="annDrawerTitle">New announcement</h2>
+    <button class="btn btn-ghost" type="button" id="annCloseBtn" aria-label="Close editor">Close</button>
+  </header>
+  <div class="ann-drawer-body">
+    <div class="ann-panel">
+      <div id="annRestored" class="ann-restored" hidden>
+        <span id="annRestoredText">Restored your unsaved changes.</span>
+        <button type="button" id="annRestoredDiscard">Discard them</button>
       </div>
-      <div class="ann-field" style="margin-top:var(--sp-3)">
-        <label for="fhAnnBody">Body</label>
-        <textarea id="fhAnnBody" placeholder="Optional details. Add a heading, emphasis, or a link."></textarea>
+      <div id="annLiveNote" class="ann-live-note" hidden></div>
+      <div class="ann-field">
+        <label for="annTitle">Title</label>
+        <input id="annTitle" type="text" maxlength="160" placeholder="e.g. Department meeting moved to Thursday" autocomplete="off">
       </div>
-      <div class="ann-option-stack">
-        <label class="ann-check">
-          <input id="fhAnnHighlight" type="checkbox">
-          Shade full announcement with priority colour
+      <div class="ann-field">
+        <label for="annBody">Message</label>
+        <textarea id="annBody"></textarea>
+      </div>
+      <fieldset class="ann-field" style="border:0;padding:0;margin:0">
+        <legend class="ann-legend" style="margin-bottom:6px">How prominent?</legend>
+        <div class="ann-seg">
+          <label><input type="radio" name="annProm" value="low"><strong>Reminder</strong><span>Quiet, grey marker</span></label>
+          <label><input type="radio" name="annProm" value="none" checked><strong>Standard</strong><span>Normal announcement</span></label>
+          <label><input type="radio" name="annProm" value="high"><strong>Priority</strong><span>Red “Priority” label, listed first</span></label>
+        </div>
+      </fieldset>
+      <div>
+        <label class="ann-switch">
+          <input type="checkbox" id="annBanner">
+          <span><strong>Pin as the home-page banner</strong><span class="ann-hint" id="annBannerHint">Shows large at the top of the staff home page.</span></span>
         </label>
-        <label class="ann-check">
-          <input id="fhAnnFeaturedBanner" type="checkbox">
-          Show as full-width banner on home screen
-        </label>
-        <div id="fhAnnSignificantUpdateWrap" class="ann-sig-wrap" hidden>
-          <label class="ann-check">
-            <input id="fhAnnSignificantUpdate" type="checkbox">
-            Flag as a significant update
-          </label>
-          <p class="ann-sig-hint">Staff who have already read this will see an alert until they acknowledge it.</p>
-          <div class="ann-field" style="margin-top:var(--sp-2)">
-            <label for="fhAnnUpdateNote">What's changed? (one line, optional)</label>
-            <input id="fhAnnUpdateNote" type="text" maxlength="140" disabled>
+      </div>
+      <div class="ann-field">
+        <label for="annExpires">Take down after (optional)</label>
+        <input id="annExpires" type="date">
+        <p class="ann-hint">Staff stop seeing it after this day. It moves to Expired, where you can repost it.</p>
+      </div>
+
+      <div id="annWhen" class="ann-when">
+        <span class="ann-legend">When should staff see it?</span>
+        <div class="ann-seg ann-seg-2" role="radiogroup" aria-label="When to post">
+          <label><input type="radio" name="annWhen" value="now" checked><strong>Now</strong><span>Goes live when you post</span></label>
+          <label><input type="radio" name="annWhen" value="schedule" id="annWhenSchedule"><strong>Schedule</strong><span>Pick a date and time</span></label>
+        </div>
+        <div id="annScheduleFields" hidden>
+          <div class="ann-chips" id="annChips"></div>
+          <div class="ann-when-row" style="margin-top:8px">
+            <div class="ann-field"><label for="annDate">Date</label><input id="annDate" type="date"></div>
+            <div class="ann-field"><label for="annTime">Time</label><input id="annTime" type="time" step="300"></div>
           </div>
         </div>
       </div>
-      <div class="ann-actions">
-        <button class="btn btn-primary" id="fhAnnCreateBtn" type="button">Add Announcement</button>
-        <button class="btn" id="fhAnnUpdateBtn" type="button" style="display:none">Update Announcement</button>
-        <button class="btn" id="fhAnnCancelBtn" type="button" style="display:none">Cancel Edit</button>
+
+      <div id="annSig" class="ann-sig" hidden>
+        <label class="ann-switch">
+          <input type="checkbox" id="annSigCheck">
+          <span><strong>Flag as a significant update</strong><span class="ann-hint">Staff who already read it see an “Updated since you last read it” alert until they acknowledge it.</span></span>
+        </label>
+        <div class="ann-field" style="margin-top:8px">
+          <label for="annSigNote">What changed? (optional)</label>
+          <input id="annSigNote" type="text" maxlength="140" placeholder="e.g. New room: D12" disabled>
+        </div>
       </div>
-      <p id="fhAnnSchemaHint" style="margin-top:10px;font-size:var(--fs-sm);color:#92400e;display:none"></p>
     </div>
-    <div class="card">
-      <h2>Announcements List</h2>
-      <p style="color:var(--ink-500);margin:6px 0 14px">Manage active and scheduled announcements.</p>
-      <div id="fhAnnList"></div>
-    </div>
-  </section>
-<div id="fhToast" class="ann-toast"></div>
+
+    <aside class="ann-preview" aria-label="Preview">
+      <span class="ann-preview-label">Preview: what staff see</span>
+      <div id="annPreview"></div>
+    </aside>
+  </div>
+  <footer class="ann-drawer-foot">
+    <span class="ann-foot-hint" id="annFootHint"></span>
+    <span class="spacer"></span>
+    <button class="btn" type="button" id="annDraftBtn">Save draft</button>
+    <button class="btn btn-primary" type="button" id="annPrimaryBtn">Post now</button>
+  </footer>
+</section>
+
+<div id="annToast" class="ann-toast" role="status" aria-live="polite"></div>
+
 <script>
-function fhShowToast(msg) {
-  var t = document.getElementById('fhToast');
-  if (!t) return;
-  t.textContent = msg || '';
-  t.style.display = 'block';
-  setTimeout(function() { t.style.display = 'none'; }, 2500);
-}
-var fhAnnouncements = [];
-var fhEditingAnnouncementId = null;
+(function() {
+  'use strict';
 
-function fhEsc(v) {
-  return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-function fhSubjectBadgeClass(subject) {
-  var s = String(subject || '').toLowerCase();
-  if (s.indexOf('drama') !== -1) return 'badge-drama';
-  if (s.indexOf('photo') !== -1) return 'badge-photo';
-  if (s.indexOf('art') !== -1) return 'badge-art';
-  return '';
-}
-function fhSubjectBadge(subject) {
-  var cls = fhSubjectBadgeClass(subject);
-  if (!cls) return '';
-  return ' <span class="badge ' + cls + '">' + fhEsc(subject) + '</span>';
-}
-function fhSubjectRowClass(subject) {
-  var s = String(subject || '').toLowerCase();
-  if (s.indexOf('drama') !== -1) return 'row-drama';
-  if (s.indexOf('photo') !== -1) return 'row-photo';
-  if (s.indexOf('art') !== -1) return 'row-art';
-  return '';
-}
+  var TAB_KEY = 'fhAnnTab';
+  var LOCAL_KEY = 'fhAnnLocalDraft:';
+  var STATES = ['draft', 'scheduled', 'live', 'expired'];
 
-function fhAnnouncementError(err, fallback) {
-  return (err && (err.message || err.details || err.hint)) || fallback || 'Something went wrong';
-}
+  var items = [];
+  var schema = { scheduleColumns: true, featuredBannerColumn: true, significantUpdateColumns: true, priorityColumns: true };
+  var tab = 'live';
+  var loaded = false;
+  var busy = false;
+  var editor = { id: null, original: null, snapshot: '', saveTimer: null, lastFocus: null };
 
-function fhSetAnnouncementsSchemaHint() {
-  var el = document.getElementById('fhAnnSchemaHint');
-  if (!el || !window.DataService || typeof DataService.getAnnouncementsSchemaSupport !== 'function') return;
-  DataService.getAnnouncementsSchemaSupport().then(function(info) {
-    var warnings = [];
-    if (!info || !info.priorityColumns) {
-      warnings.push('Priority colour fields are unavailable on this database. Run the announcements priority migration to enable them.');
-    }
-    if (!info || !info.featuredBannerColumn) {
-      warnings.push('The home-screen banner option is unavailable until the featured_banner migration is applied.');
-    }
-    if (!info || !info.significantUpdateColumns) {
-      warnings.push('The significant-update alert is unavailable until the significant_update_at migration is applied.');
-    }
-    if (!warnings.length) {
-      el.style.display = 'none';
+  function $(id) { return document.getElementById(id); }
+  function esc(v) {
+    return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function store(key, value) {
+    try {
+      if (value == null) localStorage.removeItem(key);
+      else localStorage.setItem(key, value);
+    } catch (e) {}
+  }
+  function recall(key) {
+    try { return localStorage.getItem(key); } catch (e) { return null; }
+  }
+  var toastTimer = null;
+  function toast(msg) {
+    var t = $('annToast');
+    t.textContent = msg || '';
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function() { t.classList.remove('show'); }, 3200);
+  }
+  function errText(err, fallback) {
+    return (err && (err.message || err.details || err.hint)) || fallback || 'Something went wrong';
+  }
+  function plain(html) {
+    return window.AnnouncementRichText ? AnnouncementRichText.plainText(html || '') : String(html || '');
+  }
+  function richHtml(html) {
+    return window.AnnouncementRichText ? AnnouncementRichText.render(html || '') : esc(html || '').replace(/\n/g, '<br>');
+  }
+
+  // ---- Dates -------------------------------------------------------------
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function ymd(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function hm(d) { return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+  function dayLabel(d) {
+    var today = new Date(); today.setHours(0, 0, 0, 0);
+    var that = new Date(d); that.setHours(0, 0, 0, 0);
+    var diff = Math.round((that - today) / 86400000);
+    if (diff === 0) return 'Today';
+    if (diff === 1) return 'Tomorrow';
+    if (diff === -1) return 'Yesterday';
+    var opts = { weekday: 'short', day: 'numeric', month: 'short' };
+    if (d.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric';
+    return d.toLocaleDateString('en-GB', opts);
+  }
+  function whenLabel(iso) {
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '';
+    return dayLabel(d) + ', ' + hm(d);
+  }
+  function dateLabel(ymdStr) {
+    if (!ymdStr) return '';
+    var d = new Date(String(ymdStr).slice(0, 10) + 'T12:00:00');
+    return isNaN(d.getTime()) ? String(ymdStr) : dayLabel(d);
+  }
+  function nextWeekday(dow, hour) {
+    var d = new Date();
+    d.setHours(hour, 0, 0, 0);
+    var add = (dow - d.getDay() + 7) % 7;
+    if (add === 0 && d <= new Date()) add = 7;
+    d.setDate(d.getDate() + add);
+    return d;
+  }
+  function tomorrowAt(hour) {
+    var d = new Date();
+    d.setDate(d.getDate() + 1);
+    d.setHours(hour, 0, 0, 0);
+    return d;
+  }
+
+  // ---- List --------------------------------------------------------------
+  function byState(state) {
+    var list = items.filter(function(a) { return a.state === state; });
+    list.sort(function(a, b) {
+      if (state === 'scheduled') return String(a.publish_at).localeCompare(String(b.publish_at));
+      if (state === 'draft') return String(b.updated_at || '').localeCompare(String(a.updated_at || ''));
+      if (state === 'expired') return String(b.expires_at || '').localeCompare(String(a.expires_at || ''));
+      return String(b.posted_at || '').localeCompare(String(a.posted_at || ''));
+    });
+    return list;
+  }
+  function currentBanner(exceptId) {
+    var live = byState('live').filter(function(a) { return a.featured_banner && String(a.id) !== String(exceptId || ''); });
+    return live[0] || null;
+  }
+  function stateMeta(a) {
+    if (a.state === 'draft') return '<span class="pill pill-draft">Draft</span><span>Edited ' + esc(whenLabel(a.updated_at || a.created_at)) + '</span>';
+    if (a.state === 'scheduled') return '<span class="pill pill-scheduled">Scheduled</span><span>Goes live ' + esc(whenLabel(a.publish_at)) + '</span>';
+    if (a.state === 'expired') return '<span class="pill pill-expired">Expired</span><span>Taken down after ' + esc(dateLabel(a.expires_at)) + '</span>';
+    var s = '<span class="pill pill-live">Live</span><span>Since ' + esc(whenLabel(a.posted_at)) + '</span>';
+    if (a.expires_at) s += '<span>· until ' + esc(dateLabel(a.expires_at)) + '</span>';
+    return s;
+  }
+  function flagPills(a) {
+    var out = '';
+    if (a.featured_banner) out += '<span class="pill pill-banner">Home banner</span>';
+    if (a.priority === 'high') out += '<span class="pill pill-priority">Priority</span>';
+    if (a.priority === 'low') out += '<span class="pill pill-reminder">Reminder</span>';
+    return out;
+  }
+  function actionButtons(a) {
+    var id = esc(a.id);
+    var b = function(act, label, cls) {
+      return '<button class="btn btn-sm' + (cls ? ' ' + cls : '') + '" type="button" data-act="' + act + '" data-id="' + id + '">' + label + '</button>';
+    };
+    if (a.state === 'draft') return b('edit', 'Edit', 'btn-primary') + b('post', 'Post now') + b('delete', 'Delete', 'btn-danger-ghost');
+    if (a.state === 'scheduled') return b('edit', 'Edit', 'btn-primary') + b('post', 'Post now') + b('unpublish', 'Move to drafts') + b('delete', 'Delete', 'btn-danger-ghost');
+    if (a.state === 'expired') return b('repost', 'Repost', 'btn-primary') + b('delete', 'Delete', 'btn-danger-ghost');
+    return b('edit', 'Edit', 'btn-primary') + b('duplicate', 'Duplicate') + b('unpublish', 'Take down') + b('delete', 'Delete', 'btn-danger-ghost');
+  }
+  var EMPTY = {
+    draft: ['No drafts', 'Use “Save draft” in the editor to keep something you are still working on.'],
+    scheduled: ['Nothing scheduled', 'Choose “Schedule” when writing an announcement to post it later.'],
+    live: ['Nothing live right now', 'Staff see an empty announcements card. Post something with “New announcement”.'],
+    expired: ['No expired announcements', 'Announcements move here after their take-down date.']
+  };
+  function render() {
+    STATES.forEach(function(s) {
+      var el = document.querySelector('[data-count="' + s + '"]');
+      if (el) el.textContent = String(byState(s).length);
+    });
+    document.querySelectorAll('.ann-tab').forEach(function(t) {
+      t.setAttribute('aria-selected', t.getAttribute('data-tab') === tab ? 'true' : 'false');
+    });
+    var wrap = $('annList');
+    if (!loaded) return;
+    var list = byState(tab);
+    if (!list.length) {
+      wrap.innerHTML = '<div class="ann-empty"><strong>' + esc(EMPTY[tab][0]) + '</strong>' + esc(EMPTY[tab][1]) + '</div>';
       return;
     }
-    el.style.display = 'block';
-    el.textContent = warnings.join(' ');
-  }).catch(function() {
-    el.style.display = 'block';
-    el.textContent = 'Could not verify announcement schema support. If colours or the banner option do not work, run the latest announcements migrations.';
-  });
-}
-
-function fhAnnBodyHtml() {
-  var el = document.getElementById('fhAnnBody');
-  if (window.AnnouncementRichText) return AnnouncementRichText.read(el);
-  return ((el && el.value) || '').trim();
-}
-function fhAnnBodySet(html) {
-  var el = document.getElementById('fhAnnBody');
-  if (window.AnnouncementRichText) AnnouncementRichText.write(el, html || '');
-  else if (el) el.value = html || '';
-}
-function fhSyncSignificantUpdateFields() {
-  var cb = document.getElementById('fhAnnSignificantUpdate');
-  var note = document.getElementById('fhAnnUpdateNote');
-  if (!cb || !note) return;
-  var on = !!cb.checked;
-  note.disabled = !on;
-}
-function fhResetSignificantUpdateFields() {
-  var cb = document.getElementById('fhAnnSignificantUpdate');
-  var note = document.getElementById('fhAnnUpdateNote');
-  var wrap = document.getElementById('fhAnnSignificantUpdateWrap');
-  if (cb) cb.checked = false;
-  if (note) note.value = '';
-  if (wrap) wrap.hidden = true;
-  fhSyncSignificantUpdateFields();
-}
-function fhResetAnnouncementForm() {
-  fhEditingAnnouncementId = null;
-  document.getElementById('fhAnnFormTitle').textContent = 'New Announcement';
-  document.getElementById('fhAnnTitle').value = '';
-  fhAnnBodySet('');
-  document.getElementById('fhAnnExpires').value = '';
-  document.getElementById('fhAnnPriority').value = 'none';
-  document.getElementById('fhAnnHighlight').checked = false;
-  document.getElementById('fhAnnFeaturedBanner').checked = false;
-  fhResetSignificantUpdateFields();
-  document.getElementById('fhAnnCreateBtn').style.display = 'inline-flex';
-  document.getElementById('fhAnnUpdateBtn').style.display = 'none';
-  document.getElementById('fhAnnCancelBtn').style.display = 'none';
-}
-
-function fhReadAnnouncementForm() {
-  var noteEl = document.getElementById('fhAnnUpdateNote');
-  return {
-    title: document.getElementById('fhAnnTitle').value.trim(),
-    body: fhAnnBodyHtml() || null,
-    expires_at: document.getElementById('fhAnnExpires').value || null,
-    priority: document.getElementById('fhAnnPriority').value || 'none',
-    highlight_priority: !!document.getElementById('fhAnnHighlight').checked,
-    featured_banner: !!document.getElementById('fhAnnFeaturedBanner').checked,
-    significant_update: !!document.getElementById('fhAnnSignificantUpdate').checked,
-    update_note: noteEl ? String(noteEl.value || '').trim() : ''
-  };
-}
-
-function fhRenderAnnouncements() {
-  var wrap = document.getElementById('fhAnnList');
-  if (!wrap) return;
-  if (!fhAnnouncements.length) {
-    wrap.innerHTML = '<div class="empty-s">No announcements yet.</div>';
-    return;
+    wrap.innerHTML = list.map(function(a) {
+      var text = plain(a.body).trim();
+      return '<article class="ann-item">' +
+        '<div>' +
+          '<div class="ann-item-meta">' + stateMeta(a) + flagPills(a) + '</div>' +
+          '<h3 class="ann-item-title">' + esc(a.title || 'Untitled announcement') + '</h3>' +
+          (text ? '<p class="ann-item-text">' + esc(text) + '</p>' : '') +
+        '</div>' +
+        '<div class="ann-item-actions">' + actionButtons(a) + '</div>' +
+      '</article>';
+    }).join('');
   }
-  wrap.innerHTML = '<div class="ann-table-scroll"><table class="table"><thead><tr><th>Title</th><th>Priority</th><th>Home banner</th><th>Created</th><th>Expires</th><th></th></tr></thead><tbody>' +
-    fhAnnouncements.map(function(a) {
-      var p = String(a.priority || 'none');
-      var pLabel = p.charAt(0).toUpperCase() + p.slice(1) + ((a.highlight_priority && p !== 'none') ? ' (shaded)' : '');
-      var bannerLabel = a.featured_banner ? 'Yes' : '—';
-      var subject = String(a.subject || a.target_subject || a.targetSubject || '').trim();
-      return '<tr class="' + fhSubjectRowClass(subject) + '">' +
-        '<td>' + fhEsc(a.title) + fhSubjectBadge(subject) + '</td>' +
-        '<td>' + fhEsc(pLabel) + '</td>' +
-        '<td>' + fhEsc(bannerLabel) + '</td>' +
-        '<td>' + fhEsc((a.created_at || '').slice(0, 10)) + '</td>' +
-        '<td>' + fhEsc(a.expires_at || '—') + '</td>' +
-        '<td><button class="btn" type="button" onclick="fhEditAnnouncement(\'' + fhEsc(a.id) + '\')">Edit</button> <button class="btn" type="button" onclick="fhDeleteAnnouncement(\'' + fhEsc(a.id) + '\')">Delete</button></td>' +
-      '</tr>';
-    }).join('') +
-    '</tbody></table></div>';
-}
-
-function fhLoadAnnouncements() {
-  if (!window.DataService || typeof DataService.getAnnouncements !== 'function') return;
-  DataService.getAnnouncements().then(function(list) {
-    fhAnnouncements = list || [];
-    fhRenderAnnouncements();
-  }).catch(function(err) {
-    fhShowToast(fhAnnouncementError(err, 'Could not load announcements'));
-  });
-}
-
-function fhEditAnnouncement(id) {
-  var a = fhAnnouncements.find(function(x) { return String(x.id) === String(id); });
-  if (!a) return;
-  fhEditingAnnouncementId = a.id;
-  document.getElementById('fhAnnFormTitle').textContent = 'Edit Announcement';
-  document.getElementById('fhAnnTitle').value = a.title || '';
-  fhAnnBodySet(a.body || '');
-  document.getElementById('fhAnnExpires').value = a.expires_at || '';
-  document.getElementById('fhAnnPriority').value = a.priority || 'none';
-  document.getElementById('fhAnnHighlight').checked = !!a.highlight_priority;
-  document.getElementById('fhAnnFeaturedBanner').checked = !!a.featured_banner;
-  var wrap = document.getElementById('fhAnnSignificantUpdateWrap');
-  var cb = document.getElementById('fhAnnSignificantUpdate');
-  var note = document.getElementById('fhAnnUpdateNote');
-  if (wrap) wrap.hidden = false;
-  if (cb) cb.checked = false;
-  if (note) note.value = '';
-  fhSyncSignificantUpdateFields();
-  document.getElementById('fhAnnCreateBtn').style.display = 'none';
-  document.getElementById('fhAnnUpdateBtn').style.display = 'inline-flex';
-  document.getElementById('fhAnnCancelBtn').style.display = 'inline-flex';
-}
-
-function fhDeleteAnnouncement(id) {
-  if (!confirm('Remove this announcement?')) return;
-  DataService.deleteAnnouncement(id).then(function() {
-    fhAnnouncements = fhAnnouncements.filter(function(a) { return String(a.id) !== String(id); });
-    fhRenderAnnouncements();
-    fhShowToast('Announcement removed');
-  }).catch(function(err) {
-    fhShowToast(fhAnnouncementError(err, 'Failed to remove announcement'));
-  });
-}
-
-function fhCreateAnnouncement() {
-  var payload = fhReadAnnouncementForm();
-  if (!payload.title) {
-    fhShowToast('Enter a title');
-    return;
+  function setTab(next) {
+    if (STATES.indexOf(next) === -1) return;
+    tab = next;
+    store(TAB_KEY, tab);
+    render();
   }
-  DataService.createAnnouncement(payload).then(function() {
-    fhResetAnnouncementForm();
-    fhLoadAnnouncements();
-    fhShowToast('Announcement added');
-  }).catch(function(err) {
-    fhShowToast(fhAnnouncementError(err, 'Failed to create announcement'));
-  });
-}
-
-function fhUpdateAnnouncement() {
-  if (!fhEditingAnnouncementId) return;
-  var payload = fhReadAnnouncementForm();
-  if (!payload.title) {
-    fhShowToast('Enter a title');
-    return;
+  function showLoadError(err) {
+    $('annList').innerHTML = '<div class="ann-empty"><strong>Announcements didn’t load</strong>' + esc(errText(err, 'Check your connection and try again.')) +
+      '<div style="margin-top:12px"><button class="btn" type="button" id="annRetry">Try again</button></div></div>';
+    var retry = $('annRetry');
+    if (retry) retry.addEventListener('click', load);
   }
-  DataService.updateAnnouncement(fhEditingAnnouncementId, payload).then(function() {
-    fhResetAnnouncementForm();
-    fhLoadAnnouncements();
-    fhShowToast('Announcement updated');
-  }).catch(function(err) {
-    fhShowToast(fhAnnouncementError(err, 'Failed to update announcement'));
-  });
-}
+  function load() {
+    if (!window.DataService || typeof DataService.getAnnouncementsForManage !== 'function') {
+      showLoadError(new Error('The data service did not load. Refresh the page.'));
+      return Promise.resolve();
+    }
+    return DataService.getAnnouncementsForManage().then(function(list) {
+      items = list || [];
+      var firstLoad = !loaded;
+      loaded = true;
+      if (firstLoad && !recall(TAB_KEY) && !byState('live').length && byState('draft').length) tab = 'draft';
+      render();
+    }).catch(showLoadError);
+  }
+  function loadSchema() {
+    if (!window.DataService || typeof DataService.getAnnouncementsSchemaSupport !== 'function') return Promise.resolve();
+    return DataService.getAnnouncementsSchemaSupport().then(function(info) {
+      schema = info || schema;
+      var msgs = [];
+      if (!schema.scheduleColumns) msgs.push('Drafts and scheduling are switched off until the “announcements drafts & scheduling” database update is applied. Announcements you post now go live straight away.');
+      if (!schema.featuredBannerColumn) msgs.push('The home-page banner option needs the featured_banner database update.');
+      if (!schema.significantUpdateColumns) msgs.push('The significant-update alert needs the significant_update_at database update.');
+      var el = $('annSchemaNotice');
+      el.hidden = !msgs.length;
+      el.textContent = msgs.join(' ');
+    }).catch(function() {});
+  }
 
-document.getElementById('fhAnnCreateBtn').addEventListener('click', fhCreateAnnouncement);
-document.getElementById('fhAnnUpdateBtn').addEventListener('click', fhUpdateAnnouncement);
-document.getElementById('fhAnnCancelBtn').addEventListener('click', fhResetAnnouncementForm);
-var fhAnnSignificantUpdateEl = document.getElementById('fhAnnSignificantUpdate');
-if (fhAnnSignificantUpdateEl) fhAnnSignificantUpdateEl.addEventListener('change', fhSyncSignificantUpdateFields);
+  // ---- Editor ------------------------------------------------------------
+  function readProm() {
+    var el = document.querySelector('input[name="annProm"]:checked');
+    return el ? el.value : 'none';
+  }
+  function readWhen() {
+    var el = document.querySelector('input[name="annWhen"]:checked');
+    return el ? el.value : 'now';
+  }
+  function scheduledIso() {
+    var d = $('annDate').value;
+    var t = $('annTime').value || '08:00';
+    if (!d) return null;
+    var dt = new Date(d + 'T' + t);
+    return isNaN(dt.getTime()) ? null : dt.toISOString();
+  }
+  function formState() {
+    return {
+      title: $('annTitle').value,
+      body: window.AnnouncementRichText ? AnnouncementRichText.read($('annBody')) : $('annBody').value,
+      prom: readProm(),
+      banner: $('annBanner').checked,
+      expires: $('annExpires').value,
+      when: readWhen(),
+      date: $('annDate').value,
+      time: $('annTime').value,
+      sig: $('annSigCheck').checked,
+      sigNote: $('annSigNote').value
+    };
+  }
+  function applyState(s) {
+    $('annTitle').value = s.title || '';
+    if (window.AnnouncementRichText) AnnouncementRichText.write($('annBody'), s.body || '');
+    else $('annBody').value = s.body || '';
+    var prom = document.querySelector('input[name="annProm"][value="' + (s.prom || 'none') + '"]');
+    if (prom) prom.checked = true;
+    $('annBanner').checked = !!s.banner;
+    $('annExpires').value = s.expires || '';
+    var when = document.querySelector('input[name="annWhen"][value="' + (s.when || 'now') + '"]');
+    if (when) when.checked = true;
+    $('annDate').value = s.date || '';
+    $('annTime').value = s.time || '';
+    $('annSigCheck').checked = !!s.sig;
+    $('annSigNote').value = s.sigNote || '';
+  }
+  function stateFromRecord(a, opts) {
+    opts = opts || {};
+    var p = a && a.priority;
+    var s = {
+      title: a ? a.title || '' : '',
+      body: a ? a.body || '' : '',
+      prom: p === 'high' || p === 'low' ? p : 'none',
+      banner: !!(a && a.featured_banner),
+      expires: a && a.expires_at && !opts.clearExpiry ? String(a.expires_at).slice(0, 10) : '',
+      when: 'now', date: '', time: '', sig: false, sigNote: ''
+    };
+    if (a && a.state === 'scheduled' && !opts.asCopy) {
+      var d = new Date(a.publish_at);
+      s.when = 'schedule';
+      s.date = ymd(d);
+      s.time = hm(d);
+    }
+    return s;
+  }
+  function editingRecord() {
+    return editor.id ? items.find(function(x) { return String(x.id) === String(editor.id); }) || editor.original : null;
+  }
 
-if (window.AnnouncementRichText) {
-  AnnouncementRichText.mount(document.getElementById('fhAnnBody'), {
-    placeholder: 'Optional details. Add a heading, emphasis, or a link to a Faculty Hub page or website.'
+  function renderChips() {
+    var chips = [
+      ['Tomorrow 8:00', tomorrowAt(8)],
+      ['Monday 8:00', nextWeekday(1, 8)],
+      ['Friday 15:00', nextWeekday(5, 15)]
+    ];
+    $('annChips').innerHTML = chips.map(function(c, i) {
+      return '<button class="ann-chip" type="button" data-chip="' + i + '">' + esc(c[0]) + '</button>';
+    }).join('');
+    $('annChips').querySelectorAll('[data-chip]').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var d = chips[Number(btn.getAttribute('data-chip'))][1];
+        $('annDate').value = ymd(d);
+        $('annTime').value = hm(d);
+        onFormChange();
+      });
+    });
+  }
+
+  function syncEditorChrome() {
+    var rec = editingRecord();
+    var isLive = !!(rec && rec.state === 'live');
+    var canSchedule = !!schema.scheduleColumns;
+    var when = readWhen();
+
+    $('annWhen').hidden = isLive;
+    $('annLiveNote').hidden = !isLive;
+    if (isLive) $('annLiveNote').textContent = 'Live since ' + whenLabel(rec.posted_at) + '. Changes show to staff as soon as you save.';
+    $('annWhenSchedule').disabled = !canSchedule;
+    if (!canSchedule && when === 'schedule') {
+      document.querySelector('input[name="annWhen"][value="now"]').checked = true;
+      when = 'now';
+    }
+    $('annScheduleFields').hidden = when !== 'schedule';
+
+    $('annSig').hidden = !(isLive && schema.significantUpdateColumns);
+    $('annSigNote').disabled = !$('annSigCheck').checked;
+
+    $('annBanner').disabled = !schema.featuredBannerColumn;
+    var banner = currentBanner(editor.id);
+    var bannerHint = 'Shows large at the top of the staff home page.';
+    if ($('annBanner').checked && banner) {
+      bannerHint = 'Replaces “' + banner.title + '” as the banner ' + (when === 'schedule' && !isLive ? 'when this goes live.' : 'as soon as you post.');
+    }
+    $('annBannerHint').textContent = bannerHint;
+
+    var draftBtn = $('annDraftBtn');
+    var primary = $('annPrimaryBtn');
+    draftBtn.hidden = isLive;
+    draftBtn.disabled = !canSchedule || busy;
+    draftBtn.title = canSchedule ? '' : 'Drafts need the database update';
+    primary.disabled = busy;
+
+    var hint = '';
+    if (isLive) {
+      primary.textContent = 'Save changes';
+    } else if (when === 'schedule') {
+      var iso = scheduledIso();
+      primary.textContent = iso ? 'Schedule for ' + whenLabel(iso) : 'Schedule';
+      if (!iso) hint = 'Pick a date to schedule.';
+    } else {
+      primary.textContent = rec && rec.state === 'scheduled' ? 'Post now instead' : 'Post now';
+    }
+    if (!hint && rec && rec.state === 'draft') hint = 'Draft, visible only to faculty heads.';
+    if (!hint && rec && rec.state === 'scheduled') hint = 'Scheduled for ' + whenLabel(rec.publish_at) + '.';
+    $('annFootHint').textContent = hint;
+  }
+
+  function renderPreview() {
+    var s = formState();
+    var title = s.title.trim();
+    var body = richHtml(s.body);
+    var goesLive = s.when === 'schedule' && scheduledIso() && !(editingRecord() && editingRecord().state === 'live')
+      ? new Date(scheduledIso()) : (editingRecord() && editingRecord().state === 'live' ? new Date(editingRecord().posted_at) : new Date());
+    var posted = dayLabel(goesLive);
+    var html = '';
+    if (s.banner) {
+      var meta = ['Posted ' + posted];
+      if (s.expires) meta.push('Expires ' + dateLabel(s.expires));
+      html += '<div class="pv-plate">' +
+        '<h3>' + (title ? esc(title) : '<span class="pv-empty">Your title</span>') + '</h3>' +
+        (body ? '<div class="pv-text ann-rich">' + body + '</div>' : '') +
+        '<div class="pv-meta">' + esc(meta.join('. ')) + '.</div>' +
+      '</div>';
+    }
+    // A newly posted announcement gets the red "new" marker on the staff home, whatever its level.
+    var barCls = ' is-red';
+    html += '<div class="pv-card"><div class="pv-card-head">Announcements</div>' +
+      '<div class="pv-row' + (s.banner ? ' is-featured' : '') + '"><div class="pv-bar' + barCls + '"></div><div style="min-width:0">' +
+        '<div class="pv-row-meta">' +
+          (s.banner ? '<span class="pill pill-banner">Pinned</span>' : '') +
+          '<span class="pv-new">New</span>' +
+          (s.prom === 'high' ? '<span class="pill pill-priority">Priority</span>' : '') +
+          '<span>' + esc(posted) + '</span></div>' +
+        '<div class="pv-row-title">' + (title ? esc(title) : '<span style="color:#94a3b8">Your title</span>') + '</div>' +
+        '<div class="pv-row-text ann-rich">' + (body || '<span style="color:#94a3b8">Your message</span>') + '</div>' +
+      '</div></div></div>';
+    $('annPreview').innerHTML = html;
+  }
+
+  function onFormChange() {
+    syncEditorChrome();
+    renderPreview();
+    clearTimeout(editor.saveTimer);
+    editor.saveTimer = setTimeout(saveLocal, 500);
+  }
+  function localKey() { return LOCAL_KEY + (editor.id || 'new'); }
+  function saveLocal() {
+    if ($('annDrawer').hidden) return;
+    var snap = JSON.stringify(formState());
+    if (snap === editor.snapshot) { store(localKey(), null); return; }
+    store(localKey(), JSON.stringify({ at: new Date().toISOString(), state: formState() }));
+  }
+  function isDirty() {
+    return JSON.stringify(formState()) !== editor.snapshot;
+  }
+
+  function openEditor(record, opts) {
+    opts = opts || {};
+    editor.id = record && !opts.asCopy ? record.id : null;
+    editor.original = record && !opts.asCopy ? record : null;
+    editor.lastFocus = document.activeElement;
+    var base = stateFromRecord(record, opts);
+    applyState(base);
+    editor.snapshot = JSON.stringify(formState());
+
+    var restored = false;
+    var raw = !opts.asCopy ? recall(localKey()) : null;
+    if (raw) {
+      try {
+        var saved = JSON.parse(raw);
+        if (saved && saved.state && JSON.stringify(saved.state) !== editor.snapshot) {
+          applyState(saved.state);
+          $('annRestoredText').textContent = 'Restored your unsaved changes from ' + whenLabel(saved.at) + '.';
+          restored = true;
+        }
+      } catch (e) {}
+    }
+    $('annRestored').hidden = !restored;
+
+    var title = 'New announcement';
+    if (editor.id && record.state === 'draft') title = 'Edit draft';
+    else if (editor.id && record.state === 'scheduled') title = 'Edit scheduled announcement';
+    else if (editor.id) title = 'Edit live announcement';
+    else if (opts.asCopy) title = opts.title || 'Copy of announcement';
+    $('annDrawerTitle').textContent = title;
+
+    renderChips();
+    syncEditorChrome();
+    renderPreview();
+    var drawer = $('annDrawer');
+    drawer.hidden = false;
+    document.body.style.overflow = 'hidden';
+    requestAnimationFrame(function() {
+      drawer.classList.add('open');
+      $('annScrim').classList.add('open');
+      $('annTitle').focus();
+    });
+  }
+  function closeEditor(force) {
+    if (!force && isDirty() && !confirm('Discard your changes to this announcement?')) return;
+    store(localKey(), null);
+    clearTimeout(editor.saveTimer);
+    var drawer = $('annDrawer');
+    drawer.classList.remove('open');
+    $('annScrim').classList.remove('open');
+    document.body.style.overflow = '';
+    setTimeout(function() { drawer.hidden = true; }, 250);
+    editor.id = null;
+    editor.original = null;
+    if (editor.lastFocus && editor.lastFocus.focus) editor.lastFocus.focus();
+  }
+
+  function payloadFromForm(mode) {
+    var s = formState();
+    var rec = editingRecord();
+    var priority = s.prom;
+    // "Medium" no longer has its own option; keep it on posts that already use it.
+    if (priority === 'none' && rec && rec.priority === 'medium') priority = 'medium';
+    var p = {
+      title: s.title.trim(),
+      body: (window.AnnouncementRichText ? AnnouncementRichText.read($('annBody')) : s.body) || null,
+      expires_at: s.expires || null,
+      priority: priority,
+      highlight_priority: !!(rec && rec.highlight_priority),
+      featured_banner: s.banner,
+      significant_update: !!(rec && rec.state === 'live' && s.sig),
+      update_note: s.sigNote.trim()
+    };
+    if (!schema.scheduleColumns) return p;
+    if (mode === 'draft') {
+      p.status = 'draft';
+      p.publish_at = null;
+    } else if (rec && rec.state === 'live') {
+      // Editing a live post leaves its publish time alone.
+    } else if (s.when === 'schedule') {
+      p.status = 'published';
+      p.publish_at = scheduledIso();
+    } else {
+      p.status = 'published';
+      p.publish_at = new Date().toISOString();
+    }
+    return p;
+  }
+  function validate(p, mode) {
+    if (!p.title) { $('annTitle').focus(); return 'Add a title first.'; }
+    if (mode === 'draft') return '';
+    var today = ymd(new Date());
+    if (p.publish_at && readWhen() === 'schedule' && !(editingRecord() && editingRecord().state === 'live')) {
+      if (!scheduledIso()) return 'Pick a date to schedule it for.';
+      if (Date.parse(p.publish_at) <= Date.now()) return 'That time has already passed. Pick a later time, or choose “Now”.';
+      if (p.expires_at && p.expires_at < ymd(new Date(p.publish_at))) return 'The take-down date is before the post goes live.';
+    }
+    if (p.expires_at && p.expires_at < today && !(editingRecord() && editingRecord().state === 'expired')) {
+      return 'The take-down date is in the past, so staff would never see it.';
+    }
+    return '';
+  }
+  function save(mode) {
+    if (busy) return;
+    var p = payloadFromForm(mode);
+    var problem = validate(p, mode);
+    if (problem) { toast(problem); return; }
+    busy = true;
+    syncEditorChrome();
+    var action = editor.id ? DataService.updateAnnouncement(editor.id, p) : DataService.createAnnouncement(p);
+    action.then(function() {
+      var msg, nextTab;
+      if (mode === 'draft') { msg = 'Draft saved'; nextTab = 'draft'; }
+      else if (p.publish_at && Date.parse(p.publish_at) > Date.now()) { msg = 'Scheduled for ' + whenLabel(p.publish_at); nextTab = 'scheduled'; }
+      else if (editor.id && editingRecord() && editingRecord().state === 'live') { msg = 'Changes saved'; nextTab = 'live'; }
+      else { msg = 'Posted. Staff can see it now'; nextTab = 'live'; }
+      busy = false;
+      closeEditor(true);
+      tab = nextTab;
+      store(TAB_KEY, tab);
+      toast(msg);
+      return load();
+    }).catch(function(err) {
+      busy = false;
+      syncEditorChrome();
+      toast(errText(err, 'Could not save the announcement'));
+    });
+  }
+
+  // ---- List actions ------------------------------------------------------
+  function recordPayload(a, overrides) {
+    return Object.assign({
+      title: a.title,
+      body: a.body,
+      expires_at: a.expires_at ? String(a.expires_at).slice(0, 10) : null,
+      priority: a.priority,
+      highlight_priority: a.highlight_priority,
+      featured_banner: a.featured_banner
+    }, overrides || {});
+  }
+  function runAction(promise, msg, nextTab) {
+    busy = true;
+    return promise.then(function() {
+      busy = false;
+      if (nextTab) { tab = nextTab; store(TAB_KEY, tab); }
+      toast(msg);
+      return load();
+    }).catch(function(err) {
+      busy = false;
+      toast(errText(err, 'That didn’t work. Try again.'));
+    });
+  }
+  function onListClick(e) {
+    var btn = e.target.closest('[data-act]');
+    if (!btn || busy) return;
+    var a = items.find(function(x) { return String(x.id) === btn.getAttribute('data-id'); });
+    if (!a) return;
+    var act = btn.getAttribute('data-act');
+    if (act === 'edit') openEditor(a);
+    else if (act === 'duplicate') openEditor(a, { asCopy: true, title: 'Copy of announcement' });
+    else if (act === 'repost') openEditor(a, { asCopy: true, clearExpiry: true, title: 'Repost announcement' });
+    else if (act === 'post') {
+      if (!confirm('Post “' + a.title + '” now? Staff will see it straight away.')) return;
+      runAction(DataService.updateAnnouncement(a.id, recordPayload(a, { status: 'published', publish_at: new Date().toISOString() })), 'Posted. Staff can see it now', 'live');
+    } else if (act === 'unpublish') {
+      if (!schema.scheduleColumns) { toast('Taking a post down needs the drafts database update. You can delete it instead.'); return; }
+      var q = a.state === 'live' ? 'Take “' + a.title + '” down? Staff will stop seeing it and it moves to Drafts.' : 'Move “' + a.title + '” back to drafts? It won’t go live.';
+      if (!confirm(q)) return;
+      runAction(DataService.updateAnnouncement(a.id, recordPayload(a, { status: 'draft', publish_at: null })), 'Moved to drafts', 'draft');
+    } else if (act === 'delete') {
+      if (!confirm('Delete “' + a.title + '” permanently? This can’t be undone.')) return;
+      runAction(DataService.deleteAnnouncement(a.id), 'Announcement deleted');
+    }
+  }
+
+  // ---- Word import -------------------------------------------------------
+  function loadScript(src, globalName) {
+    if (window[globalName]) return Promise.resolve();
+    return new Promise(function(resolve, reject) {
+      var s = document.createElement('script');
+      s.src = src;
+      s.onload = function() { resolve(); };
+      s.onerror = function() { reject(new Error('Could not load the Word tools. Check your connection.')); };
+      document.head.appendChild(s);
+    });
+  }
+  function importDocx(file) {
+    if (!file || !window.AnnouncementDocxImport) return;
+    loadScript('https://cdn.jsdelivr.net/npm/mammoth@1.9.0/mammoth.browser.min.js', 'mammoth').then(function() {
+      return AnnouncementDocxImport.parseFile(file);
+    }).then(function(parsed) {
+      var list = parsed && Array.isArray(parsed.announcements) ? parsed.announcements : [];
+      if (!list.length) { toast('No announcements found in that file. Use the template format.'); return; }
+      var asDraft = !!schema.scheduleColumns;
+      if (!asDraft && !confirm('Drafts aren’t switched on yet, so these ' + list.length + ' announcement(s) will go live straight away. Continue?')) return;
+      var chain = Promise.resolve();
+      list.forEach(function(entry) {
+        var p = Object.assign({}, entry);
+        if (asDraft) { p.status = 'draft'; p.publish_at = null; }
+        chain = chain.then(function() { return DataService.createAnnouncement(p); });
+      });
+      return runAction(chain, 'Imported ' + list.length + (asDraft ? ' as drafts. Check them, then post.' : ' announcement(s)'), asDraft ? 'draft' : 'live').then(function() {
+        if (parsed.warnings && parsed.warnings.length) toast(parsed.warnings[0]);
+      });
+    }).catch(function(err) {
+      toast(errText(err, 'Could not read that Word file'));
+    }).then(function() {
+      $('annImportFile').value = '';
+    });
+  }
+  function downloadTemplate(e) {
+    e.preventDefault();
+    loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js', 'JSZip').then(function() {
+      return AnnouncementDocxImport.downloadTemplate();
+    }).catch(function(err) {
+      toast(errText(err, 'Could not create the template'));
+    });
+  }
+
+  // ---- Wiring ------------------------------------------------------------
+  if (window.AnnouncementRichText) {
+    AnnouncementRichText.mount($('annBody'), {
+      placeholder: 'Write the details. Add a heading, emphasis, or a link to a Faculty Hub page or website.'
+    });
+  }
+  var formRoot = document.querySelector('.ann-drawer-body .ann-panel');
+  formRoot.addEventListener('input', onFormChange);
+  formRoot.addEventListener('change', onFormChange);
+  // Toolbar buttons (bold, heading, link) change the message without an input event.
+  formRoot.addEventListener('click', function(e) {
+    if (e.target.closest('.ann-rt-bar')) setTimeout(onFormChange, 0);
   });
-}
-fhSetAnnouncementsSchemaHint();
-fhLoadAnnouncements();
+  $('annRestoredDiscard').addEventListener('click', function() {
+    store(localKey(), null);
+    applyState(JSON.parse(editor.snapshot));
+    $('annRestored').hidden = true;
+    onFormChange();
+  });
+  $('annNewBtn').addEventListener('click', function() { openEditor(null); });
+  $('annCloseBtn').addEventListener('click', function() { closeEditor(false); });
+  $('annScrim').addEventListener('click', function() { closeEditor(false); });
+  $('annDraftBtn').addEventListener('click', function() { save('draft'); });
+  $('annPrimaryBtn').addEventListener('click', function() { save('post'); });
+  $('annList').addEventListener('click', onListClick);
+  $('annImportBtn').addEventListener('click', function() { $('annImportFile').click(); });
+  $('annImportFile').addEventListener('change', function() { importDocx(this.files && this.files[0]); });
+  $('annTemplateLink').addEventListener('click', downloadTemplate);
+  document.querySelectorAll('.ann-tab').forEach(function(t) {
+    t.addEventListener('click', function() { setTab(t.getAttribute('data-tab')); });
+  });
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && !$('annDrawer').hidden) closeEditor(false);
+  });
+  // Scheduled posts go live on their own; refresh the list so they change tab.
+  setInterval(function() { if (loaded && $('annDrawer').hidden && !busy) load(); }, 60000);
+
+  var savedTab = recall(TAB_KEY);
+  if (STATES.indexOf(savedTab) !== -1) tab = savedTab;
+  render();
+
+  // Wait for sign-in before loading, so an empty list never stands in for a failed load.
+  var started = false;
+  function start() {
+    if (started) return;
+    started = true;
+    loadSchema().then(function() {
+      load();
+      if (/[?&]new=1\b/.test(location.search)) openEditor(null);
+    });
+  }
+  window.addEventListener('auth-guard-ready', start);
+  (function waitForAuth(attempts) {
+    if (window.__authReady || attempts >= 40) { start(); return; }
+    setTimeout(function() { waitForAuth(attempts + 1); }, 250);
+  })(0);
+})();
 </script>
 <script src="fh-nav-config.js"></script>
 <script src="fh-top-nav.js"></script>

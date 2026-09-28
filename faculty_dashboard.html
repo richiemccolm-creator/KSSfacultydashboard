@@ -30,14 +30,11 @@
 <script src="https://unpkg.com/mammoth@1.9.0/mammoth.browser.min.js"></script>
 <script src="department-meeting-docx-import.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="announcement-docx-import.js"></script>
-<script src="announcement-richtext.js"></script>
 <script src="parent-letter-docx.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="design-tokens.css">
 <link rel="stylesheet" href="fh-mobile-shell.css">
-<link rel="stylesheet" href="announcement-richtext.css">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--navy:#1e2d4a;--navy-dark:#16243c;--accent-drama:#4a7fd4;--accent-ad:#c0622a;--white:#fff;--bg:#f0f2f5;--card:#fff;--border:#e2e8f0;--text:#1a202c;--text2:#4a5568;--text3:#718096}
@@ -446,41 +443,8 @@ html,body{min-height:100%;margin:0;width:100%;box-sizing:border-box}
             </div>
           </div>
           <div class="sc-body">
-            <div style="display:flex;gap:.5rem;flex-wrap:wrap;margin-bottom:1rem;align-items:flex-end">
-              <div><label class="form-label">Title</label><input type="text" id="admin-ann-title" class="form-input" placeholder="e.g. Department Meeting Reminder" style="min-width:220px"></div>
-              <div><label class="form-label">Expires (optional)</label><input type="date" id="admin-ann-expires" class="form-input"></div>
-              <div><label class="form-label">Priority</label><select id="admin-ann-priority" class="form-input"><option value="none">None</option><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
-              <div style="display:flex;align-items:center;gap:.45rem;padding:.45rem .6rem;border:1px solid var(--border);border-radius:6px;background:var(--bg)">
-                <input type="checkbox" id="admin-ann-highlight" style="width:14px;height:14px;cursor:pointer">
-                <label for="admin-ann-highlight" style="font-size:.78rem;color:var(--text2);cursor:pointer">Shade full announcement with priority colour</label>
-              </div>
-              <div style="display:flex;align-items:center;gap:.45rem;padding:.45rem .6rem;border:1px solid var(--border);border-radius:6px;background:var(--bg)">
-                <input type="checkbox" id="admin-ann-featured-banner" style="width:14px;height:14px;cursor:pointer">
-                <label for="admin-ann-featured-banner" style="font-size:.78rem;color:var(--text2);cursor:pointer">Show as full-width banner on home screen</label>
-              </div>
-              <button class="btn btn-primary" id="admin-ann-add-btn" onclick="adminAddAnnouncement()">Add announcement</button>
-              <button class="btn btn-primary" id="admin-ann-update-btn" onclick="adminUpdateAnnouncement()" style="display:none;background:#0369a1">Update</button>
-              <button class="btn btn-ghost" id="admin-ann-cancel-btn" onclick="adminCancelAnnouncementEdit()" style="display:none">Cancel</button>
-            </div>
-            <div style="margin-bottom:1rem">
-              <label class="form-label" for="admin-ann-body">Body</label>
-              <textarea id="admin-ann-body" class="form-input" placeholder="Optional details. Add a heading, emphasis, or a link." rows="4" style="min-width:100%;max-width:none;resize:vertical"></textarea>
-            </div>
-            <div style="margin-bottom:1rem;padding:.85rem;border:1px solid var(--border);border-radius:8px;background:var(--card)">
-              <label class="form-label" for="admin-ann-docx-file">Bulk import from Word (.docx)</label>
-              <div style="display:flex;flex-wrap:wrap;gap:.6rem;align-items:center">
-                <button type="button" class="btn btn-ghost" onclick="adminDownloadAnnouncementTemplate()">Download template (.docx)</button>
-                <input type="file" id="admin-ann-docx-file" class="form-input" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style="font-size:.72rem;max-width:320px;padding:.35rem" onchange="adminAnnouncementsImportDocx(this)">
-                <label style="display:flex;align-items:center;gap:.4rem;font-size:.78rem;color:var(--text2);cursor:pointer">
-                  <input type="checkbox" id="admin-ann-import-replace" style="width:14px;height:14px;cursor:pointer">
-                  <span>Replace all existing announcements</span>
-                </label>
-              </div>
-              <p id="admin-ann-import-status" style="display:none;font-size:.72rem;color:var(--text3);margin-top:.5rem"></p>
-              <p style="font-size:.7rem;color:var(--text3);margin-top:.5rem">Use the template in ChatGPT/Claude, keep one announcement block per entry, then upload the completed .docx.</p>
-            </div>
-            <div id="admin-ann-schema-warning" style="display:none;margin-bottom:1rem;padding:.65rem .75rem;border:1px solid #fcd34d;border-radius:8px;background:#fffbeb;color:#92400e;font-size:.75rem"></div>
-            <div id="admin-announcements-list" style="font-size:.85rem"></div>
+            <p style="font-size:.85rem;color:var(--text2);margin-bottom:.75rem">Write, schedule and manage announcements in the Faculty Head Hub. Drafts, scheduled posts and Word import all live there.</p>
+            <a class="btn btn-primary" href="fh_announcements.html">Open Announcements</a>
           </div>
         </div>
         <div class="sc" style="margin-bottom:1.5rem">
@@ -1490,107 +1454,6 @@ function getErrMessage(err, fallback) {
   var msg = String(err.message || err.details || err.hint || '').trim();
   return msg || fallback;
 }
-function adminAnnSetImportStatus(text, isError) {
-  var el = document.getElementById('admin-ann-import-status');
-  if (!el) return;
-  var msg = String(text || '').trim();
-  if (!msg) {
-    el.style.display = 'none';
-    el.textContent = '';
-    el.style.color = 'var(--text3)';
-    return;
-  }
-  el.style.display = 'block';
-  el.textContent = msg;
-  el.style.color = isError ? '#b91c1c' : 'var(--text3)';
-}
-function adminAnnSetSchemaWarning(text) {
-  var el = document.getElementById('admin-ann-schema-warning');
-  if (!el) return;
-  var msg = String(text || '').trim();
-  if (!msg) {
-    el.style.display = 'none';
-    el.textContent = '';
-    return;
-  }
-  el.style.display = 'block';
-  el.textContent = msg;
-}
-function adminDownloadAnnouncementTemplate() {
-  if (!window.AnnouncementDocxImport || typeof window.AnnouncementDocxImport.downloadTemplate !== 'function') {
-    toast('Template download is unavailable. Refresh and try again.');
-    return;
-  }
-  adminAnnSetImportStatus('Preparing template...', false);
-  window.AnnouncementDocxImport.downloadTemplate().then(function() {
-    adminAnnSetImportStatus('Template downloaded. Fill it in and upload the completed .docx file below.', false);
-  }).catch(function(err) {
-    var msg = getErrMessage(err, 'Could not download template');
-    adminAnnSetImportStatus(msg, true);
-    toast(msg);
-  });
-}
-function adminAnnouncementsImportDocx(inp) {
-  if (!window.__authGuardIsAdmin || !window.DataService) {
-    toast('Admin only');
-    if (inp) inp.value = '';
-    return;
-  }
-  var f = inp && inp.files && inp.files[0];
-  if (!f) return;
-  if (!window.AnnouncementDocxImport || typeof window.AnnouncementDocxImport.parseFile !== 'function') {
-    adminAnnSetImportStatus('Word importer is unavailable. Refresh and try again.', true);
-    toast('Word importer unavailable');
-    inp.value = '';
-    return;
-  }
-  adminAnnSetImportStatus('Reading Word document...', false);
-  window.AnnouncementDocxImport.parseFile(f).then(function(parsed) {
-    var items = parsed && Array.isArray(parsed.announcements) ? parsed.announcements : [];
-    if (!items.length) {
-      adminAnnSetImportStatus('No announcements found in the file. Use the template format and try again.', true);
-      toast('No announcements found');
-      return;
-    }
-    var replace = !!(document.getElementById('admin-ann-import-replace') && document.getElementById('admin-ann-import-replace').checked);
-    if (replace && adminAnnouncements.length) {
-      if (!confirm('Replace all current announcements with ' + items.length + ' imported announcement(s)?')) {
-        adminAnnSetImportStatus('Import cancelled.', false);
-        return;
-      }
-    }
-    adminAnnSetImportStatus('Importing ' + items.length + ' announcement(s)...', false);
-    var chain = Promise.resolve();
-    if (replace) {
-      (adminAnnouncements || []).forEach(function(a) {
-        if (!a || !a.id) return;
-        chain = chain.then(function() { return DataService.deleteAnnouncement(a.id); });
-      });
-    }
-    items.forEach(function(entry) {
-      chain = chain.then(function() { return DataService.createAnnouncement(entry); });
-    });
-    return chain.then(function() {
-      return DataService.getAnnouncements().then(function(list) {
-        adminAnnouncements = list || [];
-      });
-    }).then(function() {
-      renderAdminConsole();
-      var warns = parsed && Array.isArray(parsed.warnings) ? parsed.warnings : [];
-      var msg = 'Imported ' + items.length + ' announcement(s)' + (replace ? ' and replaced existing list.' : '.');
-      if (warns.length) msg += ' ' + warns[0];
-      adminAnnSetImportStatus(msg, false);
-      toast('Announcements imported');
-    });
-  }).catch(function(err) {
-    var msg = getErrMessage(err, 'Could not import announcements from Word file');
-    adminAnnSetImportStatus(msg, true);
-    toast(msg);
-  }).finally(function() {
-    inp.value = '';
-  });
-}
-
 function updateLoadCloudButton() {
   const btn = document.getElementById('load-cloud-btn');
   if (btn) btn.style.display = canViewCloudTracking() ? 'inline-flex' : 'none';
@@ -1833,8 +1696,6 @@ function saveStaffDisplayName(userId) {
 
 var adminSharedEvents = [];
 var adminEditingEventId = null;
-var adminAnnouncements = [];
-var adminEditingAnnouncementId = null;
 var adminDmMeetings = [];
 
 function adminDmParseAgendaRows(raw) {
@@ -2329,41 +2190,6 @@ function adminClearTrackingHubPassword() {
 function renderAdminConsole() {
   if (!canManageFacultyHub() || !window.DataService) return;
   adminLoadTrackingHubPasswordStatus();
-  adminAnnSetSchemaWarning('');
-  if (typeof DataService.getAnnouncementsSchemaSupport === 'function') {
-    DataService.getAnnouncementsSchemaSupport().then(function(info) {
-      var warnings = [];
-      if (!info || !info.priorityColumns) {
-        warnings.push('Priority and highlight colours are unavailable on this database. Run the announcements priority migration to enable them.');
-      }
-      if (!info || !info.featuredBannerColumn) {
-        warnings.push('The home-screen banner option is unavailable until the featured_banner migration is applied.');
-      }
-      adminAnnSetSchemaWarning(warnings.join(' '));
-    }).catch(function() {
-      adminAnnSetSchemaWarning('Could not verify announcement schema support. If colours or the banner option do not work, run the latest announcements migrations.');
-    });
-  }
-  DataService.getAnnouncements().then(function(list) {
-    adminAnnouncements = list || [];
-    var annList = document.getElementById('admin-announcements-list');
-    if (annList) {
-      if (!adminAnnouncements.length) {
-        annList.innerHTML = '<div class="empty-s" style="padding:1rem">No announcements yet. Add one above — it will appear on the Faculty Hub home page.</div>';
-      } else {
-        var esc = function(s) { return (s||'').replace(/'/g,"\\'").replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
-        annList.innerHTML = '<div class="table-wrap"><table style="width:100%"><thead><tr><th>Title</th><th>Priority</th><th>Home banner</th><th>Created</th><th></th></tr></thead><tbody>' +
-          adminAnnouncements.map(function(a) {
-            var d = a.created_at ? a.created_at.slice(0, 10) : '';
-            var p = (a.priority || 'none');
-            var pLabel = p.charAt(0).toUpperCase() + p.slice(1);
-            if (a.highlight_priority && p !== 'none') pLabel += ' (shaded)';
-            var bannerLabel = a.featured_banner ? 'Yes' : '—';
-            return '<tr><td>' + esc(a.title) + '</td><td>' + esc(pLabel) + '</td><td>' + esc(bannerLabel) + '</td><td>' + esc(d) + '</td><td><button class="btn btn-ghost" style="font-size:.7rem;padding:.25rem .5rem" onclick="adminEditAnnouncement(\'' + (a.id||'').replace(/'/g,"\\'") + '\')">Edit</button> <button class="btn btn-danger" style="font-size:.7rem;padding:.25rem .5rem" onclick="adminDeleteAnnouncement(\'' + (a.id||'').replace(/'/g,"\\'") + '\')">Delete</button></td></tr>';
-          }).join('') + '</tbody></table></div>';
-      }
-    }
-  });
   adminRenderCalendarRequests();
   DataService.getSharedCalendarEvents().then(function(events) {
     adminSharedEvents = events || [];
@@ -2458,93 +2284,7 @@ function adminDeleteSharedEvent(id) {
   }).catch(function() { toast('Failed to remove event'); });
 }
 
-function adminAnnBodyHtml() {
-  var el = document.getElementById('admin-ann-body');
-  if (window.AnnouncementRichText) return AnnouncementRichText.read(el);
-  return ((el && el.value) || '').trim();
-}
-function adminAnnBodySet(html) {
-  var el = document.getElementById('admin-ann-body');
-  if (window.AnnouncementRichText) AnnouncementRichText.write(el, html || '');
-  else if (el) el.value = html || '';
-}
-function adminEditAnnouncement(id) {
-  var a = adminAnnouncements.find(function(x) { return x.id === id; });
-  if (!a) return;
-  adminEditingAnnouncementId = id;
-  document.getElementById('admin-ann-title').value = a.title || '';
-  adminAnnBodySet(a.body || '');
-  document.getElementById('admin-ann-expires').value = a.expires_at || '';
-  document.getElementById('admin-ann-priority').value = a.priority || 'none';
-  document.getElementById('admin-ann-highlight').checked = !!a.highlight_priority;
-  document.getElementById('admin-ann-featured-banner').checked = !!a.featured_banner;
-  document.getElementById('admin-ann-add-btn').style.display = 'none';
-  document.getElementById('admin-ann-update-btn').style.display = 'inline-flex';
-  document.getElementById('admin-ann-cancel-btn').style.display = 'inline-flex';
-}
-function adminCancelAnnouncementEdit() {
-  adminEditingAnnouncementId = null;
-  document.getElementById('admin-ann-title').value = '';
-  adminAnnBodySet('');
-  document.getElementById('admin-ann-expires').value = '';
-  document.getElementById('admin-ann-priority').value = 'none';
-  document.getElementById('admin-ann-highlight').checked = false;
-  document.getElementById('admin-ann-featured-banner').checked = false;
-  document.getElementById('admin-ann-add-btn').style.display = 'inline-flex';
-  document.getElementById('admin-ann-update-btn').style.display = 'none';
-  document.getElementById('admin-ann-cancel-btn').style.display = 'none';
-}
-function adminUpdateAnnouncement() {
-  if (!adminEditingAnnouncementId || !window.__authGuardIsAdmin || !window.DataService) return;
-  var title = document.getElementById('admin-ann-title').value.trim();
-  var body = adminAnnBodyHtml();
-  var expires = document.getElementById('admin-ann-expires').value || null;
-  var priority = document.getElementById('admin-ann-priority').value || 'none';
-  var highlightPriority = !!document.getElementById('admin-ann-highlight').checked;
-  var featuredBanner = !!document.getElementById('admin-ann-featured-banner').checked;
-  if (!title) { toast('Enter a title'); return; }
-  DataService.updateAnnouncement(adminEditingAnnouncementId, { title: title, body: body || null, expires_at: expires, priority: priority, highlight_priority: highlightPriority, featured_banner: featuredBanner }).then(function() {
-    adminCancelAnnouncementEdit();
-    renderAdminConsole();
-    toast('Announcement updated');
-  }).catch(function(err) { toast(getErrMessage(err, 'Failed to update announcement')); });
-}
-function adminAddAnnouncement() {
-  if (!window.__authGuardIsAdmin || !window.DataService) { toast('Admin only'); return; }
-  var title = document.getElementById('admin-ann-title').value.trim();
-  var body = adminAnnBodyHtml();
-  var expires = document.getElementById('admin-ann-expires').value || null;
-  var priority = document.getElementById('admin-ann-priority').value || 'none';
-  var highlightPriority = !!document.getElementById('admin-ann-highlight').checked;
-  var featuredBanner = !!document.getElementById('admin-ann-featured-banner').checked;
-  if (!title) { toast('Enter a title'); return; }
-  DataService.createAnnouncement({ title: title, body: body || null, expires_at: expires, priority: priority, highlight_priority: highlightPriority, featured_banner: featuredBanner }).then(function() {
-    document.getElementById('admin-ann-title').value = '';
-    adminAnnBodySet('');
-    document.getElementById('admin-ann-expires').value = '';
-    document.getElementById('admin-ann-priority').value = 'none';
-    document.getElementById('admin-ann-highlight').checked = false;
-    document.getElementById('admin-ann-featured-banner').checked = false;
-    renderAdminConsole();
-    toast('Announcement added — visible on Faculty Hub');
-  }).catch(function(err) { toast(getErrMessage(err, 'Failed to add announcement')); });
-}
-function adminDeleteAnnouncement(id) {
-  if (!window.__authGuardIsAdmin || !window.DataService) return;
-  if (!confirm('Remove this announcement?')) return;
-  DataService.deleteAnnouncement(id).then(function() {
-    adminAnnouncements = adminAnnouncements.filter(function(a) { return a.id !== id; });
-    renderAdminConsole();
-    toast('Announcement removed');
-  }).catch(function(err) { toast(getErrMessage(err, 'Failed to remove announcement')); });
-}
-
 updateImportStatus();
-if (window.AnnouncementRichText) {
-  AnnouncementRichText.mount(document.getElementById('admin-ann-body'), {
-    placeholder: 'Optional details. Add a heading, emphasis, or a link to a Faculty Hub page or website.'
-  });
-}
 </script>
 <script src="fh-mobile-shell.js"></script>
 </body>
