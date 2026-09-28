@@ -17,25 +17,12 @@
     window.location.replace('faculty-hub.html');
   }
 
-  function onReady() {
-    enforceAccess();
-  }
-
   window.fhCanManage = canManage;
   window.fhEnforceAccess = enforceAccess;
 
-  window.addEventListener('auth-guard-ready', onReady);
-
-  (function waitForAuth() {
-    var attempts = 0;
-    function tick() {
-      if (window.__authReady || attempts >= 24) {
-        onReady();
-        return;
-      }
-      attempts += 1;
-      setTimeout(tick, 250);
-    }
-    tick();
-  })();
+  // Only decide once sign-in has finished. auth-guard.js sends anyone who is
+  // signed out or not allowlisted to the login page itself, so a slow
+  // connection must never be read as "not a faculty head".
+  if (window.__authReady) enforceAccess();
+  else window.addEventListener('auth-guard-ready', enforceAccess);
 })();

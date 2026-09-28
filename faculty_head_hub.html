@@ -493,11 +493,11 @@ function initFhOverviewChrome() {
   if (helpBtn) {
     helpBtn.addEventListener('click', function() {
       alert(
-        'Faculty Head Hub help\\n\\n' +
-        '• Use the top navigation on mobile, or the sidebar on desktop.\\n' +
-        '• Add New creates calendar events, announcements, tracking entries, or resources.\\n' +
-        '• Staff Hub switches to the staff-facing Faculty Hub view.\\n' +
-        '• Changes here are visible to faculty staff in real time.'
+        'Faculty Head Hub help\n\n' +
+        '• Use the top navigation on mobile, or the sidebar on desktop.\n' +
+        '• Add New creates calendar events, announcements, tracking entries, or resources.\n' +
+        '• Switch to Staff View shows the hub as your staff see it.\n' +
+        '• Announcements can be saved as drafts or scheduled to go live later.'
       );
     });
   }
@@ -691,25 +691,17 @@ function loadDashboardData(){
     setMetric('metricStaffMembers', 0);
   });
 }
-window.addEventListener('auth-guard-ready', function() {
+// Run once, after sign-in has finished (fh-access.js handles the redirect).
+var fhOverviewStarted = false;
+function startOverview() {
+  if (fhOverviewStarted) return;
+  fhOverviewStarted = true;
   enforceAccess();
   initProfile();
   loadDashboardData();
-});
-(function waitForAuth() {
-  var attempts = 0;
-  function tick() {
-    if (window.__authReady || attempts >= 24) {
-      enforceAccess();
-      initProfile();
-      loadDashboardData();
-      return;
-    }
-    attempts += 1;
-    setTimeout(tick, 250);
-  }
-  tick();
-})();
+}
+if (window.__authReady) startOverview();
+else window.addEventListener('auth-guard-ready', startOverview);
 </script>
 <script src="fh-nav-config.js"></script>
 <script src="fh-sidebar.js"></script>
