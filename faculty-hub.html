@@ -3479,6 +3479,53 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
 @media(min-width:1500px){.cal-calendar{grid-template-columns:repeat(4,1fr)}}
 @media(max-width:1100px) and (min-width:901px){.cal-calendar{grid-template-columns:repeat(2,1fr)}}
 @media(max-width:720px){.cal-form-grid{grid-template-columns:1fr}.cal-form-grid input,.cal-form-grid select{min-width:0;width:100%;box-sizing:border-box}.cal-jump-add{margin-left:0}}
+/* Print one month: a printer button on each month card and in the toolbar
+   builds #calPrintSheet (A4 landscape) with every event written into its day. */
+.cal-year-controls{flex-wrap:wrap}
+.cal-year-display,.cal-jump-add{white-space:nowrap}
+.cal-print-pick{display:inline-flex;align-items:stretch;white-space:nowrap}
+.cal-print-btn{white-space:nowrap}
+.cal-print-select{padding:.5rem 1.9rem .5rem .75rem;border:1px solid var(--border2);border-right:0;border-radius:8px 0 0 8px;background:var(--white) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2.5'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right .6rem center;color:var(--text);font:inherit;font-size:.82rem;font-weight:600;-webkit-appearance:none;appearance:none;cursor:pointer}
+.cal-print-select:focus-visible{outline:2px solid var(--navy-active);outline-offset:1px}
+.cal-print-btn{padding:.5rem .9rem;border:1px solid var(--border2);border-radius:0 8px 8px 0;background:var(--white);color:var(--text);font:inherit;font-size:.82rem;font-weight:600;cursor:pointer}
+.cal-print-btn:hover{border-color:var(--navy-active);color:var(--navy-active)}
+.cal-month h3{display:flex;align-items:center;justify-content:space-between;gap:.5rem}
+.cal-month-print{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--text3);cursor:pointer}
+.cal-month-print:hover{background:#eef2f8;color:var(--navy-active)}
+.cal-month-print:focus-visible{outline:2px solid var(--navy-active);outline-offset:1px}
+.cal-month-print svg{width:16px;height:16px}
+#calPrintSheet{display:none}
+@media print{
+  body.cal-printing > *:not(#calPrintSheet){display:none !important}
+  body.cal-printing{background:#fff !important;margin:0 !important;padding:0 !important}
+  body.cal-printing #calPrintSheet{display:block;page:calmonth;font-family:var(--font-body);color:#1a202c;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  @page calmonth{size:A4 landscape;margin:9mm}
+  .calp-head{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem;margin-bottom:3mm;padding-bottom:2mm;border-bottom:2px solid #1e2d4a}
+  .calp-title{font-family:var(--font-heading);font-size:20pt;font-weight:800;letter-spacing:-.02em;color:#1e2d4a;line-height:1}
+  .calp-sub{font-size:8pt;color:#64748b;margin-top:1.5mm}
+  .calp-meta{font-size:7.5pt;color:#64748b;text-align:right;line-height:1.5}
+  .calp-grid{display:grid;grid-template-columns:repeat(5,1fr) .6fr .6fr;border-top:1px solid #cbd5e1;border-left:1px solid #cbd5e1}
+  .calp-dow{padding:1.2mm 2mm;font-size:7.5pt;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#475569;background:#f1f5f9;border-right:1px solid #cbd5e1;border-bottom:1px solid #cbd5e1}
+  .calp-day{min-height:27mm;padding:1.2mm 1.5mm 1.5mm;border-right:1px solid #cbd5e1;border-bottom:1px solid #cbd5e1;break-inside:avoid;overflow:hidden}
+  .calp-day.is-blank{background:#fafbfc}
+  .calp-day.is-weekend{background:#f8fafc}
+  .calp-day.is-holiday{background:#e4f5e9}
+  .calp-day.is-inset{background:#fce7f3}
+  .calp-num{display:block;font-family:var(--font-heading);font-size:10pt;font-weight:800;color:#1e2d4a;margin-bottom:.8mm}
+  .calp-day.is-weekend .calp-num{color:#94a3b8}
+  .calp-ev{display:block;margin-top:.7mm;padding-left:1.4mm;border-left:2.2px solid var(--cat,#64748b);font-size:7pt;line-height:1.25;color:#1a202c}
+  .calp-ev b{font-weight:600}
+  .calp-ev small{display:block;font-size:6pt;color:#64748b;text-transform:uppercase;letter-spacing:.05em}
+  .calp-key{display:flex;flex-wrap:wrap;gap:1.5mm 4mm;margin-top:2.5mm;font-size:6.8pt;color:#475569}
+  .calp-key span::before{content:"";display:inline-block;width:2.5mm;height:2.5mm;margin-right:1mm;border-radius:.5mm;background:var(--cat);vertical-align:-.3mm}
+  .calp-details{break-before:page;padding-top:1mm}
+  .calp-details h2{font-family:var(--font-heading);font-size:13pt;font-weight:800;color:#1e2d4a;margin:0 0 3mm;padding-bottom:1.5mm;border-bottom:2px solid #1e2d4a}
+  .calp-row{display:grid;grid-template-columns:26mm 1fr;gap:4mm;padding:2mm 0;border-bottom:1px solid #e2e8f0;break-inside:avoid;font-size:8.5pt;line-height:1.4}
+  .calp-row-date{font-weight:700;color:#1e2d4a}
+  .calp-row-title{font-weight:700}
+  .calp-row-cat{display:inline-block;margin-left:2mm;padding:0 1.5mm;border-radius:1mm;background:var(--cat-tint);color:var(--cat);font-size:6.5pt;font-weight:700;text-transform:uppercase;letter-spacing:.05em;vertical-align:.3mm}
+  .calp-row-desc{margin-top:.8mm;color:#334155;white-space:pre-wrap}
+}
 .backup-toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--navy-dark);color:white;padding:.85rem 1.25rem;border-radius:6px;font-size:.82rem;opacity:0;transition:opacity .25s;z-index:99998;box-shadow:0 4px 12px rgba(0,0,0,.2);pointer-events:none}
 .backup-toast.show{opacity:1}
 
@@ -4153,6 +4200,11 @@ body.sidebar-collapsed .sidebar-toggle-floating:hover{background:var(--navy-hove
             <div id="calYearDisplay" class="cal-year-display"></div>
             <button class="cal-year-btn" onclick="calChangeYear(1)">▶</button>
             <button type="button" class="cal-jump-add" onclick="calJumpToAddForm()">+ Add event</button>
+            <span class="cal-print-pick">
+              <label for="calPrintMonthSelect" class="visually-hidden">Month to print</label>
+              <select id="calPrintMonthSelect" class="cal-print-select"></select>
+              <button type="button" class="cal-print-btn" onclick="calPrintSelectedMonth()" title="Print the chosen month on one A4 page">Print month</button>
+            </span>
           </div>
           <div class="cal-search-filter">
             <div class="cal-search-wrap">
@@ -11085,10 +11137,11 @@ function calBuildCalendar(){
   cal.innerHTML='';
   yearDisp.textContent=`Academic Year ${calCurrentYear}-${calCurrentYear+1}`;
   const todayIso=calLocalTodayISODate();
+  calFillPrintMonthSelect();
   CAL_ACADEMIC_MONTHS.forEach(m=>{
     const year=m>=7?calCurrentYear:calCurrentYear+1;
     const monthDiv=document.createElement('div');monthDiv.className='cal-month'+(todayIso.slice(0,7)===`${year}-${String(m+1).padStart(2,'0')}`?' is-current':'');
-    monthDiv.innerHTML=`<h3>${CAL_MONTH_NAMES[m]} ${year}</h3>`;
+    monthDiv.innerHTML=`<h3><span>${CAL_MONTH_NAMES[m]} ${year}</span><button type="button" class="cal-month-print" onclick="calPrintMonth(${year},${m})" title="Print ${CAL_MONTH_FULL[m]} ${year}" aria-label="Print ${CAL_MONTH_FULL[m]} ${year}">${CAL_PRINT_ICON}</button></h3>`;
     const weekdays=document.createElement('div');weekdays.className='cal-weekdays';
     ['M','T','W','T','F','S','S'].forEach(d=>{const el=document.createElement('div');el.textContent=d;weekdays.appendChild(el);});
     monthDiv.appendChild(weekdays);
@@ -11134,6 +11187,105 @@ function calBuildCalendar(){
     }
     monthDiv.appendChild(days);cal.appendChild(monthDiv);
   });
+}
+const CAL_MONTH_FULL=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const CAL_PRINT_ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>';
+/* The toolbar month picker: the twelve months of the year on screen, set to
+   this month when it falls in that year. Keeps a choice across re-renders. */
+function calFillPrintMonthSelect(){
+  const sel=document.getElementById('calPrintMonthSelect');
+  if(!sel)return;
+  const prev=sel.dataset.year===String(calCurrentYear)?sel.value:'';
+  const todayKey=calLocalTodayISODate().slice(0,7);
+  let pick='';
+  sel.innerHTML=CAL_ACADEMIC_MONTHS.map(function(m){
+    const y=m>=7?calCurrentYear:calCurrentYear+1;
+    const v=y+'-'+String(m+1).padStart(2,'0');
+    if(v===todayKey)pick=v;
+    return '<option value="'+v+'">'+CAL_MONTH_FULL[m]+' '+y+'</option>';
+  }).join('');
+  sel.value=prev||pick||sel.options[0].value;
+  sel.dataset.year=String(calCurrentYear);
+}
+function calPrintSelectedMonth(){
+  const sel=document.getElementById('calPrintMonthSelect');
+  if(!sel||!sel.value)return calPrintMonth();
+  const p=sel.value.split('-');
+  calPrintMonth(parseInt(p[0],10),parseInt(p[1],10)-1);
+}
+/* Print one month on an A4 landscape page: every event is written into its
+   day, holidays and in-service days tinted. Events with descriptions get a
+   details page after the grid. Honours the current search and category filter. */
+function calPrintMonth(year,m){
+  if(year==null||m==null){
+    const t=calParseLocalDateParts(calLocalTodayISODate());
+    const inYear=t&&(t.getMonth()>=7?t.getFullYear():t.getFullYear()-1)===calCurrentYear;
+    year=inYear?t.getFullYear():calCurrentYear;
+    m=inYear?t.getMonth():7;
+  }
+  const prefix=`${year}-${String(m+1).padStart(2,'0')}-`;
+  const byDate={};
+  calGetFilteredEvents().forEach(function(e){
+    if((e.date||'').indexOf(prefix)!==0)return;
+    (byDate[e.date.slice(0,10)]=byDate[e.date.slice(0,10)]||[]).push(e);
+  });
+  const monthName=CAL_MONTH_FULL[m]+' '+year;
+  const start=(new Date(year,m,1).getDay()+6)%7;
+  const total=new Date(year,m+1,0).getDate();
+  const cells=Math.ceil((start+total)/7)*7;
+  const usedCats=[];
+  const details=[];
+  let grid=['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(function(d){return '<div class="calp-dow">'+d+'</div>';}).join('');
+  for(let i=0;i<cells;i++){
+    const d=i-start+1;
+    const weekend=i%7>=5;
+    if(d<1||d>total){grid+='<div class="calp-day is-blank"></div>';continue;}
+    const date=prefix+String(d).padStart(2,'0');
+    const ev=byDate[date]||[];
+    const cats=ev.map(function(e){return e.category||'general';});
+    let cls='calp-day'+(weekend?' is-weekend':'');
+    if(cats.indexOf('holiday')!==-1)cls+=' is-holiday';
+    else if(cats.indexOf('inset')!==-1)cls+=' is-inset';
+    grid+='<div class="'+cls+'"><span class="calp-num">'+d+'</span>'+ev.map(function(e){
+      const c=e.category||'general';
+      if(usedCats.indexOf(c)===-1)usedCats.push(c);
+      if((e.description||'').trim())details.push(e);
+      return '<span class="calp-ev cal-cat-'+c+'"><b>'+calEscapeHtml(e.title||'')+'</b><small>'+calEscapeHtml(CAL_CAT_LABELS[c]||c)+'</small></span>';
+    }).join('')+'</div>';
+  }
+  const count=Object.keys(byDate).reduce(function(n,k){return n+byDate[k].length;},0);
+  const filters=[];
+  if(calFilterCategory)filters.push(CAL_CAT_LABELS[calFilterCategory]||calFilterCategory);
+  if((calSearchText||'').trim())filters.push('“'+calSearchText.trim()+'”');
+  const key=usedCats.map(function(c){return '<span class="cal-cat-'+c+'">'+calEscapeHtml(CAL_CAT_LABELS[c]||c)+'</span>';}).join('');
+  const detailRows=details.map(function(e){
+    const dt=calParseLocalDateParts(e.date);
+    const c=e.category||'general';
+    return '<div class="calp-row"><div class="calp-row-date">'+calEscapeHtml(dt?['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dt.getDay()]+' '+dt.getDate()+' '+CAL_MONTH_NAMES[dt.getMonth()]:e.date)+'</div><div><span class="calp-row-title">'+calEscapeHtml(e.title||'')+'</span><span class="calp-row-cat cal-cat-'+c+'">'+calEscapeHtml(CAL_CAT_LABELS[c]||c)+'</span><div class="calp-row-desc">'+calEscapeHtml(e.description.trim())+'</div></div></div>';
+  }).join('');
+  let sheet=document.getElementById('calPrintSheet');
+  if(!sheet){sheet=document.createElement('div');sheet.id='calPrintSheet';document.body.appendChild(sheet);}
+  const printed=calFormatDate(calLocalTodayISODate());
+  sheet.innerHTML=
+    '<div class="calp-head"><div><div class="calp-title">'+calEscapeHtml(monthName)+'</div>'+
+      '<div class="calp-sub">Academic Calendar · Academic Year '+calCurrentYear+'–'+String(calCurrentYear+1).slice(2)+(filters.length?' · Showing '+calEscapeHtml(filters.join(', '))+' only':'')+'</div></div>'+
+      '<div class="calp-meta">'+count+' event'+(count===1?'':'s')+'<br>Printed '+calEscapeHtml(printed)+'</div></div>'+
+    '<div class="calp-grid">'+grid+'</div>'+
+    (key?'<div class="calp-key">'+key+'</div>':'')+
+    (detailRows?'<section class="calp-details"><h2>'+calEscapeHtml(monthName)+': event details</h2>'+detailRows+'</section>':'');
+  const prevTitle=document.title;
+  document.title='Academic Calendar – '+monthName;
+  document.body.classList.add('cal-printing');
+  let done=false;
+  const cleanup=function(){
+    if(done)return;done=true;
+    document.body.classList.remove('cal-printing');
+    document.title=prevTitle;
+    window.removeEventListener('afterprint',cleanup);
+  };
+  window.addEventListener('afterprint',cleanup);
+  window.print();
+  setTimeout(cleanup,1500);
 }
 function calRender(){calUpdateListTitle();calUpcoming();calBuildCalendar();}
 
