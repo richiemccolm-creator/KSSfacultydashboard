@@ -14,7 +14,7 @@
  * 2. Faculty events     Store.getFacultyEvents / saveFacultyEvents
  *                       Read-only. Future source: Faculty Calendar.
  *                       Never included in task progress.
- * 3. Timetable          getTimetable() falls back to MyWeekSeed.timetable.
+ * 3. Timetable          getTimetable() is empty until one is injected.
  *                       Future source: faculty timetable.
  *                       Inject with MyWeek.setTimetable(table).
  * 4. Linked hub tasks   type "linked", linkedArea + linkedId.
@@ -554,17 +554,15 @@
     support: "embed-teacher-planner"
   };
 
-  /* School work never shows the demo timetable. It shows one only when the hub injects it. */
+  /* No timetable is shown until the hub injects a real one. */
   function getTimetable() {
     var stored = Store.getTimetable();
-    if (stored && stored.monday) return stored;
-    if (schoolWork) return null;
-    return clone(window.MyWeekSeed.timetable);
+    return stored && stored.monday ? stored : null;
   }
 
   var facultyCodesCache = null;
 
-  /* Real class codes from the faculty timetable in School work, demo codes in My Week. */
+  /* Real class codes from the faculty timetable in School work, seed codes (none) in My Week. */
   function classCodes() {
     if (!schoolWork) return window.MyWeekSeed.classCodes;
     if (facultyCodesCache) return facultyCodesCache;
@@ -882,9 +880,7 @@
     var friday = Dates.addDays(state.weekStart, 4);
     var term = termLabel(state.weekStart);
     var onCurrent = Dates.iso(state.weekStart) === Dates.iso(Dates.schoolMonday(new Date()));
-    var meta = Store.getMeta();
-    var sample = meta.sample !== false && !meta.customized && meta.anchorWeek === Dates.iso(state.weekStart);
-    var line = formatRange(state.weekStart, friday) + (term ? " · " + term : "") + (sample ? " · Sample" : "");
+    var line = formatRange(state.weekStart, friday) + (term ? " · " + term : "");
     var pageName = document.documentElement.classList.contains("is-school-work") ? "School work" : "My Week";
     document.getElementById("mast").innerHTML =
       '<div><h1>' + pageName + '</h1><p class="week-range">' + esc(line) + '</p></div><div class="mast-actions">' +
@@ -2385,12 +2381,33 @@
     });
   }
 
+  /*
+   * Earlier versions filled My Week with demo rows. Clear them once so
+   * teachers who opened it before are left with only what they added.
+   */
+  var DEMO_FOCUS = ["Make questioning more deliberate.", "Give pupils longer thinking time."];
+
+  function clearDemoData(meta) {
+    Store.saveTasks(Store.getTasks().filter(function (task) { return !/^task_\d{3}$/.test(task.id); }));
+    Store.saveFacultyEvents(Store.getFacultyEvents().filter(function (event) { return !/^faculty_\d{3}$/.test(event.id); }));
+    if (meta.anchorWeek) {
+      var anchor = Dates.parse(meta.anchorWeek);
+      var weeks = [meta.anchorWeek, Dates.iso(Dates.addDays(anchor, -7))];
+      Store.saveFocuses(Store.getFocuses().filter(function (row) {
+        return !(weeks.indexOf(row.weekStart) !== -1 && DEMO_FOCUS.indexOf(row.focus) !== -1);
+      }));
+      Store.saveRoutines(Store.getRoutines().filter(function (row) { return weeks.indexOf(row.weekStart) === -1; }));
+    }
+    Store.saveMeta(Object.assign({}, meta, { demoCleared: true }));
+  }
+
   function initData() {
     if (schoolWork) return;
     var meta = Store.getMeta();
+    if (meta.seeded && !meta.demoCleared) clearDemoData(meta);
     if (meta.seeded) return;
     if (Store.getTasks().length) {
-      Store.saveMeta({ seeded: true });
+      Store.saveMeta({ seeded: true, demoCleared: true });
       return;
     }
     var monday = Dates.schoolMonday(new Date());
@@ -2398,7 +2415,7 @@
     Store.saveFocuses(materialiseFocus(monday));
     Store.saveRoutines(materialiseRoutines(monday));
     Store.saveFacultyEvents(materialiseFaculty(monday));
-    Store.saveMeta({ seeded: true, anchorWeek: Dates.iso(monday) });
+    Store.saveMeta({ seeded: true, demoCleared: true, anchorWeek: Dates.iso(monday) });
   }
 
   /*
