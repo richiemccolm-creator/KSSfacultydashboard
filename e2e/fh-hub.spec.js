@@ -117,6 +117,7 @@ test.describe("Faculty Head Hub page assets", () => {
       "fh_department_meetings.html",
       "fh_tracking.html",
       "fh_class_management.html",
+      "fh_leadership.html",
     ];
 
     for (const path of pages) {

@@ -1,6 +1,6 @@
 /**
  * Single source of truth for Faculty Head Hub navigation.
- * Used by sidebar, mobile top nav, and overview action links.
+ * Used by the top nav on every hub page, the Leadership page, and overview links.
  */
 window.FH_NAV = {
   home: {
@@ -16,10 +16,12 @@ window.FH_NAV = {
     href: 'faculty_head_hub.html',
     paths: ['faculty_head_hub.html']
   },
+  // The six places in the hub. A section with children shows them as a
+  // second row of tabs while you are inside it.
   primary: [
     { id: 'overview', label: 'Overview', href: 'faculty_head_hub.html', paths: ['faculty_head_hub.html'] },
+    { id: 'announcements', label: 'Announcements', href: 'fh_announcements.html', paths: ['fh_announcements.html'] },
     { id: 'calendar', label: 'Calendar', href: 'fh_calendar.html', paths: ['fh_calendar.html'] },
-    { id: 'announcements', label: 'Announce', href: 'fh_announcements.html', paths: ['fh_announcements.html'] },
     {
       id: 'tracking',
       label: 'Tracking',
@@ -27,187 +29,45 @@ window.FH_NAV = {
       paths: ['fh_tracking.html', 'tracking_monitoring_landing.html']
     },
     {
-      id: 'classes',
-      label: 'Classes',
+      id: 'people',
+      label: 'Classes & Staff',
       href: 'fh_class_management.html',
-      paths: ['fh_class_management.html', 'class_management.html']
-    },
-    { id: 'reports', label: 'Reports', href: 'fh_staff.html', paths: ['fh_staff.html'] }
-  ],
-  more: [
-    {
-      group: 'Faculty Head Hub',
-      items: [{ id: 'resources', label: 'Resources', href: 'fh_class_management.html' }]
-    },
-    {
-      group: 'Faculty Leadership',
-      items: [
-        { id: 'dip', label: 'Improvement Plan', href: 'faculty-hub.html?panel=dip-main-2627' },
-        { id: 'dm-planner', label: 'DM Planner', href: 'faculty-hub.html?panel=embed-dm-planner' },
-        { id: 'qs-attainment', label: 'QS Attainment', href: 'faculty-hub.html?panel=embed-qs-attainment' },
-        {
-          id: 'meetings',
-          label: 'Meetings',
-          href: 'fh_department_meetings.html',
-          paths: ['fh_department_meetings.html', 'department_meetings.html']
-        },
-        { id: 'class-visits', label: 'Class Visits', href: 'faculty-hub.html?panel=embed-class-visit' },
-        { id: 'quality-cal', label: 'Quality Cal', href: 'faculty-hub.html?panel=embed-quality-calendar' },
-        { id: 'dept-targets', label: 'Dept Targets', href: 'faculty-hub.html?panel=dip-main-2627' }
+      paths: ['fh_class_management.html', 'class_management.html', 'fh_staff.html'],
+      children: [
+        { id: 'classes', label: 'Classes', href: 'fh_class_management.html', paths: ['fh_class_management.html', 'class_management.html'] },
+        { id: 'staff', label: 'Staff', href: 'fh_staff.html', paths: ['fh_staff.html'] }
       ]
     },
     {
-      group: 'System',
-      items: [
-        { id: 'users', label: 'Users', href: 'fh_staff.html' },
-        { id: 'backup', label: 'Backup', href: 'faculty-hub.html?panel=data-backup' },
+      id: 'leadership',
+      label: 'Leadership',
+      href: 'fh_leadership.html',
+      paths: ['fh_leadership.html', 'fh_department_meetings.html', 'department_meetings.html', 'fh_procurement.html', 'purchase_orders.html'],
+      children: [
+        { id: 'leadership-tools', label: 'All tools', href: 'fh_leadership.html', paths: ['fh_leadership.html'] },
+        { id: 'meetings', label: 'Meetings', href: 'fh_department_meetings.html', paths: ['fh_department_meetings.html', 'department_meetings.html'] },
         { id: 'procurement', label: 'Procurement', href: 'fh_procurement.html', paths: ['fh_procurement.html', 'purchase_orders.html'] }
       ]
     }
   ],
-  sidebar: [
+  // Cards on the Leadership page. Tools that live in the staff hub open there.
+  leadershipTools: [
     {
-      group: 'Faculty Head Hub',
+      group: 'Improvement & quality',
       items: [
-        {
-          id: 'overview',
-          label: 'Overview',
-          sidebarLabel: 'Overview',
-          href: 'faculty_head_hub.html',
-          icon: 'home',
-          paths: ['faculty_head_hub.html']
-        },
-        {
-          id: 'calendar',
-          label: 'Calendar',
-          sidebarLabel: 'Calendar Manager',
-          href: 'fh_calendar.html',
-          icon: 'calendar',
-          paths: ['fh_calendar.html']
-        },
-        {
-          id: 'announcements',
-          label: 'Announce',
-          sidebarLabel: 'Announcements',
-          href: 'fh_announcements.html',
-          icon: 'announce',
-          paths: ['fh_announcements.html']
-        },
-        {
-          id: 'tracking',
-          label: 'Tracking',
-          sidebarLabel: 'Tracking Manager',
-          href: 'fh_tracking.html',
-          icon: 'tracking',
-          paths: ['fh_tracking.html', 'tracking_monitoring_landing.html']
-        },
-        {
-          id: 'classes',
-          label: 'Classes',
-          sidebarLabel: 'Class & Staff',
-          href: 'fh_class_management.html',
-          icon: 'classes',
-          paths: ['fh_class_management.html', 'class_management.html']
-        },
-        {
-          id: 'reports',
-          label: 'Reports',
-          sidebarLabel: 'Reports & Data',
-          href: 'fh_staff.html',
-          icon: 'reports',
-          paths: ['fh_staff.html']
-        },
-        {
-          id: 'resources',
-          label: 'Resources',
-          sidebarLabel: 'Resources Manager',
-          href: 'fh_class_management.html',
-          icon: 'resources',
-          paths: ['fh_class_management.html', 'class_management.html']
-        }
+        { id: 'dip', label: 'Improvement Plan 26–27', desc: 'Faculty priorities, actions and department targets.', href: 'faculty-hub.html?panel=dip-main-2627', icon: 'dip' },
+        { id: 'dm-planner', label: 'DM Planner 26–27', desc: 'Department meeting calendar and agenda planning.', href: 'faculty-hub.html?panel=embed-dm-planner', icon: 'gantt' },
+        { id: 'quality-cal', label: 'Quality Calendar', desc: 'Quality assurance activities through the year.', href: 'faculty-hub.html?panel=embed-quality-calendar', icon: 'quality' },
+        { id: 'class-visits', label: 'Class Visits', desc: 'Record and review class visit feedback.', href: 'faculty-hub.html?panel=embed-class-visit', icon: 'visits' },
+        { id: 'qs-attainment', label: 'QS Attainment', desc: 'SQA attainment snapshots for the improvement plan.', href: 'faculty-hub.html?panel=embed-qs-attainment', icon: 'targets' }
       ]
     },
     {
-      group: 'Faculty Leadership',
+      group: 'Running the faculty',
       items: [
-        {
-          id: 'dip',
-          label: 'Improvement Plan',
-          sidebarLabel: 'Improvement Plan',
-          href: 'faculty-hub.html?panel=dip-main-2627',
-          icon: 'dip'
-        },
-        {
-          id: 'dm-planner',
-          label: 'DM Planner',
-          sidebarLabel: 'DM Planner 26–27',
-          href: 'faculty-hub.html?panel=embed-dm-planner',
-          icon: 'gantt'
-        },
-        {
-          id: 'qs-attainment',
-          label: 'QS Attainment',
-          sidebarLabel: 'QS Attainment',
-          href: 'faculty-hub.html?panel=embed-qs-attainment',
-          icon: 'targets'
-        },
-        {
-          id: 'meetings',
-          label: 'Meetings',
-          sidebarLabel: 'Meetings & Minutes',
-          href: 'fh_department_meetings.html',
-          icon: 'meetings',
-          paths: ['fh_department_meetings.html', 'department_meetings.html']
-        },
-        {
-          id: 'class-visits',
-          label: 'Class Visits',
-          sidebarLabel: 'Class Visits',
-          href: 'faculty-hub.html?panel=embed-class-visit',
-          icon: 'visits'
-        },
-        {
-          id: 'quality-cal',
-          label: 'Quality Cal',
-          sidebarLabel: 'Quality Calendar',
-          href: 'faculty-hub.html?panel=embed-quality-calendar',
-          icon: 'quality'
-        },
-        {
-          id: 'dept-targets',
-          label: 'Dept Targets',
-          sidebarLabel: 'Department Targets',
-          href: 'faculty-hub.html?panel=dip-main-2627',
-          icon: 'targets'
-        }
-      ]
-    },
-    {
-      group: 'System',
-      items: [
-        {
-          id: 'users',
-          label: 'Users',
-          sidebarLabel: 'Users & Permissions',
-          href: 'fh_staff.html',
-          icon: 'users',
-          paths: ['fh_staff.html']
-        },
-        {
-          id: 'backup',
-          label: 'Backup',
-          sidebarLabel: 'Backup & Restore',
-          href: 'faculty-hub.html?panel=data-backup',
-          icon: 'backup'
-        },
-        {
-          id: 'procurement',
-          label: 'Procurement',
-          sidebarLabel: 'Procurement',
-          href: 'fh_procurement.html',
-          icon: 'procurement',
-          paths: ['fh_procurement.html', 'purchase_orders.html']
-        }
+        { id: 'meetings', label: 'Meetings & Minutes', desc: 'Schedule department meetings and keep minutes.', href: 'fh_department_meetings.html', icon: 'meetings' },
+        { id: 'procurement', label: 'Procurement', desc: 'Purchase requests and orders.', href: 'fh_procurement.html', icon: 'procurement' },
+        { id: 'backup', label: 'Backup & Restore', desc: 'Download or restore a copy of faculty data.', href: 'faculty-hub.html?panel=data-backup', icon: 'backup' }
       ]
     }
   ]
