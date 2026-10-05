@@ -156,4 +156,111 @@ test('progress counts complete and in-progress tasks', () => {
   assert.deepEqual(plain(p), { done: 1, started: 1, total: 3 });
 });
 
+// ── Off-track dashboard ──
+function dashState() {
+  const S = N.ensureShape({});
+  const photo = S.courses.find(c => c.id === 'photo');
+  photo.units[0].due = '2026-09-30';                        // Understanding Photography (1 task)
+  const people = photo.units[1].tasks.map(t => t.id);       // 7 tasks
+  const done = ids => Object.fromEntries(ids.map(id => [id, { s: 'done' }]));
+  const pupil = (id, work) => ({ id, name: id, strengths: '', development: '', work });
+  S.classes = [{ id: 'c1', name: 'NPA', pupils: [
+    pupil('Ada', { 'u-understanding-t1': { s: 'done' }, ...done(people) }),
+    pupil('Ben', { 'u-understanding-t1': { s: 'done' }, ...done(people) }),
+    pupil('Cy', { 'u-understanding-t1': { s: 'done' }, ...done(people.slice(0, 6)) }),
+    pupil('Dot', { 'u-understanding-t1': { s: 'started', n: 'To finish' } }),
+  ] }];
+  return S;
+}
+
+test('overdue units flag a pupil as off track', () => {
+  const S = dashState();
+  const r = N.analyse(S, S.classes[0], '2026-10-05');
+  const dot = r.pupils.find(x => x.pupil.id === 'Dot');
+  assert.equal(dot.status, 'off');
+  assert.ok(dot.reasons.some(x => x.kind === 'overdue' && /was due 30 Sep: 1 of 1 task not complete/.test(x.text)));
+  assert.equal(r.pupils[0].pupil.id, 'Dot', 'most at risk first');
+});
+
+test('a due date that has not passed yet does not flag anyone', () => {
+  const S = dashState();
+  const r = N.analyse(S, S.classes[0], '2026-09-30');
+  assert.ok(!r.pupils.some(x => x.reasons.some(y => y.kind === 'overdue')));
+  assert.deepEqual(plain(r.deadlines.map(d => [d.unit.name, d.days, d.finished, d.total])), [['Understanding Photography', 0, 3, 4]]);
+});
+
+test('missing a unit the rest of the class has started, and being behind the class median', () => {
+  const S = dashState();
+  const r = N.analyse(S, S.classes[0], '2026-09-01');
+  const dot = r.pupils.find(x => x.pupil.id === 'Dot');
+  assert.ok(dot.reasons.some(x => x.kind === 'missing' && /Photographing People \(3 of 3 others/.test(x.text)));
+  assert.ok(dot.reasons.some(x => x.kind === 'behind' && /^Photography: 0% complete/.test(x.text)));
+  assert.equal(dot.status, 'off', 'two reasons');
+  const cy = r.pupils.find(x => x.pupil.id === 'Cy');
+  assert.equal(cy.status, 'on', 'one task behind is not flagged');
+  assert.equal(r.pupils.find(x => x.pupil.id === 'Ada').status, 'on');
+});
+
+test('one reason on its own is "watch"', () => {
+  const S = dashState();
+  S.classes[0].pupils[3].work = { 'u-understanding-t1': { s: 'done' }, 'u-people-t1': { s: 'started' } };
+  S.classes[0].pupils.push({ id: 'Eve', name: 'Eve', work: { 'u-understanding-t1': { s: 'done' }, 'u-people-t1': { s: 'done' }, 'u-people-t2': { s: 'done' } } });
+  const r = N.analyse(S, S.classes[0], '2026-09-01');
+  const dot = r.pupils.find(x => x.pupil.id === 'Dot');
+  assert.deepEqual(plain(dot.reasons.map(x => x.kind)), ['behind']);
+  assert.equal(dot.status, 'watch');
+});
+
+test('units without tasks and classes with no work flag nobody', () => {
+  const S = N.ensureShape({ classes: [{ id: 'c', name: 'x', pupils: [
+    { id: 'a', name: 'a', work: {} }, { id: 'b', name: 'b', work: {} }, { id: 'c', name: 'c', work: {} }] }] });
+  const r = N.analyse(S, S.classes[0], '2026-10-05');
+  assert.ok(r.pupils.every(x => x.status === 'on'));
+});
+
+test('the spotlight picks the off-track pupils furthest behind, with what to catch up first', () => {
+  const S = dashState();
+  const r = N.analyse(S, S.classes[0], '2026-10-05');
+  const dot = r.pupils.find(x => x.pupil.id === 'Dot');
+  // 1 overdue task started (2) + Photographing People missing (4) + 54 points behind the median (10) = 16
+  assert.equal(dot.score, 16);
+  assert.equal(dot.maxGap, 54);
+  assert.equal(dot.overdueTasks, 1);
+  assert.equal(dot.missingUnits, 1);
+  assert.deepEqual(plain(r.spotlight.map(x => x.pupil.id)), ['Dot']);
+  assert.equal(dot.catchUp[0].kind, 'overdue');
+  assert.equal(dot.catchUp[0].note, 'To finish');
+  assert.equal(dot.catchUp.length, 8, '1 overdue task, then the 7 tasks of the unit not started');
+  assert.deepEqual(plain(dot.strandsBehind), ['photo']);
+});
+
+test('pupils only a little off track stay out of the spotlight', () => {
+  const S = dashState();
+  // Dot: Understanding Photography overdue, but most of Photographing People done (not far behind the class)
+  S.classes[0].pupils[3].work = Object.fromEntries(['u-people-t1', 'u-people-t2', 'u-people-t3', 'u-people-t4', 'u-people-t5'].map(id => [id, { s: 'done' }]));
+  const r = N.analyse(S, S.classes[0], '2026-10-05');
+  const dot = r.pupils.find(x => x.pupil.id === 'Dot');
+  assert.equal(dot.status, 'off');
+  assert.ok(dot.score < N.SPOTLIGHT_SCORE);
+  assert.equal(r.spotlight.length, 0);
+});
+
+test('class metrics add up pupil-tasks per unit and strand, and find the next deadline', () => {
+  const S = dashState();
+  S.courses.find(c => c.id === 'photo').units[1].due = '2026-10-20';
+  const m = N.classMetrics(S, S.classes[0], '2026-10-05');
+  assert.equal(m.pupils, 4);
+  const und = m.units.find(u => u.unit.id === 'u-understanding');
+  assert.deepEqual([und.done, und.started, und.total, und.late], [3, 1, 4, true]);
+  const people = m.units.find(u => u.unit.id === 'u-people');
+  assert.deepEqual([people.done, people.total, people.late], [20, 28, false]);
+  assert.equal(m.strands.photo.total, 4 * 14);
+  assert.equal(m.tasks.total, m.strands.photo.total + m.strands.art.total);
+  assert.equal(m.counts.off, 1);
+  assert.equal(m.overdueTasks, 1);
+  assert.equal(m.overduePupils, 1);
+  assert.equal(m.nextDeadline.unit.id, 'u-people');
+  assert.equal(m.nextDeadline.days, 15);
+});
+
 console.log(`\n${passed} passed`);
