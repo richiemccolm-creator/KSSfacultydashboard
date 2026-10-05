@@ -2,12 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Faculty Hub">
+<meta name="referrer" content="strict-origin-when-cross-origin">
 <link rel="apple-touch-icon" href="faculty-hub-logo.png" sizes="180x180">
 <link rel="icon" type="image/png" href="faculty-hub-logo.png">
-<title>Photography BGE Tracker — Knightswood Secondary School</title>
+<title>NPA Tracker — Knightswood Secondary School</title>
 <link rel="stylesheet" href="design-tokens.css">
 <script src="config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -15,36 +16,193 @@
 <script src="allowlist-check.js"></script>
 <script src="auth-guard.js"></script>
 <script src="data-service.js"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
+<script src="tracker-sync.js"></script>
+<script src="npa-tracker-core.js"></script>
+<script src="npa-tracker-app.js"></script>
 <style>
-*{margin:0;padding:0;box-sizing:border-box}
+*{box-sizing:border-box}
 :root{
+  --accent:var(--photo-500,#8b5cf6);
+  --accent-ink:var(--photo-600,#7547d6);
+  --accent-soft:var(--photo-100,#ebe2fb);
+  --accent-faint:var(--photo-050,#f5f0fd);
   --navy:#1e2d4a;
-  --accent:#8b5cf6;
-  --bg:#f0f2f5;
+  --page:#f0f2f5;
   --card:#fff;
-  --border:#e2e8f0;
+  --line:#e2e8f0;
   --text:#1a202c;
   --text2:#4a5568;
   --text3:#718096;
+  --done:#15803d;
+  --done-bg:#dcfce7;
+  --started:#b45309;
+  --started-bg:#fef3c7;
+  --danger:#b91c1c;
 }
-body{font-family:var(--font-body);background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem;-webkit-font-smoothing:antialiased}
-.wrap{max-width:520px;width:100%;background:var(--card);border:1px solid var(--border);border-radius:12px;padding:2rem 2rem 1.75rem;text-align:center;box-shadow:0 4px 24px rgba(30,45,74,.06)}
-.badge{font-size:.62rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin-bottom:.75rem}
-h1{font-size:1.15rem;font-weight:700;color:var(--navy);margin-bottom:.5rem;line-height:1.3}
-p{font-size:.85rem;color:var(--text2);line-height:1.65;margin-bottom:1.25rem}
-a.btn{display:inline-flex;align-items:center;justify-content:center;padding:.55rem 1.1rem;border-radius:8px;background:var(--navy);color:#fff;text-decoration:none;font-size:.8rem;font-weight:600}
-a.btn:hover{opacity:.94}
-.muted{font-size:.75rem;color:var(--text3);margin-top:1rem}
+html,body{margin:0}
+body{font-family:var(--font-body,system-ui,sans-serif);background:var(--page);color:var(--text);-webkit-font-smoothing:antialiased;min-height:100vh}
+button,input,select,textarea{font:inherit;color:inherit}
+[hidden]{display:none!important}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+.npa-top{position:sticky;top:0;z-index:5;background:var(--navy);color:#fff;padding:.7rem 1rem;display:flex;flex-wrap:wrap;gap:.6rem 1rem;align-items:center;padding-top:max(.7rem,env(safe-area-inset-top))}
+.npa-title{display:flex;flex-direction:column;margin-right:auto;min-width:0}
+.npa-title small{font-size:.62rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#c4b5fd}
+.npa-title h1{font-size:1.05rem;margin:0;font-weight:700}
+.npa-top select{background:#2c3e5f;border:1px solid #3d5279;color:#fff;border-radius:8px;padding:.45rem .6rem;max-width:16rem}
+.npa-actions{display:flex;flex-wrap:wrap;gap:.4rem;align-items:center}
+.npa-top .npa-btn{background:#2c3e5f;border-color:#3d5279;color:#fff}
+.npa-top .npa-btn--primary{background:var(--accent);border-color:var(--accent)}
+.npa-save{font-size:.75rem;font-weight:600;padding:.25rem .55rem;border-radius:999px;background:rgba(255,255,255,.1)}
+.npa-save--ok{color:#86efac}.npa-save--warn{color:#fcd34d}.npa-save--bad{color:#fca5a5}.npa-save--muted{color:#cbd5e1}
+
+.npa-btn{display:inline-flex;align-items:center;justify-content:center;gap:.35rem;min-height:40px;padding:.45rem .9rem;border-radius:8px;border:1px solid var(--line);background:var(--card);font-size:.85rem;font-weight:600;cursor:pointer;text-decoration:none;color:var(--text)}
+.npa-btn:hover:not(:disabled){filter:brightness(.97)}
+.npa-btn:disabled{opacity:.45;cursor:default}
+.npa-btn--primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.npa-btn--danger{color:var(--danger);border-color:#fecaca}
+.npa-link{background:none;border:0;padding:0;color:var(--accent-ink);font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.npa-icon-btn{background:none;border:0;width:36px;height:36px;border-radius:8px;font-size:1.3rem;line-height:1;cursor:pointer;color:var(--text3)}
+.npa-icon-btn:hover{background:var(--page);color:var(--text)}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+.npa-banner{display:flex;flex-wrap:wrap;gap:.75rem;align-items:center;justify-content:space-between;background:#fef2f2;border-bottom:1px solid #fecaca;color:#7f1d1d;padding:.7rem 1rem;font-size:.9rem}
+.npa-banner[hidden]{display:none}
+main{padding:1rem;max-width:100%}
+
+.npa-chips{display:flex;gap:.4rem;overflow-x:auto;padding-bottom:.25rem;margin-bottom:.75rem;-webkit-overflow-scrolling:touch}
+.npa-chip{flex:none;border:1px solid var(--line);background:var(--card);border-radius:999px;padding:.45rem .9rem;font-size:.82rem;font-weight:600;cursor:pointer;min-height:38px;color:var(--text2)}
+.npa-chip.is-on{background:var(--accent);border-color:var(--accent);color:#fff}
+.npa-views{display:inline-flex;background:#e2e8f0;border-radius:10px;padding:3px;gap:2px;margin-bottom:.75rem;max-width:100%;overflow-x:auto}
+.npa-view{flex:none;border:0;background:none;border-radius:8px;padding:.5rem 1rem;min-height:40px;font-weight:700;font-size:.88rem;color:var(--text2);cursor:pointer}
+.npa-view.is-on{background:#fff;color:var(--navy);box-shadow:0 1px 3px rgba(15,23,42,.12)}
+.npa-strand-head{font-size:.78rem}
+.npa-task-head.npa-sum-head{width:104px;min-width:104px;max-width:104px}
+.npa-sum{display:inline-flex;align-items:center;justify-content:center;width:100%;min-width:44px;height:40px;border-radius:8px;border:1px solid transparent;background:#f8fafc;color:var(--text3);font-weight:700;font-size:.82rem;font-variant-numeric:tabular-nums;cursor:pointer}
+span.npa-sum{width:38px;min-width:38px;height:24px;font-size:.72rem;cursor:default}
+.npa-sum:hover{border-color:var(--accent)}
+.npa-sum--all{background:var(--done-bg);color:var(--done)}
+.npa-sum--some{background:var(--started-bg);color:var(--started)}
+.npa-todo-strand{display:flex;justify-content:space-between;gap:.5rem;margin:.9rem 0 .4rem;font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;color:var(--accent-ink)}
+.npa-todo-strand:first-child{margin-top:0}
+.npa-hint{font-size:.82rem;color:var(--text2);margin:0 0 .75rem}
+
+.npa-table-wrap{overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:12px;max-height:calc(100vh - 190px);-webkit-overflow-scrolling:touch}
+.npa-table{border-collapse:separate;border-spacing:0;font-size:.8rem;min-width:100%}
+.npa-table th,.npa-table td{border-bottom:1px solid var(--line);padding:0}
+.npa-table thead th{position:sticky;background:#f8fafc;z-index:2}
+.npa-table thead tr:first-child th{top:0}
+.npa-table thead tr:nth-child(2) th{top:2.6rem}
+.npa-unit-head{height:2.6rem;padding:0 .5rem!important;text-align:left;font-size:.72rem;letter-spacing:.04em;text-transform:uppercase;color:var(--accent-ink);border-left:2px solid var(--accent-soft);line-height:1.2;vertical-align:middle}
+.npa-task-head{width:76px;min-width:76px;max-width:76px;vertical-align:bottom;padding:.4rem .3rem!important;font-weight:600;color:var(--text2);font-size:.7rem;line-height:1.2;text-align:center}
+.npa-task-head span{overflow-wrap:break-word;hyphens:auto;-webkit-hyphens:auto;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.npa-unit-start{border-left:2px solid var(--accent-soft)!important}
+.npa-name-col{position:sticky;left:0;z-index:1;background:var(--card);text-align:left;min-width:9.5rem;padding:0 .4rem 0 .6rem!important;white-space:nowrap}
+thead .npa-name-col{z-index:3;background:#f8fafc;font-size:.75rem;color:var(--text2)}
+.npa-pupil-btn{background:none;border:0;padding:.55rem 0;font-weight:600;font-size:.88rem;cursor:pointer;color:var(--navy);text-align:left}
+.npa-pupil-btn:hover{color:var(--accent-ink);text-decoration:underline}
+.npa-comment-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);margin-left:.35rem;vertical-align:middle}
+.npa-cell{text-align:center;padding:3px!important}
+.npa-mark{position:relative;display:inline-flex;align-items:center;justify-content:center;width:100%;min-width:44px;height:40px;border-radius:8px;border:1px solid transparent;background:#f8fafc;cursor:pointer;font-weight:700;font-size:1rem}
+span.npa-mark{width:22px;min-width:22px;height:22px;font-size:.75rem;vertical-align:middle;cursor:default}
+.npa-mark:hover{border-color:var(--accent)}
+.npa-mark--done{background:var(--done-bg);color:var(--done)}
+.npa-mark--started{background:var(--started-bg);color:var(--started);letter-spacing:-.05em}
+.npa-mark.has-note::after{content:"";position:absolute;top:3px;right:3px;border:5px solid transparent;border-top-color:var(--accent);border-right-color:var(--accent);border-radius:0 3px 0 0}
+.npa-prog-col{padding:0 .6rem!important;min-width:7.5rem;font-size:.72rem;color:var(--text2)}
+.npa-prog{display:flex;align-items:center;gap:.45rem}
+.npa-prog-bar{flex:1;height:6px;border-radius:3px;background:var(--line);overflow:hidden}
+.npa-prog-bar span{display:block;height:100%;background:var(--done)}
+.npa-prog-num{font-variant-numeric:tabular-nums;font-weight:600;min-width:2.6rem;text-align:right}
+tfoot th,tfoot td{background:#f8fafc;font-size:.72rem;color:var(--text2);height:2.2rem;position:sticky;bottom:0}
+tfoot .npa-name-col{z-index:3}
+.npa-foot-cell{text-align:center;font-variant-numeric:tabular-nums}
+.npa-legend{font-size:.78rem;color:var(--text2);display:flex;flex-wrap:wrap;align-items:center;gap:.35rem;margin:.75rem 0 0}
+
+.npa-empty{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:2rem 1.5rem;max-width:620px;margin:2rem auto;text-align:center}
+.npa-empty h2{margin:0 0 .5rem;font-size:1.2rem;color:var(--navy)}
+.npa-empty p{color:var(--text2);margin:0 0 1.25rem;line-height:1.55}
+.npa-empty--small{margin:1rem 0;max-width:none}
+.npa-empty-actions{display:flex;flex-wrap:wrap;gap:.5rem;justify-content:center}
+.npa-privacy{text-align:left;margin-top:1.5rem;font-size:.85rem;color:var(--text2);background:var(--accent-faint);border-radius:10px;padding:.75rem 1rem}
+.npa-privacy summary{cursor:pointer;font-weight:700;color:var(--accent-ink)}
+.npa-privacy ul{margin:.6rem 0 0;padding-left:1.2rem;line-height:1.55}
+.npa-privacy li+li{margin-top:.35rem}
+#npa-privacy-slot{max-width:620px;margin:1.5rem auto 2rem;padding:0 1rem}
+
+.npa-dialog{border:0;border-radius:14px;padding:0;width:min(560px,calc(100vw - 32px));max-height:calc(100vh - 32px);box-shadow:0 20px 60px rgba(15,23,42,.3)}
+.npa-dialog::backdrop{background:rgba(15,23,42,.45)}
+.npa-dialog-inner{display:flex;flex-direction:column;max-height:calc(100vh - 32px)}
+.npa-dialog-head{display:flex;align-items:center;justify-content:space-between;padding:.9rem 1rem .4rem 1.2rem}
+.npa-dialog-head h2{margin:0;font-size:1.1rem;color:var(--navy)}
+.npa-dialog-body{padding:0 1.2rem 1rem;overflow:auto}
+.npa-dialog-foot{display:flex;flex-wrap:wrap;gap:.5rem;justify-content:flex-end;padding:.8rem 1.2rem;border-top:1px solid var(--line)}
+.npa-dialog-sub{margin:0 0 .8rem;font-size:.85rem;color:var(--text2);line-height:1.45}
+.npa-field{display:flex;flex-direction:column;gap:.3rem;margin-bottom:.85rem;font-size:.82rem;font-weight:600;color:var(--text2)}
+.npa-field[hidden]{display:none}
+.npa-field input,.npa-field textarea,.npa-field select,.npa-dialog textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:.55rem .65rem;font-weight:400;font-size:.95rem;color:var(--text);background:#fff}
+.npa-status-btns{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-bottom:1rem}
+.npa-status{min-height:52px;border-radius:10px;border:2px solid var(--line);background:#fff;font-weight:700;cursor:pointer;font-size:.9rem}
+.npa-status[aria-pressed="true"]{border-color:var(--navy);background:#f1f5f9}
+.npa-status--done[aria-pressed="true"]{border-color:var(--done);background:var(--done-bg);color:var(--done)}
+.npa-status--started[aria-pressed="true"]{border-color:var(--started);background:var(--started-bg);color:var(--started)}
+.npa-menu{display:flex;flex-direction:column;gap:.5rem}
+.npa-section-title{font-size:.9rem;margin:1.1rem 0 .5rem;color:var(--navy)}
+.npa-todo-unit{border:1px solid var(--line);border-radius:10px;padding:.6rem .8rem;margin-bottom:.5rem}
+.npa-todo-unit h3{margin:0;font-size:.82rem;display:flex;justify-content:space-between;gap:.5rem}
+.npa-todo-count{font-weight:500;color:var(--text3)}
+.npa-todo-unit ul{margin:.45rem 0 0;padding:0;list-style:none}
+.npa-todo-item{display:flex;flex-direction:column;padding:.3rem 0 .3rem .6rem;border-left:3px solid var(--line);margin-top:.3rem;font-size:.85rem}
+.npa-todo-item--started{border-left-color:var(--started)}
+.npa-todo-item .npa-link{text-align:left}
+.npa-todo-status{color:var(--text2);font-size:.78rem}
+.npa-todo-done{margin:.35rem 0 0;color:var(--done);font-size:.8rem;font-weight:600}
+.npa-course-unit{border:1px solid var(--line);border-radius:10px;padding:.7rem;margin:0 0 .7rem}
+.npa-course-unit-head{display:flex;gap:.4rem;align-items:center}
+.npa-course-unit-head input{font-weight:700}
+.npa-course-unit input{flex:1;border:1px solid var(--line);border-radius:8px;padding:.45rem .6rem;min-width:0}
+.npa-course-tasks{margin:.5rem 0;padding-left:1.4rem;font-size:.85rem}
+.npa-course-tasks li{margin-bottom:.3rem}
+.npa-course-tasks li{display:list-item}
+.npa-course-tasks li>input{width:calc(100% - 44px)}
+.npa-import-summary ul,.npa-warnings{margin:0 0 .8rem;padding-left:1.2rem;font-size:.88rem;line-height:1.5}
+.npa-warnings{color:var(--started)}
+.npa-preview-wrap{max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:8px}
+.npa-preview{width:100%;border-collapse:collapse;font-size:.8rem}
+.npa-preview th,.npa-preview td{padding:.4rem .55rem;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.npa-preview thead th{position:sticky;top:0;background:#f8fafc}
+.npa-preview-comment{color:var(--text2);max-width:16rem}
+
+.npa-toast{position:fixed;left:50%;bottom:calc(1.25rem + env(safe-area-inset-bottom));transform:translate(-50%,150%);background:var(--navy);color:#fff;padding:.7rem 1.1rem;border-radius:10px;font-size:.88rem;max-width:calc(100vw - 32px);transition:transform .25s,visibility .25s;visibility:hidden;z-index:20;box-shadow:0 8px 24px rgba(15,23,42,.25)}
+.npa-toast.show{transform:translate(-50%,0);visibility:visible}
+.npa-top select[hidden]{display:none}
+
+@media (max-width:640px){
+  .npa-top{padding:.6rem .75rem}
+  .npa-actions{width:100%}
+  .npa-top select{flex:1;max-width:none}
+  main{padding:.75rem}
+  .npa-name-col{min-width:7rem}
+}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="badge">Photography · BGE</div>
-  <h1>Photography tracker</h1>
-  <p>This tracker is being built to match the Drama and Art &amp; Design BGE trackers. Until it is ready, use the Photography curriculum, assessment, and moderation areas in Faculty Hub.</p>
-  <a class="btn" href="faculty-hub.html">← Back to Faculty Hub</a>
-  <p class="muted">Opened from Planning &amp; assessment → Photography Tracker.</p>
-</div>
+<header class="npa-top">
+  <div class="npa-title"><small>NPA · Photography &amp; Art and Design</small><h1>NPA Tracker</h1></div>
+  <div class="npa-actions">
+    <label class="sr-only" for="npa-class">Class</label>
+    <select id="npa-class"></select>
+    <button type="button" class="npa-btn" id="npa-class-menu" aria-label="Class options">Class ▾</button>
+    <button type="button" class="npa-btn" id="npa-add-pupil">Add pupils</button>
+    <button type="button" class="npa-btn" id="npa-course">Units &amp; tasks</button>
+    <button type="button" class="npa-btn npa-btn--primary" id="npa-import">Import spreadsheet</button>
+    <span id="npa-save" class="npa-save npa-save--muted" role="status">Loading…</span>
+  </div>
+</header>
+<div id="npa-banner" class="npa-banner" role="alert" hidden></div>
+<main id="npa-main"></main>
+<div id="npa-privacy-slot"></div>
+<input type="file" id="npa-file" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" hidden>
+<div id="npa-toast" class="npa-toast" role="status" aria-live="polite"></div>
 </body>
 </html>
