@@ -71,9 +71,10 @@
     var cls = S.classes || [];
     return cls.find(function(c) { return c.id === prefs.classId; }) || cls[0] || null;
   }
-  // View: 'overview' (both strands, one row per pupil) or a strand id ('photo' / 'art').
+  // View: 'dashboard' (who is off track), 'overview' (both strands, one row per pupil) or a strand id ('photo' / 'art').
   function currentView() {
     var v = prefs.view;
+    if (v === 'dashboard') return v;
     return (S.courses || []).some(function(c) { return c.id === v; }) ? v : 'overview';
   }
   function strandName(course) {
@@ -107,7 +108,9 @@
   function openDialog(d) {
     document.body.appendChild(d);
     d.addEventListener('close', function() { d.remove(); });
+    d.setAttribute('tabindex', '-1');
     d.showModal();
+    d.focus();   // start on the dialog, not its close button; callers can focus a field after this
     return d;
   }
   function dialog(title, body, actions) {
@@ -127,8 +130,8 @@
     saved: ['Saved', 'ok'],
     pending: ['Saving…', 'muted'],
     saving: ['Saving…', 'muted'],
-    retrying: ['Not saved — retrying', 'warn'],
-    offline: ['Offline — kept on this device', 'warn'],
+    retrying: ['Not saved, retrying', 'warn'],
+    offline: ['Offline, kept on this device', 'warn'],
     'load-failed': ['Not loaded', 'bad'],
     'signed-out': ['Signed out', 'bad'],
     local: ['Saved on this device only', 'warn']
@@ -158,10 +161,12 @@
     var main = $('npa-main');
     main.textContent = '';
     var cls = currentClass();
-    if (!cls) { main.appendChild(renderEmpty()); return; }
+    if (!cls) { main.dataset.subject = ''; main.appendChild(renderEmpty()); return; }
     var view = currentView();
+    main.dataset.subject = view === 'photo' || view === 'art' ? view : '';
     main.appendChild(renderViewTabs(view));
     if (!cls.pupils.length) { main.appendChild(renderNoPupils(cls)); return; }
+    if (view === 'dashboard') { main.appendChild(renderDashboard(cls)); return; }
     if (view === 'overview') { main.appendChild(renderOverview(cls)); return; }
     var course = NpaTracker.getCourse(S, view);
     main.appendChild(renderUnitChips(course));
@@ -175,7 +180,7 @@
     (S.classes || []).forEach(function(c) {
       sel.appendChild(h('option', { value: c.id, selected: cls && c.id === cls.id, text: c.name }));
     });
-    ['npa-class', 'npa-add-pupil', 'npa-class-menu'].forEach(function(id) { $(id).hidden = !cls; });
+    ['npa-class', 'npa-class-menu', 'npa-import'].forEach(function(id) { $(id).hidden = !cls; });
   }
 
   function renderEmpty() {
@@ -184,7 +189,8 @@
       h('p', { text: 'Photography and Art & Design are tracked together for the same pupils. Bring in your existing tracking spreadsheet, or start an empty class and add pupils yourself.' }),
       h('div', { class: 'npa-empty-actions' },
         h('button', { type: 'button', class: 'npa-btn npa-btn--primary', text: 'Import tracking spreadsheet', onclick: pickFile }),
-        h('button', { type: 'button', class: 'npa-btn', text: 'Start an empty class', onclick: newClass })));
+        h('button', { type: 'button', class: 'npa-btn npa-btn--ghost', text: 'Start an empty class', onclick: newClass })),
+      privacyNote());
   }
 
   function privacyNote() {
@@ -206,6 +212,7 @@
         onclick: function() { prefs.view = id; writePrefs(); render(); }
       }));
     }
+    tab('dashboard', 'Dashboard');
     tab('overview', 'Overview');
     S.courses.forEach(function(c) { tab(c.id, strandName(c)); });
     return wrap;
@@ -254,12 +261,14 @@
         units.forEach(function(u, i) {
           var pr = NpaTracker.pupilProgress(p, u.tasks);
           var kind = pr.done === pr.total ? 'all' : (pr.done || pr.started) ? 'some' : 'none';
+          var pct = pr.total ? Math.round(100 * pr.done / pr.total) : 0;
           var label = p.name + ', ' + u.name + ': ' + pr.done + ' of ' + pr.total + ' complete' + (pr.started ? ', ' + pr.started + ' in progress' : '');
           tr.appendChild(h('td', { class: 'npa-cell' + (i === 0 ? ' npa-unit-start' : '') },
             h('button', {
               type: 'button', class: 'npa-sum npa-sum--' + kind, 'aria-label': label + '. Open unit', title: label,
               onclick: function() { prefs.view = c.id; setUnitPref(c.id, u.id); render(); }
-            }, pr.done + '/' + pr.total)));
+            }, h('span', { class: 'npa-sum-num', text: pr.done + '/' + pr.total }),
+              h('span', { class: 'npa-sum-bar', 'aria-hidden': 'true' }, h('span', { style: 'width:' + pct + '%' })))));
         });
         tr.appendChild(h('td', { class: 'npa-prog-col' + (units.length ? '' : ' npa-unit-start') }, progressBar(NpaTracker.pupilProgress(p, NpaTracker.allTasks(S, c.id)))));
       });
@@ -270,24 +279,339 @@
     frag.appendChild(h('div', { class: 'npa-table-wrap' },
       h('table', { class: 'npa-table' }, h('thead', null, head1, head2), body)));
     frag.appendChild(h('p', { class: 'npa-legend' },
-      h('span', { class: 'npa-sum npa-sum--all', 'aria-hidden': 'true', text: '3/3' }), ' Unit complete ',
-      h('span', { class: 'npa-sum npa-sum--some', 'aria-hidden': 'true', text: '1/3' }), ' Under way \u00b7 Tap a number to open that unit, or a pupil\u2019s name for their strengths and what\u2019s left to do.'));
+      'Tasks complete in each unit. Tap a number to open that unit, or a name for the pupil\u2019s record.'));
     return frag;
   }
 
+  // ── off-track dashboard (rules in NpaTracker.analyse) ─────
+  var DASH_STATUS = { off: 'Off track', watch: 'Watch', on: 'On track' };
+  function todayISO() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+  function openUnit(courseId, unitId) { prefs.view = courseId; setUnitPref(courseId, unitId || ''); render(); }
+  function plural(n, one, many) { return n + ' ' + (n === 1 ? one : (many || one + 's')); }
+  function listJoin(items) {
+    return items.length < 2 ? items.join('') : items.slice(0, -1).join(', ') + ' and ' + items[items.length - 1];
+  }
+
+  function renderDashboard(cls) {
+    var today = todayISO();
+    var m = NpaTracker.classMetrics(S, cls, today);
+    var r = m.analysis;
+    var frag = document.createDocumentFragment();
+
+    frag.appendChild(h('div', { class: 'npa-dash-bar' },
+      h('h2', { class: 'npa-dash-title', text: cls.name }),
+      h('p', { class: 'npa-dash-sub', text: plural(m.pupils, 'pupil') + ' · checked ' + NpaTracker.shortDate(today) }),
+      h('details', { class: 'npa-rules' },
+        h('summary', { text: 'How pupils are flagged' }),
+        h('p', { text: 'Off track: a unit’s due date has passed and the pupil still has tasks to finish in it, or they show two warning signs.' }),
+        h('p', { text: 'Watch: one warning sign. The warning signs are being ' + NpaTracker.BEHIND_POINTS + ' or more percentage points behind the class median in a strand, and having nothing recorded in a unit that at least half the class has started.' }),
+        h('p', { text: 'Start with these pupils lists the off-track pupils furthest behind, ranked by overdue work, units not started and the gap to the class.' }))));
+
+    frag.appendChild(renderMetricCards(m));
+    frag.appendChild(renderUnitChart(m));
+    frag.appendChild(renderSpotlight(r));
+    frag.appendChild(renderDeadlines(r));
+    frag.appendChild(renderPupilFlags(r));
+    return frag;
+  }
+
+  function pctOf(n, total) { return total ? Math.round(100 * n / total) : 0; }
+
+  // Four key numbers. Each card: label, value, one line of context, and where it makes sense a link onward.
+  function renderMetricCards(m) {
+    function card(label, value, detail, action, status) {
+      return h('article', { class: 'npa-metric' },
+        h('h3', { class: 'npa-metric-label' }, status ? h('span', { class: 'npa-flag-dot npa-flag-dot--' + status, 'aria-hidden': 'true' }) : null, label),
+        h('p', { class: 'npa-metric-value', text: value }),
+        h('p', { class: 'npa-metric-detail', text: detail }),
+        action ? h('button', { type: 'button', class: 'npa-text-btn npa-metric-link', text: action[0], onclick: action[1] }) : null);
+    }
+    var strandPcts = S.courses.map(function(c) {
+      var st = m.strands[c.id];
+      return strandName(c) + ' ' + pctOf(st.done, st.total) + '%';
+    }).join(' · ');
+    var hasDates = m.units.some(function(u) { return u.due; });
+    var nd = m.nextDeadline;
+    function showFlagged() { prefs.dashAll = false; writePrefs(); render(); var el = $('npa-flags-title'); if (el) el.scrollIntoView({ block: 'start' }); }
+
+    return h('section', { class: 'npa-metrics', 'aria-label': 'Key numbers' },
+      card('Off track', String(m.counts.off),
+        [m.counts.watch ? m.counts.watch + ' to watch' : null, m.counts.on + ' on track'].filter(Boolean).join(' · '),
+        m.counts.off || m.counts.watch ? ['See who', showFlagged] : null, m.counts.off ? 'off' : null),
+      card('Tasks complete', pctOf(m.tasks.done, m.tasks.total) + '%',
+        strandPcts, null),
+      card('Overdue tasks', String(m.overdueTasks),
+        !hasDates ? 'No unit due dates set yet' : m.overdueTasks ? 'Across ' + plural(m.overduePupils, 'pupil') : 'Nothing overdue',
+        !hasDates ? ['Set due dates', editDueDates] : null, m.overdueTasks ? 'off' : null),
+      card('Next deadline', nd ? NpaTracker.shortDate(nd.due) : 'None',
+        nd ? nd.unit.name + ', ' + (nd.days === 0 ? 'today' : 'in ' + plural(nd.days, 'day')) + ' · ' + nd.finished + ' of ' + nd.total + ' finished'
+          : hasDates ? 'All set deadlines have passed' : 'Add due dates to see what is coming up',
+        nd ? ['Open ' + nd.unit.name, function() { openUnit(nd.course.id, nd.unit.id); }] : ['Set due dates', editDueDates]));
+  }
+
+  // Class progress through every unit: one 100% bar per unit, complete then in progress, the rest is not started.
+  var CHART_STATES = [
+    { key: 'done', label: 'Complete' },
+    { key: 'started', label: 'In progress' },
+    { key: 'none', label: 'Not started' }
+  ];
+  function renderUnitChart(m) {
+    var asTable = prefs.chartTable === true;
+    var sec = h('section', { class: 'npa-panel npa-chart', 'aria-labelledby': 'npa-chart-title' },
+      h('div', { class: 'npa-panel-head' },
+        h('div', null,
+          h('h3', { id: 'npa-chart-title', text: 'Progress by unit' }),
+          h('p', { class: 'npa-meta', text: 'Share of the class’s tasks in each unit' })),
+        h('div', { class: 'npa-chart-tools' },
+          asTable ? null : h('ul', { class: 'npa-legend-keys', 'aria-label': 'Key' }, CHART_STATES.map(function(st) {
+            return h('li', null, h('span', { class: 'npa-key npa-key--' + st.key, 'aria-hidden': 'true' }), st.label);
+          })),
+          h('button', { type: 'button', class: 'npa-btn npa-btn--ghost npa-btn--small', text: asTable ? 'Show chart' : 'Show table',
+            onclick: function() { prefs.chartTable = !asTable; writePrefs(); render(); } }))));
+    if (!m.pupils || !m.units.length) {
+      sec.appendChild(h('p', { class: 'npa-empty-line', text: 'Progress appears here once the class has pupils and units with tasks.' }));
+      return sec;
+    }
+    sec.appendChild(asTable ? unitTable(m) : unitBars(m));
+    return sec;
+  }
+
+  function dueText(u) {
+    if (!u.due) return 'No due date';
+    return (u.late ? 'Overdue since ' : 'Due ') + NpaTracker.shortDate(u.due);
+  }
+
+  function unitBars(m) {
+    var wrap = h('div', { class: 'npa-bars' });
+    var tip = h('div', { class: 'npa-tip', role: 'tooltip', hidden: true });
+    function showTip(seg, u, st, n) {
+      tip.textContent = '';
+      append(tip, [
+        h('strong', { text: n + ' of ' + u.total + ' tasks (' + pctOf(n, u.total) + '%)' }),
+        h('span', { class: 'npa-tip-row' }, h('span', { class: 'npa-tip-key npa-key--' + st.key, 'aria-hidden': 'true' }), st.label + ' · ' + u.unit.name)]);
+      tip.hidden = false;
+      var b = seg.getBoundingClientRect(), w = wrap.getBoundingClientRect();
+      var x = Math.min(Math.max(b.left + b.width / 2 - w.left, 80), w.width - 80);
+      tip.style.left = x + 'px';
+      tip.style.top = (b.top - w.top - 8) + 'px';
+    }
+    function hideTip() { tip.hidden = true; }
+
+    S.courses.forEach(function(c) {
+      var rows = m.units.filter(function(u) { return u.course === c; });
+      if (!rows.length) return;
+      wrap.appendChild(h('h4', { class: 'npa-bars-group', text: strandName(c) }));
+      rows.forEach(function(u) {
+        var counts = { done: u.done, started: u.started, none: u.total - u.done - u.started };
+        var track = h('div', { class: 'npa-bar-track' });
+        CHART_STATES.forEach(function(st) {
+          var n = counts[st.key];
+          if (!n) return;
+          var label = st.label + ': ' + n + ' of ' + u.total + ' tasks in ' + u.unit.name;
+          var seg = h('span', { class: 'npa-seg npa-seg--' + st.key, style: 'flex-grow:' + n, tabindex: '0', role: 'img', 'aria-label': label });
+          seg.addEventListener('pointerenter', function() { showTip(seg, u, st, n); });
+          seg.addEventListener('pointerleave', hideTip);
+          seg.addEventListener('focus', function() { showTip(seg, u, st, n); });
+          seg.addEventListener('blur', hideTip);
+          track.appendChild(seg);
+        });
+        wrap.appendChild(h('div', { class: 'npa-bar-row' + (u.late ? ' is-late' : '') },
+          h('div', { class: 'npa-bar-label' },
+            h('button', { type: 'button', class: 'npa-text-btn npa-text-btn--strong', text: u.unit.name, onclick: function() { openUnit(c.id, u.unit.id); } }),
+            h('span', { class: 'npa-meta npa-bar-due', text: dueText(u) })),
+          track,
+          h('span', { class: 'npa-bar-value', text: pctOf(u.done, u.total) + '%' })));
+      });
+    });
+    wrap.appendChild(tip);
+    return wrap;
+  }
+
+  function unitTable(m) {
+    return h('div', { class: 'npa-rows-wrap' }, h('table', { class: 'npa-rows' },
+      h('caption', { class: 'sr-only', text: 'Progress by unit, counted in pupil tasks' }),
+      h('thead', null, h('tr', null,
+        ['Unit', 'Strand', 'Complete', 'In progress', 'Not started', 'Due'].map(function(t, i) {
+          return h('th', { scope: 'col', class: i >= 2 && i <= 4 ? 'npa-num' : null, text: t });
+        }))),
+      h('tbody', null, m.units.map(function(u) {
+        var none = u.total - u.done - u.started;
+        return h('tr', { class: u.late ? 'is-late' : null },
+          h('th', { scope: 'row' }, h('button', { type: 'button', class: 'npa-text-btn npa-text-btn--strong', text: u.unit.name, onclick: function() { openUnit(u.course.id, u.unit.id); } })),
+          h('td', { text: strandName(u.course) }),
+          h('td', { class: 'npa-num', text: u.done + ' (' + pctOf(u.done, u.total) + '%)' }),
+          h('td', { class: 'npa-num', text: u.started + ' (' + pctOf(u.started, u.total) + '%)' }),
+          h('td', { class: 'npa-num', text: none + ' (' + pctOf(none, u.total) + '%)' }),
+          h('td', { class: 'npa-when', text: dueText(u) }));
+      }))));
+  }
+
+  // The few pupils furthest behind, in priority order, with the work to chase first.
+  function renderSpotlight(r) {
+    if (!r.spotlight.length) return document.createDocumentFragment();
+    var UNITS = 3;
+    var sec = h('section', { class: 'npa-panel npa-spot', 'aria-labelledby': 'npa-spot-title' },
+      h('div', { class: 'npa-panel-head' }, h('h3', { id: 'npa-spot-title', text: 'Start with these pupils' })));
+    sec.appendChild(h('ol', { class: 'npa-spot-list' }, r.spotlight.map(function(x, i) {
+      var p = x.pupil;
+      var strands = x.strandsBehind.map(function(id) { return strandName(NpaTracker.getCourse(S, id)); });
+      var facts = [
+        x.overdueTasks ? plural(x.overdueTasks, 'overdue task') : null,
+        x.missingUnits ? plural(x.missingUnits, 'unit') + ' not started' : null,
+        x.maxGap ? x.maxGap + ' points behind the class median' : null
+      ].filter(Boolean);
+      return h('li', { class: 'npa-spot-row' },
+        h('span', { class: 'npa-spot-rank', 'aria-hidden': 'true', text: String(i + 1) }),
+        h('div', { class: 'npa-spot-who' },
+          h('button', { type: 'button', class: 'npa-spot-name', text: p.name, onclick: function() { openPupil(p.id); } }),
+          strands.length ? h('p', { class: 'npa-meta', text: 'Behind in ' + listJoin(strands) }) : null,
+          h('p', { class: 'npa-spot-facts', text: facts.length ? listJoin(facts) + '.' : '' }),
+          p.strengths ? h('p', { class: 'npa-spot-note' }, h('span', { text: 'Strength ' }), p.strengths) : null,
+          p.development ? h('p', { class: 'npa-spot-note' }, h('span', { text: 'Area for development ' }), p.development) : null),
+        x.catchUp.length ? h('div', { class: 'npa-spot-catch' },
+          h('h4', { text: 'Catch up first' }),
+          h('ul', null, groupCatchUp(x.catchUp).slice(0, UNITS).map(function(g) {
+            var meta = plural(g.tasks.length, 'task') + ', ' + (g.kind === 'overdue' ? 'due ' + NpaTracker.shortDate(g.due) : 'not started');
+            return h('li', { class: 'npa-catch-unit' + (g.kind === 'overdue' ? ' is-overdue' : '') },
+              h('div', { class: 'npa-catch-head' },
+                h('span', { class: 'npa-catch-name', text: g.unitName }),
+                h('span', { class: 'npa-catch-meta', text: meta })),
+              h('p', { class: 'npa-catch-tasks' }, g.tasks.map(function(c, k) {
+                var label = c.name === g.unitName ? 'Mark progress' : c.name;
+                return [k ? h('span', { class: 'npa-sep', 'aria-hidden': 'true', text: ' \u00b7 ' }) : null,
+                  h('button', { type: 'button', class: 'npa-text-btn npa-catch-task' + (c.status === 'started' ? ' is-started' : ''),
+                    title: c.status === 'started' ? 'In progress' + (c.note ? ': ' + c.note : '') : 'Not started',
+                    text: label, onclick: function() { openCell(p.id, c.taskId); } })];
+              })));
+          })),
+          groupCatchUp(x.catchUp).length > UNITS ? h('button', { type: 'button', class: 'npa-text-btn npa-more', text: 'See everything in ' + p.name + '\u2019s record', onclick: function() { openPupil(p.id); } }) : null) : null);
+    })));
+    return sec;
+  }
+
+  // Catch-up tasks grouped by unit, keeping the order analyse() gives (overdue, earliest first).
+  function groupCatchUp(items) {
+    var groups = [], byUnit = {};
+    items.forEach(function(c) {
+      var g = byUnit[c.unitId];
+      if (!g) { g = byUnit[c.unitId] = { unitName: c.unitName, kind: c.kind, due: c.due, tasks: [] }; groups.push(g); }
+      g.tasks.push(c);
+    });
+    return groups;
+  }
+
+  function renderDeadlines(r) {
+    var sec = h('section', { class: 'npa-panel', 'aria-labelledby': 'npa-dl-title' },
+      h('div', { class: 'npa-panel-head' },
+        h('h3', { id: 'npa-dl-title', text: 'Unit deadlines' }),
+        h('button', { type: 'button', class: 'npa-btn npa-btn--ghost', text: r.deadlines.length ? 'Edit dates' : 'Set due dates', onclick: editDueDates })));
+    if (!r.deadlines.length) {
+      sec.appendChild(h('p', { class: 'npa-empty-line', text: 'No due dates yet. Add one to each unit and pupils with work left once it passes are flagged here.' }));
+      return sec;
+    }
+    sec.appendChild(h('table', { class: 'npa-rows' },
+      h('thead', null, h('tr', null,
+        h('th', { scope: 'col', text: 'Unit' }), h('th', { scope: 'col', text: 'Due' }), h('th', { scope: 'col', text: 'Pupils finished' }))),
+      h('tbody', null, r.deadlines.map(function(d) {
+        var when = d.days < 0 ? NpaTracker.shortDate(d.due) + ', ' + plural(-d.days, 'day') + ' ago'
+          : d.days === 0 ? 'Today' : NpaTracker.shortDate(d.due) + ', in ' + plural(d.days, 'day');
+        var late = d.days < 0 && d.finished < d.total;
+        return h('tr', { class: late ? 'is-late' : null },
+          h('td', null,
+            h('button', { type: 'button', class: 'npa-text-btn npa-text-btn--strong', text: d.unit.name, onclick: function() { openUnit(d.course.id, d.unit.id); } }),
+            h('span', { class: 'npa-meta', text: strandName(d.course) })),
+          h('td', { class: 'npa-when', text: when }),
+          h('td', null, progressBar({ done: d.finished, started: 0, total: d.total })));
+      }))));
+    return sec;
+  }
+
+  function renderPupilFlags(r) {
+    var showAll = prefs.dashAll === true;
+    var flagged = r.pupils.filter(function(x) { return x.status !== 'on'; });
+    var list = showAll ? r.pupils : flagged;
+    var sec = h('section', { class: 'npa-panel', 'aria-labelledby': 'npa-flags-title' },
+      h('div', { class: 'npa-panel-head' },
+        h('h3', { id: 'npa-flags-title', text: 'Pupils' }),
+        h('div', { class: 'npa-subtabs', role: 'group', 'aria-label': 'Show' },
+          [[false, 'Needs attention', flagged.length], [true, 'Everyone', r.pupils.length]].map(function(o) {
+            var on = showAll === o[0];
+            return h('button', { type: 'button', class: 'npa-subtab' + (on ? ' is-on' : ''), 'aria-pressed': on ? 'true' : 'false',
+              onclick: function() { prefs.dashAll = o[0]; writePrefs(); render(); } }, o[1], h('span', { class: 'npa-count', text: String(o[2]) }));
+          }))));
+    if (!list.length) {
+      sec.appendChild(h('p', { class: 'npa-empty-line', text: 'Nobody needs attention right now.' }));
+      return sec;
+    }
+    sec.appendChild(h('table', { class: 'npa-rows npa-rows--flags' },
+      h('thead', null, h('tr', null,
+        h('th', { scope: 'col', text: 'Pupil' }), h('th', { scope: 'col', text: 'Why' }),
+        S.courses.map(function(c) { return h('th', { scope: 'col', class: 'npa-num-col', text: strandName(c) }); }))),
+      h('tbody', null, list.map(function(x) {
+        return h('tr', null,
+          h('th', { scope: 'row' },
+            h('button', { type: 'button', class: 'npa-text-btn npa-text-btn--strong', text: x.pupil.name, onclick: function() { openPupil(x.pupil.id); } }),
+            h('span', { class: 'npa-flag npa-flag--' + x.status, text: DASH_STATUS[x.status] })),
+          h('td', null, x.reasons.length ? h('ul', { class: 'npa-why' }, x.reasons.map(function(re) {
+            return h('li', { class: re.kind === 'overdue' ? 'is-overdue' : null },
+              h('button', { type: 'button', class: 'npa-text-btn', text: re.text, onclick: function() { openUnit(re.courseId, re.unitId); } }));
+          })) : h('span', { class: 'npa-meta', text: 'Nothing flagged' })),
+          S.courses.map(function(c) {
+            return h('td', { class: 'npa-num-col', 'data-label': strandName(c) }, progressBar(x.strands[c.id]));
+          }));
+      }))));
+    return sec;
+  }
+
+  function editDueDates() {
+    if (blocked()) return;
+    var body = h('div', { class: 'npa-due-list' });
+    S.courses.forEach(function(c) {
+      var units = c.units.filter(function(u) { return u.tasks.length; });
+      if (!units.length) return;
+      body.appendChild(h('h3', { class: 'npa-section-title', text: strandName(c) }));
+      units.forEach(function(u) {
+        var input = h('input', { type: 'date', 'aria-label': u.name + ' due date' });
+        input.value = NpaTracker.isDate(u.due) ? u.due : '';
+        input.addEventListener('change', function() {
+          if (blocked()) return;
+          if (NpaTracker.isDate(input.value)) u.due = input.value; else delete u.due;
+          save(); render();
+        });
+        body.appendChild(h('label', { class: 'npa-due-row' }, h('span', { text: u.name }), input));
+      });
+    });
+    openDialog(dialog('Unit due dates', [
+      h('p', { class: 'npa-dialog-sub', text: 'When a date has passed, pupils with tasks still to finish in that unit are flagged as off track. Leave a date blank to skip a unit. Changes save as you go.' }),
+      body
+    ], [h('button', { value: 'close', class: 'npa-btn npa-btn--primary', text: 'Done' })]));
+  }
+
   function renderUnitChips(course) {
-    var wrap = h('div', { class: 'npa-chips', role: 'tablist', 'aria-label': 'Show unit' });
+    var wrap = h('div', { class: 'npa-subtabs npa-subtabs--units', role: 'tablist', 'aria-label': 'Show unit' });
     var cur = unitPref(course.id);
     function chip(id, label) {
       var on = cur === id;
       wrap.appendChild(h('button', {
-        type: 'button', role: 'tab', 'aria-selected': on ? 'true' : 'false', class: 'npa-chip' + (on ? ' is-on' : ''), text: label,
+        type: 'button', role: 'tab', 'aria-selected': on ? 'true' : 'false', class: 'npa-subtab' + (on ? ' is-on' : ''), text: label,
         onclick: function() { setUnitPref(course.id, id); render(); }
       }));
     }
     chip('', 'All units');
     course.units.forEach(function(u) { chip(u.id, u.name); });
     return wrap;
+  }
+
+  // Column headings sit under their unit, so "Photographing People Research" reads as "Research".
+  function shortTaskName(task, unit) {
+    if (task.length > unit.length + 1 && task.toLowerCase().indexOf(unit.toLowerCase() + ' ') === 0) {
+      var rest = task.slice(unit.length + 1);
+      return rest.charAt(0).toUpperCase() + rest.slice(1);
+    }
+    return task;
   }
 
   function renderGrid(cls, course) {
@@ -312,7 +636,7 @@
     shown.forEach(function(u) {
       head1.appendChild(h('th', { colspan: u.tasks.length, scope: 'colgroup', class: 'npa-unit-head', text: u.name }));
       u.tasks.forEach(function(t, i) {
-        head2.appendChild(h('th', { scope: 'col', class: 'npa-task-head' + (i === 0 ? ' npa-unit-start' : ''), title: t.name }, h('span', { text: t.name })));
+        head2.appendChild(h('th', { scope: 'col', class: 'npa-task-head' + (i === 0 ? ' npa-unit-start' : ''), title: t.name }, h('span', { text: shortTaskName(t.name, u.name) })));
       });
     });
     head1.appendChild(h('th', { rowspan: 2, scope: 'col', class: 'npa-prog-col', text: oneUnit ? 'Unit' : strandName(course) }));
@@ -330,7 +654,7 @@
               type: 'button', class: 'npa-mark npa-mark--' + (s || 'none') + (w.n ? ' has-note' : ''),
               'aria-label': label, title: label,
               onclick: function() { openCell(p.id, t.id); }
-            }, s === 'done' ? '\u2713' : s === 'started' ? '\u2022\u2022\u2022' : '')));
+            }, s === 'done' ? '\u2713' : '')));
         });
       });
       tr.appendChild(h('td', { class: 'npa-prog-col' }, progressBar(NpaTracker.pupilProgress(p, oneUnit ? tasks : strandTasks))));
@@ -350,7 +674,7 @@
       h('table', { class: 'npa-table' }, h('thead', null, head1, head2), body, h('tfoot', null, foot))));
     frag.appendChild(h('p', { class: 'npa-legend' },
       h('span', { class: 'npa-mark npa-mark--done', 'aria-hidden': 'true', text: '\u2713' }), ' Complete ',
-      h('span', { class: 'npa-mark npa-mark--started', 'aria-hidden': 'true', text: '\u2022\u2022\u2022' }), ' In progress ',
+      h('span', { class: 'npa-mark npa-mark--started', 'aria-hidden': 'true' }), ' In progress ',
       h('span', { class: 'npa-mark npa-mark--none has-note', 'aria-hidden': 'true' }), ' Has a note \u00b7 Tap a pupil\u2019s name for their strengths and what\u2019s left to do.'));
     return frag;
   }
@@ -541,26 +865,58 @@
     ta.focus();
   }
 
-  function classMenu() {
+  // Dropdown under the Class button: setup and housekeeping actions that are not needed every lesson.
+  function classMenu(e) {
+    var btn = e && e.currentTarget || $('npa-class-menu');
     var cls = currentClass();
     if (!cls) return;
-    var d = dialog(cls.name, h('div', { class: 'npa-menu' },
-      h('button', { type: 'button', class: 'npa-btn', text: 'Rename class', onclick: function() {
-        d.close();
+    var open = document.querySelector('.npa-menu-pop');
+    if (open) { open.remove(); return; }
+    function item(label, fn, danger) {
+      return h('button', { type: 'button', role: 'menuitem', class: 'npa-menu-item' + (danger ? ' is-danger' : ''), text: label,
+        onclick: function() { close(); fn(); } });
+    }
+    var pop = h('div', { class: 'npa-menu-pop', role: 'menu', 'aria-label': 'Class' },
+      item('Add pupils', addPupils),
+      item('Units and tasks', editCourse),
+      item('Unit due dates', editDueDates),
+      h('hr'),
+      item('Rename class', function() {
         if (blocked()) return;
         askText('Rename class', 'Class name', cls.name, 'Rename', function(v) { cls.name = v; save(); render(); });
-      } }),
-      h('button', { type: 'button', class: 'npa-btn', text: 'New class', onclick: function() { d.close(); newClass(); } }),
-      h('button', { type: 'button', class: 'npa-btn npa-btn--danger', text: 'Delete class', onclick: function() {
-        d.close();
+      }),
+      item('New class', newClass),
+      h('hr'),
+      item('Delete class', function() {
         if (blocked()) return;
-        if (!confirm('Delete ' + cls.name + ' and all ' + cls.pupils.length + ' pupils’ tracking? This can’t be undone.')) return;
+        if (!confirm('Delete ' + cls.name + ' and all ' + cls.pupils.length + ' pupils\u2019 tracking? This can\u2019t be undone.')) return;
         S.classes = S.classes.filter(function(c) { return c.id !== cls.id; });
         save();
         render();
         toast(cls.name + ' deleted');
-      } })));
-    openDialog(d);
+      }, true));
+    function close() {
+      pop.remove();
+      btn.setAttribute('aria-expanded', 'false');
+      document.removeEventListener('pointerdown', outside, true);
+      document.removeEventListener('keydown', onKey, true);
+    }
+    function outside(ev) { if (!pop.contains(ev.target) && ev.target !== btn) close(); }
+    function onKey(ev) {
+      var items = Array.prototype.slice.call(pop.querySelectorAll('.npa-menu-item'));
+      var at = items.indexOf(document.activeElement);
+      if (ev.key === 'Escape') { ev.preventDefault(); close(); btn.focus(); }
+      else if (ev.key === 'ArrowDown') { ev.preventDefault(); items[(at + 1) % items.length].focus(); }
+      else if (ev.key === 'ArrowUp') { ev.preventDefault(); items[(at - 1 + items.length) % items.length].focus(); }
+    }
+    document.body.appendChild(pop);
+    var r = btn.getBoundingClientRect();
+    pop.style.top = (r.bottom + window.scrollY + 6) + 'px';
+    pop.style.left = Math.max(8, Math.min(r.right - pop.offsetWidth, window.innerWidth - pop.offsetWidth - 8)) + 'px';
+    btn.setAttribute('aria-expanded', 'true');
+    document.addEventListener('pointerdown', outside, true);
+    document.addEventListener('keydown', onKey, true);
+    pop.querySelector('.npa-menu-item').focus();
   }
 
   // ── units and tasks ───────────────────────────────────────
@@ -583,7 +939,7 @@
       body.textContent = '';
       var view = currentView();
       S.courses.forEach(function(course) {
-        if (view !== 'overview' && course.id !== view) return;
+        if (view !== 'overview' && view !== 'dashboard' && course.id !== view) return;
         body.appendChild(h('h3', { class: 'npa-section-title', text: strandName(course) }));
         var unitsWrap = h('div');
         body.appendChild(unitsWrap);
@@ -620,7 +976,7 @@
       });
     }
     paint();
-    openDialog(dialog('Units & tasks', [
+    openDialog(dialog('Units and tasks', [
       h('p', { class: 'npa-dialog-sub', text: 'Shared by all your NPA classes. Changes save as you go.' }), body
     ], [h('button', { value: 'close', class: 'npa-btn npa-btn--primary', text: 'Done' })]));
   }
@@ -733,7 +1089,7 @@
             var c = (counts[k] || {})[sec.courseId];
             return h('td', { text: c ? c.done + ' complete' + (c.started ? ', ' + c.started + ' in progress' : '') : 'Not listed' });
           }),
-          h('td', { class: 'npa-preview-comment', text: [cm.strengths, cm.development].filter(Boolean).join(' \u00b7 ') || '\u2014' }));
+          h('td', { class: 'npa-preview-comment', text: [cm.strengths, cm.development].filter(Boolean).join(' \u00b7 ') || 'None' }));
       })));
     var warnings = [];
     parsed.sections.forEach(function(sec) {
@@ -778,11 +1134,8 @@
   document.addEventListener('DOMContentLoaded', function() {
     $('npa-class').addEventListener('change', function(e) { prefs.classId = e.target.value; writePrefs(); render(); });
     $('npa-import').addEventListener('click', pickFile);
-    $('npa-course').addEventListener('click', editCourse);
-    $('npa-add-pupil').addEventListener('click', addPupils);
     $('npa-class-menu').addEventListener('click', classMenu);
     $('npa-file').addEventListener('change', onFile);
-    $('npa-privacy-slot').appendChild(privacyNote());
     render();
     start();
   });
