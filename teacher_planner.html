@@ -33,6 +33,7 @@
 <script src="academic-calendar-defaults.js"></script>
 <script src="curriculum-units.js"></script>
 <script src="drama-curriculum-manifest.js"></script>
+<script src="drama-curriculum-calendar.js"></script>
 <script src="n5-ci-curriculum-manifest.js"></script>
 <script src="ah-drama-curriculum-manifest.js"></script>
 <script src="lesson-slides-catalog.js"></script>
@@ -968,7 +969,7 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
   .pulse-right{text-align:left}
 }
 </style>
-<link rel="stylesheet" href="teacher-planner-redesign.css?v=polish-4">
+<link rel="stylesheet" href="teacher-planner-redesign.css?v=polish-5">
 <link rel="stylesheet" href="teacher-planner-editorial.css?v=polish-6">
 <link rel="stylesheet" href="teacher-planner-editorial-views.css?v=polish-24">
 <!-- Trial "teacher's folder" skin. ?skin=classic turns it off in this browser, ?skin=binder turns it back on. -->
@@ -5378,8 +5379,22 @@ function buildWeekDashboardModel() {
     attentionItems: needsPriorities.slice(0, 6),
     upcomingDates: upcomingDates,
     note: note,
+    curriculum: buildWeekCurriculumModel(start, slots),
     unfinishedOnly: !!weekUnfinishedOnly
   };
+}
+
+/** BGE Drama curriculum position for this week, limited to the S1–S3 Drama classes on the timetable. */
+function buildWeekCurriculumModel(weekStart, slots) {
+  var Cal = window.DramaCurriculumCalendar;
+  if (!Cal) return null;
+  var years = {};
+  (slots || []).forEach(function(s) {
+    var y = Cal.yearForClass(s.className, s.subject);
+    if (y) years[y] = true;
+  });
+  var taught = Cal.YEARS.filter(function(y) { return years[y]; });
+  return Cal.getWeek(weekStart, { years: taught });
 }
 
 function weekRelativeDayText(dateStr) {
@@ -5504,6 +5519,66 @@ function createWeekMobileSheetMarkup(model, dayIndex) {
         '<span>' + model.planned + ' of ' + model.teaching + ' planned · ' + model.planPct + '%</span>' +
         '<div class="week-footer-progress-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + model.planPct + '" aria-label="Lessons planned this week"><span style="width:' + model.planPct + '%"></span></div>' +
       '</footer>' +
+    '</section>'
+  );
+}
+
+function weekCurriculumDateLabel(iso) {
+  var d = parseIsoDateLocal(iso);
+  return d ? d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) : '';
+}
+
+function createWeekCurriculumMarkup(cur) {
+  if (!cur || !cur.rows || !cur.rows.length) return '';
+  var head;
+  if (cur.schoolWeek) {
+    head = '<strong>Week ' + cur.schoolWeek + '</strong><span>of ' + cur.totalWeeks + '</span>';
+  } else {
+    head = '<strong>' + escHtml(cur.holiday || 'Holiday') + '</strong>' +
+      (cur.resumes ? '<span>Back ' + escHtml(weekCurriculumDateLabel(cur.resumes.monday)) + ' · Wk ' + cur.resumes.schoolWeek + '</span>' : '');
+  }
+  var rows = cur.rows.map(function(r) {
+    var b = r.block;
+    var nextHtml = r.next
+      ? '<span class="week-cur-next">Next: <b>' + escHtml(r.next.title) + '</b> from Wk ' + r.next.fromWeek + '</span>'
+      : '';
+    if (!b) {
+      return (
+        '<li class="week-cur-row is-gap">' +
+          '<span class="week-cur-year">' + escHtml(r.year) + '</span>' +
+          '<span class="week-cur-copy"><span class="week-cur-unit">No unit mapped this week</span>' + nextHtml + '</span>' +
+        '</li>'
+      );
+    }
+    var meta = ['Wk ' + r.weekInUnit + ' of ' + r.unitLength];
+    if (b.tpLabel) meta.push(b.tpLabel);
+    if (b.note) meta.push(b.note);
+    var flag = '';
+    if (r.isFinalWeek && b.assessed) {
+      flag = '<span class="week-cur-flag" title="' + escAttr(b.assessed) + '">Assessment week</span>';
+    } else if (r.isFirstWeek && cur.schoolWeek) {
+      flag = '<span class="week-cur-flag is-start">New unit</span>';
+    }
+    var title = escHtml(b.title);
+    if (b.unitId) {
+      title = '<a href="drama-homepage.html?unit=' + encodeURIComponent(b.unitId) + '" target="_blank" rel="noopener" title="Open unit and lesson slides">' + title + '</a>';
+    }
+    return (
+      '<li class="week-cur-row" style="--cur-accent:' + escAttr(b.colour) + '">' +
+        '<span class="week-cur-year">' + escHtml(r.year) + '</span>' +
+        '<span class="week-cur-copy">' +
+          '<span class="week-cur-unit">' + title + flag + '</span>' +
+          '<span class="week-cur-meta">' + escHtml(meta.join(' · ')) + '</span>' +
+          (r.isFinalWeek ? nextHtml : '') +
+        '</span>' +
+        '<span class="week-cur-progress" aria-hidden="true"><span style="width:' + Math.round((r.weekInUnit / r.unitLength) * 100) + '%"></span></span>' +
+      '</li>'
+    );
+  }).join('');
+  return (
+    '<section class="week-curriculum' + (cur.schoolWeek ? '' : ' is-holiday') + '" aria-label="Drama curriculum this week">' +
+      '<div class="week-cur-head"><span class="week-cur-kicker">Drama curriculum</span>' + head + '</div>' +
+      '<ul class="week-cur-rows">' + rows + '</ul>' +
     '</section>'
   );
 }
@@ -5677,6 +5752,7 @@ function createWeekDashboardMarkup(model) {
         '</div>' +
       '</div>' +
     '</section>' +
+    createWeekCurriculumMarkup(model.curriculum) +
     createWeekMobileSheetMarkup(model, selectedDayIndex) +
     '<div class="week-dashboard-grid">' +
       '<main class="week-main-column">' +
