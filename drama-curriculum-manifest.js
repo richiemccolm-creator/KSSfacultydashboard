@@ -193,7 +193,14 @@ window.DRAMA_CURRICULUM = {
         'Changing approach when working in a group and responding to unexpected offers (Second Level)',
         'Building on others\' ideas and reaching agreements during group improvisation (Second Level)'
       ],
-      lessons: []
+      lessons: [
+        {
+          id: '1',
+          title: 'Think on Your Feet',
+          slides: 'Unit04_Lesson01_Think_on_Your_Feet.html',
+          status: 'ready'
+        }
+      ]
     },
     '05': {
       id: '05',
@@ -279,6 +286,26 @@ window.DRAMA_CURRICULUM = {
           id: '3',
           title: 'The Director’s Staging Challenge',
           slides: 'S2_Unit02_Lesson03_Directors_Staging_Challenge.html',
+          status: 'ready'
+        }
+      ]
+    },
+    n5d01: {
+      id: 'n5d01',
+      unitLabel: 'N5',
+      year: 'Senior',
+      course: 'National 5 Drama',
+      title: 'Final Practical Exam: The Production Lab',
+      weeks: 'S4',
+      month: '2026–27',
+      colour: '#DC2626',
+      gradEnd: '#F87171',
+      desc: 'Introduction to the N5 Drama performance exam: what is assessed, how it runs and how preparation will work.',
+      lessons: [
+        {
+          id: '1',
+          title: 'Training Camp 01: Intro to the Practical Exam',
+          slides: 'N5_Drama_Practical_Exam_Lesson01_Training_Camp_01.html',
           status: 'ready'
         }
       ]
