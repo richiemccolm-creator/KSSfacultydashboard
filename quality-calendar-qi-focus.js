@@ -27,7 +27,7 @@
     { month: 'Oct', categories: [
       cat('qi13', ['PRD Process Complete', 'Termly DIP Review']),
       cat('qi23', ['S4 Class Observations', 'S4 Young People Feedback on Learning', 'S2 Learner Conversations', 'S4 Learner Conversation']),
-      cat('qi32', ['Analysis of S2 Tracking Data & Interventions', 'Analysis of Tracking Data & Interventions', 'Quality Assure S4 Full reports'])
+      cat('qi32', ['Analysis of S2 Tracking Data & Interventions', 'Analysis of S4 Tracking Data & Interventions', 'Quality Assure S4 Full reports'])
     ] },
     { month: 'Nov', categories: [
       cat('qi13', ['SLT - PT DH Link Meetings']),
