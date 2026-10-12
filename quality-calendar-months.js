@@ -1,918 +1,141 @@
 'use strict';
-/** Shared monthly activity grid for Quality Calendar + Faculty Hub home (read-only). */
-/** Source: Quality_Calendar_Full.xlsx (Annual Calendar sheet). */
-window.QualityCalendarMonthsData = [
-  {
-    "month": "Aug",
-    "categories": [
-      {
-        "name": "QI 2.3 Learning, teaching & assessment",
-        "cat": "qi23",
-        "activities": [
-          {
-            "key": "environment",
-            "name": "Learning Environment",
-            "gc": [
-              "Wellbeing"
-            ],
-            "missions": [
-              "QI 2.3"
-            ],
-            "focus": [
-              "*"
-            ]
-          }
-        ]
-      },
-      {
-        "name": "QI 3.2 Raising attainment & achievement",
-        "cat": "qi32",
-        "activities": [
-          {
-            "key": "tracking",
-            "name": "School attainment data (incl. tracking info)",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 3.2"
-            ],
-            "focus": [
-              "S4 Initial Grades"
-            ]
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "month": "Sept",
-    "categories": [
-      {
-        "name": "QI 1.3 Leadership of change",
-        "cat": "qi13",
-        "activities": [
-          {
-            "key": "sltMeetings",
-            "name": "Staff Link Meetings",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 1.3"
-            ],
-            "focus": [
-              "*"
-            ]
-          }
-        ]
-      },
-      {
-        "name": "QI 3.2 Raising attainment & achievement",
-        "cat": "qi32",
-        "activities": [
-          {
-            "key": "tracking",
-            "name": "School attainment data (incl. tracking info)",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 3.2"
-            ],
-            "focus": [
-              "S5-6 Initial Grades",
-              "S3 Interim Reports"
-            ]
-          },
-          {
-            "key": "insightData",
-            "name": "Insight Data",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 3.2"
-            ],
-            "focus": [
-              "*"
-            ]
-          },
-          {
-            "key": "attainmentMeetings",
-            "name": "HT / PT-FH Attainment Meetings",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 3.2"
-            ],
-            "focus": [
-              "S4",
-              "S5OA"
-            ]
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "month": "Oct",
-    "categories": [
-      {
-        "name": "QI 1.3 Leadership of change",
-        "cat": "qi13",
-        "activities": [
-          {
-            "key": "prd",
-            "name": "PRD Process Complete",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 1.3"
-            ],
-            "focus": [
-              "*"
-            ]
-          },
-          {
-            "key": "sipReview",
-            "name": "SLT / DIP Review",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 1.3"
-            ],
-            "focus": [
-              "*"
-            ]
-          }
-        ]
-      },
-      {
-        "name": "QI 3.1 Ensuring wellbeing, equality & inclusion",
-        "cat": "qi31",
-        "activities": [
-          {
-            "key": "attendance",
-            "name": "Attendance & Exclusion",
-            "gc": [
-              "Wellbeing"
-            ],
-            "missions": [
-              "QI 3.1"
-            ],
-            "focus": [
-              "*"
-            ]
-          }
-        ]
-      },
-      {
-        "name": "QI 3.2 Raising attainment & achievement",
-        "cat": "qi32",
-        "activities": [
-          {
-            "key": "tracking",
-            "name": "School attainment data (incl. tracking info)",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 3.2"
-            ],
-            "focus": [
-              "S4 Full Reports",
-              "S2 Interim Reports"
-            ]
-          },
-          {
-            "key": "termlyQA",
-            "name": "Termly Quality Assurance",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 3.2"
-            ],
-            "focus": [
-              "S4"
-            ]
-          },
-          {
-            "key": "attainmentMeetings",
-            "name": "HT / PT-FH Attainment Meetings",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 3.2"
-            ],
-            "focus": [
-              "S4"
-            ]
-          },
-          {
-            "key": "leavers",
-            "name": "Leaver Destinations",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 3.2"
-            ],
-            "focus": [
-              "*"
-            ]
-          },
-          {
-            "key": "parentFeedback",
-            "name": "Parent Carer Feedback",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [],
-            "focus": [
-              "S1"
-            ]
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "month": "Nov",
-    "categories": [
-      {
-        "name": "QI 1.3 Leadership of change",
-        "cat": "qi13",
-        "activities": [
-          {
-            "key": "sipReview",
-            "name": "SLT / DIP Review",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 1.3"
-            ],
-            "focus": [
-              "*"
-            ]
-          },
-          {
-            "key": "sltMeetings",
-            "name": "Staff Link Meetings",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 1.3"
-            ],
-            "focus": [
-              "*"
-            ]
-          }
-        ]
-      },
-      {
-        "name": "QI 2.3 Learning, teaching & assessment",
-        "cat": "qi23",
-        "activities": [
-          {
-            "key": "observations",
-            "name": "Class Observations & Pupil Voice",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 2.3"
-            ],
-            "focus": [
-              "S1-3"
-            ]
-          }
-        ]
-      },
-      {
-        "name": "QI 3.2 Raising attainment & achievement",
-        "cat": "qi32",
-        "activities": [
-          {
-            "key": "tracking",
-            "name": "School attainment data (incl. tracking info)",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 3.2"
-            ],
-            "focus": [
-              "S5-6 Full Reports"
-            ]
-          },
-          {
-            "key": "termlyQA",
-            "name": "Termly Quality Assurance",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 3.2"
-            ],
-            "focus": [
-              "S5-6"
-            ]
-          },
-          {
-            "key": "attainmentMeetings",
-            "name": "HT / PT-FH Attainment Meetings",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 3.2"
-            ],
-            "focus": [
-              "S5-6"
-            ]
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "month": "Dec",
-    "categories": [
-      {
-        "name": "QI 1.3 Leadership of change",
-        "cat": "qi13",
-        "activities": [
-          {
-            "key": "sipReview",
-            "name": "SLT / DIP Review",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 1.3"
-            ],
-            "focus": [
-              "*"
-            ]
-          }
-        ]
-      },
-      {
-        "name": "QI 2.3 Learning, teaching & assessment",
-        "cat": "qi23",
-        "activities": [
-          {
-            "key": "environment",
-            "name": "Learning Environment",
-            "gc": [
-              "Wellbeing"
-            ],
-            "missions": [
-              "QI 2.3"
-            ],
-            "focus": [
-              "*"
-            ]
-          }
-        ]
-      },
-      {
-        "name": "QI 3.2 Raising attainment & achievement",
-        "cat": "qi32",
-        "activities": [
-          {
-            "key": "tracking",
-            "name": "School attainment data (incl. tracking info)",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 3.2"
-            ],
-            "focus": [
-              "S3 Full Reports"
-            ]
-          },
-          {
-            "key": "termlyQA",
-            "name": "Termly Quality Assurance",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 3.2"
-            ],
-            "focus": [
-              "S3"
-            ]
-          },
-          {
-            "key": "attainmentMeetings",
-            "name": "HT / PT-FH Attainment Meetings",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 3.2"
-            ],
-            "focus": [
-              "S4-6"
-            ]
-          },
-          {
-            "key": "leavers",
-            "name": "Leaver Destinations",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 3.2"
-            ],
-            "focus": [
-              "*"
-            ]
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "month": "Jan",
-    "categories": [
-      {
-        "name": "QI 1.3 Leadership of change",
-        "cat": "qi13",
-        "activities": [
-          {
-            "key": "sltMeetings",
-            "name": "Staff Link Meetings",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 1.3"
-            ],
-            "focus": [
-              "*"
-            ]
-          }
-        ]
-      },
-      {
-        "name": "QI 2.3 Learning, teaching & assessment",
-        "cat": "qi23",
-        "activities": [
-          {
-            "key": "observations",
-            "name": "Class Observations & Pupil Voice",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 2.3"
-            ],
-            "focus": [
-              "S1-2"
-            ]
-          }
-        ]
-      },
-      {
-        "name": "QI 3.2 Raising attainment & achievement",
-        "cat": "qi32",
-        "activities": [
-          {
-            "key": "tracking",
-            "name": "School attainment data (incl. tracking info)",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 3.2"
-            ],
-            "focus": [
-              "S4-6 Interim Reports"
-            ]
-          },
-          {
-            "key": "termlyQA",
-            "name": "Termly Quality Assurance",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 3.2"
-            ],
-            "focus": [
-              "S2"
-            ]
-          },
-          {
-            "key": "attainmentMeetings",
-            "name": "HT / PT-FH Attainment Meetings",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 3.2"
-            ],
-            "focus": [
-              "S1-2"
-            ]
-          },
-          {
-            "key": "parentFeedback",
-            "name": "Parent Carer Feedback",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [],
-            "focus": [
-              "S4-6"
-            ]
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "month": "Feb",
-    "categories": [
-      {
-        "name": "QI 3.1 Ensuring wellbeing, equality & inclusion",
-        "cat": "qi31",
-        "activities": [
-          {
-            "key": "attendance",
-            "name": "Attendance & Exclusion",
-            "gc": [
-              "Wellbeing"
-            ],
-            "missions": [
-              "QI 3.1"
-            ],
-            "focus": [
-              "*"
-            ]
-          }
-        ]
-      },
-      {
-        "name": "QI 3.2 Raising attainment & achievement",
-        "cat": "qi32",
-        "activities": [
-          {
-            "key": "tracking",
-            "name": "School attainment data (incl. tracking info)",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 3.2"
-            ],
-            "focus": [
-              "S2 Full Reports"
-            ]
-          },
-          {
-            "key": "insightData",
-            "name": "Insight Data",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 3.2"
-            ],
-            "focus": [
-              "*"
-            ]
-          },
-          {
-            "key": "attainmentMeetings",
-            "name": "HT / PT-FH Attainment Meetings",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 3.2"
-            ],
-            "focus": [
-              "S2"
-            ]
-          },
-          {
-            "key": "leavers",
-            "name": "Leaver Destinations",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 3.2"
-            ],
-            "focus": [
-              "*"
-            ]
-          },
-          {
-            "key": "parentFeedback",
-            "name": "Parent Carer Feedback",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [],
-            "focus": [
-              "S2"
-            ]
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "month": "Mar",
-    "categories": [
-      {
-        "name": "QI 1.3 Leadership of change",
-        "cat": "qi13",
-        "activities": [
-          {
-            "key": "sipReview",
-            "name": "SLT / DIP Review",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 1.3"
-            ],
-            "focus": [
-              "*"
-            ]
-          }
-        ]
-      },
-      {
-        "name": "QI 3.2 Raising attainment & achievement",
-        "cat": "qi32",
-        "activities": [
-          {
-            "key": "tracking",
-            "name": "School attainment data (incl. tracking info)",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 3.2"
-            ],
-            "focus": [
-              "S1 Interim Reports"
-            ]
-          },
-          {
-            "key": "leavers",
-            "name": "Leaver Destinations",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 3.2"
-            ],
-            "focus": [
-              "*"
-            ]
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "month": "Apr",
-    "categories": [
-      {
-        "name": "QI 3.1 Ensuring wellbeing, equality & inclusion",
-        "cat": "qi31",
-        "activities": [
-          {
-            "key": "attendance",
-            "name": "Attendance & Exclusion",
-            "gc": [
-              "Wellbeing"
-            ],
-            "missions": [
-              "QI 3.1"
-            ],
-            "focus": [
-              "*"
-            ]
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "month": "May",
-    "categories": [
-      {
-        "name": "QI 1.3 Leadership of change",
-        "cat": "qi13",
-        "activities": [
-          {
-            "key": "sipReview",
-            "name": "SLT / DIP Review",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 1.3"
-            ],
-            "focus": [
-              "*"
-            ]
-          },
-          {
-            "key": "sltMeetings",
-            "name": "Staff Link Meetings",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 1.3"
-            ],
-            "focus": [
-              "*"
-            ]
-          }
-        ]
-      },
-      {
-        "name": "QI 2.3 Learning, teaching & assessment",
-        "cat": "qi23",
-        "activities": [
-          {
-            "key": "observations",
-            "name": "Class Observations & Pupil Voice",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 2.3"
-            ],
-            "focus": [
-              "S3"
-            ]
-          },
-          {
-            "key": "environment",
-            "name": "Learning Environment",
-            "gc": [
-              "Wellbeing"
-            ],
-            "missions": [
-              "QI 2.3"
-            ],
-            "focus": [
-              "*"
-            ]
-          }
-        ]
-      },
-      {
-        "name": "QI 3.2 Raising attainment & achievement",
-        "cat": "qi32",
-        "activities": [
-          {
-            "key": "parentFeedback",
-            "name": "Parent Carer Feedback",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [],
-            "focus": [
-              "S3"
-            ]
-          },
-          {
-            "key": "hmieQuestionnaire",
-            "name": "Young People HMIe Questionnaire",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [],
-            "focus": [
-              "*"
-            ]
-          }
-        ]
-      }
-    ]
-  },
-  {
-    "month": "June",
-    "categories": [
-      {
-        "name": "QI 1.3 Leadership of change",
-        "cat": "qi13",
-        "activities": [
-          {
-            "key": "prd",
-            "name": "PRD Process Review",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 1.3"
-            ],
-            "focus": [
-              "*"
-            ]
-          }
-        ]
-      },
-      {
-        "name": "QI 3.1 Ensuring wellbeing, equality & inclusion",
-        "cat": "qi31",
-        "activities": [
-          {
-            "key": "attendance",
-            "name": "Attendance & Exclusion",
-            "gc": [
-              "Wellbeing"
-            ],
-            "missions": [
-              "QI 3.1"
-            ],
-            "focus": [
-              "*"
-            ]
-          }
-        ]
-      },
-      {
-        "name": "QI 3.2 Raising attainment & achievement",
-        "cat": "qi32",
-        "activities": [
-          {
-            "key": "tracking",
-            "name": "School attainment data (incl. tracking info)",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 3.2"
-            ],
-            "focus": [
-              "S1"
-            ]
-          },
-          {
-            "key": "termlyQA",
-            "name": "Termly Quality Assurance",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 3.2"
-            ],
-            "focus": [
-              "S1"
-            ]
-          },
-          {
-            "key": "attainmentMeetings",
-            "name": "HT / PT-FH Attainment Meetings",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 3.2"
-            ],
-            "focus": [
-              "S1-3"
-            ]
-          },
-          {
-            "key": "leavers",
-            "name": "Leaver Destinations",
-            "gc": [
-              "Progress"
-            ],
-            "missions": [
-              "QI 3.2"
-            ],
-            "focus": [
-              "*"
-            ]
-          }
-        ]
-      }
-    ]
+/**
+ * Monthly activity grid for the Quality Calendar planner.
+ *
+ * Built from window.QualityCalendarQiFocus (quality-calendar-qi-focus.js — the QI Calendar
+ * sheet of Quality_Calendar_Full.xlsx), which is also what the Faculty Hub home and My Week
+ * show, so the planner and the home page can never disagree. Load quality-calendar-qi-focus.js
+ * first.
+ *
+ * Each QI Calendar line (e.g. "S4 Class Observations") is mapped to a planner activity key and
+ * a year-group focus. Activities that only exist on the Annual Calendar sheet (leavers,
+ * attendance, parent/carer feedback, HMIE questionnaire) are added from ANNUAL_ONLY below.
+ */
+(function () {
+  var QI_FOCUS = window.QualityCalendarQiFocus || [];
+  var ORDER = window.QualityCalendarQiFocusOrder ||
+    ['Aug', 'Sept', 'Oct', 'Nov', 'Dec', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'June'];
+
+  var CAT_NAMES = {
+    qi13: 'QI 1.3 Leadership of change',
+    qi23: 'QI 2.3 Learning, teaching & assessment',
+    qi31: 'QI 3.1 Wellbeing, equality & inclusion',
+    qi32: 'QI 3.2 Raising attainment & achievement'
+  };
+  var CAT_ORDER = ['qi13', 'qi23', 'qi31', 'qi32'];
+  var MISSION = { qi13: 'QI 1.3', qi23: 'QI 2.3', qi31: 'QI 3.1', qi32: 'QI 3.2' };
+
+  var ACT_NAMES = {
+    sltMeetings: 'SLT – PT/DH Link Meetings',
+    sipReview: 'Termly DIP Review',
+    prd: 'PRD',
+    learnerConversations: 'Learner Conversations',
+    observations: 'Class Observations',
+    pupilFeedback: 'Young People Feedback on Learning',
+    environment: 'Learning Environment Checklist',
+    tracking: 'Tracking Data Analysis & Interventions',
+    insightData: 'Insight Data Analysis',
+    termlyQA: 'Reports Quality Assurance',
+    attainmentMeetings: 'Attainment Meetings',
+    leavers: 'Leaver Destinations',
+    attendance: 'Attendance & Exclusion',
+    parentFeedback: 'Parent Carer Feedback',
+    hmieQuestionnaire: 'Young People HMIE Questionnaire'
+  };
+  var WELLBEING = { environment: true, attendance: true };
+
+  /** Activities on the Annual Calendar sheet that the QI Calendar sheet does not cover. */
+  var ANNUAL_ONLY = [
+    { key: 'leavers', cat: 'qi32', missions: ['QI 3.2'], months: { Oct: ['*'], Dec: ['*'], Feb: ['*'], Mar: ['*'], June: ['*'] } },
+    { key: 'attendance', cat: 'qi31', missions: ['QI 3.1'], months: { Oct: ['*'], Feb: ['*'], Apr: ['*'], June: ['*'] } },
+    { key: 'parentFeedback', cat: 'qi32', missions: [], months: { Oct: ['S1'], Feb: ['S4-6'], Mar: ['S2'], May: ['S3'] } },
+    { key: 'hmieQuestionnaire', cat: 'qi32', missions: [], months: { May: ['*'] } }
+  ];
+
+  function yearGroup(text) {
+    var m = /\bS\d(?:-\d)?\b/.exec(text);
+    return m ? m[0] : '';
   }
-];
-window.QualityCalendarMonthsOrder = ["Aug", "Sept", "Oct", "Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "June"];
+
+  /** Map one QI Calendar line to { key, focus }. */
+  function classify(item, qi) {
+    var yg = yearGroup(item);
+    var all = '*';
+    if (/link meetings/i.test(item)) return { key: 'sltMeetings', focus: all };
+    if (/DIP Review/i.test(item)) return { key: 'sipReview', focus: all };
+    if (/^PRD/i.test(item)) return { key: 'prd', focus: /review/i.test(item) ? 'Process review' : 'Process complete' };
+    if (/learner conversation/i.test(item)) return { key: 'learnerConversations', focus: yg || all };
+    if (/class observation/i.test(item)) return { key: 'observations', focus: yg || all };
+    if (/feedback on learning/i.test(item)) return { key: 'pupilFeedback', focus: yg || all };
+    if (/environment/i.test(item)) return { key: 'environment', focus: all };
+    if (/insight/i.test(item)) return { key: 'insightData', focus: all };
+    if (/quality assur/i.test(item)) return { key: 'termlyQA', focus: yg || all };
+    if (/attainment meetings/i.test(item)) return { key: 'attainmentMeetings', focus: yg || all };
+    var label;
+    if (/SQA/i.test(item)) label = 'SQA Results';
+    else if (/prelim/i.test(item)) label = 'Prelims';
+    else if (/initial grades/i.test(item)) label = 'Initial Grades';
+    else if (/review of .*reports/i.test(item)) label = 'Reports Review';
+    else label = 'Tracking';
+    if (qi !== 'qi32' && typeof console !== 'undefined') {
+      console.warn('[Quality calendar] Unrecognised QI Calendar item, filed under tracking:', item);
+    }
+    return { key: 'tracking', focus: yg ? yg + ' ' + label : label };
+  }
+
+  function emptyMonth() {
+    var cats = {};
+    CAT_ORDER.forEach(function (c) { cats[c] = []; });
+    return cats;
+  }
+
+  function findOrAdd(list, key, cat, missions) {
+    for (var i = 0; i < list.length; i++) if (list[i].key === key) return list[i];
+    var act = {
+      key: key,
+      name: ACT_NAMES[key] || key,
+      gc: [WELLBEING[key] ? 'Wellbeing' : 'Progress'],
+      missions: missions || [MISSION[cat]],
+      focus: [],
+      sources: []
+    };
+    list.push(act);
+    return act;
+  }
+
+  var byMonth = {};
+  ORDER.forEach(function (m) { byMonth[m] = emptyMonth(); });
+
+  QI_FOCUS.forEach(function (row) {
+    var cats = byMonth[row.month];
+    if (!cats) return;
+    row.categories.forEach(function (c) {
+      c.items.forEach(function (item) {
+        var hit = classify(item, c.qi);
+        var act = findOrAdd(cats[c.qi], hit.key, c.qi);
+        if (act.focus.indexOf(hit.focus) === -1) act.focus.push(hit.focus);
+        act.sources.push(item);
+      });
+    });
+  });
+
+  ANNUAL_ONLY.forEach(function (a) {
+    Object.keys(a.months).forEach(function (month) {
+      var cats = byMonth[month];
+      if (!cats) return;
+      var act = findOrAdd(cats[a.cat], a.key, a.cat, a.missions);
+      a.months[month].forEach(function (f) { if (act.focus.indexOf(f) === -1) act.focus.push(f); });
+    });
+  });
+
+  window.QualityCalendarMonthsData = ORDER.map(function (month) {
+    var cats = byMonth[month];
+    return {
+      month: month,
+      categories: CAT_ORDER
+        .filter(function (c) { return cats[c].length; })
+        .map(function (c) { return { name: CAT_NAMES[c], cat: c, activities: cats[c] }; })
+    };
+  });
+  window.QualityCalendarMonthsOrder = ORDER.slice();
+})();

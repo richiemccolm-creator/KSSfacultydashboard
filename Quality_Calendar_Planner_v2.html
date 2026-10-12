@@ -490,7 +490,7 @@ body { font-family: var(--font-body); background: var(--bg); color: var(--text);
 
 .gantt-row { border-bottom: 1px solid var(--border); transition: background 0.1s; }
 .gantt-row:hover { background: #f8f9fc; }
-.gantt-row.gantt-hidden { display: none; }
+.gantt-row.gantt-hidden, .gantt-cat-row.gantt-hidden { display: none; }
 
 .gantt-row td { border-right: 1px solid var(--border); vertical-align: middle; }
 .gantt-row td:last-child { border-right: none; }
@@ -728,21 +728,22 @@ body { font-family: var(--font-body); background: var(--bg); color: var(--text);
     <span class="control-label" style="margin-left:4px">Activity</span>
     <select class="filter-select" id="activity-filter">
       <option value="all">All activities</option>
-      <option value="tracking">Attainment / Tracking</option>
+      <option value="tracking">Tracking Data Analysis</option>
       <option value="insight">Insight Data</option>
-      <option value="reportQA">Termly Quality Assurance</option>
+      <option value="reportQA">Reports Quality Assurance</option>
       <option value="attainment">Attainment Meetings</option>
       <option value="learner">Learner Conversations</option>
       <option value="observations">Class Observations</option>
-      <option value="leadership">SLT / PT-FH Meetings</option>
+      <option value="pupilFeedback">Young People Feedback</option>
+      <option value="leadership">SLT – PT/DH Link Meetings</option>
       <option value="prd">PRD</option>
-      <option value="sip">SIP / DIP Review</option>
+      <option value="sip">DIP Review</option>
       <option value="leavers">Leaver Destinations</option>
       <option value="attendance">Attendance &amp; Exclusion</option>
       <option value="environment">Learning Environment</option>
       <option value="stakeholders">Stakeholder Feedback</option>
     </select>
-    <input type="text" class="search-input" id="search-input" placeholder="Search…">
+    <input type="search" class="search-input" id="search-input" placeholder="Search, e.g. observations S3…" aria-label="Search activities">
   </div>
   <span class="results-count" id="results-count"></span>
 </div>
@@ -802,6 +803,7 @@ body { font-family: var(--font-body); background: var(--bg); color: var(--text);
 
 <button class="scroll-top" id="scroll-top" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
 
+<script src="quality-calendar-qi-focus.js"></script>
 <script src="quality-calendar-months.js"></script>
 <script>
 // ═══════════════════════════════════════════════════════
@@ -937,6 +939,14 @@ const IMAGE_CONTENT = {
     },
     evidence: ["Learner conversation proformas", "Class teacher analysis of progress", "Agreed targets and monitoring plans"]
   },
+  pupilFeedback: {
+    activities: {
+      SLT: ["Carry out pupil focus groups on learning and teaching", "Share whole-school themes and actions with staff and young people (\"You said, we did\")"],
+      "PT / FH": ["Gather feedback from the focus year group on their learning experiences in the faculty", "Share themes with the department and agree next steps"],
+      "Class teacher": ["Pupil feedback on the quality of the learning experience at appropriate points eg end of unit / topic, following an assessment, at a reporting period etc", "Reflect on feedback and adjust planning"]
+    },
+    evidence: ["Pupil feedback / survey results", "Focus group notes", "You said, we did"]
+  },
   parentFeedback: {
     activities: {
       SLT: ["Gather parent / carer views at reporting periods and Parent / carer evenings as appropriate including Parent / Carer focus groups"],
@@ -978,6 +988,7 @@ const QI = {
   attainmentMeetings: "How well are our approaches to raising attainment improving outcomes for young people? (3.2) / How well is our focus on literacy and numeracy leading to raising attainment across the curriculum? (3.2)",
   environment: "How well does the learning environment support high quality learning experiences? (3.1)",
   sltMeetings: "How well do we provide opportunities for staff to be involved in and lead aspects of school improvement? (1.3)",
+  pupilFeedback: "How well do we involve all stakeholders in self-evaluation and planning for improvement? / How confident are we that all learners experience activities which are varied, differentiated, active, and provide effective support and challenge? (2.3)",
   learnerConversations: "How confident are we that all learners experience activities which are varied, differentiated, active, and provide effective support and challenge? (2.3)",
   parentFeedback: "How well do we involve all stakeholders in self-evaluation and planning for improvement?",
   partnersFeedback: "How well do we involve all stakeholders in self-evaluation and planning for improvement?",
@@ -993,7 +1004,26 @@ const FILTER_MAP = {
   leavers: "leavers", sltMeetings: "leadership",
   observations: "observations", attendance: "attendance",
   attainmentMeetings: "attainment", environment: "environment",
-  learnerConversations: "learner"
+  learnerConversations: "learner", pupilFeedback: "pupilFeedback"
+};
+
+/** Extra words people use for an activity (home page wording, old names, abbreviations). */
+const SEARCH_ALIASES = {
+  observations: "class observations lesson observations obs pupil voice",
+  pupilFeedback: "young people feedback on learning pupil voice student voice learner voice",
+  learnerConversations: "learner conversations pupil voice",
+  sipReview: "sip dip school improvement plan department improvement plan review",
+  sltMeetings: "staff link meetings slt pt dh fh",
+  termlyQA: "termly quality assurance reports qa futureports full reports",
+  tracking: "school attainment data tracking info initial grades interim reports",
+  insightData: "insight benchmarking",
+  environment: "learning environment checklist classroom",
+  attainmentMeetings: "ht pt fh attainment meetings",
+  prd: "professional review and development",
+  parentFeedback: "parent carer feedback stakeholders",
+  hmieQuestionnaire: "hmie hmi questionnaire stakeholders",
+  leavers: "leaver destinations positive destinations",
+  attendance: "attendance exclusion exclusions"
 };
 
 const MONTHS_DATA = window.QualityCalendarMonthsData;
@@ -1006,7 +1036,7 @@ let currentView = 'planner';
 let currentMonth = 'all';
 let currentCat = 'all';
 let currentActivity = 'all';
-let currentSearch = '';
+let currentSearch = [];   // normalised search words; every word must match
 let currentYear = '';
 let ganttRagFilter = 'all';
 
@@ -1059,7 +1089,6 @@ function switchView(view) {
   document.getElementById('gantt-view').style.display = view === 'gantt' ? 'block' : 'none';
   document.getElementById('tab-planner').classList.toggle('active', view === 'planner');
   document.getElementById('tab-gantt').classList.toggle('active', view === 'gantt');
-  document.getElementById('planner-filters').style.display = view === 'planner' ? 'flex' : 'none';
   if (view === 'gantt') buildGantt();
 }
 
@@ -1102,6 +1131,42 @@ function renderDetailContent(imageKey) {
   return { actHtml, evHtml };
 }
 
+// ═══════════════════════════════════════════════════════
+// SEARCH INDEX
+// ═══════════════════════════════════════════════════════
+/** card id → normalised searchable text; "month::key" → same, for the Gantt. */
+const SEARCH_INDEX = {};
+const SEARCH_BY_MONTH_KEY = {};
+
+function normaliseSearch(str) {
+  return String(str || '').toLowerCase().replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+/** "S1-3" → "s1 s2 s3" so a search for S2 finds a card focused on S1-3. */
+function expandYearGroups(focus) {
+  return focus.map(f => {
+    if (f === '*') return 'all year groups whole school';
+    return f.replace(/S(\d)-(\d)/gi, (m, a, b) => {
+      const out = [];
+      for (let n = +a; n <= +b; n++) out.push('S' + n);
+      return m + ' ' + out.join(' ');
+    });
+  }).join(' ');
+}
+
+function buildSearchText(act, month, cat) {
+  return ' ' + normaliseSearch([
+    act.name, act.gc.join(' '), act.missions.join(' '), expandYearGroups(act.focus),
+    (act.sources || []).join(' '), SEARCH_ALIASES[act.key] || '', QI[act.key] || '',
+    cat.name, month
+  ].join(' ')) + ' ';
+}
+
+/** Each search word must match the start of a word, in any order: "obs s3" finds S3 Class Observations. */
+function matchesSearch(text) {
+  return currentSearch.every(word => text.includes(' ' + word));
+}
+
 function buildCards() {
   const container = document.getElementById('cards-container');
   let html = '';
@@ -1131,9 +1196,12 @@ function buildCards() {
           : `<span class="focus-badge">${f}</span>`).join('');
 
         const notesSaved = '';
+        const searchText = buildSearchText(act, monthData.month, cat);
+        SEARCH_INDEX[id] = searchText;
+        SEARCH_BY_MONTH_KEY[monthData.month + '::' + act.key] = searchText;
 
         html += `
-<div class="activity-card" id="${id}" data-actkey="${act.key}" data-month="${monthData.month}" data-activity="${filterKey}" data-search="${act.name.toLowerCase()} ${act.gc.join(' ').toLowerCase()} ${act.missions.join(' ').toLowerCase()}">
+<div class="activity-card" id="${id}" data-actkey="${act.key}" data-month="${monthData.month}" data-activity="${filterKey}">
   <div class="activity-summary" onclick="toggleCard('${id}')">
     <div class="rag-col" onclick="event.stopPropagation(); cycleRag('${id}','${act.key}','${monthData.month}')">
       <div class="rag-dot" id="rag-dot-${id}" data-actkey="${act.key}" data-month="${monthData.month}" title="Click to set RAG status"></div>
@@ -1379,7 +1447,14 @@ function buildGantt() {
     const passMonthFilter = currentMonth === 'all'
       || getMonthFocus(row.key, currentMonth) !== null;
 
-    const hidden = (!passRagFilter || !passMonthFilter) ? 'gantt-hidden' : '';
+    // Category / activity / search filters (shared with the planner view)
+    const passCat = currentCat === 'all' || currentCat === row.cat;
+    const passAct = currentActivity === 'all' || currentActivity === (FILTER_MAP[row.key] || row.key);
+    const passSearch = !currentSearch.length || ALL_MONTHS.some(m =>
+      (currentMonth === 'all' || currentMonth === m) &&
+      SEARCH_BY_MONTH_KEY[m + '::' + row.key] && matchesSearch(SEARCH_BY_MONTH_KEY[m + '::' + row.key]));
+
+    const hidden = (!passRagFilter || !passMonthFilter || !passCat || !passAct || !passSearch) ? 'gantt-hidden' : '';
 
     const gcTags = row.gc.map(g => `<span class="act-gc">${g}</span>`).join('');
     const mTags = row.missions.map(m => `<span class="act-mission">${m}</span>`).join('');
@@ -1425,6 +1500,15 @@ function buildGantt() {
   });
 
   tbody.innerHTML = html;
+
+  // Hide QI headings whose activities are all filtered out
+  let heading = null, headingHasRows = false;
+  const closeHeading = () => { if (heading) heading.classList.toggle('gantt-hidden', !headingHasRows); };
+  tbody.querySelectorAll('tr').forEach(tr => {
+    if (tr.classList.contains('gantt-cat-row')) { closeHeading(); heading = tr; headingHasRows = false; }
+    else if (!tr.classList.contains('gantt-hidden')) headingHasRows = true;
+  });
+  closeHeading();
 }
 
 function filterGanttRag(val) {
@@ -1554,10 +1638,8 @@ function updateVisible() {
 
       block.querySelectorAll('.activity-card').forEach(card => {
         const actKey = card.dataset.activity;
-        const searchText = card.dataset.search || '';
-        const qi = card.querySelector('.act-qi')?.textContent.toLowerCase() || '';
         const showAct = currentActivity === 'all' || currentActivity === actKey;
-        const showSearch = !currentSearch || searchText.includes(currentSearch) || qi.includes(currentSearch);
+        const showSearch = matchesSearch(SEARCH_INDEX[card.id] || '');
         const visible = showCat && showAct && showSearch;
         card.classList.toggle('hidden', !visible);
         if (visible) { blockVisible++; total++; }
@@ -1567,8 +1649,13 @@ function updateVisible() {
     });
   });
 
-  document.getElementById('results-count').textContent = `${total} item${total !== 1 ? 's' : ''}`;
-  document.getElementById('no-results').classList.toggle('visible', total === 0);
+  const inMonth = currentMonth === 'all' ? '' : ` in ${currentMonth}`;
+  document.getElementById('results-count').textContent = `${total} item${total !== 1 ? 's' : ''}${inMonth}`;
+  const noResults = document.getElementById('no-results');
+  noResults.textContent = currentMonth === 'all'
+    ? 'No activities match your current filters.'
+    : `No activities match your filters in ${currentMonth}. Choose “All” months to search the whole year.`;
+  noResults.classList.toggle('visible', total === 0);
 }
 
 // Month tabs
@@ -1589,9 +1676,17 @@ document.querySelectorAll('.month-tab').forEach(btn => {
   });
 });
 
-document.getElementById('cat-filter').addEventListener('change', e => { currentCat = e.target.value; updateVisible(); });
-document.getElementById('activity-filter').addEventListener('change', e => { currentActivity = e.target.value; updateVisible(); });
-document.getElementById('search-input').addEventListener('input', e => { currentSearch = e.target.value.toLowerCase().trim(); updateVisible(); });
+function applyFilters() {
+  updateVisible();
+  if (currentView === 'gantt') buildGantt();
+}
+document.getElementById('cat-filter').addEventListener('change', e => { currentCat = e.target.value; applyFilters(); });
+document.getElementById('activity-filter').addEventListener('change', e => { currentActivity = e.target.value; applyFilters(); });
+document.getElementById('search-input').addEventListener('input', e => {
+  const q = normaliseSearch(e.target.value);
+  currentSearch = q ? q.split(' ') : [];
+  applyFilters();
+});
 
 window.addEventListener('scroll', () => {
   document.getElementById('scroll-top').classList.toggle('visible', window.scrollY > 400);
