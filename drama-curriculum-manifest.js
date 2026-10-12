@@ -293,10 +293,10 @@ window.DRAMA_CURRICULUM = {
     n5d01: {
       id: 'n5d01',
       unitLabel: 'N5',
-      year: 'Senior',
+      year: 'S4',
       course: 'National 5 Drama',
       title: 'Final Practical Exam: The Production Lab',
-      weeks: 'S4',
+      weeks: 'Intro lesson',
       month: '2026–27',
       colour: '#DC2626',
       gradEnd: '#F87171',
