@@ -633,6 +633,7 @@ a.print-btn { text-decoration: none; }
   .main-content { padding: 8px !important; gap: 16px !important; }
 
   .month-section { display: block !important; page-break-before: always; break-before: page; }
+  .month-section.month-empty { display: none !important; }
   .month-section:first-of-type { page-break-before: avoid; break-before: avoid; }
   .month-title { font-size: 16px !important; }
 
@@ -1180,7 +1181,8 @@ function buildCards() {
   let cardId = 0;
 
   MONTHS_DATA.forEach(monthData => {
-    html += `<div class="month-section" data-month="${monthData.month}" id="month-${monthData.month}">`;
+    const emptyMonth = monthData.categories.length ? '' : ' month-empty';
+    html += `<div class="month-section${emptyMonth}" data-month="${monthData.month}" id="month-${monthData.month}">`;
     html += `<div class="month-header">
       <span class="month-title">${monthData.month}</span>
       <span class="month-pill">Annual Planner</span>
@@ -1636,7 +1638,7 @@ function updateVisible() {
     const month = section.dataset.month;
     const showMonth = currentMonth === 'all' || currentMonth === month;
     if (!showMonth) { section.classList.remove('visible'); return; }
-    section.classList.add('visible');
+    let monthVisible = 0;
 
     section.querySelectorAll('.category-block').forEach(block => {
       const cat = block.dataset.cat;
@@ -1649,19 +1651,24 @@ function updateVisible() {
         const showSearch = matchesSearch(SEARCH_INDEX[card.id] || '');
         const visible = showCat && showAct && showSearch;
         card.classList.toggle('hidden', !visible);
-        if (visible) { blockVisible++; total++; }
+        if (visible) { blockVisible++; monthVisible++; total++; }
       });
 
       block.style.display = (showCat && blockVisible > 0) ? '' : 'none';
     });
+    // Hide month headings with nothing to show (e.g. April, or months a search doesn't match)
+    section.classList.toggle('visible', monthVisible > 0);
   });
 
   const inMonth = currentMonth === 'all' ? '' : ` in ${currentMonth}`;
   document.getElementById('results-count').textContent = `${total} item${total !== 1 ? 's' : ''}${inMonth}`;
   const noResults = document.getElementById('no-results');
+  const filtered = currentCat !== 'all' || currentActivity !== 'all' || currentSearch.length > 0;
   noResults.textContent = currentMonth === 'all'
     ? 'No activities match your current filters.'
-    : `No activities match your filters in ${currentMonth}. Choose “All” months to search the whole year.`;
+    : filtered
+      ? `No activities match your filters in ${currentMonth}. Choose “All” months to search the whole year.`
+      : `No quality calendar activities are planned for ${currentMonth}.`;
   noResults.classList.toggle('visible', total === 0);
 }
 

@@ -3,13 +3,13 @@
  * Monthly activity grid for the Quality Calendar planner.
  *
  * Built from window.QualityCalendarQiFocus (quality-calendar-qi-focus.js — the QI Calendar
- * sheet of Quality_Calendar_Full.xlsx), which is also what the Faculty Hub home and My Week
+ * "QC By month" sheet of Quality Calendar.xlsx), which is also what the Faculty Hub home and My Week
  * show, so the planner and the home page can never disagree. Load quality-calendar-qi-focus.js
  * first.
  *
  * Each QI Calendar line (e.g. "S4 Class Observations") is mapped to a planner activity key and
- * a year-group focus. Activities that only exist on the Annual Calendar sheet (leavers,
- * attendance, parent/carer feedback, HMIE questionnaire) are added from ANNUAL_ONLY below.
+ * a year-group focus. Activities that only appear on the "QC Overview" sheet (leavers,
+ * attendance, parent/carer and partner feedback, HMIE questionnaire) are added from ANNUAL_ONLY below.
  */
 (function () {
   var QI_FOCUS = window.QualityCalendarQiFocus || [];
@@ -40,15 +40,17 @@
     leavers: 'Leaver Destinations',
     attendance: 'Attendance & Exclusion',
     parentFeedback: 'Parent Carer Feedback',
+    partnersFeedback: 'Partners Feedback',
     hmieQuestionnaire: 'Young People HMIE Questionnaire'
   };
   var WELLBEING = { environment: true, attendance: true };
 
-  /** Activities on the Annual Calendar sheet that the QI Calendar sheet does not cover. */
+  /** Activities on the "QC Overview" sheet that the "QC By month" sheet does not cover. */
   var ANNUAL_ONLY = [
-    { key: 'leavers', cat: 'qi32', missions: ['QI 3.2'], months: { Oct: ['*'], Dec: ['*'], Feb: ['*'], Mar: ['*'], June: ['*'] } },
-    { key: 'attendance', cat: 'qi31', missions: ['QI 3.1'], months: { Oct: ['*'], Feb: ['*'], Apr: ['*'], June: ['*'] } },
-    { key: 'parentFeedback', cat: 'qi32', missions: [], months: { Oct: ['S1'], Feb: ['S4-6'], Mar: ['S2'], May: ['S3'] } },
+    { key: 'leavers', cat: 'qi32', missions: ['QI 3.2'], months: { Oct: ['*'], Feb: ['*'] } },
+    { key: 'attendance', cat: 'qi31', missions: ['QI 3.1'], months: { Oct: ['*'], Dec: ['*'], Mar: ['*'], June: ['*'] } },
+    { key: 'parentFeedback', cat: 'qi32', missions: [], months: { Nov: ['S1'], Feb: ['S4-6'], Mar: ['S2'], May: ['S3'] } },
+    { key: 'partnersFeedback', cat: 'qi32', missions: [], months: { May: ['*'] } },
     { key: 'hmieQuestionnaire', cat: 'qi32', missions: [], months: { May: ['*'] } }
   ];
 
