@@ -740,6 +740,7 @@ body.embedded .hero{min-height:0;padding:22px 24px}
   };
 
   var ICONS = {
+    sound:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2"/></svg>',
     timer:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 1.5M9.5 2h5"/></svg>',
     groups:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.2"/><path d="M3.5 20c0-3.2 2.7-5 5.5-5s5.5 1.8 5.5 5"/><path d="M15 20c.2-2 1.7-3.2 3.6-3.2"/></svg>',
     quiz:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v11H8l-4 3z"/><path d="M8.5 9.5L10.5 11.5 15 7"/></svg>',
@@ -780,6 +781,10 @@ body.embedded .hero{min-height:0;padding:22px 24px}
     {id:"stimulus",   name:"Stimulus Generator", cat:"Drama", hue:"violet", icon:"stimulus", featured:true, live:true, href:"toolkit/stimulus.html",
       logo:"toolkit/stimulus-generator-logo.png", span:"4",
       desc:"Pupils pick genre and form, then get a unique drama starting point."},
+    // Standalone public app: opens in its own tab so it can be shared outside the hub (link / QR)
+    {id:"sound",      name:"Sound Designer",   cat:"Drama",  hue:"coral",   icon:"sound",      live:true,  external:true,
+      href:"https://sound-designer-one.vercel.app/", span:"4",
+      desc:"Build, rehearse and run sound cues for a production. Works offline on iPad."},
     {id:"exit",       name:"Exit Tickets",     cat:"Quiz",   hue:"magenta", icon:"exit",       live:true,  href:"toolkit/exit.html",
       logo:"toolkit/exit-tickets-logo.png", span:"4",
       desc:"Paperless exit tickets with teacher-approved answers."},
@@ -935,6 +940,11 @@ body.embedded .hero{min-height:0;padding:22px 24px}
     if(!t) return;
     if(t.live){
       remember(t.id);
+      if(t.external){
+        // Public app outside the hub: open in a new tab (no hub embed params)
+        window.open(t.href, "_blank", "noopener");
+        return;
+      }
       var href=withEmbed(t.href);
       if(extraQuery){
         href+= (href.indexOf("?")>=0?"&":"?")+extraQuery;
