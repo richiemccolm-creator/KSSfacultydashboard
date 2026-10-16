@@ -7598,7 +7598,8 @@ function showPanel(id,opts){
   if(/^(drama|ad|photo)-(s[1-6]|s56|map)/.test(id)) ensureLiteracyNumeracyInjected();
   if(id.endsWith('retrieval')) initRetrieval(subj);
   if(id==='academic-calendar'){calCurrentYear=calGetCurrentAcademicYear();calSyncAddEventFormChrome();calLoadEvents().then(function(){calRender();return calRefreshCalendarRequests();}).catch(function(){calRender();calRefreshCalendarRequests();});}
-  if(id==='home') homeDashboardRender({ showLoading: !homeHasCompletedInitialLoad });
+  // Before the first load, startup does the render once sign-in has settled.
+  if(id==='home'&&homeHasCompletedInitialLoad) homeDashboardRender({ showLoading: false });
   if(id==='home-announcements-all') homeRenderAllAnnouncementsPanel();
   if(id==='dip-main'){ dipRenderProgressTimeline(); if(typeof dipRenderInsightCharts==='function') dipRenderInsightCharts(); }
   if(id==='dip-archive-fip-2627') dip2627RenderProgressTimeline();
@@ -7675,6 +7676,7 @@ var homeResumeRefreshTimer=null;
 var homeRefreshDataTimer=null;
 var homeLastResumeRefreshMs=0;
 var homeHasCompletedInitialLoad=false;
+var homeCalLoadPromise=null;
 var homeAnnouncementsCache=[];
 var homeAnnouncementsToday='';
 var homeDashboardLoadSeq=0;
@@ -7742,6 +7744,8 @@ function isStandaloneDisplayMode(){
   return false;
 }
 function refreshAfterStandaloneResume(force){
+  // pageshow also fires on the first load, which startup already covers.
+  if(!homeHasCompletedInitialLoad) return;
   if(!force&&!isStandaloneDisplayMode()) return;
   var now=Date.now();
   // Prevent duplicate refreshes when pageshow + visibilitychange fire together.
@@ -12789,6 +12793,8 @@ function homeApplyDashboardData(ctx){
     window.StickyNotesHome.render();
   }
 }
+var homeGreetingNamePromise=null;
+var homeGreetingNameUserId='';
 function homeLoadGreeting(){
   var nameEl=document.getElementById('homeGreetingName');
   var greetingEl=document.getElementById('homeGreetingPrefix');
@@ -12813,10 +12819,14 @@ function homeLoadGreeting(){
       if(profileEl) profileEl.textContent=homeInitials(clean);
     };
     if(window.supabase.from){
-      window.supabase.from('profiles').select('display_name').eq('id',session.user.id).maybeSingle().then(function(pr){
-        if(pr&&pr.data&&pr.data.display_name) setName(pr.data.display_name);
-        else setName(fallback);
-      }).catch(function(){ setName(fallback); });
+      // The clock timer calls this every 30s; look the name up once per signed-in user.
+      if(!homeGreetingNamePromise||homeGreetingNameUserId!==session.user.id){
+        homeGreetingNameUserId=session.user.id;
+        homeGreetingNamePromise=window.supabase.from('profiles').select('display_name').eq('id',session.user.id).maybeSingle().then(function(pr){
+          return pr&&pr.data&&pr.data.display_name?pr.data.display_name:'';
+        }).catch(function(){ homeGreetingNamePromise=null; return ''; });
+      }
+      homeGreetingNamePromise.then(function(name){ setName(name||fallback); });
     } else {
       setName(fallback);
     }
@@ -12870,6 +12880,8 @@ function homeDashboardRender(opts){
 
   var eventsPromise=(calEventsCache&&Array.isArray(calEventsCache)&&calEventsCache.length)
     ? Promise.resolve(calEventsCache)
+    : homeCalLoadPromise
+    ? homeCalLoadPromise.catch(function(){ return []; })
     : ((window.DataService&&typeof window.DataService.getSharedCalendarEvents==='function')
       ? DataService.getSharedCalendarEvents()
       : ((window.DataService&&typeof window.DataService.getCalendarMerged==='function')
@@ -13096,28 +13108,17 @@ document.addEventListener('DOMContentLoaded',function(){
 
   var loadDip=window.DataService?DataService.get('dipSelfEvaluation'):Promise.resolve(JSON.parse(localStorage.getItem('dipSelfEvaluation')||'{}'));
   var loadDip2627=window.DataService?DataService.get('dipSelfEvaluation2627'):Promise.resolve(JSON.parse(localStorage.getItem('dipSelfEvaluation2627')||'{}'));
-  waitForAuthGuardReady(800).then(function(){
-    var startupTasks=[
-      calLoadEvents(),
-      loadModerationData(),
-      loadDip,
-      loadDip2627
-    ];
-    if(!window.__authReady) startupTasks.unshift(ensureStartupSessionSettled(400));
-    return Promise.all(startupTasks);
-  }).then(function(res){
-    var dipData=(res&&res[res.length-2])||{};
-    var dip2627Data=(res&&res[res.length-1])||{};
+  var authSettled=waitForAuthGuardReady(800).then(function(){
+    if(!window.__authReady) return ensureStartupSessionSettled(400);
+  });
+  // Home renders as soon as sign-in settles: its reads (calendar included) run in parallel
+  // and it no longer waits for the moderation / improvement plan data below.
+  authSettled.then(function(){
+    homeCalLoadPromise=calLoadEvents();
     updateStorageIndicator();
     homeDashboardRender({ showLoading: false });
-    calRender();
-    dipLoadEval(dipData);
-    dipRenderProgressTimeline();
-    dip2627LoadEval(dip2627Data);
-    dip2627RenderProgressTimeline();
-    if(typeof initActionPlan2627==='function') initActionPlan2627();
-    dipUpdateTrackerWidgets();
     homeHasCompletedInitialLoad=true;
+    return homeCalLoadPromise.then(function(){ calRender(); });
   }).catch(function(){
     updateStorageIndicator();
     showPanel(resolveDeepPanelFromUrl(),{skipUrlSync:true});
@@ -13125,6 +13126,16 @@ document.addEventListener('DOMContentLoaded',function(){
     scheduleHomeDataRefresh(60);
     homeHasCompletedInitialLoad=true;
   });
+  authSettled.then(function(){
+    return Promise.all([loadModerationData(), loadDip, loadDip2627]);
+  }).then(function(res){
+    dipLoadEval(res[1]||{});
+    dipRenderProgressTimeline();
+    dip2627LoadEval(res[2]||{});
+    dip2627RenderProgressTimeline();
+    if(typeof initActionPlan2627==='function') initActionPlan2627();
+    dipUpdateTrackerWidgets();
+  }).catch(function(){});
   if(window.supabase&&window.supabase.auth&&typeof window.supabase.auth.onAuthStateChange==='function'){
     window.supabase.auth.onAuthStateChange(function(event){
       if(['INITIAL_SESSION','SIGNED_IN','TOKEN_REFRESHED'].indexOf(event)<0) return;
