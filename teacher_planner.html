@@ -29,7 +29,7 @@
 <script src="supabase-init.js"></script>
 <script src="allowlist-check.js"></script>
 <script src="auth-guard.js"></script>
-<script src="data-service.js"></script>
+<script src="data-service.js?v=lesson-save-1"></script>
 <script src="academic-calendar-defaults.js"></script>
 <script src="curriculum-units.js"></script>
 <script src="drama-curriculum-manifest.js"></script>
@@ -41,7 +41,7 @@
 <script src="n5-ci-planner-import.js"></script>
 <script src="faculty-timetable-data.js"></script>
 <script src="faculty-timetable-planner-import.js"></script>
-<script src="planner-service.js?v=ink-8"></script>
+<script src="planner-service.js?v=lesson-save-1"></script>
 <script src="planner-class-support-strategies.js"></script>
 <script src="teacher-planner-lesson-ink.js?v=ink-11"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -10246,10 +10246,11 @@ document.getElementById('lessonSave').addEventListener('click', function() {
     saveBtn.disabled = true;
     saveBtn.textContent = 'Saving…';
   }
-  // Keep the editor open so planning can continue. Cloud save rewrites every
-  // lesson, including handwriting, so run it after the button label updates.
+  // Keep the editor open so planning can continue. Only this lesson is sent;
+  // run it after the button label updates.
   setTimeout(function() {
-    PS.saveLessons().then(function() {
+    var save = savedLesson && savedLesson.id && PS.saveLesson ? PS.saveLesson(savedLesson.id) : PS.saveLessons();
+    save.then(function() {
       if (saveBtn) {
         saveBtn.dataset.saving = '';
         saveBtn.disabled = false;

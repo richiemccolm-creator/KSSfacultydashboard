@@ -92,6 +92,29 @@
     if (les.nextLessonNote) compactInk(les.nextLessonNote.ink);
   }
 
+  // Lesson writes run one at a time so an older full save can't land after a
+  // newer single-lesson save. Until a full save succeeds after a failure, every
+  // save sends all lessons so changes that never reached the cloud aren't lost.
+  var lessonWriteQueue = Promise.resolve();
+  var lessonsNeedFullSave = false;
+
+  function queueLessonWrite(fn) {
+    var run = lessonWriteQueue.then(fn, fn);
+    lessonWriteQueue = run.catch(function() {});
+    return run.catch(function(err) {
+      lessonsNeedFullSave = true;
+      throw err;
+    });
+  }
+
+  function saveAllLessonsNow() {
+    ((state.lessons && state.lessons.lessons) || []).forEach(compactLessonInk);
+    if (!window.DataService) return Promise.resolve();
+    return DataService.set('plannerLessons', state.lessons).then(function() {
+      lessonsNeedFullSave = false;
+    });
+  }
+
   function normalizeLesson(les) {
     if (!les || typeof les !== 'object') return;
     if (les.learningIntention === undefined) les.learningIntention = '';
@@ -430,8 +453,25 @@
     },
 
     saveLessons: function() {
-      ((state.lessons && state.lessons.lessons) || []).forEach(compactLessonInk);
-      return window.DataService ? DataService.set('plannerLessons', state.lessons) : Promise.resolve();
+      return queueLessonWrite(saveAllLessonsNow);
+    },
+
+    /**
+     * Save one lesson by id, sending only that lesson. Falls back to saving every
+     * lesson when the cloud can't do a single-lesson save or an earlier save failed.
+     */
+    saveLesson: function(lessonId) {
+      return queueLessonWrite(function() {
+        var les = ((state.lessons && state.lessons.lessons) || []).find(function(l) { return l.id === lessonId; });
+        if (!les || lessonsNeedFullSave || !window.DataService || !DataService.upsertPlannerLesson) {
+          return saveAllLessonsNow();
+        }
+        compactLessonInk(les);
+        return DataService.upsertPlannerLesson(les).catch(function(err) {
+          if (err && err.code === 'unsupported') return saveAllLessonsNow();
+          throw err;
+        });
+      });
     },
 
     getWeekNote: function(weekStartStr) {

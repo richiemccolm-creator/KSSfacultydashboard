@@ -569,6 +569,26 @@
     },
 
     /**
+     * Save one planner lesson inside the 'plannerLessons' row without resending
+     * every other lesson. Rejects with err.code === 'unsupported' when there is
+     * no cloud or the database function is missing, so callers can fall back to set().
+     */
+    upsertPlannerLesson: function(lesson) {
+      function unsupported() {
+        var err = new Error('Single-lesson save unavailable');
+        err.code = 'unsupported';
+        return err;
+      }
+      if (!useSupabase() || !lesson || !lesson.id) return Promise.reject(unsupported());
+      var write = ensureSessionForMutations().then(function() {
+        return window.supabase.rpc('upsert_planner_lesson', { p_lesson: lesson }).then(function(r) {
+          if (r && r.error) throw isMissingRpcError(r.error) ? unsupported() : r.error;
+        });
+      });
+      return promiseWithTimeout(write, 20000, 'Save timed out');
+    },
+
+    /**
      * Like get(), but tells "no data yet" apart from "could not load".
      * Resolves { data, updatedAt, userId, local }. Rejects when signed out or the read fails,
      * so callers never mistake a failed load for an empty tracker.
