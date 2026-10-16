@@ -12,6 +12,7 @@
     daySlotNotes: {},
     dayNotes: {},
     lessonPlanTemplates: { templates: [] },
+    homeworkBank: { items: [] },
     schemesOfWork: { units: [] },
     currentWeekStart: null,
     currentMonthStart: null,
@@ -170,6 +171,28 @@
     return { task: task, dueDate: dueDate, collected: collected, notes: notes };
   }
 
+  function normalizeBankHomework(item) {
+    if (!item || typeof item !== 'object') return null;
+    var title = String(item.title || '').trim().slice(0, 200);
+    var task = String(item.task || '').trim();
+    var link = String(item.link || '').trim();
+    if (link && !/^https?:\/\//i.test(link)) link = '';
+    if (!title && !task) return null;
+    return {
+      id: item.id || id(),
+      title: title,
+      task: task,
+      link: link,
+      createdAt: item.createdAt || new Date().toISOString(),
+      updatedAt: item.updatedAt || item.createdAt || new Date().toISOString()
+    };
+  }
+
+  function normalizeHomeworkBankBlob(blob) {
+    var items = blob && Array.isArray(blob.items) ? blob.items : [];
+    return { items: items.map(normalizeBankHomework).filter(Boolean) };
+  }
+
   function weekdayNameFromDateStr(dateStr) {
     if (!ymdValid(dateStr)) return '';
     var parts = String(dateStr).split('-');
@@ -321,7 +344,8 @@
         (window.DataService && DataService.get ? DataService.get('plannerDaySlotNotes') : Promise.resolve(null)),
         (window.DataService && DataService.get ? DataService.get('plannerDayNotes') : Promise.resolve(null)),
         (window.DataService && DataService.get ? DataService.get('lessonPlanTemplates') : Promise.resolve(null)),
-        (window.DataService && DataService.get ? DataService.get('plannerSchemesOfWork') : Promise.resolve(null))
+        (window.DataService && DataService.get ? DataService.get('plannerSchemesOfWork') : Promise.resolve(null)),
+        (window.DataService && DataService.get ? DataService.get('plannerHomeworkBank') : Promise.resolve(null))
       ]).then(function(res) {
         state.timetable = res[0] && (res[0].slots || res[0].academicYearLabel || res[0].classColors || res[0].classSupport) ? res[0] : { slots: [] };
         if (!state.timetable.slots) state.timetable.slots = [];
@@ -338,6 +362,7 @@
         state.lessonPlanTemplates = res[5] && res[5].templates ? res[5] : { templates: [] };
         state.schemesOfWork = res[6] && res[6].units ? res[6] : { units: [] };
         normalizeSchemesOfWorkBlob(state.schemesOfWork);
+        state.homeworkBank = normalizeHomeworkBankBlob(res[7]);
         return self.getState();
       });
     },
@@ -1080,6 +1105,73 @@
     deleteTemplate: function(templateId) {
       state.lessonPlanTemplates.templates = (state.lessonPlanTemplates.templates || []).filter(function(t) { return t.id !== templateId; });
       return window.DataService ? DataService.set('lessonPlanTemplates', state.lessonPlanTemplates) : Promise.resolve();
+    },
+
+    /** Homework bank: reusable tasks kept in their own 'plannerHomeworkBank' row. */
+    normalizeBankHomework: normalizeBankHomework,
+
+    getHomeworkBank: function() {
+      return (state.homeworkBank.items || []).slice();
+    },
+
+    getHomeworkBankItem: function(itemId) {
+      return (state.homeworkBank.items || []).find(function(h) { return h.id === itemId; }) || null;
+    },
+
+    saveHomeworkBank: function() {
+      return window.DataService ? DataService.set('plannerHomeworkBank', state.homeworkBank) : Promise.resolve();
+    },
+
+    /** Swap in new bank items and save; put the old list back if the save fails. */
+    commitHomeworkBank: function(nextItems) {
+      var previous = state.homeworkBank.items || [];
+      state.homeworkBank.items = nextItems;
+      return this.saveHomeworkBank().catch(function(err) {
+        state.homeworkBank.items = previous;
+        throw err;
+      });
+    },
+
+    saveHomeworkBankItem: function(item) {
+      var items = state.homeworkBank.items || [];
+      var existing = item && item.id ? items.find(function(h) { return h.id === item.id; }) : null;
+      var toSave = normalizeBankHomework(Object.assign({}, existing || {}, item, {
+        updatedAt: new Date().toISOString()
+      }));
+      if (!toSave) return Promise.reject(new Error('Add a title or instructions'));
+      var next = items.slice();
+      if (existing) next[items.indexOf(existing)] = toSave;
+      else next.push(toSave);
+      return this.commitHomeworkBank(next).then(function() { return toSave; });
+    },
+
+    /** Add several items in one write (import). Returns how many were added. */
+    addHomeworkBankItems: function(list) {
+      var added = (list || []).map(function(item) {
+        var copy = Object.assign({}, item);
+        delete copy.id;
+        return normalizeBankHomework(copy);
+      }).filter(Boolean);
+      if (!added.length) return Promise.resolve(0);
+      return this.commitHomeworkBank((state.homeworkBank.items || []).concat(added))
+        .then(function() { return added.length; });
+    },
+
+    deleteHomeworkBankItem: function(itemId) {
+      var items = state.homeworkBank.items || [];
+      var idx = -1;
+      items.forEach(function(h, i) { if (h.id === itemId) idx = i; });
+      if (idx === -1) return Promise.resolve(null);
+      var removed = items[idx];
+      return this.commitHomeworkBank(items.filter(function(h) { return h.id !== itemId; }))
+        .then(function() { return { item: removed, index: idx }; });
+    },
+
+    restoreHomeworkBankItem: function(item, index) {
+      var items = (state.homeworkBank.items || []).slice();
+      if (!item || items.some(function(h) { return h.id === item.id; })) return Promise.resolve();
+      items.splice(Math.min(Math.max(index || 0, 0), items.length), 0, item);
+      return this.commitHomeworkBank(items);
     },
 
     setEditingLessonId: function(id) { state.editingLessonId = id; },

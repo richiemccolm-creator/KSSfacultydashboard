@@ -29,7 +29,7 @@
 <script src="supabase-init.js"></script>
 <script src="allowlist-check.js"></script>
 <script src="auth-guard.js"></script>
-<script src="data-service.js?v=lesson-save-1"></script>
+<script src="data-service.js?v=hw-bank-1"></script>
 <script src="academic-calendar-defaults.js"></script>
 <script src="curriculum-units.js"></script>
 <script src="drama-curriculum-manifest.js"></script>
@@ -41,7 +41,7 @@
 <script src="n5-ci-planner-import.js"></script>
 <script src="faculty-timetable-data.js"></script>
 <script src="faculty-timetable-planner-import.js"></script>
-<script src="planner-service.js?v=lesson-save-1"></script>
+<script src="planner-service.js?v=hw-bank-2"></script>
 <script src="planner-class-support-strategies.js"></script>
 <script src="teacher-planner-lesson-ink.js?v=ink-11"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -971,7 +971,7 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
 </style>
 <link rel="stylesheet" href="teacher-planner-redesign.css?v=polish-5">
 <link rel="stylesheet" href="teacher-planner-editorial.css?v=polish-6">
-<link rel="stylesheet" href="teacher-planner-editorial-views.css?v=polish-24">
+<link rel="stylesheet" href="teacher-planner-editorial-views.css?v=hw-bank-1">
 <!-- Trial "teacher's folder" skin. ?skin=classic turns it off in this browser, ?skin=binder turns it back on. -->
 <script>
 (function () {
@@ -984,7 +984,7 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
   if (skin === 'binder') document.documentElement.classList.add('skin-binder');
 })();
 </script>
-<link rel="stylesheet" href="teacher-planner-binder.css?v=binder-8">
+<link rel="stylesheet" href="teacher-planner-binder.css?v=hw-bank-1">
 </head>
 <body>
 <script>
@@ -1591,6 +1591,29 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
   </div>
 </div>
 
+<!-- Homework bank import -->
+<div class="modal-overlay" id="homeworkImportModal">
+  <div class="modal homework-import-modal" role="dialog" aria-modal="true" aria-labelledby="homeworkImportTitle">
+    <div class="modal-header">
+      <h2 class="modal-title" id="homeworkImportTitle">Import homework</h2>
+      <button type="button" class="modal-close" id="homeworkImportClose" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p class="homework-import-help">Paste homework below, or choose a Word (.docx), CSV or text file. Leave a blank line between each one. The first line is the title and the rest are instructions. In a CSV, use the columns <b>title</b>, <b>instructions</b> and <b>link</b>.</p>
+      <textarea id="homeworkImportText" class="form-input homework-import-text" rows="8" placeholder="Learn your lines for Scene 2&#10;Practise with someone at home and bring your script on Monday.&#10;&#10;Character profile&#10;Write 150 words about your character's backstory."></textarea>
+      <div class="homework-import-file-row">
+        <button type="button" class="btn-secondary" id="homeworkImportPick">Choose file…</button>
+        <input type="file" id="homeworkImportFile" accept=".docx,.csv,.tsv,.txt,text/plain,text/csv,application/vnd.openxmlformats-officedocument.wordprocessingml.document" hidden>
+      </div>
+      <div class="homework-import-preview" id="homeworkImportPreview" aria-live="polite"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn-secondary" id="homeworkImportCancel">Cancel</button>
+      <button type="button" class="btn-primary" id="homeworkImportAdd" disabled>Add to bank</button>
+    </div>
+  </div>
+</div>
+
 <!-- Single-slot timetable editor (tap a period) -->
 <div class="modal-overlay" id="slotEditModal">
   <div class="modal slot-edit-sheet" role="dialog" aria-labelledby="slotEditTitle" aria-modal="true">
@@ -2024,10 +2047,20 @@ body{font-family:var(--font-ui);background:var(--off-white);color:var(--text)}
             </div>
             <button type="button" class="btn-add-resource lesson-modal-chip-btn is-ghost" id="lessonHomeworkNextLesson">Next lesson with this class</button>
           </div>
+          <div class="lesson-homework-bank-row">
+            <label class="sr-only" for="lessonHomeworkBankPick">Use homework from the bank</label>
+            <select id="lessonHomeworkBankPick" class="form-select lesson-homework-bank-pick"><option value="">Use one from the bank…</option></select>
+            <button type="button" class="btn-add-resource lesson-modal-chip-btn is-ghost" id="lessonHomeworkSaveToBank">Save to bank</button>
+          </div>
           <label class="lesson-homework-collected">
             <input type="checkbox" id="lessonHomeworkCollected">
             Collected
           </label>
+          <div class="lesson-homework-share-row">
+            <span class="lesson-homework-share-label">Copy for</span>
+            <button type="button" class="btn-add-resource lesson-modal-chip-btn is-ghost" id="lessonHomeworkCopySatchel" title="Copy the homework and open Satchel One">Satchel One</button>
+            <button type="button" class="btn-add-resource lesson-modal-chip-btn is-ghost" id="lessonHomeworkCopyTeams" title="Copy the homework and open Teams Assignments">Teams</button>
+          </div>
           <input type="hidden" id="lessonHomeworkNotes" value="">
         </section>
 
@@ -2308,6 +2341,7 @@ function fillHomeworkModal(hw) {
   if (due) due.value = hw.dueDate || '';
   if (collected) collected.checked = !!hw.collected;
   if (notes) notes.value = hw.notes || '';
+  if (typeof populateLessonHomeworkBankPick === 'function') populateLessonHomeworkBankPick();
 }
 
 function collectHomeworkFromModal() {
@@ -2350,6 +2384,353 @@ function setHomeworkDueToNextLesson() {
   } else {
     showToast('No later lesson with this class on the timetable');
   }
+}
+
+/* ---------- Homework bank: shared helpers ---------- */
+
+var HOMEWORK_URL_RE = /https?:\/\/[^\s<>"']+/i;
+
+/** Bank item → the single task text a lesson's homework stores. */
+function homeworkBankItemToTaskText(item) {
+  if (!item) return '';
+  var title = String(item.title || '').trim();
+  var task = String(item.task || '').trim();
+  var parts = [];
+  if (title && task.toLowerCase().indexOf(title.toLowerCase()) !== 0) parts.push(title);
+  if (task) parts.push(task);
+  if (item.link && parts.join('\n').indexOf(item.link) === -1) parts.push(item.link);
+  return parts.join('\n');
+}
+
+/** Lesson task text → { title, task, link } for the bank. */
+function homeworkTaskTextToBankItem(text) {
+  var lines = String(text || '').replace(/\r\n?/g, '\n').split('\n')
+    .map(function(l) { return l.trim(); })
+    .filter(Boolean);
+  var link = '';
+  lines = lines.filter(function(l) {
+    var m = l.match(HOMEWORK_URL_RE);
+    if (!link && m && m[0].length === l.length) { link = m[0]; return false; }
+    return true;
+  });
+  if (!link) {
+    var inline = lines.join('\n').match(HOMEWORK_URL_RE);
+    if (inline) link = inline[0];
+  }
+  if (!lines.length) return { title: link ? 'Homework link' : '', task: '', link: link };
+  var first = lines[0];
+  if (lines.length === 1) {
+    if (first.length <= 80) return { title: first, task: '', link: link };
+    return { title: first.slice(0, 60).replace(/\s+\S*$/, '') + '…', task: first, link: link };
+  }
+  return { title: first.slice(0, 120), task: lines.slice(1).join('\n'), link: link };
+}
+
+function homeworkBankLabel(item) {
+  return String((item && (item.title || item.task)) || 'Homework').split('\n')[0].slice(0, 70);
+}
+
+/**
+ * Plain text for pasting into Satchel One or Teams.
+ * d: { title, task, link, dueDate, className }
+ */
+function homeworkShareText(d) {
+  d = d || {};
+  var lines = [];
+  var title = String(d.title || '').trim();
+  var task = String(d.task || '').trim();
+  if (title) lines.push(title);
+  if (task && task !== title) {
+    if (lines.length) lines.push('');
+    lines.push(task);
+  }
+  var meta = [];
+  if (d.className) meta.push('Class: ' + d.className);
+  if (d.dueDate) meta.push('Due: ' + formatHomeworkDueLabel(d.dueDate, { skipRelative: true }).replace(/^Due /, ''));
+  if (d.link && task.indexOf(d.link) === -1) meta.push('Link: ' + d.link);
+  if (meta.length) {
+    lines.push('');
+    lines = lines.concat(meta);
+  }
+  return lines.join('\n');
+}
+
+/** Copy straight away inside the tap, so iPad Safari still allows it before a new tab opens. */
+function copyPlainTextNow(text) {
+  var ok = false;
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.setAttribute('readonly', '');
+  ta.style.position = 'fixed';
+  ta.style.top = '0';
+  ta.style.left = '-9999px';
+  ta.style.fontSize = '16px';
+  document.body.appendChild(ta);
+  try {
+    ta.focus();
+    ta.select();
+    ta.setSelectionRange(0, text.length);
+    ok = document.execCommand('copy');
+  } catch (e) { ok = false; }
+  document.body.removeChild(ta);
+  if (!ok && navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).catch(function() {});
+    ok = true;
+  }
+  return ok;
+}
+
+var HOMEWORK_SHARE_TARGETS = {
+  satchel: { label: 'Satchel One', url: 'https://www.satchelone.com/' },
+  teams: { label: 'Teams', url: 'https://teams.microsoft.com/' }
+};
+
+/**
+ * Copy the homework as text and open Satchel One or Teams in a new tab.
+ * Teams: when the homework has a link, open "Share to Teams" with the
+ * assignment title and instructions filled in (Microsoft needs a link to share).
+ */
+function shareHomeworkTo(target, d) {
+  var dest = HOMEWORK_SHARE_TARGETS[target];
+  if (!dest) return;
+  d = d || {};
+  if (!String(d.title || '').trim() && !String(d.task || '').trim()) {
+    showToast('Add a homework task first');
+    return;
+  }
+  var text = homeworkShareText(d);
+  var copied = copyPlainTextNow(text);
+  var url = dest.url;
+  var prefilled = false;
+  if (target === 'teams' && d.link) {
+    var title = String(d.title || '').trim() || homeworkBankLabel({ task: d.task });
+    var instr = homeworkShareText({ task: d.task, dueDate: d.dueDate, className: d.className });
+    var params = [
+      'href=' + encodeURIComponent(d.link),
+      'assignTitle=' + encodeURIComponent(title.slice(0, 50)),
+      'assignInstr=' + encodeURIComponent(instr.slice(0, 200)),
+      'msgText=' + encodeURIComponent(title.slice(0, 200)),
+      'referrer=' + encodeURIComponent(window.location.hostname)
+    ];
+    url = 'https://teams.microsoft.com/share?' + params.join('&');
+    prefilled = true;
+  }
+  window.open(url, '_blank', 'noopener');
+  if (prefilled) {
+    showToast(copied
+      ? 'Copied. In Teams choose Create an assignment; the full text is on your clipboard'
+      : 'Opening Teams. Choose Create an assignment');
+  } else {
+    showToast(copied
+      ? 'Copied. Paste it into a new ' + dest.label + (target === 'teams' ? ' assignment' : ' homework')
+      : 'Could not copy. Opening ' + dest.label);
+  }
+}
+
+function homeworkBankOptionsHtml(placeholder) {
+  var items = PS.getHomeworkBank ? PS.getHomeworkBank() : [];
+  items.sort(function(a, b) { return homeworkBankLabel(a).localeCompare(homeworkBankLabel(b)); });
+  return '<option value="">' + escHtml(placeholder || 'Use one from the bank…') + '</option>' +
+    items.map(function(h) {
+      return '<option value="' + escAttr(h.id) + '">' + escHtml(homeworkBankLabel(h)) + '</option>';
+    }).join('');
+}
+
+function populateLessonHomeworkBankPick() {
+  var sel = document.getElementById('lessonHomeworkBankPick');
+  if (!sel) return;
+  var count = PS.getHomeworkBank ? PS.getHomeworkBank().length : 0;
+  sel.innerHTML = homeworkBankOptionsHtml(count ? 'Use one from the bank…' : 'Bank is empty');
+  sel.disabled = !count;
+}
+
+function lessonHomeworkShareData() {
+  var dateStr = (document.getElementById('lessonDate') || {}).value || '';
+  var slotKey = (document.getElementById('lessonSlotKey') || {}).value || '';
+  var task = ((document.getElementById('lessonHomeworkTask') || {}).value || '').trim();
+  var parsed = homeworkTaskTextToBankItem(task);
+  return {
+    title: parsed.title,
+    task: parsed.task,
+    link: parsed.link,
+    dueDate: (document.getElementById('lessonHomeworkDue') || {}).value || '',
+    className: classNameForLessonSlot(dateStr, slotKey)
+  };
+}
+
+function applyBankItemToLessonHomework(itemId) {
+  var item = PS.getHomeworkBankItem ? PS.getHomeworkBankItem(itemId) : null;
+  var taskEl = document.getElementById('lessonHomeworkTask');
+  if (!item || !taskEl) return;
+  var before = taskEl.value;
+  taskEl.value = homeworkBankItemToTaskText(item);
+  if (typeof syncLessonToolSummaries === 'function') syncLessonToolSummaries();
+  var dueEl = document.getElementById('lessonHomeworkDue');
+  var hint = (dueEl && !dueEl.value) ? '. Set a due date, or tap Next lesson' : '';
+  if (before.trim() && before !== taskEl.value) {
+    showToast('Homework filled from the bank' + hint, {
+      onUndo: function() {
+        taskEl.value = before;
+        if (typeof syncLessonToolSummaries === 'function') syncLessonToolSummaries();
+      }
+    });
+  } else {
+    showToast('Homework filled from the bank' + hint);
+  }
+}
+
+function findDuplicateBankItem(item) {
+  var key = function(h) { return (String(h.title || '').trim() + '\n' + String(h.task || '').trim()).toLowerCase(); };
+  var k = key(item);
+  return (PS.getHomeworkBank ? PS.getHomeworkBank() : []).find(function(h) { return key(h) === k; }) || null;
+}
+
+function saveLessonHomeworkToBank(btn) {
+  var task = ((document.getElementById('lessonHomeworkTask') || {}).value || '').trim();
+  if (!task) {
+    showToast('Write the homework task first');
+    return;
+  }
+  var item = homeworkTaskTextToBankItem(task);
+  if (findDuplicateBankItem(item)) {
+    showToast('That homework is already in the bank');
+    return;
+  }
+  if (btn) btn.disabled = true;
+  PS.saveHomeworkBankItem(item).then(function() {
+    showToast('Saved to the homework bank');
+    populateLessonHomeworkBankPick();
+    refreshHomeworkPanelIfActive();
+  }).catch(function() {
+    showToast('Could not save to the bank. Try again.');
+  }).then(function() {
+    if (btn) btn.disabled = false;
+  });
+}
+
+function refreshHomeworkPanelIfActive() {
+  var panel = document.getElementById('panel-homework');
+  if (panel && panel.classList.contains('active')) renderHomeworkDashboard();
+}
+
+/* ---------- Homework bank: import parsing ---------- */
+
+function parseCsvRows(text) {
+  var rows = [];
+  var row = [];
+  var cell = '';
+  var inQuotes = false;
+  var s = String(text || '').replace(/^﻿/, '');
+  var delim = ',';
+  var firstLine = s.split(/\r?\n/)[0] || '';
+  if (firstLine.split('\t').length > firstLine.split(',').length) delim = '\t';
+  else if (firstLine.split(';').length > firstLine.split(',').length) delim = ';';
+  for (var i = 0; i < s.length; i++) {
+    var ch = s[i];
+    if (inQuotes) {
+      if (ch === '"') {
+        if (s[i + 1] === '"') { cell += '"'; i++; }
+        else inQuotes = false;
+      } else {
+        cell += ch;
+      }
+    } else if (ch === '"') {
+      inQuotes = true;
+    } else if (ch === delim) {
+      row.push(cell); cell = '';
+    } else if (ch === '\n' || ch === '\r') {
+      if (ch === '\r' && s[i + 1] === '\n') i++;
+      row.push(cell); cell = '';
+      rows.push(row); row = [];
+    } else {
+      cell += ch;
+    }
+  }
+  if (cell || row.length) { row.push(cell); rows.push(row); }
+  return rows.filter(function(r) { return r.some(function(c) { return String(c).trim(); }); });
+}
+
+function parseHomeworkCsv(text) {
+  var rows = parseCsvRows(text);
+  if (!rows.length) return [];
+  var head = rows[0].map(function(c) { return String(c).trim().toLowerCase(); });
+  var col = { title: -1, task: -1, link: -1 };
+  head.forEach(function(h, i) {
+    if (col.title === -1 && /^(title|name|homework|heading)$/.test(h)) col.title = i;
+    else if (col.task === -1 && /^(task|instructions?|description|details|text)$/.test(h)) col.task = i;
+    else if (col.link === -1 && /^(link|url|resource|resources|web ?link)$/.test(h)) col.link = i;
+  });
+  var hasHeader = col.title !== -1 || col.task !== -1 || col.link !== -1;
+  if (!hasHeader) col = { title: 0, task: 1, link: 2 };
+  return rows.slice(hasHeader ? 1 : 0).map(function(r) {
+    var get = function(i) { return i >= 0 && r[i] != null ? String(r[i]).trim() : ''; };
+    var link = get(col.link);
+    if (link && !/^https?:\/\//i.test(link)) link = '';
+    return { title: get(col.title), task: get(col.task), link: link };
+  }).filter(function(h) { return h.title || h.task; });
+}
+
+/**
+ * Pasted text or Word text → homework items.
+ * Each item is a block separated by a blank line: first line is the title,
+ * the rest are instructions. "Title:", "Task:"/"Instructions:" and "Link:" labels also work.
+ */
+function parseHomeworkText(text) {
+  var blocks = String(text || '').replace(/\r\n?/g, '\n').split(/\n\s*\n+/);
+  var out = [];
+  blocks.forEach(function(block) {
+    var lines = block.split('\n').map(function(l) { return l.replace(/^\s*(?:[-*•]|\d+[.)])\s+/, '').trim(); }).filter(Boolean);
+    if (!lines.length) return;
+    var item = { title: '', task: '', link: '' };
+    var rest = [];
+    var labelled = false;
+    var current = null;
+    lines.forEach(function(l) {
+      var m = l.match(/^(title|homework|task|instructions?|details|link|url)\s*:\s*(.*)$/i);
+      if (m) {
+        labelled = true;
+        var k = m[1].toLowerCase();
+        current = /^(title|homework)$/.test(k) ? 'title' : (/^(link|url)$/.test(k) ? 'link' : 'task');
+        if (current === 'task') { if (m[2]) rest.push(m[2]); }
+        else item[current] = m[2];
+        return;
+      }
+      if (labelled && current === 'task') rest.push(l);
+      else if (labelled && current === 'title' && !item.title) item.title = l;
+      else rest.push(l);
+    });
+    if (!labelled) {
+      var parsed = homeworkTaskTextToBankItem(lines.join('\n'));
+      item = parsed;
+    } else {
+      item.task = rest.join('\n');
+      if (!item.link) {
+        var m2 = item.task.match(HOMEWORK_URL_RE);
+        if (m2) item.link = m2[0];
+      }
+    }
+    if (item.link && !/^https?:\/\//i.test(item.link)) item.link = '';
+    if (item.title || item.task) out.push(item);
+  });
+  return out;
+}
+
+function docxXmlToPlainText(xml) {
+  var paras = [];
+  var pRegex = /<w:p[\s>][\s\S]*?<\/w:p>|<w:p\/>/gi;
+  var pMatch;
+  while ((pMatch = pRegex.exec(xml)) !== null) {
+    var text = '';
+    var tRegex = /<w:t[^>]*>([\s\S]*?)<\/w:t>|<w:(br|tab)\b[^>]*\/>/gi;
+    var tMatch;
+    while ((tMatch = tRegex.exec(pMatch[0])) !== null) {
+      if (tMatch[2]) text += tMatch[2].toLowerCase() === 'tab' ? ' ' : '\n';
+      else text += tMatch[1];
+    }
+    paras.push(text
+      .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&'));
+  }
+  return paras.join('\n');
 }
 
 /** Decode once so titles stored as e.g. &amp; don’t double-escape; repair stray &; from bad imports */
@@ -6274,6 +6655,10 @@ function homeworkSetFormHtml(classes, todayStr) {
             '<button type="button" class="today-action today-action-secondary" id="hwSetNextLesson">Next lesson with this class</button>' +
           '</div>' +
         '</div>' +
+        ((PS.getHomeworkBank && PS.getHomeworkBank().length)
+          ? '<div class="form-group homework-set-bank"><label class="form-label" for="hwSetFromBank">From bank</label>' +
+            '<select id="hwSetFromBank" class="form-select">' + homeworkBankOptionsHtml('Use one from the bank…') + '</select></div>'
+          : '') +
         '<div class="form-group homework-set-task"><label class="form-label" for="hwSetTask">Task</label>' +
           '<textarea id="hwSetTask" class="form-input" rows="2" placeholder="What should pupils do?">' + escHtml(homeworkSetDraft.task) + '</textarea></div>' +
       '</div>' +
@@ -6370,6 +6755,21 @@ function createHomeworkDashboardMarkup(model) {
     }
   }
 
+  if (homeworkPageView === 'bank') {
+    var bankCount = PS.getHomeworkBank ? PS.getHomeworkBank().length : 0;
+    return (
+      '<header class="ed-page-head today-strip">' +
+        '<div>' +
+          '<div class="ed-kicker">HOMEWORK</div>' +
+          '<h1 class="ed-page-title today-heading">Homework bank</h1>' +
+          '<p class="ed-page-sub today-summary">' + bankCount + ' saved to reuse · copy to Satchel One or Teams</p>' +
+        '</div>' +
+        '<div class="ed-controls today-strip-actions">' + homeworkViewSwitchHtml() + '</div>' +
+      '</header>' +
+      createHomeworkBankMarkup()
+    );
+  }
+
   return (
     '<header class="ed-page-head today-strip">' +
       '<div>' +
@@ -6378,6 +6778,7 @@ function createHomeworkDashboardMarkup(model) {
         '<p class="ed-page-sub today-summary">' + escHtml(model.headingRange) + ' · ' + summaryBits.join(' · ') + '</p>' +
       '</div>' +
       '<div class="ed-controls today-strip-actions">' +
+        homeworkViewSwitchHtml() +
         '<button type="button" class="ed-btn ed-arrow today-nav-btn" id="hwPrevWeek" aria-label="Previous week">&#9664;</button>' +
         '<button type="button" class="ed-btn today-nav-today" id="hwJumpThisWeek"' + (model.isThisWeek ? ' hidden' : '') + '>This week</button>' +
         '<button type="button" class="ed-btn ed-arrow today-nav-btn" id="hwNextWeek" aria-label="Next week">&#9654;</button>' +
@@ -6415,6 +6816,18 @@ function showHomeworkSetError(root, msg) {
 
 function bindHomeworkDashboardEvents(root, model) {
   if (!root) return;
+  root.querySelectorAll('[data-hw-view]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var nextView = btn.getAttribute('data-hw-view');
+      if (nextView === homeworkPageView) return;
+      homeworkPageView = nextView;
+      renderHomeworkDashboard();
+    });
+  });
+  if (homeworkPageView === 'bank') {
+    bindHomeworkBankEvents(root);
+    return;
+  }
   var prev = root.querySelector('#hwPrevWeek');
   var next = root.querySelector('#hwNextWeek');
   var jump = root.querySelector('#hwJumpThisWeek');
@@ -6510,6 +6923,19 @@ function bindHomeworkDashboardEvents(root, model) {
         captureHomeworkSetDraft(root);
       });
     });
+    var fromBank = root.querySelector('#hwSetFromBank');
+    if (fromBank) {
+      fromBank.addEventListener('change', function() {
+        var item = fromBank.value && PS.getHomeworkBankItem(fromBank.value);
+        var taskEl = root.querySelector('#hwSetTask');
+        if (item && taskEl) {
+          taskEl.value = homeworkBankItemToTaskText(item);
+          captureHomeworkSetDraft(root);
+          showHomeworkSetError(root, '');
+        }
+        fromBank.value = '';
+      });
+    }
     var nextLesson = root.querySelector('#hwSetNextLesson');
     if (nextLesson) {
       nextLesson.addEventListener('click', function() {
@@ -6554,7 +6980,7 @@ function bindHomeworkDashboardEvents(root, model) {
           return;
         }
         showHomeworkSetError(root, '');
-        var controls = root.querySelectorAll('#hwSetClass, #hwSetDate, #hwSetPeriod, #hwSetTask, #hwSetDue, #hwSetCancel, #hwSetNextLesson');
+        var controls = root.querySelectorAll('#hwSetClass, #hwSetDate, #hwSetPeriod, #hwSetTask, #hwSetDue, #hwSetCancel, #hwSetNextLesson, #hwSetFromBank');
         save.disabled = true;
         save.setAttribute('aria-busy', 'true');
         save.textContent = 'Saving…';
@@ -6595,12 +7021,375 @@ function bindHomeworkDashboardEvents(root, model) {
   }
 }
 
+/* ---------- Homework bank view (Homework tab) ---------- */
+
+var homeworkPageView = 'due';
+var homeworkBankSearch = '';
+var homeworkBankEditId = null;
+var homeworkBankJustOpened = false;
+var homeworkBankDraft = { title: '', task: '', link: '' };
+var homeworkImportItems = [];
+
+function homeworkViewSwitchHtml() {
+  var count = PS.getHomeworkBank ? PS.getHomeworkBank().length : 0;
+  var btn = function(view, label) {
+    var on = homeworkPageView === view;
+    return '<button type="button" class="homework-view-btn' + (on ? ' is-active' : '') + '" data-hw-view="' + view + '" aria-pressed="' + (on ? 'true' : 'false') + '">' + label + '</button>';
+  };
+  return '<div class="homework-view-switch" role="group" aria-label="Homework view">' +
+    btn('due', 'Set &amp; due') +
+    btn('bank', 'Bank <span class="homework-view-count">' + count + '</span>') +
+  '</div>';
+}
+
+function homeworkBankMatches(item, q) {
+  if (!q) return true;
+  var hay = (item.title + '\n' + item.task + '\n' + item.link).toLowerCase();
+  return q.toLowerCase().split(/\s+/).filter(Boolean).every(function(w) { return hay.indexOf(w) !== -1; });
+}
+
+function homeworkBankItemHtml(item) {
+  var host = '';
+  if (item.link) {
+    try { host = new URL(item.link).hostname.replace(/^www\./, ''); } catch (e) { host = ''; }
+  }
+  var excerpt = item.task && item.title ? item.task : '';
+  return (
+    '<article class="homework-item homework-bank-item" data-bank-id="' + escAttr(item.id) + '">' +
+      '<button type="button" class="homework-item-open homework-bank-open" data-bank-edit="' + escAttr(item.id) + '" aria-label="Edit ' + escAttr(homeworkBankLabel(item)) + '">' +
+        '<span class="homework-item-class">' + escHtml(item.title || homeworkBankLabel(item)) + '</span>' +
+        (excerpt ? '<span class="homework-item-task homework-bank-excerpt">' + escHtml(excerpt) + '</span>' : '') +
+        (host ? '<span class="homework-item-meta">Link · ' + escHtml(host) + '</span>' : '') +
+      '</button>' +
+      '<div class="homework-bank-actions">' +
+        '<button type="button" class="homework-bank-action" data-bank-share="satchel" data-bank-id="' + escAttr(item.id) + '" title="Copy for Satchel One and open it">Satchel One</button>' +
+        '<button type="button" class="homework-bank-action" data-bank-share="teams" data-bank-id="' + escAttr(item.id) + '" title="Copy for Teams Assignments and open it">Teams</button>' +
+        '<button type="button" class="homework-bank-action is-danger" data-bank-delete="' + escAttr(item.id) + '" aria-label="Delete ' + escAttr(homeworkBankLabel(item)) + '">Delete</button>' +
+      '</div>' +
+    '</article>'
+  );
+}
+
+function homeworkBankListHtml() {
+  var all = PS.getHomeworkBank ? PS.getHomeworkBank() : [];
+  if (!all.length) {
+    return plannerEmptyCallout({
+      title: 'Your homework bank is empty',
+      body: 'Add homework you set often, import a list, or tap Save to bank on a lesson\'s homework.'
+    });
+  }
+  var items = all.filter(function(h) { return homeworkBankMatches(h, homeworkBankSearch); })
+    .sort(function(a, b) { return String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')); });
+  if (!items.length) {
+    return '<section class="today-panel homework-group"><p class="today-empty">No homework matches “' + escHtml(homeworkBankSearch) + '”.</p></section>';
+  }
+  return (
+    '<section class="today-panel homework-group homework-bank-group">' +
+      '<header class="today-panel-header"><h2>Homework bank</h2>' +
+        '<p class="today-panel-summary">' + items.length + (items.length !== all.length ? ' of ' + all.length : '') + '</p></header>' +
+      '<div class="homework-list">' + items.map(homeworkBankItemHtml).join('') + '</div>' +
+    '</section>'
+  );
+}
+
+function homeworkBankFormHtml() {
+  var isNew = homeworkBankEditId === 'new';
+  return (
+    '<section class="today-panel homework-set-panel homework-bank-form" id="homeworkBankForm">' +
+      '<header class="today-panel-header"><h2>' + (isNew ? 'Add to bank' : 'Edit homework') + '</h2></header>' +
+      '<p class="homework-set-error" id="hwBankError" hidden role="alert"></p>' +
+      '<div class="homework-set-grid homework-bank-grid">' +
+        '<div class="form-group homework-bank-title"><label class="form-label" for="hwBankTitle">Title</label>' +
+          '<input type="text" id="hwBankTitle" class="form-input" maxlength="200" placeholder="e.g. Learn your lines for Scene 2" value="' + escAttr(homeworkBankDraft.title) + '"></div>' +
+        '<div class="form-group homework-set-task"><label class="form-label" for="hwBankTask">Instructions</label>' +
+          '<textarea id="hwBankTask" class="form-input" rows="4" placeholder="What should pupils do?">' + escHtml(homeworkBankDraft.task) + '</textarea></div>' +
+        '<div class="form-group homework-bank-link"><label class="form-label" for="hwBankLink">Link <span class="homework-optional">(optional)</span></label>' +
+          '<input type="url" id="hwBankLink" class="form-input" inputmode="url" autocapitalize="off" placeholder="https://…" value="' + escAttr(homeworkBankDraft.link) + '"></div>' +
+      '</div>' +
+      '<div class="homework-set-actions">' +
+        '<button type="button" class="today-action today-action-secondary" id="hwBankCancel">Cancel</button>' +
+        '<button type="button" class="today-action today-action-primary" id="hwBankSave">' + (isNew ? 'Add to bank' : 'Save changes') + '</button>' +
+      '</div>' +
+    '</section>'
+  );
+}
+
+function createHomeworkBankMarkup() {
+  return (
+    '<div class="homework-toolbar homework-bank-toolbar">' +
+      '<label class="homework-bank-search"><span class="sr-only">Search the homework bank</span>' +
+        '<input type="search" id="hwBankSearch" class="form-input" placeholder="Search the bank" autocomplete="off" value="' + escAttr(homeworkBankSearch) + '"></label>' +
+      '<div class="homework-bank-toolbar-actions">' +
+        '<button type="button" class="today-action today-action-secondary" id="hwBankImport">Import</button>' +
+        (homeworkBankEditId ? '' : '<button type="button" class="today-action today-action-primary" id="hwBankAdd">Add homework</button>') +
+      '</div>' +
+    '</div>' +
+    (homeworkBankEditId ? homeworkBankFormHtml() : '') +
+    '<div class="homework-groups" id="hwBankList">' + homeworkBankListHtml() + '</div>'
+  );
+}
+
+function captureHomeworkBankDraft(root) {
+  if (!root) return;
+  var t = root.querySelector('#hwBankTitle');
+  var k = root.querySelector('#hwBankTask');
+  var l = root.querySelector('#hwBankLink');
+  if (t) homeworkBankDraft.title = t.value;
+  if (k) homeworkBankDraft.task = k.value;
+  if (l) homeworkBankDraft.link = l.value;
+}
+
+function openHomeworkBankForm(itemId) {
+  var item = itemId && itemId !== 'new' && PS.getHomeworkBankItem ? PS.getHomeworkBankItem(itemId) : null;
+  homeworkBankEditId = item ? item.id : 'new';
+  homeworkBankDraft = item
+    ? { title: item.title, task: item.task, link: item.link }
+    : { title: '', task: '', link: '' };
+  homeworkBankJustOpened = true;
+  renderHomeworkDashboard();
+}
+
+function deleteHomeworkBankItemWithUndo(itemId) {
+  PS.deleteHomeworkBankItem(itemId).then(function(res) {
+    if (homeworkBankEditId === itemId) homeworkBankEditId = null;
+    renderHomeworkDashboard();
+    if (!res) return;
+    showToast('Removed from the bank', {
+      onUndo: function() {
+        PS.restoreHomeworkBankItem(res.item, res.index).then(function() {
+          renderHomeworkDashboard();
+          showToast('Homework restored');
+        });
+      }
+    });
+  }).catch(function() { showToast('Could not delete. Try again.'); });
+}
+
+function bindHomeworkBankEvents(root) {
+  var search = root.querySelector('#hwBankSearch');
+  if (search) {
+    search.addEventListener('input', function() {
+      homeworkBankSearch = search.value || '';
+      var list = root.querySelector('#hwBankList');
+      if (list) {
+        list.innerHTML = homeworkBankListHtml();
+        bindHomeworkBankListEvents(list);
+      }
+    });
+  }
+  var add = root.querySelector('#hwBankAdd');
+  if (add) add.addEventListener('click', function() { openHomeworkBankForm('new'); });
+  var imp = root.querySelector('#hwBankImport');
+  if (imp) imp.addEventListener('click', openHomeworkImportModal);
+  var list = root.querySelector('#hwBankList');
+  if (list) bindHomeworkBankListEvents(list);
+
+  if (!homeworkBankEditId) return;
+  ['#hwBankTitle', '#hwBankTask', '#hwBankLink'].forEach(function(sel) {
+    var el = root.querySelector(sel);
+    if (el) el.addEventListener('input', function() { captureHomeworkBankDraft(root); });
+  });
+  var cancel = root.querySelector('#hwBankCancel');
+  if (cancel) cancel.addEventListener('click', function() {
+    homeworkBankEditId = null;
+    renderHomeworkDashboard();
+  });
+  var save = root.querySelector('#hwBankSave');
+  if (save) save.addEventListener('click', function() {
+    if (save.disabled) return;
+    captureHomeworkBankDraft(root);
+    var err = root.querySelector('#hwBankError');
+    var showErr = function(msg) {
+      if (!err) return;
+      err.hidden = !msg;
+      err.textContent = msg || '';
+    };
+    var link = String(homeworkBankDraft.link || '').trim();
+    if (!String(homeworkBankDraft.title || '').trim() && !String(homeworkBankDraft.task || '').trim()) {
+      showErr('Add a title or instructions.');
+      return;
+    }
+    if (link && !/^https?:\/\//i.test(link)) {
+      if (/^[\w-]+(\.[\w-]+)+(\/|$)/.test(link)) link = 'https://' + link;
+      else { showErr('The link should start with https://'); return; }
+    }
+    showErr('');
+    save.disabled = true;
+    save.textContent = 'Saving…';
+    var payload = { title: homeworkBankDraft.title, task: homeworkBankDraft.task, link: link };
+    if (homeworkBankEditId !== 'new') payload.id = homeworkBankEditId;
+    PS.saveHomeworkBankItem(payload).then(function() {
+      showToast(homeworkBankEditId === 'new' ? 'Added to the bank' : 'Homework updated');
+      homeworkBankEditId = null;
+      renderHomeworkDashboard();
+    }).catch(function() {
+      save.disabled = false;
+      save.textContent = homeworkBankEditId === 'new' ? 'Add to bank' : 'Save changes';
+      showErr('Could not save. Try again.');
+    });
+  });
+  if (homeworkBankJustOpened) {
+    homeworkBankJustOpened = false;
+    var panel = root.querySelector('#homeworkBankForm');
+    var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (panel && panel.scrollIntoView) panel.scrollIntoView({ block: 'nearest', behavior: reduceMotion ? 'auto' : 'smooth' });
+    var first = root.querySelector('#hwBankTitle');
+    if (first) first.focus();
+  }
+}
+
+function bindHomeworkBankListEvents(list) {
+  list.querySelectorAll('[data-bank-edit]').forEach(function(btn) {
+    btn.addEventListener('click', function() { openHomeworkBankForm(btn.getAttribute('data-bank-edit')); });
+  });
+  list.querySelectorAll('[data-bank-share]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var item = PS.getHomeworkBankItem(btn.getAttribute('data-bank-id'));
+      if (item) shareHomeworkTo(btn.getAttribute('data-bank-share'), item);
+    });
+  });
+  list.querySelectorAll('[data-bank-delete]').forEach(function(btn) {
+    btn.addEventListener('click', function() { deleteHomeworkBankItemWithUndo(btn.getAttribute('data-bank-delete')); });
+  });
+}
+
+/* ---------- Homework bank: import modal ---------- */
+
+function openHomeworkImportModal() {
+  var modal = document.getElementById('homeworkImportModal');
+  if (!modal) return;
+  var ta = document.getElementById('homeworkImportText');
+  if (ta) ta.value = '';
+  homeworkImportItems = [];
+  renderHomeworkImportPreview();
+  modal.classList.add('visible');
+  setTimeout(function() { if (ta) ta.focus(); }, 50);
+}
+
+function closeHomeworkImportModal() {
+  var modal = document.getElementById('homeworkImportModal');
+  if (modal) modal.classList.remove('visible');
+}
+
+function setHomeworkImportItems(items) {
+  homeworkImportItems = items || [];
+  renderHomeworkImportPreview();
+}
+
+function renderHomeworkImportPreview() {
+  var box = document.getElementById('homeworkImportPreview');
+  var addBtn = document.getElementById('homeworkImportAdd');
+  var n = homeworkImportItems.length;
+  if (addBtn) {
+    addBtn.disabled = !n;
+    addBtn.textContent = n ? ('Add ' + n + ' to bank') : 'Add to bank';
+  }
+  if (!box) return;
+  if (!n) {
+    box.innerHTML = '<p class="homework-import-empty">Nothing found yet.</p>';
+    return;
+  }
+  box.innerHTML = '<p class="homework-import-count">' + n + ' homework found</p><ol class="homework-import-list">' +
+    homeworkImportItems.slice(0, 50).map(function(h) {
+      return '<li><b>' + escHtml(h.title || homeworkBankLabel(h)) + '</b>' +
+        (h.task && h.title ? '<span>' + escHtml(h.task.slice(0, 140)) + (h.task.length > 140 ? '…' : '') + '</span>' : '') +
+        (h.link ? '<span class="homework-import-link">' + escHtml(h.link) + '</span>' : '') + '</li>';
+    }).join('') +
+    (n > 50 ? '<li class="homework-import-more">and ' + (n - 50) + ' more</li>' : '') +
+  '</ol>';
+}
+
+function readHomeworkImportFile(file) {
+  if (!file) return;
+  var name = String(file.name || '').toLowerCase();
+  var ta = document.getElementById('homeworkImportText');
+  if (/\.docx$/.test(name)) {
+    if (typeof JSZip === 'undefined') { showToast('Word import needs JSZip. Refresh the page'); return; }
+    var r = new FileReader();
+    r.onload = function() {
+      JSZip.loadAsync(r.result).then(function(zip) {
+        var doc = zip.file('word/document.xml');
+        if (!doc) throw new Error('no document');
+        return doc.async('string');
+      }).then(function(xml) {
+        var text = docxXmlToPlainText(xml);
+        if (ta) ta.value = text;
+        setHomeworkImportItems(parseHomeworkText(text));
+      }).catch(function() { showToast('Could not read that Word file'); });
+    };
+    r.readAsArrayBuffer(file);
+    return;
+  }
+  var reader = new FileReader();
+  reader.onload = function() {
+    var text = String(reader.result || '');
+    if (ta) ta.value = text;
+    var isCsv = /\.(csv|tsv)$/.test(name) || /text\/(csv|tab-separated)/.test(file.type || '');
+    setHomeworkImportItems(isCsv ? parseHomeworkCsv(text) : parseHomeworkText(text));
+  };
+  reader.readAsText(file);
+}
+
+function looksLikeCsv(text) {
+  var lines = String(text || '').split(/\r?\n/).filter(function(l) { return l.trim(); });
+  if (lines.length < 1) return false;
+  var head = lines[0].toLowerCase();
+  return /^"?(title|name|homework)"?\s*[,\t;]/.test(head);
+}
+
+function initHomeworkImportModal() {
+  var modal = document.getElementById('homeworkImportModal');
+  if (!modal) return;
+  var ta = document.getElementById('homeworkImportText');
+  var file = document.getElementById('homeworkImportFile');
+  var timer = null;
+  if (ta) ta.addEventListener('input', function() {
+    clearTimeout(timer);
+    timer = setTimeout(function() {
+      var text = ta.value;
+      setHomeworkImportItems(looksLikeCsv(text) ? parseHomeworkCsv(text) : parseHomeworkText(text));
+    }, 150);
+  });
+  var pick = document.getElementById('homeworkImportPick');
+  if (pick && file) pick.addEventListener('click', function() { file.click(); });
+  if (file) file.addEventListener('change', function() {
+    readHomeworkImportFile(file.files && file.files[0]);
+    file.value = '';
+  });
+  var close = document.getElementById('homeworkImportClose');
+  if (close) close.addEventListener('click', closeHomeworkImportModal);
+  var cancel = document.getElementById('homeworkImportCancel');
+  if (cancel) cancel.addEventListener('click', closeHomeworkImportModal);
+  modal.addEventListener('click', function(e) { if (e.target === modal) closeHomeworkImportModal(); });
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape' && modal.classList.contains('visible')) closeHomeworkImportModal();
+  });
+  var add = document.getElementById('homeworkImportAdd');
+  if (add) add.addEventListener('click', function() {
+    if (add.disabled || !homeworkImportItems.length) return;
+    add.disabled = true;
+    add.textContent = 'Adding…';
+    PS.addHomeworkBankItems(homeworkImportItems).then(function(n) {
+      closeHomeworkImportModal();
+      homeworkPageView = 'bank';
+      homeworkBankSearch = '';
+      showToast(n + ' homework added to the bank');
+      renderHomeworkDashboard();
+      populateLessonHomeworkBankPick();
+    }).catch(function() {
+      showToast('Could not add to the bank. Try again.');
+      renderHomeworkImportPreview();
+    });
+  });
+}
+
 function renderHomeworkDashboard() {
   var root = document.getElementById('homeworkDashboardRoot');
   if (!root) return;
   if (plannerFieldIsFocused(root) && homeworkSetFormOpen) {
     captureHomeworkSetDraft(root);
   }
+  if (homeworkPageView === 'bank' && homeworkBankEditId) captureHomeworkBankDraft(root);
   var model = buildHomeworkDashboardModel();
   root.classList.add('homework-page');
   root.innerHTML = createHomeworkDashboardMarkup(model);
@@ -10275,6 +11064,26 @@ var lessonHomeworkNextBtn = document.getElementById('lessonHomeworkNextLesson');
 if (lessonHomeworkNextBtn) {
   lessonHomeworkNextBtn.addEventListener('click', setHomeworkDueToNextLesson);
 }
+var lessonHomeworkBankPick = document.getElementById('lessonHomeworkBankPick');
+if (lessonHomeworkBankPick) {
+  lessonHomeworkBankPick.addEventListener('change', function() {
+    if (lessonHomeworkBankPick.value) applyBankItemToLessonHomework(lessonHomeworkBankPick.value);
+    lessonHomeworkBankPick.value = '';
+  });
+}
+var lessonHomeworkSaveToBankBtn = document.getElementById('lessonHomeworkSaveToBank');
+if (lessonHomeworkSaveToBankBtn) {
+  lessonHomeworkSaveToBankBtn.addEventListener('click', function() { saveLessonHomeworkToBank(lessonHomeworkSaveToBankBtn); });
+}
+var lessonHomeworkCopySatchelBtn = document.getElementById('lessonHomeworkCopySatchel');
+if (lessonHomeworkCopySatchelBtn) {
+  lessonHomeworkCopySatchelBtn.addEventListener('click', function() { shareHomeworkTo('satchel', lessonHomeworkShareData()); });
+}
+var lessonHomeworkCopyTeamsBtn = document.getElementById('lessonHomeworkCopyTeams');
+if (lessonHomeworkCopyTeamsBtn) {
+  lessonHomeworkCopyTeamsBtn.addEventListener('click', function() { shareHomeworkTo('teams', lessonHomeworkShareData()); });
+}
+initHomeworkImportModal();
 
 function refreshPlannerAfterLessonChange() {
   renderWeekView();
