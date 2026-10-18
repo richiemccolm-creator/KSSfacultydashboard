@@ -1,0 +1,227 @@
+/* toolkit-ui.css: shared look for every Classroom Toolkit tool.
+   Load after ../design-tokens.css and before a tool's own <style>.
+
+   Two modes:
+   - Teacher (default): Faculty Hub paper and navy, for setup and editing screens.
+   - Stage (body.tk-stage): dark and bold, for anything shown to the class.
+
+   Each tool sets its accent once, e.g. body{--accent:#0e7490;--accent-stage:#3bd6ff}.
+   The tool's logo appears once, on its start screen (.hero-logo inside .hero-visual). */
+
+:root{
+  --accent:var(--drama-600);
+  --accent-stage:#7aa7ff;
+  --stage:#0b1427;
+  --stage-2:#111c33;
+  --stage-line:rgba(255,255,255,.09);
+  --stage-line-strong:rgba(255,255,255,.18);
+  --ease:cubic-bezier(.2,.8,.2,1);
+  --shadow-rest:0 1px 2px rgba(15,26,48,.06);
+  --shadow-raised:0 4px 12px rgba(15,26,48,.08);
+  --shadow-modal:0 12px 32px rgba(15,26,48,.12);
+
+  /* Teacher mode surface tokens (tools may read these) */
+  --bg:var(--navy-050);
+  --surface:#fff;
+  --line:var(--navy-100);
+  --line-strong:var(--navy-200);
+  --text:var(--ink-900);
+  --text-2:var(--ink-500);
+  --muted:var(--ink-400);
+  --font:var(--font-body);
+  --font-display:var(--font-heading);
+}
+body.tk-stage{
+  --bg:var(--stage);
+  --surface:var(--stage-2);
+  --line:var(--stage-line);
+  --line-strong:var(--stage-line-strong);
+  --text:#f5f7fb;
+  --text-2:#c3cbdb;
+  --muted:#8a96ad;
+}
+
+*{box-sizing:border-box}
+html{color-scheme:light}
+body.tk-stage{color-scheme:dark}
+body{
+  margin:0;min-height:100vh;min-height:100dvh;
+  font-family:var(--font);color:var(--text);line-height:1.5;
+  background:var(--bg);-webkit-font-smoothing:antialiased;overflow-x:clip;
+}
+body.tk-stage{
+  background:
+    radial-gradient(90% 60% at 50% -10%,color-mix(in srgb,var(--accent-stage) 16%,transparent),transparent 70%),
+    var(--stage);
+  background-attachment:fixed;
+}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer}
+a{color:inherit;text-decoration:none}
+.hidden{display:none!important}
+:focus-visible{outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 35%,transparent)}
+body.tk-stage :focus-visible{box-shadow:0 0 0 3px color-mix(in srgb,var(--accent-stage) 45%,transparent)}
+
+/* Old decorative layers: retired */
+.sky,.streak,.spark{display:none!important}
+
+.app{position:relative;min-height:100vh;min-height:100dvh;display:flex;flex-direction:column}
+
+/* Header: same on every tool. Back to Toolkit, tool name, actions on the right. */
+.top{
+  position:sticky;top:0;z-index:20;
+  display:flex;align-items:center;gap:14px;min-height:64px;padding:10px 20px;
+  background:#fff;border-bottom:1px solid var(--line);
+}
+body.tk-stage .top{background:rgba(11,20,39,.92);backdrop-filter:blur(12px);border-bottom-color:var(--stage-line)}
+.back{
+  display:inline-flex;align-items:center;gap:6px;height:38px;padding:0 12px 0 8px;border-radius:10px;
+  border:1px solid var(--line);background:transparent;color:var(--text-2);font:500 13.5px/1 var(--font);flex:none;
+  transition:color .15s,border-color .15s,background .15s;
+}
+.back:hover{color:var(--text);border-color:var(--line-strong)}
+.back svg{width:16px;height:16px}
+.top-brand{display:flex;flex-direction:column;justify-content:center;gap:2px;min-width:0}
+.top-brand .tk-name{
+  display:flex;align-items:center;gap:8px;margin:0;
+  font:700 17px/1.2 var(--font-display);letter-spacing:-.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.top-brand .tk-name::before{content:"";width:10px;height:10px;border-radius:3px;background:var(--accent);flex:none}
+body.tk-stage .top-brand .tk-name::before{background:var(--accent-stage)}
+.top-logo{display:none!important}
+.top .sub{margin:0;font:500 12.5px/1.3 var(--font);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.top-actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:flex-end}
+
+/* Buttons. One filled action per view. */
+.btn{
+  min-height:44px;height:auto;padding:0 16px;border-radius:10px;border:1px solid var(--line);
+  background:#fff;color:var(--text);font:600 14px/1 var(--font);
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  transition:background .15s,border-color .15s,color .15s,transform .1s;
+  animation:none;
+}
+.btn:hover{border-color:var(--line-strong)}
+.btn:active{transform:translateY(1px)}
+.btn:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.btn-primary{background:var(--navy-700);border-color:var(--navy-700);color:#fff;box-shadow:none}
+.btn-primary:hover{background:var(--navy-600);border-color:var(--navy-600)}
+.btn-ghost{background:transparent}
+.btn.on{background:color-mix(in srgb,var(--accent) 10%,#fff);border-color:var(--accent);color:var(--accent)}
+.btn.warn{color:var(--danger-600);border-color:color-mix(in srgb,var(--danger-600) 40%,#fff)}
+.btn.warn:hover{background:var(--danger-100)}
+body.tk-stage .btn{background:rgba(255,255,255,.04);border-color:var(--stage-line-strong);color:var(--text)}
+body.tk-stage .btn:hover{background:rgba(255,255,255,.09)}
+body.tk-stage .btn-primary{background:#fff;border-color:#fff;color:var(--navy-900)}
+body.tk-stage .btn-primary:hover{background:#e9edf5}
+body.tk-stage .btn-ghost{background:transparent}
+body.tk-stage .btn.on{background:color-mix(in srgb,var(--accent-stage) 20%,transparent);border-color:var(--accent-stage);color:#fff}
+body.tk-stage .btn.warn{color:#ffb4b9;border-color:rgba(244,94,104,.45);background:transparent}
+body.tk-stage .btn.warn:hover{background:rgba(244,94,104,.12)}
+
+/* Page shell and start screen */
+.shell{flex:1;width:min(1120px,100%);margin:0 auto;padding:28px 24px 48px}
+body.tk-stage .shell{width:min(1440px,100%)}
+.hero{
+  display:grid;grid-template-columns:minmax(0,1fr) minmax(240px,360px);gap:20px 32px;align-items:center;
+  margin:0 0 24px;animation:none;
+}
+.hero h2{
+  margin:0;font:700 clamp(1.6rem,2.6vw,2.1rem)/1.15 var(--font-display);letter-spacing:-.03em;
+  background:none;color:var(--text);-webkit-text-fill-color:currentColor;
+}
+.hero p{margin:8px 0 0;color:var(--text-2);font:400 15.5px/1.55 var(--font);max-width:38rem}
+/* The logo's one appearance: on a dark board panel, matching the hub card */
+.hero-visual{
+  display:grid;place-items:center;min-height:0;aspect-ratio:16/7;padding:18px 24px;border-radius:14px;
+  background:radial-gradient(120% 90% at 50% 0%,color-mix(in srgb,var(--accent-stage) 22%,var(--stage)) 0%,var(--stage) 70%);
+}
+.hero-logo{display:block;width:auto;max-width:100%;max-height:120px;height:auto;filter:none;animation:none}
+.hero > .hero-logo{justify-self:center;padding:18px 24px;border-radius:14px;max-height:none;box-sizing:content-box;
+  width:min(100% - 48px,360px);
+  background:radial-gradient(120% 90% at 50% 0%,color-mix(in srgb,var(--accent-stage) 22%,var(--stage)) 0%,var(--stage) 70%)}
+@media(max-width:760px){
+  .hero{grid-template-columns:1fr}
+  .hero-visual,.hero > .hero-logo{order:-1}
+  .hero-visual{aspect-ratio:auto}
+}
+
+/* Forms */
+.form{
+  display:grid;gap:16px;max-width:680px;padding:22px;border-radius:14px;
+  background:var(--surface);border:1px solid var(--line);box-shadow:none;animation:none;
+}
+label{display:block;margin:0 0 6px;font:500 13px/1.3 var(--font);color:var(--text-2);letter-spacing:normal;text-transform:none}
+input,textarea,select{
+  width:100%;border-radius:6px;border:1px solid var(--line);background:#fff;color:var(--text);
+  padding:10px 12px;outline:none;font:400 16px/1.4 var(--font); /* 16px or iOS zooms in on focus */transition:border-color .15s,box-shadow .15s;
+}
+input{min-height:44px;height:auto}
+textarea{min-height:88px;resize:vertical}
+input::placeholder,textarea::placeholder{color:var(--navy-400)}
+input:focus,textarea:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 22%,transparent)}
+input[type=checkbox],input[type=radio]{width:18px;height:18px;min-height:0;padding:0;accent-color:var(--accent)}
+body.tk-stage input,body.tk-stage textarea,body.tk-stage select{background:rgba(255,255,255,.05);border-color:var(--stage-line-strong);color:var(--text)}
+body.tk-stage input:focus,body.tk-stage textarea:focus{border-color:var(--accent-stage);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent-stage) 30%,transparent)}
+.hint{margin:6px 0 0;color:var(--muted);font:400 13px/1.45 var(--font)}
+.check{
+  display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:10px;
+  border:1px solid var(--line);background:var(--navy-050);cursor:pointer;
+}
+.check input{margin-top:1px;flex:none}
+.check span{font:500 14px/1.4 var(--font);color:var(--text);text-transform:none;letter-spacing:normal}
+.form-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+.setup-error{margin:0;padding:12px 14px;border-radius:10px;border:1px solid #f5c2c2;background:var(--danger-100);color:var(--danger-600);font:500 14px/1.45 var(--font)}
+
+/* Panels and cards */
+.panel{
+  border-radius:14px;padding:18px;background:var(--surface);border:1px solid var(--line);
+  box-shadow:none;animation:none;
+}
+.panel h3{margin:0 0 10px;font:700 16px/1.25 var(--font-display);letter-spacing:-.01em}
+body.tk-stage .panel{background:var(--stage-2);border-color:var(--stage-line)}
+.card{border-radius:14px;background:var(--surface);border:1px solid var(--line);animation:none}
+body.tk-stage .card{background:var(--stage-2);border-color:var(--stage-line)}
+.meta{color:var(--muted);font:500 13px/1.45 var(--font)}
+.chip{
+  display:inline-flex;align-items:center;min-height:28px;padding:4px 10px;border-radius:6px;
+  background:var(--navy-050);border:1px solid var(--line);color:var(--text-2);font:500 13px/1.2 var(--font);
+}
+body.tk-stage .chip{background:rgba(255,255,255,.06);border-color:var(--stage-line);color:var(--text-2)}
+.player-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+
+/* Join panel: PIN and QR, read from the back of the room */
+.host-brand{display:none}
+.pin{
+  text-align:center;font:800 clamp(40px,4.4vw,60px)/1 var(--font-display);letter-spacing:.06em;
+  font-variant-numeric:tabular-nums;color:var(--text);
+  background:none;-webkit-text-fill-color:currentColor;filter:none;animation:none;
+}
+.qr-wrap{
+  margin:14px 0;padding:14px;border-radius:14px;text-align:center;
+  background:#fff;border:0;box-shadow:none;
+}
+.qr-wrap::before{
+  content:"Scan to join";display:block;margin:0 0 8px;
+  font:600 13px/1 var(--font);letter-spacing:normal;text-transform:none;color:var(--ink-500);
+}
+.qr-wrap img{display:block;margin:0 auto;width:min(220px,100%);height:auto;border-radius:0;padding:0;background:#fff;box-shadow:none}
+
+/* Toast */
+.toast{
+  position:fixed;left:50%;bottom:24px;z-index:70;transform:translate(-50%,16px);
+  padding:12px 18px;border-radius:10px;background:var(--navy-900);border:0;color:#fff;
+  font:600 14px/1.3 var(--font);box-shadow:var(--shadow-modal);
+  opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;
+}
+.toast.show,.toast.on{opacity:1;transform:translate(-50%,0)}
+
+@media(max-width:640px){
+  .top{gap:10px;padding:10px 12px}
+  .top .sub{display:none}
+  .back{padding:0 10px 0 6px}
+  .shell{padding:20px 16px 40px}
+  .form{padding:16px}
+}
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}

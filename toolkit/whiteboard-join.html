@@ -4,142 +4,71 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>Join Mini Whiteboards — Classroom Toolkit</title>
+<title>Join Mini Whiteboards | Classroom Toolkit</title>
+<script>window.FH_NO_VERSION_RELOAD=true;</script>
 <script src="../app-version.js"></script>
-<script>(function(){if(window.ensureAppVersionInUrl)window.ensureAppVersionInUrl();})();</script>
 <script src="../config.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="../supabase-init.js"></script>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link href="https://api.fontshare.com/v2/css?f[]=general-sans@500,600,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../design-tokens.css">
+<link rel="stylesheet" href="toolkit-ui.css">
 <style>
-:root{
-  --bg:#030712; --text:#F5F7FF; --text-2:#B6C0D9; --muted:#7D8AA8;
-  --line:rgba(124,148,205,.18);
-  --paper:#F4F1E8; --ink:#1A2340;
-  --cyan:#3BD6FF; --amber:#F4A62A; --mint:#35C796; --coral:#F45E68; --blue:#3B6CFF;
-  --font:"Inter",ui-sans-serif,system-ui,sans-serif;
-  --font-display:"General Sans","Inter",sans-serif;
-  --ease:cubic-bezier(.2,.8,.2,1);
-}
-*{box-sizing:border-box}
+/* Stop iOS double-tap zoom when pupils tap buttons quickly */
+html{touch-action:manipulation}
+/* Pupil phone page for Mini Whiteboards. Always stage mode. */
+body{--accent:#0e7490;--accent-stage:#3bd6ff;--paper:#F4F1E8}
 html,body{height:100%;overscroll-behavior:none}
-html{color-scheme:dark}
-body{
-  margin:0;min-height:100vh;font-family:var(--font);color:var(--text);
-  background:
-    radial-gradient(ellipse 55% 42% at 14% -8%,rgba(59,214,255,.28),transparent 50%),
-    radial-gradient(ellipse 48% 36% at 92% 8%,rgba(244,166,42,.16),transparent 45%),
-    var(--bg);
-  -webkit-font-smoothing:antialiased;overflow:hidden;
-}
-button,input{font:inherit;color:inherit}
-button{cursor:pointer}
-.hidden{display:none!important}
-
-.sky{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
-.spark{
-  position:absolute;border-radius:50%;
-  background:radial-gradient(circle,#fff,rgba(140,230,255,.85) 40%,transparent 70%);
-  box-shadow:0 0 8px rgba(59,214,255,.7);
-  animation:twinkle ease-in-out infinite;
-}
-.spark.amber{
-  background:radial-gradient(circle,#fff,rgba(255,210,120,.85) 40%,transparent 70%);
-  box-shadow:0 0 8px rgba(244,166,42,.7);
-}
-@keyframes twinkle{
-  0%,100%{opacity:.2;transform:scale(.7)}
-  50%{opacity:1;transform:scale(1.25)}
-}
+body{overflow:hidden}
 
 .wrap{
-  position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;padding:20px 16px 32px;gap:16px;
+  min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;padding:20px 16px 32px;
 }
-.card{
-  width:min(440px,100%);border-radius:24px;padding:26px 18px;
-  background:linear-gradient(155deg,rgba(59,214,255,.1),#070f1e 52%);
-  border:1px solid rgba(59,214,255,.3);
-  box-shadow:0 20px 48px rgba(0,0,0,.4),0 0 48px rgba(59,214,255,.12);
-}
-.logo-wrap{width:min(260px,78%);margin:0 auto 10px}
-.logo{width:100%;height:auto;display:block;filter:drop-shadow(0 0 18px rgba(59,214,255,.45))}
-h1{margin:8px 0 6px;text-align:center;font:800 28px/1.1 var(--font-display);letter-spacing:-.03em}
-.sub{margin:0 0 16px;text-align:center;color:var(--text-2);font:500 14.5px/1.45 var(--font)}
-.err{min-height:1.2em;margin:0 0 8px;color:#FFB4B9;font:650 13px/1.3 var(--font);text-align:center}
-label{display:block;font:700 11px/1 var(--font);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:10px 0 6px}
-input{
-  width:100%;height:48px;border-radius:14px;border:1px solid var(--line);background:#070f22;
-  padding:0 14px;outline:none;
-}
-input:focus{border-color:rgba(59,214,255,.55);box-shadow:0 0 0 3px rgba(59,214,255,.16)}
-.btn{
-  width:100%;height:52px;margin-top:16px;border:none;border-radius:16px;font:800 16px/1 var(--font);
-  color:#041018;background:linear-gradient(135deg,#3BD6FF,#35C796 60%,#F4A62A);
-  box-shadow:0 12px 28px -8px rgba(59,214,255,.55);
-}
-.btn:disabled{opacity:.45}
-.btn-ghost{
-  width:auto;height:40px;margin:0;padding:0 12px;border-radius:12px;
-  background:rgba(255,255,255,.06);color:var(--text);border:1px solid var(--line);font:650 13px/1 var(--font);
-  box-shadow:none;
-}
+.card{width:min(420px,100%);padding:24px 20px}
+.logo-wrap{width:min(240px,74%);margin:0 auto 12px}
+.logo{width:100%;height:auto;display:block}
+h1{margin:4px 0 6px;text-align:center;font:700 26px/1.15 var(--font-display);letter-spacing:-.025em}
+.sub{margin:0 0 14px;text-align:center;color:var(--text-2);font:400 15px/1.45 var(--font)}
+.err{min-height:1.3em;margin:0 0 6px;color:#ffb4b9;font:500 14px/1.35 var(--font);text-align:center}
+label{margin:12px 0 6px}
+input{min-height:50px;font-size:17px}
+#pin{font:700 22px/1 var(--font-display);letter-spacing:.12em;text-align:center}
+.card .btn{width:100%;min-height:52px;margin-top:18px;font-size:16px}
+.btn-ghost{min-height:44px;padding:0 14px;flex:none}
 
+/* Drawing view */
 .play{
-  position:fixed;inset:0;z-index:2;display:flex;flex-direction:column;
-  background:#0a1224;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+  position:fixed;inset:0;z-index:2;display:flex;flex-direction:column;background:var(--stage);
+  padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
 }
-.play-bar{
-  flex:none;display:flex;flex-direction:column;gap:6px;padding:10px 14px 8px;
-  background:linear-gradient(180deg,#0d1831,#0a1224);
-  border-bottom:1px solid var(--line);
-}
-.play-prompt{margin:0;font:800 18px/1.2 var(--font-display);letter-spacing:-.02em}
-.play-meta{margin:0;color:var(--muted);font:600 12px/1.3 var(--font)}
-.stage{
-  flex:1;min-height:0;padding:10px 10px 8px;display:flex;
-}
+.play-bar{flex:none;display:flex;flex-direction:column;gap:4px;padding:12px 16px 10px;border-bottom:1px solid var(--stage-line)}
+.play-prompt{margin:0;font:700 19px/1.25 var(--font-display);letter-spacing:-.02em}
+.play-meta{margin:0;color:var(--muted);font:500 12.5px/1.3 var(--font)}
+.stage{flex:1;min-height:0;padding:10px 10px 8px;display:flex}
 /* The board is always 4:3 so it matches the tiles on the class screen; paint() sizes it to fit */
 .paper{
   flex:1;min-height:0;min-width:0;position:relative;
-  display:flex;align-items:center;justify-content:center;
-  touch-action:none;
+  display:flex;align-items:center;justify-content:center;touch-action:none;
 }
 .paper canvas{
   width:100%;height:100%;display:block;flex:none;touch-action:none;cursor:crosshair;
-  border-radius:18px;background:var(--paper);box-shadow:0 16px 40px rgba(0,0,0,.35);
+  border-radius:14px;background:var(--paper);box-shadow:0 12px 32px rgba(0,0,0,.35);
 }
 .lock{
-  position:absolute;inset:0;border-radius:18px;display:flex;align-items:center;justify-content:center;
-  background:rgba(244,241,232,.72);color:var(--ink);font:800 18px/1.3 var(--font-display);
+  position:absolute;inset:0;border-radius:14px;display:flex;align-items:center;justify-content:center;
+  background:rgba(11,20,39,.72);color:#fff;font:700 18px/1.35 var(--font-display);
   text-align:center;padding:20px;pointer-events:none;
 }
-.tools{
-  flex:none;display:flex;align-items:center;gap:8px;padding:8px 10px 12px;
-  overflow-x:auto;-webkit-overflow-scrolling:touch;
-}
-.swatch{
-  width:38px;height:38px;border-radius:50%;border:3px solid transparent;flex:none;
-  box-shadow:inset 0 0 0 1px rgba(0,0,0,.2);
-}
-.swatch.on{border-color:#fff;box-shadow:0 0 0 3px rgba(59,214,255,.55)}
-.size{
-  width:38px;height:38px;border-radius:12px;border:1px solid var(--line);
-  background:#12203c;color:#fff;display:grid;place-items:center;flex:none;
-}
-.size.on{border-color:#3BD6FF;background:rgba(59,214,255,.2)}
-.size i{display:block;border-radius:50%;background:#F4F1E8}
-.wait{text-align:center;color:var(--text-2);font:650 16px/1.45 var(--font);padding:24px}
-
-@media(prefers-reduced-motion:reduce){
-  *,*::before,*::after{animation:none!important;transition:none!important}
-}
+.tools{flex:none;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;padding:8px 12px 12px}
+.swatch{width:40px;height:40px;border-radius:50%;border:3px solid transparent;flex:none;padding:0;box-shadow:inset 0 0 0 1px rgba(0,0,0,.2)}
+.swatch.on{border-color:#fff;box-shadow:0 0 0 3px color-mix(in srgb,var(--accent-stage) 60%,transparent)}
+.size{width:40px;height:40px;border-radius:10px;border:1px solid var(--stage-line-strong);background:rgba(255,255,255,.04);display:grid;place-items:center;flex:none;padding:0}
+.size.on{border-color:var(--accent-stage);background:color-mix(in srgb,var(--accent-stage) 18%,transparent)}
+.size i{display:block;border-radius:50%;background:var(--paper)}
+.wait{text-align:center;color:var(--text-2);font:500 16px/1.45 var(--font);padding:24px}
 </style>
 </head>
-<body>
+<body class="tk-stage">
 <div class="sky" id="sky" aria-hidden="true"></div>
 <div class="wrap" id="joinWrap">
   <div class="card" id="viewJoin">
@@ -153,7 +82,7 @@ input:focus{border-color:rgba(59,214,255,.55);box-shadow:0 0 0 3px rgba(59,214,2
     <input id="pin" inputmode="numeric" maxlength="6" placeholder="6-digit PIN" autocomplete="one-time-code">
     <label for="nick">Your name</label>
     <input id="nick" maxlength="24" placeholder="First name" autocomplete="nickname">
-    <button type="button" class="btn" id="btnJoin">Join</button>
+    <button type="button" class="btn btn-primary" id="btnJoin">Join</button>
   </div>
 </div>
 
@@ -423,8 +352,8 @@ input:focus{border-color:rgba(59,214,255,.55);box-shadow:0 0 0 3px rgba(59,214,2
       return '<button type="button" class="size' + (state.width === w ? " on" : "") +
         '" data-w="' + w + '" aria-label="Thickness ' + w + '"><i style="width:' + px + "px;height:" + px + 'px"></i></button>';
     }).join("");
-    html += '<button type="button" class="btn-ghost" id="btnUndo">Undo</button>';
-    html += '<button type="button" class="btn-ghost" id="btnWipe">Clear</button>';
+    html += '<button type="button" class="btn btn-ghost" id="btnUndo">Undo</button>';
+    html += '<button type="button" class="btn btn-ghost" id="btnWipe">Clear</button>';
     $("tools").innerHTML = html;
     $("tools").querySelectorAll("[data-c]").forEach(function (btn) {
       btn.onclick = function () {
