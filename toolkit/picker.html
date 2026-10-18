@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Name Picker — Classroom Toolkit</title>
+<script src="../app-version.js"></script>
+<script>(function(){if(window.ensureAppVersionInUrl)window.ensureAppVersionInUrl();})();</script>
+<script src="../config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../supabase-init.js"></script>
+<script src="../allowlist-check.js"></script>
+<script>window.__authGuardLoginPath='../login.html';</script>
+<script src="../auth-guard.js"></script>
+<script src="../embed-chrome.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://api.fontshare.com/v2/css?f[]=general-sans@500,600,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="simple-tool.css">
+<style>
+:root{--accent:var(--mint);--glow:rgba(53,199,150,.5)}
+.stage{
+  position:relative;width:min(980px,100%);min-height:clamp(220px,38vh,420px);
+  display:grid;place-items:center;border-radius:28px;overflow:hidden;
+  border:1px solid var(--line-strong);
+  background:radial-gradient(ellipse 70% 80% at 50% 50%,rgba(53,199,150,.14),transparent 70%),rgba(8,16,36,.7);
+  box-shadow:inset 0 0 80px rgba(0,0,0,.35);
+}
+.stage::before,.stage::after{
+  content:"";position:absolute;left:0;right:0;height:30%;pointer-events:none;z-index:1;
+}
+.stage::before{top:0;background:linear-gradient(rgba(8,16,36,.9),transparent)}
+.stage::after{bottom:0;background:linear-gradient(transparent,rgba(8,16,36,.9))}
+.pick{
+  position:relative;z-index:2;padding:20px 30px;text-align:center;
+  font:700 clamp(48px,10vw,140px)/1.02 var(--font-display);letter-spacing:-.035em;
+  word-break:break-word;
+}
+.pick.spinning{color:var(--text-2);filter:blur(.4px)}
+.pick.landed{
+  animation:land .6s var(--ease-out);
+  background:linear-gradient(135deg,#fff 20%,#9FF0D2 60%,#7FA6FF);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  filter:drop-shadow(0 0 30px rgba(53,199,150,.45));
+}
+.pick.placeholder{font-size:clamp(26px,4vw,44px);color:var(--muted);letter-spacing:-.02em}
+@keyframes land{0%{transform:scale(.7);opacity:.3}60%{transform:scale(1.08)}100%{transform:scale(1);opacity:1}}
+.spot{
+  position:absolute;inset:auto 50% 50% auto;width:120%;aspect-ratio:1;transform:translate(50%,50%);
+  background:radial-gradient(circle,rgba(53,199,150,.22),transparent 45%);opacity:0;transition:opacity .4s;
+}
+.stage.lit .spot{opacity:1}
+.chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;width:min(980px,100%)}
+.chip{
+  padding:8px 12px;border-radius:999px;border:1px solid var(--line);background:rgba(13,24,49,.75);
+  font:600 14px/1 var(--font);color:var(--text-2);
+}
+.chip.done{opacity:.35;text-decoration:line-through}
+.chip.now{color:#fff;border-color:rgba(53,199,150,.6);background:rgba(53,199,150,.2)}
+.meta{display:flex;gap:14px;align-items:center;flex-wrap:wrap;justify-content:center;color:var(--muted);font:600 13px/1 var(--font)}
+.toggle{display:inline-flex;align-items:center;gap:8px;cursor:pointer;color:var(--text-2)}
+.toggle input{width:18px;height:18px;accent-color:var(--mint)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <a class="back" id="backLink" href="../classroom_toolkit.html">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      Toolkit
+    </a>
+    <div class="top-brand">
+      <img class="top-logo" src="name-picker-logo.png" width="968" height="413" alt="Name Picker" decoding="async">
+      <h1 class="sr-only">Name Picker</h1>
+    </div>
+    <div class="top-actions">
+      <button type="button" class="btn btn-ghost" id="btnFs" title="Fullscreen (F)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+        Fullscreen
+      </button>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="stage" id="stage">
+      <div class="spot"></div>
+      <div class="pick placeholder" id="pick" aria-live="polite">Add your class list below</div>
+    </div>
+
+    <div class="row">
+      <button type="button" class="btn btn-primary btn-big" id="btnPick">Pick a name <kbd>Space</kbd></button>
+    </div>
+
+    <div class="meta">
+      <label class="toggle"><input type="checkbox" id="noRepeat" checked> Don't pick the same name twice</label>
+      <span id="leftCount"></span>
+      <button type="button" class="btn btn-ghost" id="btnReset">Start again</button>
+    </div>
+
+    <div class="chips" id="chips"></div>
+
+    <div id="namesMount" class="names-drawer"></div>
+  </main>
+</div>
+
+<script src="simple-tool.js"></script>
+<script>
+(function () {
+  var S = window.SimpleTool, $ = S.$;
+  var STATE_KEY = "tk_name_picker_v1";
+  var saved = S.load(STATE_KEY, {});
+  var names = S.loadNames();
+  var picked = Array.isArray(saved.picked) ? saved.picked : [];
+  var noRepeat = saved.noRepeat !== false;
+  var spinning = false;
+  var current = null;
+
+  var panel = S.namesPanel($("namesMount"), function (list) {
+    names = list;
+    picked = picked.filter(function (n) { return names.indexOf(n) >= 0; });
+    persist();
+    render();
+  });
+
+  function persist() { S.save(STATE_KEY, { picked: picked, noRepeat: noRepeat }); }
+  function pool() {
+    if (!noRepeat) return names.slice();
+    return names.filter(function (n) { return picked.indexOf(n) < 0; });
+  }
+
+  function render() {
+    var left = pool().length;
+    $("noRepeat").checked = noRepeat;
+    $("leftCount").textContent = names.length ? (noRepeat ? left + " of " + names.length + " left" : names.length + " names") : "";
+    $("btnReset").classList.toggle("hidden", !noRepeat || !picked.length);
+    $("btnPick").disabled = spinning || !names.length;
+    $("chips").innerHTML = names.map(function (n) {
+      var cls = "chip" + (noRepeat && picked.indexOf(n) >= 0 ? " done" : "") + (n === current ? " now" : "");
+      return '<span class="' + cls + '">' + S.escapeHtml(n) + "</span>";
+    }).join("");
+    if (!names.length && !spinning) {
+      setPick("Add your class list below", "placeholder");
+    }
+  }
+
+  function setPick(text, cls) {
+    var el = $("pick");
+    el.className = "pick" + (cls ? " " + cls : "");
+    el.textContent = text;
+  }
+
+  function pick() {
+    if (spinning) return;
+    if (!names.length) { panel.open(); return; }
+    var options = pool();
+    if (!options.length) {
+      S.toast("Everyone has been picked. Starting again.");
+      picked = [];
+      options = names.slice();
+    }
+    var winner = options[Math.floor(Math.random() * options.length)];
+    spinning = true;
+    current = null;
+    $("stage").classList.remove("lit");
+    render();
+    var steps = S.reduceMotion ? 1 : 22 + Math.floor(Math.random() * 6);
+    var i = 0;
+    var shown = names.length > 1 ? names : options;
+    (function step() {
+      i++;
+      if (i >= steps) {
+        spinning = false;
+        current = winner;
+        if (noRepeat) picked.push(winner);
+        persist();
+        setPick(winner, "landed");
+        void $("pick").offsetWidth;
+        $("stage").classList.add("lit");
+        S.confetti(50);
+        render();
+        return;
+      }
+      var n = shown[Math.floor(Math.random() * shown.length)];
+      setPick(n, "spinning");
+      // ease out: short gaps first, longer at the end
+      var t = i / steps;
+      setTimeout(step, 45 + Math.pow(t, 3) * 320);
+    })();
+  }
+
+  $("btnPick").addEventListener("click", pick);
+  $("noRepeat").addEventListener("change", function () { noRepeat = this.checked; persist(); render(); });
+  $("btnReset").addEventListener("click", function () {
+    picked = []; current = null; persist();
+    setPick("Ready", "placeholder");
+    $("stage").classList.remove("lit");
+    render();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (S.isTyping(e)) return;
+    if (e.key === " " || e.key === "Enter") { e.preventDefault(); pick(); }
+  });
+
+  if (names.length) setPick("Ready", "placeholder");
+  render();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Seating Shuffler — Classroom Toolkit</title>
+<script src="../app-version.js"></script>
+<script>(function(){if(window.ensureAppVersionInUrl)window.ensureAppVersionInUrl();})();</script>
+<script src="../config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../supabase-init.js"></script>
+<script src="../allowlist-check.js"></script>
+<script>window.__authGuardLoginPath='../login.html';</script>
+<script src="../auth-guard.js"></script>
+<script src="../embed-chrome.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://api.fontshare.com/v2/css?f[]=general-sans@500,600,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="simple-tool.css">
+<style>
+.controls{width:min(1200px,100%);display:flex;flex-wrap:wrap;gap:10px;justify-content:center;align-items:center}
+.field input[type=number]{width:44px}
+.room{
+  width:min(1200px,100%);display:flex;flex-direction:column;gap:18px;align-items:center;
+  padding:20px;border-radius:24px;border:1px solid var(--line);background:rgba(8,16,36,.55);
+}
+.room.flip{flex-direction:column-reverse}
+.front{
+  width:min(520px,80%);text-align:center;padding:12px;border-radius:12px;
+  background:linear-gradient(90deg,rgba(59,108,255,.15),rgba(134,88,245,.25),rgba(59,108,255,.15));
+  border:1px solid rgba(59,108,255,.35);font:650 14px/1 var(--font-display);letter-spacing:.14em;text-transform:uppercase;color:#C9D6FF;
+}
+.desks{display:grid;gap:12px;width:100%;grid-template-columns:repeat(var(--cols),minmax(0,1fr))}
+.desks.pairs{column-gap:6px}
+.desk{
+  position:relative;min-height:clamp(54px,8vh,86px);border-radius:14px;display:grid;place-items:center;padding:8px;text-align:center;
+  border:1px solid rgba(59,108,255,.32);background:linear-gradient(180deg,rgba(59,108,255,.2),rgba(12,23,49,.85));
+  font:650 clamp(13px,1.45vw,20px)/1.15 var(--font);color:#fff;word-break:break-word;
+  animation:deal .45s var(--ease-out) both;animation-delay:var(--d,0s);
+}
+.desk.empty-seat{border-style:dashed;border-color:var(--line);background:rgba(12,23,49,.35);color:var(--muted);font-weight:500}
+.desk .num{position:absolute;top:6px;left:8px;font:600 10px/1 var(--font);color:var(--muted)}
+.desks.pairs .desk.aisle{margin-right:18px}
+@media print{
+  body{background:#fff;color:#000}.fx,.top,.controls,.names-drawer,.hint{display:none!important}
+  .room{border:none;background:none}.desk{color:#000;background:#fff;border:1px solid #333;animation:none}.front{color:#000;border-color:#333;background:none}
+}
+@keyframes deal{0%{opacity:0;transform:rotateX(70deg) translateY(-8px)}100%{opacity:1;transform:none}}
+.toggle{display:inline-flex;align-items:center;gap:8px;cursor:pointer;color:var(--text-2);font:600 13px/1 var(--font)}
+.toggle input{width:18px;height:18px;accent-color:var(--blue)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <a class="back" id="backLink" href="../classroom_toolkit.html">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      Toolkit
+    </a>
+    <div class="top-brand">
+      <span class="top-mark" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M6 10V6a2 2 0 012-2h8a2 2 0 012 2v4"/><path d="M5 10h14a1 1 0 011 1v5H4v-5a1 1 0 011-1z"/><path d="M6 16v3M18 16v3"/></svg></span>
+      <div class="top-text">
+        <h1>Seating Shuffler</h1>
+        <p class="sub">A fresh seating plan in one tap</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button type="button" class="btn btn-ghost" id="btnPrint">Print</button>
+      <button type="button" class="btn btn-ghost" id="btnFs" title="Fullscreen (F)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+        Fullscreen
+      </button>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="controls">
+      <label class="field">Rows <input type="number" id="rows" min="1" max="12"></label>
+      <label class="field">Columns <input type="number" id="cols" min="1" max="12"></label>
+      <label class="toggle"><input type="checkbox" id="pairs"> Desks in pairs</label>
+      <label class="toggle"><input type="checkbox" id="flip"> Front at bottom</label>
+      <button type="button" class="btn btn-primary btn-big" id="btnShuffle">Shuffle seats <kbd>Space</kbd></button>
+    </div>
+
+    <div class="room" id="room">
+      <div class="front">Front of room</div>
+      <div class="desks" id="desks"></div>
+    </div>
+    <p class="hint" id="note"></p>
+
+    <div id="namesMount" class="names-drawer"></div>
+  </main>
+</div>
+
+<script src="simple-tool.js"></script>
+<script>
+(function () {
+  var S = window.SimpleTool, $ = S.$;
+  var KEY = "tk_seating_shuffler_v1";
+  var saved = S.load(KEY, {});
+  var rows = clamp(saved.rows || 5), cols = clamp(saved.cols || 6);
+  var pairs = !!saved.pairs, flip = !!saved.flip;
+  var seats = Array.isArray(saved.seats) ? saved.seats : [];
+  var names = S.loadNames();
+
+  S.namesPanel($("namesMount"), function (list) { names = list; shuffle(); });
+
+  function clamp(n) { n = parseInt(n, 10); return isFinite(n) ? Math.max(1, Math.min(12, n)) : 1; }
+  function persist() { S.save(KEY, { rows: rows, cols: cols, pairs: pairs, flip: flip, seats: seats }); }
+
+  function shuffle() {
+    var total = rows * cols;
+    if (names.length > total) {
+      rows = clamp(Math.ceil(names.length / cols));
+      total = rows * cols;
+      if (names.length > total) S.toast("Not enough seats for everyone. Add more rows or columns.");
+      else S.toast("Added rows so everyone has a seat");
+    }
+    var mixed = S.shuffle(names).slice(0, total);
+    // Fill from the front so any empty seats end up at the back
+    seats = [];
+    for (var i = 0; i < total; i++) seats.push(i < mixed.length ? mixed[i] : "");
+    persist();
+    render(true);
+  }
+
+  function render(animate) {
+    $("rows").value = rows; $("cols").value = cols;
+    $("pairs").checked = pairs; $("flip").checked = flip;
+    $("room").classList.toggle("flip", flip);
+    var desks = $("desks");
+    desks.style.setProperty("--cols", cols);
+    desks.classList.toggle("pairs", pairs);
+    var total = rows * cols, html = "";
+    for (var i = 0; i < total; i++) {
+      // When the front is at the bottom, mirror the order so seat 1 stays nearest the front
+      var idx = flip ? total - 1 - i : i;
+      var n = seats[idx] || "";
+      var col = i % cols;
+      var aisle = pairs && col % 2 === 1 && col < cols - 1;
+      html += '<div class="desk' + (n ? "" : " empty-seat") + (aisle ? " aisle" : "") + '" style="--d:' + (animate ? (i * 0.018).toFixed(3) : 0) + 's">' +
+        '<span class="num">' + (idx + 1) + "</span>" + (n ? S.escapeHtml(n) : "Empty") + "</div>";
+    }
+    desks.innerHTML = html;
+    var filled = seats.filter(Boolean).length;
+    $("note").textContent = names.length
+      ? (filled ? filled + " pupils seated, " + (total - filled) + " empty seats" : "Press Shuffle seats to make a plan")
+      : "Paste your class list below to fill the seats.";
+  }
+
+  function onLayout() {
+    rows = clamp($("rows").value); cols = clamp($("cols").value);
+    pairs = $("pairs").checked; flip = $("flip").checked;
+    var total = rows * cols;
+    if (seats.length !== total) {
+      var placed = seats.filter(Boolean);
+      seats = [];
+      for (var i = 0; i < total; i++) seats.push(placed[i] || "");
+    }
+    persist();
+    render(false);
+  }
+  ["rows", "cols", "pairs", "flip"].forEach(function (id) { $(id).addEventListener("change", onLayout); });
+  $("btnShuffle").addEventListener("click", function () {
+    if (!names.length) { S.toast("Add your class list first"); return; }
+    shuffle();
+  });
+  $("btnPrint").addEventListener("click", function () { window.print(); });
+  document.addEventListener("keydown", function (e) {
+    if (S.isTyping(e)) return;
+    if (e.key === " ") { e.preventDefault(); $("btnShuffle").click(); }
+  });
+
+  render(true);
+})();
+</script>
+</body>
+</html>

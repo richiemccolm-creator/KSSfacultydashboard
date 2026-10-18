@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Group Randomiser — Classroom Toolkit</title>
+<script src="../app-version.js"></script>
+<script>(function(){if(window.ensureAppVersionInUrl)window.ensureAppVersionInUrl();})();</script>
+<script src="../config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../supabase-init.js"></script>
+<script src="../allowlist-check.js"></script>
+<script>window.__authGuardLoginPath='../login.html';</script>
+<script src="../auth-guard.js"></script>
+<script src="../embed-chrome.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://api.fontshare.com/v2/css?f[]=general-sans@500,600,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="simple-tool.css">
+<style>
+:root{--accent:var(--violet);--glow:rgba(134,88,245,.5)}
+.controls{width:min(1200px,100%);display:flex;flex-wrap:wrap;gap:10px;justify-content:center;align-items:center}
+.groups{
+  width:min(1200px,100%);display:grid;gap:16px;
+  grid-template-columns:repeat(auto-fill,minmax(min(240px,100%),1fr));
+}
+.group{
+  --c:var(--violet);
+  border-radius:20px;border:1px solid color-mix(in srgb,var(--c) 45%,transparent);
+  background:linear-gradient(180deg,color-mix(in srgb,var(--c) 16%,transparent),rgba(10,19,41,.75) 55%);
+  padding:16px 18px 18px;min-height:150px;
+  box-shadow:0 18px 40px -24px var(--c);
+  animation:pop .5s var(--ease-out) both;animation-delay:var(--d,0s);
+}
+@keyframes pop{0%{opacity:0;transform:translateY(14px) scale(.96)}100%{opacity:1;transform:none}}
+.group h2{
+  margin:0 0 12px;display:flex;align-items:center;justify-content:space-between;gap:8px;
+  font:700 22px/1.1 var(--font-display);letter-spacing:-.02em;color:#fff;
+}
+.group h2 small{font:600 12px/1 var(--font);color:var(--text-2);padding:5px 8px;border-radius:999px;background:rgba(255,255,255,.07)}
+.group ol{margin:0;padding:0;list-style:none;display:grid;gap:6px}
+.group li{font:600 clamp(16px,1.7vw,22px)/1.25 var(--font);color:var(--text)}
+.group li::before{content:"";display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--c);margin-right:10px;vertical-align:middle;box-shadow:0 0 10px var(--c)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <a class="back" id="backLink" href="../classroom_toolkit.html">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      Toolkit
+    </a>
+    <div class="top-brand">
+      <span class="top-mark" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.4"/><path d="M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5M14.5 14.6c.8-.4 1.6-.6 2.5-.6 2.2 0 3.8 1.4 4.3 4"/></svg></span>
+      <div class="top-text">
+        <h1>Group Randomiser</h1>
+        <p class="sub">Balanced random groups in seconds</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button type="button" class="btn btn-ghost" id="btnCopy">Copy groups</button>
+      <button type="button" class="btn btn-ghost" id="btnFs" title="Fullscreen (F)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+        Fullscreen
+      </button>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="controls">
+      <div class="seg" role="group" aria-label="Split by">
+        <button type="button" data-mode="count" class="on">Number of groups</button>
+        <button type="button" data-mode="size">People per group</button>
+      </div>
+      <label class="field"><span id="numLabel">Groups</span>
+        <button type="button" class="btn btn-ghost btn-icon" id="minus" aria-label="Fewer" style="min-height:32px;width:32px;border:none">−</button>
+        <input type="number" id="num" min="1" max="40" value="4">
+        <button type="button" class="btn btn-ghost btn-icon" id="plus" aria-label="More" style="min-height:32px;width:32px;border:none">+</button>
+      </label>
+      <button type="button" class="btn btn-primary btn-big" id="btnMake">Make groups <kbd>Space</kbd></button>
+    </div>
+
+    <div class="groups" id="groups"></div>
+    <div class="empty hidden" id="empty"><strong>No class list yet</strong>Paste your names into the class list below, then press Make groups.</div>
+
+    <div id="namesMount" class="names-drawer"></div>
+  </main>
+</div>
+
+<script src="simple-tool.js"></script>
+<script>
+(function () {
+  var S = window.SimpleTool, $ = S.$;
+  var KEY = "tk_group_randomiser_v1";
+  var COLOURS = ["#8658F5", "#3B6CFF", "#35C796", "#F4A62A", "#F45E68", "#2EC5E8", "#D843B2", "#9BD84A"];
+  var saved = S.load(KEY, {});
+  var mode = saved.mode === "size" ? "size" : "count";
+  var num = clampNum(saved.num || 4);
+  var groups = Array.isArray(saved.groups) ? saved.groups : [];
+  var names = S.loadNames();
+
+  S.namesPanel($("namesMount"), function (list) { names = list; groups = []; persist(); render(); });
+
+  function clampNum(n) { n = parseInt(n, 10); return isFinite(n) ? Math.max(1, Math.min(40, n)) : 4; }
+  function persist() { S.save(KEY, { mode: mode, num: num, groups: groups }); }
+
+  function make() {
+    if (!names.length) { S.toast("Add your class list first"); return; }
+    var count = mode === "count" ? num : Math.ceil(names.length / num);
+    count = Math.max(1, Math.min(count, names.length));
+    var mixed = S.shuffle(names);
+    var out = [];
+    for (var i = 0; i < count; i++) out.push([]);
+    // Deal round-robin so group sizes differ by at most one
+    mixed.forEach(function (n, i) { out[i % count].push(n); });
+    groups = S.shuffle(out);
+    persist();
+    render(true);
+  }
+
+  function render(animate) {
+    $("numLabel").textContent = mode === "count" ? "Groups" : "Per group";
+    $("num").value = num;
+    Array.prototype.forEach.call(document.querySelectorAll("[data-mode]"), function (b) {
+      b.classList.toggle("on", b.getAttribute("data-mode") === mode);
+    });
+    $("empty").classList.toggle("hidden", !!names.length);
+    $("btnCopy").disabled = !groups.length;
+    $("groups").innerHTML = groups.map(function (g, i) {
+      return '<section class="group" style="--c:' + COLOURS[i % COLOURS.length] + ";--d:" + (animate ? (i * 0.06).toFixed(2) : 0) + 's">' +
+        "<h2>Group " + (i + 1) + "<small>" + g.length + "</small></h2>" +
+        "<ol>" + g.map(function (n) { return "<li>" + S.escapeHtml(n) + "</li>"; }).join("") + "</ol></section>";
+    }).join("");
+  }
+
+  Array.prototype.forEach.call(document.querySelectorAll("[data-mode]"), function (b) {
+    b.addEventListener("click", function () { mode = b.getAttribute("data-mode"); persist(); render(); });
+  });
+  $("num").addEventListener("change", function () { num = clampNum(this.value); persist(); render(); });
+  $("minus").addEventListener("click", function () { num = clampNum(num - 1); persist(); render(); });
+  $("plus").addEventListener("click", function () { num = clampNum(num + 1); persist(); render(); });
+  $("btnMake").addEventListener("click", make);
+  $("btnCopy").addEventListener("click", function () {
+    var text = groups.map(function (g, i) { return "Group " + (i + 1) + ": " + g.join(", "); }).join("\n");
+    try {
+      navigator.clipboard.writeText(text).then(function () { S.toast("Groups copied"); }, function () { S.toast("Couldn't copy"); });
+    } catch (e) { S.toast("Couldn't copy"); }
+  });
+  document.addEventListener("keydown", function (e) {
+    if (S.isTyping(e)) return;
+    if (e.key === " ") { e.preventDefault(); make(); }
+  });
+
+  render(true);
+})();
+</script>
+</body>
+</html>

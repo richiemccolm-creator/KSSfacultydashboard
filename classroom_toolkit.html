@@ -627,9 +627,9 @@ body.embedded .hero{min-height:0;padding:22px 24px}
       <div class="nav-sec"><span>Collections</span></div>
       <div id="navPlaylists"></div>
       <div class="create-panel">
-        <p class="create-title">More tools on the way</p>
-        <p>Name picker, groups, seating and the rest are listed below the live set.</p>
-        <button class="create-btn" id="createBtn" type="button">See tools in development</button>
+        <p class="create-title">One class list, three tools</p>
+        <p>Paste your names once and use them in Name Picker, Group Randomiser and Seating Shuffler.</p>
+        <button class="create-btn" id="createBtn" type="button">Show group tools</button>
       </div>
     </aside>
 
@@ -810,22 +810,22 @@ body.embedded .hero{min-height:0;padding:22px 24px}
     {id:"exit",       name:"Exit Tickets",     cat:"Quiz",   hue:"magenta", icon:"exit",       live:true,  href:"toolkit/exit.html",
       logo:"toolkit/exit-tickets-logo.png", span:"4",
       desc:"Paperless exit tickets with teacher-approved answers."},
-    {id:"groups",     name:"Group Randomiser", cat:"Groups", hue:"violet",  icon:"groups",     live:false, href:"toolkit/groups.html",
+    {id:"groups",     name:"Group Randomiser", cat:"Groups", hue:"violet",  icon:"groups",     live:true,  href:"toolkit/groups.html",
       desc:"Create balanced groups in seconds."},
-    {id:"picker",     name:"Name Picker",      cat:"Groups", hue:"mint",    icon:"picker",     live:false, href:"toolkit/picker.html",
+    {id:"picker",     name:"Name Picker",      cat:"Groups", hue:"mint",    icon:"picker",     live:true,  href:"toolkit/picker.html",
       logo:"toolkit/name-picker-logo.png",
       desc:"Spin to select a random pupil or group."},
-    {id:"noise",      name:"Noise Meter",      cat:"Focus",  hue:"cyan",    icon:"noise",      live:false, href:"toolkit/noise.html",
+    {id:"noise",      name:"Noise Meter",      cat:"Focus",  hue:"cyan",    icon:"noise",      live:true,  href:"toolkit/noise.html",
       desc:"Visualise classroom noise levels."},
-    {id:"dice",       name:"Dice Roller",      cat:"Chance", hue:"amber",   icon:"dice",       live:false, href:"toolkit/dice.html",
+    {id:"dice",       name:"Dice Roller",      cat:"Chance", hue:"amber",   icon:"dice",       live:true,  href:"toolkit/dice.html",
       desc:"Roll one or more dice instantly."},
-    {id:"seats",      name:"Seating Shuffler", cat:"Groups", hue:"blue",    icon:"seats",      live:false, href:"toolkit/seats.html",
+    {id:"seats",      name:"Seating Shuffler", cat:"Groups", hue:"blue",    icon:"seats",      live:true,  href:"toolkit/seats.html",
       desc:"Shuffle seats for fresh interactions."},
-    {id:"scoreboard", name:"Team Scoreboard",  cat:"Rewards",hue:"violet",  icon:"scoreboard", live:false, href:"toolkit/scoreboard.html",
+    {id:"scoreboard", name:"Team Scoreboard",  cat:"Rewards",hue:"violet",  icon:"scoreboard", live:true,  href:"toolkit/scoreboard.html",
       desc:"Track points and celebrate progress."},
-    {id:"mystery",    name:"Mystery Box",      cat:"Chance", hue:"amber",   icon:"mystery",    live:false, href:"toolkit/mystery.html",
+    {id:"mystery",    name:"Mystery Box",      cat:"Chance", hue:"amber",   icon:"mystery",    live:true,  href:"toolkit/mystery.html",
       desc:"Random rewards, prompts or challenges."},
-    {id:"qr",         name:"QR Maker",         cat:"Utility",hue:"cyan",    icon:"qr",         live:false, href:"toolkit/qr.html",
+    {id:"qr",         name:"QR Maker",         cat:"Utility",hue:"cyan",    icon:"qr",         live:true,  href:"toolkit/qr.html",
       desc:"Create QR codes in seconds."}
   ];
 
@@ -1093,7 +1093,11 @@ body.embedded .hero{min-height:0;padding:22px 24px}
       if(col && col.ids.indexOf(t.id)<0) return false;
     }
     if(state.cat!=="All" && t.cat!==state.cat) return false;
-    if(state.q && (t.name+" "+t.desc+" "+t.cat).toLowerCase().indexOf(state.q)===-1) return false;
+    if(state.q){
+      // Every word must appear somewhere, so "mini board" finds Mini Whiteboards
+      var hay=(t.name+" "+t.desc+" "+t.cat).toLowerCase();
+      if(!state.q.split(/\s+/).every(function(w){ return hay.indexOf(w)>=0; })) return false;
+    }
     return true;
   }
 
@@ -1226,7 +1230,7 @@ body.embedded .hero{min-height:0;padding:22px 24px}
       grid.hidden = !showGrid;
       grid.innerHTML = (isHome ? restLive : liveTools).map(toolCard).join("");
     }
-    if($("moreCount")) $("moreCount").textContent = showGrid && !isHome ? liveTools.length+" tools" : "";
+    if($("moreCount")) $("moreCount").textContent = showGrid && !isHome ? liveTools.length+(liveTools.length===1?" tool":" tools") : "";
 
     if(soonHead){
       soonHead.hidden = !soonTools.length;
@@ -1332,11 +1336,10 @@ body.embedded .hero{min-height:0;padding:22px 24px}
   });
 
   $("createBtn").addEventListener("click", function(){
-    state.view="toolkit"; state.cat="All"; state.collection=null; state.q="";
+    state.q="";
     if($("search")) $("search").value="";
-    render();
-    if(soonHead) try{ soonHead.scrollIntoView({behavior:"smooth",block:"start"}); }catch(err){}
-    setDrawer(false);
+    state.collection=null;
+    setCollection("groups");
   });
 
   var qlEdit=$("qlEdit");

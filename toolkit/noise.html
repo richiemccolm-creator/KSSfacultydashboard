@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Noise Meter — Classroom Toolkit</title>
+<script src="../app-version.js"></script>
+<script>(function(){if(window.ensureAppVersionInUrl)window.ensureAppVersionInUrl();})();</script>
+<script src="../config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../supabase-init.js"></script>
+<script src="../allowlist-check.js"></script>
+<script>window.__authGuardLoginPath='../login.html';</script>
+<script src="../auth-guard.js"></script>
+<script src="../embed-chrome.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://api.fontshare.com/v2/css?f[]=general-sans@500,600,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="simple-tool.css">
+<style>
+:root{--accent:var(--cyan);--glow:rgba(46,197,232,.5);--state:#35C796}
+body.s-warn{--state:#F4A62A}
+body.s-loud,body.s-err{--state:#F45E68}
+body.s-idle{--state:#B6C0D9}
+.meter-wrap{width:min(980px,100%);display:grid;gap:18px;justify-items:center}
+.status{
+  font:700 clamp(44px,8vw,110px)/1 var(--font-display);letter-spacing:-.035em;text-align:center;
+  color:var(--state);text-shadow:0 0 40px color-mix(in srgb,var(--state) 55%,transparent);
+  transition:color .3s;
+}
+body.s-loud .status{animation:throb .6s ease-in-out infinite}
+@keyframes throb{0%,100%{transform:scale(1)}50%{transform:scale(1.05)}}
+.meter{
+  position:relative;width:100%;height:clamp(70px,12vh,120px);border-radius:24px;overflow:hidden;
+  border:1px solid var(--line-strong);background:rgba(8,16,36,.75);
+}
+.meter-fill{
+  position:absolute;inset:0;
+  background:linear-gradient(90deg,#35C796 0%,#9BD84A 45%,#F4A62A 72%,#F45E68 100%);
+  clip-path:inset(0 100% 0 0 round 0 18px 18px 0);
+  transition:clip-path .08s linear;
+}
+.meter-limit{
+  position:absolute;top:-4px;bottom:-4px;width:4px;margin-left:-2px;border-radius:2px;background:#fff;
+  box-shadow:0 0 12px rgba(255,255,255,.7);
+}
+.meter-limit::after{
+  content:"Limit";position:absolute;top:8px;left:10px;font:700 12px/1 var(--font);letter-spacing:.08em;text-transform:uppercase;color:#fff;
+  text-shadow:0 1px 4px rgba(0,0,0,.8);
+}
+.history{
+  width:100%;height:clamp(90px,16vh,160px);display:flex;align-items:flex-end;gap:3px;
+  padding:10px;border-radius:18px;border:1px solid var(--line);background:rgba(8,16,36,.55);
+}
+.history i{flex:1;min-width:2px;border-radius:3px 3px 1px 1px;background:var(--c,#35C796);opacity:.85}
+.stats{display:flex;gap:12px;flex-wrap:wrap;justify-content:center}
+.stat{min-width:150px;padding:14px 18px;border-radius:16px;border:1px solid var(--line);background:rgba(12,23,49,.62);text-align:center}
+.stat b{display:block;font:700 34px/1 var(--font-display);font-variant-numeric:tabular-nums}
+.stat span{display:block;margin-top:6px;font:600 12px/1 var(--font);color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
+.field input[type=range]{width:160px;accent-color:var(--cyan)}
+</style>
+</head>
+<body class="s-idle">
+<div class="app">
+  <header class="top">
+    <a class="back" id="backLink" href="../classroom_toolkit.html">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      Toolkit
+    </a>
+    <div class="top-brand">
+      <span class="top-mark" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15V9M8 18V6M12 21V3M16 17V7M20 14v-4"/></svg></span>
+      <div class="top-text">
+        <h1>Noise Meter</h1>
+        <p class="sub">Shows how loud the room is, live from the microphone</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button type="button" class="btn btn-ghost on" id="btnBeep" aria-pressed="true">Beep when too loud</button>
+      <button type="button" class="btn btn-ghost" id="btnFs" title="Fullscreen (F)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+        Fullscreen
+      </button>
+    </div>
+  </header>
+
+  <main class="main center">
+    <div class="meter-wrap">
+      <div class="status" id="status" aria-live="polite">Ready to listen</div>
+      <div class="meter" role="meter" aria-label="Noise level" aria-valuemin="0" aria-valuemax="100" id="meter">
+        <div class="meter-fill" id="fill"></div>
+        <div class="meter-limit" id="limitMark"></div>
+      </div>
+      <div class="history" id="history" aria-hidden="true"></div>
+      <div class="stats">
+        <div class="stat"><b id="statNow">0</b><span>Level now</span></div>
+        <div class="stat"><b id="statQuiet">0%</b><span>Time under limit</span></div>
+        <div class="stat"><b id="statOver">0</b><span>Times too loud</span></div>
+      </div>
+      <div class="row">
+        <button type="button" class="btn btn-primary btn-big" id="btnStart">Start listening</button>
+        <label class="field">Limit <input type="range" id="limit" min="20" max="95" step="1"><span id="limitVal"></span></label>
+        <label class="field">Sensitivity <input type="range" id="sens" min="0.5" max="3" step="0.1"></label>
+        <button type="button" class="btn btn-ghost" id="btnReset">Reset stats</button>
+      </div>
+      <p class="hint" id="hint">The microphone is only used on this device to measure volume. Nothing is recorded or sent anywhere.</p>
+    </div>
+  </main>
+</div>
+
+<script src="simple-tool.js"></script>
+<script>
+(function () {
+  var S = window.SimpleTool, $ = S.$;
+  var KEY = "tk_noise_meter_v1";
+  var saved = S.load(KEY, {});
+  var limit = saved.limit || 65, sens = saved.sens || 1.4, beep = saved.beep !== false;
+  var HIST = 60;
+  var ctx = null, analyser = null, stream = null, buf = null, raf = 0;
+  var level = 0, over = false, overSince = 0, overCount = 0, lastBeep = 0;
+  var quietMs = 0, totalMs = 0, lastT = 0, lastHist = 0;
+  var hist = [];
+
+  function persist() { S.save(KEY, { limit: limit, sens: sens, beep: beep }); }
+  function colourFor(v) { return v >= limit ? "#F45E68" : v >= limit * 0.8 ? "#F4A62A" : "#35C796"; }
+
+  function setLimitUi() {
+    $("limit").value = limit; $("sens").value = sens;
+    $("limitVal").textContent = limit;
+    $("limitMark").style.left = limit + "%";
+    $("btnBeep").classList.toggle("on", beep);
+    $("btnBeep").setAttribute("aria-pressed", beep ? "true" : "false");
+  }
+
+  function start() {
+    if (stream) { stop(); return; }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      document.body.classList.remove("s-idle"); document.body.classList.add("s-err");
+      $("status").textContent = "No microphone";
+      $("hint").textContent = "This browser can't use the microphone. Try Chrome, Edge or Safari over https.";
+      return;
+    }
+    navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } }).then(function (s) {
+      stream = s;
+      ctx = new (window.AudioContext || window.webkitAudioContext)();
+      if (ctx.state === "suspended" && ctx.resume) ctx.resume();
+      var src = ctx.createMediaStreamSource(s);
+      analyser = ctx.createAnalyser();
+      analyser.fftSize = 2048;
+      buf = new Float32Array(analyser.fftSize);
+      document.body.classList.remove("s-err", "s-idle");
+      src.connect(analyser);
+      $("btnStart").textContent = "Stop listening";
+      lastT = performance.now();
+      loop();
+    }).catch(function () {
+      document.body.classList.remove("s-idle"); document.body.classList.add("s-err");
+      $("status").textContent = "Microphone blocked";
+      $("hint").textContent = "Allow microphone access in the browser's address bar, then press Start listening again.";
+    });
+  }
+
+  function stop() {
+    cancelAnimationFrame(raf);
+    if (stream) stream.getTracks().forEach(function (t) { t.stop(); });
+    if (ctx) try { ctx.close(); } catch (e) {}
+    stream = null; ctx = null; analyser = null;
+    level = 0; over = false;
+    document.body.classList.remove("s-warn", "s-loud");
+    document.body.classList.add("s-idle");
+    $("fill").style.clipPath = "inset(0 100% 0 0 round 0 18px 18px 0)";
+    $("status").textContent = "Paused";
+    $("btnStart").textContent = "Start listening";
+  }
+
+  function readLevel() {
+    if (analyser.getFloatTimeDomainData) analyser.getFloatTimeDomainData(buf);
+    else {
+      var b = new Uint8Array(analyser.fftSize);
+      analyser.getByteTimeDomainData(b);
+      for (var k = 0; k < b.length; k++) buf[k] = (b[k] - 128) / 128;
+    }
+    var sum = 0;
+    for (var i = 0; i < buf.length; i++) sum += buf[i] * buf[i];
+    var rms = Math.sqrt(sum / buf.length) * sens;
+    var db = 20 * Math.log10(rms || 1e-6); // about -70 (silent) to 0 (very loud)
+    return Math.max(0, Math.min(100, (db + 62) / 58 * 100));
+  }
+
+  function loop() {
+    raf = requestAnimationFrame(loop);
+    var now = performance.now();
+    var dt = Math.min(200, now - lastT); lastT = now;
+    var raw = readLevel();
+    // rise fast, fall slowly so the bar is readable from the back of the room
+    level += (raw - level) * (raw > level ? 0.35 : 0.06);
+    var v = Math.round(level);
+
+    totalMs += dt;
+    if (v < limit) quietMs += dt;
+
+    if (v >= limit) {
+      if (!overSince) overSince = now;
+      if (!over && now - overSince > 600) { over = true; overCount++; if (beep && now - lastBeep > 3000) { lastBeep = now; doBeep(); } }
+    } else { overSince = 0; if (v < limit - 5) over = false; }
+
+    document.body.classList.toggle("s-loud", over);
+    document.body.classList.toggle("s-warn", !over && v >= limit * 0.8);
+    $("status").textContent = over ? "Too loud!" : v >= limit * 0.8 ? "Getting loud" : v > limit * 0.35 ? "Good working noise" : "Nice and quiet";
+    $("fill").style.clipPath = "inset(0 " + (100 - v) + "% 0 0 round 0 18px 18px 0)";
+    $("meter").setAttribute("aria-valuenow", v);
+    $("statNow").textContent = v;
+    $("statQuiet").textContent = totalMs ? Math.round(quietMs / totalMs * 100) + "%" : "0%";
+    $("statOver").textContent = overCount;
+
+    if (now - lastHist > 500) {
+      lastHist = now;
+      hist.push(v);
+      if (hist.length > HIST) hist.shift();
+      drawHistory();
+    }
+  }
+
+  function drawHistory() {
+    var html = "";
+    for (var i = 0; i < HIST - hist.length; i++) html += '<i style="height:2%;opacity:.15"></i>';
+    hist.forEach(function (h) { html += '<i style="height:' + Math.max(2, h) + "%;--c:" + colourFor(h) + '"></i>'; });
+    $("history").innerHTML = html;
+  }
+
+  function doBeep() {
+    if (!ctx) return;
+    try {
+      var o = ctx.createOscillator(), g = ctx.createGain();
+      o.type = "sine"; o.frequency.value = 880;
+      g.gain.setValueAtTime(0.0001, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.5);
+      o.connect(g); g.connect(ctx.destination);
+      o.start(); o.stop(ctx.currentTime + 0.55);
+    } catch (e) {}
+  }
+
+  $("btnStart").addEventListener("click", start);
+  $("limit").addEventListener("input", function () { limit = parseInt(this.value, 10); persist(); setLimitUi(); drawHistory(); });
+  $("sens").addEventListener("input", function () { sens = parseFloat(this.value); persist(); });
+  $("btnBeep").addEventListener("click", function () { beep = !beep; persist(); setLimitUi(); });
+  $("btnReset").addEventListener("click", function () { quietMs = 0; totalMs = 0; overCount = 0; hist = []; drawHistory(); $("statQuiet").textContent = "0%"; $("statOver").textContent = "0"; });
+  document.addEventListener("keydown", function (e) {
+    if (S.isTyping(e)) return;
+    if (e.key === " ") { e.preventDefault(); start(); }
+  });
+  window.addEventListener("pagehide", stop);
+
+  setLimitUi();
+  drawHistory();
+})();
+</script>
+</body>
+</html>

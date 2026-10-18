@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Team Scoreboard — Classroom Toolkit</title>
+<script src="../app-version.js"></script>
+<script>(function(){if(window.ensureAppVersionInUrl)window.ensureAppVersionInUrl();})();</script>
+<script src="../config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../supabase-init.js"></script>
+<script src="../allowlist-check.js"></script>
+<script>window.__authGuardLoginPath='../login.html';</script>
+<script src="../auth-guard.js"></script>
+<script src="../embed-chrome.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://api.fontshare.com/v2/css?f[]=general-sans@500,600,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="simple-tool.css">
+<style>
+:root{--accent:var(--violet);--glow:rgba(134,88,245,.5)}
+.board{
+  width:min(1300px,100%);display:grid;gap:18px;
+  grid-template-columns:repeat(auto-fit,minmax(min(250px,100%),1fr));
+}
+.team{
+  --c:#8658F5;position:relative;border-radius:24px;padding:18px 18px 16px;display:flex;flex-direction:column;gap:12px;align-items:center;
+  border:1px solid color-mix(in srgb,var(--c) 50%,transparent);
+  background:linear-gradient(180deg,color-mix(in srgb,var(--c) 22%,transparent),rgba(10,19,41,.8) 60%);
+  box-shadow:0 22px 50px -28px var(--c);
+  transition:transform .3s var(--ease),box-shadow .3s;
+}
+.team.lead{transform:translateY(-4px);box-shadow:0 0 0 2px color-mix(in srgb,var(--c) 70%,transparent),0 26px 60px -22px var(--c)}
+.crown{
+  position:absolute;top:-16px;left:50%;transform:translateX(-50%);padding:6px 12px;border-radius:999px;
+  background:linear-gradient(135deg,#FFD36B,#F4A62A);color:#2A1A00;font:700 12px/1 var(--font);letter-spacing:.08em;text-transform:uppercase;
+  box-shadow:0 6px 18px -4px rgba(244,166,42,.7);
+}
+.team-name{
+  width:100%;text-align:center;border:1px solid transparent;border-radius:10px;background:transparent;outline:none;
+  font:700 clamp(18px,2vw,26px)/1.2 var(--font-display);letter-spacing:-.02em;color:#fff;padding:6px 8px;
+}
+.team-name:hover{border-color:var(--line)}
+.team-name:focus{border-color:var(--line-strong);background:rgba(0,0,0,.2)}
+.score{
+  font:700 clamp(80px,11vw,170px)/1 var(--font-display);letter-spacing:-.05em;font-variant-numeric:tabular-nums;
+  color:#fff;text-shadow:0 0 40px color-mix(in srgb,var(--c) 60%,transparent);
+}
+.score.bump{animation:bump .45s var(--ease-out)}
+.score.drop{animation:drop .45s var(--ease-out)}
+@keyframes bump{0%{transform:scale(1.25);color:var(--c)}100%{transform:scale(1)}}
+@keyframes drop{0%{transform:scale(.85);opacity:.6}100%{transform:scale(1)}}
+.adj{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.adj .btn{min-width:58px;font-size:16px}
+.adj .plus{background:color-mix(in srgb,var(--c) 30%,#0D1831);border-color:color-mix(in srgb,var(--c) 55%,transparent);color:#fff}
+.key{font:600 11px/1 var(--font);color:var(--muted)}
+.remove{position:absolute;top:10px;right:10px;width:30px;height:30px;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--muted);opacity:0;transition:opacity .2s}
+.team:hover .remove,.remove:focus{opacity:1}
+.remove:hover{color:#fff;border-color:var(--line)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <a class="back" id="backLink" href="../classroom_toolkit.html">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      Toolkit
+    </a>
+    <div class="top-brand">
+      <span class="top-mark" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M8 4h8v5a4 4 0 01-8 0z"/><path d="M8 5H5a3 3 0 003 4M16 5h3a3 3 0 01-3 4"/><path d="M12 13v3M8.5 20h7M10 16.5h4"/></svg></span>
+      <div class="top-text">
+        <h1>Team Scoreboard</h1>
+        <p class="sub">Press 1–8 to give a team a point, Shift+number to take one away</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button type="button" class="btn btn-ghost" id="btnAdd">Add team</button>
+      <button type="button" class="btn btn-ghost" id="btnReset">Reset scores</button>
+      <button type="button" class="btn btn-ghost" id="btnFs" title="Fullscreen (F)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+        Fullscreen
+      </button>
+    </div>
+  </header>
+
+  <main class="main center">
+    <div class="board" id="board"></div>
+  </main>
+</div>
+
+<script src="simple-tool.js"></script>
+<script>
+(function () {
+  var S = window.SimpleTool, $ = S.$;
+  var KEY = "tk_team_scoreboard_v1";
+  var COLOURS = ["#3B6CFF", "#F45E68", "#35C796", "#F4A62A", "#8658F5", "#2EC5E8", "#D843B2", "#9BD84A"];
+  var DEFAULT_NAMES = ["Team Blue", "Team Red", "Team Green", "Team Gold", "Team Purple", "Team Cyan", "Team Pink", "Team Lime"];
+  var MAX = 8;
+  var saved = S.load(KEY, null);
+  var teams = saved && Array.isArray(saved.teams) && saved.teams.length ? saved.teams : [
+    { name: DEFAULT_NAMES[0], score: 0 }, { name: DEFAULT_NAMES[1], score: 0 }
+  ];
+
+  function persist() { S.save(KEY, { teams: teams }); }
+
+  function render() {
+    var top = Math.max.apply(null, teams.map(function (t) { return t.score; }));
+    var leaders = teams.filter(function (t) { return t.score === top; }).length;
+    $("board").innerHTML = teams.map(function (t, i) {
+      var lead = top > 0 && leaders === 1 && t.score === top;
+      return '<section class="team' + (lead ? " lead" : "") + '" style="--c:' + COLOURS[i % COLOURS.length] + '">' +
+        (lead ? '<span class="crown">Winning</span>' : "") +
+        (teams.length > 1 ? '<button type="button" class="remove" data-remove="' + i + '" aria-label="Remove ' + S.escapeHtml(t.name) + '">✕</button>' : "") +
+        '<input class="team-name" data-name="' + i + '" value="' + S.escapeHtml(t.name) + '" maxlength="30" aria-label="Team name">' +
+        '<div class="score" id="score' + i + '">' + t.score + "</div>" +
+        '<div class="adj">' +
+          '<button type="button" class="btn" data-add="' + i + '" data-n="-1" aria-label="Take a point from ' + S.escapeHtml(t.name) + '">−1</button>' +
+          '<button type="button" class="btn plus" data-add="' + i + '" data-n="1">+1</button>' +
+          '<button type="button" class="btn plus" data-add="' + i + '" data-n="5">+5</button>' +
+        "</div>" +
+        '<span class="key">Key ' + (i + 1) + "</span>" +
+      "</section>";
+    }).join("");
+    $("btnAdd").disabled = teams.length >= MAX;
+  }
+
+  function add(i, n) {
+    if (!teams[i]) return;
+    var wasLead = isSoleLeader(i);
+    teams[i].score = Math.max(0, teams[i].score + n);
+    persist();
+    render();
+    var el = $("score" + i);
+    if (el) el.classList.add(n > 0 ? "bump" : "drop");
+    if (n > 0 && !wasLead && isSoleLeader(i)) S.toast(teams[i].name + " takes the lead!");
+  }
+  function isSoleLeader(i) {
+    var s = teams[i].score;
+    return s > 0 && teams.every(function (t, j) { return j === i || t.score < s; });
+  }
+
+  $("board").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-add]");
+    if (b) { add(parseInt(b.getAttribute("data-add"), 10), parseInt(b.getAttribute("data-n"), 10)); return; }
+    var r = e.target.closest("[data-remove]");
+    if (r) {
+      var i = parseInt(r.getAttribute("data-remove"), 10);
+      if (teams[i].score > 0 && !confirm("Remove " + teams[i].name + "? Its score will be lost.")) return;
+      teams.splice(i, 1); persist(); render();
+    }
+  });
+  $("board").addEventListener("input", function (e) {
+    var i = e.target.getAttribute("data-name");
+    if (i == null) return;
+    teams[+i].name = e.target.value;
+    persist();
+  });
+  $("board").addEventListener("keydown", function (e) {
+    if (e.target.hasAttribute("data-name") && e.key === "Enter") e.target.blur();
+  });
+  $("board").addEventListener("focusout", function (e) {
+    if (e.target.hasAttribute && e.target.hasAttribute("data-name")) {
+      var i = +e.target.getAttribute("data-name");
+      if (!teams[i].name.trim()) { teams[i].name = DEFAULT_NAMES[i % DEFAULT_NAMES.length]; persist(); render(); }
+    }
+  });
+  $("btnAdd").addEventListener("click", function () {
+    if (teams.length >= MAX) return;
+    teams.push({ name: DEFAULT_NAMES[teams.length % DEFAULT_NAMES.length], score: 0 });
+    persist(); render();
+  });
+  $("btnReset").addEventListener("click", function () {
+    if (!confirm("Set every team back to 0?")) return;
+    teams.forEach(function (t) { t.score = 0; });
+    persist(); render();
+  });
+  document.addEventListener("keydown", function (e) {
+    if (S.isTyping(e) || e.metaKey || e.ctrlKey || e.altKey) return;
+    var m = /^(Digit|Numpad)([1-8])$/.exec(e.code || "");
+    if (!m) return;
+    e.preventDefault();
+    add(parseInt(m[2], 10) - 1, e.shiftKey ? -1 : 1);
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>

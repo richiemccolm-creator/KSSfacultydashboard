@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>QR Maker — Classroom Toolkit</title>
+<script src="../app-version.js"></script>
+<script>(function(){if(window.ensureAppVersionInUrl)window.ensureAppVersionInUrl();})();</script>
+<script src="../config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../supabase-init.js"></script>
+<script src="../allowlist-check.js"></script>
+<script>window.__authGuardLoginPath='../login.html';</script>
+<script src="../auth-guard.js"></script>
+<script src="../embed-chrome.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://api.fontshare.com/v2/css?f[]=general-sans@500,600,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="simple-tool.css">
+<style>
+:root{--accent:var(--cyan);--glow:rgba(46,197,232,.5)}
+.layout{width:min(1100px,100%);display:grid;gap:22px;grid-template-columns:minmax(0,1fr) auto;align-items:start}
+.form{display:grid;gap:12px}
+.form label{font:600 13px/1 var(--font);color:var(--text-2)}
+.form textarea{min-height:110px}
+.recent{display:flex;flex-wrap:wrap;gap:8px}
+.recent button{
+  max-width:100%;padding:8px 12px;border-radius:999px;border:1px solid var(--line);background:rgba(13,24,49,.75);color:var(--text-2);
+  font:600 13px/1.2 var(--font);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.recent button:hover{color:#fff;border-color:var(--line-strong)}
+.card{
+  width:clamp(260px,34vw,420px);padding:20px;border-radius:24px;background:#fff;color:#081126;text-align:center;
+  box-shadow:0 30px 70px -24px rgba(0,0,0,.8),0 0 60px -20px var(--glow);
+}
+.card img{display:block;width:100%;height:auto;image-rendering:pixelated}
+.card .cap{margin-top:12px;font:700 18px/1.2 var(--font-display);word-break:break-word}
+.card .placeholder{aspect-ratio:1;display:grid;place-items:center;color:#7D8AA8;font:600 15px/1.4 var(--font);border:2px dashed #C9D2E6;border-radius:14px;padding:20px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:14px}
+.big{
+  position:fixed;inset:0;z-index:50;display:grid;place-items:center;background:rgba(3,7,18,.92);backdrop-filter:blur(10px);
+  opacity:0;pointer-events:none;transition:opacity .25s;
+}
+.big.show{opacity:1;pointer-events:auto}
+.big .card{width:min(76vh,90vw)}
+.big .card .cap{font-size:clamp(20px,3vw,34px)}
+.big .close{position:absolute;top:18px;right:18px}
+@media(max-width:820px){.layout{grid-template-columns:1fr;justify-items:center}.form{width:100%}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <a class="back" id="backLink" href="../classroom_toolkit.html">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      Toolkit
+    </a>
+    <div class="top-brand">
+      <span class="top-mark" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.4"/><rect x="14" y="3" width="7" height="7" rx="1.4"/><rect x="3" y="14" width="7" height="7" rx="1.4"/><path d="M14 14h3v3h-3zM19 14h2M14 19h2M19 19h2v2"/></svg></span>
+      <div class="top-text">
+        <h1>QR Maker</h1>
+        <p class="sub">Turn any link or text into a QR code pupils can scan</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button type="button" class="btn btn-ghost" id="btnFs" title="Fullscreen (F)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+        Fullscreen
+      </button>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="layout">
+      <div class="panel form">
+        <label for="text">Link or text</label>
+        <textarea class="input" id="text" placeholder="https://… or any short message" maxlength="1200"></textarea>
+        <label for="caption">Caption (optional)</label>
+        <input class="input" id="caption" maxlength="80" placeholder="e.g. Year 9 homework form">
+        <p class="hint">The code is made on this device. Nothing you type is sent anywhere.</p>
+        <label id="recentLabel" class="hidden">Recent</label>
+        <div class="recent" id="recent"></div>
+      </div>
+      <div>
+        <div class="card" id="card">
+          <div class="placeholder" id="placeholder">Type a link or some text and the QR code appears here</div>
+          <img id="qrImg" class="hidden" alt="QR code">
+          <div class="cap" id="cap"></div>
+        </div>
+        <div class="actions">
+          <button type="button" class="btn btn-primary" id="btnBig" disabled>Show big</button>
+          <button type="button" class="btn" id="btnDownload" disabled>Download PNG</button>
+          <button type="button" class="btn" id="btnCopy" disabled>Copy text</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="big" id="big" role="dialog" aria-label="QR code, large">
+  <button type="button" class="btn close" id="btnCloseBig">Close <kbd>Esc</kbd></button>
+  <div class="card"><img id="bigImg" alt="QR code"><div class="cap" id="bigCap"></div></div>
+</div>
+
+<script src="simple-tool.js"></script>
+<script>
+(function () {
+  var S = window.SimpleTool, $ = S.$;
+  var KEY = "tk_qr_maker_v1";
+  var saved = S.load(KEY, {});
+  var recent = Array.isArray(saved.recent) ? saved.recent : [];
+  var dataUrl = "", t = 0, recentT = 0;
+
+  function persist() { S.save(KEY, { recent: recent, text: $("text").value, caption: $("caption").value }); }
+
+  function make() {
+    var text = $("text").value.trim();
+    var cap = $("caption").value.trim();
+    $("cap").textContent = cap;
+    $("bigCap").textContent = cap;
+    if (!text) { show(""); persist(); return; }
+    if (!window.QRCode || typeof QRCode.toDataURL !== "function") {
+      $("placeholder").textContent = "The QR library didn't load. Check the internet connection and refresh.";
+      show("");
+      return;
+    }
+    QRCode.toDataURL(text, { width: 1024, margin: 2, errorCorrectionLevel: "M", color: { dark: "#081126", light: "#ffffff" } }, function (err, url) {
+      if (err || !url) { $("placeholder").textContent = "That's too long for a QR code. Try a shorter link."; show(""); return; }
+      show(url);
+    });
+    persist();
+    clearTimeout(recentT);
+    recentT = setTimeout(function () { remember(text, cap); }, 1500);
+  }
+
+  function show(url) {
+    dataUrl = url;
+    $("qrImg").classList.toggle("hidden", !url);
+    $("placeholder").classList.toggle("hidden", !!url);
+    if (url) { $("qrImg").src = url; $("bigImg").src = url; }
+    else $("placeholder").textContent = $("placeholder").textContent || "Type a link or some text and the QR code appears here";
+    ["btnBig", "btnDownload", "btnCopy"].forEach(function (id) { $(id).disabled = !url; });
+  }
+
+  function remember(text, cap) {
+    recent = recent.filter(function (r) { return r.text !== text; });
+    recent.unshift({ text: text, caption: cap });
+    if (recent.length > 8) recent.length = 8;
+    persist();
+    renderRecent();
+  }
+  function renderRecent() {
+    $("recentLabel").classList.toggle("hidden", !recent.length);
+    $("recent").innerHTML = recent.map(function (r, i) {
+      return '<button type="button" data-i="' + i + '" title="' + S.escapeHtml(r.text) + '">' + S.escapeHtml(r.caption || r.text) + "</button>";
+    }).join("");
+  }
+
+  function schedule() {
+    clearTimeout(t);
+    $("placeholder").textContent = "Type a link or some text and the QR code appears here";
+    t = setTimeout(make, 150);
+  }
+
+  function openBig() { if (dataUrl) $("big").classList.add("show"); }
+  function closeBig() { $("big").classList.remove("show"); }
+
+  $("text").addEventListener("input", schedule);
+  $("caption").addEventListener("input", schedule);
+  $("recent").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-i]");
+    if (!b) return;
+    var r = recent[+b.getAttribute("data-i")];
+    $("text").value = r.text; $("caption").value = r.caption || "";
+    make();
+  });
+  $("btnBig").addEventListener("click", openBig);
+  $("btnCloseBig").addEventListener("click", closeBig);
+  $("big").addEventListener("click", function (e) { if (e.target === this) closeBig(); });
+  $("btnDownload").addEventListener("click", function () {
+    if (!dataUrl) return;
+    var a = document.createElement("a");
+    a.href = dataUrl;
+    a.download = (($("caption").value.trim() || "qr-code").replace(/[^\w\- ]+/g, "").replace(/\s+/g, "-").toLowerCase() || "qr-code") + ".png";
+    document.body.appendChild(a); a.click(); a.remove();
+  });
+  $("btnCopy").addEventListener("click", function () {
+    try {
+      navigator.clipboard.writeText($("text").value.trim()).then(function () { S.toast("Copied"); }, function () { S.toast("Couldn't copy"); });
+    } catch (e) { S.toast("Couldn't copy"); }
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape") closeBig();
+  });
+
+  $("text").value = saved.text || "";
+  $("caption").value = saved.caption || "";
+  renderRecent();
+  if ($("text").value.trim()) make();
+})();
+</script>
+</body>
+</html>

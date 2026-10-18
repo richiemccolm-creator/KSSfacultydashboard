@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Mystery Box — Classroom Toolkit</title>
+<script src="../app-version.js"></script>
+<script>(function(){if(window.ensureAppVersionInUrl)window.ensureAppVersionInUrl();})();</script>
+<script src="../config.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="../supabase-init.js"></script>
+<script src="../allowlist-check.js"></script>
+<script>window.__authGuardLoginPath='../login.html';</script>
+<script src="../auth-guard.js"></script>
+<script src="../embed-chrome.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://api.fontshare.com/v2/css?f[]=general-sans@500,600,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="simple-tool.css">
+<style>
+:root{--accent:var(--amber);--glow:rgba(244,166,42,.5);--box:#8658F5;--box-2:#D843B2}
+.scene{position:relative;width:min(980px,100%);min-height:clamp(300px,48vh,520px);display:grid;place-items:center}
+.box{
+  position:relative;width:clamp(200px,26vw,300px);aspect-ratio:1.05;border:none;background:none;padding:0;
+  filter:drop-shadow(0 30px 40px rgba(0,0,0,.55)) drop-shadow(0 0 50px var(--glow));
+  transition:transform .3s var(--ease);
+}
+.box:hover{transform:translateY(-6px) rotate(-1.5deg)}
+.box:focus-visible{outline:3px solid rgba(244,166,42,.7);outline-offset:12px;border-radius:20px}
+.box .body,.box .lid{position:absolute;left:0;right:0;border-radius:14px}
+.box .body{
+  bottom:0;height:72%;
+  background:linear-gradient(135deg,var(--box),var(--box-2));
+  box-shadow:inset 0 -12px 0 rgba(0,0,0,.18),inset 0 10px 20px rgba(255,255,255,.15);
+}
+.box .lid{
+  top:4%;height:26%;left:-5%;right:-5%;
+  background:linear-gradient(135deg,color-mix(in srgb,var(--box) 85%,#fff),var(--box-2));
+  box-shadow:inset 0 -8px 0 rgba(0,0,0,.2);
+  transition:transform .6s var(--ease-out),opacity .6s;
+  transform-origin:50% 100%;
+}
+.box .ribbon-v{position:absolute;left:50%;top:4%;bottom:0;width:15%;transform:translateX(-50%);background:linear-gradient(#FFD36B,#F4A62A);z-index:2;border-radius:3px}
+.box .ribbon-h{position:absolute;left:0;right:0;top:56%;height:12%;background:linear-gradient(#FFD36B,#F4A62A);z-index:1}
+.box .q{
+  position:absolute;left:0;right:0;bottom:6%;z-index:3;text-align:center;
+  font:700 clamp(50px,7vw,90px)/1 var(--font-display);color:#fff;text-shadow:0 4px 0 rgba(0,0,0,.25);
+}
+.box.shake{animation:shake .7s ease-in-out}
+@keyframes shake{
+  0%,100%{transform:rotate(0)}15%{transform:rotate(-8deg) translateY(-6px)}30%{transform:rotate(7deg)}
+  45%{transform:rotate(-6deg) translateY(-4px)}60%{transform:rotate(5deg)}75%{transform:rotate(-3deg)}
+}
+.box.open .lid{transform:translateY(-120%) rotate(-24deg);opacity:0}
+.box.open{transform:scale(.88)}
+.reveal{
+  position:absolute;left:50%;top:50%;width:min(760px,92%);transform:translate(-50%,-40%) scale(.6);opacity:0;pointer-events:none;
+  padding:clamp(24px,4vw,44px);border-radius:26px;text-align:center;z-index:5;
+  background:linear-gradient(160deg,rgba(26,36,74,.97),rgba(12,20,44,.97));
+  border:1px solid rgba(244,166,42,.5);
+  box-shadow:0 30px 80px -20px rgba(0,0,0,.8),0 0 80px -20px rgba(244,166,42,.6);
+  transition:transform .55s var(--ease-out),opacity .35s;
+}
+.reveal.show{opacity:1;transform:translate(-50%,-50%) scale(1);pointer-events:auto}
+.reveal .kind{display:inline-block;margin-bottom:14px;padding:6px 12px;border-radius:999px;background:rgba(244,166,42,.18);color:#FFD9A0;font:700 12px/1 var(--font);letter-spacing:.1em;text-transform:uppercase}
+.reveal .text{font:700 clamp(30px,4.6vw,62px)/1.1 var(--font-display);letter-spacing:-.025em}
+.reveal .row{margin-top:24px}
+.editor{width:min(980px,100%)}
+.editor textarea{min-height:200px}
+.meta{color:var(--muted);font:600 13px/1 var(--font)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <a class="back" id="backLink" href="../classroom_toolkit.html">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+      Toolkit
+    </a>
+    <div class="top-brand">
+      <span class="top-mark" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8L12 3.5 20.5 8 12 12.5z"/><path d="M3.5 8v8L12 20.5 20.5 16V8"/><path d="M12 12.5v8"/></svg></span>
+      <div class="top-text">
+        <h1>Mystery Box</h1>
+        <p class="sub">Open the box for a random reward, challenge or prompt</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <button type="button" class="btn btn-ghost" id="btnFs" title="Fullscreen (F)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>
+        Fullscreen
+      </button>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="seg" role="group" aria-label="Which box" id="deckSeg"></div>
+    <div class="scene">
+      <button type="button" class="box" id="box" aria-label="Open the mystery box">
+        <span class="lid"></span><span class="body"></span>
+        <span class="ribbon-v"></span><span class="ribbon-h"></span>
+        <span class="q">?</span>
+      </button>
+      <div class="reveal" id="reveal" role="dialog" aria-live="polite" aria-label="Mystery box result">
+        <span class="kind" id="revealKind"></span>
+        <div class="text" id="revealText"></div>
+        <div class="row">
+          <button type="button" class="btn btn-primary" id="btnAgain">Open another <kbd>Space</kbd></button>
+          <button type="button" class="btn btn-ghost" id="btnClose">Close</button>
+        </div>
+      </div>
+    </div>
+    <p class="meta" id="meta"></p>
+
+    <details class="editor panel names-drawer" id="editor">
+      <summary><svg class="chev" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>Edit what's in the box <span class="count" id="deckCount"></span></summary>
+      <div class="names-body">
+        <label class="sr-only" for="itemsInput">Items, one per line</label>
+        <textarea class="input" id="itemsInput" placeholder="One item per line"></textarea>
+        <div class="names-foot">
+          <p class="hint">One item per line. Saved on this device. Items aren't repeated until the box is empty.</p>
+          <button type="button" class="btn btn-ghost" id="btnDefaults">Restore defaults</button>
+          <button type="button" class="btn btn-primary" id="btnSaveItems">Save items</button>
+        </div>
+      </div>
+    </details>
+  </main>
+</div>
+
+<script src="simple-tool.js"></script>
+<script>
+(function () {
+  var S = window.SimpleTool, $ = S.$;
+  var KEY = "tk_mystery_box_v1";
+  var DECKS = [
+    { id: "rewards", label: "Rewards", colours: ["#8658F5", "#D843B2"], items: [
+      "Choose the warm-up game", "House point for your team", "Sit anywhere next lesson", "Pick the music for practical work",
+      "Positive phone call or email home", "Be the director for one scene", "First to perform (or last, your choice)",
+      "Skip one homework question", "Star of the lesson on the board", "Choose your group next lesson"
+    ]},
+    { id: "challenges", label: "Challenges", colours: ["#F45E68", "#F4A62A"], items: [
+      "Perform your scene with no words", "Freeze frame in 10 seconds", "Swap one character in your group",
+      "Add an unexpected entrance", "Perform it in slow motion", "Use only five words each", "Show the scene as a flashback",
+      "Add a narrator", "Make the audience laugh in the first line", "Perform it in half the time"
+    ]},
+    { id: "prompts", label: "Drama prompts", colours: ["#3B6CFF", "#2EC5E8"], items: [
+      "A lost key", "The last bus home", "A secret in a letter", "Someone who never says goodbye", "A storm is coming",
+      "The day everything changed", "An empty chair at dinner", "A message from the future", "Two strangers in a lift",
+      "The prize nobody wanted"
+    ]},
+    { id: "questions", label: "Questions", colours: ["#35C796", "#2EC5E8"], items: [
+      "What did you learn today?", "What would you change about your performance?", "Which moment worked best and why?",
+      "How did your character feel at the end?", "What would a director say to your group?", "Describe today's lesson in three words",
+      "What will you practise next time?", "Who in your group helped you most?"
+    ]}
+  ];
+  var saved = S.load(KEY, {});
+  var custom = saved.custom && typeof saved.custom === "object" ? saved.custom : {};
+  var used = saved.used && typeof saved.used === "object" ? saved.used : {};
+  var deckId = DECKS.some(function (d) { return d.id === saved.deck; }) ? saved.deck : "rewards";
+  var busy = false;
+
+  function deck() { return DECKS.filter(function (d) { return d.id === deckId; })[0]; }
+  function items() { var c = custom[deckId]; return Array.isArray(c) && c.length ? c : deck().items; }
+  function persist() { S.save(KEY, { deck: deckId, custom: custom, used: used }); }
+
+  function render() {
+    var d = deck();
+    document.documentElement.style.setProperty("--box", d.colours[0]);
+    document.documentElement.style.setProperty("--box-2", d.colours[1]);
+    $("deckSeg").innerHTML = DECKS.map(function (x) {
+      return '<button type="button" data-deck="' + x.id + '" class="' + (x.id === deckId ? "on" : "") + '">' + x.label + "</button>";
+    }).join("");
+    var list = items(), u = (used[deckId] || []).filter(function (t) { return list.indexOf(t) >= 0; });
+    $("meta").textContent = (list.length - u.length) + " of " + list.length + " left in the box";
+    $("deckCount").textContent = d.label + " · " + list.length;
+  }
+
+  function fillEditor() { $("itemsInput").value = items().join("\n"); }
+
+  function open() {
+    if (busy) return;
+    if ($("reveal").classList.contains("show")) { close(true); return; }
+    var list = items();
+    var u = (used[deckId] || []).filter(function (t) { return list.indexOf(t) >= 0; });
+    var left = list.filter(function (t) { return u.indexOf(t) < 0; });
+    if (!left.length) { u = []; left = list.slice(); S.toast("The box is full again"); }
+    var item = left[Math.floor(Math.random() * left.length)];
+    u.push(item); used[deckId] = u; persist();
+    busy = true;
+    var box = $("box");
+    box.classList.remove("open"); box.classList.add("shake");
+    setTimeout(function () {
+      box.classList.remove("shake"); box.classList.add("open");
+      $("revealKind").textContent = deck().label;
+      $("revealText").textContent = item;
+      $("reveal").classList.add("show");
+      S.confetti(60);
+      busy = false;
+      render();
+      $("btnAgain").focus();
+    }, S.reduceMotion ? 0 : 720);
+  }
+  function close(thenOpen) {
+    $("reveal").classList.remove("show");
+    $("box").classList.remove("open");
+    if (thenOpen) setTimeout(open, 250);
+    else $("box").focus();
+  }
+
+  $("box").addEventListener("click", open);
+  $("btnAgain").addEventListener("click", function () { close(true); });
+  $("btnClose").addEventListener("click", function () { close(false); });
+  $("deckSeg").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-deck]");
+    if (!b) return;
+    deckId = b.getAttribute("data-deck"); persist();
+    if ($("reveal").classList.contains("show")) close(false);
+    render(); fillEditor();
+  });
+  $("btnSaveItems").addEventListener("click", function () {
+    var list = $("itemsInput").value.split(/\n+/).map(function (s) { return s.trim(); }).filter(Boolean);
+    if (!list.length) { S.toast("Add at least one item"); return; }
+    custom[deckId] = list; used[deckId] = []; persist(); render(); fillEditor();
+    S.toast("Saved " + list.length + " items");
+  });
+  $("btnDefaults").addEventListener("click", function () {
+    delete custom[deckId]; used[deckId] = []; persist(); render(); fillEditor();
+    S.toast("Restored the default items");
+  });
+  document.addEventListener("keydown", function (e) {
+    if (S.isTyping(e)) return;
+    if (e.key === " ") { e.preventDefault(); open(); }
+    if (e.key === "Escape" && $("reveal").classList.contains("show")) close(false);
+  });
+
+  render();
+  fillEditor();
+})();
+</script>
+</body>
+</html>
