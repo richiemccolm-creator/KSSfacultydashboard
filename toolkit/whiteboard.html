@@ -260,6 +260,16 @@ body.board-focus .wall{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))
     ctx.restore();
   }
 
+  // Each board records its shape as {a: height/width x 1000} and uses 0-1000 both ways.
+  // Boards without it are the original 4:3 layout (y 0-750).
+  function boardShape(strokes) {
+    var list = strokes || [];
+    for (var i = 0; i < list.length; i++) {
+      if (list[i] && list[i].a != null) return { aspect: list[i].a / 1000, yBase: 1000 };
+    }
+    return { aspect: 0.75, yBase: 750 };
+  }
+
   function paintStrokes(canvas, strokes) {
     if (!canvas) return;
     var dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -273,10 +283,19 @@ body.board-focus .wall{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))
     }
     var ctx = canvas.getContext("2d");
     ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.fillStyle = PAPER;
+    // Fit the pupil's board inside the tile in its own shape; any spare edge is a slightly darker paper
+    var shape = boardShape(strokes);
+    var cw = Math.min(w, h / shape.aspect);
+    var ch = cw * shape.aspect;
+    var ox = (w - cw) / 2;
+    var oy = (h - ch) / 2;
+    ctx.fillStyle = "#E7E2D5";
     ctx.fillRect(0, 0, w, h);
-    var sx = w / 1000;
-    var sy = h / 750;
+    ctx.fillStyle = PAPER;
+    ctx.fillRect(ox, oy, cw, ch);
+    ctx.translate(ox, oy);
+    var sx = cw / 1000;
+    var sy = ch / shape.yBase;
     (strokes || []).forEach(function (s) {
       var p = s && s.p;
       if (!p || p.length < 2) return;
@@ -285,7 +304,7 @@ body.board-focus .wall{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))
       ctx.fillStyle = ctx.strokeStyle;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
-      ctx.lineWidth = Math.max(1.5, (s.w || 4) * Math.min(sx, sy));
+      ctx.lineWidth = Math.max(1.5, (s.w || 4) * sx);
       if (p.length < 4) {
         ctx.beginPath();
         ctx.arc(p[0] * sx, p[1] * sy, ctx.lineWidth / 2, 0, Math.PI * 2);
@@ -831,9 +850,10 @@ body.board-focus .wall{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))
     var box = $("lightbox");
     box.hidden = false;
     box.classList.remove("hidden");
+    var shape = boardShape(state.boards[id] && state.boards[id].strokes);
     box.innerHTML =
-      '<div class="lightbox-card">' +
-        '<canvas id="lightCanvas" width="1000" height="750"></canvas>' +
+      '<div class="lightbox-card" style="width:min(960px,100%,calc(78vh / ' + shape.aspect.toFixed(3) + '))">' +
+        '<canvas id="lightCanvas" width="1000" height="750" style="aspect-ratio:1000 / ' + Math.round(shape.aspect * 1000) + '"></canvas>' +
         '<div class="lightbox-bar"><strong>' + esc(boardLabel(board, idx)) + "</strong>" +
         '<button type="button" class="btn" id="btnLightClose">Close</button></div>' +
       "</div>";

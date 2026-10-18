@@ -47,7 +47,7 @@ input{min-height:50px;font-size:17px}
 .play-prompt{margin:0;font:700 19px/1.25 var(--font-display);letter-spacing:-.02em}
 .play-meta{margin:0;color:var(--muted);font:500 12.5px/1.3 var(--font)}
 .stage{flex:1;min-height:0;padding:10px 10px 8px;display:flex}
-/* The board is always 4:3 so it matches the tiles on the class screen; paint() sizes it to fit */
+/* The board fills this area; fitBoard() sizes it (see the comment there) */
 .paper{
   flex:1;min-height:0;min-width:0;position:relative;
   display:flex;align-items:center;justify-content:center;touch-action:none;
@@ -118,7 +118,7 @@ input{min-height:50px;font-size:17px}
   </div>
   <div class="stage">
     <div class="paper" id="paper">
-      <canvas id="board" width="1000" height="750"></canvas>
+      <canvas id="board" width="1000" height="1000"></canvas>
       <p class="sticker-hint hidden" id="stickerHint"></p>
       <div class="sticker-tray hidden" id="stickerTray" role="group" aria-label="Stickers"></div>
       <div class="lock hidden" id="lockMsg">Boards are locked.<br>Look at the class screen.</div>
@@ -247,28 +247,35 @@ input{min-height:50px;font-size:17px}
     var canvas = canvasEl();
     var r = canvas.getBoundingClientRect();
     var x = ((e.clientX - r.left) / Math.max(1, r.width)) * 1000;
-    var y = ((e.clientY - r.top) / Math.max(1, r.height)) * 750;
+    var y = ((e.clientY - r.top) / Math.max(1, r.height)) * 1000;
     return [
       Math.max(0, Math.min(1000, Math.round(x))),
-      Math.max(0, Math.min(750, Math.round(y)))
+      Math.max(0, Math.min(1000, Math.round(y)))
     ];
   }
 
-  // Size the 4:3 board to fit. Safari's toolbar sliding in and out changes the height a little
-  // while pupils draw; ignore that so the board (and the drawing) never jumps in size.
+  // The board fills the screen. Its shape (height / width) is taken from the screen while the
+  // board is empty, then kept once there is ink, so rotating or Safari's toolbar sliding in and
+  // out never stretches a drawing. Points are stored as 0-1000 across and 0-1000 down.
   var boardFit = { w: 0, h: 0 };
+  function boardHasInk() {
+    return state.strokes.length > 0 || !!state.stroke;
+  }
   function fitBoard(force) {
     var canvas = canvasEl();
     var paper = $("paper");
     if (!canvas || !paper) return;
     var availW = paper.clientWidth || 320;
     var availH = paper.clientHeight || 240;
-    if (!force && boardFit.w && availW === boardFit.w && Math.abs(availH - boardFit.h) < 140) return;
+    var empty = !boardHasInk();
+    if (!force && !empty && boardFit.w && availW === boardFit.w && Math.abs(availH - boardFit.h) < 140) return;
     boardFit.w = availW;
     boardFit.h = availH;
+    if (empty) state.aspect = Math.max(0.3, Math.min(2.5, availH / availW));
+    var aspect = state.aspect || 0.75;
     var dpr = Math.min(window.devicePixelRatio || 1, 2);
-    var cssW = Math.max(1, Math.floor(Math.min(availW, availH * 4 / 3)));
-    var cssH = Math.max(1, Math.floor(cssW * 3 / 4));
+    var cssW = Math.max(1, Math.floor(Math.min(availW, availH / aspect)));
+    var cssH = Math.max(1, Math.floor(cssW * aspect));
     canvas.style.width = cssW + "px";
     canvas.style.height = cssH + "px";
     canvas.width = Math.max(1, Math.round(cssW * dpr));
@@ -280,7 +287,7 @@ input{min-height:50px;font-size:17px}
     ctx.fillStyle = ctx.strokeStyle;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
-    ctx.lineWidth = Math.max(1.5, (s.w || 4) * Math.min(sx, sy));
+    ctx.lineWidth = Math.max(1.5, (s.w || 4) * sx); // line widths are in board-width units
   }
 
   // While a line is being drawn, add just the newest bit instead of redrawing everything
@@ -290,7 +297,7 @@ input{min-height:50px;font-size:17px}
     if (!canvas || from < 2 || p.length < from + 2) return;
     var ctx = canvas.getContext("2d");
     var sx = canvas.width / 1000;
-    var sy = canvas.height / 750;
+    var sy = canvas.height / 1000;
     strokeStyle(ctx, s, sx, sy);
     ctx.beginPath();
     ctx.moveTo(p[from - 2] * sx, p[from - 1] * sy);
@@ -342,7 +349,7 @@ input{min-height:50px;font-size:17px}
     ctx.fillStyle = PAPER;
     ctx.fillRect(0, 0, w, h);
     var sx = w / 1000;
-    var sy = h / 750;
+    var sy = h / 1000;
     var all = state.strokes.slice();
     if (state.stroke) all.push(state.stroke);
     all.forEach(function (s) {
@@ -374,7 +381,7 @@ input{min-height:50px;font-size:17px}
     if (e.pointerType === "pen") state.penSeen = true;
     else if (state.penSeen && e.pointerType === "touch") return; // palm resting on the screen
     if (state.drawing) return; // a second finger while a line is being drawn
-    if (state.strokes.length >= 250) return;
+    if (state.strokes.length >= 249) return; // one of the 250 slots holds the board shape
     if (state.sticker) { placeSticker(e); return; }
     var canvas = canvasEl();
     try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
@@ -410,7 +417,7 @@ input{min-height:50px;font-size:17px}
     if (Math.abs(pt[0] - lx) + Math.abs(pt[1] - ly) < 2) return;
     if (p.length >= 400) {
       // The server keeps strokes short, so carry on seamlessly in a new stroke
-      if (state.strokes.length >= 249) return;
+      if (state.strokes.length >= 248) return;
       state.strokes.push(state.stroke);
       state.dirty = true;
       state.stroke = { c: state.stroke.c, w: state.stroke.w, p: [lx, ly] };
@@ -446,6 +453,38 @@ input{min-height:50px;font-size:17px}
     paint();
   }
 
+  // Boards from the server carry their shape as {a: height/width x 1000}. Older boards have no
+  // shape item and use the original 4:3 layout (y 0-750), so convert those to 0-1000.
+  function importBoard(list) {
+    var aspect = null;
+    var out = [];
+    (Array.isArray(list) ? list : []).forEach(function (s) {
+      if (!s) return;
+      if (s.a != null) { if (aspect == null) aspect = s.a / 1000; return; }
+      out.push(s);
+    });
+    if (out.length && aspect == null) {
+      out = out.map(function (s) {
+        var p = (s.p || []).slice();
+        for (var i = 1; i < p.length; i += 2) p[i] = Math.round(p[i] * 1000 / 750);
+        var copy = {};
+        Object.keys(s).forEach(function (k) { copy[k] = s[k]; });
+        copy.p = p;
+        return copy;
+      });
+      aspect = 0.75;
+    }
+    state.strokes = out;
+    if (aspect != null && out.length) state.aspect = aspect;
+    fitBoard(true);
+    paint();
+  }
+
+  function exportBoard() {
+    if (!state.strokes.length) return [];
+    return [{ a: Math.round((state.aspect || 0.75) * 1000) }].concat(state.strokes);
+  }
+
   function scheduleSync() {
     clearTimeout(scheduleSync._t);
     scheduleSync._t = setTimeout(syncNow, 450);
@@ -454,7 +493,7 @@ input{min-height:50px;font-size:17px}
   function syncNow() {
     if (!state.dirty || state.syncing || !state.token || state.locked || state.closed) return;
     state.syncing = true;
-    var payload = state.strokes;
+    var payload = exportBoard();
     rpc("wb_submit_strokes", {
       p_token: state.token,
       p_strokes: payload,
@@ -467,9 +506,8 @@ input{min-height:50px;font-size:17px}
       }
       if (data && data.reason === "round") {
         state.round = data.round || (state.round + 1);
-        state.strokes = Array.isArray(data.strokes) ? data.strokes : [];
         state.dirty = false;
-        paint();
+        importBoard(data.strokes);
         return;
       }
       if (data && data.reason === "locked") {
@@ -487,6 +525,7 @@ input{min-height:50px;font-size:17px}
     if (state.locked || !state.strokes.length) return;
     state.strokes.pop();
     state.dirty = true;
+    if (!state.strokes.length) fitBoard(true); // empty again: take the screen's shape
     paint();
     scheduleSync();
   }
@@ -495,6 +534,7 @@ input{min-height:50px;font-size:17px}
     if (state.locked) return;
     state.strokes = [];
     state.dirty = true;
+    fitBoard(true);
     paint();
     scheduleSync();
   }
@@ -516,6 +556,10 @@ input{min-height:50px;font-size:17px}
       '" id="btnStickers" aria-expanded="' + (state.trayOpen ? "true" : "false") + '" aria-controls="stickerTray">' +
       '<span class="em" aria-hidden="true">' + (chosen ? '<img src="stickers/' + chosen.id + '.svg" alt="" width="24" height="24">' : '<img src="stickers/smile.svg" alt="" width="24" height="24">') + "</span>Stickers</button>";
     html += '<button type="button" class="btn btn-ghost" id="btnUndo">Undo</button>';
+    if (canFullscreen() && !isFullscreen()) {
+      html += '<button type="button" class="btn btn-ghost" id="btnFull" aria-label="Full screen">' +
+        '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>';
+    }
     html += '<button type="button" class="btn btn-ghost" id="btnWipe">Clear</button>';
     $("tools").innerHTML = html;
     $("tools").querySelectorAll("[data-c]").forEach(function (btn) {
@@ -534,6 +578,7 @@ input{min-height:50px;font-size:17px}
     });
     $("btnStickers").onclick = function () { setTray(!state.trayOpen); };
     $("btnUndo").onclick = undo;
+    if ($("btnFull")) $("btnFull").onclick = enterFullscreen;
     $("btnWipe").onclick = wipeLocal;
     updateStickerHint();
   }
@@ -599,6 +644,24 @@ input{min-height:50px;font-size:17px}
     });
   }
 
+  // iPads (not iPhones) let a page go full screen after a tap; that hides Safari's bars
+  function canFullscreen() {
+    var el = document.documentElement;
+    return !!(el.requestFullscreen || el.webkitRequestFullscreen) && (navigator.maxTouchPoints || 0) > 1;
+  }
+  function isFullscreen() {
+    return !!(document.fullscreenElement || document.webkitFullscreenElement);
+  }
+  function enterFullscreen() {
+    if (!canFullscreen() || isFullscreen()) return;
+    try {
+      var el = document.documentElement;
+      var go = el.requestFullscreen || el.webkitRequestFullscreen;
+      var res = go.call(el);
+      if (res && res.catch) res.catch(function () {});
+    } catch (e) {}
+  }
+
   function join() {
     var pin = String($("pin").value || "").replace(/\D/g, "").slice(0, 6);
     var nick = String($("nick").value || "").trim();
@@ -612,6 +675,7 @@ input{min-height:50px;font-size:17px}
       return;
     }
     state.token = getToken();
+    enterFullscreen(); // must happen straight from the tap on Join
     $("btnJoin").disabled = true;
     rpc("wb_join_session", {
       p_pin: pin,
@@ -622,10 +686,10 @@ input{min-height:50px;font-size:17px}
       state.nickname = data.nickname || nick;
       state.round = data.round || 1;
       state.rev = data.rev || 0;
-      state.strokes = Array.isArray(data.strokes) ? data.strokes : [];
       state.locked = !!data.locked;
       $("playPrompt").textContent = data.prompt || "Show me your thinking";
       showPlay();
+      importBoard(data.strokes);
       renderLock();
       startPoll();
     }).catch(function (err) {
@@ -656,9 +720,8 @@ input{min-height:50px;font-size:17px}
       renderLock();
       if ((data.round || 1) !== state.round) {
         state.round = data.round || 1;
-        state.strokes = Array.isArray(data.strokes) ? data.strokes : [];
         state.dirty = false;
-        paint();
+        importBoard(data.strokes);
       }
     }).catch(function () {});
   }
@@ -687,6 +750,11 @@ input{min-height:50px;font-size:17px}
     canvas.addEventListener("pointerup", endStroke);
     canvas.addEventListener("pointercancel", endStroke);
     window.addEventListener("resize", function () { fitBoard(false); paint(); });
+    ["fullscreenchange", "webkitfullscreenchange"].forEach(function (name) {
+      document.addEventListener(name, function () {
+        setTimeout(function () { fitBoard(true); paint(); if (state.pin) renderTools(); }, 200);
+      });
+    });
     window.addEventListener("orientationchange", function () {
       setTimeout(function () { fitBoard(true); paint(); }, 250);
     });
