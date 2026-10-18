@@ -202,11 +202,38 @@ body.board-focus .wall{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))
     theatre: "\uD83C\uDFAD", palette: "\uD83C\uDFA8", rocket: "\uD83D\uDE80"
   };
 
+  // Stickers are drawn from image files so they look the same on every device;
+  // a device's own emoji font can come out as dark blobs, so it is only a fallback while loading
+  var stickerImgs = {};
+  function stickerImg(id, onReady) {
+    var img = stickerImgs[id];
+    if (!img) {
+      img = new Image();
+      img.decoding = "async";
+      img.onload = function () { if (onReady) onReady(); };
+      img.src = "stickers/" + id + ".svg";
+      stickerImgs[id] = img;
+    }
+    return img.complete && img.naturalWidth ? img : null;
+  }
+
+  // When a sticker image finishes loading, repaint the wall and any enlarged board
+  function repaintAfterSticker() {
+    if (state.host) renderHostBody();
+    if (state.enlargeId) refreshLightbox();
+  }
+
   function drawSticker(ctx, s, sx, sy) {
     var em = STICKER_EMOJI[s.e];
     if (!em || !s.p || s.p.length < 2) return;
     var size = Math.max(8, (s.w || 110) * sx);
+    var img = stickerImg(s.e, repaintAfterSticker);
+    if (img) {
+      ctx.drawImage(img, s.p[0] * sx - size / 2, s.p[1] * sy - size / 2, size, size);
+      return;
+    }
     ctx.save();
+    ctx.fillStyle = "#1A2340";
     ctx.font = size + 'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
