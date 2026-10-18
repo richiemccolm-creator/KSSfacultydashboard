@@ -68,6 +68,28 @@ input{min-height:50px;font-size:17px}
 .size.on{border-color:var(--accent-stage);background:color-mix(in srgb,var(--accent-stage) 18%,transparent)}
 .size i{display:block;border-radius:50%;background:var(--paper)}
 .wait{text-align:center;color:var(--text-2);font:500 16px/1.45 var(--font);padding:24px}
+
+/* Stickers */
+.sticker-btn{width:auto;min-width:40px;padding:0 10px;gap:6px;font:600 14px/1 var(--font);color:var(--text);display:inline-flex;align-items:center}
+.sticker-btn .em{font-size:22px;line-height:1}
+/* Floats over the bottom of the board so opening it never resizes the board */
+.sticker-tray{
+  position:absolute;left:50%;bottom:8px;transform:translateX(-50%);z-index:2;
+  width:min(560px,calc(100% - 16px));padding:10px;border-radius:14px;
+  background:rgba(17,28,51,.97);border:1px solid var(--stage-line-strong);box-shadow:0 12px 32px rgba(0,0,0,.45);
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(52px,1fr));gap:6px;
+}
+.sticker-tray button{
+  height:52px;border-radius:10px;border:1px solid transparent;background:rgba(255,255,255,.04);
+  font-size:30px;line-height:1;padding:0;display:grid;place-items:center;
+}
+.sticker-tray button:hover{background:rgba(255,255,255,.1)}
+.sticker-tray button.on{border-color:var(--accent-stage);background:color-mix(in srgb,var(--accent-stage) 18%,transparent)}
+.sticker-hint{
+  position:absolute;top:10px;left:50%;transform:translateX(-50%);z-index:1;
+  padding:7px 12px;border-radius:999px;background:rgba(11,20,39,.85);color:#fff;
+  font:600 13px/1.2 var(--font);white-space:nowrap;pointer-events:none;
+}
 </style>
 </head>
 <body class="tk-stage">
@@ -96,6 +118,8 @@ input{min-height:50px;font-size:17px}
   <div class="stage">
     <div class="paper" id="paper">
       <canvas id="board" width="1000" height="750"></canvas>
+      <p class="sticker-hint hidden" id="stickerHint"></p>
+      <div class="sticker-tray hidden" id="stickerTray" role="group" aria-label="Stickers"></div>
       <div class="lock hidden" id="lockMsg">Boards are locked.<br>Look at the class screen.</div>
     </div>
   </div>
@@ -116,6 +140,33 @@ input{min-height:50px;font-size:17px}
     { c: "#F4F1E8", label: "Eraser" }
   ];
   var SIZES = [3, 6, 12];
+  // Sticker ids must match the list in wb_sanitize_strokes (20261018120000_whiteboard_stickers.sql)
+  var STICKERS = [
+    { id: "thumbs_up", e: "\uD83D\uDC4D", label: "Thumbs up" },
+    { id: "thumbs_down", e: "\uD83D\uDC4E", label: "Thumbs down" },
+    { id: "clap", e: "\uD83D\uDC4F", label: "Clapping" },
+    { id: "star", e: "\u2B50", label: "Star" },
+    { id: "heart", e: "\u2764\uFE0F", label: "Heart" },
+    { id: "check", e: "\u2705", label: "Tick" },
+    { id: "cross", e: "\u274C", label: "Cross" },
+    { id: "question", e: "\u2753", label: "Question" },
+    { id: "idea", e: "\uD83D\uDCA1", label: "Idea" },
+    { id: "think", e: "\uD83E\uDD14", label: "Thinking" },
+    { id: "laugh", e: "\uD83D\uDE02", label: "Laughing" },
+    { id: "smile", e: "\uD83D\uDE0A", label: "Smile" },
+    { id: "wow", e: "\uD83D\uDE2E", label: "Wow" },
+    { id: "sad", e: "\uD83D\uDE22", label: "Sad" },
+    { id: "fire", e: "\uD83D\uDD25", label: "Fire" },
+    { id: "hundred", e: "\uD83D\uDCAF", label: "100" },
+    { id: "party", e: "\uD83C\uDF89", label: "Party" },
+    { id: "theatre", e: "\uD83C\uDFAD", label: "Theatre masks" },
+    { id: "palette", e: "\uD83C\uDFA8", label: "Palette" },
+    { id: "rocket", e: "\uD83D\uDE80", label: "Rocket" }
+  ];
+  var STICKER_BY_ID = {};
+  STICKERS.forEach(function (st) { STICKER_BY_ID[st.id] = st; });
+  var STICKER_SIZES = { 3: 70, 6: 110, 12: 170 };
+  var MAX_STICKERS = 40;
   var TOKEN_KEY = "kss-wb-token";
   var $ = function (id) { return document.getElementById(id); };
   var state = {
@@ -134,7 +185,9 @@ input{min-height:50px;font-size:17px}
     syncing: false,
     locked: false,
     closed: false,
-    cache: null
+    cache: null,
+    sticker: null,
+    trayOpen: false
   };
 
   function esc(s) {
@@ -244,6 +297,18 @@ input{min-height:50px;font-size:17px}
     ctx.stroke();
   }
 
+  function drawSticker(ctx, s, sx, sy) {
+    var st = STICKER_BY_ID[s.e];
+    if (!st || !s.p || s.p.length < 2) return;
+    var size = Math.max(12, (s.w || 110) * sx);
+    ctx.save();
+    ctx.font = size + 'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(st.e, s.p[0] * sx, s.p[1] * sy);
+    ctx.restore();
+  }
+
   function paint() {
     var canvas = canvasEl();
     if (!canvas) return;
@@ -261,6 +326,7 @@ input{min-height:50px;font-size:17px}
     all.forEach(function (s) {
       var p = s && s.p;
       if (!p || p.length < 2) return;
+      if (s.e) { drawSticker(ctx, s, sx, sy); return; }
       strokeStyle(ctx, s, sx, sy);
       if (p.length < 4) {
         ctx.beginPath();
@@ -287,6 +353,7 @@ input{min-height:50px;font-size:17px}
     else if (state.penSeen && e.pointerType === "touch") return; // palm resting on the screen
     if (state.drawing) return; // a second finger while a line is being drawn
     if (state.strokes.length >= 250) return;
+    if (state.sticker) { placeSticker(e); return; }
     var canvas = canvasEl();
     try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
     var pt = pointFromEvent(e);
@@ -294,6 +361,23 @@ input{min-height:50px;font-size:17px}
     state.pointerId = e.pointerId;
     state.stroke = { c: state.color, w: currentWidth(), p: [pt[0], pt[1]] };
     paint();
+  }
+
+  function stickerCount() {
+    return state.strokes.filter(function (s) { return s && s.e; }).length;
+  }
+
+  function placeSticker(e) {
+    if (stickerCount() >= MAX_STICKERS) {
+      showStickerHint("That's the most stickers for one board");
+      return;
+    }
+    if (state.trayOpen) setTray(false);
+    var pt = pointFromEvent(e);
+    state.strokes.push({ e: state.sticker, w: STICKER_SIZES[state.width] || 110, p: [pt[0], pt[1]] });
+    state.dirty = true;
+    paint();
+    scheduleSync();
   }
 
   function addPoint(e) {
@@ -405,12 +489,18 @@ input{min-height:50px;font-size:17px}
       return '<button type="button" class="size' + (state.width === w ? " on" : "") +
         '" data-w="' + w + '" aria-label="Thickness ' + w + '"><i style="width:' + px + "px;height:" + px + 'px"></i></button>';
     }).join("");
+    var chosen = state.sticker && STICKER_BY_ID[state.sticker];
+    html += '<button type="button" class="size sticker-btn' + (state.sticker || state.trayOpen ? " on" : "") +
+      '" id="btnStickers" aria-expanded="' + (state.trayOpen ? "true" : "false") + '" aria-controls="stickerTray">' +
+      '<span class="em" aria-hidden="true">' + (chosen ? chosen.e : "\uD83D\uDE42") + "</span>Stickers</button>";
     html += '<button type="button" class="btn btn-ghost" id="btnUndo">Undo</button>';
     html += '<button type="button" class="btn btn-ghost" id="btnWipe">Clear</button>';
     $("tools").innerHTML = html;
     $("tools").querySelectorAll("[data-c]").forEach(function (btn) {
       btn.onclick = function () {
         state.color = btn.getAttribute("data-c");
+        state.sticker = null; // picking a pen goes back to drawing
+        setTray(false);
         renderTools();
       };
     });
@@ -420,8 +510,50 @@ input{min-height:50px;font-size:17px}
         renderTools();
       };
     });
+    $("btnStickers").onclick = function () { setTray(!state.trayOpen); };
     $("btnUndo").onclick = undo;
     $("btnWipe").onclick = wipeLocal;
+    updateStickerHint();
+  }
+
+  function renderTray() {
+    $("stickerTray").innerHTML = STICKERS.map(function (st) {
+      return '<button type="button" data-sticker="' + st.id + '" class="' + (state.sticker === st.id ? "on" : "") +
+        '" aria-label="' + st.label + '" title="' + st.label + '">' + st.e + "</button>";
+    }).join("");
+    $("stickerTray").querySelectorAll("[data-sticker]").forEach(function (btn) {
+      btn.onclick = function () {
+        state.sticker = btn.getAttribute("data-sticker");
+        setTray(false);
+      };
+    });
+  }
+
+  function setTray(open) {
+    state.trayOpen = !!open;
+    if (state.trayOpen) renderTray();
+    $("stickerTray").classList.toggle("hidden", !state.trayOpen);
+    renderTools();
+  }
+
+  function showStickerHint(text) {
+    var el = $("stickerHint");
+    el.textContent = text;
+    el.classList.remove("hidden");
+    clearTimeout(showStickerHint._t);
+    showStickerHint._t = setTimeout(updateStickerHint, 2200);
+  }
+
+  function updateStickerHint() {
+    var el = $("stickerHint");
+    if (!el) return;
+    var st = state.sticker && STICKER_BY_ID[state.sticker];
+    if (st && !state.trayOpen) {
+      el.textContent = "Tap the board to add " + st.e + ". Pick a pen to draw again.";
+      el.classList.remove("hidden");
+    } else {
+      el.classList.add("hidden");
+    }
   }
 
   function renderLock() {

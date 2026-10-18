@@ -193,6 +193,27 @@ body.board-focus .wall{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))
     }
   }
 
+  // Sticker ids must match whiteboard-join.html and wb_sanitize_strokes
+  var STICKER_EMOJI = {
+    thumbs_up: "\uD83D\uDC4D", thumbs_down: "\uD83D\uDC4E", clap: "\uD83D\uDC4F", star: "\u2B50",
+    heart: "\u2764\uFE0F", check: "\u2705", cross: "\u274C", question: "\u2753", idea: "\uD83D\uDCA1",
+    think: "\uD83E\uDD14", laugh: "\uD83D\uDE02", smile: "\uD83D\uDE0A", wow: "\uD83D\uDE2E",
+    sad: "\uD83D\uDE22", fire: "\uD83D\uDD25", hundred: "\uD83D\uDCAF", party: "\uD83C\uDF89",
+    theatre: "\uD83C\uDFAD", palette: "\uD83C\uDFA8", rocket: "\uD83D\uDE80"
+  };
+
+  function drawSticker(ctx, s, sx, sy) {
+    var em = STICKER_EMOJI[s.e];
+    if (!em || !s.p || s.p.length < 2) return;
+    var size = Math.max(8, (s.w || 110) * sx);
+    ctx.save();
+    ctx.font = size + 'px "Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif';
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(em, s.p[0] * sx, s.p[1] * sy);
+    ctx.restore();
+  }
+
   function paintStrokes(canvas, strokes) {
     if (!canvas) return;
     var dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -213,6 +234,7 @@ body.board-focus .wall{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))
     (strokes || []).forEach(function (s) {
       var p = s && s.p;
       if (!p || p.length < 2) return;
+      if (s.e) { drawSticker(ctx, s, sx, sy); return; }
       ctx.strokeStyle = s.c || "#1A2340";
       ctx.fillStyle = ctx.strokeStyle;
       ctx.lineCap = "round";
