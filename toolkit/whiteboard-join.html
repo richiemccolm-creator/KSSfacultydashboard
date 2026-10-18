@@ -39,6 +39,8 @@ input{min-height:50px;font-size:17px}
 /* Drawing view */
 .play{
   position:fixed;inset:0;z-index:2;display:flex;flex-direction:column;background:var(--stage);
+  /* No pinch zoom, scrolling, text selection or magnifier anywhere on the drawing view */
+  touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;
   padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
 }
 .play-bar{flex:none;display:flex;flex-direction:column;gap:4px;padding:12px 16px 10px;border-bottom:1px solid var(--stage-line)}
@@ -198,23 +200,56 @@ input{min-height:50px;font-size:17px}
     ];
   }
 
-  function paint() {
+  // Size the 4:3 board to fit. Safari's toolbar sliding in and out changes the height a little
+  // while pupils draw; ignore that so the board (and the drawing) never jumps in size.
+  var boardFit = { w: 0, h: 0 };
+  function fitBoard(force) {
     var canvas = canvasEl();
-    if (!canvas) return;
-    var dpr = Math.min(window.devicePixelRatio || 1, 2);
     var paper = $("paper");
-    var availW = (paper && paper.clientWidth) || 320;
-    var availH = (paper && paper.clientHeight) || 240;
+    if (!canvas || !paper) return;
+    var availW = paper.clientWidth || 320;
+    var availH = paper.clientHeight || 240;
+    if (!force && boardFit.w && availW === boardFit.w && Math.abs(availH - boardFit.h) < 140) return;
+    boardFit.w = availW;
+    boardFit.h = availH;
+    var dpr = Math.min(window.devicePixelRatio || 1, 2);
     var cssW = Math.max(1, Math.floor(Math.min(availW, availH * 4 / 3)));
     var cssH = Math.max(1, Math.floor(cssW * 3 / 4));
     canvas.style.width = cssW + "px";
     canvas.style.height = cssH + "px";
-    var w = Math.max(1, Math.round(cssW * dpr));
-    var h = Math.max(1, Math.round(cssH * dpr));
-    if (canvas.width !== w || canvas.height !== h) {
-      canvas.width = w;
-      canvas.height = h;
-    }
+    canvas.width = Math.max(1, Math.round(cssW * dpr));
+    canvas.height = Math.max(1, Math.round(cssH * dpr));
+  }
+
+  function strokeStyle(ctx, s, sx, sy) {
+    ctx.strokeStyle = s.c || "#1A2340";
+    ctx.fillStyle = ctx.strokeStyle;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.lineWidth = Math.max(1.5, (s.w || 4) * Math.min(sx, sy));
+  }
+
+  // While a line is being drawn, add just the newest bit instead of redrawing everything
+  function drawSegment(s, from) {
+    var canvas = canvasEl();
+    var p = s.p;
+    if (!canvas || from < 2 || p.length < from + 2) return;
+    var ctx = canvas.getContext("2d");
+    var sx = canvas.width / 1000;
+    var sy = canvas.height / 750;
+    strokeStyle(ctx, s, sx, sy);
+    ctx.beginPath();
+    ctx.moveTo(p[from - 2] * sx, p[from - 1] * sy);
+    for (var i = from; i < p.length; i += 2) ctx.lineTo(p[i] * sx, p[i + 1] * sy);
+    ctx.stroke();
+  }
+
+  function paint() {
+    var canvas = canvasEl();
+    if (!canvas) return;
+    if (!boardFit.w) fitBoard(true);
+    var w = canvas.width;
+    var h = canvas.height;
     var ctx = canvas.getContext("2d");
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = PAPER;
@@ -226,11 +261,7 @@ input{min-height:50px;font-size:17px}
     all.forEach(function (s) {
       var p = s && s.p;
       if (!p || p.length < 2) return;
-      ctx.strokeStyle = s.c || "#1A2340";
-      ctx.fillStyle = ctx.strokeStyle;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-      ctx.lineWidth = Math.max(1.5, (s.w || 4) * Math.min(sx, sy));
+      strokeStyle(ctx, s, sx, sy);
       if (p.length < 4) {
         ctx.beginPath();
         ctx.arc(p[0] * sx, p[1] * sy, ctx.lineWidth / 2, 0, Math.PI * 2);
@@ -250,34 +281,56 @@ input{min-height:50px;font-size:17px}
   }
 
   function startStroke(e) {
-    if (state.locked || state.closed) return;
-    if (state.strokes.length >= 250) return;
     e.preventDefault();
+    if (state.locked || state.closed) return;
+    if (e.pointerType === "pen") state.penSeen = true;
+    else if (state.penSeen && e.pointerType === "touch") return; // palm resting on the screen
+    if (state.drawing) return; // a second finger while a line is being drawn
+    if (state.strokes.length >= 250) return;
     var canvas = canvasEl();
     try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
     var pt = pointFromEvent(e);
     state.drawing = true;
+    state.pointerId = e.pointerId;
     state.stroke = { c: state.color, w: currentWidth(), p: [pt[0], pt[1]] };
     paint();
   }
 
-  function moveStroke(e) {
-    if (!state.drawing || !state.stroke) return;
-    e.preventDefault();
+  function addPoint(e) {
     var pt = pointFromEvent(e);
     var p = state.stroke.p;
     var lx = p[p.length - 2];
     var ly = p[p.length - 1];
     if (Math.abs(pt[0] - lx) + Math.abs(pt[1] - ly) < 2) return;
-    if (p.length >= 400) return;
+    if (p.length >= 400) {
+      // The server keeps strokes short, so carry on seamlessly in a new stroke
+      if (state.strokes.length >= 249) return;
+      state.strokes.push(state.stroke);
+      state.dirty = true;
+      state.stroke = { c: state.stroke.c, w: state.stroke.w, p: [lx, ly] };
+      p = state.stroke.p;
+    }
     p.push(pt[0], pt[1]);
-    paint();
+  }
+
+  function moveStroke(e) {
+    if (!state.drawing || !state.stroke || e.pointerId !== state.pointerId) return;
+    e.preventDefault();
+    var before = state.stroke;
+    var from = before.p.length;
+    var events = (e.getCoalescedEvents && e.getCoalescedEvents()) || [];
+    if (!events.length) events = [e];
+    events.forEach(addPoint);
+    if (state.stroke !== before) paint();
+    else drawSegment(state.stroke, from);
   }
 
   function endStroke(e) {
     if (!state.drawing) return;
+    if (e && e.pointerId !== state.pointerId) return;
     if (e) e.preventDefault();
     state.drawing = false;
+    state.pointerId = null;
     if (state.stroke && state.stroke.p && state.stroke.p.length >= 2) {
       state.strokes.push(state.stroke);
       state.dirty = true;
@@ -383,7 +436,10 @@ input{min-height:50px;font-size:17px}
     $("viewPlay").hidden = false;
     $("viewPlay").setAttribute("aria-hidden", "false");
     renderTools();
+    fitBoard(true);
+    paint();
     requestAnimationFrame(function () {
+      fitBoard(true);
       paint();
     });
   }
@@ -475,7 +531,18 @@ input{min-height:50px;font-size:17px}
     canvas.addEventListener("pointermove", moveStroke);
     canvas.addEventListener("pointerup", endStroke);
     canvas.addEventListener("pointercancel", endStroke);
-    window.addEventListener("resize", paint);
+    window.addEventListener("resize", function () { fitBoard(false); paint(); });
+    window.addEventListener("orientationchange", function () {
+      setTimeout(function () { fitBoard(true); paint(); }, 250);
+    });
+    // Safari ignores user-scalable=no, so stop its pinch and double-tap zoom directly
+    ["gesturestart", "gesturechange", "gestureend"].forEach(function (name) {
+      document.addEventListener(name, function (e) { e.preventDefault(); }, { passive: false });
+    });
+    document.addEventListener("touchmove", function (e) {
+      if (e.touches && e.touches.length > 1) e.preventDefault();
+    }, { passive: false });
+    document.addEventListener("dblclick", function (e) { e.preventDefault(); }, { passive: false });
     document.addEventListener("visibilitychange", function () {
       if (!document.hidden && state.dirty) syncNow();
     });
