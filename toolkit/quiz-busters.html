@@ -658,6 +658,11 @@ body.mode-play .top-actions{
 .hex.owned-blue .hex-svg polygon{stroke:rgba(255,255,255,.85);stroke-width:4}
 .hex.owned-amber .hex-svg polygon{stroke:rgba(29,24,40,.55);stroke-width:4}
 .hex.just-claimed{animation:claimPop .34s var(--ease)}
+.hex.spin{
+  z-index:3;transform:translateY(-6px) scale(1.1);
+  filter:brightness(1.35) drop-shadow(0 0 4px #fff) drop-shadow(0 0 16px rgba(255,195,66,.95));
+}
+.hex.spin .hex-svg polygon{stroke:var(--qb-amber-bright,#ffd56a);stroke-width:4.5}
 @keyframes claimPop{
   0%{transform:scale(.86);filter:brightness(1.45)}
   55%{transform:scale(1.1)}
@@ -1814,7 +1819,61 @@ body.mode-play .top-actions{
     o.stop(when + dur + 0.02);
   }
 
-  function beep(kind) {
+  // ---------- sound effects (shared with Hex Hive) ----------
+  function sfxNoiseBuf(ctx) {
+    if (!getAudioCtx._noise) {
+      var buf = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate);
+      var d = buf.getChannelData(0);
+      for (var i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+      getAudioCtx._noise = buf;
+    }
+    return getAudioCtx._noise;
+  }
+  // tone(freq, start offset, duration, opts)
+  function sfxTone(ctx, dest, f, t, dur, o) {
+    o = o || {};
+    var now = ctx.currentTime + (t || 0);
+    var osc = ctx.createOscillator(), g = ctx.createGain();
+    osc.type = o.type || "sine";
+    osc.frequency.setValueAtTime(f, now);
+    if (o.to) osc.frequency.exponentialRampToValueAtTime(Math.max(20, o.to), now + (o.glide || dur));
+    if (o.vib) {
+      var l = ctx.createOscillator(), lg = ctx.createGain();
+      l.frequency.value = o.vib; lg.gain.value = o.vibDepth || f * 0.03;
+      l.connect(lg); lg.connect(osc.frequency); l.start(now); l.stop(now + dur + 0.05);
+    }
+    var src = osc;
+    if (o.lp) {
+      var flt = ctx.createBiquadFilter(); flt.type = "lowpass"; flt.frequency.value = o.lp;
+      osc.connect(flt); src = flt;
+    }
+    src.connect(g); g.connect(dest);
+    var v = o.vol == null ? 0.2 : o.vol, a = o.attack || 0.006;
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.exponentialRampToValueAtTime(v, now + a);
+    if (o.hold) g.gain.setValueAtTime(v, now + o.hold);
+    g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+    osc.start(now); osc.stop(now + dur + 0.05);
+  }
+  function sfxNoise(ctx, dest, t, dur, o) {
+    o = o || {};
+    var now = ctx.currentTime + (t || 0);
+    var s = ctx.createBufferSource(); s.buffer = sfxNoiseBuf(ctx);
+    var f = ctx.createBiquadFilter(); f.type = o.ft || "bandpass";
+    f.frequency.setValueAtTime(o.f || 1200, now);
+    if (o.fTo) f.frequency.exponentialRampToValueAtTime(o.fTo, now + dur);
+    f.Q.value = o.q || 1;
+    var g = ctx.createGain(), v = o.vol || 0.15;
+    g.gain.setValueAtTime(0.0001, now);
+    g.gain.exponentialRampToValueAtTime(v, now + (o.attack || 0.01));
+    g.gain.exponentialRampToValueAtTime(0.0001, now + dur);
+    s.connect(f); f.connect(g); g.connect(dest);
+    s.start(now, Math.random()); s.stop(now + dur + 0.05);
+  }
+  var NOTE = { C4: 261.63, E4: 329.63, G4: 392, A4: 440, B4: 493.88, C5: 523.25, D5: 587.33, E5: 659.25, G5: 783.99, A5: 880, B5: 987.77, C6: 1046.5, E6: 1318.5, G6: 1568 };
+  var lastHoverSfx = 0;
+
+  function beep(kind, arg) {
     if (!state.sound) return;
     try {
       var ctx = getAudioCtx();
@@ -1823,82 +1882,81 @@ body.mode-play .top-actions{
       var fx = ctx.createGain();
       fx.gain.value = 1;
       fx.connect(getAudioCtx._master);
+      var T = function (f, t, dur, o) { sfxTone(ctx, fx, f, t, dur, o); };
+      var N = function (t, dur, o) { sfxNoise(ctx, fx, t, dur, o); };
 
-      if (kind === "win") {
-        // Duck ambient bed under the fanfare
+      if (kind === "hover") {
+        var hn = performance.now();
+        if (hn - lastHoverSfx < 70) return;
+        lastHoverSfx = hn;
+        T(1400 + Math.random() * 300, 0, 0.05, { type: "triangle", vol: 0.035 });
+      } else if (kind === "tick") {
+        // pick a hex: bubbly pop, upward whoosh and a bell
+        T(260, 0, 0.12, { to: 900, glide: 0.08, vol: 0.32 });
+        N(0, 0.28, { f: 500, fTo: 4000, q: 2.5, vol: 0.12, attack: 0.04 });
+        T(NOTE.E6, 0.07, 0.5, { type: "triangle", vol: 0.13 });
+        T(NOTE.G6, 0.1, 0.4, { vol: 0.06 });
+      } else if (kind === "spin") {
+        var i = arg || 0;
+        T(700 + (i % 6) * 90, 0, 0.05, { type: "square", vol: 0.05, lp: 2400 });
+        N(0, 0.03, { f: 3500, q: 4, vol: 0.05 });
+      } else if (kind === "reveal") {
+        // ta-da!
+        [NOTE.C5, NOTE.E5, NOTE.G5].forEach(function (f, i) { T(f, i * 0.06, 0.18, { type: "triangle", vol: 0.16 }); });
+        [NOTE.C5, NOTE.E5, NOTE.G5, NOTE.C6].forEach(function (f) { T(f, 0.2, 0.75, { type: "triangle", vol: 0.1, attack: 0.02 }); });
+        for (var r = 0; r < 6; r++) T(2000 + Math.random() * 2400, 0.22 + r * 0.05, 0.15, { vol: 0.04 });
+      } else if (kind === "claim-blue" || kind === "claim-amber" || kind === "claim") {
+        // coin sparkle; amber a touch higher than blue
+        var k = kind === "claim-amber" ? 1.122 : 1;
+        T(150, 0, 0.25, { to: 55, vol: 0.4 });
+        T(NOTE.B5 * k, 0.02, 0.09, { type: "square", vol: 0.08, lp: 3500 });
+        T(NOTE.E6 * k, 0.1, 0.45, { type: "square", vol: 0.08, lp: 3500 });
+        [NOTE.C5, NOTE.E5, NOTE.G5, NOTE.C6].forEach(function (f, i) { T(f * k, 0.12 + i * 0.05, 0.25, { type: "triangle", vol: 0.12 }); });
+        N(0.05, 0.4, { f: 6000, q: 0.8, vol: 0.05 });
+      } else if (kind === "nobody") {
+        // sad trombone
+        var notes = [196, 185, 174.6, 164.8];
+        notes.forEach(function (f, i) {
+          var last = i === notes.length - 1;
+          T(f * 2, i * 0.32, last ? 1.0 : 0.3, { type: "sawtooth", vol: 0.13, lp: 900, attack: 0.03, hold: last ? 0.4 : 0.15, vib: last ? 6 : 0, vibDepth: 8 });
+        });
+      } else if (kind === "start") {
+        [NOTE.G4, NOTE.C5, NOTE.E5, NOTE.G5].forEach(function (f, i) { T(f, i * 0.09, 0.15, { type: "square", vol: 0.08, lp: 3000 }); });
+        [NOTE.C5, NOTE.E5, NOTE.G5, NOTE.C6].forEach(function (f) { T(f, 0.38, 0.6, { type: "triangle", vol: 0.12 }); });
+        T(80, 0.38, 0.35, { to: 45, vol: 0.4 });
+      } else if (kind === "oneAway") {
+        T(NOTE.E5, 0, 0.12, { type: "square", vol: 0.06, lp: 2500 });
+        T(NOTE.E5, 0.16, 0.12, { type: "square", vol: 0.06, lp: 2500 });
+        T(NOTE.A5, 0.32, 0.3, { type: "square", vol: 0.07, lp: 2500 });
+      } else if (kind === "win") {
+        // duck the background music under the fanfare
         var duck = getAudioCtx._duck;
         if (duck) {
           duck.gain.cancelScheduledValues(now);
           duck.gain.setValueAtTime(duck.gain.value, now);
-          duck.gain.linearRampToValueAtTime(0.2, now + 0.06);
-          duck.gain.linearRampToValueAtTime(1, now + 1.35);
+          duck.gain.linearRampToValueAtTime(0.15, now + 0.06);
+          duck.gain.linearRampToValueAtTime(1, now + 3);
         }
-        var chord = [523.25, 659.25, 783.99, 1046.5];
-        chord.forEach(function (freq, i) {
-          playVoice({
-            dest: fx, type: i % 2 ? "triangle" : "sine", freq: freq,
-            when: now + i * 0.09, dur: 0.42, peak: 0.07 - i * 0.008,
-            attack: 0.02, filter: "lowpass", filterFreq: 2400
-          });
-          playVoice({
-            dest: fx, type: "sine", freq: freq * 2,
-            when: now + i * 0.09 + 0.02, dur: 0.28, peak: 0.025,
-            attack: 0.01
-          });
+        var mel = [[NOTE.G4, 0], [NOTE.C5, 0.12], [NOTE.E5, 0.24], [NOTE.G5, 0.36], [NOTE.E5, 0.6], [NOTE.G5, 0.72]];
+        mel.forEach(function (m, i) {
+          var last = i === mel.length - 1;
+          T(m[0], m[1], last ? 1.4 : 0.2, { type: "sawtooth", vol: 0.1, lp: 2600, hold: last ? 0.7 : 0.08, vib: last ? 5.5 : 0, vibDepth: 6 });
+          T(m[0] * 2, m[1], last ? 1.2 : 0.18, { type: "triangle", vol: 0.06 });
         });
-        playVoice({
-          dest: fx, type: "sine", freq: 196, freqEnd: 392,
-          when: now, dur: 0.55, peak: 0.05, attack: 0.03,
-          filter: "lowpass", filterFreq: 600
-        });
-      } else if (kind === "claim") {
-        playVoice({
-          dest: fx, type: "triangle", freq: 392, freqEnd: 587,
-          when: now, dur: 0.22, peak: 0.09, attack: 0.008,
-          filter: "lowpass", filterFreq: 1800, filterFreqEnd: 900
-        });
-        playVoice({
-          dest: fx, type: "sine", freq: 784, freqEnd: 1175,
-          when: now + 0.03, dur: 0.18, peak: 0.045, attack: 0.01
-        });
-        playVoice({
-          dest: fx, type: "square", freq: 196,
-          when: now, dur: 0.12, peak: 0.02, attack: 0.005,
-          filter: "lowpass", filterFreq: 400
-        });
-      } else if (kind === "reveal") {
-        playVoice({
-          dest: fx, type: "sine", freq: 660, freqEnd: 990,
-          when: now, dur: 0.2, peak: 0.07, attack: 0.01,
-          filter: "highpass", filterFreq: 200
-        });
-        playVoice({
-          dest: fx, type: "triangle", freq: 990, freqEnd: 1320,
-          when: now + 0.04, dur: 0.16, peak: 0.04, attack: 0.008
-        });
-        playVoice({
-          dest: fx, type: "sine", freq: 1320, freqEnd: 1760,
-          when: now + 0.08, dur: 0.14, peak: 0.025, attack: 0.006
-        });
+        [NOTE.C4, NOTE.E4, NOTE.G4, NOTE.C5].forEach(function (f) { T(f, 0.72, 1.6, { type: "triangle", vol: 0.09, attack: 0.05, hold: 0.8 }); });
+        T(70, 0.72, 0.6, { to: 40, vol: 0.45 });
+        N(0.3, 2.6, { f: 1400, q: 0.6, vol: 0.09, attack: 0.5 });
+        N(0.5, 2.2, { f: 2600, q: 0.9, vol: 0.05, attack: 0.6 });
+        for (var w = 0; w < 14; w++) T(1800 + Math.random() * 3000, 0.75 + w * 0.09, 0.14, { vol: 0.035 });
       } else if (kind === "buzz-blue") {
-        playVoice({ dest: fx, type: "sawtooth", freq: 196, when: now, dur: 0.55, peak: 0.16, attack: 0.01, filter: "lowpass", filterFreq: 900 });
-        playVoice({ dest: fx, type: "square", freq: 247, when: now + 0.02, dur: 0.48, peak: 0.1, attack: 0.008, filter: "lowpass", filterFreq: 1200 });
-        playVoice({ dest: fx, type: "sine", freq: 98, when: now, dur: 0.7, peak: 0.12, attack: 0.02 });
+        // live buzzers: bee buzz, lower for blue
+        T(110, 0, 0.75, { type: "sawtooth", vol: 0.2, lp: 1400, hold: 0.45, vib: 32, vibDepth: 9 });
+        T(116.5, 0, 0.75, { type: "square", vol: 0.11, lp: 1100, hold: 0.45, vib: 29, vibDepth: 7 });
+        T(NOTE.C5, 0.02, 0.3, { type: "triangle", vol: 0.1 });
       } else if (kind === "buzz-amber") {
-        playVoice({ dest: fx, type: "sawtooth", freq: 330, when: now, dur: 0.48, peak: 0.16, attack: 0.01, filter: "lowpass", filterFreq: 1400 });
-        playVoice({ dest: fx, type: "square", freq: 392, when: now + 0.03, dur: 0.4, peak: 0.1, attack: 0.008 });
-        playVoice({ dest: fx, type: "sine", freq: 165, when: now, dur: 0.6, peak: 0.11, attack: 0.02 });
-      } else {
-        // tick / select
-        playVoice({
-          dest: fx, type: "sine", freq: 480, freqEnd: 360,
-          when: now, dur: 0.09, peak: 0.045, attack: 0.004
-        });
-        playVoice({
-          dest: fx, type: "triangle", freq: 720,
-          when: now, dur: 0.07, peak: 0.02, attack: 0.003,
-          filter: "lowpass", filterFreq: 1400
-        });
+        T(165, 0, 0.75, { type: "sawtooth", vol: 0.2, lp: 1800, hold: 0.45, vib: 34, vibDepth: 11 });
+        T(174.6, 0, 0.75, { type: "square", vol: 0.11, lp: 1400, hold: 0.45, vib: 31, vibDepth: 8 });
+        T(NOTE.G5, 0.02, 0.3, { type: "triangle", vol: 0.1 });
       }
     } catch (e) {}
   }
@@ -2519,6 +2577,7 @@ body.mode-play .top-actions{
     };
     $("winBanner").classList.add("hidden");
     showView("play");
+    beep("start");
     createBuzzSession(board);
   }
 
@@ -2550,6 +2609,7 @@ body.mode-play .top-actions{
     idleBuzzers();
     renderChrome();
     renderPlay();
+    beep("start");
     toast(reshuffle ? "Board shuffled" : "Game restarted");
   }
 
@@ -2696,7 +2756,7 @@ body.mode-play .top-actions{
 
   function selectCell(i) {
     var p = state.play;
-    if (!p || p.winner) return;
+    if (!p || p.winner || p.spinning) return;
     if (p.owner[i]) return;
     p.active = i;
     p.revealed = false;
@@ -2711,19 +2771,53 @@ body.mode-play .top-actions{
     var free = [];
     for (var i = 0; i < CELL_COUNT; i++) if (!p.owner[i]) free.push(i);
     if (!free.length) { toast("No letters left"); return; }
-    selectCell(free[Math.floor(Math.random() * free.length)]);
+    if (p.spinning) return;
+    var target = free[Math.floor(Math.random() * free.length)];
+    var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduce || free.length === 1) { selectCell(target); return; }
+    // hop a highlight around the free hexes, slowing down, then land
+    p.spinning = true;
+    var steps = 12 + Math.floor(Math.random() * 5), n = 0, lit = null;
+    function light(i) {
+      if (lit) lit.classList.remove("spin");
+      lit = document.querySelector('.hex[data-cell="' + i + '"]');
+      if (lit) lit.classList.add("spin");
+    }
+    (function hop() {
+      if (state.play !== p) return;
+      n++;
+      light(n >= steps ? target : free[Math.floor(Math.random() * free.length)]);
+      beep("spin", n);
+      if (n < steps) setTimeout(hop, 55 + n * n * 1.6);
+      else setTimeout(function () {
+        if (lit) lit.classList.remove("spin");
+        p.spinning = false;
+        if (state.play === p) selectCell(target);
+      }, 260);
+    })();
+  }
+
+  // true if one more hex would complete the team's chain
+  function oneAway(owner, team) {
+    for (var i = 0; i < CELL_COUNT; i++) {
+      if (owner[i]) continue;
+      var o = owner.slice(); o[i] = team;
+      if (findPath(o, team)) return true;
+    }
+    return false;
   }
 
   function award(team) {
     var p = state.play;
-    if (!p || p.active == null || p.winner) return;
+    if (!p || p.active == null || p.winner || p.spinning) return;
     if (p.owner[p.active]) return;
     var cell = p.active;
+    var wasAway = oneAway(p.owner, team);
     p.owner[cell] = team;
     p.turn = team;
     p.revealed = true;
     p.justClaimed = cell;
-    beep("claim");
+    beep("claim-" + team);
     idleBuzzers();
     var path = findPath(p.owner, team);
     if (path) {
@@ -2736,6 +2830,14 @@ body.mode-play .top-actions{
     p.active = null;
     p.revealed = false;
     renderPlay();
+    if (!wasAway && oneAway(p.owner, team)) {
+      setTimeout(function () {
+        if (state.play === p && !p.winner) {
+          beep("oneAway");
+          toast((team === "blue" ? "Blue" : "Amber") + " Team is one hex away!");
+        }
+      }, 450);
+    }
     var awardBtn = $(team === "blue" ? "btnBlue" : "btnAmber");
     if (awardBtn) {
       awardBtn.classList.add("sweep");
@@ -3158,7 +3260,8 @@ body.mode-play .top-actions{
       return;
     }
     if (t.id === "btnSkip") {
-      if (state.play) {
+      if (state.play && state.play.active != null) {
+        beep("nobody");
         state.play.active = null;
         state.play.revealed = false;
         idleBuzzers();
@@ -3288,6 +3391,13 @@ body.mode-play .top-actions{
       e.preventDefault();
       requestRestart(false);
     }
+  });
+
+  document.addEventListener("pointerover", function (e) {
+    var h = e.target.closest && e.target.closest(".hex[data-cell]");
+    if (!h || h.disabled || state.view !== "play" || !state.play || state.play.winner || state.play.spinning) return;
+    if (h.classList.contains("owned-blue") || h.classList.contains("owned-amber")) return;
+    beep("hover");
   });
 
   function onFsChange() {
