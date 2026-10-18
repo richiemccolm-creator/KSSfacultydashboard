@@ -1761,62 +1761,14 @@ body.mode-play .top-actions{
       master.gain.value = 1;
       master.connect(ctx.destination);
 
-      var duck = ctx.createGain();
-      duck.gain.value = 1;
-      duck.connect(master);
-
-      var bed = ctx.createGain();
-      bed.gain.value = 0;
-      bed.connect(duck);
-
       getAudioCtx._ctx = ctx;
       getAudioCtx._master = master;
-      getAudioCtx._duck = duck;
-      getAudioCtx._bed = bed;
-      getAudioCtx._bedNodes = null;
     }
     var ctx = getAudioCtx._ctx;
     if (ctx.state === "suspended") {
       try { ctx.resume(); } catch (e) {}
     }
     return ctx;
-  }
-
-  function playVoice(opts) {
-    var ctx = getAudioCtx();
-    if (!ctx) return;
-    var when = opts.when != null ? opts.when : ctx.currentTime;
-    var dur = opts.dur || 0.2;
-    var peak = opts.peak != null ? opts.peak : 0.08;
-    var attack = opts.attack != null ? opts.attack : 0.012;
-    var release = opts.release != null ? opts.release : Math.max(0.04, dur * 0.45);
-    var o = ctx.createOscillator();
-    var g = ctx.createGain();
-    var dest = opts.dest || getAudioCtx._master;
-    o.type = opts.type || "sine";
-    if (opts.freq != null) o.frequency.setValueAtTime(opts.freq, when);
-    if (opts.freqEnd != null) {
-      o.frequency.exponentialRampToValueAtTime(Math.max(20, opts.freqEnd), when + dur);
-    }
-    if (opts.detune != null) o.detune.setValueAtTime(opts.detune, when);
-    if (opts.filter) {
-      var f = ctx.createBiquadFilter();
-      f.type = opts.filter;
-      f.frequency.setValueAtTime(opts.filterFreq || 1200, when);
-      if (opts.filterFreqEnd) {
-        f.frequency.exponentialRampToValueAtTime(Math.max(40, opts.filterFreqEnd), when + dur);
-      }
-      o.connect(f);
-      f.connect(g);
-    } else {
-      o.connect(g);
-    }
-    g.connect(dest);
-    g.gain.setValueAtTime(0.0001, when);
-    g.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), when + attack);
-    g.gain.exponentialRampToValueAtTime(0.0001, when + Math.max(attack + 0.01, dur - 0.001));
-    o.start(when);
-    o.stop(when + dur + 0.02);
   }
 
   // ---------- sound effects (shared with Hex Hive) ----------
@@ -1929,14 +1881,6 @@ body.mode-play .top-actions{
         T(NOTE.E5, 0.16, 0.12, { type: "square", vol: 0.06, lp: 2500 });
         T(NOTE.A5, 0.32, 0.3, { type: "square", vol: 0.07, lp: 2500 });
       } else if (kind === "win") {
-        // duck the background music under the fanfare
-        var duck = getAudioCtx._duck;
-        if (duck) {
-          duck.gain.cancelScheduledValues(now);
-          duck.gain.setValueAtTime(duck.gain.value, now);
-          duck.gain.linearRampToValueAtTime(0.15, now + 0.06);
-          duck.gain.linearRampToValueAtTime(1, now + 3);
-        }
         var mel = [[NOTE.G4, 0], [NOTE.C5, 0.12], [NOTE.E5, 0.24], [NOTE.G5, 0.36], [NOTE.E5, 0.6], [NOTE.G5, 0.72]];
         mel.forEach(function (m, i) {
           var last = i === mel.length - 1;
@@ -1961,75 +1905,7 @@ body.mode-play .top-actions{
     } catch (e) {}
   }
 
-  function startBed() {
-    if (!state.sound || state.view !== "play") return;
-    try {
-      var ctx = getAudioCtx();
-      if (!ctx || getAudioCtx._bedNodes) return;
-      var bed = getAudioCtx._bed;
-      var filter = ctx.createBiquadFilter();
-      filter.type = "lowpass";
-      filter.frequency.value = 520;
-      filter.Q.value = 0.7;
-      filter.connect(bed);
 
-      var freqs = [110, 164.81, 220, 329.63]; // A2 · E3 · A3 · E4 soft pad
-      var oscs = freqs.map(function (freq, i) {
-        var o = ctx.createOscillator();
-        var g = ctx.createGain();
-        o.type = i < 2 ? "sine" : "triangle";
-        o.frequency.value = freq;
-        o.detune.value = (i % 2 ? -6 : 5);
-        g.gain.value = i === 0 ? 0.45 : (i === 1 ? 0.28 : 0.16);
-        o.connect(g);
-        g.connect(filter);
-        o.start();
-        return o;
-      });
-
-      // Slow shimmer LFO on filter
-      var lfo = ctx.createOscillator();
-      var lfoGain = ctx.createGain();
-      lfo.frequency.value = 0.07;
-      lfoGain.gain.value = 180;
-      lfo.connect(lfoGain);
-      lfoGain.connect(filter.frequency);
-      lfo.start();
-
-      getAudioCtx._bedNodes = { oscs: oscs, lfo: lfo, filter: filter };
-      var now = ctx.currentTime;
-      bed.gain.cancelScheduledValues(now);
-      bed.gain.setValueAtTime(0.0001, now);
-      bed.gain.linearRampToValueAtTime(0.045, now + 1.4);
-    } catch (e) {}
-  }
-
-  function stopBed(quick) {
-    try {
-      var ctx = getAudioCtx._ctx;
-      var bed = getAudioCtx._bed;
-      var nodes = getAudioCtx._bedNodes;
-      if (!ctx || !bed) return;
-      var now = ctx.currentTime;
-      var fade = quick ? 0.08 : 0.55;
-      bed.gain.cancelScheduledValues(now);
-      bed.gain.setValueAtTime(Math.max(0.0001, bed.gain.value), now);
-      bed.gain.linearRampToValueAtTime(0.0001, now + fade);
-      if (!nodes) return;
-      getAudioCtx._bedNodes = null;
-      setTimeout(function () {
-        try {
-          nodes.oscs.forEach(function (o) { try { o.stop(); } catch (e2) {} });
-          try { nodes.lfo.stop(); } catch (e3) {}
-        } catch (e5) {}
-      }, fade * 1000 + 40);
-    } catch (e) {}
-  }
-
-  function syncBed() {
-    if (state.sound && state.view === "play") startBed();
-    else stopBed(state.view !== "play");
-  }
 
   function normalizeItems(items) {
     var list = (items || []).slice(0, CELL_COUNT);
@@ -2072,7 +1948,6 @@ body.mode-play .top-actions{
       }
       closeLiveSession();
     }
-    syncBed();
     renderChrome();
     if (name === "library") renderLibrary();
     if (name === "editor") renderEditor();
@@ -2278,7 +2153,7 @@ body.mode-play .top-actions{
           '<span class="score-value">' + amberProg + "</span>" +
         "</div>";
       actions =
-        '<button type="button" class="ctrl-sq' + (state.sound ? "" : " is-off") + '" id="btnSound" title="Toggle sound and music" aria-label="Toggle sound and music">' +
+        '<button type="button" class="ctrl-sq' + (state.sound ? "" : " is-off") + '" id="btnSound" title="Toggle sound" aria-label="Toggle sound">' +
           (state.sound ? iconSvg("soundOn") : iconSvg("soundOff")) +
           '<span class="ctrl-label">Sound</span></button>' +
         '<div class="more-wrap">' +
@@ -3220,7 +3095,6 @@ body.mode-play .top-actions{
       state.sound = !state.sound;
       saveSound();
       if (state.sound) getAudioCtx();
-      syncBed();
       renderChrome();
       toast(state.sound ? "Sound on" : "Sound off");
       return;
