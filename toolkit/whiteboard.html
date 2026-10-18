@@ -46,6 +46,25 @@ body{--accent:#0e7490;--accent-stage:#3bd6ff;--paper:#F4F1E8}
   content:"Waiting";position:absolute;inset:0;display:grid;place-items:center;
   color:rgba(26,35,64,.4);font:600 13px/1 var(--font);pointer-events:none;
 }
+/* Face-down tiles while answers are hidden */
+.tile-cover{
+  position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+  background:
+    repeating-linear-gradient(135deg,rgba(255,255,255,.035) 0 10px,transparent 10px 20px),
+    var(--stage-2);
+  color:var(--muted);font:600 14px/1.2 var(--font);pointer-events:none;
+}
+.tile-cover svg{width:34px;height:34px}
+.tile-board.covered{border-color:var(--stage-line-strong);cursor:default}
+.tile-board.covered:hover{transform:none}
+.tile-board.covered .tile-cover{display:flex}
+.tile-board.covered.answered .tile-cover{color:#6ee7b7}
+.tile-board.covered.answered{border-color:rgba(110,231,183,.45)}
+.tile-board.covered .tile-name{background:none}
+.tile-board.covered.empty::after{content:none}
+.wall.revealing .tile-board{animation:tileFlip .5s var(--ease) both}
+@keyframes tileFlip{from{transform:perspective(800px) rotateY(90deg);opacity:.2}to{transform:none;opacity:1}}
+
 .wall-empty{
   grid-column:1/-1;padding:56px 16px;text-align:center;color:var(--text-2);
   border:1px dashed var(--stage-line-strong);border-radius:14px;font:500 16px/1.45 var(--font);
@@ -324,6 +343,8 @@ body.board-focus .wall{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))
         '<label class="check"><input type="checkbox" id="edNames" checked>' +
         "<span>Show pupil names on the wall. You can turn this off later if you want the class to look without names.</span></label>" +
         '<p class="hint">Pupils always type a name to join. The toggle only hides names on the big screen.</p>' +
+        '<label class="check"><input type="checkbox" id="edHide" checked>' +
+        "<span>Hide answers until I reveal them. The board shows who has answered, then Reveal all shows every answer at once and locks the boards so nobody can copy.</span></label>" +
         '<div class="form-actions">' +
           '<button type="button" class="btn btn-primary" id="btnLaunch">Launch live boards</button>' +
         "</div>" +
@@ -333,8 +354,9 @@ body.board-focus .wall{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))
       var title = $("edTitle").value.trim() || "Mini Whiteboards";
       var prompt = $("edPrompt").value.trim() || DEFAULT_PROMPT;
       var showNames = $("edNames").checked;
+      var hideAnswers = $("edHide").checked;
       state.setupError = "";
-      launchHost({ title: title, prompt: prompt, anonymous: !showNames });
+      launchHost({ title: title, prompt: prompt, anonymous: !showNames, hideAnswers: hideAnswers });
     };
   }
 
@@ -431,6 +453,8 @@ body.board-focus .wall{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))
         locked: !!row.locked,
         round: row.round || 1,
         prompt: row.prompt || pack.prompt,
+        // Answers hidden on the class screen until the teacher reveals them (screen only, not stored)
+        hidden: !!pack.hideAnswers,
         list: []
       };
       state.boards = {};
@@ -492,6 +516,7 @@ body.board-focus .wall{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))
     if (!h) return;
     show("viewHost");
     setTop(
+      revealButtonHtml("btnReveal") +
       '<button type="button" class="btn' + (h.anonymous ? "" : " on") + '" id="btnNames">Names ' +
         (h.anonymous ? "off" : "on") + "</button>" +
       '<button type="button" class="btn' + (h.locked ? " on" : "") + '" id="btnLock">' +
@@ -537,8 +562,10 @@ body.board-focus .wall{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))
     var exit = $("focusExit");
     if (state.boardFocus) {
       exit.innerHTML =
+        revealButtonHtml("btnRevealFocus") +
         '<button type="button" class="btn" id="btnFocusOut">Exit wall focus</button>' +
         '<button type="button" class="btn btn-ghost" id="btnEndFocus">End session</button>';
+      document.getElementById("btnRevealFocus").onclick = toggleReveal;
       document.getElementById("btnFocusOut").onclick = function () { setFocusMode(false); };
       document.getElementById("btnEndFocus").onclick = function () {
         closeLiveSession().then(function () { toast("Session ended"); renderSetup(); });
@@ -550,8 +577,57 @@ body.board-focus .wall{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))
     }
   }
 
+  function revealButtonHtml(id) {
+    var h = state.host;
+    return h && h.hidden
+      ? '<button type="button" class="btn btn-primary" id="' + id + '">Reveal all</button>'
+      : '<button type="button" class="btn" id="' + id + '">Hide answers</button>';
+  }
+
+  function syncRevealButtons() {
+    ["btnReveal", "btnRevealFocus"].forEach(function (id) {
+      var btn = document.getElementById(id);
+      if (!btn) return;
+      var hidden = state.host && state.host.hidden;
+      btn.textContent = hidden ? "Reveal all" : "Hide answers";
+      btn.classList.toggle("btn-primary", !!hidden);
+    });
+  }
+
+  // Reveal turns every board over at once and locks them, so nobody changes their answer after seeing others
+  function toggleReveal() {
+    var h = state.host;
+    if (!h) return;
+    if (!h.hidden) {
+      h.hidden = true;
+      closeLightbox();
+      syncRevealButtons();
+      renderHostBody();
+      toast("Answers hidden");
+      return;
+    }
+    h.hidden = false;
+    h.locked = true;
+    syncRevealButtons();
+    var wall = document.getElementById("hostWall");
+    if (wall) {
+      wall.classList.remove("revealing");
+      void wall.offsetWidth;
+      wall.classList.add("revealing");
+      setTimeout(function () { wall.classList.remove("revealing"); }, 1600);
+    }
+    renderHostBody();
+    patchSession({ locked: true }).then(function () {
+      toast("Answers revealed. Boards locked.");
+    }).catch(function () {
+      toast("Answers revealed, but the boards could not be locked");
+    });
+  }
+
   function wireHostChrome() {
     var h = state.host;
+    var revealBtn = document.getElementById("btnReveal");
+    if (revealBtn) revealBtn.onclick = toggleReveal;
     var endBtn = document.getElementById("btnEnd");
     if (endBtn) {
       endBtn.onclick = function () {
@@ -617,7 +693,11 @@ body.board-focus .wall{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))
             state.boards[id].hasInk = false;
           });
           state.knownRevs = {};
-          toast("Boards wiped");
+          if (h.pack.hideAnswers) {
+            h.hidden = true;
+            syncRevealButtons();
+          }
+          toast(h.hidden ? "Boards wiped. Answers hidden for the new round." : "Boards wiped");
           refreshHost();
         }).catch(function (err) { toast((err && err.message) || "Could not wipe"); });
       };
@@ -665,11 +745,12 @@ body.board-focus .wall{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))
       subEl.textContent = (h.pack.title || "Mini Whiteboards") +
         (h.locked ? " · Locked" : " · Live") +
         (h.anonymous ? " · Names hidden" : "") +
+        (h.hidden ? " · Answers hidden" : "") +
         " · Round " + (h.round || 1);
     }
 
     if (!wall) return;
-    var sig = h.list.map(function (b) { return b.id; }).join("|") + "::" + (h.anonymous ? "a" : "n");
+    var sig = h.list.map(function (b) { return b.id; }).join("|") + "::" + (h.anonymous ? "a" : "n") + (h.hidden ? "h" : "s");
     if (sig !== state.wallSig) {
       state.wallSig = sig;
       if (!h.list.length) {
@@ -678,14 +759,19 @@ body.board-focus .wall{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))
         wall.innerHTML = h.list.map(function (b, i) {
           var empty = !(state.boards[b.id] && state.boards[b.id].hasInk);
           return (
-            '<button type="button" class="tile-board' + (empty ? " empty" : "") + '" data-id="' + esc(b.id) + '" aria-label="' + esc(boardLabel(b, i)) + '">' +
+            '<button type="button" class="tile-board' + (empty ? " empty" : " answered") + (h.hidden ? " covered" : "") +
+              '" data-id="' + esc(b.id) + '" aria-label="' + esc(boardLabel(b, i)) + '" style="animation-delay:' + Math.min(i * 40, 600) + 'ms">' +
               '<canvas data-board="' + esc(b.id) + '" width="400" height="300"></canvas>' +
+              '<span class="tile-cover" aria-hidden="true">' + coverInner(!empty) + "</span>" +
               '<span class="tile-name">' + esc(boardLabel(b, i)) + "</span>" +
             "</button>"
           );
         }).join("");
         wall.querySelectorAll(".tile-board").forEach(function (btn) {
-          btn.onclick = function () { openLightbox(btn.getAttribute("data-id")); };
+          btn.onclick = function () {
+            if (state.host && state.host.hidden) return; // no peeking while answers are hidden
+            openLightbox(btn.getAttribute("data-id"));
+          };
         });
       }
     } else {
@@ -693,6 +779,12 @@ body.board-focus .wall{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))
         var tile = wall.querySelector('.tile-board[data-id="' + b.id + '"]');
         if (!tile) return;
         tile.classList.toggle("empty", !b.has_ink);
+        tile.classList.toggle("answered", !!b.has_ink);
+        var cover = tile.querySelector(".tile-cover");
+        if (cover && cover.getAttribute("data-ink") !== String(!!b.has_ink)) {
+          cover.innerHTML = coverInner(!!b.has_ink);
+          cover.setAttribute("data-ink", String(!!b.has_ink));
+        }
         var name = tile.querySelector(".tile-name");
         if (name) name.textContent = boardLabel(b, i);
       });
@@ -701,9 +793,16 @@ body.board-focus .wall{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))
     requestAnimationFrame(function () {
       h.list.forEach(function (b) {
         var canvas = wall.querySelector('canvas[data-board="' + b.id + '"]');
-        paintStrokes(canvas, state.boards[b.id] && state.boards[b.id].strokes);
+        // Hidden boards stay blank underneath the cover, so nothing shows through
+        paintStrokes(canvas, h.hidden ? [] : state.boards[b.id] && state.boards[b.id].strokes);
       });
     });
+  }
+
+  function coverInner(answered) {
+    return answered
+      ? '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.6 2.6L16 9.6"/></svg>Answered'
+      : '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Waiting';
   }
 
   function openLightbox(id) {
