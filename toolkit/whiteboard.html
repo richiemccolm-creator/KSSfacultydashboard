@@ -19,65 +19,66 @@
 <link rel="stylesheet" href="toolkit-ui.css">
 <style>
 /* Mini Whiteboards: only what is special to this tool. Shared look is in toolkit-ui.css. */
-body{--accent:#0e7490;--accent-stage:#3bd6ff;--paper:#F4F1E8}
+body{--accent:#22c3ee;--accent-stage:#22c3ee;--paper:#F4F1E8}
 
 .host-grid{display:grid;grid-template-columns:minmax(260px,320px) minmax(0,1fr);gap:18px;align-items:start}
 @media(max-width:980px){.host-grid{grid-template-columns:1fr}}
-.chip.ink{border-color:color-mix(in srgb,var(--accent-stage) 55%,transparent);color:#bff1ff}
+.chip.ink{border-color:var(--accent-stage);color:var(--accent-stage)}
 
 /* The wall: every pupil board, on the class screen */
 .wall-wrap{min-height:320px}
-.wall-prompt{margin:0 0 4px;font:700 clamp(22px,2.8vw,34px)/1.15 var(--font-display);letter-spacing:-.025em}
+.wall-prompt{margin:0 0 4px;font:800 clamp(26px,3.2vw,40px)/1.05 var(--font-display);letter-spacing:-.04em}
 .wall-sub{margin:0 0 16px;color:var(--muted);font:500 14px/1.4 var(--font)}
-.wall{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
+.wall{display:grid;gap:18px;grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}
 .tile-board{
-  position:relative;aspect-ratio:4/3;border-radius:12px;overflow:hidden;cursor:pointer;padding:0;
-  background:var(--paper);border:2px solid transparent;
-  box-shadow:0 8px 20px rgba(0,0,0,.3);transition:transform .12s,border-color .15s;
+  position:relative;aspect-ratio:4/3;border-radius:16px;overflow:hidden;cursor:pointer;padding:0;
+  background:var(--paper);border:3px solid #000;
+  box-shadow:5px 5px 0 #000;transition:transform .15s var(--pop),box-shadow .15s,border-color .15s;
 }
-.tile-board:hover,.tile-board:focus-visible{transform:translateY(-2px);border-color:var(--accent-stage);outline:none}
+.tile-board:nth-child(4n+1){--tb:var(--yel)}.tile-board:nth-child(4n+2){--tb:var(--pink)}
+.tile-board:nth-child(4n+3){--tb:var(--accent-stage)}.tile-board:nth-child(4n){--tb:var(--mint)}
+.tile-board:hover,.tile-board:focus-visible{transform:translate(-3px,-3px) rotate(-.6deg);box-shadow:8px 8px 0 var(--tb,var(--yel));outline:none}
 .tile-board canvas{width:100%;height:100%;display:block;background:var(--paper)}
 .tile-name{
   position:absolute;left:0;right:0;bottom:0;padding:20px 10px 8px;text-align:left;
-  background:linear-gradient(transparent,rgba(11,20,39,.82));
-  color:#fff;font:600 13.5px/1.2 var(--font);pointer-events:none;
+  background:linear-gradient(transparent,rgba(23,20,31,.85));
+  color:#fff;font:800 14.5px/1.2 var(--font-display);letter-spacing:-.01em;pointer-events:none;
 }
 .tile-board.empty::after{
   content:"Waiting";position:absolute;inset:0;display:grid;place-items:center;
-  color:rgba(26,35,64,.4);font:600 13px/1 var(--font);pointer-events:none;
+  color:rgba(23,20,31,.4);font:700 14px/1 var(--font-display);pointer-events:none;
 }
 /* Face-down tiles while answers are hidden */
 .tile-cover{
   position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:6px;
   background:
-    repeating-linear-gradient(135deg,rgba(255,255,255,.035) 0 10px,transparent 10px 20px),
+    radial-gradient(rgba(255,248,236,.12) 1.4px,transparent 1.8px) 0 0/14px 14px,
     var(--stage-2);
-  color:var(--muted);font:600 14px/1.2 var(--font);pointer-events:none;
+  color:var(--muted);font:800 15px/1.2 var(--font-display);pointer-events:none;
 }
 .tile-cover svg{width:34px;height:34px}
-.tile-board.covered{border-color:var(--stage-line-strong);cursor:default}
-.tile-board.covered:hover{transform:none}
+.tile-board.covered{cursor:default}
+.tile-board.covered:hover{transform:none;box-shadow:5px 5px 0 #000}
 .tile-board.covered .tile-cover{display:flex}
-.tile-board.covered.answered .tile-cover{color:#6ee7b7}
-.tile-board.covered.answered{border-color:rgba(110,231,183,.45)}
+.tile-board.covered.answered .tile-cover{color:var(--ink);background:radial-gradient(rgba(255,255,255,.3) 1.4px,transparent 1.8px) 0 0/14px 14px,var(--mint)}
 .tile-board.covered .tile-name{background:none}
 .tile-board.covered.empty::after{content:none}
-.wall.revealing .tile-board{animation:tileFlip .5s var(--ease) both}
+.wall.revealing .tile-board{animation:tileFlip .55s var(--pop) both}
 @keyframes tileFlip{from{transform:perspective(800px) rotateY(90deg);opacity:.2}to{transform:none;opacity:1}}
 
 .wall-empty{
   grid-column:1/-1;padding:56px 16px;text-align:center;color:var(--text-2);
-  border:1px dashed var(--stage-line-strong);border-radius:14px;font:500 16px/1.45 var(--font);
+  border:3px dashed var(--stage-line-strong);border-radius:20px;font:600 17px/1.45 var(--font);
 }
 
 .lightbox{
-  position:fixed;inset:0;z-index:60;background:rgba(5,10,22,.85);
+  position:fixed;inset:0;z-index:60;background:rgba(23,20,31,.88);
   display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;
 }
-.lightbox-card{width:min(960px,100%);background:var(--paper);border-radius:14px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,.5)}
+.lightbox-card{width:min(960px,100%);background:var(--paper);border-radius:20px;overflow:hidden;border:3px solid #000;box-shadow:8px 8px 0 var(--yel)}
 .lightbox-card canvas{width:100%;height:auto;display:block;aspect-ratio:4/3;background:var(--paper)}
 .lightbox-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 16px;background:var(--stage-2);color:#fff}
-.lightbox-bar strong{font:700 16px/1.2 var(--font-display)}
+.lightbox-bar strong{font:800 18px/1.2 var(--font-display);letter-spacing:-.02em}
 
 .focus-exit{display:none;position:fixed;top:16px;right:16px;z-index:40}
 body.host-live .top .sub{display:none}
