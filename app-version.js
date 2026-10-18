@@ -73,6 +73,9 @@
   };
 
   w.ensureAppVersionInUrl = function(){
+    // Pupil join pages opt out: reloading a page a pupil has just opened from a QR code
+    // shows a blank screen on slow Wi-Fi and can wipe what they have started
+    if(w.FH_NO_VERSION_RELOAD) return false;
     try{
       var u = new URL(w.location.href);
       if(u.searchParams.get('v') === version) return false;
