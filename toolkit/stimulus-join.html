@@ -233,6 +233,15 @@ input:focus{border-color:rgba(134,88,245,.55);box-shadow:0 0 0 3px rgba(134,88,2
     });
   }
 
+  // A missing function means the tool's database setup hasn't been run yet
+  function joinError(err) {
+    var code = err && err.code;
+    if (code === "PGRST202" || code === "PGRST205" || code === "42883") {
+      return "This activity isn't switched on yet. Tell your teacher.";
+    }
+    return (err && err.message) || "Could not join";
+  }
+
   function options() {
     return window.StimulusEngine ? window.StimulusEngine.options() : {};
   }
@@ -422,7 +431,7 @@ input:focus{border-color:rgba(134,88,245,.55);box-shadow:0 0 0 3px rgba(134,88,2
         state.poll = setInterval(poll, 1500);
       })
       .catch(function (err) {
-        $("joinErr").textContent = (err && err.message) || "Could not join";
+        $("joinErr").textContent = joinError(err);
       });
   }
 

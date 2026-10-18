@@ -171,6 +171,7 @@ input,textarea{
 input{height:48px}
 textarea{min-height:88px;resize:vertical;line-height:1.45}
 input:focus,textarea:focus{border-color:rgba(59,214,255,.55);box-shadow:0 0 0 3px rgba(59,214,255,.16)}
+.setup-error{margin:0 0 16px;padding:12px 14px;border-radius:12px;border:1px solid rgba(244,94,104,.45);background:rgba(244,94,104,.12);color:#FFD3D6;font:600 13.5px/1.45 var(--font)}
 .hint{margin:7px 0 0;color:var(--muted);font:500 12.5px/1.4 var(--font)}
 .check{
   display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:14px;
@@ -358,7 +359,8 @@ body.embedded .back{display:inline-flex}
     boards: {},
     knownRevs: {},
     wallSig: "",
-    enlargeId: null
+    enlargeId: null,
+    setupError: ""
   };
 
   function esc(s) {
@@ -471,6 +473,15 @@ body.embedded .back{display:inline-flex}
     });
   }
 
+  // Supabase reports a missing table/function with these codes when the tool's migration hasn't been run
+  function friendlyError(err, fallback) {
+    var code = err && err.code;
+    if (code === "PGRST205" || code === "PGRST202" || code === "42P01" || code === "42883") {
+      return "Live Mini Whiteboards isn't set up on the database yet. An admin needs to run supabase/migrations/20260919080000_whiteboard_sessions.sql in the Supabase SQL Editor.";
+    }
+    return (err && err.message) || fallback;
+  }
+
   function boardLabel(board, index) {
     var h = state.host;
     if (h && h.anonymous) return "Board " + (index + 1);
@@ -498,6 +509,7 @@ body.embedded .back{display:inline-flex}
         "</div>" +
       "</div>" +
       '<div class="form">' +
+        (state.setupError ? '<p class="setup-error" role="alert">' + esc(state.setupError) + "</p>" : "") +
         '<div><label for="edTitle">Title (optional)</label>' +
         '<input id="edTitle" maxlength="80" placeholder="e.g. Mime — Lesson 2 check"></div>' +
         '<div><label for="edPrompt">Question on the boards</label>' +
@@ -514,6 +526,7 @@ body.embedded .back{display:inline-flex}
       var title = $("edTitle").value.trim() || "Mini Whiteboards";
       var prompt = $("edPrompt").value.trim() || DEFAULT_PROMPT;
       var showNames = $("edNames").checked;
+      state.setupError = "";
       launchHost({ title: title, prompt: prompt, anonymous: !showNames });
     };
   }
@@ -619,7 +632,7 @@ body.embedded .back{display:inline-flex}
       renderHost();
       startPoll();
     }).catch(function (err) {
-      toast((err && err.message) || "Could not start live session");
+      state.setupError = friendlyError(err, "Could not start live session");
       renderSetup();
     });
   }

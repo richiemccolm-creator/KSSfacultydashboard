@@ -117,6 +117,7 @@ a{color:inherit;text-decoration:none}
 .form input{
   width:100%;height:44px;border-radius:12px;border:1px solid var(--line);background:#0A142C;padding:0 14px;
 }
+.setup-error{margin:0 0 16px;padding:12px 14px;border-radius:12px;border:1px solid rgba(244,94,104,.45);background:rgba(244,94,104,.12);color:#FFD3D6;font:600 13.5px/1.45 var(--font)}
 .hint{margin:8px 0 0;color:var(--muted);font:500 12.5px/1.4 var(--font)}
 .axis h3{margin:0 0 8px;font:700 12px/1 var(--font);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 .chips{display:flex;flex-wrap:wrap;gap:6px}
@@ -238,7 +239,8 @@ body.spotlight-on .top{opacity:.4}
     poll: null,
     locks: {},
     spotlightId: null,
-    feedSig: ""
+    feedSig: "",
+    setupError: ""
   };
 
   function esc(s) {
@@ -301,6 +303,15 @@ body.spotlight-on .top{opacity:.4}
     }
   }
 
+  // Supabase reports a missing table/function with these codes when the tool's migration hasn't been run
+  function friendlyError(err, fallback) {
+    var code = err && err.code;
+    if (code === "PGRST205" || code === "PGRST202" || code === "42P01" || code === "42883") {
+      return "Live Stimulus Generator isn't set up on the database yet. An admin needs to run supabase/migrations/20260918180000_stimulus_sessions.sql in the Supabase SQL Editor.";
+    }
+    return (err && err.message) || fallback;
+  }
+
   function options() {
     return window.StimulusEngine ? window.StimulusEngine.options() : {};
   }
@@ -340,6 +351,7 @@ body.spotlight-on .top{opacity:.4}
       "<p>Pupils scan a QR, pick genre, form, structure, style and cast — or leave any of them as Any — and get a unique drama starting point. Their scenario and characters appear on this board as they generate.</p></div>" +
       '<img class="hero-logo" src="stimulus-generator-logo.png" width="1276" height="485" alt="Stimulus Generator" decoding="async"></div>' +
       '<div class="form">' +
+        (state.setupError ? '<p class="setup-error" role="alert">' + esc(state.setupError) + "</p>" : "") +
         '<div><label for="edTitle">Session title (optional)</label>' +
         '<input id="edTitle" maxlength="80" placeholder="e.g. S2 devising — comedy week" value="' + esc(keptTitle) + '"></div>' +
         LOCK_AXES.map(chipRow).join("") +
@@ -358,6 +370,7 @@ body.spotlight-on .top{opacity:.4}
     });
     $("btnLaunch").onclick = function () {
       var title = $("edTitle").value.trim() || "Stimulus Generator";
+      state.setupError = "";
       launchHost({ title: title, locks: cleanLocks(state.locks) });
     };
   }
@@ -454,7 +467,7 @@ body.spotlight-on .top{opacity:.4}
       renderHost();
       startPoll();
     }).catch(function (err) {
-      toast((err && err.message) || "Could not start live session");
+      state.setupError = friendlyError(err, "Could not start live session");
       renderSetup();
     });
   }
