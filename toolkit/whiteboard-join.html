@@ -169,6 +169,11 @@ input{min-height:50px;font-size:17px}
   STICKERS.forEach(function (st) { STICKER_BY_ID[st.id] = st; });
   var STICKER_SIZES = { 3: 70, 6: 110, 12: 170 };
   var MAX_STICKERS = 40;
+  // The server rejects a board over 250 items or about 100 KB (wb_sanitize_strokes). Stay under
+  // both, so saving never silently stops: each point number costs about 12 bytes there.
+  var MAX_ITEMS = 249; // one of the 250 slots holds the board shape
+  var MAX_BYTES = 92000;
+  var RPC_TIMEOUT = 10000;
   var TOKEN_KEY = "kss-wb-token";
   var $ = function (id) { return document.getElementById(id); };
   var state = {
@@ -225,11 +230,24 @@ input{min-height:50px;font-size:17px}
     return fresh;
   }
 
+  // A request that never answers (patchy school wifi) gives up after a while,
+  // so it can't hold up every save or check that comes after it
   function rpc(name, args) {
     if (!window.supabase) return Promise.reject(new Error("Not connected"));
-    return window.supabase.rpc(name, args).then(function (res) {
+    var timer;
+    var timeout = new Promise(function (resolve, reject) {
+      timer = setTimeout(function () { reject(new Error("Timed out")); }, RPC_TIMEOUT);
+    });
+    var call = Promise.resolve(window.supabase.rpc(name, args)).then(function (res) {
       if (res.error) throw res.error;
       return res.data;
+    });
+    return Promise.race([call, timeout]).then(function (data) {
+      clearTimeout(timer);
+      return data;
+    }, function (err) {
+      clearTimeout(timer);
+      throw err;
     });
   }
 
@@ -376,19 +394,44 @@ input{min-height:50px;font-size:17px}
     return state.color === PAPER ? Math.max(14, Math.round(state.width * 2.2)) : state.width;
   }
 
+  // Rough size of a stroke on the server, to match its size limit
+  function itemBytes(s) {
+    return 56 + ((s && s.p && s.p.length) || 0) * 12;
+  }
+  function boardBytes() {
+    var total = 16;
+    for (var i = 0; i < state.strokes.length; i++) total += itemBytes(state.strokes[i]);
+    return total;
+  }
+  function boardFull(extraBytes) {
+    return state.strokes.length >= MAX_ITEMS || boardBytes() + (extraBytes || 0) > MAX_BYTES;
+  }
+  function showFull() {
+    showStickerHint("Your board is full. Undo or Clear to keep going.");
+  }
+
   function startStroke(e) {
     e.preventDefault();
     if (state.locked || state.closed) return;
-    if (e.pointerType === "pen") state.penSeen = true;
-    else if (state.penSeen && e.pointerType === "touch") return; // palm resting on the screen
-    if (state.drawing) return; // a second finger while a line is being drawn
-    if (state.strokes.length >= 249) return; // one of the 250 slots holds the board shape
+    var pen = e.pointerType === "pen";
+    if (pen) state.penAt = Date.now();
+    // Palm rejection: ignore touches for a short while after the Pencil was last used, but let
+    // fingers draw again after that, for pupils who put the Pencil down
+    else if (e.pointerType === "touch" && state.penAt && Date.now() - state.penAt < 8000) return;
+    if (state.drawing) {
+      // The Pencil wins over a palm that landed first; any new Pencil touch means the last one lifted
+      if (pen) dropStroke(state.strokePen);
+      else return; // a second finger while a line is being drawn
+    }
+    if (boardFull(state.sticker ? 0 : 200)) { showFull(); return; }
     if (state.sticker) { placeSticker(e); return; }
     var canvas = canvasEl();
     try { canvas.setPointerCapture(e.pointerId); } catch (err) {}
     var pt = pointFromEvent(e);
     state.drawing = true;
     state.pointerId = e.pointerId;
+    state.strokePen = pen;
+    state.fullShown = false;
     state.stroke = { c: state.color, w: currentWidth(), p: [pt[0], pt[1]] };
     paint();
   }
@@ -410,16 +453,49 @@ input{min-height:50px;font-size:17px}
     scheduleSync();
   }
 
+  // Drop points that sit on a nearly straight line between their neighbours (Douglas-Peucker).
+  // An Apple Pencil sends up to 240 points a second; most add nothing you can see, and they
+  // would fill the board's size limit after a few words.
+  function simplify(p, tol) {
+    var n = p.length / 2;
+    if (n < 3) return p;
+    var keep = new Uint8Array(n);
+    keep[0] = keep[n - 1] = 1;
+    var stack = [0, n - 1];
+    while (stack.length) {
+      var b = stack.pop(), a = stack.pop();
+      var ax = p[a * 2], ay = p[a * 2 + 1], bx = p[b * 2], by = p[b * 2 + 1];
+      var dx = bx - ax, dy = by - ay, len = Math.sqrt(dx * dx + dy * dy) || 1;
+      var far = -1, farD = tol;
+      for (var i = a + 1; i < b; i++) {
+        var d = Math.abs((p[i * 2] - ax) * dy - (p[i * 2 + 1] - ay) * dx) / len;
+        if (d > farD) { farD = d; far = i; }
+      }
+      if (far > 0) { keep[far] = 1; stack.push(a, far, far, b); }
+    }
+    var out = [];
+    for (var k = 0; k < n; k++) if (keep[k]) out.push(p[k * 2], p[k * 2 + 1]);
+    return out;
+  }
+  function finishStroke(s) {
+    if (s && s.p && s.p.length > 4) s.p = simplify(s.p, 1.2);
+    return s;
+  }
+
   function addPoint(e) {
     var pt = pointFromEvent(e);
     var p = state.stroke.p;
     var lx = p[p.length - 2];
     var ly = p[p.length - 1];
-    if (Math.abs(pt[0] - lx) + Math.abs(pt[1] - ly) < 2) return;
+    if (Math.abs(pt[0] - lx) + Math.abs(pt[1] - ly) < 3) return;
     if (p.length >= 400) {
       // The server keeps strokes short, so carry on seamlessly in a new stroke
-      if (state.strokes.length >= 248) return;
-      state.strokes.push(state.stroke);
+      var done = finishStroke(state.stroke);
+      if (state.strokes.length >= MAX_ITEMS - 1 || boardFull(itemBytes(done) + 200)) {
+        if (!state.fullShown) { state.fullShown = true; showFull(); }
+        return;
+      }
+      state.strokes.push(done);
       state.dirty = true;
       state.stroke = { c: state.stroke.c, w: state.stroke.w, p: [lx, ly] };
       p = state.stroke.p;
@@ -442,14 +518,23 @@ input{min-height:50px;font-size:17px}
   function endStroke(e) {
     if (!state.drawing) return;
     if (e && e.pointerId !== state.pointerId) return;
-    if (e) e.preventDefault();
+    if (e && e.cancelable) e.preventDefault();
     state.drawing = false;
     state.pointerId = null;
     if (state.stroke && state.stroke.p && state.stroke.p.length >= 2) {
-      state.strokes.push(state.stroke);
+      state.strokes.push(finishStroke(state.stroke));
       state.dirty = true;
       scheduleSync();
     }
+    state.stroke = null;
+    paint();
+  }
+
+  // Throw away the line in progress: a palm that touched down just before the Pencil
+  function dropStroke(wasPen) {
+    if (wasPen) { endStroke(); return; } // the last Pencil line just lost its lift-off: keep it
+    state.drawing = false;
+    state.pointerId = null;
     state.stroke = null;
     paint();
   }
@@ -486,14 +571,15 @@ input{min-height:50px;font-size:17px}
     return [{ a: Math.round((state.aspect || 0.75) * 1000) }].concat(state.strokes);
   }
 
-  function scheduleSync() {
+  function scheduleSync(delay) {
     clearTimeout(scheduleSync._t);
-    scheduleSync._t = setTimeout(syncNow, 450);
+    scheduleSync._t = setTimeout(syncNow, delay || 450);
   }
 
   function syncNow() {
     if (!state.dirty || state.syncing || !state.token || state.locked || state.closed) return;
     state.syncing = true;
+    var failed = false;
     var payload = exportBoard();
     rpc("wb_submit_strokes", {
       p_token: state.token,
@@ -515,10 +601,15 @@ input{min-height:50px;font-size:17px}
         state.locked = true;
         renderLock();
       }
-    }).catch(function () {
+    }).catch(function (err) {
+      failed = true;
+      var msg = String((err && err.message) || "");
+      if (/too large|too many/i.test(msg)) showFull();
     }).then(function () {
       state.syncing = false;
-      if (state.dirty) scheduleSync();
+      // Keep trying, but back off while saves are failing so a weak connection isn't swamped
+      state.syncFails = failed ? Math.min((state.syncFails || 0) + 1, 5) : 0;
+      if (state.dirty) scheduleSync(failed ? 450 * Math.pow(2, state.syncFails) : 450);
     });
   }
 
@@ -701,7 +792,8 @@ input{min-height:50px;font-size:17px}
   }
 
   function refresh() {
-    if (!state.pin) return;
+    if (!state.pin || state.refreshing) return; // the last check hasn't answered yet
+    state.refreshing = true;
     rpc("wb_get_session_state", {
       p_pin: state.pin,
       p_token: state.token
@@ -724,7 +816,9 @@ input{min-height:50px;font-size:17px}
         state.dirty = false;
         importBoard(data.strokes);
       }
-    }).catch(function () {});
+    }).catch(function () {}).then(function () {
+      state.refreshing = false;
+    });
   }
 
   function startPoll() {
@@ -750,6 +844,9 @@ input{min-height:50px;font-size:17px}
     canvas.addEventListener("pointermove", moveStroke);
     canvas.addEventListener("pointerup", endStroke);
     canvas.addEventListener("pointercancel", endStroke);
+    // Safari sometimes loses the lift-off (an edge swipe, a system gesture); finish the line
+    // instead of leaving the board waiting for it forever
+    canvas.addEventListener("lostpointercapture", endStroke);
     window.addEventListener("resize", function () { fitBoard(false); paint(); });
     ["fullscreenchange", "webkitfullscreenchange"].forEach(function (name) {
       document.addEventListener(name, function () {
@@ -768,7 +865,8 @@ input{min-height:50px;font-size:17px}
     }, { passive: false });
     document.addEventListener("dblclick", function (e) { e.preventDefault(); }, { passive: false });
     document.addEventListener("visibilitychange", function () {
-      if (!document.hidden && state.dirty) syncNow();
+      if (document.hidden) endStroke();
+      else if (state.dirty) syncNow();
     });
   }
 

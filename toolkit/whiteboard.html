@@ -497,11 +497,15 @@ body.board-focus .wall{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))
   function refreshHost() {
     var h = state.host;
     if (!h || !h.sessionId || !window.supabase) return;
-    window.supabase.rpc("wb_list_host_state", {
+    // On slow wifi, wait for the last check to answer (or give up after 10s) instead of stacking them up
+    if (state.refreshing && Date.now() - state.refreshing < 10000) return;
+    var started = state.refreshing = Date.now();
+    Promise.resolve(window.supabase.rpc("wb_list_host_state", {
       p_session_id: h.sessionId,
       p_known: state.knownRevs
-    }).then(function (res) {
-      if (res.error) return;
+    })).then(function (res) {
+      if (state.refreshing === started) state.refreshing = 0;
+      if (res.error || state.host !== h) return;
       var data = res.data || {};
       h.status = data.status;
       h.anonymous = !!data.anonymous;
@@ -528,7 +532,21 @@ body.board-focus .wall{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))
       });
       renderHostBody();
       if (state.enlargeId) refreshLightbox();
+    }, function () {
+      if (state.refreshing === started) state.refreshing = 0;
     });
+  }
+
+  // Redraw a tile only when its board, its size or the hide setting has changed: with a full
+  // class, redrawing every board on every check made the teacher's iPad stutter
+  function paintTile(canvas, id, hidden) {
+    if (!canvas) return;
+    var board = state.boards[id];
+    var key = (hidden ? "h" : (board ? board.rev : 0)) + "|" + canvas.clientWidth + "x" + canvas.clientHeight;
+    if (canvas.getAttribute("data-painted") === key) return;
+    canvas.setAttribute("data-painted", key);
+    // Hidden boards stay blank underneath the cover, so nothing shows through
+    paintStrokes(canvas, hidden ? [] : board && board.strokes);
   }
 
   function renderHost() {
@@ -711,6 +729,7 @@ body.board-focus .wall{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))
           Object.keys(state.boards).forEach(function (id) {
             state.boards[id].strokes = [];
             state.boards[id].hasInk = false;
+            state.boards[id].rev = -1; // repaint the tile blank straight away
           });
           state.knownRevs = {};
           if (h.pack.hideAnswers) {
@@ -812,9 +831,7 @@ body.board-focus .wall{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))
 
     requestAnimationFrame(function () {
       h.list.forEach(function (b) {
-        var canvas = wall.querySelector('canvas[data-board="' + b.id + '"]');
-        // Hidden boards stay blank underneath the cover, so nothing shows through
-        paintStrokes(canvas, h.hidden ? [] : state.boards[b.id] && state.boards[b.id].strokes);
+        paintTile(wall.querySelector('canvas[data-board="' + b.id + '"]'), b.id, h.hidden);
       });
     });
   }
@@ -849,19 +866,34 @@ body.board-focus .wall{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))
     });
     if (!board) { closeLightbox(); return; }
     var box = $("lightbox");
+    var shape = boardShape(state.boards[id] && state.boards[id].strokes);
+    var label = boardLabel(board, idx);
+    // Only rebuild when something visible changed, so the Close button isn't swapped mid-tap
+    var sig = id + "|" + shape.aspect + "|" + label + "|" + window.innerWidth + "x" + window.innerHeight;
+    if (!box.hidden && box.getAttribute("data-sig") === sig && $("lightCanvas")) {
+      var rev = String((state.boards[id] && state.boards[id].rev) || 0);
+      if ($("lightCanvas").getAttribute("data-rev") !== rev) {
+        $("lightCanvas").setAttribute("data-rev", rev);
+        paintStrokes($("lightCanvas"), state.boards[id] && state.boards[id].strokes);
+      }
+      return;
+    }
+    box.setAttribute("data-sig", sig);
     box.hidden = false;
     box.classList.remove("hidden");
-    var shape = boardShape(state.boards[id] && state.boards[id].strokes);
     box.innerHTML =
       '<div class="lightbox-card" style="width:min(960px,100%,calc(78vh / ' + shape.aspect.toFixed(3) + '))">' +
         '<canvas id="lightCanvas" width="1000" height="750" style="aspect-ratio:1000 / ' + Math.round(shape.aspect * 1000) + '"></canvas>' +
-        '<div class="lightbox-bar"><strong>' + esc(boardLabel(board, idx)) + "</strong>" +
+        '<div class="lightbox-bar"><strong>' + esc(label) + "</strong>" +
         '<button type="button" class="btn" id="btnLightClose">Close</button></div>' +
       "</div>";
     box.onclick = function (e) { if (e.target === box) closeLightbox(); };
     document.getElementById("btnLightClose").onclick = closeLightbox;
     requestAnimationFrame(function () {
-      paintStrokes($("lightCanvas"), state.boards[id] && state.boards[id].strokes);
+      var canvas = $("lightCanvas");
+      if (!canvas) return;
+      canvas.setAttribute("data-rev", String((state.boards[id] && state.boards[id].rev) || 0));
+      paintStrokes(canvas, state.boards[id] && state.boards[id].strokes);
     });
   }
 
@@ -884,8 +916,7 @@ body.board-focus .wall{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))
       var wall = document.getElementById("hostWall");
       if (!wall) return;
       state.host.list.forEach(function (b) {
-        var canvas = wall.querySelector('canvas[data-board="' + b.id + '"]');
-        paintStrokes(canvas, state.boards[b.id] && state.boards[b.id].strokes);
+        paintTile(wall.querySelector('canvas[data-board="' + b.id + '"]'), b.id, state.host.hidden);
       });
       if (state.enlargeId) refreshLightbox();
     });
