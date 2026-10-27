@@ -43,6 +43,22 @@
       });
     },
 
+    /** Totals for orders funded outwith the subject budgets. */
+    getSideBudgetStats: function(academicYear) {
+      return requireSession().then(function() {
+        return window.supabase.rpc('purchase_side_budget_stats', { p_academic_year: academicYear || '' });
+      }).then(function(r) {
+        if (r.error) throw r.error;
+        var row = (r.data && r.data[0]) || {};
+        return {
+          spent_gbp: Number(row.spent_gbp) || 0,
+          committed_gbp: Number(row.committed_gbp) || 0,
+          pending_gbp: Number(row.pending_gbp) || 0,
+          order_count: Number(row.order_count) || 0
+        };
+      });
+    },
+
     /** @returns {Promise<Array>} */
     listBudgets: function(academicYear) {
       return requireSession().then(function() {
@@ -79,7 +95,7 @@
       return requireSession().then(function() {
         return window.supabase.from('purchase_requests')
           .select(
-            'id, academic_year, subject_code, requester_id, status, notes, budget_vote, budget_vote_other, created_at, updated_at, submitted_at, approved_at, approved_by, rejected_reason, po_number, processed_at, processed_by, purchase_request_lines(*)'
+            'id, academic_year, subject_code, requester_id, status, notes, budget_vote, budget_vote_other, side_budget, side_budget_source, headteacher_approved_name, headteacher_approved_at, created_at, updated_at, submitted_at, approved_at, approved_by, rejected_reason, po_number, processed_at, processed_by, purchase_request_lines(*)'
           )
           .eq('id', id)
           .maybeSingle();
@@ -92,7 +108,7 @@
     listMyRequests: function(academicYear) {
       return requireSession().then(function(session) {
         var q = window.supabase.from('purchase_requests')
-          .select('id, academic_year, subject_code, status, created_at, submitted_at, po_number, notes')
+          .select('id, academic_year, subject_code, status, created_at, submitted_at, po_number, notes, side_budget')
           .eq('requester_id', session.user.id)
           .order('updated_at', { ascending: false });
         if (academicYear) q = q.eq('academic_year', academicYear);
@@ -106,7 +122,7 @@
     listSubmittedForAdmin: function() {
       return requireSession().then(function() {
         return window.supabase.from('purchase_requests')
-          .select('id, academic_year, subject_code, status, created_at, submitted_at, notes, requester_id')
+          .select('id, academic_year, subject_code, status, created_at, submitted_at, notes, requester_id, side_budget, side_budget_source')
           .eq('status', 'submitted')
           .order('submitted_at', { ascending: true });
       }).then(function(r) {
@@ -118,7 +134,7 @@
     listApprovedForAdmin: function() {
       return requireSession().then(function() {
         return window.supabase.from('purchase_requests')
-          .select('id, academic_year, subject_code, status, created_at, submitted_at, approved_at, po_number, notes, requester_id')
+          .select('id, academic_year, subject_code, status, created_at, submitted_at, approved_at, po_number, notes, requester_id, side_budget, side_budget_source')
           .eq('status', 'approved')
           .order('approved_at', { ascending: false });
       }).then(function(r) {
@@ -163,7 +179,7 @@
      * Atomically create or update a draft (metadata + line items) via save_purchase_draft.
      * Does not modify the request if it is no longer a draft.
      * @param {string|null} requestId - existing draft id, or null/empty to create
-     * @param {{academicYear:string, subject:string, notes:string, vote:string, other:string, lines:Array}} payload
+     * @param {{academicYear:string, subject:string, notes:string, vote:string, other:string, sideBudget:boolean, sideSource:string, lines:Array}} payload
      * @returns {Promise<string>} request id
      */
     saveDraft: function(requestId, payload) {
@@ -173,6 +189,8 @@
       if (vote === 'other') {
         other = (payload.other && String(payload.other).trim()) ? String(payload.other).trim() : null;
       }
+      var sideBudget = !!payload.sideBudget;
+      var sideSource = sideBudget && payload.sideSource && String(payload.sideSource).trim() ? String(payload.sideSource).trim() : null;
       var lines = (payload.lines || []).map(function(l) {
         return {
           product_code: String(l.product_code || '').trim(),
@@ -190,7 +208,9 @@
           p_notes: (payload.notes && String(payload.notes).trim()) ? String(payload.notes).trim() : null,
           p_budget_vote: vote,
           p_budget_vote_other: other,
-          p_lines: lines
+          p_lines: lines,
+          p_side_budget: sideBudget,
+          p_side_budget_source: sideSource
         });
       }).then(function(r) {
         if (r.error) {
@@ -252,7 +272,7 @@
     listProcessedForAdmin: function(academicYear) {
       return requireSession().then(function() {
         var q = window.supabase.from('purchase_requests')
-          .select('id, academic_year, subject_code, status, processed_at, po_number, notes, requester_id')
+          .select('id, academic_year, subject_code, status, processed_at, po_number, notes, requester_id, side_budget, side_budget_source')
           .eq('status', 'processed')
           .order('processed_at', { ascending: false });
         if (academicYear) q = q.eq('academic_year', academicYear);
@@ -287,9 +307,18 @@
       });
     },
 
-    approveRequest: function(requestId) {
+    /**
+     * @param {{sideBudget?:boolean, sideSource?:string, headteacherName?:string}} [opts]
+     *   Side-budget orders need the Headteacher's name; sideBudget moves a subject order onto the side budget.
+     */
+    approveRequest: function(requestId, opts) {
+      opts = opts || {};
+      var params = { p_request_id: requestId };
+      if (opts.sideBudget != null) params.p_side_budget = !!opts.sideBudget;
+      if (opts.sideSource) params.p_side_budget_source = String(opts.sideSource).trim();
+      if (opts.headteacherName) params.p_headteacher_name = String(opts.headteacherName).trim();
       return requireSession().then(function() {
-        return window.supabase.rpc('approve_purchase_request', { p_request_id: requestId });
+        return window.supabase.rpc('approve_purchase_request', params);
       }).then(function(r) {
         if (r.error) throw r.error;
         return r.data;

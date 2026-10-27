@@ -275,6 +275,23 @@ textarea.form-input{min-height:72px;line-height:1.45}
 .review-meta p{margin:0}
 .review-k{display:block;font-size:.75rem;font-weight:500;color:var(--ink-500);margin-bottom:.2rem}
 .review-v{color:var(--ink-900)}
+.side-budget-fieldset{border:1px dashed var(--navy-200);border-radius:var(--r-md);padding:.85rem 1rem 1rem;margin:0 0 1.05rem;background:var(--navy-050)}
+.side-budget-fieldset:disabled{opacity:.72}
+.side-budget-fieldset[aria-invalid="true"]{border-color:var(--danger-600)}
+.side-budget-toggle{display:flex;align-items:flex-start;gap:.5rem;cursor:pointer;font-weight:600;color:var(--ink-900);line-height:1.35;min-height:40px}
+.side-budget-toggle input{flex-shrink:0;margin-top:.2rem;accent-color:var(--navy-700)}
+.side-budget-toggle small{display:block;font-weight:400;color:var(--ink-500);margin-top:.15rem}
+.side-budget-source-wrap{margin-top:.7rem}
+.side-budget-source-wrap[hidden]{display:none}
+.side-tag{display:inline-flex;align-items:center;margin-left:.4rem;padding:.1rem .45rem;border-radius:var(--r-sm);font-size:.7rem;font-weight:600;line-height:1.3;background:var(--warning-100);color:var(--warning-600);white-space:nowrap}
+.side-stat{display:flex;flex-wrap:wrap;align-items:baseline;gap:.4rem 1.5rem;margin-top:10px;padding:12px 16px;border:1px dashed var(--navy-200);border-radius:14px;background:var(--navy-050);color:var(--ink-700);font-size:.8rem}
+.side-stat[hidden]{display:none}
+.side-stat-name{font-family:var(--font-heading);font-weight:600;font-size:1rem;color:var(--ink-900);margin-right:auto}
+.side-stat-name small{display:block;font-family:var(--font-ui);font-weight:400;font-size:.75rem;color:var(--ink-500)}
+.side-stat strong{color:var(--ink-900);font-variant-numeric:tabular-nums}
+.review-side{margin:1rem 0 0;padding:.85rem 1rem;border:1px dashed var(--navy-200);border-radius:var(--r-md);background:var(--navy-050)}
+.review-side .form-input{max-width:none}
+.review-side .form-label{margin-top:.6rem}
 .review-actions{margin-top:1rem;display:flex;gap:.5rem;flex-wrap:wrap;padding-top:.9rem;border-top:1px solid var(--navy-100)}
 
 .toast{position:fixed;bottom:1.5rem;left:50%;transform:translateX(-50%) translateY(8px);background:var(--navy-800);color:#fff;padding:.7rem 1.15rem;border-radius:var(--r-md);opacity:0;pointer-events:none;transition:opacity var(--t-base) var(--ease),transform var(--t-base) var(--ease);z-index:9999;box-shadow:var(--sh-lg)}
@@ -582,7 +599,7 @@ html[data-fh-embed="1"] body{background:#fff}
   <header class="po-pagehead po-block-head no-print">
     <div class="po-pagehead-copy">
       <h1>Procurement</h1>
-      <p class="po-lede">Request against subject budgets. Spent updates when an approved order is marked processed.</p>
+      <p class="po-lede">Request against subject budgets, or a side budget when a subject budget has run out. Spent updates when an approved order is marked processed.</p>
     </div>
     <div class="po-pagehead-actions">
       <div class="po-year-field">
@@ -615,6 +632,7 @@ html[data-fh-embed="1"] body{background:#fff}
     </div>
     <div class="po-section-body">
       <div id="dashboardStats" class="stats-grid"></div>
+      <div id="sideBudgetStat" class="side-stat" hidden></div>
       <div id="dashboardError" class="empty-s" style="display:none"></div>
     </div>
   </section>
@@ -711,6 +729,18 @@ html[data-fh-embed="1"] body{background:#fff}
           <p id="editorBudgetVoteOtherError" class="field-error" hidden></p>
         </div>
         <p id="editorBudgetVoteError" class="field-error" hidden></p>
+      </fieldset>
+      <fieldset class="side-budget-fieldset" id="editorSideFieldset">
+        <label class="side-budget-toggle" for="editorSideBudget">
+          <input type="checkbox" id="editorSideBudget">
+          <span>Pay from a side budget
+            <small>Outwith all subject budgets, so it won't use up this subject's money. Needs Headteacher approval.</small></span>
+        </label>
+        <div class="side-budget-source-wrap" id="editorSideSourceWrap" hidden>
+          <label class="form-label" for="editorSideSource">Which school budget does it come from?</label>
+          <input type="text" id="editorSideSource" class="form-input" style="max-width:none" placeholder="e.g. PEF, SLT discretionary, school fund" autocomplete="off">
+          <p id="editorSideSourceError" class="field-error" hidden></p>
+        </div>
       </fieldset>
       <div class="sc-title" style="margin-bottom:.2rem">Line items</div>
       <p class="sc-sub" style="margin:0 0 .55rem">Unit price × quantity is calculated for each line. At least one item needs a description or supplier code.</p>
@@ -1212,6 +1242,21 @@ html[data-fh-embed="1"] body{background:#fff}
     $('editorBudgetVoteOther').disabled = vote !== 'other';
   }
 
+  function readSideBudgetFromEditor() {
+    var on = !!($('editorSideBudget') && $('editorSideBudget').checked);
+    return { sideBudget: on, sideSource: on ? $('editorSideSource').value : '' };
+  }
+
+  function syncSideBudgetInput() {
+    var on = !!$('editorSideBudget').checked;
+    $('editorSideSourceWrap').hidden = !on;
+    if (!on) setControlError($('editorSideSource'), $('editorSideSourceError'), '');
+  }
+
+  function sideTagHtml(r) {
+    return r && r.side_budget ? '<span class="side-tag" title="' + esc(r.side_budget_source ? 'Side budget: ' + r.side_budget_source : 'Side budget') + '">Side budget</span>' : '';
+  }
+
   /** No filler rows by default so the form stays on one landscape page; long POs flow to page 2. */
   function padLineRows(rowsHtml, dataRowCount) {
     var pad = dataRowCount > 0 && dataRowCount < 4 ? 1 : 0;
@@ -1308,8 +1353,26 @@ html[data-fh-embed="1"] body{background:#fff}
     });
   }
 
+  function renderSideBudgetStat(side) {
+    var el = $('sideBudgetStat');
+    if (!el) return;
+    if (!side || side.order_count === 0) {
+      el.hidden = true;
+      el.innerHTML = '';
+      return;
+    }
+    el.innerHTML =
+      '<div class="side-stat-name">Side budget<small>Outwith subject budgets · Headteacher approved</small></div>' +
+      '<span>Spent <strong>' + formatMoney(side.spent_gbp) + '</strong></span>' +
+      '<span>Committed <strong>' + formatMoney(side.committed_gbp) + '</strong></span>' +
+      (side.pending_gbp > 0 ? '<span>Awaiting approval <strong>' + formatMoney(side.pending_gbp) + '</strong></span>' : '') +
+      '<span>Orders <strong>' + side.order_count + '</strong></span>';
+    el.hidden = false;
+  }
+
   function loadDashboard() {
     var y = getSelectedYear();
+    PurchaseOrderService.getSideBudgetStats(y).then(renderSideBudgetStat).catch(function() { renderSideBudgetStat(null); });
     $('dashboardError').style.display = 'none';
     $('dashboardStats').innerHTML = loadingHtml('Loading budgets');
     PurchaseOrderService.getDashboardStats(y).then(renderDashboard).catch(function(e) {
@@ -1367,7 +1430,7 @@ html[data-fh-embed="1"] body{background:#fff}
         var del = requestStatusDeletable(r.status)
           ? '<button type="button" class="btn btn-danger btn-sm btn-del-req" data-id="' + esc(r.id) + '" data-status="' + esc(r.status) + '">Delete</button>'
           : '';
-        html += '<tr data-id="' + esc(r.id) + '"' + subjectRowClass(r.subject_code) + '><td>' + esc(sub) + '</td><td>' + statusBadge(r.status) + '</td><td class="mono">' + esc(r.po_number || '\u2014') + '</td><td>' + esc(formatDate(r.submitted_at || r.created_at)) + '</td><td><div class="po-actions">' +
+        html += '<tr data-id="' + esc(r.id) + '"' + subjectRowClass(r.subject_code) + '><td>' + esc(sub) + sideTagHtml(r) + '</td><td>' + statusBadge(r.status) + '</td><td class="mono">' + esc(r.po_number || '\u2014') + '</td><td>' + esc(formatDate(r.submitted_at || r.created_at)) + '</td><td><div class="po-actions">' +
           '<button type="button" class="btn btn-ghost btn-sm btn-open-req" data-id="' + esc(r.id) + '">Open</button>' + del + '</div></td></tr>';
       });
       html += '</tbody></table>';
@@ -1512,6 +1575,7 @@ html[data-fh-embed="1"] body{background:#fff}
     if (fs) fs.disabled = true;
     var other = $('editorBudgetVoteOther');
     if (other) other.disabled = true;
+    $('editorSideFieldset').disabled = true;
     $('linesEditor').querySelectorAll('input, button').forEach(function(el) { el.disabled = true; });
   }
 
@@ -1521,6 +1585,7 @@ html[data-fh-embed="1"] body{background:#fff}
     $('editorNotes').disabled = false;
     var fs = $('editorBudgetVoteFieldset');
     if (fs) fs.disabled = false;
+    $('editorSideFieldset').disabled = false;
     $('linesEditor').querySelectorAll('input, button').forEach(function(el) { el.disabled = false; });
     syncBudgetVoteOtherInput();
   }
@@ -1534,6 +1599,8 @@ html[data-fh-embed="1"] body{background:#fff}
       notes: $('editorNotes').value,
       vote: bv.vote,
       other: bv.other,
+      sideBudget: readSideBudgetFromEditor().sideBudget,
+      sideSource: readSideBudgetFromEditor().sideSource,
       lines: readLinesFromEditor()
     };
   }
@@ -1600,6 +1667,7 @@ html[data-fh-embed="1"] body{background:#fff}
     setControlError($('editorSubject'), $('editorSubjectError'), '');
     setControlError($('editorBudgetVoteFieldset'), $('editorBudgetVoteError'), '');
     setControlError($('editorBudgetVoteOther'), $('editorBudgetVoteOtherError'), '');
+    setControlError($('editorSideSource'), $('editorSideSourceError'), '');
     setLinesError('');
   }
 
@@ -1657,6 +1725,10 @@ html[data-fh-embed="1"] body{background:#fff}
     $('editorBudgetVoteFieldset').disabled = false;
     document.querySelectorAll('#editorModal input[name="editorBudgetVote"]').forEach(function(inp) { inp.checked = false; });
     $('editorBudgetVoteOther').value = '';
+    $('editorSideFieldset').disabled = false;
+    $('editorSideBudget').checked = false;
+    $('editorSideSource').value = '';
+    syncSideBudgetInput();
     $('linesEditor').innerHTML = '';
     addLineRow();
     recalcEditorTotal();
@@ -1695,6 +1767,10 @@ html[data-fh-embed="1"] body{background:#fff}
       });
       $('editorBudgetVoteOther').value = req.budget_vote_other || '';
       $('editorBudgetVoteOther').disabled = !draft || (req.budget_vote !== 'other');
+      $('editorSideFieldset').disabled = !draft;
+      $('editorSideBudget').checked = !!req.side_budget;
+      $('editorSideSource').value = req.side_budget_source || '';
+      syncSideBudgetInput();
       var lines = req.purchase_request_lines || [];
       lines.sort(function(a, b) { return (a.sort_order || 0) - (b.sort_order || 0); });
       $('linesEditor').innerHTML = '';
@@ -1837,6 +1913,7 @@ html[data-fh-embed="1"] body{background:#fff}
       notes: $('editorNotes').value,
       vote: bv.vote,
       other: bv.other,
+      side: readSideBudgetFromEditor(),
       lines: readLinesFromEditor()
     });
   }
@@ -1937,6 +2014,13 @@ html[data-fh-embed="1"] body{background:#fff}
       return;
     }
     setControlError($('editorBudgetVoteOther'), $('editorBudgetVoteOtherError'), '');
+    if (snapshot.sideBudget && !String(snapshot.sideSource || '').trim()) {
+      setControlError($('editorSideSource'), $('editorSideSourceError'), 'Type which school budget this comes from.');
+      toast('Type which school budget the side-budget order comes from.');
+      $('editorSideSource').focus();
+      return;
+    }
+    setControlError($('editorSideSource'), $('editorSideSourceError'), '');
     if (snapshot.lines.length === 0 || snapshot.lines.every(function(l) { return !String(l.description || '').trim() && !String(l.product_code || '').trim(); })) {
       setLinesError('Add a description or supplier code.');
       toast('Add at least one line item with a description or supplier code.');
@@ -1996,7 +2080,7 @@ html[data-fh-embed="1"] body{background:#fff}
       var html = '<table><thead><tr><th>PO</th><th>Subject</th><th>Requester</th><th>Processed</th><th>Total</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>';
       rows.forEach(function(r) {
         var sl = SUBJECTS[r.subject_code] ? SUBJECTS[r.subject_code].label : r.subject_code;
-        html += '<tr data-id="' + esc(r.id) + '"' + subjectRowClass(r.subject_code) + '><td class="mono">' + esc(r.po_number || '\u2014') + '</td><td>' + esc(sl) + '</td><td>' + esc(names[r.requester_id] || 'Staff') + '</td><td>' + esc(formatDate(r.processed_at)) + '</td><td class="po-num">' + formatMoney(totals[r.id] || 0) + '</td><td><div class="po-actions"><button type="button" class="btn btn-ghost btn-sm btn-open-processed" data-id="' + esc(r.id) + '">Open</button></div></td></tr>';
+        html += '<tr data-id="' + esc(r.id) + '"' + subjectRowClass(r.subject_code) + '><td class="mono">' + esc(r.po_number || '\u2014') + '</td><td>' + esc(sl) + sideTagHtml(r) + '</td><td>' + esc(names[r.requester_id] || 'Staff') + '</td><td>' + esc(formatDate(r.processed_at)) + '</td><td class="po-num">' + formatMoney(totals[r.id] || 0) + '</td><td><div class="po-actions"><button type="button" class="btn btn-ghost btn-sm btn-open-processed" data-id="' + esc(r.id) + '">Open</button></div></td></tr>';
       });
       html += '</tbody></table>';
       wrap.innerHTML = html;
@@ -2039,7 +2123,7 @@ html[data-fh-embed="1"] body{background:#fff}
       var html = '<table><thead><tr><th>Submitted</th><th>Subject</th><th>Requester</th><th>Total</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>';
       rows.forEach(function(r) {
         var sl = SUBJECTS[r.subject_code] ? SUBJECTS[r.subject_code].label : r.subject_code;
-        html += '<tr data-id="' + esc(r.id) + '"' + subjectRowClass(r.subject_code) + '><td>' + esc(formatDate(r.submitted_at)) + '</td><td>' + esc(sl) + '</td><td>' + esc(names[r.requester_id] || 'Staff') + '</td><td class="po-num">' + formatMoney(totals[r.id] || 0) + '</td><td><div class="po-actions"><button type="button" class="btn btn-primary btn-sm btn-review" data-id="' + esc(r.id) + '">Review</button></div></td></tr>';
+        html += '<tr data-id="' + esc(r.id) + '"' + subjectRowClass(r.subject_code) + '><td>' + esc(formatDate(r.submitted_at)) + '</td><td>' + esc(sl) + sideTagHtml(r) + '</td><td>' + esc(names[r.requester_id] || 'Staff') + '</td><td class="po-num">' + formatMoney(totals[r.id] || 0) + '</td><td><div class="po-actions"><button type="button" class="btn btn-primary btn-sm btn-review" data-id="' + esc(r.id) + '">Review</button></div></td></tr>';
       });
       html += '</tbody></table>';
       $('pendingTable').innerHTML = html;
@@ -2070,7 +2154,7 @@ html[data-fh-embed="1"] body{background:#fff}
       var html = '<table><thead><tr><th>PO</th><th>Subject</th><th>Approved</th><th>Total</th><th><span class="sr-only">Actions</span></th></tr></thead><tbody>';
       rows.forEach(function(r) {
         var sl = SUBJECTS[r.subject_code] ? SUBJECTS[r.subject_code].label : r.subject_code;
-        html += '<tr data-id="' + esc(r.id) + '"' + subjectRowClass(r.subject_code) + '><td class="mono">' + esc(r.po_number) + '</td><td>' + esc(sl) + '</td><td>' + esc(formatDate(r.approved_at)) + '</td><td class="po-num">' + formatMoney(totals[r.id] || 0) + '</td><td><div class="po-actions">' +
+        html += '<tr data-id="' + esc(r.id) + '"' + subjectRowClass(r.subject_code) + '><td class="mono">' + esc(r.po_number) + '</td><td>' + esc(sl) + sideTagHtml(r) + '</td><td>' + esc(formatDate(r.approved_at)) + '</td><td class="po-num">' + formatMoney(totals[r.id] || 0) + '</td><td><div class="po-actions">' +
           '<button type="button" class="btn btn-ghost btn-sm btn-print-po" data-id="' + esc(r.id) + '">Print PO</button>' +
           '<button type="button" class="btn btn-primary btn-sm btn-process" data-id="' + esc(r.id) + '">Mark processed</button></div></td></tr>';
       });
@@ -2131,10 +2215,27 @@ html[data-fh-embed="1"] body{background:#fff}
         '<p><span class="review-k">Subject</span><span class="review-v">' + esc(sl) + ' · ' + esc(req.academic_year) + '</span></p>' +
         '<p><span class="review-k">Budget line</span><span class="review-v">' + formatBudgetVoteLine(req.budget_vote, req.budget_vote_other) + '</span></p>' +
         '<p><span class="review-k">Notes</span><span class="review-v">' + esc(req.notes || '\u2014') + '</span></p>' +
+        (req.side_budget
+          ? '<p><span class="review-k">Paid from (side budget)</span><span class="review-v">' + esc(req.side_budget_source || '\u2014') + '</span></p>'
+          : '') +
+        (req.headteacher_approved_name
+          ? '<p><span class="review-k">Headteacher approval</span><span class="review-v">' + esc(req.headteacher_approved_name) + ' · ' + esc(formatDate(req.headteacher_approved_at)) + '</span></p>'
+          : '') +
         '</div>' +
         '<div class="table-wrap"><table><thead><tr><th>Code</th><th>Description</th><th>Price</th><th>Qty</th><th>Line</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
         '<p style="margin-top:.85rem;font-family:var(--font-heading);font-weight:800;letter-spacing:-.02em">Total ' + formatMoney(total) + '</p>';
       if (mode === 'pending') {
+        body += '<div class="review-side">' +
+          (req.side_budget
+            ? '<p class="sc-sub" style="margin:0">This is a <strong>side-budget</strong> order. It does not use any subject budget, so it needs the Headteacher\u2019s approval.</p>'
+            : '<label class="side-budget-toggle" for="reviewSideBudget"><input type="checkbox" id="reviewSideBudget">' +
+              '<span>Pay from a side budget instead<small>Use this when the subject budget has run out. The order then sits outwith all subject budgets.</small></span></label>') +
+          '<div id="reviewSideFields"' + (req.side_budget ? '' : ' hidden') + '>' +
+          '<label class="form-label" for="reviewSideSource">Which school budget does it come from?</label>' +
+          '<input type="text" class="form-input" id="reviewSideSource" value="' + esc(req.side_budget_source || '') + '" placeholder="e.g. PEF, SLT discretionary, school fund" autocomplete="off">' +
+          '<label class="form-label" for="reviewHeadName">Approved by Headteacher (name)</label>' +
+          '<input type="text" class="form-input" id="reviewHeadName" placeholder="Headteacher\u2019s name" autocomplete="off">' +
+          '</div></div>';
         body += '<div class="review-actions">' +
           '<button type="button" class="btn btn-primary" id="doApproveBtn">Approve</button>' +
           '<button type="button" class="btn btn-danger" id="doRejectBtn">Reject</button>' +
@@ -2149,21 +2250,50 @@ html[data-fh-embed="1"] body{background:#fff}
       focusReviewOnOpen();
       if (mode === 'pending') {
         setReviewDecisionControlsBusy(!!officeActionInFlight[id]);
+        var sideToggle = $('reviewSideBudget');
+        if (sideToggle) {
+          sideToggle.onchange = function() {
+            $('reviewSideFields').hidden = !sideToggle.checked;
+            if (sideToggle.checked) $('reviewSideSource').focus();
+          };
+        }
         $('doApproveBtn').onclick = function() {
           if (officeActionInFlight[id]) return;
+          var side = req.side_budget || !!(sideToggle && sideToggle.checked);
+          var opts = {};
+          if (side) {
+            var src = String($('reviewSideSource').value || '').trim();
+            var head = String($('reviewHeadName').value || '').trim();
+            if (!src) {
+              toast('Type which school budget this order comes from.');
+              $('reviewSideSource').focus();
+              return;
+            }
+            if (!head) {
+              toast('Enter the name of the Headteacher who approved it.');
+              $('reviewHeadName').focus();
+              return;
+            }
+            opts = { sideBudget: true, sideSource: src, headteacherName: head };
+          }
           officeActionInFlight[id] = 'approve';
           setReviewDecisionControlsBusy(true);
-          PurchaseOrderService.approveRequest(id).then(function(res) {
+          PurchaseOrderService.approveRequest(id, opts).then(function(res) {
             delete officeActionInFlight[id];
             var po = res && res.po_number;
             toast('Approved. PO: ' + (po || ''));
             closeReview();
             loadAdmin();
             loadDashboard();
-          }).catch(function() {
+          }).catch(function(e) {
             delete officeActionInFlight[id];
             if (reviewModalRequestId === id) setReviewDecisionControlsBusy(false);
-            toast('Could not approve this request. Please try again.');
+            var msg = (e && e.message) || '';
+            if (/Insufficient budget/i.test(msg)) {
+              toast('Not enough left in the subject budget. Tick \u201cPay from a side budget instead\u201d to approve it outwith the subject budget.');
+            } else {
+              toast(msg || 'Could not approve this request. Please try again.');
+            }
           });
         };
         $('doRejectBtn').onclick = function() {
@@ -2225,9 +2355,19 @@ html[data-fh-embed="1"] body{background:#fff}
         var subjCls = (SUBJECTS[req.subject_code] && SUBJECTS[req.subject_code].cls) ? SUBJECTS[req.subject_code].cls : 'drama';
         var notesBlock = (req.notes && String(req.notes).trim()) ? esc(req.notes.trim()) : '\u2014';
         var bodyRows = padLineRows(rows, lines.length);
-        var budgetBlock =
-          budgetSubjectHtml(req.subject_code) +
-          expenditureVotePrintHtml(req.budget_vote || '', req.budget_vote_other || '');
+        var budgetBlock = req.side_budget
+          ? '<p class="po-budget-hint">Side budget (outwith subject budgets):</p><div class="po-value">' + esc(req.side_budget_source || '\u2014') + '</div>' +
+            expenditureVotePrintHtml(req.budget_vote || '', req.budget_vote_other || '')
+          : budgetSubjectHtml(req.subject_code) +
+            expenditureVotePrintHtml(req.budget_vote || '', req.budget_vote_other || '');
+        var headSignoff = req.side_budget
+          ? '<div class="po-signoff" style="margin-top:12px">' +
+            '<span class="po-label">Headteacher approval</span>' +
+            '<div style="margin-top:6px;font-size:9.5pt;color:var(--text2)">' + esc(req.headteacher_approved_name || '') +
+            (req.headteacher_approved_at ? ' \u00b7 ' + esc(formatDate(req.headteacher_approved_at)) : '') + '</div>' +
+            '<div style="margin-top:6px;font-size:9.5pt;color:var(--text3)">Signature _________________________ &nbsp;&nbsp; Date __________</div>' +
+            '</div>'
+          : '';
         $('printArea').innerHTML =
           '<div class="po-doc po-doc--' + esc(subjCls) + '">' +
           '<header class="po-hero">' +
@@ -2268,7 +2408,7 @@ html[data-fh-embed="1"] body{background:#fff}
           '<div class="po-signoff" style="margin-top:12px">' +
           '<span class="po-label">Office — authorised by</span>' +
           '<div style="margin-top:6px;font-size:9.5pt;color:var(--text3)">Signature _________________________ &nbsp;&nbsp; Date __________</div>' +
-          '</div></div></div></div>';
+          '</div>' + headSignoff + '</div></div></div>';
         $('printArea').setAttribute('aria-hidden', 'false');
         window.print();
       });
@@ -2375,6 +2515,15 @@ html[data-fh-embed="1"] body{background:#fff}
     }
     if (e.target.id === 'editorSubject' && selectedEditorSubject()) {
       setControlError($('editorSubject'), $('editorSubjectError'), '');
+    }
+    if (e.target.id === 'editorSideBudget') {
+      syncSideBudgetInput();
+      if (e.target.checked) $('editorSideSource').focus();
+    }
+  });
+  $('editorSideSource').addEventListener('input', function() {
+    if (String($('editorSideSource').value || '').trim()) {
+      setControlError($('editorSideSource'), $('editorSideSourceError'), '');
     }
   });
   $('editorBudgetVoteOther').addEventListener('input', function() {
