@@ -38,6 +38,8 @@
       { title: 'Voice & Movement', weeks: [5, 9], tp: 'tp3', colour: '#D4A800' },
       { title: 'Working with Scripts', weeks: [10, 14], tp: 'tp4', colour: '#1D4ED8' },
       { title: 'Production Skills', weeks: [15, 18], tp: 'tp5', colour: '#0891B2' },
+      { title: 'Taskmaster', weeks: [19, 22], colour: '#EA580C' },
+      { title: 'Full Class Production', weeks: [23, 31], colour: '#DB2777' },
       { title: 'Showcase & Review', weeks: [32, 38], tp: 'tp6', colour: '#6D28D9' },
       { title: 'Stage Combat', weeks: [39, 41], tp: 'tp1', colour: '#B91C1C', note: 'New timetable' }
     ],
