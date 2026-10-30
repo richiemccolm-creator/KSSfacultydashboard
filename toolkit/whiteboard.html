@@ -204,13 +204,30 @@ body.board-focus .wall{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))
     return String(Math.floor(100000 + Math.random() * 900000));
   }
 
+  // Runs once: whichever comes first of the sign-in check and the fallback. Running twice sent a
+  // teacher who launched quickly back to the setup screen, leaving their pupils on a dead PIN.
   function whenAuthReady(cb) {
-    if (window.__authReady) cb();
+    var ran = false;
+    function once() { if (!ran) { ran = true; cb(); } }
+    if (window.__authReady) once();
     else {
-      try { window.addEventListener("auth-guard-ready", cb, { once: true }); }
-      catch (e) { window.addEventListener("auth-guard-ready", cb); }
-      setTimeout(cb, 2500);
+      window.addEventListener("auth-guard-ready", once);
+      setTimeout(once, 2500);
     }
+  }
+
+  // Teacher changes (lock, names, question, reveal, wipe) are counted here. A check that was
+  // already on its way when one happened carries the old settings and boards, so it is ignored
+  // instead of flicking the buttons back or flashing wiped answers onto the wall.
+  function trackEdit(promise) {
+    state.editSeq = (state.editSeq || 0) + 1;
+    state.editsPending = (state.editsPending || 0) + 1;
+    state.editAt = Date.now();
+    function done() {
+      state.editsPending -= 1;
+      state.editSeq += 1;
+    }
+    return Promise.resolve(promise).then(function (v) { done(); return v; }, function (e) { done(); throw e; });
   }
 
   // Sticker ids must match whiteboard-join.html and wb_sanitize_strokes
@@ -463,6 +480,8 @@ body.board-focus .wall{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))
     setTop('<span class="meta">Starting live session…</span>');
     $("viewHost").innerHTML = '<p class="meta">Connecting…</p>';
     createLiveSession(pack).then(function (row) {
+      // A new deploy must not reload the page mid-lesson: the session can't be picked up again
+      window.FH_NO_VERSION_RELOAD = true;
       state.host = {
         sessionId: row.id,
         pin: row.pin,
@@ -499,13 +518,16 @@ body.board-focus .wall{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))
     if (!h || !h.sessionId || !window.supabase) return;
     // On slow wifi, wait for the last check to answer (or give up after 10s) instead of stacking them up
     if (state.refreshing && Date.now() - state.refreshing < 10000) return;
+    // Check again once the teacher's change has saved (or after 10s, if it never answers)
+    if (state.editsPending && Date.now() - state.editAt < 10000) return;
     var started = state.refreshing = Date.now();
+    var seq = state.editSeq;
     Promise.resolve(window.supabase.rpc("wb_list_host_state", {
       p_session_id: h.sessionId,
       p_known: state.knownRevs
     })).then(function (res) {
       if (state.refreshing === started) state.refreshing = 0;
-      if (res.error || state.host !== h) return;
+      if (res.error || state.host !== h || seq !== state.editSeq) return;
       var data = res.data || {};
       h.status = data.status;
       h.anonymous = !!data.anonymous;
@@ -655,7 +677,7 @@ body.board-focus .wall{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))
       setTimeout(function () { wall.classList.remove("revealing"); }, 1600);
     }
     renderHostBody();
-    patchSession({ locked: true }).then(function () {
+    trackEdit(patchSession({ locked: true })).then(function () {
       toast("Answers revealed. Boards locked.");
     }).catch(function () {
       toast("Answers revealed, but the boards could not be locked");
@@ -678,21 +700,22 @@ body.board-focus .wall{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))
     var namesBtn = document.getElementById("btnNames");
     if (namesBtn) {
       namesBtn.onclick = function () {
-        h.anonymous = !h.anonymous;
-        patchSession({ anonymous: h.anonymous }).then(function () {
-          renderHost();
-          startPoll();
+        var next = !h.anonymous;
+        // Update the wall without rebuilding the page, so a question being typed isn't lost
+        trackEdit(patchSession({ anonymous: next })).then(function () {
+          h.anonymous = next;
+          renderHostBody();
         }).catch(function (err) { toast(err.message || "Could not update"); });
       };
     }
     var lockBtn = document.getElementById("btnLock");
     if (lockBtn) {
       lockBtn.onclick = function () {
-        h.locked = !h.locked;
-        patchSession({ locked: h.locked }).then(function () {
-          toast(h.locked ? "Boards locked" : "Boards unlocked");
+        var next = !h.locked;
+        trackEdit(patchSession({ locked: next })).then(function () {
+          h.locked = next;
+          toast(next ? "Boards locked" : "Boards unlocked");
           renderHostBody();
-          wireHostChrome();
         }).catch(function (err) { toast(err.message || "Could not lock"); });
       };
     }
@@ -712,7 +735,7 @@ body.board-focus .wall{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))
     if (promptBtn) {
       promptBtn.onclick = function () {
         var next = ($("livePrompt").value || "").trim() || DEFAULT_PROMPT;
-        patchSession({ prompt: next }).then(function () {
+        trackEdit(patchSession({ prompt: next })).then(function () {
           h.prompt = next;
           h.pack.prompt = next;
           toast("Question updated");
@@ -724,7 +747,7 @@ body.board-focus .wall{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))
     if (wipeBtn) {
       wipeBtn.onclick = function () {
         if (!confirm("Wipe every pupil board for a new round?")) return;
-        window.supabase.rpc("wb_wipe_boards", { p_session_id: h.sessionId }).then(function (res) {
+        trackEdit(window.supabase.rpc("wb_wipe_boards", { p_session_id: h.sessionId })).then(function (res) {
           if (res.error) throw res.error;
           Object.keys(state.boards).forEach(function (id) {
             state.boards[id].strokes = [];

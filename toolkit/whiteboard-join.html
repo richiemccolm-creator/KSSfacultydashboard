@@ -579,6 +579,9 @@ input{min-height:50px;font-size:17px}
   function syncNow() {
     if (!state.dirty || state.syncing || !state.token || state.locked || state.closed) return;
     state.syncing = true;
+    // Clear the flag before sending: a line drawn while this save is on its way sets it again,
+    // so that line gets its own save instead of being marked as saved when this one answers
+    state.dirty = false;
     var failed = false;
     var payload = exportBoard();
     rpc("wb_submit_strokes", {
@@ -587,30 +590,48 @@ input{min-height:50px;font-size:17px}
       p_round: state.round
     }).then(function (data) {
       if (data && data.ok) {
-        state.dirty = false;
         state.rev = data.rev || state.rev;
         return;
       }
       if (data && data.reason === "round") {
-        state.round = data.round || (state.round + 1);
-        state.dirty = false;
-        importBoard(data.strokes);
+        newRound(data.round || (state.round + 1), data.strokes);
         return;
       }
+      state.dirty = true; // not saved: send it again once the board is unlocked
       if (data && data.reason === "locked") {
         state.locked = true;
         renderLock();
+      } else if (data && data.reason === "closed") {
+        endSession();
       }
     }).catch(function (err) {
       failed = true;
+      state.dirty = true;
       var msg = String((err && err.message) || "");
       if (/too large|too many/i.test(msg)) showFull();
     }).then(function () {
       state.syncing = false;
       // Keep trying, but back off while saves are failing so a weak connection isn't swamped
       state.syncFails = failed ? Math.min((state.syncFails || 0) + 1, 5) : 0;
+      renderMeta();
       if (state.dirty) scheduleSync(failed ? 450 * Math.pow(2, state.syncFails) : 450);
     });
+  }
+
+  // The teacher wiped the boards: start the new round on a clean board, dropping any line
+  // still being drawn so it doesn't carry over
+  function newRound(round, strokes) {
+    state.round = round;
+    state.dirty = false;
+    if (state.drawing) dropStroke(false);
+    importBoard(strokes);
+  }
+
+  function endSession() {
+    state.closed = true;
+    if (state.drawing) dropStroke(false);
+    if (state.poll) { clearInterval(state.poll); state.poll = null; }
+    renderLock();
   }
 
   function undo() {
@@ -755,6 +776,7 @@ input{min-height:50px;font-size:17px}
   }
 
   function join() {
+    if ($("btnJoin").disabled) return; // Enter pressed while the last tap is still joining
     var pin = String($("pin").value || "").replace(/\D/g, "").slice(0, 6);
     var nick = String($("nick").value || "").trim();
     $("joinErr").textContent = "";
@@ -799,26 +821,36 @@ input{min-height:50px;font-size:17px}
       p_token: state.token
     }).then(function (data) {
       state.cache = data || {};
-      var meta = (data.nickname || state.nickname || "") +
-        (data.anonymous ? " · Name hidden on the board" : "") +
-        " · " + (data.player_count || 0) + " joined";
-      $("playMeta").textContent = meta;
+      renderMeta();
       if (data.prompt) $("playPrompt").textContent = data.prompt;
       if (data.status === "closed") {
-        state.closed = true;
-        renderLock();
+        endSession();
         return;
       }
+      var wasLocked = state.locked;
       state.locked = !!data.locked;
       renderLock();
       if ((data.round || 1) !== state.round) {
-        state.round = data.round || 1;
-        state.dirty = false;
-        importBoard(data.strokes);
+        newRound(data.round || 1, data.strokes);
+      } else if (wasLocked && !state.locked && state.dirty) {
+        syncNow(); // lines drawn just before the lock are sent now
       }
-    }).catch(function () {}).then(function () {
+    }).catch(function (err) {
+      // Ended sessions are no longer found by their PIN
+      if (/session not found/i.test(String((err && err.message) || ""))) endSession();
+    }).then(function () {
       state.refreshing = false;
     });
+  }
+
+  function renderMeta() {
+    var data = state.cache || {};
+    var meta = (data.nickname || state.nickname || "") +
+      (data.anonymous ? " · Name hidden on the board" : "") +
+      " · " + (data.player_count || 0) + " joined";
+    // Tell the pupil when their board isn't reaching the teacher, rather than failing silently
+    if ((state.syncFails || 0) >= 2) meta += " · Not sent yet. Check the wifi";
+    $("playMeta").textContent = meta;
   }
 
   function startPoll() {
