@@ -46,6 +46,7 @@
    | 22 | `supabase/migrations/20260927190000_faculty_weekly_focus.sql` (faculty focus of the week for School work and the hub home; needs `is_school_manager()` from #21) |
    | 23 | `supabase/migrations/20261029120000_staff_postits.sql` (post-it notes staff send each other, shown beside the hub home banner) |
    | 24 | `supabase/migrations/20261030120000_staff_postit_reactions.sql` (like or love a post-it; the sender sees it beside their banner; needs #23) |
+   | 25 | `supabase/migrations/20261031120000_staff_chat.sql` (live staff chat, one-to-one and groups, from the Chat button on the hub; needs #23) |
 
 #### Apply migrations with Supabase CLI (optional)
 
