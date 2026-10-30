@@ -6,6 +6,8 @@
  * Only the sender and recipient can read a note (RLS). The sender's name is
  * stamped by a trigger; the recipient can only set seen_at / dismissed_at.
  * Colleague names come from the staff_postit_directory() RPC (no emails).
+ * Reactions (like / love) go through staff_postit_react() and
+ * staff_postit_clear_reactions() (20261030120000_staff_postit_reactions.sql).
  */
 (function () {
   'use strict';
@@ -14,7 +16,11 @@
   var COLORS = ['yellow', 'mint', 'sky', 'peach', 'rose'];
   var MAX_TEXT = 140;
   var MAX_RECIPIENTS = 60;
-  var COLUMNS = 'id, sender_id, sender_name, recipient_id, body, color, show_from, created_at, seen_at, dismissed_at';
+  var REACTIONS = ['like', 'love'];
+  var BASE_COLUMNS = 'id, sender_id, sender_name, recipient_id, body, color, show_from, created_at, seen_at, dismissed_at';
+  var REACTION_COLUMNS = ', reaction, reacted_at, reaction_seen_at';
+  // Reactions need the second migration; until it runs, read the original columns only.
+  var reactionsReady = true;
 
   function client() {
     if (window.supabase && typeof window.supabase.from === 'function') return window.supabase;
@@ -61,26 +67,52 @@
       showFrom: row.show_from || '',
       createdAt: row.created_at || '',
       seenAt: row.seen_at || '',
-      dismissedAt: row.dismissed_at || ''
+      dismissedAt: row.dismissed_at || '',
+      reaction: REACTIONS.indexOf(row.reaction) >= 0 ? row.reaction : '',
+      reactedAt: row.reacted_at || '',
+      reactionSeenAt: row.reaction_seen_at || ''
     };
   }
 
-  function rows(res, fallback) {
-    if (res && res.error) throw friendlyError(res.error, fallback);
-    return ((res && res.data) || []).map(normalise);
+  function isMissingColumn(err) {
+    var text = String((err && (err.message || err.details)) || '') + ' ' + String((err && err.code) || '');
+    return /42703|reaction.*does not exist|column .*reaction/i.test(text);
+  }
+
+  /** Run a select, building the filters with build(query). Falls back to the original columns before the reactions migration. */
+  function selectNotes(db, build, fallback) {
+    function run(cols) {
+      return Promise.resolve(build(db.from(TABLE).select(cols)));
+    }
+    return run(BASE_COLUMNS + (reactionsReady ? REACTION_COLUMNS : '')).then(function (res) {
+      if (res && res.error && reactionsReady && isMissingColumn(res.error)) {
+        reactionsReady = false;
+        return run(BASE_COLUMNS);
+      }
+      return res;
+    }).then(function (res) {
+      if (res && res.error) throw friendlyError(res.error, fallback);
+      return ((res && res.data) || []).map(normalise);
+    });
+  }
+
+  /** First day of the current school year (1 August). */
+  function schoolYearStartISO() {
+    var d = new Date();
+    var year = d.getMonth() >= 7 ? d.getFullYear() : d.getFullYear() - 1;
+    return year + '-08-01T00:00:00Z';
   }
 
   /** Notes sent to me that are due today or earlier and not yet ticked off, newest first. */
   function inbox() {
     return session().then(function (s) {
-      return Promise.resolve(
-        s.db.from(TABLE).select(COLUMNS)
-          .eq('recipient_id', s.user.id)
+      return selectNotes(s.db, function (q) {
+        return q.eq('recipient_id', s.user.id)
           .is('dismissed_at', null)
           .lte('show_from', todayISO())
           .order('created_at', { ascending: false })
-          .limit(20)
-      ).then(function (res) { return rows(res, 'Could not load your post-its.'); });
+          .limit(20);
+      }, 'Could not load your post-its.');
     });
   }
 
@@ -88,13 +120,71 @@
   function sent() {
     return session().then(function (s) {
       var since = new Date(Date.now() - 30 * 864e5).toISOString();
-      return Promise.resolve(
-        s.db.from(TABLE).select(COLUMNS)
-          .eq('sender_id', s.user.id)
+      return selectNotes(s.db, function (q) {
+        return q.eq('sender_id', s.user.id)
           .gte('created_at', since)
           .order('created_at', { ascending: false })
-          .limit(30)
-      ).then(function (res) { return rows(res, 'Could not load the post-its you sent.'); });
+          .limit(30);
+      }, 'Could not load the post-its you sent.');
+    });
+  }
+
+  /**
+   * Every post-it I've been part of this school year, newest first.
+   * box: 'received' (sent to me and already due) or 'sent' (sent by me).
+   */
+  function history(box) {
+    return session().then(function (s) {
+      return selectNotes(s.db, function (q) {
+        q = box === 'sent'
+          ? q.eq('sender_id', s.user.id)
+          : q.eq('recipient_id', s.user.id).lte('show_from', todayISO());
+        return q.gte('created_at', schoolYearStartISO())
+          .order('created_at', { ascending: false })
+          .limit(300);
+      }, 'Could not load your post-its.');
+    });
+  }
+
+  /** Reactions to notes I sent that I haven't cleared yet, newest first. */
+  function newReactions() {
+    if (!reactionsReady) return Promise.resolve([]);
+    return session().then(function (s) {
+      return selectNotes(s.db, function (q) {
+        return q.eq('sender_id', s.user.id)
+          .not('reaction', 'is', null)
+          .is('reaction_seen_at', null)
+          .order('reacted_at', { ascending: false })
+          .limit(10);
+      }, 'Could not load reactions.');
+    }).then(function (list) {
+      return reactionsReady ? list : [];
+    });
+  }
+
+  /** Like or love a note sent to me; pass '' to take the reaction back. */
+  function react(id, reaction) {
+    var value = REACTIONS.indexOf(reaction) >= 0 ? reaction : null;
+    return session().then(function (s) {
+      return Promise.resolve(s.db.rpc('staff_postit_react', { p_id: id, p_reaction: value })).then(function (res) {
+        if (res && res.error) {
+          if (/staff_postit_react|PGRST202|42883/i.test(String(res.error.message || '') + ' ' + String(res.error.code || ''))) {
+            throw new Error('Reactions are not set up yet. Run the staff_postit_reactions migration in Supabase.');
+          }
+          throw friendlyError(res.error, 'Could not save your reaction.');
+        }
+      });
+    });
+  }
+
+  /** Take reaction slips off my screen. */
+  function clearReactions(ids) {
+    ids = (ids || []).filter(Boolean);
+    if (!ids.length) return Promise.resolve();
+    return session().then(function (s) {
+      return Promise.resolve(s.db.rpc('staff_postit_clear_reactions', { p_ids: ids })).then(function (res) {
+        if (res && res.error) throw friendlyError(res.error, 'Could not clear the reaction.');
+      });
     });
   }
 
@@ -169,8 +259,13 @@
     COLORS: COLORS.slice(),
     MAX_TEXT: MAX_TEXT,
     todayISO: todayISO,
+    reactionsReady: function () { return reactionsReady; },
     inbox: inbox,
     sent: sent,
+    history: history,
+    newReactions: newReactions,
+    react: react,
+    clearReactions: clearReactions,
     directory: directory,
     send: send,
     markSeen: markSeen,

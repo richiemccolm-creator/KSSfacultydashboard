@@ -3,7 +3,7 @@
 .home-masthead-row > .home-register-plate{flex:1;min-width:0}
 .home-postits{flex-shrink:0;display:flex;flex-direction:column;align-items:flex-end;gap:.55rem;max-width:400px}
 .home-postits[hidden]{display:none}
-.home-postits-notes{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:.9rem;padding-top:6px}
+.home-postits-notes{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:flex-end;gap:.9rem;padding-top:6px}
 .home-postits-foot{display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;justify-content:flex-end}
 .home-postits-link{
   display:inline-flex;align-items:center;gap:.3rem;
@@ -32,8 +32,9 @@
 .postit-from{display:flex;justify-content:space-between;gap:.4rem;font-size:.7rem;font-weight:600;opacity:.75;margin-bottom:.3rem}
 .postit-from span:last-child{font-weight:500;white-space:nowrap}
 .postit-body{white-space:pre-wrap;overflow-wrap:anywhere}
+.postit-foot{display:flex;align-items:center;justify-content:space-between;gap:.4rem;margin-top:.55rem}
 .postit-got{
-  margin-top:.55rem;display:inline-flex;align-items:center;gap:.25rem;
+  display:inline-flex;align-items:center;gap:.25rem;
   font:600 .72rem/1 var(--font-body);color:inherit;
   background:rgba(255,255,255,.55);border:1px solid rgba(15,23,42,.16);border-radius:6px;
   padding:.35rem .55rem;cursor:pointer
@@ -41,6 +42,40 @@
 .postit-got:hover{background:rgba(255,255,255,.85)}
 .postit-got:focus-visible{outline:2px solid currentColor;outline-offset:2px}
 .postit.is-peeling{transform:translateY(-26px) rotate(10deg);opacity:0}
+
+/* Like / love */
+.postit-reacts{display:inline-flex;gap:.2rem}
+.postit-react{
+  width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;
+  border-radius:50%;border:1px solid transparent;background:transparent;color:inherit;
+  font-size:.95rem;cursor:pointer;opacity:.6;transition:opacity .15s,background .15s,transform .15s
+}
+.postit-react:hover{opacity:1;background:rgba(255,255,255,.6)}
+.postit-react:focus-visible{outline:2px solid currentColor;outline-offset:1px;opacity:1}
+.postit-react.is-on{opacity:1;background:#fff;border-color:rgba(15,23,42,.12)}
+.postit-react.is-on[data-reaction="like"]{color:#1d4ed8}
+.postit-react.is-on[data-reaction="love"]{color:#e11d48}
+.postit-react.is-popping{animation:postit-pop .35s ease}
+@keyframes postit-pop{0%{transform:scale(1)}45%{transform:scale(1.35)}100%{transform:scale(1)}}
+
+/* Reaction slips on the sender's screen */
+.postit-slips{display:flex;flex-direction:column;align-items:flex-end;gap:.35rem;width:100%}
+.postit-slip{
+  display:flex;align-items:center;gap:.5rem;max-width:380px;box-sizing:border-box;
+  background:#fff;border:1px solid var(--navy-100,#e2e8f0);border-radius:10px;
+  padding:.4rem .4rem .4rem .65rem;font-size:.78rem;line-height:1.35;color:#0b1220;
+  box-shadow:0 2px 8px rgba(15,23,42,.06);transition:opacity .2s,transform .2s
+}
+.postit-slip.is-leaving{opacity:0;transform:translateX(12px)}
+.postit-slip-icon{font-size:1rem;flex-shrink:0}
+.postit-slip.is-like .postit-slip-icon{color:#1d4ed8}
+.postit-slip.is-love .postit-slip-icon{color:#e11d48}
+.postit-slip-text{min-width:0}
+.postit-slip-text strong{font-weight:600}
+.postit-slip-text span{color:#475569}
+.postit-slip-clear{border:none;background:none;color:#64748b;cursor:pointer;padding:.25rem;border-radius:6px;flex-shrink:0}
+.postit-slip-clear:hover{background:#f1f5f9;color:#0b1220}
+.postit-slips-more{border:none;background:none;font:600 .72rem/1 var(--font-body);color:var(--navy-600,#2a3f62);cursor:pointer;padding:.2rem}
 .postit.color-yellow{background:#fef9c3;color:#713f12}
 .postit.color-mint{background:#dcfce7;color:#14532d}
 .postit.color-sky{background:#e0f2fe;color:#0c4a6e}
@@ -52,9 +87,11 @@
   .home-postits{max-width:none;align-items:flex-start}
   .home-postits.is-empty{align-self:flex-start}
   .home-postits-notes,.home-postits-foot{justify-content:flex-start}
+  .postit-slips{align-items:flex-start}
 }
 @media(prefers-reduced-motion:reduce){
   .postit,.postit:nth-child(even),.postit.is-peeling{transform:none;transition:opacity .2s}
+  .postit-react.is-popping{animation:none}
 }
 
 /* Send dialog */
@@ -126,7 +163,37 @@
 .postit-sent-withdraw{border:none;background:none;color:#64748b;cursor:pointer;font-size:.95rem;padding:.2rem;border-radius:6px}
 .postit-sent-withdraw:hover{background:#fee2e2;color:#b91c1c}
 .postit-sent-empty{font-size:.8rem;color:#64748b;margin:0}
+.postit-sent-reaction{font-size:.9rem;display:inline-flex}
+.postit-sent-reaction.is-like{color:#1d4ed8}
+.postit-sent-reaction.is-love{color:#e11d48}
+
+/* All post-its */
+.postit-hist-bar{display:flex;align-items:center;justify-content:space-between;gap:.75rem;flex-wrap:wrap;padding:.5rem 1.25rem 0}
+.postit-tabs{display:inline-flex;background:#f1f5f9;border-radius:8px;padding:3px}
+.postit-tab{
+  border:none;background:none;font:600 .8rem/1 var(--font-body);color:#475569;
+  padding:.5rem .9rem;border-radius:6px;cursor:pointer
+}
+.postit-tab.is-active{background:#fff;color:#0b1220;box-shadow:0 1px 2px rgba(15,23,42,.1)}
+.postit-tab:focus-visible{outline:2px solid var(--navy-500,#3a527c);outline-offset:1px}
+.postit-hist-search{width:220px;max-width:100%}
+.postit-hist-note{font-size:.72rem;color:#64748b;margin:.5rem 1.25rem 0}
+.postit-hist-wrap{padding:.4rem 1.25rem 1.1rem;max-height:60vh;overflow-y:auto}
+.postit-hist-wrap > .postit-sent-empty{padding:.6rem 0}
+.postit-hist-list{list-style:none;margin:0;padding:0}
+.postit-hist-item{display:flex;align-items:flex-start;gap:.65rem;padding:.65rem 0;border-bottom:1px solid #f1f5f9}
+.postit-hist-item:last-child{border-bottom:none}
+.postit-hist-item .postit-sent-swatch{margin-top:.3rem}
+.postit-hist-text{flex:1;min-width:0}
+.postit-hist-meta{font-size:.74rem;color:#64748b}
+.postit-hist-meta strong{color:#0b1220;font-weight:600}
+.postit-hist-body{font-size:.86rem;line-height:1.45;margin-top:.15rem;white-space:pre-wrap;overflow-wrap:anywhere}
+.postit-hist-side{display:flex;align-items:center;gap:.45rem;flex-shrink:0;padding-top:.05rem}
+.postit-hist-side .postit-react{opacity:.5;color:#475569}
+.postit-hist-side .postit-react.is-on{opacity:1}
 @media(max-width:600px){
   .postit-dialog-body{grid-template-columns:1fr}
   .postit-dialog-preview{display:none}
+  .postit-hist-item{flex-wrap:wrap}
+  .postit-hist-side{width:100%;padding-left:1.3rem}
 }
