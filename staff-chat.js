@@ -126,9 +126,43 @@
     els.launcher.classList.toggle('has-unread', n > 0);
   }
 
+  /** Phones: the panel fills the screen, so keep the page behind it still. */
+  function isPhone() {
+    return window.matchMedia && window.matchMedia('(max-width:600px)').matches;
+  }
+
+  /**
+   * Keep the panel inside the part of the screen the on-screen keyboard leaves
+   * visible (iOS Safari doesn't shrink fixed elements when the keyboard opens).
+   */
+  function syncViewport() {
+    var vv = window.visualViewport;
+    if (!vv || !els.panel) return;
+    var kb = Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop));
+    var style = els.panel.style;
+    style.setProperty('--chat-vh', Math.round(vv.height) + 'px');
+    style.setProperty('--chat-top', Math.round(vv.offsetTop) + 'px');
+    style.setProperty('--chat-kb', kb + 'px');
+    els.panel.classList.toggle('has-keyboard', kb > 80);
+    var ta = els.panel.querySelector('.staff-chat-textarea');
+    if (ta) autosize(ta);
+    var box = els.panel.querySelector('[data-messages]');
+    if (box && state.stickToBottom) box.scrollTop = box.scrollHeight;
+  }
+
+  function watchViewport(on) {
+    var vv = window.visualViewport;
+    if (!vv) return;
+    vv[on ? 'addEventListener' : 'removeEventListener']('resize', syncViewport);
+    vv[on ? 'addEventListener' : 'removeEventListener']('scroll', syncViewport);
+    if (on) syncViewport();
+  }
+
   function open(chatId) {
     state.open = true;
     els.panel.hidden = false;
+    watchViewport(true);
+    document.documentElement.classList.toggle('staff-chat-locked', isPhone());
     els.launcher.setAttribute('aria-expanded', 'true');
     els.launcher.classList.add('is-open');
     if (chatId) openChat(chatId);
@@ -138,6 +172,8 @@
   function close() {
     state.open = false;
     els.panel.hidden = true;
+    watchViewport(false);
+    document.documentElement.classList.remove('staff-chat-locked');
     els.launcher.setAttribute('aria-expanded', 'false');
     els.launcher.classList.remove('is-open');
     saveDraft();
@@ -361,7 +397,7 @@
     search.addEventListener('input', function() { state.peopleQuery = search.value; paintPeople(); });
     paintPeople();
     paintPickerFoot();
-    search.focus();
+    if (!(window.matchMedia && window.matchMedia('(pointer:coarse)').matches)) search.focus();
   }
 
   function startFromPicker() {
@@ -500,6 +536,13 @@
     box.innerHTML = messagesHtml();
     if (keepScroll) box.scrollTop = box.scrollHeight - fromBottom;
     else if (nearBottom || keepScroll === false) box.scrollTop = box.scrollHeight;
+    if (!box._watched) {
+      box._watched = true;
+      box.addEventListener('scroll', function() {
+        state.stickToBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+      }, { passive: true });
+    }
+    state.stickToBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
     var earlier = box.querySelector('[data-earlier]');
     if (earlier) earlier.addEventListener('click', loadEarlier);
     box.querySelectorAll('[data-retry]').forEach(function(b) {
@@ -522,7 +565,7 @@
       '<div class="staff-chat-scroll staff-chat-messages" data-messages aria-live="polite"></div>' +
       (state.error ? '<p class="staff-chat-error" role="alert">' + esc(state.error) + '</p>' : '') +
       '<form class="staff-chat-compose" data-compose>' +
-        '<textarea class="staff-chat-textarea" rows="1" maxlength="' + StaffChat.MAX_TEXT + '" placeholder="Message' + (c.title ? ' ' + esc(c.kind === 'group' ? c.title : c.title.split(' ')[0]) : '') + '" aria-label="Message"></textarea>' +
+        '<textarea class="staff-chat-textarea" rows="1" enterkeyhint="send" autocapitalize="sentences" maxlength="' + StaffChat.MAX_TEXT + '" placeholder="Message' + (c.title ? ' ' + esc(c.kind === 'group' ? c.title : c.title.split(' ')[0]) : '') + '" aria-label="Message"></textarea>' +
         '<button type="submit" class="staff-chat-send" aria-label="Send"><i class="ti ti-send" aria-hidden="true"></i></button>' +
       '</form>';
     bindHead();
@@ -532,6 +575,8 @@
     var ta = form.querySelector('textarea');
     ta.value = state.drafts[c.id] || '';
     autosize(ta);
+    // Measure again once the panel has its final size (it can still be settling as it opens).
+    requestAnimationFrame(function() { autosize(ta); });
     ta.addEventListener('input', function() { autosize(ta); });
     ta.addEventListener('keydown', function(e) {
       if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
@@ -540,7 +585,8 @@
       }
     });
     form.addEventListener('submit', function(e) { e.preventDefault(); submit(); });
-    if (!state.loadingChat) ta.focus();
+    // On touch screens, opening a chat shouldn't throw the keyboard up over the messages.
+    if (!state.loadingChat && !(window.matchMedia && window.matchMedia('(pointer:coarse)').matches)) ta.focus();
 
     var add = els.panel.querySelector('[data-add]');
     if (add) add.addEventListener('click', goAdd);
@@ -559,8 +605,10 @@
   }
 
   function autosize(ta) {
-    ta.style.height = 'auto';
-    ta.style.height = Math.min(ta.scrollHeight, 140) + 'px';
+    // Measure from zero: iPad Safari gives a textarea a multi-line height at 'auto', even with rows="1".
+    ta.style.height = '0px';
+    var border = ta.offsetHeight - ta.clientHeight;
+    ta.style.height = Math.min(ta.scrollHeight + border, 140) + 'px';
   }
 
   function saveDraft() {

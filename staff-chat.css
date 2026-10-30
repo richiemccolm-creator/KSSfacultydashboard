@@ -1,6 +1,8 @@
 /* Staff chat: the corner "Chat" button and its panel. */
 .staff-chat-launcher{
-  position:fixed;right:1.25rem;bottom:1.25rem;z-index:950;
+  position:fixed;right:calc(1.25rem + env(safe-area-inset-right));bottom:calc(1.25rem + env(safe-area-inset-bottom));
+  /* Under the hub's mobile nav drawer (z 99+) so it never floats over an open menu. */
+  z-index:90;-webkit-tap-highlight-color:transparent;
   display:inline-flex;align-items:center;gap:.45rem;
   font:600 .85rem/1 var(--font-body);color:#fff;
   background:var(--navy-700,#1e2d4a);border:none;border-radius:999px;
@@ -21,8 +23,12 @@
 @keyframes staff-chat-nudge{0%,100%{transform:none}30%{transform:translateY(-4px) scale(1.04)}60%{transform:translateY(1px)}}
 
 .staff-chat-panel{
-  position:fixed;right:1.25rem;bottom:4.9rem;z-index:951;
-  width:380px;height:min(600px,calc(100vh - 6.5rem));
+  position:fixed;z-index:951;
+  right:calc(1.25rem + env(safe-area-inset-right));
+  /* --chat-kb / --chat-vh follow the on-screen keyboard (set from visualViewport in staff-chat.js). */
+  bottom:calc(4.9rem + env(safe-area-inset-bottom) + var(--chat-kb,0px));
+  width:380px;height:min(600px,calc(var(--chat-vh,100vh) - 6.5rem - env(safe-area-inset-bottom)));
+  -webkit-tap-highlight-color:transparent;
   display:flex;flex-direction:column;overflow:hidden;
   background:#fff;color:#0b1220;border-radius:16px;
   border:1px solid var(--navy-100,#e2e8f0);
@@ -102,7 +108,7 @@
 .staff-chat-person{display:flex;align-items:center;gap:.6rem;padding:.4rem .5rem;border-radius:10px;cursor:pointer;font-size:.875rem}
 .staff-chat-person:hover{background:var(--navy-050,#f4f6fb)}
 .staff-chat-person.is-on{background:#eef2ff}
-.staff-chat-person input{width:16px;height:16px;margin:0;accent-color:var(--navy-700,#1e2d4a)}
+.staff-chat-person input{width:16px;height:16px;min-height:0;margin:0;flex-shrink:0;accent-color:var(--navy-700,#1e2d4a)}
 .staff-chat-person .staff-chat-avatar{width:30px;height:30px;font-size:.68rem}
 .staff-chat-picker-foot{flex-shrink:0;border-top:1px solid var(--navy-100,#e2e8f0);padding:.65rem .85rem .85rem;display:flex;flex-direction:column;gap:.45rem}
 .staff-chat-label{font-size:.72rem;font-weight:600;color:#475569}
@@ -146,7 +152,8 @@
 .staff-chat-seen .ti{color:#1d4ed8;font-size:.85rem}
 
 .staff-chat-compose{display:flex;align-items:flex-end;gap:.45rem;padding:.6rem .7rem;border-top:1px solid var(--navy-100,#e2e8f0);flex-shrink:0;background:#fff}
-.staff-chat-textarea{resize:none;max-height:140px;border-radius:18px;padding:.5rem .85rem}
+/* min-height:0 undoes ipad.css, which gives every textarea on iPad 88px and every input 44px. */
+.staff-chat-textarea{resize:none;min-height:0;max-height:140px;border-radius:18px;padding:.5rem .85rem}
 .staff-chat-send{
   width:38px;height:38px;flex-shrink:0;border-radius:50%;border:none;
   display:inline-flex;align-items:center;justify-content:center;
@@ -154,14 +161,62 @@
 }
 .staff-chat-send:hover{background:var(--navy-600,#2a3f62)}
 
-@media(max-width:600px){
-  .staff-chat-launcher{right:1rem;bottom:1rem;padding:.8rem}
-  .staff-chat-launcher-label{display:none}
-  .staff-chat-launcher.is-open{display:none}
-  .staff-chat-panel{inset:0;width:auto;height:auto;border-radius:0;border:none}
-  .staff-chat-head{padding-top:max(.7rem,env(safe-area-inset-top))}
-  .staff-chat-compose{padding-bottom:max(.6rem,env(safe-area-inset-bottom))}
+/* Touch screens (iPad, phones): finger-sized targets, and 16px text so iOS doesn't zoom into the box. */
+@media(pointer:coarse){
+  .staff-chat-icon{width:44px;height:44px;font-size:1.25rem}
+  .staff-chat-new{padding:.65rem .9rem;font-size:.8rem}
+  .staff-chat-row{padding:.75rem .65rem}
+  .staff-chat-input,.staff-chat-textarea{font-size:16px}
+  .staff-chat-textarea{padding:.55rem .95rem}
+  .staff-chat-send{width:44px;height:44px;font-size:1.2rem}
+  .staff-chat-person{padding:.6rem .55rem}
+  .staff-chat-person input{width:20px;height:20px}
+  .staff-chat-chip button{padding:.35rem}
+  .staff-chat-primary{padding:.9rem 1rem;font-size:.95rem}
+  .staff-chat-earlier{padding:.7rem}
+  .staff-chat-row:active,.staff-chat-person:active{background:var(--navy-050,#f4f6fb)}
 }
+/* ipad.css gives every button at least 44px; these are small inline buttons. */
+.staff-chat-sub-link,.staff-chat-chip button,.staff-chat-msg-meta button{min-height:0}
+@media(pointer:coarse){
+  .staff-chat-chip button{width:28px;height:28px;padding:0;display:inline-flex;align-items:center;justify-content:center;margin:-.2rem -.15rem -.2rem 0}
+  .staff-chat-sub-link{padding:.25rem 0}
+}
+@media(hover:none){
+  .staff-chat-row:hover,.staff-chat-person:hover:not(.is-on),.staff-chat-icon:hover{background:none}
+}
+
+/* iPad and other touch tablets: a tall sheet docked to the right edge, like Slide Over. */
+@media(min-width:601px) and (pointer:coarse){
+  .staff-chat-panel{
+    top:calc(.75rem + env(safe-area-inset-top) + var(--chat-top,0px));
+    bottom:calc(.75rem + env(safe-area-inset-bottom) + var(--chat-kb,0px));
+    right:calc(.75rem + env(safe-area-inset-right));
+    width:min(420px,48vw);height:auto;border-radius:20px
+  }
+  .staff-chat-launcher.is-open{opacity:0;pointer-events:none}
+  .staff-chat-launcher{padding:.85rem 1.2rem .85rem 1rem;font-size:.95rem}
+}
+
+/* Phones: the panel takes the whole visible screen, above the keyboard. */
+@media(max-width:600px){
+  .staff-chat-launcher{padding:.85rem;right:calc(1rem + env(safe-area-inset-right));bottom:calc(1rem + env(safe-area-inset-bottom))}
+  .staff-chat-launcher .ti{font-size:1.35rem}
+  .staff-chat-launcher-label{display:none}
+  .staff-chat-launcher .staff-chat-badge{position:absolute;top:-4px;right:-4px;box-shadow:0 0 0 2px #fff}
+  .staff-chat-launcher.is-open{display:none}
+  .staff-chat-panel{
+    left:0;right:0;bottom:auto;top:var(--chat-top,0px);
+    width:auto;height:var(--chat-vh,100dvh);border-radius:0;border:none;box-shadow:none
+  }
+  .staff-chat-head{padding:max(.6rem,env(safe-area-inset-top)) max(.6rem,env(safe-area-inset-right)) .6rem max(.75rem,env(safe-area-inset-left))}
+  .staff-chat-compose{padding:.55rem max(.6rem,env(safe-area-inset-right)) max(.55rem,env(safe-area-inset-bottom)) max(.6rem,env(safe-area-inset-left))}
+  .staff-chat-panel.has-keyboard .staff-chat-compose{padding-bottom:.55rem}
+  /* Paint white down to the keyboard so the page doesn't peek through under Safari's keyboard bar. */
+  .staff-chat-panel.has-keyboard{box-shadow:0 30vh 0 0 #fff}
+  .staff-chat-msg{max-width:86%}
+}
+html.staff-chat-locked,html.staff-chat-locked body{overflow:hidden}
 @media print{.staff-chat-launcher,.staff-chat-panel{display:none!important}}
 @media(prefers-reduced-motion:reduce){
   .staff-chat-launcher.is-nudged{animation:none}
