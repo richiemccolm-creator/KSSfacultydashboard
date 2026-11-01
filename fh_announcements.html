@@ -168,6 +168,36 @@
 .note-section{margin:6px 0 0;font-size:var(--fs-xs);font-weight:700;color:var(--ink-500);text-transform:uppercase;letter-spacing:.06em}
 .note-used summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-size:var(--fs-sm);font-weight:600;color:var(--navy-700)}
 .note-used .ann-list{margin-top:4px}
+.agent-card{gap:12px}
+.agent-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
+.agent-title{margin:0 0 4px;font-size:var(--fs-md);font-weight:700;color:var(--ink-900)}
+.agent-switch{flex-shrink:0;min-height:36px;align-items:center}
+.agent-switch input{margin-top:0}
+.agent-row{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap}
+.agent-row .ann-field{flex:0 1 180px}
+.agent-row .btn{margin-left:auto}
+.agent-select{width:100%;min-height:44px;padding:10px;border:1px solid var(--navy-100);border-radius:var(--r-md);font:var(--fs-base)/1.3 var(--font-sans);background:#fff;color:var(--ink-900)}
+.agent-select:focus-visible{outline:none;box-shadow:var(--sh-ring)}
+.agent-status{margin:0;padding:10px 12px;border-radius:var(--r-md);background:var(--navy-050);font-size:var(--fs-sm);color:var(--ink-700);line-height:1.45}
+.agent-status.is-error{background:#fef2f2;color:var(--danger-600)}
+.agent-status strong{color:var(--ink-900)}
+.agent-status.is-error strong{color:inherit}
+.agent-notice{border-color:#c7d2fe;background:#eef2ff;color:#3730a3}
+.agent-notice button{background:none;border:0;padding:0;margin-left:4px;font:inherit;font-weight:700;color:inherit;text-decoration:underline;cursor:pointer;min-height:32px}
+.agent-summary{margin:0;font-size:var(--fs-base);line-height:1.5;color:var(--ink-900)}
+.agent-pv{display:flex;flex-direction:column;gap:6px;padding:12px 0;border-top:1px solid var(--navy-100)}
+.agent-pv:first-child{border-top:0;padding-top:0}
+.agent-pv:last-child{padding-bottom:0}
+.agent-pv-title{margin:0;font-size:var(--fs-md);font-weight:600;color:var(--ink-900);line-height:1.35;overflow-wrap:anywhere}
+.agent-pv-body{font-size:var(--fs-sm);color:var(--ink-700);line-height:1.5;overflow-wrap:anywhere}
+.agent-pv-body h2,.agent-pv-body h3{font-size:var(--fs-sm);margin:8px 0 2px}
+.agent-pv-body p{margin:0 0 6px}
+.agent-left{margin:0;padding-left:18px;font-size:var(--fs-sm);color:var(--ink-700);line-height:1.5}
+.agent-loading{padding:40px 16px;text-align:center;color:var(--ink-500);font-size:var(--fs-sm);line-height:1.5}
+@media (max-width:600px){
+  .agent-row .ann-field{flex:1 1 140px}
+  .agent-row .btn{flex:1 1 100%;margin-left:0}
+}
 .ai-label-row{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
 @media (max-width:600px){
   .ann-tab-notes{margin-left:0}
@@ -211,6 +241,7 @@
   </header>
 
   <p id="annSchemaNotice" class="ann-notice" hidden></p>
+  <p id="annAgentNotice" class="ann-notice agent-notice" hidden></p>
 
   <div class="ann-tabs" role="tablist" aria-label="Announcement status">
     <button class="ann-tab" role="tab" type="button" data-tab="draft" aria-selected="false">Drafts <span class="ann-tab-count" data-count="draft">0</span></button>
@@ -223,6 +254,34 @@
     <div class="ann-empty">Loading announcements…</div>
   </div>
   <section id="annNotes" class="ann-notes" role="tabpanel" aria-label="My notes" hidden>
+    <section class="ann-panel agent-card" id="agentCard" aria-labelledby="agentTitle">
+      <div class="agent-head">
+        <div>
+          <h2 id="agentTitle" class="agent-title">Sunday announcements</h2>
+          <p class="ann-hint">Every Sunday evening, Claude reads next week’s calendar and your waiting notes and writes Monday’s announcements. Anything missing a detail is left as a draft for you to check.</p>
+        </div>
+        <label class="ann-switch agent-switch">
+          <input type="checkbox" id="agentEnabled" disabled>
+          <span><strong>On</strong></span>
+        </label>
+      </div>
+      <div class="agent-row">
+        <div class="ann-field">
+          <label for="agentTime">Post at</label>
+          <input id="agentTime" type="time" step="300" value="07:30" disabled>
+        </div>
+        <div class="ann-field">
+          <label for="agentTone">Tone</label>
+          <select id="agentTone" class="agent-select" disabled>
+            <option value="friendly">Friendly</option>
+            <option value="formal">Formal</option>
+            <option value="brief">Brief</option>
+          </select>
+        </div>
+        <button class="btn" type="button" id="agentPreviewBtn" disabled>Preview next week</button>
+      </div>
+      <p class="agent-status" id="agentStatus" aria-live="polite">Loading…</p>
+    </section>
     <form class="ann-panel note-add" id="noteForm" autocomplete="off">
       <div class="ann-field">
         <label for="noteText">Note for the next announcements</label>
@@ -381,6 +440,19 @@
     <span class="spacer"></span>
     <button class="btn" type="button" id="aiDoneBtn">Close</button>
     <button class="btn btn-primary" type="button" id="aiSaveBtn" disabled>Save as drafts</button>
+  </footer>
+</section>
+
+<section class="ann-drawer ai-drawer" id="agentDrawer" role="dialog" aria-modal="true" aria-labelledby="agentDrawerTitle" hidden>
+  <header class="ann-drawer-head">
+    <h2 id="agentDrawerTitle">Preview of next week</h2>
+    <button class="btn btn-ghost" type="button" id="agentCloseBtn" aria-label="Close preview">Close</button>
+  </header>
+  <div class="ai-body" id="agentPreviewBody"></div>
+  <footer class="ann-drawer-foot">
+    <span class="ann-foot-hint">Nothing here is saved. On Sunday the agent writes the week again with whatever is in your notes then.</span>
+    <span class="spacer"></span>
+    <button class="btn btn-primary" type="button" id="agentDoneBtn">Close</button>
   </footer>
 </section>
 
@@ -732,6 +804,160 @@
     box.dispatchEvent(new Event('input'));
     box.focus();
     toast(lines.length === 1 ? 'Added 1 note' : 'Added ' + lines.length + ' notes');
+  }
+
+  // ---- Sunday announcements agent ------------------------------------------
+  // Settings and the last run's result; the writing happens in the
+  // weekly-announcements Supabase function.
+  var agent = { settings: null, lastRun: null, error: null, saving: false, previewSeq: 0 };
+
+  function setAgentControls(on) {
+    ['agentEnabled', 'agentTime', 'agentTone', 'agentPreviewBtn'].forEach(function(id) { $(id).disabled = !on; });
+  }
+  function plural(n, one, many) { return n + ' ' + (n === 1 ? one : many); }
+  function agentStatusHtml() {
+    var s = agent.settings;
+    var run = agent.lastRun;
+    var parts = [];
+    if (s && s.enabled) parts.push('<strong>On.</strong> Next run: Sunday evening, for ' + esc(dateLabel(nextMondayYmd())) + ' at ' + esc(s.publishTime) + '.');
+    else parts.push('<strong>Off.</strong> Switch it on to have Monday’s announcements written for you. Try Preview first to see what it writes.');
+    if (run) {
+      var week = 'Mon ' + esc(new Date(run.weekOf + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }));
+      if (run.status === 'error') parts.push('The run for ' + week + ' failed: ' + esc(run.error || 'unknown error') + '.');
+      else if (run.status === 'running') parts.push('Writing the announcements for ' + week + ' now…');
+      else {
+        var bits = [];
+        if (run.scheduled) bits.push(plural(run.scheduled, 'announcement', 'announcements') + ' scheduled');
+        if (run.drafts) bits.push(plural(run.drafts, 'draft', 'drafts') + ' to check');
+        parts.push('Last run, for ' + week + ': ' + (bits.length ? esc(bits.join(', ')) : 'nothing to post') + '.' + (run.summary ? ' ' + esc(run.summary) : ''));
+      }
+    }
+    return parts.join(' ');
+  }
+  // The Monday the next run will write for (a week later once this week's is done).
+  function nextMondayYmd() {
+    var d = new Date();
+    d.setDate(d.getDate() + (((8 - d.getDay()) % 7) || 7));
+    var run = agent.lastRun;
+    if (run && run.status !== 'error' && run.weekOf >= ymd(d)) d.setDate(d.getDate() + 7);
+    return ymd(d);
+  }
+  function renderAgent() {
+    var el = $('agentStatus');
+    if (agent.error) {
+      el.className = 'agent-status is-error';
+      el.textContent = agent.error.message;
+      setAgentControls(false);
+      $('annAgentNotice').hidden = true;
+      return;
+    }
+    var s = agent.settings || { enabled: false, publishTime: '07:30', tone: 'friendly' };
+    $('agentEnabled').checked = !!s.enabled;
+    $('agentTime').value = s.publishTime;
+    $('agentTone').value = s.tone;
+    el.className = 'agent-status';
+    el.innerHTML = agentStatusHtml();
+    setAgentControls(!agent.saving);
+    // After a Sunday run, point at any drafts it left for checking.
+    var run = agent.lastRun;
+    var recent = run && run.status === 'done' && run.drafts && Date.now() - Date.parse(run.finishedAt || run.createdAt) < 4 * 864e5;
+    var note = $('annAgentNotice');
+    note.hidden = !recent;
+    if (recent) {
+      note.innerHTML = 'Sunday’s agent left ' + esc(plural(run.drafts, 'draft that needs', 'drafts that need')) + ' checking before ' + (run.drafts === 1 ? 'it goes' : 'they go') + ' out.' +
+        '<button type="button" data-agent-drafts>Open drafts</button>';
+    }
+  }
+  function loadAgent() {
+    if (!window.AnnouncementNotes || typeof AnnouncementNotes.getAgent !== 'function') return Promise.resolve();
+    return AnnouncementNotes.getAgent().then(function(r) {
+      agent.settings = r.settings;
+      agent.lastRun = r.lastRun;
+      agent.error = null;
+      renderAgent();
+    }).catch(function(err) {
+      agent.error = err;
+      renderAgent();
+    });
+  }
+  function readAgentForm() {
+    return { enabled: $('agentEnabled').checked, publishTime: $('agentTime').value || '07:30', tone: $('agentTone').value };
+  }
+  function saveAgentSettings() {
+    var next = readAgentForm();
+    var before = agent.settings;
+    agent.saving = true;
+    setAgentControls(false);
+    AnnouncementNotes.saveAgent(next).then(function() {
+      var switched = !before || before.enabled !== next.enabled;
+      agent.settings = next;
+      agent.saving = false;
+      renderAgent();
+      toast(switched ? (next.enabled ? 'Sunday announcements switched on' : 'Sunday announcements switched off') : 'Saved');
+    }).catch(function(err) {
+      agent.saving = false;
+      renderAgent();
+      toast(errText(err, 'Could not save the settings.'));
+    });
+  }
+
+  var PROMINENCE = { priority: ['pill-priority', 'Priority'], reminder: ['pill-reminder', 'Reminder'] };
+  function previewHtml(r) {
+    var when = new Date(r.publishAt);
+    var head = '<section class="ann-panel"><p class="agent-summary">' + esc(r.summary || '') + '</p>' +
+      '<p class="ann-hint">For ' + esc(dayLabel(when)) + ' at ' + esc(hm(when)) + ', from ' +
+      esc(plural(r.eventCount || 0, 'calendar event', 'calendar events')) + ' this week and ' + esc(plural(r.noteCount || 0, 'waiting note', 'waiting notes')) + '.</p></section>';
+    var list = (r.announcements || []).map(function(a) {
+      var p = PROMINENCE[a.prominence];
+      var meta = (a.status === 'draft'
+        ? '<span class="pill pill-draft">Draft: needs checking</span>'
+        : '<span class="pill pill-scheduled">Scheduled</span>') +
+        (p ? '<span class="pill ' + p[0] + '">' + p[1] + '</span>' : '') +
+        (a.takeDownAfter ? '<span>until ' + esc(dateLabel(a.takeDownAfter)) + '</span>' : '');
+      var checks = (a.check || []).length ? '<p class="ai-warn">Check: ' + esc(a.check.join(' · ')) + '</p>' : '';
+      return '<article class="agent-pv"><div class="ann-item-meta">' + meta + '</div>' +
+        '<h3 class="agent-pv-title">' + esc(a.title) + '</h3>' +
+        '<div class="agent-pv-body">' + richHtml(a.html) + '</div>' + checks + '</article>';
+    }).join('');
+    var body = '<section class="ann-panel">' + (list || '<p class="ann-hint">Nothing to post this week.</p>') + '</section>';
+    var left = (r.notesLeft || []).length
+      ? '<section class="ann-panel"><h3 class="note-section">Notes it would leave waiting</h3><ul class="agent-left">' +
+        r.notesLeft.map(function(n) {
+          var note = findNote(n.note_id);
+          return '<li><strong>' + esc(note ? note.body.slice(0, 80) : 'A note') + '</strong>: ' + esc(n.reason) + '</li>';
+        }).join('') + '</ul></section>'
+      : '';
+    return head + body + left;
+  }
+  function openPreview() {
+    var drawer = $('agentDrawer');
+    var bodyEl = $('agentPreviewBody');
+    bodyEl.innerHTML = '<div class="agent-loading">Reading next week’s calendar and your notes, and writing the announcements. This takes up to a minute…</div>';
+    drawer.hidden = false;
+    document.body.style.overflow = 'hidden';
+    requestAnimationFrame(function() {
+      drawer.classList.add('open');
+      $('annScrim').classList.add('open');
+      $('agentCloseBtn').focus();
+    });
+    var form = readAgentForm();
+    var seq = ++agent.previewSeq;
+    var stale = function() { return drawer.hidden || seq !== agent.previewSeq; };
+    AnnouncementNotes.previewAgent(form).then(function(r) {
+      if (stale()) return;
+      bodyEl.innerHTML = previewHtml(r);
+    }).catch(function(err) {
+      if (stale()) return;
+      bodyEl.innerHTML = '<div class="ann-empty"><strong>The preview didn’t work</strong>' + esc(errText(err, 'Try again in a minute.')) + '</div>';
+    });
+  }
+  function closePreview() {
+    var drawer = $('agentDrawer');
+    drawer.classList.remove('open');
+    $('annScrim').classList.remove('open');
+    document.body.style.overflow = '';
+    setTimeout(function() { drawer.hidden = true; }, 250);
+    $('agentPreviewBtn').focus();
   }
   function showLoadError(err) {
     $('annList').innerHTML = '<div class="ann-empty"><strong>Announcements didn’t load</strong>' + esc(errText(err, 'Check your connection and try again.')) +
@@ -1376,6 +1602,16 @@
   $('annScrim').addEventListener('click', function() {
     if (!$('annDrawer').hidden) closeEditor(false);
     else if (!$('aiDrawer').hidden) closeAi();
+    else if (!$('agentDrawer').hidden) closePreview();
+  });
+  $('agentEnabled').addEventListener('change', saveAgentSettings);
+  $('agentTime').addEventListener('change', saveAgentSettings);
+  $('agentTone').addEventListener('change', saveAgentSettings);
+  $('agentPreviewBtn').addEventListener('click', openPreview);
+  $('agentCloseBtn').addEventListener('click', closePreview);
+  $('agentDoneBtn').addEventListener('click', closePreview);
+  $('annAgentNotice').addEventListener('click', function(e) {
+    if (e.target.closest('[data-agent-drafts]')) setTab('draft');
   });
   $('annDraftBtn').addEventListener('click', function() { save('draft'); });
   $('annPrimaryBtn').addEventListener('click', function() { save('post'); });
@@ -1424,6 +1660,7 @@
     if (e.key !== 'Escape') return;
     if (!$('annDrawer').hidden) closeEditor(false);
     else if (!$('aiDrawer').hidden) closeAi();
+    else if (!$('agentDrawer').hidden) closePreview();
   });
   // Scheduled posts go live on their own; refresh the list so they change tab.
   setInterval(function() { if (loaded && $('annDrawer').hidden && !busy) load(); }, 60000);
@@ -1441,6 +1678,7 @@
     if (started) return;
     started = true;
     loadNotes();
+    loadAgent();
     loadSchema().then(function() {
       load();
       if (/[?&]new=1\b/.test(location.search)) openEditor(null);

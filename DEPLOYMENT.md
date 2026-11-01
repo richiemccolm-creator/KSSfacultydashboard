@@ -50,6 +50,8 @@
    | 26 | `supabase/migrations/20261031150000_ci_assessment.sql` (N5 Creative Industries assessment tracker: pupils, decisions against each performance criterion, checkpoints, sign-offs and follow-ups, shared across devices; until it is run the tracker saves on each device only) |
    | 27 | `supabase/migrations/20261101120000_seed_shared_calendar_2026_27.sql` (copies the 107 school calendar events for 2026–27 from `academic-calendar-defaults.js` into the shared calendar, so server jobs see them too; adds only missing events and is safe to run again) |
    | 28 | `supabase/migrations/20261101130000_announcement_notes.sql` (private notes for the next announcements, on the Announcements page under My notes; only the person who wrote a note can see it; until it is run that tab says notes aren't switched on) |
+   | 29 | `supabase/migrations/20261101140000_announcement_agent.sql` (settings and run log for the Sunday announcements agent; needs `is_school_manager()` from #21. See "Sunday announcements agent" below) |
+   | 30 | `supabase/migrations/20261101150000_announcement_agent_schedule.sql` (calls the agent every Sunday evening; run it only after deploying the `weekly-announcements` function and storing its Vault secrets, as in "Sunday announcements agent" below) |
 
 #### Apply migrations with Supabase CLI (optional)
 
@@ -117,6 +119,32 @@ supabase functions deploy delete-user
 ```
 
 Or use the Supabase Dashboard: **Edge Functions** → create function `delete-user` and paste the code from `supabase/functions/delete-user/index.ts`.
+
+### Sunday announcements agent (optional)
+
+Every Sunday evening the `weekly-announcements` Edge Function reads the next fortnight of the shared calendar and the faculty head's waiting notes (Announcements → My notes), asks Claude to write the week's announcements, and saves them to go live on Monday morning. Anything with a missing detail is saved as a draft instead. Each run costs a few pence on the Anthropic API.
+
+1. Run migrations #27, #28 and #29 if you haven't already.
+2. Get an Anthropic API key from [console.anthropic.com](https://console.anthropic.com) (the account needs billing set up).
+3. Make a random secret for the schedule to use, for example with `openssl rand -hex 32`.
+4. Deploy the function with JWT verification **off** (it checks who is calling itself) and set its two secrets:
+
+   ```bash
+   supabase functions deploy weekly-announcements --no-verify-jwt
+   supabase secrets set ANTHROPIC_API_KEY=sk-ant-... AGENT_CRON_SECRET=your-random-secret
+   ```
+
+   Or in the Dashboard: **Edge Functions → Deploy a new function → Via editor**, name it `weekly-announcements`, paste `supabase/functions/weekly-announcements/index.ts`, and turn off **Verify JWT** in its settings. Then add `ANTHROPIC_API_KEY` and `AGENT_CRON_SECRET` under **Edge Functions → Secrets**.
+5. Store the project address and the same random secret in Vault, in the **SQL Editor**:
+
+   ```sql
+   select vault.create_secret('https://YOUR_PROJECT_REF.supabase.co', 'project_url');
+   select vault.create_secret('your-random-secret', 'announcements_agent_secret');
+   ```
+6. Run migration #30 to schedule it.
+7. In the hub, open **Announcements → My notes**, press **Preview next week** to check it works, then switch **Sunday announcements** on.
+
+To check on it: **Integrations → Cron** shows each Sunday's call, and **Edge Functions → weekly-announcements → Logs** shows any errors. The My notes tab also shows the result of the last run, and the Announcements page points at any drafts it left for checking.
 
 ---
 
