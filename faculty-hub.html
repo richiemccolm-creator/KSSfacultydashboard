@@ -13116,6 +13116,10 @@ document.addEventListener('DOMContentLoaded',function(){
   // Home renders as soon as sign-in settles: its reads (calendar included) run in parallel
   // and it no longer waits for the moderation / improvement plan data below.
   authSettled.then(function(){
+    // Startup gave up waiting for sign-in: refresh once it finishes so role-based links and data catch up.
+    if(!window.__authReady){
+      window.addEventListener('auth-guard-ready',function(){ scheduleHomeDataRefresh(60); },{once:true});
+    }
     homeCalLoadPromise=calLoadEvents();
     updateStorageIndicator();
     homeDashboardRender({ showLoading: false });
@@ -13140,7 +13144,9 @@ document.addEventListener('DOMContentLoaded',function(){
   }).catch(function(){});
   if(window.supabase&&window.supabase.auth&&typeof window.supabase.auth.onAuthStateChange==='function'){
     window.supabase.auth.onAuthStateChange(function(event){
-      if(['INITIAL_SESSION','SIGNED_IN','TOKEN_REFRESHED'].indexOf(event)<0) return;
+      // Supabase sends INITIAL_SESSION to every new listener, after startup has already
+      // loaded Home, so reacting to it fetched everything a second time on each open.
+      if(['SIGNED_IN','TOKEN_REFRESHED'].indexOf(event)<0) return;
       if(!homeHasCompletedInitialLoad) return;
       scheduleHomeDataRefresh(120);
     });
