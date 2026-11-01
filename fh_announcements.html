@@ -55,7 +55,7 @@
 .pill-draft{background:#eef2f8;color:#475569}
 .pill-scheduled{background:#efeaff;color:#5b3fd1}
 .pill-live{background:#e6f7ed;color:#15803d}
-.pill-expired{background:#f1f5f9;color:#64748b}
+.pill-archived,.pill-expired{background:#f1f5f9;color:#64748b}
 .pill-priority{background:#fcebea;color:#a8322d}
 .pill-reminder{background:#f1f5f9;color:#475569}
 .pill-banner{background:var(--navy-700);color:#fff}
@@ -247,7 +247,7 @@
     <button class="ann-tab" role="tab" type="button" data-tab="draft" aria-selected="false">Drafts <span class="ann-tab-count" data-count="draft">0</span></button>
     <button class="ann-tab" role="tab" type="button" data-tab="scheduled" aria-selected="false">Scheduled <span class="ann-tab-count" data-count="scheduled">0</span></button>
     <button class="ann-tab" role="tab" type="button" data-tab="live" aria-selected="true">Live <span class="ann-tab-count" data-count="live">0</span></button>
-    <button class="ann-tab" role="tab" type="button" data-tab="expired" aria-selected="false">Expired <span class="ann-tab-count" data-count="expired">0</span></button>
+    <button class="ann-tab" role="tab" type="button" data-tab="archived" aria-selected="false">Archive <span class="ann-tab-count" data-count="archived">0</span></button>
     <button class="ann-tab ann-tab-notes" role="tab" type="button" data-tab="notes" aria-selected="false">My notes <span class="ann-tab-count" data-count="notes">0</span></button>
   </div>
   <div id="annList" class="ann-list" role="tabpanel" aria-live="polite">
@@ -338,7 +338,7 @@
       <div class="ann-field">
         <label for="annExpires">Take down after (optional)</label>
         <input id="annExpires" type="date">
-        <p class="ann-hint">Staff stop seeing it after this day. It moves to Expired, where you can repost it.</p>
+        <p class="ann-hint">Staff stop seeing it after this day. It moves to Archive, where you can repost it.</p>
       </div>
 
       <div id="annWhen" class="ann-when">
@@ -464,7 +464,7 @@
 
   var TAB_KEY = 'fhAnnTab';
   var LOCAL_KEY = 'fhAnnLocalDraft:';
-  var STATES = ['draft', 'scheduled', 'live', 'expired'];
+  var STATES = ['draft', 'scheduled', 'live', 'archived'];
   var TABS = STATES.concat('notes');
   var NOTE_DRAFT_KEY = 'fhAnnNoteDraft';
   var notes = { waiting: [], used: [], loaded: false, error: null, busy: false, editing: null, usedOpen: false };
@@ -553,7 +553,7 @@
     list.sort(function(a, b) {
       if (state === 'scheduled') return String(a.publish_at).localeCompare(String(b.publish_at));
       if (state === 'draft') return String(b.updated_at || '').localeCompare(String(a.updated_at || ''));
-      if (state === 'expired') return String(b.expires_at || '').localeCompare(String(a.expires_at || ''));
+      if (state === 'archived') return String(b.archived_at || '').localeCompare(String(a.archived_at || ''));
       return String(b.posted_at || '').localeCompare(String(a.posted_at || ''));
     });
     return list;
@@ -568,7 +568,10 @@
       return '<span class="pill pill-draft">Draft</span><span>Edited ' + esc(whenLabel(a.updated_at || a.created_at)) + '</span>' + suggested;
     }
     if (a.state === 'scheduled') return '<span class="pill pill-scheduled">Scheduled</span><span>Goes live ' + esc(whenLabel(a.publish_at)) + '</span>';
-    if (a.state === 'expired') return '<span class="pill pill-expired">Expired</span><span>Taken down after ' + esc(dateLabel(a.expires_at)) + '</span>';
+    if (a.state === 'archived') {
+      var how = a.status === 'archived' ? 'Archived ' + whenLabel(a.archived_at) : 'Ended after ' + dateLabel(a.expires_at);
+      return '<span class="pill pill-archived">Archived</span><span>' + esc(how) + '</span>';
+    }
     var s = '<span class="pill pill-live">Live</span><span>Since ' + esc(whenLabel(a.posted_at)) + '</span>';
     if (a.expires_at) s += '<span>· until ' + esc(dateLabel(a.expires_at)) + '</span>';
     return s;
@@ -585,16 +588,16 @@
     var b = function(act, label, cls) {
       return '<button class="btn btn-sm' + (cls ? ' ' + cls : '') + '" type="button" data-act="' + act + '" data-id="' + id + '">' + label + '</button>';
     };
-    if (a.state === 'draft') return b('edit', 'Edit', 'btn-primary') + b('post', 'Post now') + b('delete', 'Delete', 'btn-danger-ghost');
+    if (a.state === 'draft') return b('edit', 'Edit', 'btn-primary') + b('post', 'Post now') + b('archive', 'Archive') + b('delete', 'Delete', 'btn-danger-ghost');
     if (a.state === 'scheduled') return b('edit', 'Edit', 'btn-primary') + b('post', 'Post now') + b('unpublish', 'Move to drafts') + b('delete', 'Delete', 'btn-danger-ghost');
-    if (a.state === 'expired') return b('repost', 'Repost', 'btn-primary') + b('delete', 'Delete', 'btn-danger-ghost');
-    return b('edit', 'Edit', 'btn-primary') + b('duplicate', 'Duplicate') + b('unpublish', 'Take down') + b('delete', 'Delete', 'btn-danger-ghost');
+    if (a.state === 'archived') return b('repost', 'Repost', 'btn-primary') + b('restore', 'Move to drafts') + b('delete', 'Delete', 'btn-danger-ghost');
+    return b('edit', 'Edit', 'btn-primary') + b('duplicate', 'Duplicate') + b('archive', 'Take down') + b('delete', 'Delete', 'btn-danger-ghost');
   }
   var EMPTY = {
-    draft: ['No drafts', 'Use “Save draft” in the editor to keep something you are still working on.'],
+    draft: ['No drafts', 'Use “Save draft” in the editor to keep something you are still working on. Drafts move to Archive once their take-down date passes.'],
     scheduled: ['Nothing scheduled', 'Choose “Schedule” when writing an announcement to post it later.'],
     live: ['Nothing live right now', 'Staff see an empty announcements card. Post something with “New announcement”.'],
-    expired: ['No expired announcements', 'Announcements move here after their take-down date.']
+    archived: ['Nothing archived', 'Announcements move here after their take-down date, or when you take them down. Repost one, or delete it for good.']
   };
   function render() {
     STATES.forEach(function(s) {
@@ -1279,14 +1282,15 @@
   }
   function validate(p, mode) {
     if (!p.title) { $('annTitle').focus(); return 'Add a title first.'; }
-    if (mode === 'draft') return '';
     var today = ymd(new Date());
+    // A draft past its take-down date would go straight to Archive.
+    if (mode === 'draft') return p.expires_at && p.expires_at < today ? 'The take-down date is in the past. Change it or clear it to keep this as a draft.' : '';
     if (p.publish_at && readWhen() === 'schedule' && !(editingRecord() && editingRecord().state === 'live')) {
       if (!scheduledIso()) return 'Pick a date to schedule it for.';
       if (Date.parse(p.publish_at) <= Date.now()) return 'That time has already passed. Pick a later time, or choose “Now”.';
       if (p.expires_at && p.expires_at < ymd(new Date(p.publish_at))) return 'The take-down date is before the post goes live.';
     }
-    if (p.expires_at && p.expires_at < today && !(editingRecord() && editingRecord().state === 'expired')) {
+    if (p.expires_at && p.expires_at < today && !(editingRecord() && editingRecord().state === 'archived')) {
       return 'The take-down date is in the past, so staff would never see it.';
     }
     return '';
@@ -1354,10 +1358,18 @@
       if (!confirm('Post “' + a.title + '” now? Staff will see it straight away.')) return;
       runAction(DataService.updateAnnouncement(a.id, recordPayload(a, { status: 'published', publish_at: new Date().toISOString() })), 'Posted. Staff can see it now', 'live');
     } else if (act === 'unpublish') {
-      if (!schema.scheduleColumns) { toast('Taking a post down needs the drafts database update. You can delete it instead.'); return; }
-      var q = a.state === 'live' ? 'Take “' + a.title + '” down? Staff will stop seeing it and it moves to Drafts.' : 'Move “' + a.title + '” back to drafts? It won’t go live.';
-      if (!confirm(q)) return;
+      if (!schema.scheduleColumns) { toast('Moving a post to drafts needs the drafts database update. You can delete it instead.'); return; }
+      if (!confirm('Move “' + a.title + '” back to drafts? It won’t go live.')) return;
       runAction(DataService.updateAnnouncement(a.id, recordPayload(a, { status: 'draft', publish_at: null })), 'Moved to drafts', 'draft');
+    } else if (act === 'archive') {
+      if (!schema.scheduleColumns) { toast('Archiving needs the drafts database update. You can delete it instead.'); return; }
+      var q = a.state === 'live' ? 'Take “' + a.title + '” down? Staff will stop seeing it and it moves to Archive.' : 'Archive “' + a.title + '”? It won’t go live.';
+      if (!confirm(q)) return;
+      runAction(DataService.updateAnnouncement(a.id, recordPayload(a, { status: 'archived' })), 'Moved to Archive', a.state);
+    } else if (act === 'restore') {
+      // Drop a take-down date that has passed, or it would go straight back to Archive.
+      var keep = a.expires_at && String(a.expires_at).slice(0, 10) >= ymd(new Date());
+      runAction(DataService.updateAnnouncement(a.id, recordPayload(a, { status: 'draft', publish_at: null, expires_at: keep ? String(a.expires_at).slice(0, 10) : null })), 'Moved to drafts', 'draft');
     } else if (act === 'delete') {
       if (!confirm('Delete “' + a.title + '” permanently? This can’t be undone.')) return;
       runAction(DataService.deleteAnnouncement(a.id), 'Announcement deleted');
@@ -1667,7 +1679,9 @@
 
   // A link can pick the tab (?tab=draft); otherwise reopen the last one used.
   var linkTab = (location.search.match(/[?&]tab=([a-z]+)/) || [])[1];
+  if (linkTab === 'expired') linkTab = 'archived';
   var savedTab = TABS.indexOf(linkTab) !== -1 ? linkTab : recall(TAB_KEY);
+  if (savedTab === 'expired') savedTab = 'archived';
   if (TABS.indexOf(savedTab) !== -1) tab = savedTab;
   render();
   if (tab === 'notes') renderNotes();

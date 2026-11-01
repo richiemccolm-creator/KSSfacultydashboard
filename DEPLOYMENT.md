@@ -52,6 +52,7 @@
    | 28 | `supabase/migrations/20261101130000_announcement_notes.sql` (private notes for the next announcements, on the Announcements page under My notes; only the person who wrote a note can see it; until it is run that tab says notes aren't switched on) |
    | 29 | `supabase/migrations/20261101140000_announcement_agent.sql` (settings and run log for the Sunday announcements agent; needs `is_school_manager()` from #21. See "Sunday announcements agent" below) |
    | 30 | `supabase/migrations/20261101150000_announcement_agent_schedule.sql` (calls the agent every Sunday evening; run it only after deploying the `weekly-announcements` function and storing its Vault secrets, as in "Sunday announcements agent" below) |
+   | 31 | `supabase/migrations/20261101160000_announcements_archive.sql` (lets announcements be archived when they are taken down, so Drafts only holds what is still to come; until it is run, taking a post down still files it under Archive by setting its take-down date to yesterday) |
 
 #### Apply migrations with Supabase CLI (optional)
 

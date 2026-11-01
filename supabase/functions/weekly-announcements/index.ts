@@ -281,7 +281,7 @@ async function gather(db: SupabaseClient, ownerId: string, today: string, weekOf
   const goLive = Date.parse(publishAt);
   // deno-lint-ignore no-explicit-any
   const showing = (annRes.data as any[]).filter((a) => {
-    if (a.status === "draft") return false;
+    if (a.status && a.status !== "published") return false;
     const until = a.expires_at ? String(a.expires_at).slice(0, 10) : "";
     if (until && until < today) return false;
     const from = a.publish_at ? Date.parse(a.publish_at) : 0;

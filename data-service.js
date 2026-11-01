@@ -63,11 +63,14 @@
     if (!created) return publish;
     return Date.parse(publish) > Date.parse(created) ? publish : created;
   }
-  // draft | scheduled | live | expired, as the faculty head sees it.
+  // draft | scheduled | live | archived, as the faculty head sees it. Anything
+  // past its take-down date is archived, drafts included, so Drafts only holds
+  // announcements still to come.
   function announcementState(a, today, nowMs) {
-    if (a && a.status === 'draft') return 'draft';
+    if (a && a.status === 'archived') return 'archived';
     var exp = a && a.expires_at ? String(a.expires_at).slice(0, 10) : '';
-    if (exp && exp < today) return 'expired';
+    if (exp && exp < today) return 'archived';
+    if (a && a.status === 'draft') return 'draft';
     var pub = a && a.publish_at ? Date.parse(a.publish_at) : NaN;
     if (!isNaN(pub) && pub > nowMs) return 'scheduled';
     return 'live';
@@ -248,6 +251,10 @@
   // Create (id null) or update an announcement. Returns the row id.
   // status ('draft' | 'published') and publish_at are only written when given,
   // so older callers that omit them leave an announcement's schedule alone.
+  function isAnnouncementsStatusCheckError(err) {
+    var msg = String((err && (err.message || err.details)) || '');
+    return !!err && (err.code === '23514' || /announcements_status_check/.test(msg)) && /status/.test(msg);
+  }
   function saveAnnouncement(id, obj) {
     if (!useSupabase()) return Promise.reject(new Error('Supabase required'));
     obj = obj || {};
@@ -278,7 +285,7 @@
         row.highlight_priority = !!obj.highlight_priority;
       }
       if (canUseFeatured) row.featured_banner = featuredBanner;
-      var hasStatus = obj.status === 'draft' || obj.status === 'published';
+      var hasStatus = obj.status === 'draft' || obj.status === 'published' || obj.status === 'archived';
       var hasPublishAt = Object.prototype.hasOwnProperty.call(obj, 'publish_at');
       if (canUseSchedule) {
         if (hasStatus) row.status = obj.status;
@@ -293,7 +300,7 @@
 
       // Only a post that is live now replaces the current home banner. A
       // scheduled banner takes over on the staff home once it goes live.
-      var liveNow = row.status !== 'draft' && (!row.publish_at || Date.parse(row.publish_at) <= Date.now());
+      var liveNow = row.status !== 'draft' && row.status !== 'archived' && (!row.publish_at || Date.parse(row.publish_at) <= Date.now());
       var prep = featuredBanner && canUseFeatured && liveNow ? clearOtherFeaturedBanners(id) : Promise.resolve();
 
       function write(r) {
@@ -308,6 +315,16 @@
             var data = Array.isArray(res.data) ? res.data[0] : res.data;
             if (!isCreate && !data) throw new Error('That announcement could not be saved. It may have been deleted, or your account cannot edit it.');
             return (data && data.id) || id;
+          }
+          // Before the archive migration the database only knows draft and
+          // published. A draft whose take-down date has passed also counts as
+          // archived, so archive it that way instead.
+          if (r.status === 'archived' && isAnnouncementsStatusCheckError(res.error)) {
+            var y = new Date();
+            y.setDate(y.getDate() - 1);
+            r.status = 'draft';
+            r.expires_at = y.getFullYear() + '-' + String(y.getMonth() + 1).padStart(2, '0') + '-' + String(y.getDate()).padStart(2, '0');
+            return attempt(r, tries + 1);
           }
           if (tries < 3) {
             if ('significant_update_at' in r && isAnnouncementsSignificantUpdateSchemaError(res.error)) {
@@ -1127,7 +1144,7 @@
     },
 
     // Faculty Head Hub list: every announcement including drafts, scheduled and
-    // expired ones, each with a state. Rejects on failure so the page can say so.
+    // archived ones, each with a state. Rejects on failure so the page can say so.
     getAnnouncementsForManage: function() {
       if (!useSupabase()) return Promise.reject(new Error('Supabase required'));
       return getSessionWithRetry({ retries: 12, delayMs: 250 }).then(function(session) {
@@ -1143,6 +1160,7 @@
               var out = mapAnnouncementRow(a);
               out.state = announcementState(a, today, nowMs);
               out.posted_at = announcementPostedAt(a);
+              if (out.state === 'archived') out.archived_at = out.status === 'archived' ? out.updated_at : out.expires_at;
               return out;
             });
           });
