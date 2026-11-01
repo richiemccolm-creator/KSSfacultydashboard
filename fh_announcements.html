@@ -16,6 +16,7 @@
 <script src="announcement-richtext.js"></script>
 <script src="announcement-docx-import.js"></script>
 <script src="announcement-ai-import.js"></script>
+<script src="announcement-notes-service.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="design-tokens.css">
@@ -150,6 +151,30 @@
   .ai-item{grid-template-columns:auto 1fr}
   .ai-item > .btn{grid-column:2;justify-self:start}
 }
+/* My notes */
+.ann-notes{display:flex;flex-direction:column;gap:14px}
+.ann-notes[hidden],.ann-list[hidden]{display:none}
+.ann-tab-notes{margin-left:auto}
+.note-add{gap:12px}
+.note-text{min-height:84px;font-size:var(--fs-base)}
+.note-add-row{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap}
+.note-from{flex:0 1 220px}
+.note-add-row .btn{margin-left:auto}
+.note-item{grid-template-columns:1fr auto}
+.note-body{margin:6px 0 0;font-size:var(--fs-base);color:var(--ink-900);line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
+.note-item.is-used .note-body{color:var(--ink-500)}
+.note-edit{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+.note-edit-row{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}
+.note-section{margin:6px 0 0;font-size:var(--fs-xs);font-weight:700;color:var(--ink-500);text-transform:uppercase;letter-spacing:.06em}
+.note-used summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-size:var(--fs-sm);font-weight:600;color:var(--navy-700)}
+.note-used .ann-list{margin-top:4px}
+.ai-label-row{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+@media (max-width:600px){
+  .ann-tab-notes{margin-left:0}
+  .note-item{grid-template-columns:1fr}
+  .note-from{flex:1 1 100%}
+  .note-add-row .btn{flex:1;margin-left:0}
+}
 .ann-toast{position:fixed;bottom:calc(24px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);max-width:calc(100vw - 32px);background:var(--ink-900);color:#fff;padding:12px 18px;border-radius:var(--r-pill);z-index:1000;display:none;font-size:var(--fs-sm);box-shadow:var(--sh-md)}
 .ann-toast.show{display:block}
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0}
@@ -192,10 +217,28 @@
     <button class="ann-tab" role="tab" type="button" data-tab="scheduled" aria-selected="false">Scheduled <span class="ann-tab-count" data-count="scheduled">0</span></button>
     <button class="ann-tab" role="tab" type="button" data-tab="live" aria-selected="true">Live <span class="ann-tab-count" data-count="live">0</span></button>
     <button class="ann-tab" role="tab" type="button" data-tab="expired" aria-selected="false">Expired <span class="ann-tab-count" data-count="expired">0</span></button>
+    <button class="ann-tab ann-tab-notes" role="tab" type="button" data-tab="notes" aria-selected="false">My notes <span class="ann-tab-count" data-count="notes">0</span></button>
   </div>
   <div id="annList" class="ann-list" role="tabpanel" aria-live="polite">
     <div class="ann-empty">Loading announcements…</div>
   </div>
+  <section id="annNotes" class="ann-notes" role="tabpanel" aria-label="My notes" hidden>
+    <form class="ann-panel note-add" id="noteForm" autocomplete="off">
+      <div class="ann-field">
+        <label for="noteText">Note for the next announcements</label>
+        <textarea id="noteText" class="ai-text note-text" maxlength="2000" placeholder="e.g. S4 folio deadline moved to Fri 13 Nov, remind staff to check Teams"></textarea>
+      </div>
+      <div class="note-add-row">
+        <div class="ann-field note-from">
+          <label for="noteFrom">Not before (optional)</label>
+          <input id="noteFrom" type="date">
+        </div>
+        <button class="btn btn-primary" type="submit" id="noteAddBtn">Add note</button>
+      </div>
+      <p class="ann-hint">Only you can see these. Rough is fine: include dates, times and rooms, and leave out pupils’ names. Waiting notes go into the next announcements, then move to Used.</p>
+    </form>
+    <div id="noteList" class="ann-list" aria-live="polite"></div>
+  </section>
 </main>
 
 <div class="ann-scrim" id="annScrim"></div>
@@ -288,7 +331,10 @@
     <section class="ann-panel ai-step">
       <h3><span class="ai-num">1</span>Tell the AI what staff need to know</h3>
       <div class="ann-field">
-        <label for="aiNotes">Your notes</label>
+        <div class="ai-label-row">
+          <label for="aiNotes" class="ann-legend">Your notes</label>
+          <button class="btn btn-sm" type="button" id="aiUseNotesBtn">Add my waiting notes</button>
+        </div>
         <textarea id="aiNotes" class="ai-text" placeholder="e.g.&#10;- S4 folio deadline moved to Fri 16 Oct&#10;- Dept meeting Thursday 3.30 in D12, bring tracking&#10;- Reminder: return props to the drama store"></textarea>
         <p class="ann-hint">Rough bullet points are fine. Include dates, times and rooms. Leave out pupils’ names.</p>
       </div>
@@ -347,6 +393,9 @@
   var TAB_KEY = 'fhAnnTab';
   var LOCAL_KEY = 'fhAnnLocalDraft:';
   var STATES = ['draft', 'scheduled', 'live', 'expired'];
+  var TABS = STATES.concat('notes');
+  var NOTE_DRAFT_KEY = 'fhAnnNoteDraft';
+  var notes = { waiting: [], used: [], loaded: false, error: null, busy: false, editing: null, usedOpen: false };
 
   var items = [];
   var schema = { scheduleColumns: true, featuredBannerColumn: true, significantUpdateColumns: true, priorityColumns: true };
@@ -483,8 +532,18 @@
     document.querySelectorAll('.ann-tab').forEach(function(t) {
       t.setAttribute('aria-selected', t.getAttribute('data-tab') === tab ? 'true' : 'false');
     });
+    // On a phone the tab strip scrolls sideways; keep the open tab in view.
+    var bar = document.querySelector('.ann-tabs');
+    var open = bar.querySelector('[aria-selected="true"]');
+    if (open && bar.scrollWidth > bar.clientWidth) {
+      var b = bar.getBoundingClientRect(), o = open.getBoundingClientRect();
+      if (o.right > b.right) bar.scrollLeft += o.right - b.right;
+      else if (o.left < b.left) bar.scrollLeft -= b.left - o.left;
+    }
     var wrap = $('annList');
-    if (!loaded) return;
+    wrap.hidden = tab === 'notes';
+    $('annNotes').hidden = tab !== 'notes';
+    if (tab === 'notes' || !loaded) return;
     var list = byState(tab);
     if (!list.length) {
       wrap.innerHTML = '<div class="ann-empty"><strong>' + esc(EMPTY[tab][0]) + '</strong>' + esc(EMPTY[tab][1]) + '</div>';
@@ -503,10 +562,176 @@
     }).join('');
   }
   function setTab(next) {
-    if (STATES.indexOf(next) === -1) return;
+    if (TABS.indexOf(next) === -1) return;
     tab = next;
     store(TAB_KEY, tab);
     render();
+    if (tab === 'notes') renderNotes();
+  }
+
+  // ---- My notes ----------------------------------------------------------
+  // Private jottings for the next announcements (announcement-notes-service.js).
+  function noteMeta(n) {
+    if (n.usedAt) return '<span class="pill pill-expired">Used</span><span>' + esc(whenLabel(n.usedAt)) + '</span>';
+    var s = '<span>Written ' + esc(whenLabel(n.createdAt)) + '</span>';
+    if (n.mentionFrom && n.mentionFrom > ymd(new Date())) s += '<span class="pill pill-scheduled">Not before ' + esc(dateLabel(n.mentionFrom)) + '</span>';
+    return s;
+  }
+  function noteItem(n) {
+    var id = esc(n.id);
+    var b = function(act, label, cls) {
+      return '<button class="btn btn-sm' + (cls ? ' ' + cls : '') + '" type="button" data-note-act="' + act + '" data-id="' + id + '">' + label + '</button>';
+    };
+    if (notes.editing === n.id) {
+      return '<article class="ann-item note-item" data-note="' + id + '"><div>' +
+        '<div class="ann-item-meta">' + noteMeta(n) + '</div>' +
+        '<div class="note-edit">' +
+          '<textarea class="ai-text note-text" data-note-edit-text maxlength="' + AnnouncementNotes.MAX_TEXT + '" aria-label="Note">' + esc(n.body) + '</textarea>' +
+          '<div class="note-edit-row">' +
+            '<div class="ann-field note-from"><label for="noteEditFrom">Not before (optional)</label><input id="noteEditFrom" type="date" data-note-edit-from value="' + esc(n.mentionFrom) + '"></div>' +
+            b('save', 'Save', 'btn-primary') + b('cancel', 'Cancel') +
+          '</div>' +
+        '</div></div></article>';
+    }
+    var actions = n.usedAt
+      ? b('unuse', 'Put back') + b('delete', 'Delete', 'btn-danger-ghost')
+      : b('edit', 'Edit') + b('use', 'Tick off') + b('delete', 'Delete', 'btn-danger-ghost');
+    return '<article class="ann-item note-item' + (n.usedAt ? ' is-used' : '') + '" data-note="' + id + '">' +
+      '<div><div class="ann-item-meta">' + noteMeta(n) + '</div><p class="note-body">' + esc(n.body) + '</p></div>' +
+      '<div class="ann-item-actions">' + actions + '</div></article>';
+  }
+  function renderNotes() {
+    var count = document.querySelector('[data-count="notes"]');
+    if (count) count.textContent = String(notes.waiting.length);
+    var wrap = $('noteList');
+    if (notes.error) {
+      wrap.innerHTML = '<div class="ann-empty"><strong>' + esc(notes.error.notSetUp ? 'Notes aren’t switched on yet' : 'Your notes didn’t load') + '</strong>' + esc(notes.error.message) +
+        (notes.error.notSetUp ? '' : '<div style="margin-top:12px"><button class="btn" type="button" data-note-act="retry">Try again</button></div>') + '</div>';
+      return;
+    }
+    if (!notes.loaded) { wrap.innerHTML = '<div class="ann-empty">Loading your notes…</div>'; return; }
+    var html = notes.waiting.length
+      ? '<h2 class="note-section">Waiting (' + notes.waiting.length + ')</h2>' + notes.waiting.map(noteItem).join('')
+      : '<div class="ann-empty"><strong>No notes waiting</strong>Jot things down here as they come up during the week.</div>';
+    if (notes.used.length) {
+      html += '<details class="note-used"' + (notes.usedOpen ? ' open' : '') + '><summary>Used in the last ' + AnnouncementNotes.USED_DAYS + ' days (' + notes.used.length + ')</summary>' +
+        '<div class="ann-list">' + notes.used.map(noteItem).join('') + '</div></details>';
+    }
+    wrap.innerHTML = html;
+    var edit = wrap.querySelector('[data-note-edit-text]');
+    if (edit) { edit.focus(); edit.setSelectionRange(edit.value.length, edit.value.length); }
+  }
+  function loadNotes() {
+    if (!window.AnnouncementNotes) {
+      notes.error = new Error('The notes service did not load. Refresh the page.');
+      renderNotes();
+      return Promise.resolve();
+    }
+    return AnnouncementNotes.list().then(function(r) {
+      notes.waiting = r.waiting;
+      notes.used = r.used;
+      notes.loaded = true;
+      notes.error = null;
+      renderNotes();
+    }).catch(function(err) {
+      notes.error = err;
+      renderNotes();
+    });
+  }
+  function findNote(id) {
+    return notes.waiting.concat(notes.used).filter(function(n) { return String(n.id) === String(id); })[0] || null;
+  }
+  // Swap a changed note into the right list and keep both in their display order.
+  function placeNote(n) {
+    notes.waiting = notes.waiting.filter(function(x) { return x.id !== n.id; });
+    notes.used = notes.used.filter(function(x) { return x.id !== n.id; });
+    if (n.usedAt) {
+      notes.used.unshift(n);
+      notes.used.sort(function(a, b) { return String(b.usedAt).localeCompare(String(a.usedAt)); });
+    } else {
+      notes.waiting.push(n);
+      notes.waiting.sort(function(a, b) { return String(a.createdAt).localeCompare(String(b.createdAt)); });
+    }
+  }
+  function addNote(e) {
+    e.preventDefault();
+    if (notes.busy) return;
+    var text = $('noteText').value;
+    if (!text.trim()) { $('noteText').focus(); return; }
+    notes.busy = true;
+    $('noteAddBtn').disabled = true;
+    AnnouncementNotes.add(text, $('noteFrom').value).then(function(n) {
+      placeNote(n);
+      $('noteText').value = '';
+      $('noteFrom').value = '';
+      store(NOTE_DRAFT_KEY, null);
+      renderNotes();
+      $('noteText').focus();
+      toast('Note added');
+    }).catch(function(err) {
+      toast(errText(err, 'Could not save the note.'));
+    }).then(function() {
+      notes.busy = false;
+      $('noteAddBtn').disabled = false;
+    });
+  }
+  function onNoteClick(e) {
+    var btn = e.target.closest('[data-note-act]');
+    if (!btn || notes.busy) return;
+    var act = btn.getAttribute('data-note-act');
+    if (act === 'retry') { notes.error = null; notes.loaded = false; renderNotes(); loadNotes(); return; }
+    var n = findNote(btn.getAttribute('data-id'));
+    if (!n) return;
+    if (act === 'edit') { notes.editing = n.id; renderNotes(); return; }
+    if (act === 'cancel') { notes.editing = null; renderNotes(); return; }
+    if (act === 'delete' && !confirm('Delete this note?')) return;
+    var job;
+    if (act === 'save') {
+      var box = $('noteList').querySelector('[data-note-edit-text]');
+      var from = $('noteList').querySelector('[data-note-edit-from]');
+      job = AnnouncementNotes.update(n.id, box ? box.value : n.body, from ? from.value : n.mentionFrom);
+    } else if (act === 'use' || act === 'unuse') {
+      job = AnnouncementNotes.setUsed(n.id, act === 'use');
+    } else if (act === 'delete') {
+      job = AnnouncementNotes.remove(n.id).then(function() { return null; });
+    } else {
+      return;
+    }
+    notes.busy = true;
+    btn.disabled = true;
+    job.then(function(updated) {
+      if (updated) placeNote(updated);
+      else {
+        notes.waiting = notes.waiting.filter(function(x) { return x.id !== n.id; });
+        notes.used = notes.used.filter(function(x) { return x.id !== n.id; });
+      }
+      notes.editing = null;
+      notes.busy = false;
+      renderNotes();
+      toast({ save: 'Note saved', use: 'Ticked off', unuse: 'Back on the waiting list', delete: 'Note deleted' }[act]);
+    }).catch(function(err) {
+      notes.busy = false;
+      btn.disabled = false;
+      toast(errText(err, 'Something went wrong'));
+    });
+  }
+  // Waiting notes due within the next week, as bullet points for Draft with AI.
+  function useNotesInAi() {
+    if (!notes.loaded) { toast(notes.error ? errText(notes.error) : 'Your notes are still loading.'); return; }
+    var horizon = new Date();
+    horizon.setDate(horizon.getDate() + 7);
+    var limit = ymd(horizon);
+    var due = notes.waiting.filter(function(n) { return !n.mentionFrom || n.mentionFrom <= limit; });
+    if (!due.length) { toast('No notes waiting for this week.'); return; }
+    var box = $('aiNotes');
+    var current = box.value;
+    var lines = due.map(function(n) { return '- ' + n.body.replace(/\s*\n\s*/g, ' '); })
+      .filter(function(line) { return current.indexOf(line) === -1; });
+    if (!lines.length) { toast('Your notes are already in.'); return; }
+    box.value = (current.trim() ? current.replace(/\s+$/, '') + '\n' : '') + lines.join('\n');
+    box.dispatchEvent(new Event('input'));
+    box.focus();
+    toast(lines.length === 1 ? 'Added 1 note' : 'Added ' + lines.length + ' notes');
   }
   function showLoadError(err) {
     $('annList').innerHTML = '<div class="ann-empty"><strong>Announcements didn’t load</strong>' + esc(errText(err, 'Check your connection and try again.')) +
@@ -1184,6 +1409,17 @@
   document.querySelectorAll('.ann-tab').forEach(function(t) {
     t.addEventListener('click', function() { setTab(t.getAttribute('data-tab')); });
   });
+  $('noteForm').addEventListener('submit', addNote);
+  $('noteText').value = recall(NOTE_DRAFT_KEY) || '';
+  $('noteText').addEventListener('input', function() { store(NOTE_DRAFT_KEY, this.value || null); });
+  $('noteText').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) addNote(e);
+  });
+  $('noteList').addEventListener('click', onNoteClick);
+  $('noteList').addEventListener('toggle', function(e) {
+    if (e.target.classList && e.target.classList.contains('note-used')) notes.usedOpen = e.target.open;
+  }, true);
+  $('aiUseNotesBtn').addEventListener('click', useNotesInAi);
   document.addEventListener('keydown', function(e) {
     if (e.key !== 'Escape') return;
     if (!$('annDrawer').hidden) closeEditor(false);
@@ -1194,15 +1430,17 @@
 
   // A link can pick the tab (?tab=draft); otherwise reopen the last one used.
   var linkTab = (location.search.match(/[?&]tab=([a-z]+)/) || [])[1];
-  var savedTab = STATES.indexOf(linkTab) !== -1 ? linkTab : recall(TAB_KEY);
-  if (STATES.indexOf(savedTab) !== -1) tab = savedTab;
+  var savedTab = TABS.indexOf(linkTab) !== -1 ? linkTab : recall(TAB_KEY);
+  if (TABS.indexOf(savedTab) !== -1) tab = savedTab;
   render();
+  if (tab === 'notes') renderNotes();
 
   // Wait for sign-in before loading, so an empty list never stands in for a failed load.
   var started = false;
   function start() {
     if (started) return;
     started = true;
+    loadNotes();
     loadSchema().then(function() {
       load();
       if (/[?&]new=1\b/.test(location.search)) openEditor(null);

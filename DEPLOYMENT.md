@@ -49,6 +49,7 @@
    | 25 | `supabase/migrations/20261031120000_staff_chat.sql` (live staff chat, one-to-one and groups, from the Chat button on the hub; needs #23) |
    | 26 | `supabase/migrations/20261031150000_ci_assessment.sql` (N5 Creative Industries assessment tracker: pupils, decisions against each performance criterion, checkpoints, sign-offs and follow-ups, shared across devices; until it is run the tracker saves on each device only) |
    | 27 | `supabase/migrations/20261101120000_seed_shared_calendar_2026_27.sql` (copies the 107 school calendar events for 2026–27 from `academic-calendar-defaults.js` into the shared calendar, so server jobs see them too; adds only missing events and is safe to run again) |
+   | 28 | `supabase/migrations/20261101130000_announcement_notes.sql` (private notes for the next announcements, on the Announcements page under My notes; only the person who wrote a note can see it; until it is run that tab says notes aren't switched on) |
 
 #### Apply migrations with Supabase CLI (optional)
 
