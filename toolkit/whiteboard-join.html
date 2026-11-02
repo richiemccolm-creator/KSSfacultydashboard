@@ -814,7 +814,7 @@ input{min-height:50px;font-size:17px}
   }
 
   function refresh() {
-    if (!state.pin || state.refreshing) return; // the last check hasn't answered yet
+    if (!state.pin || state.refreshing || document.hidden) return; // the last check hasn't answered yet, or the tab is hidden
     state.refreshing = true;
     rpc("wb_get_session_state", {
       p_pin: state.pin,
@@ -856,7 +856,7 @@ input{min-height:50px;font-size:17px}
   function startPoll() {
     if (state.poll) clearInterval(state.poll);
     refresh();
-    state.poll = setInterval(refresh, 1600);
+    state.poll = setInterval(refresh, 2500);
   }
 
   function boot() {
@@ -898,7 +898,10 @@ input{min-height:50px;font-size:17px}
     document.addEventListener("dblclick", function (e) { e.preventDefault(); }, { passive: false });
     document.addEventListener("visibilitychange", function () {
       if (document.hidden) endStroke();
-      else if (state.dirty) syncNow();
+      else {
+        if (state.dirty) syncNow();
+        if (state.poll) refresh(); // catch up straight away
+      }
     });
   }
 

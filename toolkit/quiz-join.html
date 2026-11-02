@@ -283,6 +283,9 @@ input:focus{border-color:rgba(244,94,104,.5);box-shadow:0 0 0 3px rgba(244,94,10
 
   function poll() {
     if (!state.pin || !state.token) return;
+    // Skip while the tab is hidden, and on slow wifi wait for the last check to answer (or give up after 10s)
+    if (document.hidden || (state.polling && Date.now() - state.polling < 10000)) return;
+    state.polling = Date.now();
     rpc("quiz_get_session_state", { p_pin: state.pin, p_token: state.token })
       .then(function (data) {
         // Clear one-shot feedback after a fresh poll once advancing
@@ -292,13 +295,19 @@ input:focus{border-color:rgba(244,94,104,.5);box-shadow:0 0 0 3px rgba(244,94,10
         }
         renderState(data);
       })
-      .catch(function () {});
+      .catch(function () {})
+      .then(function () { state.polling = 0; });
   }
+
+  // Catch up straight away when the pupil comes back to the tab
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden && state.poll) poll();
+  });
 
   function startPolling() {
     if (state.poll) clearInterval(state.poll);
     poll();
-    state.poll = setInterval(poll, 1200);
+    state.poll = setInterval(poll, 2500);
   }
 
   function join() {

@@ -312,15 +312,24 @@ body.team-amber .buzzer{
 
   function poll() {
     if (!state.pin || !state.token) return;
+    // Skip while the tab is hidden, and on slow wifi wait for the last check to answer (or give up after 10s)
+    if (document.hidden || (state.polling && Date.now() - state.polling < 10000)) return;
+    state.polling = Date.now();
     rpc("qb_get_session_state", { p_pin: state.pin, p_token: state.token })
       .then(applyState)
-      .catch(function () {});
+      .catch(function () {})
+      .then(function () { state.polling = 0; });
   }
+
+  // Catch up straight away when the pupil comes back to the tab
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden && state.poll) poll();
+  });
 
   function startPolling() {
     if (state.poll) clearInterval(state.poll);
     poll();
-    state.poll = setInterval(poll, 400);
+    state.poll = setInterval(poll, 1000);
   }
 
   function join(team) {

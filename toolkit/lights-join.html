@@ -314,10 +314,15 @@ input:focus{border-color:rgba(59,214,255,.55);box-shadow:0 0 0 3px rgba(59,214,2
     if (state.poll) { clearInterval(state.poll); state.poll = null; }
   }
 
+  // Catch up straight away when the pupil comes back to the tab
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden && state.poll) refresh();
+  });
+
   function startPoll() {
     stopPoll();
     refresh();
-    state.poll = setInterval(refresh, 1800);
+    state.poll = setInterval(refresh, 3000);
   }
 
   function rpc(name, args) {
@@ -359,7 +364,7 @@ input:focus{border-color:rgba(59,214,255,.55);box-shadow:0 0 0 3px rgba(59,214,2
   }
 
   function refresh() {
-    if (!state.pin) return;
+    if (!state.pin || document.hidden) return; // nothing to check while the tab is hidden
     rpc("lights_get_session_state", {
       p_pin: state.pin,
       p_token: state.token

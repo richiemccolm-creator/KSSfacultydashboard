@@ -396,14 +396,23 @@ input:focus{border-color:rgba(134,88,245,.55);box-shadow:0 0 0 3px rgba(134,88,2
 
   function poll() {
     if (!state.pin || !state.token) return;
+    // Skip while the tab is hidden, and on slow wifi wait for the last check to answer (or give up after 10s)
+    if (document.hidden || (state.polling && Date.now() - state.polling < 10000)) return;
+    state.polling = Date.now();
     rpc("stimulus_get_session_state", { p_pin: state.pin, p_token: state.token })
       .then(function (data) {
         var prev = state.cache && state.cache.status;
         if (prev === "lobby" && data.status === "open") state.view = "pick";
         renderPlay(data);
       })
-      .catch(function () {});
+      .catch(function () {})
+      .then(function () { state.polling = 0; });
   }
+
+  // Catch up straight away when the pupil comes back to the tab
+  document.addEventListener("visibilitychange", function () {
+    if (!document.hidden && state.poll) poll();
+  });
 
   function join() {
     var pin = String($("pin").value || "").replace(/\D/g, "").slice(0, 6);
@@ -431,7 +440,7 @@ input:focus{border-color:rgba(134,88,245,.55);box-shadow:0 0 0 3px rgba(134,88,2
         $("viewPlay").classList.remove("hidden");
         renderPlay(data);
         if (state.poll) clearInterval(state.poll);
-        state.poll = setInterval(poll, 1500);
+        state.poll = setInterval(poll, 3000);
       })
       .catch(function (err) {
         $("joinErr").textContent = joinError(err);
