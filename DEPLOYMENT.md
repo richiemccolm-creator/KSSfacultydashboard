@@ -53,6 +53,7 @@
    | 29 | `supabase/migrations/20261101140000_announcement_agent.sql` (settings and run log for the Sunday announcements agent; needs `is_school_manager()` from #21. See "Sunday announcements agent" below) |
    | 30 | `supabase/migrations/20261101150000_announcement_agent_schedule.sql` (calls the agent every Sunday evening; run it only after deploying the `weekly-announcements` function and storing its Vault secrets, as in "Sunday announcements agent" below) |
    | 31 | `supabase/migrations/20261101160000_announcements_archive.sql` (lets announcements be archived when they are taken down, so Drafts only holds what is still to come; until it is run, taking a post down still files it under Archive by setting its take-down date to yesterday) |
+   | 32 | `supabase/migrations/20261102120000_realtime_drop_toolkit_tables.sql` (stops Realtime watching the classroom toolkit's live-game tables, which nothing listens to, to cut database load; the games work the same before and after; safe to run again) |
 
 #### Apply migrations with Supabase CLI (optional)
 
