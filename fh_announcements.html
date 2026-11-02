@@ -169,6 +169,7 @@
 .note-used summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-size:var(--fs-sm);font-weight:600;color:var(--navy-700)}
 .note-used .ann-list{margin-top:4px}
 .agent-card{gap:12px}
+.agent-card[hidden]{display:none}
 .agent-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px}
 .agent-title{margin:0 0 4px;font-size:var(--fs-md);font-weight:700;color:var(--ink-900)}
 .agent-switch{flex-shrink:0;min-height:36px;align-items:center}
@@ -254,7 +255,7 @@
     <div class="ann-empty">Loading announcements…</div>
   </div>
   <section id="annNotes" class="ann-notes" role="tabpanel" aria-label="My notes" hidden>
-    <section class="ann-panel agent-card" id="agentCard" aria-labelledby="agentTitle">
+    <section class="ann-panel agent-card" id="agentCard" aria-labelledby="agentTitle" hidden>
       <div class="agent-head">
         <div>
           <h2 id="agentTitle" class="agent-title">Sunday announcements</h2>
@@ -812,7 +813,10 @@
   // ---- Sunday announcements agent ------------------------------------------
   // Settings and the last run's result; the writing happens in the
   // weekly-announcements Supabase function.
-  var agent = { settings: null, lastRun: null, error: null, saving: false, previewSeq: 0 };
+  // Switched off: the agent needs a paid Anthropic API key. Set to true to show
+  // the Sunday announcements card again once the function's secrets are set.
+  var AGENT_ON = false;
+  var agent ={ settings: null, lastRun: null, error: null, saving: false, previewSeq: 0 };
 
   function setAgentControls(on) {
     ['agentEnabled', 'agentTime', 'agentTone', 'agentPreviewBtn'].forEach(function(id) { $(id).disabled = !on; });
@@ -1692,7 +1696,10 @@
     if (started) return;
     started = true;
     loadNotes();
-    loadAgent();
+    if (AGENT_ON) {
+      $('agentCard').hidden = false;
+      loadAgent();
+    }
     loadSchema().then(function() {
       load();
       if (/[?&]new=1\b/.test(location.search)) openEditor(null);
