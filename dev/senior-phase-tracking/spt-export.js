@@ -373,7 +373,19 @@
     return { ok: true, filename: filename, rows: tracking.aoa.length - 2 };
   }
 
+  /** The same tables as the download, for the whole faculty, used by the faculty tracking export. */
+  function buildTables(db) {
+    var all = (db && db.enrolments) || [];
+    var tps = trackingPointsCopy(db);
+    return {
+      tracking: trackingSheet(db, all.filter(function(en) { return en && en.active_status !== false; }), tps).aoa,
+      inactive: trackingSheet(db, all.filter(function(en) { return en && en.active_status === false; }), tps).aoa,
+      pupils: pupilsSheet(db, all.filter(Boolean))
+    };
+  }
+
   global.SptExport = {
-    downloadSpreadsheet: downloadSpreadsheet
+    downloadSpreadsheet: downloadSpreadsheet,
+    buildTables: buildTables
   };
 })(typeof window !== 'undefined' ? window : global);

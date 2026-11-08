@@ -42,7 +42,7 @@ window.FH_NAV = {
       id: 'leadership',
       label: 'Leadership',
       href: 'fh_leadership.html',
-      paths: ['fh_leadership.html', 'fh_department_meetings.html', 'department_meetings.html', 'fh_procurement.html', 'purchase_orders.html'],
+      paths: ['fh_leadership.html', 'fh_department_meetings.html', 'department_meetings.html', 'fh_procurement.html', 'purchase_orders.html', 'tracker_export.html'],
       children: [
         { id: 'leadership-tools', label: 'All tools', href: 'fh_leadership.html', paths: ['fh_leadership.html'] },
         { id: 'meetings', label: 'Meetings', href: 'fh_department_meetings.html', paths: ['fh_department_meetings.html', 'department_meetings.html'] },
@@ -67,7 +67,8 @@ window.FH_NAV = {
       items: [
         { id: 'meetings', label: 'Meetings & Minutes', desc: 'Schedule department meetings and keep minutes.', href: 'fh_department_meetings.html', icon: 'meetings' },
         { id: 'procurement', label: 'Procurement', desc: 'Purchase requests and orders.', href: 'fh_procurement.html', icon: 'procurement' },
-        { id: 'backup', label: 'Backup & Restore', desc: 'Download or restore a copy of faculty data.', href: 'faculty-hub.html?panel=data-backup', icon: 'backup' }
+        { id: 'backup', label: 'Backup & Restore', desc: 'Download or restore a copy of faculty data.', href: 'faculty-hub.html?panel=data-backup', icon: 'backup' },
+        { id: 'tracking-export', label: 'Export all tracking', desc: 'One Excel file of every tracker, for all staff. Admin only.', href: 'tracker_export.html', icon: 'backup', adminOnly: true }
       ]
     }
   ]

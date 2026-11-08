@@ -66,7 +66,7 @@
       g.items.map(function(it) {
         var inStaffHub = it.href.indexOf('faculty-hub.html') === 0;
         var href = window.fhNavHref ? fhNavHref(it.href) : it.href;
-        return '<a class="lead-card" href="' + esc(href) + '">' +
+        return '<a class="lead-card" href="' + esc(href) + '"' + (it.adminOnly ? ' data-admin-only style="display:none"' : '') + '>' +
           '<span class="lead-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">' + (ICONS[it.icon] || ICONS.dip) + '</svg></span>' +
           '<span><span class="lead-title">' + esc(it.label) + '</span>' +
           '<span class="lead-desc" style="display:block">' + esc(it.desc) + '</span>' +
@@ -75,6 +75,12 @@
       }).join('') + '</div></section>';
   }).join('');
   if (window.fhEmbedPatchLinks) window.fhEmbedPatchLinks();
+  function showAdminCards() {
+    if (!window.__authGuardIsAdmin) return;
+    document.querySelectorAll('[data-admin-only]').forEach(function(card) { card.style.display = ''; });
+  }
+  if (window.__authReady) showAdminCards();
+  else window.addEventListener('auth-guard-ready', showAdminCards);
 })();
 </script>
 <script src="fh-top-nav.js"></script>
