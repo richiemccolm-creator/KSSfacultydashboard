@@ -133,6 +133,39 @@ odd.pupil_data = [
 const oddWb = build(odd);
 assert.equal(oddWb.sheets.find((s) => s.name === 'Drama S1').rows[0][0], 'Unknown teacher');
 
+// Colours: each kind of column gets the right rules, and sensitive columns get none.
+const ruleCols = (s, label) => s.rules.filter((r) => r.cols.includes(colOf(s, label)));
+const tones = (s, label) => ruleCols(s, label).map((r) => r.tone);
+assert.ok(tones(drama, 'TP1 Creating (Mime & Melodrama)').includes('red'));
+assert.ok(tones(drama, 'TP1 Creating (Mime & Melodrama)').includes('best'));
+assert.equal(ruleCols(drama, 'TP1 Notes (Mime & Melodrama)').length, 0, 'notes are not coloured');
+assert.equal(ruleCols(drama, 'Pupil').length, 0);
+assert.ok(ruleCols(senior, 'Risk').some((r) => r.equal === 'Red' && r.tone === 'red'));
+assert.ok(ruleCols(senior, 'Working grade').some((r) => r.equal === 'No Award' && r.tone === 'red'));
+assert.ok(ruleCols(senior, 'Pupil').some((r) => /="Red"$/.test(r.expr)), 'the name shows the risk colour');
+assert.ok(ruleCols(senior, 'Tracking Point 1 Attendance %').some((r) => /<75/.test(r.expr) && r.tone === 'red'));
+assert.ok(ruleCols(photo, 'People: Research').some((r) => r.equal === 'Complete'));
+assert.ok(ruleCols(ci, 'Criteria achieved').some((r) => r.bar));
+assert.ok(ruleCols(ci, 'Introduction decision').some((r) => r.equal === 'Working towards'));
+['SIMD decile', 'SIMD quintile', 'ASN'].forEach((label) => assert.equal(ruleCols(qs, label).length, 0, label + ' stays uncoloured'));
+assert.equal(ruleCols(sheet('Report Builder'), 'EAL').length, 0);
+const numericRules = wb.sheets.flatMap((s) => s.rules || []).filter((r) => r.expr && /#[<>=]/.test(r.expr));
+assert.ok(numericRules.every((r) => /ISNUMBER\(#\)/.test(r.expr)), 'text and blank cells never match a number rule');
+
+// Class overviews: averages for current classes only, and risk counts.
+const bgeOverview = sheet('Overview BGE');
+const dramaRow = bgeOverview.rows.find((r) => r[0] === 'Drama' && r[1] === 'S1');
+assert.equal(dramaRow[2], '1A1');
+assert.equal(dramaRow[4], 2);
+assert.equal(dramaRow[colOf(bgeOverview, 'Average Creating')], 3.5, 'mean of 3 and 4');
+assert.ok(!bgeOverview.rows.some((r) => r[2] === '1OLD'), 'archived classes are left out');
+assert.ok(tones(bgeOverview, 'Overall').includes('best'));
+const spOverview = sheet('Overview Senior Phase');
+const artClass = spOverview.rows.find((r) => r[0] === 'N5 Art B');
+assert.equal(artClass[colOf(spOverview, 'Red')], 1);
+assert.equal(artClass[colOf(spOverview, 'Pupils')], 1, 'pupils who left the course are not counted');
+assert.equal(spOverview.rows.find((r) => r[0] === 'H Drama A')[colOf(spOverview, 'Green')], 1);
+
 // A class with no course list on NPA must be flagged, not reported as fine.
 const noCourses = copy(Fixture.tables);
 noCourses.pupil_data.find((r) => r.data_type === 'npa-v1').data.courses = [];

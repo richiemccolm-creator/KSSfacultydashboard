@@ -110,6 +110,8 @@
   function createOut() {
     var out = {
       sheets: [],
+      bgeOverview: [],
+      seniorOverview: [],
       checks: [],
       problems: [],
       addSheet: function(sheet) {
@@ -124,6 +126,175 @@
       }
     };
     return out;
+  }
+
+  // ── colour coding ──────────────────────────────────────
+  // Thresholds match the trackers: tracker-app.js (3.5 above expectations, 2.5 on track, 2 cause for
+  // concern, 1.5 serious concern) and spt-config.js (attendance 90 good, 75 amber).
+  var GRADE_RULES = [
+    ['A', 'best'], ['B', 'good'], ['C', 'amber'], ['D', 'orange'], ['E', 'red'], ['F', 'red']
+  ];
+  var GRADE_WORDS = [
+    ['Distinction', 'best'], ['Merit', 'good'], ['Pass', 'good'], ['P', 'good'],
+    ['NP', 'red'], ['NA', 'red'], ['No Award', 'red'], ['DNA', 'grey']
+  ];
+  var STATUS_WORDS = [
+    ['Pass', 'best'], ['Signed off', 'best'], ['Complete', 'best'], ['Completed', 'best'], ['Achieved', 'best'],
+    ['Verified', 'best'], ['Banked', 'best'], ['Approved', 'best'],
+    ['Resolved', 'good'], ['Done', 'good'], ['Good Impact', 'good'],
+    ['Ready to sign off', 'blue'], ['To assess', 'blue'], ['Planned', 'blue'], ['Reviewed', 'blue'],
+    ['Under Review', 'blue'], ['Recommended', 'blue'], ['Active', 'blue'],
+    ['In progress', 'amber'], ['Developing', 'amber'], ['Working towards', 'amber'], ['Ongoing', 'amber'], ['Some Impact', 'amber'],
+    ['Open', 'orange'], ['Requires Moderation', 'orange'],
+    ['Missing', 'red'], ['Action required', 'red'], ['Outstanding', 'red'], ['Needs Rework', 'red'],
+    ['Escalated', 'red'], ['No Impact', 'red'], ['Concern flag', 'red'],
+    ['Not assessed', 'grey'], ['Not started', 'grey'], ['Not Verified', 'grey'], ['Not Applicable', 'grey'],
+    ['Not Yet Known', 'grey'], ['Not signed off', 'grey'], ['Not Proceeding', 'grey']
+  ];
+
+  function colLetter(index) {
+    var n = index + 1;
+    var out = '';
+    while (n > 0) {
+      var r = (n - 1) % 26;
+      out = String.fromCharCode(65 + r) + out;
+      n = Math.floor((n - 1) / 26);
+    }
+    return out;
+  }
+
+  function scoreRules(cols) {
+    return [
+      { cols: cols, expr: 'AND(ISNUMBER(#),#>0,#<=1.5)', tone: 'red' },
+      { cols: cols, expr: 'AND(ISNUMBER(#),#>1.5,#<2.5)', tone: 'amber' },
+      { cols: cols, expr: 'AND(ISNUMBER(#),#>=2.5,#<3.5)', tone: 'good' },
+      { cols: cols, expr: 'AND(ISNUMBER(#),#>=3.5)', tone: 'best' }
+    ];
+  }
+
+  function colourSheet(sheet) {
+    var groups = { score: [], attPct: [], risk: [], grade: [], band: [], status: [], concern: [], bar: [] };
+    var riskCol = -1;
+    var isQs = /^QS /.test(sheet.name);
+    sheet.columns.forEach(function(c, i) {
+      var label = String(c.label || '').replace(/\s*\([^)]*\)\s*$/, '').trim();
+      if (/notes?$|comments?$/i.test(label)) return;
+      if (/attendance score$/i.test(label)) groups.score.push(i);
+      else if (/(attendance %|attendance percent|attendance rate|^attendance|^EOY att)$/i.test(label)) groups.attPct.push(i);
+      else if (/(creating|presenting|evaluating|effort|behaviour|home ?learning|homework|progress|expression|(^|\s)development|^overall)$/i.test(label)) groups.score.push(i);
+      else if (/^risk( status)?$|concern status$/i.test(label)) {
+        groups.risk.push(i);
+        if (/^risk/i.test(label)) riskCol = i;
+      } else if (/(working grade|^target|target grade|prelim grade|^grade|exam grade|result grade|final estimate|^predicted|^estimate|^prior)$/i.test(label)) {
+        groups.grade.push(i);
+        if (isQs && /^(predicted|estimate)$/i.test(label)) groups.band.push(i);
+      } else if (isQs && /^band$/i.test(label)) groups.band.push(i);
+      else if (/^concern$/i.test(label)) groups.concern.push(i);
+      else if (/^criteria achieved$/i.test(label)) groups.bar.push(i);
+      else if (c.status || /(status|decision|course result|^type|^result|impact)$/i.test(label)) groups.status.push(i);
+    });
+
+    var rules = (sheet.rules || []).slice();
+    if (groups.score.length) rules = rules.concat(scoreRules(groups.score));
+    if (groups.attPct.length) {
+      rules.push(
+        { cols: groups.attPct, expr: 'AND(ISNUMBER(#),#<75)', tone: 'red' },
+        { cols: groups.attPct, expr: 'AND(ISNUMBER(#),#>=75,#<90)', tone: 'amber' },
+        { cols: groups.attPct, expr: 'AND(ISNUMBER(#),#>=90)', tone: 'good' }
+      );
+    }
+    if (groups.risk.length) {
+      [['Red', 'red'], ['Amber', 'amber'], ['Green', 'good'], ['Grey', 'grey']].forEach(function(r) {
+        rules.push({ cols: groups.risk, equal: r[0], tone: r[1] });
+      });
+    }
+    if (groups.band.length) {
+      rules.push(
+        { cols: groups.band, expr: 'AND(ISNUMBER(#),#>=1,#<=2)', tone: 'best' },
+        { cols: groups.band, expr: 'AND(ISNUMBER(#),#>=3,#<=4)', tone: 'good' },
+        { cols: groups.band, expr: 'AND(ISNUMBER(#),#>=5,#<=6)', tone: 'amber' },
+        { cols: groups.band, expr: 'AND(ISNUMBER(#),#=7)', tone: 'orange' },
+        { cols: groups.band, expr: 'AND(ISNUMBER(#),#=8)', tone: 'red' },
+        { cols: groups.band, expr: 'AND(ISNUMBER(#),#=9)', tone: 'grey' }
+      );
+    }
+    if (groups.grade.length) {
+      GRADE_WORDS.forEach(function(g) { rules.push({ cols: groups.grade, equal: g[0], tone: g[1] }); });
+      GRADE_RULES.forEach(function(g) {
+        // Also covers A*, and bands written as A1, B3 and so on.
+        rules.push({ cols: groups.grade, expr: 'AND(ISTEXT(#),LEN(#)<=2,LEFT(#,1)="' + g[0] + '")', tone: g[1] });
+      });
+    }
+    if (groups.concern.length) rules.push({ cols: groups.concern, expr: 'LEN(#)>0', tone: 'amber' });
+    if (groups.status.length) {
+      STATUS_WORDS.forEach(function(w) { rules.push({ cols: groups.status, equal: w[0], tone: w[1] }); });
+    }
+    if (groups.bar.length) rules.push({ cols: groups.bar, bar: true });
+    // The pupil's name also shows Red and Amber risk, so a long sheet can be read at a glance.
+    if (riskCol >= 0) {
+      var risk = '$' + colLetter(riskCol) + '2';
+      rules.push({ cols: [0], expr: risk + '="Red"', tone: 'red' }, { cols: [0], expr: risk + '="Amber"', tone: 'amber' });
+    }
+    sheet.rules = rules;
+  }
+
+  // ── class overviews ────────────────────────────────────
+  var OVERVIEW_DIMS = PROC.concat(ATTIT);
+
+  function roundOne(n) {
+    return Math.round(n * 10) / 10;
+  }
+
+  function addBgeOverview(out, title, yg, pupils) {
+    var classes = {};
+    pupils.forEach(function(p) {
+      if (p.status !== 'Current') return;
+      var key = p.teacher + '|' + p.cls;
+      var c = classes[key] = classes[key] || { teacher: p.teacher, cls: p.cls, pupils: 0, scored: 0, totals: {} };
+      c.pupils++;
+      if (Object.keys(p.scores).length) c.scored++;
+      Object.keys(p.scores).forEach(function(tp) {
+        OVERVIEW_DIMS.forEach(function(d) {
+          var n = Number((p.scores[tp] || {})[d[0]]);
+          if (n > 0) (c.totals[d[0]] = c.totals[d[0]] || []).push(n);
+        });
+      });
+    });
+    Object.keys(classes).forEach(function(key) {
+      var c = classes[key];
+      var all = [];
+      var row = [title, yg.toUpperCase(), c.cls, c.teacher, c.pupils, c.scored];
+      OVERVIEW_DIMS.forEach(function(d) {
+        var list = c.totals[d[0]] || [];
+        all = all.concat(list);
+        row.push(list.length ? roundOne(list.reduce(function(a, b) { return a + b; }, 0) / list.length) : '');
+      });
+      row.push(all.length ? roundOne(all.reduce(function(a, b) { return a + b; }, 0) / all.length) : '');
+      out.bgeOverview.push(row);
+    });
+  }
+
+  function addOverviewSheets(out) {
+    var extra = [];
+    if (out.bgeOverview.length) {
+      extra.push({
+        name: 'Overview BGE',
+        columns: [col('Subject'), col('Year'), col('Class'), col('Teacher'), col('Pupils'), col('Pupils with scores')]
+          .concat(OVERVIEW_DIMS.map(function(d) { return col('Average ' + d[1]); }))
+          .concat([col('Overall')]),
+        rows: sortRows(out.bgeOverview, 3), freezeCols: 3, tab: TAB.check
+      });
+    }
+    if (out.seniorOverview.length) {
+      var count = function(i, tone) { return { cols: [i], expr: 'AND(ISNUMBER(#),#>0)', tone: tone }; };
+      extra.push({
+        name: 'Overview Senior Phase',
+        columns: [col('Class'), col('Course'), col('Teacher'), col('Pupils'), col('Red'), col('Amber'), col('Green'), col('Grey')],
+        rows: sortRows(out.seniorOverview, 2), freezeCols: 1, tab: TAB.check,
+        rules: [count(4, 'red'), count(5, 'amber'), count(6, 'good'), count(7, 'grey')]
+      });
+    }
+    out.sheets = extra.concat(out.sheets);
   }
 
   // ── BGE trackers (Drama, Art) ──────────────────────────
@@ -170,6 +341,8 @@
         });
         return;
       }
+
+      addBgeOverview(out, title, yg, pupilsOut);
 
       // Only the units and measures that hold something, so empty columns don't clutter the sheet.
       var tpOrder = yearTps.slice();
@@ -315,7 +488,7 @@
       out.addSheet({
         name: course.name,
         columns: [col('Teacher'), col('Class'), col('Pupil')]
-          .concat(tasks.map(function(task) { return col(task.label); }))
+          .concat(tasks.map(function(task) { return col(task.label, { status: true }); }))
           .concat([col('Task notes', { wide: true }), col('Strengths', { wide: true }), col('Areas for development', { wide: true })]),
         rows: sortRows(body, 3), freezeCols: 3, tab: TAB.npa
       });
@@ -467,6 +640,25 @@
     var enrols = byIdMap(db.enrolments);
     var courses = byIdMap(db.courses);
     var classes = byIdMap(db.classes);
+    var teachers = byIdMap(db.teachers);
+    var riskByClass = {};
+    active.forEach(function(en) {
+      var key = (en.class_id || '') + '|' + (en.course_id || '');
+      var t = teachers[en.teacher_id] || {};
+      var c = riskByClass[key] = riskByClass[key] || {
+        cls: (classes[en.class_id] || {}).class_name || '',
+        course: (courses[en.course_id] || {}).course_name || '',
+        teacher: [text(t.first_name), text(t.surname)].filter(Boolean).join(' '),
+        pupils: 0, Red: 0, Amber: 0, Green: 0, Grey: 0
+      };
+      c.pupils++;
+      var risk = /^(Red|Amber|Green)$/.test(en.risk_status) ? en.risk_status : 'Grey';
+      c[risk]++;
+    });
+    Object.keys(riskByClass).forEach(function(key) {
+      var c = riskByClass[key];
+      out.seniorOverview.push([c.cls, c.course, c.teacher, c.pupils, c.Red, c.Amber, c.Green, c.Grey]);
+    });
     var names = {
       tracking_point_id: { map: byIdMap(db.school_tracking_points), label: 'Tracking point', keys: ['tracking_point_name', 'name'] },
       assessment_point_id: { map: byIdMap(db.assessment_points), label: 'Assessment', keys: ['assessment_name', 'name'] },
@@ -695,6 +887,21 @@
     } else {
       rows.push([{ v: 'Every pupil counted in the saved data reached this file. See the Check tab.', s: 'ok' }, ''], ['', '']);
     }
+    rows.push([{ v: 'What the colours mean', s: 'bold' }, '']);
+    [
+      ['keyBest', 'Dark green: score 3.5 to 4, grade A, or complete, achieved, verified or signed off'],
+      ['keyGood', 'Light green: score 2.5 to 3.4, grade B, attendance 90% or more, or risk Green'],
+      ['keyAmber', 'Amber: score above 1.5 and below 2.5, grade C, attendance 75% to 89%, risk Amber, in progress or developing'],
+      ['keyOrange', 'Orange: grade D, an open item, or needs moderation'],
+      ['keyRed', 'Red: score 1.5 or below, grade E, F or No Award, attendance under 75%, risk Red, missing or action required'],
+      ['keyBlue', 'Blue: waiting on a next step, such as to assess, ready to sign off or planned'],
+      ['keyGrey', 'Grey: not started, not assessed, or risk Grey (no data yet)']
+    ].forEach(function(k) { rows.push([{ v: k[1], s: k[0] }, '']); });
+    rows.push(
+      ['Colours update if you change a value in this file. You can also filter any column by colour.', ''],
+      ['SIMD, ASN and EAL are deliberately not coloured, as they describe a pupil rather than how they are doing.', ''],
+      ['', '']
+    );
     rows.push([{ v: 'Tabs in this file', s: 'bold' }, { v: 'Rows', s: 'bold' }]);
     out.sheets.forEach(function(s) { rows.push([s.name, s.rows.length]); });
     rows.push(['', ''], [{ v: 'Good to know', s: 'bold' }, '']);
@@ -734,6 +941,8 @@
     addReportSheet(out, ofType('bge_drama_reports_v1').concat(ofType('bge_art_reports_v1')), staffName);
     addRosterSheet(out, source.roster, staffName);
     addNotesSheet(out, source.notes);
+    addOverviewSheets(out);
+    out.sheets.forEach(colourSheet);
 
     var check = checkSheet(out, source);
     var when = source.when || new Date();

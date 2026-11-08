@@ -16,7 +16,24 @@
   var MAX_CELL = 32767;
 
   // Index in cellXfs in styles().
-  var STYLE = { plain: 0, header: 1, headerBand: 2, wrap: 3, title: 4, note: 5, ok: 6, bad: 7, bold: 8, warn: 9 };
+  var STYLE = {
+    plain: 0, header: 1, headerBand: 2, wrap: 3, title: 4, note: 5, ok: 6, bad: 7, bold: 8, warn: 9,
+    keyBest: 10, keyGood: 11, keyAmber: 12, keyOrange: 13, keyRed: 14, keyGrey: 15, keyBlue: 16
+  };
+
+  // Colours for the rules that colour cells by their value: [background, text, conditional format index].
+  // The Read me key uses the same colours. Every cell still shows its number or word, so colour is never the only signal.
+  var TONES = [
+    ['best', '86D19A', '14532D'],
+    ['good', 'D5F2DC', '166534'],
+    ['amber', 'FDE68A', '78350F'],
+    ['orange', 'FDBA74', '7C2D12'],
+    ['red', 'FCA5A5', '7F1D1D'],
+    ['grey', 'E5E7EB', '374151'],
+    ['blue', 'BFDBFE', '1E3A8A']
+  ];
+  var TONE_INDEX = {};
+  TONES.forEach(function(t, i) { TONE_INDEX[t[0]] = i; });
 
   function clean(value) {
     var s = String(value)
@@ -90,6 +107,34 @@
     return Math.min(16 * lines + 6, 96);
   }
 
+  /**
+   * sheet.rules, checked in order with the first match winning:
+   *   { cols: [index], expr: 'AND(ISNUMBER(#),#>=3.5)', tone: 'best' }  # is the cell's own value
+   *   { cols: [index], equal: 'Complete', tone: 'good' }
+   *   { cols: [index], bar: true }    a data bar sized by the value
+   * They are real Excel rules, so colours follow if someone edits a value offline.
+   */
+  function conditionalXml(sheet, lastRow) {
+    if (!sheet.rules || !sheet.rules.length || sheet.headerless || lastRow < 2) return '';
+    var priority = 1;
+    return sheet.rules.map(function(rule) {
+      if (!rule.cols || !rule.cols.length) return '';
+      var sqref = rule.cols.map(function(c) { return colName(c) + '2:' + colName(c) + lastRow; }).join(' ');
+      var first = colName(rule.cols[0]) + '2';
+      var inner;
+      if (rule.bar) {
+        inner = '<cfRule type="dataBar" priority="' + (priority++) + '"><dataBar><cfvo type="num" val="0"/><cfvo type="max"/><color rgb="FF7FB3E6"/></dataBar></cfRule>';
+      } else if (rule.equal != null) {
+        inner = '<cfRule type="cellIs" dxfId="' + TONE_INDEX[rule.tone] + '" priority="' + (priority++) + '" stopIfTrue="1" operator="equal"><formula>' +
+          xml('"' + String(rule.equal).replace(/"/g, '""') + '"') + '</formula></cfRule>';
+      } else {
+        inner = '<cfRule type="expression" dxfId="' + TONE_INDEX[rule.tone] + '" priority="' + (priority++) + '" stopIfTrue="1"><formula>' +
+          xml(rule.expr.replace(/#/g, first)) + '</formula></cfRule>';
+      }
+      return '<conditionalFormatting sqref="' + sqref + '">' + inner + '</conditionalFormatting>';
+    }).join('');
+  }
+
   function sheetXml(sheet, index) {
     var widths = columnWidths(sheet);
     var colCount = Math.max(sheet.columns.length, 1);
@@ -141,6 +186,7 @@
         }).join('') + '</cols>' +
         '<sheetData>' + rowsOut.join('') + '</sheetData>' +
         (hasFilter ? '<autoFilter ref="' + range + '"/>' : '') +
+        conditionalXml(sheet, lastRow) +
         '<pageMargins left="0.5" right="0.5" top="0.6" bottom="0.6" header="0.3" footer="0.3"/>' +
         '<pageSetup orientation="landscape" fitToHeight="0"/>' +
         '</worksheet>'
@@ -153,21 +199,23 @@
     }
     return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' +
       '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' +
-      '<fonts count="6">' +
+      '<fonts count="' + (6 + TONES.length) + '">' +
       '<font><sz val="11"/><name val="Calibri"/></font>' +
       '<font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/></font>' +
       '<font><b/><sz val="16"/><color rgb="FF1E2D4A"/><name val="Calibri"/></font>' +
       '<font><b/><sz val="11"/><name val="Calibri"/></font>' +
       '<font><b/><sz val="11"/><color rgb="FF991B1B"/><name val="Calibri"/></font>' +
       '<font><b/><sz val="11"/><color rgb="FF166534"/><name val="Calibri"/></font>' +
+      TONES.map(function(t) { return '<font><sz val="11"/><color rgb="FF' + t[2] + '"/><name val="Calibri"/></font>'; }).join('') +
       '</fonts>' +
-      '<fills count="7">' +
+      '<fills count="' + (7 + TONES.length) + '">' +
       '<fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>' +
       fill('1E2D4A') + fill('3A5A8C') + fill('FEE2E2') + fill('DCFCE7') + fill('FEF3C7') +
+      TONES.map(function(t) { return fill(t[1]); }).join('') +
       '</fills>' +
       '<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>' +
       '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>' +
-      '<cellXfs count="10">' +
+      '<cellXfs count="' + (10 + TONES.length) + '">' +
       '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top"/></xf>' +
       '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf>' +
       '<xf numFmtId="0" fontId="1" fillId="3" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment vertical="center" wrapText="1"/></xf>' +
@@ -178,8 +226,16 @@
       '<xf numFmtId="0" fontId="4" fillId="4" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>' +
       '<xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment vertical="top"/></xf>' +
       '<xf numFmtId="0" fontId="3" fillId="6" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>' +
+      TONES.map(function(_t, i) {
+        return '<xf numFmtId="0" fontId="' + (6 + i) + '" fillId="' + (7 + i) + '" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>';
+      }).join('') +
       '</cellXfs>' +
       '<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>' +
+      '<dxfs count="' + TONES.length + '">' +
+      TONES.map(function(t) {
+        return '<dxf><font><color rgb="FF' + t[2] + '"/></font><fill><patternFill patternType="solid"><fgColor rgb="FF' + t[1] + '"/><bgColor rgb="FF' + t[1] + '"/></patternFill></fill></dxf>';
+      }).join('') +
+      '</dxfs>' +
       '</styleSheet>';
   }
 

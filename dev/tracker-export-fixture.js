@@ -47,8 +47,8 @@
       { id: 'sp3', first_name: 'Senior', surname: 'Foxtrot', year_group: 'S5', candidate_number: '011111111' }
     ],
     enrolments: [
-      { id: 'e1', pupil_id: 'sp1', course_id: 'c1', class_id: 'cl1', teacher_id: 't1', current_level: 'Higher', latest_working_grade: 'B', target_grade: 'A', risk_status: 'On track' },
-      { id: 'e2', pupil_id: 'sp2', course_id: 'c2', class_id: 'cl2', teacher_id: 't1', current_level: 'N5', latest_working_grade: 'D', target_grade: 'B', risk_status: 'At risk' },
+      { id: 'e1', pupil_id: 'sp1', course_id: 'c1', class_id: 'cl1', teacher_id: 't1', current_level: 'Higher', latest_working_grade: 'B', target_grade: 'A', risk_status: 'Green' },
+      { id: 'e2', pupil_id: 'sp2', course_id: 'c2', class_id: 'cl2', teacher_id: 't1', current_level: 'N5', latest_working_grade: 'D', target_grade: 'B', risk_status: 'Red' },
       { id: 'e3', pupil_id: 'sp3', course_id: 'c2', class_id: 'cl2', teacher_id: 't1', current_level: 'N5', active_status: false }
     ],
     school_tracking_points: [{ id: 'tp-a', tracking_point_name: 'Tracking Point 1', display_order: 1 }],
