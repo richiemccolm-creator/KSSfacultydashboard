@@ -1,0 +1,15 @@
+import {spawnSync} from 'node:child_process';
+import {existsSync,readFileSync,mkdirSync,cpSync,rmSync,writeFileSync} from 'node:fs';
+import {fileURLToPath} from 'node:url';
+import {dirname,resolve,join} from 'node:path';
+const app=resolve(dirname(fileURLToPath(import.meta.url)),'..');
+const hub=resolve(app,'../..');
+if(!existsSync(join(hub,'classroom_toolkit.html')))throw new Error('Place this source at Faculty Hub/apps/stagefeed before building for the toolkit.');
+const build=spawnSync('npm',['run','build'],{cwd:app,stdio:'inherit'});
+if(build.status!==0)process.exit(build.status||1);
+const target=join(hub,'toolkit','stagefeed');
+if(existsSync(target)&&!existsSync(join(target,'.stagefeed-generated.json')))throw new Error('Refusing to replace an unrecognised StageFeed directory.');
+if(existsSync(target))rmSync(target,{recursive:true});
+mkdirSync(target,{recursive:true});cpSync(join(app,'dist'),target,{recursive:true});
+writeFileSync(join(target,'.stagefeed-generated.json'),JSON.stringify({source:'apps/stagefeed',command:'npm run build:toolkit',format:1},null,2)+'\n');
+console.log('StageFeed built into toolkit/stagefeed.');
