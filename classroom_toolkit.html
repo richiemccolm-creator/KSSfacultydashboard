@@ -710,6 +710,8 @@ body.embedded .side-left,body.embedded .side-right{top:var(--header-h);height:ca
     // Local-first social simulation: own tab, shareable pupil URL, no Hub account required.
     {id:"stagefeed", name:"StageFeed", cat:"Drama", hue:"violet", icon:"stage", live:true, external:true,
       href:"toolkit/stagefeed/index.html", span:"4",
+      // "live": the QR and poster are drawn from the Hub's own address, so they follow the deployment
+      qr:"live", poster:"live", appIcon:"toolkit/stagefeed/icons/icon-512.png", tagline:"A private social media studio for theatre",
       desc:"Create fictional character accounts and theatre design portfolios. Posts, stories and messages stay on the device; export work for your teacher."},
     // Standalone public app: opens in its own tab so it can be shared outside the hub (link / QR)
     {id:"sound",      name:"Sound Designer",   cat:"Drama",  hue:"coral",   icon:"sound",      live:true,  external:true,
@@ -1022,12 +1024,56 @@ body.embedded .side-left,body.embedded .side-right{top:var(--header-h);height:ca
     return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.4"/><rect x="14" y="3" width="7" height="7" rx="1.4"/><rect x="3" y="14" width="7" height="7" rx="1.4"/><path d="M14 14h3v3h-3zM19 14h2M14 19h2M19 19h2v2"/></svg>';
   }
 
-  // Full-screen QR code so a class can scan a public app (Sound Designer etc.) from the board
+  // Full-screen QR code so a class can scan a public app (Sound Designer etc.) from the board.
+  // Tools with qr:"live" are hosted inside the Hub, so the code is drawn from the current address.
+  var QR_LIB="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js", qrLibLoading=null;
+  function loadQrLib(){
+    if(window.QRCode && window.QRCode.toDataURL) return Promise.resolve(window.QRCode);
+    if(!qrLibLoading) qrLibLoading=new Promise(function(res,rej){
+      var sc=document.createElement("script"); sc.src=QR_LIB; sc.async=true;
+      sc.onload=function(){ window.QRCode&&window.QRCode.toDataURL?res(window.QRCode):rej(new Error("QR library missing")); };
+      sc.onerror=function(){ qrLibLoading=null; rej(new Error("QR library failed")); };
+      document.head.appendChild(sc);
+    });
+    return qrLibLoading;
+  }
+  function toolUrl(t){ return new URL(t.href, document.baseURI).href; }
+  function liveQr(url, size){
+    return loadQrLib().then(function(lib){ return lib.toDataURL(url,{width:size||640,margin:1,errorCorrectionLevel:"M",color:{dark:"#111114",light:"#ffffff"}}); });
+  }
+  function escHtml(v){ return String(v).replace(/[&<>"']/g,function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+  // A4 poster in the same style as the standalone apps' posters, printed (or saved as PDF) from a new tab
+  function printLivePoster(t){
+    var win=window.open("","_blank");
+    if(!win){ toast("Allow pop-ups to print the poster"); return; }
+    var url=toolUrl(t), shortUrl=url.replace(/^https?:\/\//,"").replace(/\/index\.html$/,"/");
+    var icon=t.appIcon?new URL(t.appIcon, document.baseURI).href:"";
+    liveQr(url, 900).then(function(src){
+      win.document.write('<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><title>'+escHtml(t.name)+' poster</title>'
+        + '<style>@page{size:A4;margin:0}*{box-sizing:border-box}html,body{margin:0;-webkit-print-color-adjust:exact;print-color-adjust:exact}'
+        + 'body{width:210mm;height:297mm;margin:0 auto;background:radial-gradient(120% 70% at 20% 0%,#2a2238 0%,#141318 55%,#0e0e11 100%);color:#eeeef1;font-family:-apple-system,"Helvetica Neue",Arial,sans-serif;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:18mm}'
+        + '.icon{width:34mm;height:34mm;border-radius:8mm;box-shadow:0 6mm 14mm rgba(0,0,0,.45)}'
+        + 'h1{margin:9mm 0 2mm;font-size:21mm;line-height:1;font-weight:800;letter-spacing:-.04em}'
+        + '.sub{margin:0;font-size:5.6mm;color:#c8c4d4}'
+        + '.qr{margin:11mm 0 9mm;background:#fff;border-radius:7mm;padding:7mm}.qr img{display:block;width:118mm;height:118mm;image-rendering:pixelated}'
+        + '.scan{margin:0;font-size:8mm;font-weight:800;color:#b7a3f3}.url{margin:3mm 0 0;font-size:5mm;font-family:Menlo,monospace;color:#eeeef1;word-break:break-all}'
+        + '.tip{margin:10mm 0 0;font-size:3.8mm;color:#a1a1ae}.foot{margin-top:6mm;font-size:3.4mm;color:#77748a;letter-spacing:.04em}</style></head><body>'
+        + (icon?'<img class="icon" src="'+escHtml(icon)+'" alt="">':'')
+        + '<h1>'+escHtml(t.name)+'</h1><p class="sub">'+escHtml(t.tagline||"")+'</p>'
+        + '<div class="qr"><img src="'+src+'" alt="QR code for '+escHtml(t.name)+'"></div>'
+        + '<p class="scan">Scan with your iPad camera</p><p class="url">'+escHtml(shortUrl)+'</p>'
+        + '<p class="tip">Tip: in Safari, Share › Add to Home Screen to install. Your work stays on your own device.</p>'
+        + '<p class="foot">The Drama Classroom</p>'
+        + '<script>window.onload=function(){setTimeout(function(){window.print()},250)}<\/script></body></html>');
+      win.document.close();
+    }).catch(function(){ win.close(); toast("Couldn't make the QR code. Check the internet connection."); });
+  }
   function openQr(t){
     if(!t || !t.qr) return;
     var old=document.getElementById("qrOverlay");
     if(old) old.remove();
-    var shortUrl=t.href.replace(/^https?:\/\//,"").replace(/\?.*$/,"").replace(/\/$/,"").replace(/%20/g," ");
+    var live=t.qr==="live", url=live?toolUrl(t):t.href;
+    var shortUrl=url.replace(/^https?:\/\//,"").replace(/\?.*$/,"").replace(/\/index\.html$/,"").replace(/\/$/,"").replace(/%20/g," ");
     var el=document.createElement("div");
     el.id="qrOverlay";
     el.className="qr-overlay";
@@ -1036,23 +1082,28 @@ body.embedded .side-left,body.embedded .side-right{top:var(--header-h);height:ca
     el.setAttribute("aria-label","QR code for "+t.name);
     el.innerHTML='<button type="button" class="qr-close" data-qr-close aria-label="Close">&times;</button>'
       + '<h2>Scan to open '+t.name+'</h2>'
-      + '<img src="'+t.qr+'" alt="QR code for '+t.name+'">'
-      + '<p class="qr-url">'+shortUrl+'</p>'
+      + '<img src="'+(live?"data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==":t.qr)+'" alt="QR code for '+t.name+'" data-qr-img>'
+      + '<p class="qr-url">'+escHtml(shortUrl)+'</p>'
       + '<div class="qr-actions">'
       +   '<button type="button" data-qr-copy>Copy link</button>'
-      +   (t.poster?'<a href="'+t.poster+'" download>Download poster (A4)</a>':'')
-      +   '<a href="'+t.href+'" target="_blank" rel="noopener">Open app</a>'
+      +   (t.poster==="live"?'<button type="button" data-qr-poster>Print poster (A4)</button>':t.poster?'<a href="'+t.poster+'" download>Download poster (A4)</a>':'')
+      +   '<a href="'+url+'" target="_blank" rel="noopener">Open app</a>'
       + '</div>'
       + '<p class="qr-note">Anyone can use it from this link: no login needed, and work is saved on their own device.</p>';
     document.body.appendChild(el);
+    if(live){
+      liveQr(url, 640).then(function(src){ var img=el.querySelector("[data-qr-img]"); if(img) img.src=src; })
+        .catch(function(){ var img=el.querySelector("[data-qr-img]"); if(img) img.replaceWith(Object.assign(document.createElement("p"),{className:"qr-url",textContent:"QR code unavailable offline. Share the link below."})); });
+    }
     function close(){ el.remove(); document.removeEventListener("keydown", onKey); }
     function onKey(ev){ if(ev.key==="Escape") close(); }
     document.addEventListener("keydown", onKey);
     el.addEventListener("click", function(ev){
       if(ev.target===el || ev.target.closest("[data-qr-close]")){ close(); return; }
+      if(ev.target.closest("[data-qr-poster]")){ printLivePoster(t); return; }
       if(ev.target.closest("[data-qr-copy]")){
-        try{ navigator.clipboard.writeText(t.href).then(function(){ toast("Link copied"); }); }
-        catch(err){ toast(t.href); }
+        try{ navigator.clipboard.writeText(url).then(function(){ toast("Link copied"); }); }
+        catch(err){ toast(url); }
       }
     });
     el.querySelector("[data-qr-close]").focus();
