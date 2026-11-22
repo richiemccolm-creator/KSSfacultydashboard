@@ -124,11 +124,36 @@ button{font:inherit;color:inherit}
 .stg.wrong{opacity:.45}
 .stg.right{border-color:var(--ok);box-shadow:0 0 0 2px var(--ok)}
 
+/* wings: props table and costume rail */
+.mslot.target,.tagtray.target{background:rgba(233,184,100,.18)!important;border-color:var(--gold)!important;border-style:solid!important}
+.ptable{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;padding:8px;border-radius:10px;background:linear-gradient(#4a3423,#3a2818);border:2px solid #261a10;user-select:none;-webkit-user-select:none}
+.outline{min-height:84px;border:2px dashed rgba(243,234,216,.7);border-radius:6px;padding:4px 3px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer}
+.olabel,.tlabel{display:block;text-align:center;font-size:10.5px;line-height:1.15;font-weight:700;color:#f3ead8;letter-spacing:.02em}
+.ptrays{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;user-select:none;-webkit-user-select:none}
+.tray{min-height:84px;border:1px solid var(--line);border-radius:10px;background:#17131a;padding:5px 6px 6px;display:flex;flex-direction:column;align-items:center;gap:4px;cursor:pointer}
+.tray .tlabel{color:var(--muted);font-size:11px}
+.prop{flex-direction:column;gap:2px;padding:5px 4px;font-size:10.5px;line-height:1.1;text-align:center;max-width:100%}
+.prop svg{width:22px;height:22px}
+.rail{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:8px;padding-top:10px;border-top:4px solid #8d8a88;user-select:none;-webkit-user-select:none}
+.costume{display:flex;flex-direction:column;align-items:center;gap:6px;padding:6px;border-radius:10px;border:1px solid var(--line);background:#cfc8bb;cursor:pointer}
+.costume svg path,.costume svg rect,.costume svg ellipse{stroke:#2a201866;stroke-width:1}
+.costume svg{width:62px;height:112px}
+.costume .drop{width:100%;min-height:36px;border:1.5px dashed #6b5a48;border-radius:6px;display:flex;align-items:center;justify-content:center}
+.tagtray{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;min-height:48px;margin-top:10px;padding:8px;border:1px dashed var(--line);border-radius:10px;user-select:none;-webkit-user-select:none}
+.piece.tag{border-left:6px solid var(--red);font-size:12px}
+.docnote table{border-collapse:collapse;font-family:var(--sans);font-size:13px;margin-top:4px}
+.docnote td,.docnote th{padding:2px 8px 2px 0;border-bottom:1px dotted #c9b89a;text-align:left}
+@media (max-width:640px){.outline{min-height:70px}.olabel{font-size:9.5px}.prop{font-size:9.5px}}
+
 /* keypad */
 .keypad{display:grid;grid-template-columns:repeat(3,64px);gap:8px;justify-content:center;margin-top:10px}
 .keypad button{height:56px;border-radius:12px;border:1px solid #3a3a3a;background:linear-gradient(#2b2b2e,#1a1a1c);font-size:22px;font-weight:600;cursor:pointer}
 .keypad button:active{transform:translateY(1px)}
-.kdisplay{margin:0 auto;width:220px;height:62px;border-radius:10px;background:#0a1a0e;border:1px solid #1f4a2a;color:#7dff9c;font-family:ui-monospace,Menlo,monospace;font-size:36px;letter-spacing:.4em;display:grid;place-items:center;text-shadow:0 0 10px #3dff7a88}
+.kdisplay{margin:0 auto;width:250px;height:62px;border-radius:10px;background:#0a1a0e;border:1px solid #1f4a2a;color:#7dff9c;font-family:ui-monospace,Menlo,monospace;font-size:32px;letter-spacing:.3em;display:grid;place-items:center;text-shadow:0 0 10px #3dff7a88}
+
+/* narrower screens: the five digit boxes get their own row under the top bar */
+@media (max-width:1080px){.hud{flex-wrap:wrap;row-gap:8px}.slots{order:5;flex-basis:100%;justify-content:center}.toast{top:132px}}
+@media (min-width:821px) and (max-width:1080px){.sheet.side{top:128px}}
 
 /* overlays */
 .overlay{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:24px;background:radial-gradient(ellipse at 50% 40%,rgba(30,18,10,.55),rgba(3,2,4,.92))}
@@ -220,6 +245,8 @@ button{font:inherit;color:inherit}
   <div class="slots" aria-label="Exit code digits found">
     <div class="slot" id="slot-light"><small>Lights</small><b>·</b></div>
     <div class="slot" id="slot-set"><small>Set</small><b>·</b></div>
+    <div class="slot" id="slot-props"><small>Props</small><b>·</b></div>
+    <div class="slot" id="slot-costume"><small>Costume</small><b>·</b></div>
     <div class="slot" id="slot-staging"><small>Staging</small><b>·</b></div>
   </div>
   <button class="hbtn" id="voiceBtn" hidden aria-pressed="true">Voice on</button>
@@ -246,7 +273,7 @@ button{font:inherit;color:inherit}
     <div class="levels" role="radiogroup" aria-label="Choose a difficulty">
       <button class="level on" data-level="easy" role="radio" aria-checked="true"><b>Rehearsal</b><span>Easier · good for S1–S2</span><small>Step-by-step guide, labelled areas, word choices and free hints.</small></button>
       <button class="level" data-level="medium" role="radio" aria-checked="false"><b>Dress rehearsal</b><span>Medium · S2–S3</span><small>A guide to the next step, but you need to know the stage areas and terms.</small></button>
-      <button class="level" data-level="hard" role="radio" aria-checked="false"><b>Opening night</b><span>Hard · S4 and up</span><small>No guide, a 15 minute clock, a patch sheet to read, an extra set piece. Hints cost time.</small></button>
+      <button class="level" data-level="hard" role="radio" aria-checked="false"><b>Opening night</b><span>Hard · S4 and up</span><small>No guide, a 20 minute clock, a patch sheet to read, an extra set piece and a quick change. Hints cost time.</small></button>
     </div>
     <button class="btn" id="startBtn">Enter the theatre</button>
     <p class="small" style="margin-top:16px">Drag to look around and tap things to inspect them. The code changes every game, so groups can't share answers.</p>
@@ -301,7 +328,7 @@ button{font:inherit;color:inherit}
     <p class="small" id="winLevel"></p>
     <div class="stats"><div><b id="winTime">0:00</b><small>Time</small></div><div><b id="winHints">0</b><small>Hints</small></div></div>
     <p>The theatre words you used to get out:</p>
-    <div class="vocab"><span>Wings</span><span>Prompt corner</span><span>Down stage left</span><span>Isolate</span><span>Gel</span><span>Cyclorama</span><span>Ground plan</span><span>Up stage right</span><span>Flat</span><span>Proscenium arch</span><span>Ghost light</span></div>
+    <div class="vocab"><span>Wings</span><span>Prompt corner</span><span>Down stage left</span><span>Isolate</span><span>Gel</span><span>Cyclorama</span><span>Ground plan</span><span>Up stage right</span><span>Flat</span><span>Proscenium arch</span><span>Props table</span><span>Hand prop</span><span>Personal prop</span><span>Preset</span><span>Costume plot</span><span>Ghost light</span></div>
     <button class="btn" onclick="location.reload()">Play again</button>
   </div>
 </div>
@@ -314,13 +341,13 @@ const pick = () => 1 + Math.floor(Math.random() * 9);
 const LEVELS = {
   easy:   { name:'Rehearsal', markers:'next', guide:true,  faders:'full',   planLabels:true,  posterNames:true,  wordBank:true,  hintCost:0,  clock:0,      rostrum:false },
   medium: { name:'Dress rehearsal', markers:'all', guide:true, faders:'abbr', planLabels:false, posterNames:false, wordBank:false, hintCost:0,  clock:0,      rostrum:false },
-  hard:   { name:'Opening night', markers:'none', guide:false, faders:'number', planLabels:false, posterNames:false, wordBank:false, hintCost:60, clock:15*60, rostrum:true },
+  hard:   { name:'Opening night', markers:'none', guide:false, faders:'number', planLabels:false, posterNames:false, wordBank:false, hintCost:60, clock:20*60, rostrum:true },
 };
 let L = LEVELS.easy;
 const state = {
   started:false, t0:0, hints:0, done:false, level:'easy', penalty:0, failed:false, paused:0,
-  code:{ light:pick(), set:pick(), staging:pick() },
-  found:{ light:false, set:false, staging:false },
+  code:{ light:pick(), set:pick(), props:pick(), costume:pick(), staging:pick() },
+  found:{ light:false, set:false, props:false, costume:false, staging:false },
   deskUnlocked:false, readBook:false, view:'home', sheet:null, visited:new Set(),
   levels:{ wash:0, DSR:0, DSC:0, DSL:0, USR:0, USL:0, cyc:0 }, gel:'open',
   plan:{ table:'DSR', chair:'USL', trunk:'DSC', door:'CSR' }, wrongSideWarned:false,
@@ -560,14 +587,102 @@ const doorway = new THREE.Mesh(new THREE.PlaneGeometry(1.6,2.8),new THREE.MeshBa
   hotspot('door','Exit door',g,()=>({pos:new THREE.Vector3(-4.4,3.6,8.6),look:new THREE.Vector3(-9.9,1.9,8.6)}),openDoor); }
 const escapeLight = new THREE.PointLight(0xfff2d8,0,0,2); escapeLight.position.set(-9.3,2.2,8.6); scene.add(escapeLight);
 
+/* ---------- The wings: props table (stage right) and costume rail (stage left) ---------- */
+// Both are built facing the viewer: local x runs left to right on screen, local +z points back towards the stage.
+const shuffle=a=>[...a].sort(()=>Math.random()-.5);
+function derange(ids,target,slots){ let loc; do{ const sl=shuffle(slots); loc={}; ids.forEach((id,i)=>loc[id]=sl[i]); } while(ids.some(id=>loc[id]===target[id])); return loc; }
+const PROPS={
+  candle:{name:'Candlestick',who:'Mrs Hale',sc:2,type:'hand',svg:'<svg viewBox="0 0 24 24"><rect x="7" y="19" width="10" height="3" rx="1" fill="#c69a4a"/><rect x="11" y="9" width="2" height="10" fill="#c69a4a"/><rect x="10" y="4" width="4" height="6" fill="#f3ead8"/><circle cx="12" cy="3" r="1.6" fill="#ffb347"/></svg>'},
+  tray:{name:'Tea tray',who:'Mrs Hale',sc:1,type:'hand',svg:'<svg viewBox="0 0 24 24"><rect x="2" y="15" width="20" height="3" rx="1" fill="#b8b8c0"/><rect x="5" y="10" width="5" height="5" rx="1" fill="#f3ead8"/><rect x="13" y="10" width="5" height="5" rx="1" fill="#f3ead8"/></svg>'},
+  suitcase:{name:'Suitcase',who:'Arthur',sc:2,type:'hand',svg:'<svg viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="12" rx="2" fill="#7a4a2a"/><rect x="9" y="5" width="6" height="3" fill="none" stroke="#3a2414" stroke-width="1.6"/><rect x="3" y="12" width="18" height="1.5" fill="#3a2414"/></svg>'},
+  umbrella:{name:'Umbrella',who:'The Inspector',sc:1,type:'hand',svg:'<svg viewBox="0 0 24 24"><path d="M12 3 L16 17 H8 Z" fill="#1c1a1e" stroke="#555" stroke-width=".8"/><rect x="11.3" y="17" width="1.4" height="4" fill="#555"/><path d="M12.7 21 q0 2 -2 2" stroke="#7a4a2a" stroke-width="1.6" fill="none"/></svg>'},
+  letters:{name:'Bundle of letters',who:'Ruth',sc:1,type:'hand',svg:'<svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="11" fill="#efe4cc" stroke="#b9ab9b"/><rect x="3" y="10" width="18" height="2" fill="#c8343f"/><rect x="11" y="7" width="2" height="11" fill="#c8343f"/></svg>'},
+  watch:{name:'Pocket watch',who:'Arthur',sc:2,type:'personal',svg:'<svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="7" fill="#c69a4a"/><circle cx="12" cy="13" r="5" fill="#f3ead8"/><path d="M12 13V9.5M12 13h2.5" stroke="#2a2018" stroke-width="1.2"/><rect x="11" y="3" width="2" height="3" fill="#c69a4a"/></svg>'},
+  vase:{name:'Vase of flowers',who:'',sc:1,type:'preset',svg:'<svg viewBox="0 0 24 24"><path d="M9 12h6l-1 10h-4z" fill="#4f6fb0"/><circle cx="9" cy="8" r="3" fill="#e0607a"/><circle cx="15" cy="8" r="3" fill="#f2c14e"/><circle cx="12" cy="5" r="3" fill="#e0607a"/></svg>'},
+};
+const HAND=['candle','tray','suitcase','umbrella','letters'];
+const PROP_TARGET={ ...Object.fromEntries(HAND.map(id=>[id,'o-'+id])), watch:'wardrobe', vase:'stage' };
+const OUTLINES=shuffle(HAND);                       // order of the taped outlines along the table
+state.props=derange(Object.keys(PROPS),PROP_TARGET,[...OUTLINES.map(id=>'o-'+id),'wardrobe','stage']);
+
+const propsWing=new THREE.Group(); propsWing.position.set(-7.0,1,0); propsWing.rotation.y=Math.PI/2;
+const flatMatBlack=M(0x121014,{roughness:.95});
+box(3.2,3.6,.06,flatMatBlack,0,1.8,-.62,propsWing);                                         // black flat behind the table
+box(2.6,.06,.8,wood,0,.82,0,propsWing); for(const x of [-1.22,1.22]) for(const z of [-.32,.32]) box(.06,.8,.06,woodDark,x,.4,z,propsWing);
+const tableTop=new THREE.Mesh(new THREE.PlaneGeometry(2.56,.76),new THREE.MeshStandardMaterial({color:0xffffff,roughness:.85})); tableTop.rotation.x=-Math.PI/2; tableTop.position.set(0,.853,0); tableTop.receiveShadow=true; propsWing.add(tableTop);
+const listTex=canvasTex(200,280,(g,w,h)=>{ g.fillStyle='#efe4cc'; g.fillRect(0,0,w,h); g.fillStyle='#7a1a1a'; g.font='bold 22px Georgia'; g.fillText('PROPS LIST',18,34); g.fillStyle='#6b5a48'; for(let i=0;i<9;i++) g.fillRect(18,58+i*22,60+Math.random()*100,3); });
+{ const m=new THREE.Mesh(new THREE.PlaneGeometry(.3,.42),new THREE.MeshStandardMaterial({map:listTex,roughness:.9})); m.position.set(-.8,1.4,-.585); propsWing.add(m); }
+const basket=cyl(.22,.17,.3,M(0x8a6a3a,{roughness:1}),-.75,.15,.8,propsWing,20);
+const propsChalk=new THREE.Mesh(new THREE.PlaneGeometry(.45,.45),new THREE.MeshBasicMaterial({map:digitTex(state.code.props,'#fbfbf4','#ffffff','bold 380px "Comic Sans MS",cursive'),transparent:true,depthWrite:false}));
+propsChalk.position.set(.8,1.32,-.585); propsChalk.visible=false; propsWing.add(propsChalk);
+{ const wl=new THREE.PointLight(0xdfe6ff,9,0,2); wl.position.set(.2,2.7,.9); propsWing.add(wl);
+  const lamp=new THREE.Mesh(new THREE.SphereGeometry(.06,12,8),new THREE.MeshStandardMaterial({color:0xdfe6ff,emissive:0xb8c8ff,emissiveIntensity:3})); lamp.position.copy(wl.position); propsWing.add(lamp); }
+propsWing.traverse(o=>{ if(o.isMesh){ o.castShadow=o.receiveShadow=true; } });
+hotspot('props','Props table',propsWing,()=>wide()? {pos:new THREE.Vector3(-4.2,3.0,0.2),look:new THREE.Vector3(-7.0,1.75,-0.8)} : {pos:new THREE.Vector3(-4.1,3.6,0.1),look:new THREE.Vector3(-7.0,0.9,0)},openProps);
+
+// the props themselves; they glide to wherever they're placed
+const brassM=M(0xc69a4a,{metalness:.8,roughness:.35}), creamM=M(0xf3ead8);
+const propMesh={};
+function propGroup(id,build){ const g=new THREE.Group(); build(g); g.traverse(o=>{ if(o.isMesh) o.castShadow=true; }); g.rotation.y=Math.PI/2; scene.add(g); propMesh[id]=g; }
+propGroup('candle',g=>{ cyl(.07,.08,.03,brassM,0,.015,0,g); cyl(.018,.018,.22,brassM,0,.14,0,g); cyl(.025,.025,.12,creamM,0,.31,0,g); const f=new THREE.Mesh(new THREE.SphereGeometry(.018,8,6),new THREE.MeshStandardMaterial({color:0xffc070,emissive:0xff9a30,emissiveIntensity:3})); f.position.y=.38; g.add(f); });
+propGroup('tray',g=>{ box(.4,.02,.28,M(0xb8b8c0,{metalness:.7,roughness:.3}),0,.01,0,g); cyl(.04,.035,.06,creamM,-.09,.05,0,g); cyl(.04,.035,.06,creamM,.09,.05,0,g); });
+propGroup('suitcase',g=>{ box(.34,.12,.24,M(0x7a4a2a,{roughness:.6}),0,.06,0,g); box(.12,.02,.03,M(0x3a2414),0,.13,.1,g); });
+propGroup('umbrella',g=>{ const u=cyl(.035,.012,.42,M(0x1c1a1e),0,.04,0,g,12); u.rotation.z=Math.PI/2; const h=cyl(.012,.012,.08,M(0x7a4a2a),-.25,.04,0,g); h.rotation.z=Math.PI/2; });
+propGroup('letters',g=>{ box(.22,.06,.15,M(0xefe4cc),0,.03,0,g); box(.23,.065,.025,M(0xc8343f),0,.03,0,g); box(.025,.065,.16,M(0xc8343f),0,.03,0,g); });
+propGroup('watch',g=>{ cyl(.065,.065,.02,brassM,0,.01,0,g,20); cyl(.05,.05,.022,creamM,0,.012,0,g,20); });
+propGroup('vase',g=>{ cyl(.05,.065,.2,M(0x4f6fb0,{roughness:.4}),0,.1,0,g,16); for(const [x,z,c] of [[-.04,0,0xe0607a],[.04,.02,0xf2c14e],[0,-.03,0xe0607a]]){ const f=new THREE.Mesh(new THREE.SphereGeometry(.045,10,8),M(c)); f.position.set(x,.25,z); g.add(f); } });
+const _v=new THREE.Vector3();
+function propTarget(id){ const at=state.props[id];
+  if(at==='stage'){ const t=pieces.table.position; return _v.set(t.x+.45,t.y+.86,t.z-.15); }
+  if(at==='wardrobe') return propsWing.localToWorld(_v.set(-.75+(id==='watch'?0:.06),.31,.8));
+  return propsWing.localToWorld(_v.set(-1.0+.5*OUTLINES.indexOf(at.slice(2)),.86,.03)); }
+propsWing.updateMatrixWorld(true);
+for(const id in PROPS){ propMesh[id].position.copy(propTarget(id)); }
+
+const COSTUMES={
+  ruth:{who:'Ruth',desc:'grey coat and a red scarf'},
+  arthur:{who:'Arthur',desc:'tweed waistcoat and a flat cap'},
+  hale:{who:'Mrs Hale',desc:'black dress and a white apron'},
+  inspector:{who:'The Inspector',desc:'long black overcoat and a bowler hat'},
+  tom:{who:'Tom, the postboy',desc:'blue jacket with brass buttons and a peaked cap'},
+  ruth2:{who:'Ruth',desc:'white nightdress',quick:true},
+};
+const costumeWing=new THREE.Group(); costumeWing.position.set(7.0,1,0); costumeWing.rotation.y=-Math.PI/2;
+box(3.4,3.6,.06,flatMatBlack,0,1.8,-.6,costumeWing);
+const railM=M(0x9a9a9e,{metalness:.8,roughness:.3});
+{ const r=cyl(.018,.018,3.0,railM,0,1.95,0,costumeWing); r.rotation.z=Math.PI/2; for(const x of [-1.5,1.5]){ cyl(.02,.02,1.95,railM,x,.975,0,costumeWing); box(.04,.03,.5,railM,x,.02,0,costumeWing); }
+  box(3.0,.03,.3,woodDark,0,2.18,-.05,costumeWing); }
+const plotTex=canvasTex(160,220,(g,w,h)=>{ g.fillStyle='#f3f0e6'; g.fillRect(0,0,w,h); g.fillStyle='#3b2f25'; g.fillRect(55,0,50,14); g.fillStyle='#7a1a1a'; g.font='bold 17px Georgia'; g.fillText('COSTUME PLOT',12,38); g.fillStyle='#6b5a48'; for(let i=0;i<8;i++) g.fillRect(12,56+i*19,50+Math.random()*80,3); });
+{ const m=new THREE.Mesh(new THREE.PlaneGeometry(.26,.36),new THREE.MeshStandardMaterial({map:plotTex,roughness:.9})); m.position.set(1.5,1.35,.04); costumeWing.add(m); }
+const laundryTex=canvasTex(256,320,(g,w,h)=>{ g.fillStyle='#f3ead8'; g.fillRect(0,0,w,h); g.strokeStyle='#c8343f'; g.lineWidth=8; g.setLineDash([16,10]); g.strokeRect(14,14,w-28,h-28); g.setLineDash([]); g.fillStyle='#c8343f'; g.font='bold 210px Georgia'; g.textAlign='center'; g.textBaseline='middle'; g.fillText(String(state.code.costume),w/2,h/2+14); });
+const laundry=new THREE.Mesh(new THREE.PlaneGeometry(.2,.25),new THREE.MeshBasicMaterial({map:laundryTex})); laundry.position.set(1.3,1.62,.05); laundry.visible=false; costumeWing.add(laundry);
+{ const wl=new THREE.PointLight(0xe6eaff,9,0,2); wl.position.set(-.2,2.75,.9); costumeWing.add(wl);
+  const lamp=new THREE.Mesh(new THREE.SphereGeometry(.06,12,8),new THREE.MeshStandardMaterial({color:0xdfe6ff,emissive:0xb8c8ff,emissiveIntensity:3})); lamp.position.copy(wl.position); costumeWing.add(lamp); }
+hotspot('costume','Costume rail',costumeWing,()=>wide()? {pos:new THREE.Vector3(3.0,3.1,0.2),look:new THREE.Vector3(7.0,2.4,0.9)} : {pos:new THREE.Vector3(2.4,3.6,0.1),look:new THREE.Vector3(7.0,1.7,0)},openCostume);
+const costumeMesh={}, costumeTag={};
+function buildCostume(id){ const g=new THREE.Group(); const C=(c)=>M(c,{roughness:.95});
+  box(.34,.015,.015,railM,0,1.87,0,g); cyl(.006,.006,.08,railM,0,1.91,0,g);
+  if(id==='ruth'){ box(.36,1.0,.1,C(0x8b8d92),0,1.36,0,g); box(.08,.55,.02,C(0xc8343f),.05,1.56,.06,g); }
+  if(id==='arthur'){ box(.34,.5,.1,C(0x7a5a3a),0,1.61,0,g); const cap=cyl(.1,.11,.05,C(0x4a3b2a),0,2.22,0,g); cap.scale.z=.9; box(.12,.012,.08,C(0x4a3b2a),0,2.2,.1,g); }
+  if(id==='hale'){ const d=cyl(.12,.22,1.0,C(0x1c1a1e),0,1.36,0,g); d.scale.z=.35; box(.22,.5,.02,C(0xf3ead8),0,1.2,.085,g); }
+  if(id==='inspector'){ box(.38,1.15,.12,C(0x1a1a1c),0,1.29,0,g); const dome=new THREE.Mesh(new THREE.SphereGeometry(.09,16,10,0,Math.PI*2,0,Math.PI/2),C(0x111111)); dome.position.y=2.2; g.add(dome); cyl(.14,.14,.012,C(0x111111),0,2.2,0,g,20); }
+  if(id==='tom'){ box(.36,.55,.1,C(0x2f4f9a),0,1.59,0,g); for(const y of [1.75,1.6,1.45]){ const b=new THREE.Mesh(new THREE.SphereGeometry(.018,8,6),brassM); b.position.set(0,y,.06); g.add(b); } cyl(.09,.09,.07,C(0x2f4f9a),0,2.24,0,g); box(.13,.012,.09,C(0x111111),0,2.21,.1,g); }
+  if(id==='ruth2'){ const d=cyl(.11,.2,1.15,C(0xeeeae0),0,1.29,0,g); d.scale.z=.35; }
+  const tag=new THREE.Mesh(new THREE.PlaneGeometry(.07,.1),new THREE.MeshBasicMaterial({color:0xf3ead8})); tag.position.set(.14,1.8,.08); tag.visible=false; g.add(tag); costumeTag[id]=tag;
+  g.traverse(o=>{ if(o.isMesh) o.castShadow=o.receiveShadow=true; }); costumeWing.add(g); costumeMesh[id]=g; }
+let RAIL=[];   // costume order on the rail, set per level
+function placeCostumes(){ const n=RAIL.length; for(const id in costumeMesh) costumeMesh[id].visible=false;
+  RAIL.forEach((id,i)=>{ if(!costumeMesh[id]) buildCostume(id); costumeMesh[id].visible=true; costumeMesh[id].position.set((i-(n-1)/2)*.46,0,0); }); }
+RAIL=Object.keys(COSTUMES).filter(id=>!COSTUMES[id].quick); placeCostumes();
+
 // invisible, generous hit boxes so props are easy to tap
 const hitMat=new THREE.MeshBasicMaterial({visible:false});
-const HIT={desk:[3.4,1.6,1.8,0,1.4,0], book:[1.8,2.6,1.4,0,1.0,0], plan:[2.0,3.0,1.4,0,1.4,0], poster:[2.8,3.6,.6,0,0,0], door:[2.6,4.4,1.0,0,2.0,0]};
+const HIT={desk:[3.4,1.6,1.8,0,1.4,0], book:[1.8,2.6,1.4,0,1.0,0], plan:[2.0,3.0,1.4,0,1.4,0], poster:[2.8,3.6,.6,0,0,0], door:[2.6,4.4,1.0,0,2.0,0], props:[2.8,3.2,2.4,0,1.6,.8], costume:[2.8,3.2,2.4,0,1.6,.8]};
 for(const h of hotspots){ const [w,hh,d,x,y,z]=HIT[h.id]; const m=new THREE.Mesh(new THREE.BoxGeometry(w,hh,d),hitMat); m.position.set(x,y,z); h.group.add(m); }
 // hotspot markers
 const markTex = canvasTex(128,128,(g,w,h)=>{ const gr=g.createRadialGradient(64,64,0,64,64,64); gr.addColorStop(0,'rgba(255,230,170,1)'); gr.addColorStop(.25,'rgba(233,184,100,.8)'); gr.addColorStop(1,'rgba(233,184,100,0)'); g.fillStyle=gr; g.fillRect(0,0,w,h); });
 const markers={};
-const MARK_POS = { desk:[-2.0,2.2,10.35], book:[4.95,2.7,3.95], plan:[7.2,2.55,6.0], poster:[9.6,5.1,8.8], door:[-9.6,4.0,8.6] };
+const MARK_POS = { desk:[-2.0,2.2,10.35], book:[4.95,2.7,3.95], plan:[7.2,2.55,6.0], props:[-6.4,2.6,0], costume:[6.4,3.0,0], poster:[9.6,5.1,8.8], door:[-9.6,4.0,8.6] };
 for(const [id,p] of Object.entries(MARK_POS)){ const s=new THREE.Sprite(new THREE.SpriteMaterial({map:markTex,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true,fog:false,sizeAttenuation:false,depthTest:false})); s.renderOrder=5; s.position.set(...p); s.scale.set(.06,.06,.06); s.userData.hotspot=id; scene.add(s); markers[id]=s; }
 
 /* ---------- Camera ---------- */
@@ -659,10 +774,16 @@ const SCENES={
     ['THE PROMPTER','Lovely. Lonely and cold, just right for the letter scene. Remember that number. Now look at the stage: the set is still in its Act One positions, and the crew have all gone home.'] ]},
   set:{ title:'Scene Three · The set change', lines:[
     ['sd','The furniture slides into place. Chalked on the door flat, in the Prompter’s neat hand, is another number.'],
-    ['THE PROMPTER','Now that’s a stage I can work with. One last question, and every technician should know the answer: what kind of stage is this? There’s a poster on the wall that might help.'] ]},
-  staging:{ title:'Scene Four · Front of house', lines:[
+    ['THE PROMPTER','Now that’s a stage I can work with. But a show is more than its set. Go into the wings, stage right, behind the black legs. The props table is in a terrible state.'] ]},
+  props:{ title:'Scene Four · The props table', lines:[
+    ['sd','Every prop sits in its own taped outline. On the black flat behind the table, someone has chalked a number.'],
+    ['THE PROMPTER','Now no actor will walk on empty-handed. Cross to the other side, stage left. The labels have come off every costume on the rail.'] ]},
+  costume:{ title:'Scene Five · Wardrobe', lines:[
+    ['sd','The last label goes on. A laundry tag swings from the end of the rail, with a number stitched on it.'],
+    ['THE PROMPTER','Every actor will be dressed. One last question, and every technician should know the answer: what kind of stage is this? There’s a poster on the wall that might help.'] ]},
+  staging:{ title:'Scene Six · Front of house', lines:[
     ['THE PROMPTER','A proscenium arch. The audience look through a frame, like looking at a picture. You know your theatre.'],
-    ['THE PROMPTER','Lights, set, staging. That’s your code. The exit is on the left wall.'],
+    ['THE PROMPTER','Lights, set, props, costume, staging. That’s your code. The exit is on the left wall.'],
     ['sd','Across the auditorium, the green EXIT sign buzzes brighter.'] ]},
   finale:{ title:'Finale', lines:[
     ['sd','The keypad turns green. The exit door swings open and light floods in from the foyer.'],
@@ -697,24 +818,26 @@ function playScene(key){ return new Promise(res=>{ const s=SCENES[key]; $('#scri
 async function playPending(){ while(pendingScenes.length && !state.sheet && !state.done){ await playScene(pendingScenes.shift()); } }
 
 /* ---------- Steps, objective and markers ---------- */
-const STEPS=['book','desk','plan','poster','door'];
-const stepDone=id=>({book:state.readBook,desk:state.found.light,plan:state.found.set,poster:state.found.staging,door:state.done})[id];
+const STEPS=['book','desk','plan','props','costume','poster','door'];
+const stepDone=id=>({book:state.readBook,desk:state.found.light,plan:state.found.set,props:state.found.props,costume:state.found.costume,poster:state.found.staging,door:state.done})[id];
 const currentStep=()=>STEPS.find(id=>!stepDone(id));
 const OBJECTIVES={
   easy:{ book:'Find the prompt book. It’s on the stage manager’s desk with the blue lamp, at the right-hand side of the stage.',
          desk:'Unlock the lighting desk in the seats (bottom left), then follow LX cue 12.',
          plan:'Drag to look right and open the ground plan on the easel at the front. Set the stage for Act Two.',
+         props:'Go into the stage right wing, behind the black curtains on the left-hand side of the stage. Put every prop where it belongs.',
+         costume:'Now the stage left wing, behind the curtains on the right-hand side of the stage. Label the costumes on the rail.',
          poster:'Find the poster on the right-hand wall. Drag to look right.',
-         door:'Go to the green EXIT on the left wall (drag to look left) and enter lights, set, staging.' },
-  medium:{ book:'Find the prompt book in the prompt corner.', desk:'Unlock the lighting desk and set LX cue 12.', plan:'Use the ground plan to set the stage for Act Two.', poster:'Work out what kind of stage this is.', door:'Enter the code at the exit: lights, set, staging.' },
+         door:'Go to the green EXIT on the left wall (drag to look left) and enter all five digits: lights, set, props, costume, staging.' },
+  medium:{ book:'Find the prompt book in the prompt corner.', desk:'Unlock the lighting desk and set LX cue 12.', plan:'Use the ground plan to set the stage for Act Two.', props:'Sort out the props table, in the stage right wing.', costume:'Label the costumes on the rail in the stage left wing.', poster:'Work out what kind of stage this is.', door:'Enter the code at the exit: lights, set, props, costume, staging.' },
 };
 function refreshGuide(){
   const cur=currentStep();
   for(const id of STEPS){ const m=markers[id]; if(!m) continue;
-    m.visible = L.markers==='all' ? !stepDone(id) : L.markers==='next' ? id===cur : false;
+    m.visible = (L.markers==='all' ? !stepDone(id) : L.markers==='next' ? id===cur : false) && state.view!==id;
     m.userData.dim = L.markers==='all' && L.guide && id!==cur; m.material.opacity = m.userData.dim ? .28 : 1; }
   const ob=$('#objective'); if(!L.guide || !state.started || state.done || !cur){ ob.hidden=true; return; }
-  $('#objStep').textContent=`Scene ${STEPS.indexOf(cur)+1} of 5`; $('#objText').textContent=OBJECTIVES[state.level][cur]; ob.hidden=!$('#scene-card').hidden;
+  $('#objStep').textContent=`Scene ${STEPS.indexOf(cur)+1} of ${STEPS.length}`; $('#objText').textContent=OBJECTIVES[state.level][cur]; ob.hidden=!$('#scene-card').hidden;
   const oid=`obj-${state.level}-${cur}`; $('#objSay').hidden=!voHas(oid); $('#objSay').onclick=()=>voPlay(oid);
   if(!ob.hidden && VO.lastObj!==oid && voHas(oid)){ VO.lastObj=oid; setTimeout(()=>{ if($('#scene-card').hidden && !state.done) voPlay(oid); },400); }
 }
@@ -730,10 +853,31 @@ function setupLevel(){
     : '<b>LX Cue 12</b> · Isolate the acting area nearest the audience, on the actor’s left. The moment must feel cold and lonely. Every other channel at zero.';
   NOTES.set = '<b>Act Two set</b> · '+SET_LINES().join(' ');
   if(L.faders==='number') NOTES.patch='<b>Patch sheet</b> · '+CHANNELS.map((c,i)=>`Ch ${i+1}: ${c.patch}`).join('. ')+'.';
+  NOTES.props=PROPS_LIST(); NOTES.costume=COSTUME_PLOT();
+  RAIL=shuffle(Object.keys(COSTUMES).filter(id=>L.rostrum || !COSTUMES[id].quick)); placeCostumes();
+  state.tags={}; for(const id of RAIL) state.tags[id]='tray';
+  tableTop.material.map=outlineTex(); tableTop.material.needsUpdate=true;
+}
+// how each taped outline on the props table is labelled at each level
+const PNUM=id=>'P'+(HAND.indexOf(id)+1);
+const outlineLabel=id=>state.level==='easy'? PROPS[id].name : state.level==='medium'? PNUM(id) : `${PROPS[id].who.replace('The ','')} · Sc ${PROPS[id].sc}`;
+const tagLabel=id=>state.level==='hard' && id.startsWith('ruth') ? `Ruth · Sc ${id==='ruth'?1:2}` : COSTUMES[id].who;
+function outlineTex(){ return canvasTex(1024,304,(g,w,h)=>{ g.fillStyle='#3e2a1a'; g.fillRect(0,0,w,h); for(let i=0;i<60;i++){ g.fillStyle=`rgba(0,0,0,${Math.random()*.12})`; g.fillRect(0,Math.random()*h,w,2+Math.random()*4); }
+  OUTLINES.forEach((id,i)=>{ const cx=w/2+(-1.0+.5*i)/2.56*w; g.strokeStyle='#f3ead8'; g.lineWidth=7; g.setLineDash([22,12]); g.strokeRect(cx-82,70,164,170); g.setLineDash([]);
+    g.fillStyle='#f3ead8'; const t=outlineLabel(id); g.font=`bold ${t.length>12?24:30}px Arial`; g.textAlign='center'; g.fillText(t,cx,276,196); }); }); }
+function PROPS_LIST(){
+  if(state.level==='easy') return '<b>Props list · Act Two</b><br><b>Hand props</b> (they live on this table and the actors collect them on the way on): candlestick, tea tray, suitcase, umbrella, bundle of letters.<br><b>Personal prop</b> (the actor keeps it in their costume, not on the table): pocket watch.<br><b>Preset</b> (put on stage before the curtain goes up): vase of flowers.';
+  if(state.level==='medium') return '<b>Props list · Act Two</b> · '+HAND.map(id=>`${PNUM(id)} ${PROPS[id].name}`).join('. ')+'. Pocket watch: personal prop. Vase of flowers: preset.';
+  return '<b>Props list · Act Two</b><table><tr><th>Prop</th><th>Who</th><th>Scene</th><th>Where</th></tr>'+Object.entries(PROPS).map(([id,p])=>`<tr><td>${p.name}</td><td>${p.who||'–'}</td><td>${p.sc}</td><td>${p.type==='hand'?'Props table SR':p.type==='personal'?'Personal prop':'Preset'}</td></tr>`).join('')+'</table>';
+}
+function COSTUME_PLOT(){
+  const rows=Object.entries(COSTUMES).filter(([id,c])=>!c.quick);
+  if(state.level==='hard') return '<b>Costume plot · Act Two</b><table><tr><th>Character</th><th>Costume</th></tr>'+rows.map(([id,c])=>`<tr><td>${id==='ruth'?'Ruth · Sc 1':c.who}</td><td>${c.desc[0].toUpperCase()+c.desc.slice(1)}</td></tr>`).join('')+'<tr><td>Ruth · Sc 2</td><td>Quick change in the wings: white nightdress</td></tr></table>';
+  return '<b>Costume plot · Act Two</b><br>'+rows.map(([id,c])=>`<b>${c.who}</b>: ${c.desc}.`).join('<br>');
 }
 const SET_LINES=()=>['Table centre stage.','Chair stage left of the table.','Trunk up stage right.','Door flat up stage centre.',...(L.rostrum?['Rostrum down stage right.']:[])];
 
-const NOTES={ exit:'<b>Exit</b> · Code order: LIGHTS · SET · STAGING.' };
+const NOTES={ exit:'<b>Exit</b> · Code order: LIGHTS · SET · PROPS · COSTUME · STAGING.' };
 const notesFound=new Set();
 
 /* ---------- Puzzles ---------- */
@@ -855,6 +999,86 @@ function openPlan(){
   row.append(chk,hb); b.append(row,fb,hf);
 }
 
+/* A drag-and-drop sorter shared by the props table and the costume rail.
+   Each slot holds one item; the tray (optional) holds any number. Dropping on a full slot swaps. */
+function sorter({loc,items,slots,trayEl,onMove}){
+  let selected=null;
+  const occupant=sid=>Object.keys(loc).find(k=>loc[k]===sid);
+  const move=(id,sid)=>{ const prev=loc[id]; if(sid!=='tray'){ const other=occupant(sid); if(other && other!==id) loc[other]=prev; } loc[id]=sid; selected=null; onMove(); draw(); };
+  const tapSlot=sid=>{ if(selected) move(selected,sid); };
+  for(const s of [...slots,...(trayEl?[{id:'tray',el:trayEl}]:[])]){ s.el.dataset.slot=s.id; s.el.tabIndex=0; s.el.onclick=()=>tapSlot(s.id); s.el.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); tapSlot(s.id); } }; }
+  function chip(id){ const p=el(`<div class="piece ${items[id].cls||''}${selected===id?' sel':''}" tabindex="0" data-item="${id}">${items[id].html}</div>`);
+    p.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); e.stopPropagation(); if(selected && selected!==id){ const s=selected; move(s,loc[id]); document.querySelector(`[data-item="${s}"]`)?.focus(); return; } selected=selected===id?null:id; draw(); document.querySelector(`[data-item="${id}"]`)?.focus(); } };
+    p.addEventListener('click',e=>e.stopPropagation());
+    p.addEventListener('pointerdown',e=>{ e.stopPropagation(); e.preventDefault(); const sx=e.clientX, sy=e.clientY; let ghost=null;
+      const over=ev=>document.elementFromPoint(ev.clientX,ev.clientY)?.closest('[data-slot]');
+      const mv=ev=>{ if(!ghost && Math.hypot(ev.clientX-sx,ev.clientY-sy)>6){ ghost=p.cloneNode(true); ghost.classList.add('dragging'); document.body.append(ghost); p.style.visibility='hidden'; }
+        if(ghost){ ghost.style.left=ev.clientX+'px'; ghost.style.top=ev.clientY+'px'; document.querySelectorAll('[data-slot].target').forEach(c=>c.classList.remove('target')); over(ev)?.classList.add('target'); } };
+      const up=ev=>{ removeEventListener('pointermove',mv); removeEventListener('pointerup',up); removeEventListener('pointercancel',up);
+        if(ghost){ ghost.remove(); document.querySelectorAll('[data-slot].target').forEach(c=>c.classList.remove('target')); const t=ev.type==='pointerup' && over(ev); if(t) move(id,t.dataset.slot); else draw(); }
+        else if(selected && selected!==id) move(selected,loc[id]);   // tapping another item swaps with it
+        else { selected=selected===id?null:id; draw(); } };
+      addEventListener('pointermove',mv); addEventListener('pointerup',up); addEventListener('pointercancel',up); });
+    return p; }
+  function draw(){ for(const s of slots){ const d=s.drop||s.el; d.querySelectorAll('.piece').forEach(n=>n.remove()); const it=occupant(s.id); if(it) d.append(chip(it)); }
+    if(trayEl){ trayEl.querySelectorAll('.piece').forEach(n=>n.remove()); for(const id of Object.keys(loc)) if(loc[id]==='tray') trayEl.append(chip(id)); } }
+  draw(); return { draw };
+}
+
+function openProps(){
+  const b=openSheet('side','Props table · stage right'); notesFound.add('props');
+  b.append(el(`<div class="note docnote">${NOTES.props}</div>`));
+  b.append(el(`<p class="lead" style="font-size:14px">Every prop has its own taped outline. Drag each prop to where it belongs, or tap a prop then tap a place.${state.level==='easy'?' Props that don’t live on this table go in the boxes underneath.':''}</p>`));
+  const tbl=el('<div class="ptable" aria-label="The props table"></div>'), trays=el('<div class="ptrays"></div>'), wrap=el('<div></div>'); wrap.append(tbl,trays);
+  const slots=OUTLINES.map(id=>{ const o=el(`<div class="outline mslot"><span class="olabel">${outlineLabel(id)}</span></div>`); tbl.append(o); return {id:'o-'+id,el:o}; });
+  const TL=state.level==='easy'? {wardrobe:'Personal prop: back to wardrobe',stage:'Preset: goes on stage'} : {wardrobe:'Wardrobe',stage:'On stage'};
+  for(const k of ['wardrobe','stage']){ const t=el(`<div class="tray mslot"><span class="tlabel">${TL[k]}</span></div>`); trays.append(t); slots.push({id:k,el:t}); }
+  b.append(wrap);
+  const items={}; for(const [id,p] of Object.entries(PROPS)) items[id]={html:`${p.svg}${p.name}`,cls:'prop'};
+  const fb=el('<div class="feedback"></div>');
+  sorter({loc:state.props,items,slots,onMove:()=>{ fb.textContent=''; }});
+  const row=el('<div class="row" style="margin-top:12px"></div>'), chk=el('<button class="btn">Check the props</button>');
+  const hints=[ state.level==='hard' ? 'Each outline is labelled with who uses the prop and in which scene. Find that row on the props list.' : state.level==='medium' ? 'The P numbers on the outlines match the numbers on the props list.' : 'Read the props list at the top. Each outline has a prop’s name on it.',
+    'A <b>personal prop</b> is carried by the actor in their costume, like a pocket watch. It goes back to wardrobe.',
+    'A <b>preset</b> is put on stage before the curtain goes up. The vase of flowers goes on stage.' ];
+  const [hb,hf]=hintButton(hints);
+  chk.onclick=()=>{ const ids=Object.keys(PROPS), right=ids.filter(id=>state.props[id]===PROP_TARGET[id]).length;
+    if(right===ids.length){ fb.className='feedback good'; fb.textContent='Every prop is in its place.'; if(!state.found.props){ propsChalk.visible=true; collect('props',`<b>Props checked!</b> Chalked on the black flat behind the table: <b>${state.code.props}</b>. Close the props table when you’re ready.`); } }
+    else { fb.className='feedback bad'; fb.textContent=`${right} of ${ids.length} props are in the right place.`; toast(`<b>${right} of ${ids.length}</b> props are in the right place. Keep going!`,3500); } };
+  row.append(chk,hb); b.append(row,fb,hf);
+}
+
+const COSTUME_SVG={
+  ruth:'<rect x="15" y="34" width="30" height="70" rx="4" fill="#8b8d92"/><rect x="31" y="34" width="7" height="40" fill="#c8343f"/>',
+  arthur:'<path d="M17 34h26v34l-13 6-13-6z" fill="#7a5a3a"/><path d="M30 34v38" stroke="#3a2414"/><ellipse cx="30" cy="10" rx="14" ry="5" fill="#4a3b2a"/><rect x="30" y="9" width="16" height="3" fill="#4a3b2a"/>',
+  hale:'<path d="M20 34h20l9 72H11z" fill="#1c1a1e"/><rect x="21" y="52" width="18" height="40" fill="#f3ead8"/>',
+  inspector:'<rect x="14" y="34" width="32" height="74" rx="3" fill="#1a1a1c" stroke="#444"/><path d="M21 12a9 9 0 0118 0z" fill="#111"/><rect x="15" y="11" width="30" height="3" rx="1" fill="#111"/>',
+  tom:'<rect x="15" y="34" width="30" height="38" rx="3" fill="#2f4f9a"/><circle cx="30" cy="44" r="2" fill="#c69a4a"/><circle cx="30" cy="53" r="2" fill="#c69a4a"/><circle cx="30" cy="62" r="2" fill="#c69a4a"/><rect x="21" y="4" width="18" height="8" rx="2" fill="#2f4f9a"/><rect x="28" y="11" width="16" height="3" fill="#111"/>',
+  ruth2:'<path d="M22 34h16l10 74H12z" fill="#eeeae0"/>',
+};
+const HANGER='<path d="M30 18q4 0 4 4t-4 4L14 33h32L30 26" stroke="#555" stroke-width="1.6" fill="none"/>';
+function openCostume(){
+  const b=openSheet('side','Costume rail · stage left'); notesFound.add('costume');
+  b.append(el(`<div class="note docnote">${NOTES.costume}</div>`));
+  b.append(el(`<p class="lead" style="font-size:14px">The name tags have fallen off. Use the costume plot to put each tag on the right costume: drag it, or tap a tag then tap a costume.</p>`));
+  const rail=el('<div class="rail" aria-label="The costume rail"></div>'), tray=el('<div class="tagtray" aria-label="Loose name tags"></div>');
+  const slots=RAIL.map(id=>{ const c=el(`<div class="costume mslot"><svg viewBox="0 0 60 110" aria-hidden="true">${HANGER}${COSTUME_SVG[id]}</svg><div class="drop"></div></div>`); rail.append(c); return {id:'c-'+id,el:c,drop:c.querySelector('.drop')}; });
+  b.append(rail,tray);
+  // tags are named after the costume they belong on; their location is the costume slot they hang on
+  const loc={}; for(const id of RAIL) loc[id]=state.tags[id]; const items={}; for(const id of shuffle(RAIL)) items[id]={html:tagLabel(id),cls:'tag'};
+  const fb=el('<div class="feedback"></div>');
+  const sync=()=>{ for(const id of RAIL) state.tags[id]=loc[id]; for(const id of RAIL) costumeTag[id].visible=Object.values(state.tags).includes('c-'+id); fb.textContent=''; };
+  sorter({loc,items,slots,trayEl:tray,onMove:sync});
+  const row=el('<div class="row" style="margin-top:12px"></div>'), chk=el('<button class="btn">Check the costumes</button>');
+  const hints=['Read the costume plot at the top. Match the clothes AND the hats.','The Inspector’s coat is long and black, with a bowler hat. Ruth’s coat is grey, with a red scarf.'];
+  if(L.rostrum) hints.push('A <b>quick change</b> is a very fast costume change in the wings. Ruth starts Scene 1 in her coat and changes into the nightdress for Scene 2.');
+  const [hb,hf]=hintButton(hints);
+  chk.onclick=()=>{ const right=RAIL.filter(id=>state.tags[id]==='c-'+id).length, left=RAIL.filter(id=>state.tags[id]==='tray').length;
+    if(right===RAIL.length){ fb.className='feedback good'; fb.textContent='Every costume is labelled.'; if(!state.found.costume){ laundry.visible=true; collect('costume',`<b>Wardrobe done!</b> A laundry tag on the end of the rail has a number stitched on it: <b>${state.code.costume}</b>. Close the rail when you’re ready.`); } }
+    else { fb.className='feedback bad'; fb.textContent=(left?`${left} tag${left>1?'s are':' is'} still loose. `:'')+`Right so far: ${right} of ${RAIL.length}.`; toast(`Right so far: <b>${right} of ${RAIL.length}</b> costumes. Keep going!`,3500); } };
+  row.append(chk,hb); b.append(row,fb,hf);
+}
+
 const STAGINGS={
   proscenium:{name:'Proscenium arch',why:'The audience sit on one side and watch through a frame, like looking at a picture.',svg:'<svg viewBox="0 0 120 90"><rect x="20" y="8" width="80" height="34" fill="#c99443"/><rect x="14" y="4" width="92" height="6" fill="#7a1a1a"/><rect x="14" y="4" width="6" height="40" fill="#7a1a1a"/><rect x="100" y="4" width="6" height="40" fill="#7a1a1a"/>'+dots([[20,100,54,84]])+'</svg>'},
   thrust:{name:'Thrust',why:'The stage pushes out into the audience, who sit on three sides.',svg:'<svg viewBox="0 0 120 90"><rect x="40" y="6" width="40" height="56" fill="#c99443"/>'+dots([[8,34,12,84],[86,112,12,84],[40,80,68,84]])+'</svg>'},
@@ -881,15 +1105,15 @@ function openPoster(){
 function openDoor(){
   const b=openSheet('modal','Exit');
   notesFound.add('exit');
-  b.append(el('<p class="lead" style="text-align:center">A note is taped to the keypad: <b>Code order: LIGHTS · SET · STAGING</b></p>'));
-  let entry=''; const disp=el('<div class="kdisplay">___</div>'); const fb=el('<div class="feedback" style="text-align:center"></div>');
-  const show=()=>{ disp.textContent=(entry+'___').slice(0,3); };
+  b.append(el('<p class="lead" style="text-align:center">A note is taped to the keypad: <b>Code order: LIGHTS · SET · PROPS · COSTUME · STAGING</b></p>'));
+  let entry=''; const disp=el('<div class="kdisplay">_____</div>'); const fb=el('<div class="feedback" style="text-align:center"></div>');
+  const show=()=>{ disp.textContent=(entry+'_____').slice(0,5); };
   const pad=el('<div class="keypad"></div>');
-  const press=k=>{ if(k==='C'){ entry=''; show(); return; } if(k==='✓') return submit(); if(entry.length<3){ entry+=k; show(); } if(entry.length===3) setTimeout(submit,250); };
+  const press=k=>{ if(k==='C'){ entry=''; show(); return; } if(k==='✓') return submit(); if(entry.length<5){ entry+=k; show(); } if(entry.length===5) setTimeout(submit,250); };
   ['1','2','3','4','5','6','7','8','9','C','0','✓'].forEach(k=>{ const btn=el(`<button>${k}</button>`); btn.onclick=()=>press(k); pad.append(btn); });
-  const submit=()=>{ if(state.done) return; const code=`${state.code.light}${state.code.set}${state.code.staging}`;
+  const submit=()=>{ if(state.done) return; const code=`${state.code.light}${state.code.set}${state.code.props}${state.code.costume}${state.code.staging}`;
     if(entry===code){ fb.className='feedback good'; fb.textContent='Click. The lock releases.'; escape(); }
-    else { disp.classList.remove('shake'); void disp.offsetWidth; disp.classList.add('shake'); fb.className='feedback bad'; const lose=state.level==='hard'?' That cost you 30 seconds.':''; if(lose) penalise(30); const n=Object.values(state.found).filter(Boolean).length; fb.textContent= (n<3 ? `Wrong code. You’ve only found ${n} of 3 digits.` : 'Wrong code. Check the order on the note.')+lose; entry=''; setTimeout(show,400); } };
+    else { disp.classList.remove('shake'); void disp.offsetWidth; disp.classList.add('shake'); fb.className='feedback bad'; const lose=state.level==='hard'?' That cost you 30 seconds.':''; if(lose) penalise(30); const n=Object.values(state.found).filter(Boolean).length; fb.textContent= (n<5 ? `Wrong code. You’ve only found ${n} of 5 digits.` : 'Wrong code. Check the order on the note.')+lose; entry=''; setTimeout(show,400); } };
   sheetKeys=e=>{ if(state.done) return; if(/^[0-9]$/.test(e.key)) press(e.key); if(e.key==='Backspace'){ entry=entry.slice(0,-1); show(); } if(e.key==='Enter') submit(); };
   b.append(disp,pad,fb);
 }
@@ -899,7 +1123,7 @@ function escape(){
   const start=performance.now(); const swing=()=>{ const t=Math.min(1,(performance.now()-start)/1600); exitDoorPivot.rotation.y=-ease(t)*1.5; doorway.material.opacity=ease(t); escapeLight.intensity=ease(t)*90; if(t<1) requestAnimationFrame(swing); }; setTimeout(swing,500);
   setTimeout(async()=>{ await playScene('finale'); ghostLight.visible=false; bulb.visible=false;
     $('#winTime').textContent=`${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')}`; $('#winHints').textContent=state.hints; $('#winLevel').textContent=L.name+(L.clock?` · ${fmt(L.clock-secs)} left on the clock`+(state.penalty?` · includes ${fmt(state.penalty)} of penalties`:''):'');
-    const extra={easy:['Apron','Flies'],medium:[],hard:['Rostrum','Patch sheet','Channel']}[state.level]; const v=document.querySelector('#win .vocab'); for(const w of extra) v.append(el(`<span>${w}</span>`)); $('#win').hidden=false; },2400);
+    const extra={easy:['Apron','Flies'],medium:[],hard:['Rostrum','Patch sheet','Channel','Quick change']}[state.level]; const v=document.querySelector('#win .vocab'); for(const w of extra) v.append(el(`<span>${w}</span>`)); $('#win').hidden=false; },2400);
 }
 
 /* ---------- HUD buttons ---------- */
@@ -909,6 +1133,8 @@ $('#hintBtn').onclick=()=>{ if(!state.started||state.done) return; let h;
   else if(!state.deskUnlocked) h='The <b>lighting desk</b> is on the production table set up across the seats. You found its password clue in the prompt book.';
   else if(!state.found.light) h='Set lighting cue 12 on the desk. Read the cue sheet again (Notes button).';
   else if(!state.found.set) h='The director’s <b>ground plan</b> is on the easel at the front of the auditorium.';
+  else if(!state.found.props) h='The <b>props table</b> is in the <b>stage right wing</b>, hidden behind the black legs on the left-hand side of the stage as you look at it.';
+  else if(!state.found.costume) h='The <b>costume rail</b> is in the <b>stage left wing</b>, behind the black legs on the right-hand side of the stage as you look at it.';
   else if(!state.found.staging) h='There’s a <b>poster</b> on the right-hand wall of the auditorium.';
   else h='Go to the <b>exit</b> on the left wall and enter the code.';
   toast('Hint: '+h+spendHint(h),7000); };
@@ -940,8 +1166,8 @@ function flavour(e){ ndc.set(e.clientX/innerWidth*2-1,-(e.clientY/innerHeight)*2
 function visit(h){ tip.classList.remove('on'); canvas.classList.remove('hot');
   const cur=currentStep();
   if(L.guide && STEPS.indexOf(h.id)>STEPS.indexOf(cur)){ toast(`<i>The Prompter whispers:</i> Not yet. Your next cue: ${OBJECTIVES[state.level][cur]}`,6000); return; }
-  state.visited.add(h.id); state.view=h.id; flyTo(h.view(),1000);
-  const immediate = h.id==='desk'||h.id==='plan'; setTimeout(()=>h.open(), immediate?250:700); }
+  state.visited.add(h.id); state.view=h.id; flyTo(h.view(),1000); refreshGuide();
+  const immediate = ['desk','plan','props','costume'].includes(h.id); setTimeout(()=>h.open(), immediate?250:700); }
 
 /* ---------- Start, clock, resize, loop ---------- */
 document.querySelectorAll('.level').forEach(btn=>btn.onclick=()=>{ document.querySelectorAll('.level').forEach(b=>{ b.classList.toggle('on',b===btn); b.setAttribute('aria-checked',b===btn); }); state.level=btn.dataset.level; });
@@ -950,9 +1176,9 @@ $('#startBtn').onclick=async()=>{ if(state.starting) return; state.starting=true
 function elapsed(){ return (performance.now()-state.t0-state.paused)/1000; }
 function fmt(s){ s=Math.max(0,Math.floor(s)); return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`; }
 function fail(){ state.failed=true; house.intensity=160; houseFill.intensity=80; sheet.classList.remove('open'); state.sheet=null; $('#objective').hidden=true; $('#fail').hidden=false; voPlay('fail-1').then(ok=>{ if(ok) voPlay('fail-2'); }); }
-addEventListener('resize',()=>{ camera.aspect=innerWidth/innerHeight; camera.fov=innerWidth<innerHeight?76:52; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); if(state.view==='plan') flyTo(planView(),400); });
+addEventListener('resize',()=>{ camera.aspect=innerWidth/innerHeight; camera.fov=innerWidth<innerHeight?76:52; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); const hv=hotspots.find(h=>h.id===state.view); if(hv) flyTo(hv.view(),400); });
 
-applyLights(); refreshGuide();
+applyLights(); refreshGuide(); tableTop.material.map=outlineTex(); tableTop.material.needsUpdate=true;
 let lastSec=-1;
 $('#faceBtn').onclick=()=>{ yawT=0; pitchT=0; };
 renderer.setAnimationLoop(t=>{
@@ -961,6 +1187,7 @@ renderer.setAnimationLoop(t=>{
   camera.lookAt(curLook);
   $('#faceBtn').hidden = !(state.started && !state.done && state.view==='home' && !state.sheet && (Math.abs(yawT)>.3||Math.abs(pitchT)>.2));
   for(const p of Object.values(pieces)) p.position.lerp(p.userData.target,.12);
+  for(const id in propMesh) propMesh[id].position.lerp(propTarget(id),.1);
   const pulse=(L.markers==='next'?.085:.07)+Math.sin(t*.004)*.018; for(const m of Object.values(markers)) m.scale.setScalar(m.userData.dim ? .045 : pulse);
   if(ghostLight.visible) ghostLight.intensity = 14*(0.94+Math.sin(t*.013)*.03+Math.sin(t*.031)*.03);
   if(state.started && !state.done && !state.failed && $('#scene-card').hidden && $('#share').hidden){ const s=Math.floor(elapsed()); if(s!==lastSec){ lastSec=s; const tm=$('#timer');
