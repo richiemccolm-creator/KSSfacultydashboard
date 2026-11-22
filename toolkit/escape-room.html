@@ -1,0 +1,974 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>The Locked Theatre</title>
+<meta name="description" content="A 3D drama escape room: use theatre vocabulary, lighting and a ground plan to escape a locked theatre.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#050407; --panel:rgba(18,15,20,.94); --panel-solid:#141017; --line:rgba(255,236,210,.14);
+  --ink:#f6eee3; --muted:#b9ab9b; --gold:#e9b864; --gold-deep:#a9772c; --red:#c8343f; --ok:#6fd49a; --cold:#6f9cff;
+  --paper:#f3ead8; --paper-ink:#2a2018;
+  --serif:"Instrument Serif",Georgia,serif; --sans:"Instrument Sans",system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-tap-highlight-color:transparent}
+canvas#scene{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+canvas#scene.hot{cursor:pointer}
+button{font:inherit;color:inherit}
+
+/* HUD */
+.hud{position:fixed;top:0;left:0;right:0;display:flex;align-items:center;gap:10px;padding:max(12px,env(safe-area-inset-top)) 16px 12px;z-index:10;pointer-events:none;background:linear-gradient(#050407e0,#05040700)}
+.hud > *{pointer-events:auto}
+.brand{font-family:var(--serif);font-size:22px;letter-spacing:.01em;white-space:nowrap}
+.brand em{color:var(--gold)}
+.timer{font-variant-numeric:tabular-nums;color:var(--muted);font-size:14px;padding-left:4px}
+.spacer{flex:1}
+.slots{display:flex;gap:6px}
+.slot{display:flex;flex-direction:column;align-items:center;min-width:52px;padding:5px 8px;border:1px solid var(--line);border-radius:10px;background:rgba(20,16,22,.7)}
+.slot small{font-size:10px;letter-spacing:.12em;color:var(--muted);text-transform:uppercase}
+.slot b{font-family:var(--serif);font-size:22px;line-height:1;color:var(--muted)}
+.slot.got{border-color:var(--gold)}.slot.got b{color:var(--gold)}
+.hbtn{border:1px solid var(--line);background:rgba(20,16,22,.75);border-radius:999px;padding:9px 14px;font-size:14px;font-weight:600;cursor:pointer}
+.hbtn:hover{border-color:var(--gold)}
+@media (max-width:640px){.brand{font-size:18px}.timer:not(.clock){display:none}.slot{min-width:40px;padding:4px 6px}.slot b{font-size:18px}.hbtn{padding:8px 11px;font-size:13px}.hud{flex-wrap:wrap}}
+
+.tip{position:fixed;z-index:11;pointer-events:none;padding:6px 10px;border-radius:8px;background:var(--panel-solid);border:1px solid var(--line);font-size:13px;font-weight:600;transform:translate(14px,14px);opacity:0;transition:opacity .15s}
+.tip.on{opacity:1}
+.toast{position:fixed;left:50%;top:84px;transform:translate(-50%,-10px);z-index:40;max-width:min(560px,calc(100vw - 32px));padding:12px 16px;border-radius:12px;background:var(--panel-solid);border:1px solid var(--gold-deep);font-size:15px;line-height:1.4;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+
+/* Sheets */
+.sheet{position:fixed;z-index:20;background:var(--panel);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--line);color:var(--ink);display:flex;flex-direction:column;transition:transform .45s cubic-bezier(.2,.8,.2,1),opacity .3s;opacity:0;pointer-events:none}
+.sheet.open{opacity:1;pointer-events:auto}
+.sheet.bottom{left:0;right:0;bottom:0;max-height:56vh;border-radius:20px 20px 0 0;transform:translateY(100%);padding-bottom:env(safe-area-inset-bottom)}
+.sheet.bottom.open{transform:none}
+.sheet.side{right:16px;top:76px;bottom:16px;width:420px;border-radius:18px;transform:translateX(110%)}
+.sheet.side.open{transform:none}
+@media (max-width:820px){.sheet.side{left:0;right:0;top:auto;bottom:0;width:auto;max-height:62vh;border-radius:20px 20px 0 0;transform:translateY(100%)}}
+.sheet.modal{left:50%;top:50%;width:min(760px,calc(100vw - 32px));max-height:calc(100vh - 120px);border-radius:18px;transform:translate(-50%,-46%)}
+.sheet.modal.open{transform:translate(-50%,-50%)}
+.sheet-head{display:flex;align-items:center;gap:10px;padding:14px 16px 10px;border-bottom:1px solid var(--line)}
+.sheet-head h2{margin:0;font-family:var(--serif);font-weight:400;font-size:26px;flex:1}
+.sheet-head .x{width:38px;height:38px;border-radius:50%;border:1px solid var(--line);background:transparent;cursor:pointer;font-size:18px}
+.sheet-body{padding:14px 16px 18px;overflow:auto}
+.lead{margin:0 0 12px;color:var(--muted);font-size:15px;line-height:1.45}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{border:1px solid var(--gold-deep);background:linear-gradient(#e9b864,#c99443);color:#24180a;font-weight:700;border-radius:10px;padding:10px 16px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line);font-weight:600}
+.btn:focus-visible,.hbtn:focus-visible,.track:focus-visible,.cell:focus-visible,.piece:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.feedback{margin-top:12px;font-size:15px;line-height:1.45;min-height:1.4em}
+.feedback.good{color:var(--ok)}.feedback.bad{color:#ff9a8f}
+.shake{animation:shake .4s}
+@keyframes shake{25%{transform:translateX(-6px)}50%{transform:translateX(6px)}75%{transform:translateX(-3px)}}
+
+/* word lock */
+.lockwrap{display:flex;gap:8px;justify-content:center;margin:8px 0 6px}
+.tumbler{display:flex;flex-direction:column;align-items:center;gap:4px}
+.tumbler button{width:46px;height:30px;border-radius:8px;border:1px solid var(--line);background:#1d1820;cursor:pointer}
+.tumbler .letter{width:46px;height:58px;display:grid;place-items:center;border-radius:10px;background:linear-gradient(#2a2229,#151116);border:1px solid var(--gold-deep);font-family:var(--serif);font-size:34px;color:var(--gold)}
+.tumbler.cur .letter{box-shadow:0 0 0 2px var(--gold)}
+
+/* faders */
+.desk{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start}
+.faders{display:flex;gap:6px;padding:10px;border-radius:12px;background:#0c0a0d;border:1px solid var(--line)}
+.fader{display:flex;flex-direction:column;align-items:center;gap:5px;width:42px}
+.fader .num{font-size:11px;color:var(--muted)}
+.track{position:relative;width:26px;height:140px;border-radius:6px;background:#1c1a1e;border:1px solid #2e2a30;cursor:ns-resize;touch-action:none}
+.track .fill{position:absolute;left:10px;right:10px;bottom:0;border-radius:3px;background:var(--gold);opacity:.65}
+.track .cap{position:absolute;left:-5px;right:-5px;height:18px;border-radius:4px;background:linear-gradient(#e8e2da,#9c958e);border:1px solid #000;transform:translateY(50%)}
+.fader .lvl{font-variant-numeric:tabular-nums;font-size:12px;color:var(--gold)}
+.fader .lab{font-size:12px;font-weight:700;letter-spacing:.04em}
+.gels{display:flex;flex-direction:column;gap:8px;min-width:170px;flex:1}
+.gels h3,.panel-h{margin:0;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.swatches{display:flex;gap:8px;flex-wrap:wrap}
+.swatch{display:flex;align-items:center;gap:6px;padding:6px 10px 6px 6px;border-radius:999px;border:1px solid var(--line);background:#1a161c;cursor:pointer;font-size:13px}
+.swatch i{width:18px;height:18px;border-radius:50%;display:block}
+.swatch.on{border-color:var(--gold);background:#2a2120}
+@media (max-width:640px){.track{height:110px}.fader{width:36px}.faders{gap:3px;padding:8px}}
+
+/* ground plan */
+.plan{user-select:none;-webkit-user-select:none;display:grid;grid-template-columns:repeat(3,1fr);gap:4px;padding:8px;border-radius:10px;background:#1a2330;border:2px solid #3b5170;aspect-ratio:1.35;max-width:min(380px,48vh);margin:0 auto}
+.cell{position:relative;border:1px dashed #5c7aa0;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:4px;padding:4px;cursor:pointer;min-height:58px;background:rgba(255,255,255,.02)}
+.cell.target{background:rgba(233,184,100,.18);border-style:solid;border-color:var(--gold)}
+.cell .clabel{position:absolute;left:4px;top:2px;font-size:10px;font-weight:700;color:#8fb0d6;letter-spacing:.06em;opacity:0;transition:opacity .3s}
+.plan.labels .clabel{opacity:1}
+.piece{display:flex;align-items:center;gap:5px;padding:5px 8px;border-radius:8px;background:var(--paper);color:var(--paper-ink);font-size:12px;font-weight:700;cursor:grab;touch-action:none;user-select:none;box-shadow:0 2px 6px #0008}
+.piece.sel{outline:2px solid var(--gold);outline-offset:1px}
+.piece.dragging{position:fixed;z-index:60;pointer-events:none;transform:translate(-50%,-50%) rotate(-3deg)}
+.piece svg{width:16px;height:16px}
+.audience{text-align:center;font-size:11px;letter-spacing:.3em;color:#8fb0d6;margin-top:6px;font-weight:700}
+.note{margin:0 0 12px;padding:10px 12px;border-radius:8px;background:var(--paper);color:var(--paper-ink);font-family:var(--serif);font-size:18px;line-height:1.35;transform:rotate(-.4deg)}
+.note.missing{background:#221c24;color:var(--muted);font-family:var(--sans);font-size:14px;transform:none}
+
+/* prompt book */
+.book{display:grid;grid-template-columns:1fr 1fr;gap:0;border-radius:6px;overflow:hidden;box-shadow:0 10px 30px #000a}
+.page{background:var(--paper);color:var(--paper-ink);padding:20px 20px 24px;font-family:var(--serif);font-size:19px;line-height:1.4;min-height:300px}
+.page + .page{border-left:1px solid #d2c4a8;background:linear-gradient(90deg,#e6dcc6,var(--paper) 8%)}
+.page h3{font-family:var(--sans);font-size:12px;letter-spacing:.16em;text-transform:uppercase;margin:0 0 10px;color:#7a5a32}
+.page p{margin:0 0 10px}
+.page .hand{font-style:italic;color:#24408a}
+.page ul{margin:0 0 10px;padding-left:20px}
+@media (max-width:640px){.book{grid-template-columns:1fr}.page{min-height:0}}
+
+/* staging poster */
+.stagings{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
+.stg{position:relative;border:1px solid var(--line);border-radius:12px;background:#17131a;padding:34px 10px 10px;cursor:pointer;text-align:center}
+.stg:hover{border-color:var(--gold)}
+.stg svg{width:100%;height:auto;display:block}
+.stg .badge{position:absolute;top:6px;left:8px;font-family:var(--serif);font-size:24px;color:var(--gold)}
+.stg.wrong{opacity:.45}
+.stg.right{border-color:var(--ok);box-shadow:0 0 0 2px var(--ok)}
+
+/* keypad */
+.keypad{display:grid;grid-template-columns:repeat(3,64px);gap:8px;justify-content:center;margin-top:10px}
+.keypad button{height:56px;border-radius:12px;border:1px solid #3a3a3a;background:linear-gradient(#2b2b2e,#1a1a1c);font-size:22px;font-weight:600;cursor:pointer}
+.keypad button:active{transform:translateY(1px)}
+.kdisplay{margin:0 auto;width:220px;height:62px;border-radius:10px;background:#0a1a0e;border:1px solid #1f4a2a;color:#7dff9c;font-family:ui-monospace,Menlo,monospace;font-size:36px;letter-spacing:.4em;display:grid;place-items:center;text-shadow:0 0 10px #3dff7a88}
+
+/* overlays */
+.overlay{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:24px;background:radial-gradient(ellipse at 50% 40%,rgba(30,18,10,.55),rgba(3,2,4,.92))}
+.overlay[hidden]{display:none}
+.card{max-width:620px;text-align:center}
+.card .kicker{font-size:12px;letter-spacing:.3em;text-transform:uppercase;color:var(--gold)}
+.card h1{font-family:var(--serif);font-weight:400;font-size:clamp(44px,9vw,84px);line-height:.95;margin:10px 0 16px}
+.card h1 em{color:var(--gold)}
+.card p{font-size:17px;line-height:1.55;color:#ded2c3;margin:0 0 14px}
+.card .small{font-size:13px;color:var(--muted)}
+.card .btn{font-size:17px;padding:14px 26px;margin-top:8px}
+.vocab{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:14px 0}
+.vocab span{padding:5px 10px;border-radius:999px;border:1px solid var(--gold-deep);font-size:13px}
+.stats{display:flex;gap:26px;justify-content:center;margin:6px 0 10px}
+.stats div{display:flex;flex-direction:column}.stats b{font-family:var(--serif);font-size:40px;color:var(--gold);font-weight:400}.stats small{color:var(--muted);font-size:12px;letter-spacing:.12em;text-transform:uppercase}
+.card.wide{max-width:780px}
+.levels{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:18px 0 14px;text-align:left}
+.level{display:flex;flex-direction:column;gap:4px;padding:14px;border-radius:14px;border:1px solid var(--line);background:rgba(20,16,22,.8);cursor:pointer}
+.level b{font-family:var(--serif);font-weight:400;font-size:24px;line-height:1.1}
+.level span{font-size:13px;letter-spacing:.01em;color:var(--gold);font-weight:600}
+.level small{font-size:13px;line-height:1.4;color:var(--muted)}
+.level.on{border-color:var(--gold);background:rgba(60,40,20,.55);box-shadow:0 0 0 1px var(--gold)}
+.level:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+@media (max-width:640px){.levels{grid-template-columns:1fr}.level small{display:none}}
+
+.script-overlay{background:rgba(3,2,4,.72)}
+.script{width:min(620px,100%);max-height:calc(100vh - 48px);overflow:auto;background:var(--paper);color:var(--paper-ink);border-radius:4px;padding:26px 30px 24px;box-shadow:0 24px 60px #000c;font-family:var(--serif);font-size:20px;line-height:1.45;transform:rotate(-.3deg)}
+.script-head{font-family:var(--sans);font-size:12px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:#7a5a32;margin-bottom:14px;border-bottom:1px solid #d2c4a8;padding-bottom:10px}
+.script-body p{margin:0 0 12px}
+.script-body .sd{font-style:italic;color:#5a4a3a}
+.script-body p{transition:background .3s;padding:2px 6px;margin-left:-6px;margin-right:-6px;border-radius:4px}
+.script-body p.speaking{background:rgba(201,148,67,.22)}
+.obj-say{pointer-events:auto;flex:none;display:grid;place-items:center;width:34px;height:34px;border-radius:50%;border:1px solid var(--gold-deep);background:transparent;color:var(--gold);cursor:pointer}
+.obj-say:hover{background:rgba(233,184,100,.15)}
+.obj-say[hidden]{display:none}
+#voiceBtn[aria-pressed=false]{color:var(--muted)}
+.script-body .ch{display:block;font-family:var(--sans);font-size:12px;font-weight:700;letter-spacing:.14em;color:#7a1a1a;margin-bottom:2px}
+.script .btn{margin-top:6px}
+@media (max-width:640px){.script{padding:20px;font-size:18px}}
+
+.facebtn{position:fixed;right:16px;bottom:max(16px,env(safe-area-inset-bottom));z-index:13}
+.facebtn[hidden]{display:none}
+@media (max-width:640px){.facebtn{bottom:96px}}
+.objective{pointer-events:none;position:fixed;left:50%;bottom:max(16px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:12;display:flex;align-items:center;gap:10px;max-width:calc(100vw - 32px);padding:10px 16px 10px 10px;border-radius:999px;background:var(--panel-solid);border:1px solid var(--gold-deep);font-size:15px;line-height:1.3;box-shadow:0 8px 24px #0009}
+.objective[hidden]{display:none}
+.obj-step{flex:none;padding:4px 10px;border-radius:999px;background:var(--gold);color:#24180a;font-weight:700;font-size:12px;letter-spacing:.04em}
+.sheet.open ~ .objective{display:none}
+.stg .sname{display:block;margin-top:6px;font-size:13px;font-weight:600}
+.wordbank{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin:10px 0}
+.wordbank button{font-family:var(--serif);font-size:26px;padding:10px 20px;border-radius:12px;border:1px solid var(--gold-deep);background:#1d1820;color:var(--gold);cursor:pointer;letter-spacing:.08em}
+.fader .lab.two{font-size:10px;line-height:1.15;text-align:center;letter-spacing:0}
+.areakey{font-size:13px;color:var(--muted);margin:8px 0 0;line-height:1.4}
+.patch{font-family:var(--sans);font-size:14px;border-collapse:collapse;margin:4px 0 10px}
+.patch td{padding:2px 10px 2px 0;border-bottom:1px dotted #c9b89a}
+.timer.low{color:#ff8a7a}
+.timer.hit{color:#ff6b5b;animation:hit .9s}
+@keyframes hit{0%,100%{transform:none}20%{transform:scale(1.25)}40%{transform:scale(.95)}}
+.loading{position:fixed;inset:0;display:grid;place-items:center;color:var(--muted);font-size:14px;z-index:5}
+
+/* Share: a QR code so a class can open the game on their own devices */
+.qrbtn{display:grid;place-items:center;width:38px;height:38px;padding:0}
+.share-card{width:min(440px,100%);text-align:center;background:var(--panel-solid);border:1px solid var(--line);border-radius:20px;padding:22px 22px 18px;position:relative}
+.share-card h2{font-family:var(--serif);font-weight:400;font-size:32px;margin:0 0 6px}
+.share-card p{margin:0 0 12px;color:var(--muted);font-size:14px;line-height:1.5}
+.share-card .x{position:absolute;top:12px;right:12px;width:38px;height:38px;border-radius:50%;border:1px solid var(--line);background:transparent;cursor:pointer;font-size:18px}
+.share-qr{width:min(240px,70vw);aspect-ratio:1;margin:6px auto 10px;background:#fff;border-radius:14px;padding:10px}
+.share-qr svg,.board-qr svg{display:block;width:100%;height:100%}
+.share-url{font:500 12px/1.5 ui-monospace,Menlo,monospace;color:var(--muted);word-break:break-all;margin:0 0 14px}
+.share-actions{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+.share-actions .btn{font-size:15px;padding:10px 14px}
+.share-note{min-height:1.2em;margin:10px 0 0!important;color:var(--gold)!important}
+.share-link{background:none;border:0;color:var(--gold);text-decoration:underline;text-underline-offset:3px;cursor:pointer;font-size:14px;padding:4px}
+#board{background:#050407;z-index:60;cursor:pointer;text-align:center}
+#board h2{font-family:var(--serif);font-weight:400;font-size:clamp(34px,6vw,64px);margin:0 0 3vh}
+#board h2 em{color:var(--gold)}
+.board-qr{width:min(62vh,82vw);aspect-ratio:1;margin:0 auto;background:#fff;border-radius:22px;padding:18px}
+.board-url{font:500 clamp(14px,2vw,22px)/1.4 ui-monospace,Menlo,monospace;color:var(--muted);margin:3vh 0 0;word-break:break-all}
+</style>
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
+</head>
+<body>
+<div class="loading" id="loading">Raising the curtain…</div>
+<canvas id="scene" aria-label="A dark theatre. Click objects to inspect them."></canvas>
+
+<header class="hud">
+  <div class="brand">The <em>Locked</em> Theatre</div>
+  <div class="timer" id="timer">00:00</div>
+  <div class="spacer"></div>
+  <div class="slots" aria-label="Exit code digits found">
+    <div class="slot" id="slot-light"><small>Lights</small><b>·</b></div>
+    <div class="slot" id="slot-set"><small>Set</small><b>·</b></div>
+    <div class="slot" id="slot-staging"><small>Staging</small><b>·</b></div>
+  </div>
+  <button class="hbtn" id="voiceBtn" hidden aria-pressed="true">Voice on</button>
+  <button class="hbtn" id="notesBtn">Notes</button>
+  <button class="hbtn" id="hintBtn">Hint</button>
+  <button class="hbtn qrbtn" id="shareBtn" aria-label="Share the game with a QR code" title="Share with a QR code"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.4"/><rect x="14" y="3" width="7" height="7" rx="1.4"/><rect x="3" y="14" width="7" height="7" rx="1.4"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 17h3v3h-3z"/></svg></button>
+</header>
+
+<div class="tip" id="tip"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<section class="sheet" id="sheet" role="dialog" aria-modal="false" aria-labelledby="sheetTitle">
+  <div class="sheet-head"><h2 id="sheetTitle"></h2><button class="x" id="sheetClose" aria-label="Close">✕</button></div>
+  <div class="sheet-body" id="sheetBody"></div>
+</section>
+
+<button class="hbtn facebtn" id="faceBtn" hidden>Face the stage</button>
+<div class="objective" id="objective" hidden><span class="obj-step" id="objStep"></span><span id="objText"></span><button class="obj-say" id="objSay" hidden aria-label="Read the cue aloud"><svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" fill="currentColor"/><path d="M16 8.5a4.5 4.5 0 0 1 0 7M18.5 6a8 8 0 0 1 0 12" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"/></svg></button></div>
+
+<div class="overlay" id="intro">
+  <div class="card wide">
+    <h1>The <em>Locked</em> Theatre</h1>
+    <p>It's the night before opening night. You've come back to the theatre for your script, and the doors have locked behind you. Something in the dark wants the show run one last time.</p>
+    <div class="levels" role="radiogroup" aria-label="Choose a difficulty">
+      <button class="level on" data-level="easy" role="radio" aria-checked="true"><b>Rehearsal</b><span>Easier · good for S1–S2</span><small>Step-by-step guide, labelled areas, word choices and free hints.</small></button>
+      <button class="level" data-level="medium" role="radio" aria-checked="false"><b>Dress rehearsal</b><span>Medium · S2–S3</span><small>A guide to the next step, but you need to know the stage areas and terms.</small></button>
+      <button class="level" data-level="hard" role="radio" aria-checked="false"><b>Opening night</b><span>Hard · S4 and up</span><small>No guide, a 15 minute clock, a patch sheet to read, an extra set piece. Hints cost time.</small></button>
+    </div>
+    <button class="btn" id="startBtn">Enter the theatre</button>
+    <p class="small" style="margin-top:16px">Drag to look around and tap things to inspect them. The code changes every game, so groups can't share answers.</p>
+    <button class="share-link" id="introShare">Share with a QR code</button>
+  </div>
+</div>
+
+<div class="overlay" id="share" hidden>
+  <div class="share-card" role="dialog" aria-modal="true" aria-labelledby="shareTitle">
+    <button class="x" id="shareClose" aria-label="Close">✕</button>
+    <h2 id="shareTitle">Share the game</h2>
+    <p>Pupils scan this to play on their own device. There's no sign-up, and nothing is saved.</p>
+    <div class="share-qr" id="shareQr" role="img" aria-label="QR code for The Locked Theatre"></div>
+    <p class="share-url" id="shareUrl"></p>
+    <div class="share-actions">
+      <button class="btn ghost" id="shareCopy">Copy link</button>
+      <button class="btn ghost" id="shareNative" hidden>Share…</button>
+      <button class="btn" id="shareBoard">Show on board</button>
+    </div>
+    <p class="share-note" id="shareNote" role="status"></p>
+  </div>
+</div>
+
+<div class="overlay" id="board" hidden role="dialog" aria-modal="true" aria-label="QR code for The Locked Theatre">
+  <div>
+    <h2>Scan to play <em>The Locked Theatre</em></h2>
+    <div class="board-qr" id="boardQr"></div>
+    <p class="board-url" id="boardUrl"></p>
+  </div>
+</div>
+
+<div class="overlay script-overlay" id="scene-card" hidden>
+  <div class="script" role="dialog" aria-modal="true" aria-labelledby="scriptTitle">
+    <div class="script-head" id="scriptTitle"></div>
+    <div class="script-body" id="scriptBody"></div>
+    <button class="btn" id="scriptNext">Continue</button>
+  </div>
+</div>
+
+<div class="overlay" id="fail" hidden>
+  <div class="card">
+    <h1>Curtain <em>up</em></h1>
+    <p>The house lights snap on. There are voices in the foyer. It's morning, and the show has started without you.</p>
+    <p class="small">The Prompter's note on the door says: "The curtain waits for no one. Try again."</p>
+    <button class="btn" onclick="location.reload()">Try again</button>
+  </div>
+</div>
+
+<div class="overlay" id="win" hidden>
+  <div class="card">
+    <h1>You <em>escaped</em></h1>
+    <p class="small" id="winLevel"></p>
+    <div class="stats"><div><b id="winTime">0:00</b><small>Time</small></div><div><b id="winHints">0</b><small>Hints</small></div></div>
+    <p>The theatre words you used to get out:</p>
+    <div class="vocab"><span>Wings</span><span>Prompt corner</span><span>Down stage left</span><span>Isolate</span><span>Gel</span><span>Cyclorama</span><span>Ground plan</span><span>Up stage right</span><span>Flat</span><span>Proscenium arch</span><span>Ghost light</span></div>
+    <button class="btn" onclick="location.reload()">Play again</button>
+  </div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+
+/* ---------- Game state ---------- */
+const pick = () => 1 + Math.floor(Math.random() * 9);
+const LEVELS = {
+  easy:   { name:'Rehearsal', markers:'next', guide:true,  faders:'full',   planLabels:true,  posterNames:true,  wordBank:true,  hintCost:0,  clock:0,      rostrum:false },
+  medium: { name:'Dress rehearsal', markers:'all', guide:true, faders:'abbr', planLabels:false, posterNames:false, wordBank:false, hintCost:0,  clock:0,      rostrum:false },
+  hard:   { name:'Opening night', markers:'none', guide:false, faders:'number', planLabels:false, posterNames:false, wordBank:false, hintCost:60, clock:15*60, rostrum:true },
+};
+let L = LEVELS.easy;
+const state = {
+  started:false, t0:0, hints:0, done:false, level:'easy', penalty:0, failed:false, paused:0,
+  code:{ light:pick(), set:pick(), staging:pick() },
+  found:{ light:false, set:false, staging:false },
+  deskUnlocked:false, readBook:false, view:'home', sheet:null, visited:new Set(),
+  levels:{ wash:0, DSR:0, DSC:0, DSL:0, USR:0, USL:0, cyc:0 }, gel:'open',
+  plan:{ table:'DSR', chair:'USL', trunk:'DSC', door:'CSR' }, wrongSideWarned:false,
+};
+const PLAN_TARGET = { table:'CS', chair:'CSL', trunk:'USR', door:'USC' };
+const CELLS = ['USR','USC','USL','CSR','CS','CSL','DSR','DSC','DSL']; // as drawn: audience at the bottom, stage right on the LEFT
+const CELL_POS = {}; CELLS.forEach((c,i)=>{ const col=i%3,row=Math.floor(i/3); CELL_POS[c]=new THREE.Vector3([-3.5,0,3.5][col],1,[-3.4,-0.6,2.1][row]); });
+
+const GELS = {
+  open:{ name:'Open white', hex:0xfff2e0, css:'#fff2e0', t:1 },
+  straw:{ name:'Straw', hex:0xffbe5c, css:'#ffbe5c', t:.9 },
+  blue:{ name:'Steel blue', hex:0x4f86ff, css:'#4f86ff', t:.8 },
+  red:{ name:'Primary red', hex:0xff2525, css:'#ff2525', t:.65 },
+  green:{ name:'Moss green', hex:0x42f070, css:'#42f070', t:.7 },
+};
+let CHANNELS = [
+  {id:'wash',lab:'Wash',full:'Front<br>wash',patch:'Front wash, whole stage'},{id:'DSR',lab:'DSR',full:'Down<br>right',patch:'Special, down stage right'},{id:'DSC',lab:'DSC',full:'Down<br>centre',patch:'Special, down stage centre'},
+  {id:'DSL',lab:'DSL',full:'Down<br>left',patch:'Special, down stage left'},{id:'USR',lab:'USR',full:'Up<br>right',patch:'Special, up stage right'},{id:'USL',lab:'USL',full:'Up<br>left',patch:'Special, up stage left'},{id:'cyc',lab:'Cyc',full:'Cyc',patch:'Cyclorama floods'},
+];
+
+/* ---------- Renderer & scene ---------- */
+const canvas = document.getElementById('scene');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+renderer.setSize(innerWidth, innerHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.35;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x040305);
+scene.fog = new THREE.FogExp2(0x060408, 0.022);
+const camera = new THREE.PerspectiveCamera(innerWidth<innerHeight?76:52, innerWidth/innerHeight, 0.1, 80);
+
+const M = (color, o={}) => new THREE.MeshStandardMaterial({ color, roughness:.85, metalness:0, ...o });
+function box(w,h,d,mat,x=0,y=0,z=0,parent=scene){ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat); m.position.set(x,y,z); m.castShadow=true; m.receiveShadow=true; parent.add(m); return m; }
+function cyl(rt,rb,h,mat,x=0,y=0,z=0,parent=scene,seg=16){ const m=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg),mat); m.position.set(x,y,z); m.castShadow=true; m.receiveShadow=true; parent.add(m); return m; }
+function canvasTex(w,h,draw){ const c=document.createElement('canvas'); c.width=w; c.height=h; draw(c.getContext('2d'),w,h); const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=4; return t; }
+
+/* textures */
+const plankTex = canvasTex(1024,512,(g,w,h)=>{
+  const rows=16, rh=h/rows;
+  for(let i=0;i<rows;i++){ g.fillStyle=`hsl(24,18%,${11+Math.random()*6}%)`; g.fillRect(0,i*rh,w,rh);
+    g.fillStyle='rgba(0,0,0,.6)'; g.fillRect(0,i*rh,w,1.5); for(let k=0;k<2;k++){ g.fillRect(Math.random()*w,i*rh,2,rh);} }
+  for(let k=0;k<2600;k++){ g.fillStyle=`rgba(${Math.random()<.5?0:255},${Math.random()<.5?0:220},${Math.random()<.5?0:180},${Math.random()*.035})`; g.fillRect(Math.random()*w,Math.random()*h,10+Math.random()*90,1); }
+  for(let k=0;k<14;k++){ g.fillStyle=['#e9b86455','#ffffff40','#4f86ff40'][k%3]; g.fillRect(Math.random()*w,Math.random()*h,18,4); } // spike tape
+});
+plankTex.wrapS = plankTex.wrapT = THREE.RepeatWrapping; plankTex.repeat.set(2,1.2);
+
+function digitTex(d, color='#bfe4ff', glow='#5aa0ff', font='bold 400px Georgia'){
+  return canvasTex(512,512,(g,w,h)=>{ g.clearRect(0,0,w,h); g.font=font; g.textAlign='center'; g.textBaseline='middle'; g.shadowColor=glow; g.shadowBlur=40; g.fillStyle=color; g.fillText(String(d),w/2,h/2+20); g.fillText(String(d),w/2,h/2+20); });
+}
+const exitTex = canvasTex(256,96,(g,w,h)=>{ g.fillStyle='#0b7a33'; g.fillRect(0,0,w,h); g.fillStyle='#e9ffe9'; g.font='bold 64px Arial'; g.textAlign='center'; g.textBaseline='middle'; g.fillText('EXIT',w/2+16,h/2+3); g.beginPath(); g.moveTo(22,h/2); g.lineTo(50,h/2-20); g.lineTo(50,h/2+20); g.fill(); });
+
+/* ---------- Building ---------- */
+const black = M(0x0b0a0c,{roughness:.95});
+const wallMat = M(0x1b1418,{roughness:.95});
+const darkRed = M(0x3a0b10,{roughness:.9});
+
+// auditorium shell
+box(20,0.1,16,M(0x1a1013,{roughness:1}),0,-0.05,11.5);           // carpet
+box(0.3,10,16,wallMat,-10.15,5,11.5); box(0.3,10,16,wallMat,10.15,5,11.5);
+box(20,10,0.3,wallMat,0,5,19.6); box(20,0.3,16.5,black,0,10,11.5);
+// wall panels and sconces
+for(const s of [-1,1]) for(const z of [7.5,12,16.5]){
+  box(0.05,4,2.6,darkRed,s*9.98,3.6,z);
+  const sc=new THREE.Mesh(new THREE.SphereGeometry(.16,16,12),new THREE.MeshStandardMaterial({color:0xffd9a0,emissive:0xffb766,emissiveIntensity:1.4}));
+  sc.position.set(s*9.85,6.2,z); scene.add(sc);
+}
+
+// proscenium wall with opening (x ±6, up to y 7.2)
+const prosZ = 3.9;
+box(4,10,0.6,wallMat,-8,5,prosZ); box(4,10,0.6,wallMat,8,5,prosZ); box(12,2.8,0.6,wallMat,0,8.6,prosZ);
+const gilt = M(0xc9993f,{roughness:.35,metalness:.85});
+box(0.35,7.2,0.25,gilt,-6.1,3.6,prosZ+0.35); box(0.35,7.2,0.25,gilt,6.1,3.6,prosZ+0.35); box(12.55,0.4,0.25,gilt,0,7.25,prosZ+0.35);
+box(13.4,0.12,0.2,gilt,0,7.6,prosZ+0.4);
+// stage
+const stageTop = M(0xffffff,{map:plankTex,roughness:.7});
+const stage = new THREE.Mesh(new THREE.BoxGeometry(18,1,10.6), [black,black,stageTop,black,M(0x120c0e),black]);
+stage.position.set(0,0.5,-0.9); stage.receiveShadow=true; scene.add(stage);
+box(12,0.06,0.05,gilt,0,1.0,4.41); // stage lip
+
+// folded drapes
+function drape(w,h,color,folds,rough=.95){
+  const g=new THREE.PlaneGeometry(w,h,Math.max(32,folds*10),1); const p=g.attributes.position;
+  for(let i=0;i<p.count;i++){ const x=p.getX(i); p.setZ(i,Math.sin((x/w)*folds*Math.PI*2)*0.1); }
+  g.computeVertexNormals();
+  const m=new THREE.Mesh(g,M(color,{roughness:rough,side:THREE.DoubleSide})); m.castShadow=true; m.receiveShadow=true; return m;
+}
+for(const s of [-1,1]){
+  const tab=drape(1.8,7.1,0x6e0d16,6,.8); tab.position.set(s*5.15,4.55,3.45); tab.userData.flavour='tabs'; scene.add(tab);       // house tabs, gathered
+  const swag=drape(1.8,.6,0x5a0a12,6,.8); swag.position.set(s*5.15,7.0,3.5); swag.userData.flavour='tabs'; scene.add(swag);
+  for(const z of [1.4,-1.4,-4.1]){ const leg=drape(1.7,7,0x0d0c0f,5); leg.position.set(s*5.9,4.5,z); leg.userData.flavour='legs'; leg.rotation.y=s*0.06; scene.add(leg); }
+}
+for(const z of [2.6,0,-2.7]){ const b=drape(13,1.1,0x0d0c0f,18); b.position.set(0,7.6,z); b.userData.flavour='borders'; scene.add(b); } // borders
+const valance=drape(12.4,0.9,0x6e0d16,24,.8); valance.position.set(0,6.75,3.5); valance.userData.flavour='tabs'; scene.add(valance);
+
+// cyclorama
+const cycMat = new THREE.MeshStandardMaterial({color:0x8d8a88,roughness:1,emissive:0x000000});
+const cyc = new THREE.Mesh(new THREE.PlaneGeometry(14,7.5),cycMat); cyc.position.set(0,4.75,-5.9); cyc.receiveShadow=true; cyc.userData.flavour='cyc'; scene.add(cyc);
+const groundrow = box(12,0.35,0.3,black,0,1.18,-5.5);
+
+// seats
+const seatGeo = new THREE.BoxGeometry(0.58,0.14,0.5), backGeo = new THREE.BoxGeometry(0.58,0.72,0.1);
+const seatPos=[]; for(let r=0;r<12;r++){ for(let x=-8.6;x<=8.61;x+=0.72){ if(Math.abs(x)<0.75) continue; seatPos.push([x,6.2+r*1.05]); } }
+const seatMat=M(0x5c0f17,{roughness:.9});
+const seats=new THREE.InstancedMesh(seatGeo,seatMat,seatPos.length), backs=new THREE.InstancedMesh(backGeo,seatMat,seatPos.length);
+const dm=new THREE.Object3D();
+seatPos.forEach(([x,z],i)=>{ const y=Math.floor((z-6.2)/1.05)*0.16; dm.position.set(x,0.46+y,z); dm.updateMatrix(); seats.setMatrixAt(i,dm.matrix); dm.position.set(x,0.86+y,z+0.24); dm.updateMatrix(); backs.setMatrixAt(i,dm.matrix); });
+seats.receiveShadow=backs.receiveShadow=true; seats.userData.flavour=backs.userData.flavour='seats'; scene.add(seats,backs);
+for(let r=0;r<12;r++) box(17.6,Math.floor(r)*0.16+0.001,1.05,M(0x150d10,{roughness:1}),0,(r*0.16)/2,6.2+r*1.05);
+
+/* ---------- Lights ---------- */
+scene.add(new THREE.HemisphereLight(0x3a4560,0x0c0809,1.1));
+const house = new THREE.PointLight(0xffb070,70,0,2); house.position.set(0,8.5,11);
+const houseFill = new THREE.PointLight(0xffc890,40,0,2); houseFill.position.set(0,6,4.8); scene.add(houseFill); scene.add(house);
+
+// ghost light
+const ghost = new THREE.Group(); ghost.position.set(-1.7,1,0.5); ghost.userData.flavour='ghost'; scene.add(ghost);
+cyl(.35,.42,.12,black,0,.06,0,ghost); cyl(.03,.03,1.9,M(0x333333,{metalness:.6,roughness:.4}),0,1,0,ghost);
+const cage=new THREE.Mesh(new THREE.SphereGeometry(.16,10,8),new THREE.MeshBasicMaterial({color:0x666666,wireframe:true})); cage.position.y=2.05; ghost.add(cage);
+const bulb=new THREE.Mesh(new THREE.SphereGeometry(.09,16,12),new THREE.MeshStandardMaterial({color:0xffe3b0,emissive:0xffcf80,emissiveIntensity:4})); bulb.position.y=2.05; ghost.add(bulb);
+const ghostLight=new THREE.PointLight(0xffcf8a,14,0,2); ghostLight.position.set(0,2.05,0); ghostLight.castShadow=true; ghostLight.shadow.mapSize.set(512,512); ghostLight.shadow.bias=-0.002; ghost.add(ghostLight);
+{ const gh=new THREE.Mesh(new THREE.CylinderGeometry(.4,.4,2.4,8),new THREE.MeshBasicMaterial({visible:false})); gh.position.y=1.2; ghost.add(gh); }
+
+// beams
+const beamAlpha = canvasTex(4,128,(g,w,h)=>{ const gr=g.createLinearGradient(0,h,0,0); gr.addColorStop(0,'#000'); gr.addColorStop(.55,'#555'); gr.addColorStop(1,'#fff'); g.fillStyle=gr; g.fillRect(0,0,w,h); });
+beamAlpha.colorSpace = THREE.NoColorSpace;
+function makeBeam(from,to,angle){
+  const dir=new THREE.Vector3().subVectors(from,to); const len=dir.length();
+  const geo=new THREE.ConeGeometry(Math.tan(angle)*len*1.05,len,40,1,true);
+  const mat=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0,alphaMap:beamAlpha,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,fog:false});
+  const m=new THREE.Mesh(geo,mat); m.position.copy(from).add(to).multiplyScalar(.5); m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),dir.normalize()); scene.add(m); return m;
+}
+// lantern bars
+box(15,0.07,0.07,M(0x222222,{metalness:.7,roughness:.4}),0,8.25,7.2);
+box(12,0.07,0.07,M(0x222222,{metalness:.7,roughness:.4}),0,7.5,1.7);
+const lanternMat=M(0x141414,{metalness:.5,roughness:.5});
+function makeSpot(id,from,to,angle,max,shadow){
+  const L=new THREE.SpotLight(0xffffff,0,0,angle,.45,2); L.position.copy(from); L.target.position.copy(to); scene.add(L,L.target);
+  if(shadow){ L.castShadow=true; L.shadow.mapSize.set(512,512); L.shadow.bias=-0.0015; L.shadow.camera.near=1; L.shadow.camera.far=20; }
+  const lan=new THREE.Group(); lan.position.copy(from); lan.lookAt(to); scene.add(lan);
+  const body=new THREE.Mesh(new THREE.CylinderGeometry(.16,.2,.55,16),lanternMat); body.rotation.x=Math.PI/2; lan.add(body);
+  const lens=new THREE.Mesh(new THREE.CircleGeometry(.15,20),new THREE.MeshBasicMaterial({color:0x222222})); lens.position.z=.28; lan.add(lens);
+  const yoke=box(.05,.5,.05,lanternMat,0,0.25,0,lan);
+  return { id, L, beam:makeBeam(from,to,angle), lens, max };
+}
+const AREA = { DSR:CELL_POS.DSR, DSC:CELL_POS.DSC, DSL:CELL_POS.DSL, USR:CELL_POS.USR, USL:CELL_POS.USL };
+const spots = {
+  wash: makeSpot('wash',new THREE.Vector3(0,8.2,7.2),new THREE.Vector3(0,1,-1.2),.58,1400,true),
+  DSR: makeSpot('DSR',new THREE.Vector3(-4.6,8.2,7.2),AREA.DSR,.16,1100,true),
+  DSC: makeSpot('DSC',new THREE.Vector3(0.9,8.2,7.2),AREA.DSC,.16,1100,true),
+  DSL: makeSpot('DSL',new THREE.Vector3(4.6,8.2,7.2),AREA.DSL,.16,1100,true),
+  USR: makeSpot('USR',new THREE.Vector3(-3.2,7.45,1.7),AREA.USR,.24,800,false),
+  USL: makeSpot('USL',new THREE.Vector3(3.2,7.45,1.7),AREA.USL,.24,800,false),
+};
+const cycSpill = new THREE.PointLight(0xffffff,0,0,2); cycSpill.position.set(0,1.6,-5.2); scene.add(cycSpill);
+
+// UV-paint digit, only visible in cold light at DSL
+const lightDigit = new THREE.Mesh(new THREE.PlaneGeometry(1.25,1.25),new THREE.MeshBasicMaterial({map:digitTex(state.code.light),transparent:true,opacity:0,blending:THREE.AdditiveBlending,depthWrite:false}));
+lightDigit.rotation.x=-Math.PI/2; lightDigit.position.copy(AREA.DSL).setY(1.012); scene.add(lightDigit);
+
+/* ---------- Set pieces ---------- */
+const wood=M(0x5b3a22,{roughness:.7}), woodDark=M(0x3a2414,{roughness:.75}), brass=M(0xc69a4a,{metalness:.8,roughness:.35});
+const pieces={};
+function addPiece(id,group){ group.userData.flavour='piece'; group.position.copy(CELL_POS[state.plan[id]]); group.userData.target=group.position.clone(); scene.add(group); pieces[id]=group; group.traverse(o=>{ if(o.isMesh){o.castShadow=o.receiveShadow=true;} }); }
+{ const g=new THREE.Group(); box(1.7,.08,.95,wood,0,.82,0,g); for(const [x,z] of [[-.75,-.38],[.75,-.38],[-.75,.38],[.75,.38]]) box(.07,.8,.07,woodDark,x,.4,z,g); box(.5,.03,.38,M(0xece0c8),.2,.875,.1,g); addPiece('table',g); }
+{ const g=new THREE.Group(); box(.55,.06,.55,wood,0,.5,0,g); box(.55,.62,.06,wood,0,.82,-.25,g); for(const [x,z] of [[-.24,-.24],[.24,-.24],[-.24,.24],[.24,.24]]) box(.05,.5,.05,woodDark,x,.25,z,g); g.rotation.y=-0.4; addPiece('chair',g); }
+{ const g=new THREE.Group(); box(1.2,.62,.68,M(0x4a2b19,{roughness:.6}),0,.31,0,g); box(1.24,.14,.72,M(0x3d2213,{roughness:.6}),0,.69,0,g); for(const x of [-.4,.4]) box(.07,.84,.74,brass,x,.4,0,g); box(.14,.14,.04,brass,0,.55,.36,g); addPiece('trunk',g); }
+const chalk = new THREE.Mesh(new THREE.PlaneGeometry(.7,.7),new THREE.MeshBasicMaterial({map:digitTex(state.code.set,'#fbfbf4','#ffffff','bold 380px "Comic Sans MS",cursive'),transparent:true,depthWrite:false}));
+{ const g=new THREE.Group(); const flatMat=M(0x5e6b63,{roughness:.9});
+  box(1.0,3.6,.1,flatMat,-1.0,1.8,0,g); box(1.0,3.6,.1,flatMat,1.0,1.8,0,g); box(1.0,.9,.1,flatMat,0,3.15,0,g);
+  box(.9,2.65,.05,M(0x6b3f23,{roughness:.7}),0,1.33,.03,g); const knob=box(.07,.07,.07,brass,.32,1.3,.08,g);
+  box(.08,3.6,.5,woodDark,-1.46,1.8,-.25,g); box(.08,3.6,.5,woodDark,1.46,1.8,-.25,g); // braces
+  chalk.position.set(-1,2.5,.06); chalk.visible=false; g.add(chalk); addPiece('door',g); }
+// rostrum: only used on Opening night, parked in the wings otherwise
+{ const g=new THREE.Group(); box(1.8,.5,1.2,M(0x2b2326,{roughness:.8}),0,.25,0,g); box(1.8,.04,1.2,M(0x161214),0,.52,0,g);
+  g.position.set(-7.6,1,-2.5); g.userData.target=g.position.clone(); g.visible=false; g.traverse(o=>{ if(o.isMesh){o.castShadow=o.receiveShadow=true;} }); scene.add(g); pieces.rostrum=g; }
+
+/* ---------- Hotspot props ---------- */
+const hotspots=[];
+function hotspot(id,label,group,view,open){ group.userData.hotspot=id; scene.add(group); hotspots.push({id,label,group,view,open}); }
+
+// production desk across the seats
+{ const g=new THREE.Group(); g.position.set(-2.0,0,10.35);
+  box(2.8,.07,1.0,M(0x2a221e,{roughness:.6}),0,1.32,0,g);
+  box(1.6,.12,.62,M(0x1b1b1d,{roughness:.4,metalness:.3}),-.25,1.42,0,g);
+  for(let i=0;i<7;i++){ box(.06,.05,.12,M(0xd8d2c8),-.85+i*.18,1.51,.1+(i%3)*.04,g); }
+  const scr=new THREE.Mesh(new THREE.PlaneGeometry(.6,.36),new THREE.MeshStandardMaterial({color:0x0a1430,emissive:0x2a5cff,emissiveIntensity:.3}));
+  scr.position.set(.85,1.72,-.15); scr.rotation.x=-.2; g.add(scr); box(.62,.4,.04,M(0x111111),.85,1.72,-.18,g);
+  const lamp=new THREE.Mesh(new THREE.SphereGeometry(.05,12,8),new THREE.MeshStandardMaterial({color:0x9db8ff,emissive:0x7aa0ff,emissiveIntensity:3})); lamp.position.set(-1.2,1.75,-.3); g.add(lamp);
+  hotspot('desk','Lighting desk',g,()=>(innerWidth<innerHeight? {pos:new THREE.Vector3(0,7.2,17.5),look:new THREE.Vector3(0,-3.2,-1)} : {pos:new THREE.Vector3(0,6.2,16),look:new THREE.Vector3(0,-2.4,-1)}),openDesk); }
+
+// stage manager's desk in the prompt corner (stage left)
+{ const g=new THREE.Group(); g.position.set(4.95,1,3.95); g.rotation.y=-0.35;
+  box(1.1,.9,.6,M(0x1d1a1c),0,.45,0,g);
+  box(.5,.07,.36,M(0xeee3c8,{roughness:.9}),-.15,.94,0,g); box(.5,.02,.36,M(0x8a2a22),-.15,.9,0,g);
+  const cue=new THREE.Mesh(new THREE.BoxGeometry(.12,.08,.08),new THREE.MeshStandardMaterial({color:0x220000,emissive:0xff2222,emissiveIntensity:2})); cue.position.set(.35,.96,-.12); g.add(cue);
+  const glow=new THREE.PointLight(0x5b7cff,1.2,0,2); glow.position.set(0,1.5,.1); g.add(glow);
+  cyl(.02,.02,.5,M(0x333333),.38,1.15,.1,g); const bl=new THREE.Mesh(new THREE.SphereGeometry(.05,10,8),new THREE.MeshStandardMaterial({color:0x334488,emissive:0x5b7cff,emissiveIntensity:3})); bl.position.set(.38,1.42,.1); g.add(bl);
+  hotspot('book','Prompt book',g,()=>({pos:new THREE.Vector3(3.6,3.3,6.6),look:new THREE.Vector3(4.95,1.7,3.95)}),openBook); }
+
+// director's easel with the ground plan
+const planBoardTex = canvasTex(256,200,(g,w,h)=>{ g.fillStyle='#1a2330'; g.fillRect(0,0,w,h); g.strokeStyle='#8fb0d6'; g.lineWidth=2; g.strokeRect(14,14,w-28,h-52); g.setLineDash([5,4]); for(let i=1;i<3;i++){ g.beginPath(); g.moveTo(14+i*(w-28)/3,14); g.lineTo(14+i*(w-28)/3,h-38); g.stroke(); g.beginPath(); g.moveTo(14,14+i*(h-52)/3); g.lineTo(w-14,14+i*(h-52)/3); g.stroke(); } g.setLineDash([]); g.fillStyle='#8fb0d6'; g.font='bold 15px Arial'; g.textAlign='center'; g.fillText('GROUND PLAN · ACT 2',w/2,h-14); });
+{ const g=new THREE.Group(); g.position.set(7.2,0,6.0); g.rotation.y=-0.5;
+  for(const [x,rz] of [[-.45,.12],[.45,-.12]]){ const l=box(.06,2.3,.06,wood,x,1.15,0,g); l.rotation.z=rz; } const back=box(.06,2.2,.06,wood,0,1.1,-.35,g); back.rotation.x=-.25;
+  box(1.25,.06,.15,wood,0,1.15,.05,g);
+  const board=new THREE.Mesh(new THREE.PlaneGeometry(1.2,.95),new THREE.MeshStandardMaterial({map:planBoardTex,roughness:.8,emissive:0x111a28})); board.position.set(0,1.68,.06); board.rotation.x=-.12; g.add(board);
+  hotspot('plan','Ground plan',g,()=>planView(),openPlan); }
+
+// staging poster on the right wall
+const POSTER_TYPES = (()=>{ const pool=[1,2,3,4,5,6,7,8,9].filter(n=>n!==state.code.staging).sort(()=>Math.random()-.5); const t=['proscenium','thrust','traverse','round','promenade']; const nums={}; t.forEach(k=>nums[k]=k==='proscenium'?state.code.staging:pool.pop()); return nums; })();
+const posterTex = canvasTex(360,500,(g,w,h)=>{ g.fillStyle='#efe4cc'; g.fillRect(0,0,w,h); g.fillStyle='#7a1a1a'; g.fillRect(0,0,w,78); g.fillStyle='#f6eee3'; g.font='italic 38px Georgia'; g.textAlign='center'; g.fillText('Types of Staging',w/2,52);
+  const types=['proscenium','thrust','traverse','round','promenade']; const pos=[[90,150],[270,150],[90,280],[270,280],[180,410]];
+  types.forEach((t,i)=>{ const [cx,cy]=pos[i]; g.strokeStyle='#2a2018'; g.lineWidth=2; g.strokeRect(cx-62,cy-48,124,96); g.fillStyle='#c99443';
+    if(t==='proscenium'){ g.fillRect(cx-40,cy-40,80,32); } if(t==='thrust'){ g.fillRect(cx-22,cy-40,44,58); } if(t==='traverse'){ g.fillRect(cx-56,cy-12,112,24);} if(t==='round'){ g.beginPath(); g.arc(cx,cy,20,0,7); g.fill(); } if(t==='promenade'){ g.fillRect(cx-50,cy-36,26,18); g.fillRect(cx+20,cy+10,30,20); g.fillRect(cx-8,cy-6,18,14);}
+    g.fillStyle='#7a1a1a'; g.font='bold 28px Georgia'; g.fillText(POSTER_TYPES[t],cx-48,cy-24+8); });
+});
+{ const g=new THREE.Group(); g.position.set(9.92,3.4,8.8); g.rotation.y=-Math.PI/2;
+  box(2.05,2.8,.06,gilt,0,0,-.04,g);
+  const p=new THREE.Mesh(new THREE.PlaneGeometry(1.85,2.6),new THREE.MeshStandardMaterial({map:posterTex,roughness:.9})); p.position.z=0.01; g.add(p);
+  const pl=new THREE.SpotLight(0xffe0b0,70,0,.5,.6,2); pl.position.set(-1.2,1.8,1.4); pl.target=p; g.add(pl);
+  hotspot('poster','Staging poster',g,()=>({pos:new THREE.Vector3(4.8,3.7,8.8),look:new THREE.Vector3(9.9,3.3,8.8)}),openPoster); }
+
+// exit door on the left wall
+const exitDoorPivot = new THREE.Group();
+const doorway = new THREE.Mesh(new THREE.PlaneGeometry(1.6,2.8),new THREE.MeshBasicMaterial({color:0xfff1d6,transparent:true,opacity:0,toneMapped:false}));
+{ const g=new THREE.Group(); g.position.set(-9.95,0,8.6); g.rotation.y=Math.PI/2;
+  box(1.9,3.0,.12,M(0x2a2024),0,1.5,-.02,g);
+  exitDoorPivot.position.set(-.8,0,.05); g.add(exitDoorPivot);
+  const leaf=box(1.6,2.8,.08,M(0x3c2a22,{roughness:.6}),.8,1.4,0,exitDoorPivot); box(1.4,.08,.06,M(0x999999,{metalness:.8,roughness:.3}),.8,1.25,.07,exitDoorPivot);
+  const sign=new THREE.Mesh(new THREE.PlaneGeometry(.9,.34),new THREE.MeshStandardMaterial({map:exitTex,emissive:0xffffff,emissiveMap:exitTex,emissiveIntensity:1.4})); sign.position.set(0,3.3,.04); g.add(sign);
+  const pad=box(.26,.38,.05,M(0x161616,{metalness:.4}),1.2,1.5,.04,g);
+  const padLed=new THREE.Mesh(new THREE.PlaneGeometry(.18,.06),new THREE.MeshBasicMaterial({color:0x3dff7a})); padLed.position.set(1.2,1.63,.07); g.add(padLed);
+  doorway.position.set(0,1.4,.035); g.add(doorway);
+  const exitGlow=new THREE.PointLight(0x2bff6a,1.4,0,2); exitGlow.position.set(0,3.2,.5); g.add(exitGlow);
+  hotspot('door','Exit door',g,()=>({pos:new THREE.Vector3(-4.4,3.6,8.6),look:new THREE.Vector3(-9.9,1.9,8.6)}),openDoor); }
+const escapeLight = new THREE.PointLight(0xfff2d8,0,0,2); escapeLight.position.set(-9.3,2.2,8.6); scene.add(escapeLight);
+
+// invisible, generous hit boxes so props are easy to tap
+const hitMat=new THREE.MeshBasicMaterial({visible:false});
+const HIT={desk:[3.4,1.6,1.8,0,1.4,0], book:[1.8,2.6,1.4,0,1.0,0], plan:[2.0,3.0,1.4,0,1.4,0], poster:[2.8,3.6,.6,0,0,0], door:[2.6,4.4,1.0,0,2.0,0]};
+for(const h of hotspots){ const [w,hh,d,x,y,z]=HIT[h.id]; const m=new THREE.Mesh(new THREE.BoxGeometry(w,hh,d),hitMat); m.position.set(x,y,z); h.group.add(m); }
+// hotspot markers
+const markTex = canvasTex(128,128,(g,w,h)=>{ const gr=g.createRadialGradient(64,64,0,64,64,64); gr.addColorStop(0,'rgba(255,230,170,1)'); gr.addColorStop(.25,'rgba(233,184,100,.8)'); gr.addColorStop(1,'rgba(233,184,100,0)'); g.fillStyle=gr; g.fillRect(0,0,w,h); });
+const markers={};
+const MARK_POS = { desk:[-2.0,2.2,10.35], book:[4.95,2.7,3.95], plan:[7.2,2.55,6.0], poster:[9.6,5.1,8.8], door:[-9.6,4.0,8.6] };
+for(const [id,p] of Object.entries(MARK_POS)){ const s=new THREE.Sprite(new THREE.SpriteMaterial({map:markTex,blending:THREE.AdditiveBlending,depthWrite:false,transparent:true,fog:false,sizeAttenuation:false,depthTest:false})); s.renderOrder=5; s.position.set(...p); s.scale.set(.06,.06,.06); s.userData.hotspot=id; scene.add(s); markers[id]=s; }
+
+/* ---------- Camera ---------- */
+const HOME = { pos:new THREE.Vector3(0,4.5,15.2), look:new THREE.Vector3(0,1.9,0) };
+camera.position.copy(HOME.pos); const curLook=HOME.look.clone(); camera.lookAt(curLook);
+let anim=null, yaw=0, pitch=0, yawT=0, pitchT=0;
+const ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2;
+function flyTo(v,dur=1000){ anim={t0:performance.now(),dur,fp:camera.position.clone(),tp:v.pos.clone(),fl:curLook.clone(),tl:v.look.clone()}; }
+function wide(){ return innerWidth>820; }
+function planView(){ return wide()? {pos:new THREE.Vector3(2.6,9.5,12.5),look:new THREE.Vector3(3.2,-1.8,-2.2)} : {pos:new THREE.Vector3(0,9.5,13.5),look:new THREE.Vector3(0,-3.6,-2.6)}; }
+const UP=new THREE.Vector3(0,1,0);
+function homeLook(){ const d=HOME.look.clone().sub(HOME.pos); const right=new THREE.Vector3().crossVectors(d,UP).normalize(); d.applyAxisAngle(right,pitch).applyAxisAngle(UP,-yaw); return HOME.pos.clone().add(d); }
+
+/* ---------- Light application ---------- */
+function applyLights(){
+  const gel=GELS[state.gel], lv=state.levels;
+  for(const [id,s] of Object.entries(spots)){
+    const level=lv[id]/100; const color = id==='wash'? new THREE.Color(0xffd6a0) : new THREE.Color(gel.hex);
+    const t = id==='wash'?1:gel.t;
+    s.L.color.copy(color); s.L.intensity = Math.pow(level,1.6)*s.max*t;
+    s.beam.material.color.copy(color); s.beam.material.opacity = Math.pow(level,1.4)*(id==='wash'?.05:.11);
+    s.lens.material.color.copy(color).multiplyScalar(.15+level*.85);
+  }
+  const c=lv.cyc/100; cycMat.emissive.set(gel.hex).multiplyScalar(Math.pow(c,1.3)*.55); cycSpill.color.set(gel.hex); cycSpill.intensity=c*40;
+  house.intensity = state.deskUnlocked ? 38 : 70; houseFill.intensity = state.deskUnlocked ? 12 : 40;
+  const cold = state.gel==='blue'?1:0.05;
+  lightDigit.material.opacity = Math.min(1,(lv.DSL/100)*cold*(1-Math.min(1,lv.wash/100)*.85)*1.2);
+}
+
+/* ---------- UI helpers ---------- */
+const $=s=>document.querySelector(s);
+const sheet=$('#sheet'), sheetBody=$('#sheetBody'), sheetTitle=$('#sheetTitle');
+let toastTimer;
+function toast(msg,ms=4200){ const t=$('#toast'); t.innerHTML=msg; t.classList.add('on'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('on'),ms); }
+let sheetKeys=null;
+function openSheet(kind,title){ sheetKeys=null; $('#toast').classList.remove('on'); sheet.className='sheet '+kind; sheetTitle.textContent=title; sheetBody.innerHTML=''; requestAnimationFrame(()=>sheet.classList.add('open')); state.sheet=kind; return sheetBody; }
+function closeSheet(){ sheetKeys=null; sheet.classList.remove('open'); state.sheet=null; if(state.view!=='home'){ state.view='home'; yaw=yawT=pitch=pitchT=0; flyTo(HOME,900);} if(pendingScenes.length && !state.done) setTimeout(playPending,650); refreshGuide(); }
+$('#sheetClose').onclick=closeSheet;
+addEventListener('keydown',e=>{
+  if(!$('#board').hidden){ if(e.key==='Escape') closeBoard(); return; }
+  if(!$('#share').hidden){ if(e.key==='Escape') closeShare(); return; }
+  if(!$('#scene-card').hidden){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); $('#scriptNext').click(); } return; }
+  if(e.key==='Escape' && state.sheet){ closeSheet(); return; }
+  if(state.sheet && sheetKeys) sheetKeys(e); });
+// Share: the QR is drawn from wherever the game is hosted, so it follows the deployment.
+const shareUrl=()=>location.origin+location.pathname;
+let qrLib=null, shareOpenedAt=0;
+function qrSvg(text){
+  qrLib=qrLib||new Promise((res,rej)=>{ const sc=document.createElement('script'); sc.src='https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js';
+    sc.onload=()=>window.QRCode?res(window.QRCode):rej(); sc.onerror=()=>{ qrLib=null; rej(); }; document.head.appendChild(sc); });
+  return qrLib.then(Q=>Q.toString(text,{type:'svg',margin:1,errorCorrectionLevel:'M',color:{dark:'#111114',light:'#ffffff'}}));
+}
+function openShare(){
+  const url=shareUrl(); $('#shareUrl').textContent=url; $('#shareNote').textContent=''; $('#shareNative').hidden=!navigator.share;
+  $('#share').hidden=false; $('#shareClose').focus();
+  if(state.started && !state.done && !state.failed) shareOpenedAt=performance.now();   // the clock stops while sharing
+  qrSvg(url).then(svg=>{ $('#shareQr').innerHTML=svg; $('#boardQr').innerHTML=svg; })
+    .catch(()=>{ $('#shareNote').textContent='The QR code could not be drawn. Share the link instead.'; });
+}
+function closeShare(){ $('#share').hidden=true; if(shareOpenedAt){ state.paused+=performance.now()-shareOpenedAt; shareOpenedAt=0; } }
+function closeBoard(){ $('#board').hidden=true; $('#shareBoard').focus(); }
+$('#shareBtn').onclick=openShare; $('#introShare').onclick=openShare; $('#shareClose').onclick=closeShare;
+$('#share').onclick=e=>{ if(e.target.id==='share') closeShare(); };
+$('#shareCopy').onclick=async()=>{ try{ await navigator.clipboard.writeText(shareUrl()); $('#shareNote').textContent='Link copied'; }catch(e){ $('#shareNote').textContent='Copy failed. Select the link and copy it.'; } };
+$('#shareNative').onclick=()=>navigator.share({title:'The Locked Theatre',url:shareUrl()}).catch(()=>{});
+$('#shareBoard').onclick=()=>{ $('#boardUrl').textContent=shareUrl().replace(/^https?:\/\//,''); $('#board').hidden=false; };
+$('#board').onclick=closeBoard;
+function el(html){ const d=document.createElement('div'); d.innerHTML=html.trim(); return d.firstElementChild; }
+function penalise(secs){ state.penalty+=secs; const t=$('#timer'); t.classList.remove('hit'); void t.offsetWidth; t.classList.add('hit'); lastSec=-1; }
+const hintsSeen=new Set();
+function spendHint(key){ if(key && hintsSeen.has(key)) return ' <i>(you already had this one, so it’s free)</i>'; if(key) hintsSeen.add(key); state.hints++; if(L.hintCost){ penalise(L.hintCost); return ` <i>(${L.hintCost/60} minute off the clock)</i>`; } return ''; }
+function hintButton(text){ const b=el('<button class="btn ghost">Hint</button>'); const fb=el('<div class="feedback"></div>'); let n=0; b.onclick=()=>{ const list=Array.isArray(text)?text:[text]; if(n>=list.length){ fb.className='feedback'; fb.innerHTML='Hint: '+list[list.length-1]; toast('Hint: '+list[list.length-1],7000); return; } const cost=spendHint(); fb.className='feedback'; fb.innerHTML='Hint: '+list[n]+cost; toast('Hint: '+list[n]+cost,7000); n++; }; return [b,fb]; }
+function collect(key,msg){ if(state.found[key]) return; state.found[key]=true; const s=$('#slot-'+key); s.classList.add('got'); s.querySelector('b').textContent=state.code[key]; toast(msg,6000); pendingScenes.push(key); refreshGuide(); }
+
+/* ---------- Story ---------- */
+const SCENES={
+  prologue:{ title:'Prologue · The Kingsway Theatre, midnight', lines:[
+    ['sd','The night before opening night. The house is dark. One bare bulb on a stand, the ghost light, glows centre stage.'],
+    ['sd','YOU have come back for a forgotten script. Behind you, the auditorium doors swing shut. Click. Locked.'],
+    ['YOU','Hello? Is anyone still here?'],
+    ['sd','Silence. Then a page drifts down from the fly tower and lands at your feet. The handwriting is old-fashioned and very neat.'],
+    ['THE PROMPTER','Good evening, crew member. I ran the shows in this theatre for fifty years, and I’m not finished yet. Opening night is tomorrow and nothing is ready. Run the show for me tonight, cue by cue, and I’ll open the door.'],
+    ['sd','The ghost light flickers. At the side of the stage, a small blue lamp switches itself on.'] ]},
+  book:{ title:'Scene One · The prompt corner', lines:[
+    ['sd','You open the prompt book. Every page is covered in pencil: cues, moves, warnings.'],
+    ['THE PROMPTER','Good. Every show is run from the prompt corner, and the prompt book is its bible. First, the lights. The lighting desk is out in the seats, and I’ve locked it with a word every actor knows.'] ]},
+  light:{ title:'Scene Two · Lighting', lines:[
+    ['sd','A single pool of cold blue light falls down stage left. In the middle of it, painted on the floor, a number glows.'],
+    ['THE PROMPTER','Lovely. Lonely and cold, just right for the letter scene. Remember that number. Now look at the stage: the set is still in its Act One positions, and the crew have all gone home.'] ]},
+  set:{ title:'Scene Three · The set change', lines:[
+    ['sd','The furniture slides into place. Chalked on the door flat, in the Prompter’s neat hand, is another number.'],
+    ['THE PROMPTER','Now that’s a stage I can work with. One last question, and every technician should know the answer: what kind of stage is this? There’s a poster on the wall that might help.'] ]},
+  staging:{ title:'Scene Four · Front of house', lines:[
+    ['THE PROMPTER','A proscenium arch. The audience look through a frame, like looking at a picture. You know your theatre.'],
+    ['THE PROMPTER','Lights, set, staging. That’s your code. The exit is on the left wall.'],
+    ['sd','Across the auditorium, the green EXIT sign buzzes brighter.'] ]},
+  finale:{ title:'Finale', lines:[
+    ['sd','The keypad turns green. The exit door swings open and light floods in from the foyer.'],
+    ['THE PROMPTER','Thank you, crew member. Break a leg tomorrow. And on your way out…'],
+    ['YOU','So I should leave the ghost light on?'],
+    ['THE PROMPTER','Always. Every night, in every theatre.'],
+    ['sd','The ghost light flickers twice. Blackout.'] ]},
+};
+/* ---------- Voiceover (clips made by scripts/escape-room-voices.mjs) ---------- */
+const VO={ files:{}, on:true, audio:new Audio(), lastObj:'' }; let voResolve=null;
+try{ VO.on = localStorage.getItem('er-voice')!=='off'; }catch(e){}
+const voHas=id=>VO.on && !!VO.files[id];
+function drawVoiceBtn(){ const b=$('#voiceBtn'); b.textContent=VO.on?'Voice on':'Voice off'; b.setAttribute('aria-pressed',VO.on); }
+fetch('escape-room-audio/lines.json',{cache:'no-cache'}).then(r=>r.ok?r.json():null).then(m=>{ if(!m) return;
+  for(const l of m.lines) if(l.file) VO.files[l.id]='escape-room-audio/'+l.file;
+  if(Object.keys(VO.files).length){ $('#voiceBtn').hidden=false; drawVoiceBtn(); refreshGuide(); } }).catch(()=>{});
+function voStop(){ VO.audio.pause(); if(voResolve){ const r=voResolve; voResolve=null; r(false); } }
+function voPlay(id){ voStop(); return new Promise(res=>{ if(!voHas(id)) return res(false); voResolve=res; const a=VO.audio;
+  const end=ok=>{ if(voResolve===res){ voResolve=null; res(ok); } }; a.onended=()=>end(true); a.onerror=()=>end(false); a.src=VO.files[id]; a.play().catch(()=>end(false)); }); }
+$('#voiceBtn').onclick=()=>{ VO.on=!VO.on; try{ localStorage.setItem('er-voice',VO.on?'on':'off'); }catch(e){} if(!VO.on) voStop(); drawVoiceBtn(); refreshGuide(); };
+
+const pendingScenes=[];
+function playScene(key){ return new Promise(res=>{ const s=SCENES[key]; $('#scriptTitle').textContent=s.title;
+  $('#scriptBody').innerHTML=s.lines.map(([who,txt])=> who==='sd'? `<p class="sd">(${txt})</p>` : `<p><span class="ch">${who}</span>${txt}</p>`).join('');
+  $('#objective').hidden=true; $('#toast').classList.remove('on'); const ov=$('#scene-card'); ov.hidden=false; const pausedAt=performance.now();
+  const paras=[...$('#scriptBody').children]; let cancelled=false;
+  (async()=>{ for(let i=0;i<s.lines.length && !cancelled;i++){ const id=`${key}-${i+1}`; if(!voHas(id)){ if(!VO.on) break; continue; }
+      paras.forEach(p=>p.classList.remove('speaking')); paras[i].classList.add('speaking'); paras[i].scrollIntoView({block:'nearest'});
+      if(!await voPlay(id)) break; await new Promise(r=>setTimeout(r,300)); }
+    paras.forEach(p=>p.classList.remove('speaking')); })();
+  const btn=$('#scriptNext'); btn.focus(); btn.onclick=()=>{ cancelled=true; voStop(); ov.hidden=true; state.paused+=performance.now()-pausedAt; refreshGuide(); res(); }; }); }
+async function playPending(){ while(pendingScenes.length && !state.sheet && !state.done){ await playScene(pendingScenes.shift()); } }
+
+/* ---------- Steps, objective and markers ---------- */
+const STEPS=['book','desk','plan','poster','door'];
+const stepDone=id=>({book:state.readBook,desk:state.found.light,plan:state.found.set,poster:state.found.staging,door:state.done})[id];
+const currentStep=()=>STEPS.find(id=>!stepDone(id));
+const OBJECTIVES={
+  easy:{ book:'Find the prompt book. It’s on the stage manager’s desk with the blue lamp, at the right-hand side of the stage.',
+         desk:'Unlock the lighting desk in the seats (bottom left), then follow LX cue 12.',
+         plan:'Drag to look right and open the ground plan on the easel at the front. Set the stage for Act Two.',
+         poster:'Find the poster on the right-hand wall. Drag to look right.',
+         door:'Go to the green EXIT on the left wall (drag to look left) and enter lights, set, staging.' },
+  medium:{ book:'Find the prompt book in the prompt corner.', desk:'Unlock the lighting desk and set LX cue 12.', plan:'Use the ground plan to set the stage for Act Two.', poster:'Work out what kind of stage this is.', door:'Enter the code at the exit: lights, set, staging.' },
+};
+function refreshGuide(){
+  const cur=currentStep();
+  for(const id of STEPS){ const m=markers[id]; if(!m) continue;
+    m.visible = L.markers==='all' ? !stepDone(id) : L.markers==='next' ? id===cur : false;
+    m.userData.dim = L.markers==='all' && L.guide && id!==cur; m.material.opacity = m.userData.dim ? .28 : 1; }
+  const ob=$('#objective'); if(!L.guide || !state.started || state.done || !cur){ ob.hidden=true; return; }
+  $('#objStep').textContent=`Scene ${STEPS.indexOf(cur)+1} of 5`; $('#objText').textContent=OBJECTIVES[state.level][cur]; ob.hidden=!$('#scene-card').hidden;
+  const oid=`obj-${state.level}-${cur}`; $('#objSay').hidden=!voHas(oid); $('#objSay').onclick=()=>voPlay(oid);
+  if(!ob.hidden && VO.lastObj!==oid && voHas(oid)){ VO.lastObj=oid; setTimeout(()=>{ if($('#scene-card').hidden && !state.done) voPlay(oid); },400); }
+}
+
+/* ---------- Level setup ---------- */
+function setupLevel(){
+  L=LEVELS[state.level];
+  if(L.faders==='number'){ CHANNELS=[...CHANNELS].sort(()=>Math.random()-.5); }
+  if(L.clock) $('#timer').classList.add('clock');
+  if(L.rostrum){ state.plan.rostrum='USC'; PLAN_TARGET.rostrum='DSR'; pieces.rostrum.visible=true; pieces.rostrum.userData.target=CELL_POS.USC.clone(); }
+  NOTES.cue = state.level==='easy'
+    ? '<b>LX Cue 12</b> · Bring up the special on <b>down stage left</b> on its own. That’s the area nearest the audience, on the actor’s left. Use a cold colour. Every other channel at zero.'
+    : '<b>LX Cue 12</b> · Isolate the acting area nearest the audience, on the actor’s left. The moment must feel cold and lonely. Every other channel at zero.';
+  NOTES.set = '<b>Act Two set</b> · '+SET_LINES().join(' ');
+  if(L.faders==='number') NOTES.patch='<b>Patch sheet</b> · '+CHANNELS.map((c,i)=>`Ch ${i+1}: ${c.patch}`).join('. ')+'.';
+}
+const SET_LINES=()=>['Table centre stage.','Chair stage left of the table.','Trunk up stage right.','Door flat up stage centre.',...(L.rostrum?['Rostrum down stage right.']:[])];
+
+const NOTES={ exit:'<b>Exit</b> · Code order: LIGHTS · SET · STAGING.' };
+const notesFound=new Set();
+
+/* ---------- Puzzles ---------- */
+function openBook(){
+  const b=openSheet('modal','Prompt book');
+  const cue = NOTES.cue.replace(/<b>LX Cue 12<\/b> · /,'');
+  b.append(el(`<p class="lead">The stage manager runs the show from the <b>prompt corner</b>, at the side of the stage. Everything for tonight is in here.</p>`));
+  b.append(el(`<div class="book">
+    <div class="page"><h3>Lighting cue sheet</h3><p><b>LX Cue 12</b> · Act Two, the letter scene</p>
+      <p class="hand">${cue}</p><p style="font-size:15px;color:#7a5a32">Standby LX 12… LX 12, go.</p>
+      ${L.faders==='number'?`<h3 style="margin-top:14px">Patch sheet</h3><table class="patch">${CHANNELS.map((c,i)=>`<tr><td>Ch ${i+1}</td><td>${c.patch}</td></tr>`).join('')}</table>`:''}</div>
+    <div class="page"><h3>Director’s note</h3><p>Act Two set, please, crew:</p><ul class="hand">${SET_LINES().map(l=>`<li>${l}</li>`).join('')}</ul><p>Thanks! J.</p>
+      <p style="font-size:15px;color:#7a5a32;margin-top:18px">PS the lighting desk is locked. Password = where actors wait, out of sight, either side of the stage.</p></div></div>`));
+  if(!state.readBook){ state.readBook=true; pendingScenes.push('book'); }
+  notesFound.add('cue'); notesFound.add('set'); if(NOTES.patch) notesFound.add('patch');
+}
+
+function openDesk(){
+  const b=openSheet('bottom','Lighting desk');
+  if(!state.deskUnlocked) return L.wordBank? deskBank(b) : deskLock(b);
+  deskFaders(b);
+}
+function unlockDesk(){ state.deskUnlocked=true; applyLights(); toast('Desk unlocked. The house lights dim… the stage is yours.'); sheetBody.innerHTML=''; deskFaders(sheetBody); }
+function deskBank(b){
+  b.append(el(`<p class="lead">The desk is password locked. A label on it reads: <i>“the hidden areas either side of the stage, where actors wait to enter.”</i> Which word is it?</p>`));
+  const WRONG={ APRON:'The <b>apron</b> is the part of the stage in front of the curtain, nearest the audience.', FLIES:'The <b>flies</b> are the space above the stage where scenery and lights hang.' };
+  const bank=el('<div class="wordbank"></div>'); const fb=el('<div class="feedback" style="text-align:center"></div>');
+  for(const w of ['WINGS','APRON','FLIES'].sort(()=>Math.random()-.5)){ const btn=el(`<button>${w}</button>`); btn.onclick=()=>{ if(w==='WINGS') unlockDesk(); else { fb.className='feedback bad'; fb.innerHTML=`Not that one. ${WRONG[w]}`; btn.disabled=true; btn.style.opacity=.4; } }; bank.append(btn); }
+  b.append(bank,fb);
+}
+function deskLock(b){
+  b.append(el(`<p class="lead">The desk is password locked. A label on it reads: <i>“the hidden areas either side of the stage, where actors wait to enter.”</i> Type, or use the arrows.</p>`));
+  const letters=['A','A','A','A','A'].map(()=>String.fromCharCode(65+Math.floor(Math.random()*26))); let cur=0;
+  const wrap=el('<div class="lockwrap"></div>');
+  const draw=()=>{ wrap.innerHTML=''; letters.forEach((Lt,i)=>{ const t=el(`<div class="tumbler${i===cur?' cur':''}"><button aria-label="Next letter">▲</button><div class="letter">${Lt}</div><button aria-label="Previous letter">▼</button></div>`);
+    const [up,down]=t.querySelectorAll('button'); up.onclick=()=>{ letters[i]=String.fromCharCode((letters[i].charCodeAt(0)-65+1)%26+65); cur=i; draw(); }; down.onclick=()=>{ letters[i]=String.fromCharCode((letters[i].charCodeAt(0)-65+25)%26+65); cur=i; draw(); };
+    t.querySelector('.letter').onclick=()=>{cur=i;draw();}; wrap.append(t); }); };
+  draw(); b.append(wrap);
+  const fb=el('<div class="feedback" style="text-align:center"></div>');
+  const row=el('<div class="row" style="justify-content:center;margin-top:10px"></div>'); const tryB=el('<button class="btn">Unlock</button>'); const [hb,hf]=hintButton(['Five letters. Actors “wait in the ____”.','It starts with W. Birds have them too.']);
+  row.append(tryB,hb); b.append(row,fb,hf);
+  const attempt=()=>{ if(letters.join('')==='WINGS'){ unlockDesk(); }
+    else { wrap.classList.remove('shake'); void wrap.offsetWidth; wrap.classList.add('shake'); fb.className='feedback bad'; fb.textContent='The desk beeps. Not that word.'; } };
+  tryB.onclick=attempt;
+  sheetKeys=e=>{ if(state.deskUnlocked) return; if(/^[a-z]$/i.test(e.key)){ letters[cur]=e.key.toUpperCase(); cur=Math.min(4,cur+1); draw(); } else if(e.key==='Backspace'){ cur=Math.max(0,cur-1); draw(); } else if(e.key==='Enter') attempt(); };
+}
+function deskFaders(b){
+  const extra = !state.readBook ? '<i>You haven’t found the cue sheet yet. It’s in the prompt book.</i>' : L.faders==='number' ? 'The faders are only numbered. The <b>patch sheet</b> in the prompt book (or Notes) says which lantern each channel controls.' : '';
+  b.append(el(`<p class="lead">Push the faders up and watch the stage. Each channel is a lantern focused on one area. ${extra}</p>`));
+  const desk=el('<div class="desk"></div>'); const fwrap=el('<div class="faders" role="group" aria-label="Channel faders"></div>');
+  CHANNELS.forEach((ch,i)=>{
+    const lab = L.faders==='full' ? `<span class="lab two">${ch.full}</span>` : L.faders==='abbr' ? `<span class="lab">${ch.lab}</span>` : '<span class="lab">&nbsp;</span>';
+    const aria = L.faders==='number' ? `Channel ${i+1}` : `Channel ${i+1}, ${ch.full.replace('<br>',' ')}`;
+    const f=el(`<div class="fader"><span class="num">${i+1}</span><div class="track" tabindex="0" role="slider" aria-label="${aria}" aria-valuemin="0" aria-valuemax="100"><div class="fill"></div><div class="cap"></div></div><span class="lvl">0</span>${lab}</div>`);
+    const track=f.querySelector('.track'), cap=f.querySelector('.cap'), fill=f.querySelector('.fill'), lvl=f.querySelector('.lvl');
+    const render=()=>{ const v=state.levels[ch.id]; cap.style.bottom=v+'%'; fill.style.height=v+'%'; lvl.textContent=v; track.setAttribute('aria-valuenow',v); };
+    const set=v=>{ state.levels[ch.id]=Math.round(Math.max(0,Math.min(100,v))); render(); applyLights(); checkLights(); };
+    const fromY=e=>{ const r=track.getBoundingClientRect(); set((1-(e.clientY-r.top)/r.height)*100); };
+    track.addEventListener('pointerdown',e=>{ track.setPointerCapture(e.pointerId); fromY(e); track.onpointermove=fromY; });
+    track.addEventListener('pointerup',()=>{ track.onpointermove=null; });
+    track.addEventListener('keydown',e=>{ const step=e.shiftKey?1:10; if(e.key==='ArrowUp'||e.key==='ArrowRight'){set(state.levels[ch.id]+step);e.preventDefault();} if(e.key==='ArrowDown'||e.key==='ArrowLeft'){set(state.levels[ch.id]-step);e.preventDefault();} if(e.key==='Home'){set(0)} if(e.key==='End'){set(100)} });
+    f._render=render; render(); fwrap.append(f);
+  });
+  const side=el('<div class="gels"></div>'); side.append(el('<h3>Colour scroller · gel for the specials and cyc</h3>'));
+  const sw=el('<div class="swatches"></div>');
+  const drawSw=()=>{ sw.innerHTML=''; for(const [k,g] of Object.entries(GELS)){ const tag = state.level==='easy' ? ({open:'',straw:' (warm)',blue:' (cold)',red:' (hot)',green:''})[k] : ''; const s=el(`<button class="swatch${state.gel===k?' on':''}"><i style="background:${g.css}"></i>${g.name}${tag}</button>`); s.onclick=()=>{ state.gel=k; drawSw(); applyLights(); checkLights(); }; sw.append(s);} };
+  const row=el('<div class="row" style="margin-bottom:4px"></div>');
+  side.prepend(row);
+  drawSw(); side.append(sw);
+  if(state.level==='easy') side.append(el('<p class="areakey">Stage left and stage right are the <b>actor’s</b> left and right as they face you. So from your seat, stage left is on <b>your right</b>.</p>'));
+  const bo=el('<button class="btn ghost">Blackout</button>');
+  bo.onclick=()=>{ for(const k in state.levels) state.levels[k]=0; fwrap.querySelectorAll('.fader').forEach(f=>f._render()); applyLights(); };
+  const [hb,hf]=hintButton(L.faders==='number'
+    ? ['Read the patch sheet: find the channel that is the special for down stage left.','Down stage = nearest the audience. Stage left = the actor’s left, which is on your right.','Cold colours are blues. Every other channel goes to zero, including the wash and the cyc.']
+    : ['Down stage means nearest the audience.','Stage left is the ACTOR’s left as they face you, so from your seat it’s on the right. That’s DSL.','Cold colours are blues. Everything except DSL goes to zero, including the wash and the cyc.']);
+  row.append(bo,hb); side.append(hf);
+  desk.append(fwrap,side); b.append(desk);
+}
+function checkLights(){
+  const lv=state.levels; const others=Object.entries(lv).filter(([k])=>k!=='DSL').every(([,v])=>v<=10);
+  if(!state.found.light && !state.nearlyWarned && lv.DSL>=50 && state.gel==='blue' && !others){ state.nearlyWarned=true; toast('Nearly! The cue says <b>every other channel at zero</b>. Pull the rest right down, or press Blackout and start again.'); }
+  if(!state.found.light && lv.DSL>=50 && others && state.gel==='blue'){ collect('light',`<b>LX 12 is set.</b> In the cold isolated pool down stage left, UV paint glows on the floor: <b>${state.code.light}</b>. Close the desk when you’re ready.`); }
+  if(!state.wrongSideWarned && lv.DSR>=50 && Object.entries(lv).filter(([k])=>k!=='DSR').every(([,v])=>v<=10)){ state.wrongSideWarned=true; toast('That’s down stage <b>right</b>. Stage directions are given from the actor’s point of view, facing the audience.'); }
+}
+
+const PIECE_INFO={ table:{name:'Table',svg:'<svg viewBox="0 0 16 16"><rect x="1" y="4" width="14" height="8" rx="1" fill="#5b3a22"/></svg>'}, chair:{name:'Chair',svg:'<svg viewBox="0 0 16 16"><rect x="4" y="4" width="8" height="8" fill="#5b3a22"/><rect x="4" y="2" width="8" height="2" fill="#3a2414"/></svg>'}, trunk:{name:'Trunk',svg:'<svg viewBox="0 0 16 16"><rect x="2" y="4" width="12" height="8" fill="#4a2b19"/><rect x="5" y="4" width="1.5" height="8" fill="#c69a4a"/><rect x="9.5" y="4" width="1.5" height="8" fill="#c69a4a"/></svg>'}, door:{name:'Door flat',svg:'<svg viewBox="0 0 16 16"><rect x="1" y="6" width="14" height="4" fill="#5e6b63"/><rect x="5.5" y="6" width="5" height="4" fill="#6b3f23"/></svg>'}, rostrum:{name:'Rostrum',svg:'<svg viewBox="0 0 16 16"><rect x="1" y="3" width="14" height="10" fill="#2b2326" stroke="#888" stroke-width="1"/></svg>'} };
+function openPlan(){
+  const b=openSheet('side','Ground plan');
+  b.append(state.readBook? el(`<div class="note">${SET_LINES().join(' ')}</div>`) : el('<div class="note missing">The director’s note for the Act Two set is in the prompt book, in the prompt corner.</div>'));
+  b.append(el(`<p class="lead" style="font-size:14px">This is the stage seen from above. Drag each piece to its area, or tap a piece then tap an area. The real set moves as you go.${state.level==='easy'?' <b>U</b> = up stage (far from the audience), <b>D</b> = down stage, <b>C</b> = centre, <b>R</b>/<b>L</b> = the actor’s right and left.':''}</p>`));
+  const plan=el(`<div class="plan${L.planLabels?' labels':''}" role="grid" aria-label="Ground plan, nine stage areas"></div>`); let selected=null;
+  const total=Object.keys(PLAN_TARGET).length;
+  const draw=()=>{ plan.innerHTML=''; CELLS.forEach(c=>{ const cell=el(`<div class="cell" tabindex="0" data-cell="${c}" aria-label="${L.planLabels?c:'Area'}"><span class="clabel">${c}</span></div>`);
+      cell.onclick=()=>{ if(selected){ place(selected,c); selected=null; draw(); } }; cell.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); cell.onclick(); } };
+      for(const [id,at] of Object.entries(state.plan)) if(at===c){ const p=el(`<div class="piece${selected===id?' sel':''}" tabindex="0" data-piece="${id}">${PIECE_INFO[id].svg}${PIECE_INFO[id].name}</div>`); dragify(p,id); cell.append(p); }
+      plan.append(cell); }); };
+  const place=(id,c)=>{ const prev=state.plan[id]; const other=Object.keys(state.plan).find(k=>state.plan[k]===c && k!==id); if(other) state.plan[other]=prev; state.plan[id]=c; for(const k in state.plan) pieces[k].userData.target=CELL_POS[state.plan[k]].clone(); fb.textContent=''; };
+  function dragify(p,id){
+    p.onkeydown=e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); e.stopPropagation(); selected=selected===id?null:id; draw(); plan.querySelector(`[data-piece="${id}"]`)?.focus(); } };
+    p.addEventListener('pointerdown',e=>{ e.stopPropagation(); e.preventDefault(); const sx=e.clientX, sy=e.clientY; let ghost=null;
+      const move=ev=>{ if(!ghost && Math.hypot(ev.clientX-sx,ev.clientY-sy)>6){ ghost=p.cloneNode(true); ghost.classList.add('dragging'); document.body.append(ghost); p.style.visibility='hidden'; }
+        if(ghost){ ghost.style.left=ev.clientX+'px'; ghost.style.top=ev.clientY+'px'; plan.querySelectorAll('.cell').forEach(c=>c.classList.remove('target')); document.elementFromPoint(ev.clientX,ev.clientY)?.closest('.cell')?.classList.add('target'); } };
+      const up=ev=>{ removeEventListener('pointermove',move); removeEventListener('pointerup',up); removeEventListener('pointercancel',up);
+        if(ghost){ ghost.remove(); const cell=ev.type==='pointerup' && document.elementFromPoint(ev.clientX,ev.clientY)?.closest('.cell'); if(cell) place(id,cell.dataset.cell); selected=null; draw(); }
+        else { selected=selected===id?null:id; draw(); } };
+      addEventListener('pointermove',move); addEventListener('pointerup',up); addEventListener('pointercancel',up); });
+    p.addEventListener('click',e=>e.stopPropagation());
+  }
+  draw(); b.append(plan, el('<div class="audience">▼ AUDIENCE ▼</div>'));
+  const fb=el('<div class="feedback"></div>');
+  const row=el('<div class="row" style="margin-top:12px"></div>'); const chk=el('<button class="btn">Check the set</button>');
+  const hints=['The audience is at the bottom, so down stage is the bottom row.','Stage right is the actor’s right. On a plan with the audience at the bottom, that’s the LEFT side.'];
+  if(!L.planLabels && state.level!=='hard') hints.push('Here are the area names.');
+  const [hb,hf]=hintButton(hints);
+  hb.addEventListener('click',()=>{ if(hf.textContent.includes('area names')) plan.classList.add('labels'); });
+  chk.onclick=()=>{ const right=Object.keys(PLAN_TARGET).filter(k=>state.plan[k]===PLAN_TARGET[k]).length;
+    if(right===total){ fb.className='feedback good'; fb.textContent='The set is right for Act Two.'; if(!state.found.set){ chalk.visible=true; collect('set',`<b>Set!</b> Something is chalked on the door flat, up stage centre: <b>${state.code.set}</b>. Close the plan when you’re ready.`);} }
+    else { fb.className='feedback bad'; fb.textContent=`${right} of ${total} pieces are in the right area.`; toast(`<b>${right} of ${total}</b> pieces are in the right area. Keep going!`,3500); } };
+  row.append(chk,hb); b.append(row,fb,hf);
+}
+
+const STAGINGS={
+  proscenium:{name:'Proscenium arch',why:'The audience sit on one side and watch through a frame, like looking at a picture.',svg:'<svg viewBox="0 0 120 90"><rect x="20" y="8" width="80" height="34" fill="#c99443"/><rect x="14" y="4" width="92" height="6" fill="#7a1a1a"/><rect x="14" y="4" width="6" height="40" fill="#7a1a1a"/><rect x="100" y="4" width="6" height="40" fill="#7a1a1a"/>'+dots([[20,100,54,84]])+'</svg>'},
+  thrust:{name:'Thrust',why:'The stage pushes out into the audience, who sit on three sides.',svg:'<svg viewBox="0 0 120 90"><rect x="40" y="6" width="40" height="56" fill="#c99443"/>'+dots([[8,34,12,84],[86,112,12,84],[40,80,68,84]])+'</svg>'},
+  traverse:{name:'Traverse',why:'The stage is a catwalk with the audience on two opposite sides.',svg:'<svg viewBox="0 0 120 90"><rect x="6" y="36" width="108" height="18" fill="#c99443"/>'+dots([[8,112,6,28],[8,112,62,84]])+'</svg>'},
+  round:{name:'In the round',why:'The audience surround the stage on every side.',svg:'<svg viewBox="0 0 120 90"><circle cx="60" cy="45" r="18" fill="#c99443"/>'+ring()+'</svg>'},
+  promenade:{name:'Promenade',why:'The audience move between different acting areas, following the action.',svg:'<svg viewBox="0 0 120 90"><rect x="8" y="8" width="30" height="20" fill="#c99443"/><rect x="80" y="58" width="32" height="22" fill="#c99443"/><rect x="50" y="34" width="20" height="16" fill="#c99443"/>'+dots([[44,76,10,26],[10,40,56,84],[84,112,24,48]])+'<path d="M38 30 L52 38 M70 48 L80 58" stroke="#f6eee3" stroke-width="2" stroke-dasharray="3 3"/></svg>'},
+};
+function dots(areas){ let s=''; for(const [x0,x1,y0,y1] of areas) for(let y=y0;y<=y1;y+=8) for(let x=x0;x<=x1;x+=8) s+=`<circle cx="${x}" cy="${y}" r="2.2" fill="#b9ab9b"/>`; return s; }
+function ring(){ let s=''; for(let r=28;r<=42;r+=7){ const n=Math.round(r*.9); for(let i=0;i<n;i++){ const a=i/n*Math.PI*2; s+=`<circle cx="${60+Math.cos(a)*r*1.25}" cy="${45+Math.sin(a)*r}" r="2.2" fill="#b9ab9b"/>`; } } return s; }
+function openPoster(){
+  const b=openSheet('modal','Types of staging');
+  b.append(el(`<p class="lead">Five ways to arrange a stage and an audience. Gold is the stage, dots are the audience. <b>Which one is the theatre you’re standing in?</b> Its number is part of the exit code.${state.level==='hard'?' <i>Each wrong guess costs 30 seconds.</i>':''}</p>`));
+  const grid=el('<div class="stagings"></div>'); const fb=el('<div class="feedback"></div>');
+  for(const k of Object.keys(STAGINGS).sort(()=>Math.random()-.5)){ const s=STAGINGS[k];
+    const c=el(`<button class="stg${state.found.staging&&k==='proscenium'?' right':''}" aria-label="Staging diagram number ${POSTER_TYPES[k]}${L.posterNames?', '+s.name:''}"><span class="badge">${POSTER_TYPES[k]}</span>${s.svg}${L.posterNames?`<span class="sname">${s.name}</span>`:''}</button>`);
+    c.onclick=()=>{ if(k==='proscenium'){ c.classList.add('right'); fb.className='feedback good'; fb.innerHTML=`<b>Proscenium arch.</b> ${s.why} Look at the gold frame around this stage.`; collect('staging',`<b>Proscenium arch</b>. The staging digit is <b>${state.code.staging}</b>. Close the poster when you’re ready.`); }
+      else if(state.found.staging){ fb.className='feedback'; fb.innerHTML=`That one is <b>${s.name}</b>. ${s.why}`; }
+      else if(!c.classList.contains('wrong')){ c.classList.add('wrong'); const lose=state.level==='hard'?' <i>(30 seconds off the clock)</i>':''; if(lose) penalise(30); fb.className='feedback bad'; fb.innerHTML=`That’s <b>${s.name}</b>. ${s.why} Look at where your seat is compared with the stage.${lose}`; } };
+    grid.append(c); }
+  const [hb,hf]=hintButton('Turn and look at the stage. Is there an audience behind it or at its sides? Is there a frame around it?');
+  b.append(grid,fb,el('<div class="row" style="margin-top:8px"></div>')); b.lastChild.append(hb); b.append(hf);
+}
+
+function openDoor(){
+  const b=openSheet('modal','Exit');
+  notesFound.add('exit');
+  b.append(el('<p class="lead" style="text-align:center">A note is taped to the keypad: <b>Code order: LIGHTS · SET · STAGING</b></p>'));
+  let entry=''; const disp=el('<div class="kdisplay">___</div>'); const fb=el('<div class="feedback" style="text-align:center"></div>');
+  const show=()=>{ disp.textContent=(entry+'___').slice(0,3); };
+  const pad=el('<div class="keypad"></div>');
+  const press=k=>{ if(k==='C'){ entry=''; show(); return; } if(k==='✓') return submit(); if(entry.length<3){ entry+=k; show(); } if(entry.length===3) setTimeout(submit,250); };
+  ['1','2','3','4','5','6','7','8','9','C','0','✓'].forEach(k=>{ const btn=el(`<button>${k}</button>`); btn.onclick=()=>press(k); pad.append(btn); });
+  const submit=()=>{ if(state.done) return; const code=`${state.code.light}${state.code.set}${state.code.staging}`;
+    if(entry===code){ fb.className='feedback good'; fb.textContent='Click. The lock releases.'; escape(); }
+    else { disp.classList.remove('shake'); void disp.offsetWidth; disp.classList.add('shake'); fb.className='feedback bad'; const lose=state.level==='hard'?' That cost you 30 seconds.':''; if(lose) penalise(30); const n=Object.values(state.found).filter(Boolean).length; fb.textContent= (n<3 ? `Wrong code. You’ve only found ${n} of 3 digits.` : 'Wrong code. Check the order on the note.')+lose; entry=''; setTimeout(show,400); } };
+  sheetKeys=e=>{ if(state.done) return; if(/^[0-9]$/.test(e.key)) press(e.key); if(e.key==='Backspace'){ entry=entry.slice(0,-1); show(); } if(e.key==='Enter') submit(); };
+  b.append(disp,pad,fb);
+}
+function escape(){
+  state.done=true; const secs=Math.floor(elapsed()+state.penalty); refreshGuide();
+  setTimeout(()=>{ sheet.classList.remove('open'); state.sheet=null; },500);
+  const start=performance.now(); const swing=()=>{ const t=Math.min(1,(performance.now()-start)/1600); exitDoorPivot.rotation.y=-ease(t)*1.5; doorway.material.opacity=ease(t); escapeLight.intensity=ease(t)*90; if(t<1) requestAnimationFrame(swing); }; setTimeout(swing,500);
+  setTimeout(async()=>{ await playScene('finale'); ghostLight.visible=false; bulb.visible=false;
+    $('#winTime').textContent=`${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')}`; $('#winHints').textContent=state.hints; $('#winLevel').textContent=L.name+(L.clock?` · ${fmt(L.clock-secs)} left on the clock`+(state.penalty?` · includes ${fmt(state.penalty)} of penalties`:''):'');
+    const extra={easy:['Apron','Flies'],medium:[],hard:['Rostrum','Patch sheet','Channel']}[state.level]; const v=document.querySelector('#win .vocab'); for(const w of extra) v.append(el(`<span>${w}</span>`)); $('#win').hidden=false; },2400);
+}
+
+/* ---------- HUD buttons ---------- */
+$('#notesBtn').onclick=()=>{ const b=openSheet('modal','Notes'); if(!notesFound.size) b.append(el('<p class="lead">Nothing yet. Clues you read will be kept here.</p>')); for(const k of notesFound) b.append(el(`<div class="note">${NOTES[k]}</div>`)); };
+$('#hintBtn').onclick=()=>{ if(!state.started||state.done) return; let h;
+  if(!state.readBook) h='Every show is run from the <b>prompt corner</b>. Look for the stage manager’s desk at the side of the stage, with a blue glow.';
+  else if(!state.deskUnlocked) h='The <b>lighting desk</b> is on the production table set up across the seats. You found its password clue in the prompt book.';
+  else if(!state.found.light) h='Set lighting cue 12 on the desk. Read the cue sheet again (Notes button).';
+  else if(!state.found.set) h='The director’s <b>ground plan</b> is on the easel at the front of the auditorium.';
+  else if(!state.found.staging) h='There’s a <b>poster</b> on the right-hand wall of the auditorium.';
+  else h='Go to the <b>exit</b> on the left wall and enter the code.';
+  toast('Hint: '+h+spendHint(h),7000); };
+
+/* ---------- Pointer & picking ---------- */
+const ray=new THREE.Raycaster(), ndc=new THREE.Vector2(); const tip=$('#tip'); let down=null;
+const pickables=()=>[...hotspots.map(h=>h.group),...Object.values(markers)];
+function pick3d(e){ ndc.set(e.clientX/innerWidth*2-1,-(e.clientY/innerHeight)*2+1); ray.setFromCamera(ndc,camera); const hit=ray.intersectObjects(pickables(),true)[0]; if(!hit) return null; let o=hit.object; while(o && !o.userData.hotspot) o=o.parent; return o? hotspots.find(h=>h.id===o.userData.hotspot):null; }
+canvas.addEventListener('pointerdown',e=>{ down={x:e.clientX,y:e.clientY,yaw:yawT,pitch:pitchT,moved:false}; canvas.setPointerCapture(e.pointerId); });
+canvas.addEventListener('pointermove',e=>{
+  if(down){ const dx=e.clientX-down.x, dy=e.clientY-down.y; if(Math.hypot(dx,dy)>6) down.moved=true;
+    if(down.moved && state.view==='home'){ yawT=THREE.MathUtils.clamp(down.yaw-dx/innerWidth*2.2,-1.1,1.1); pitchT=THREE.MathUtils.clamp(down.pitch+dy/innerHeight*1.2,-.35,.3); canvas.style.cursor='grabbing'; tip.classList.remove('on'); return; } }
+  if(e.pointerType!=='mouse' || state.view!=='home' || !state.started) return;
+  const h=pick3d(e); canvas.classList.toggle('hot',!!h); if(h){ tip.textContent=h.label; tip.style.left=e.clientX+'px'; tip.style.top=e.clientY+'px'; tip.classList.add('on'); } else tip.classList.remove('on');
+});
+canvas.addEventListener('pointerup',e=>{ canvas.style.cursor=''; const d=down; down=null; if(!d||d.moved||!state.started||state.done||state.failed) return; if(state.sheet){ closeSheet(); return; } if(state.view!=='home'||anim) return; const h=pick3d(e); if(h) visit(h); else flavour(e); });
+const FLAVOUR={
+  ghost:'The <b>ghost light</b>. Theatres leave one burning on an empty stage all night so nobody falls into the orchestra pit. Some say it’s for the ghosts.',
+  tabs:'The <b>house tabs</b>: the main curtain between the stage and the audience.',
+  legs:'Black <b>legs</b>. These narrow curtains hide the <b>wings</b>, so the audience can’t see actors waiting to come on.',
+  cyc:'The <b>cyclorama</b> (or cyc): a big plain cloth at the back of the stage. Light it and it can be any colour of sky.',
+  borders:'Black <b>borders</b>: short curtains hanging above the stage to hide the lights and scenery in the <b>flies</b>.',
+  seats:'The <b>auditorium</b>. Tonight every seat is empty.',
+  piece:'Part of the set. The <b>ground plan</b> says where it should go for Act Two.',
+};
+function flavour(e){ ndc.set(e.clientX/innerWidth*2-1,-(e.clientY/innerHeight)*2+1); ray.setFromCamera(ndc,camera);
+  const hits=ray.intersectObjects(scene.children,true).filter(h=>h.object.type!=='Sprite' && !(h.object.material&&h.object.material.blending===THREE.AdditiveBlending)).slice(0,3);
+  for(const hit of hits){ let o=hit.object; while(o && !o.userData.flavour) o=o.parent; if(o){ toast(FLAVOUR[o.userData.flavour],5000); voPlay('fl-'+o.userData.flavour); return; } } }
+function visit(h){ tip.classList.remove('on'); canvas.classList.remove('hot');
+  const cur=currentStep();
+  if(L.guide && STEPS.indexOf(h.id)>STEPS.indexOf(cur)){ toast(`<i>The Prompter whispers:</i> Not yet. Your next cue: ${OBJECTIVES[state.level][cur]}`,6000); return; }
+  state.visited.add(h.id); state.view=h.id; flyTo(h.view(),1000);
+  const immediate = h.id==='desk'||h.id==='plan'; setTimeout(()=>h.open(), immediate?250:700); }
+
+/* ---------- Start, clock, resize, loop ---------- */
+document.querySelectorAll('.level').forEach(btn=>btn.onclick=()=>{ document.querySelectorAll('.level').forEach(b=>{ b.classList.toggle('on',b===btn); b.setAttribute('aria-checked',b===btn); }); state.level=btn.dataset.level; });
+$('#startBtn').onclick=async()=>{ if(state.starting) return; state.starting=true; $('#intro').hidden=true; setupLevel(); refreshGuide(); await playScene('prologue'); state.started=true; state.t0=performance.now(); state.paused=0; refreshGuide();
+  toast(L.guide? 'Drag to look around. Follow the cue at the bottom of the screen.' : 'Opening night. No guide, and the clock is running. Drag to look around.',5500); };
+function elapsed(){ return (performance.now()-state.t0-state.paused)/1000; }
+function fmt(s){ s=Math.max(0,Math.floor(s)); return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`; }
+function fail(){ state.failed=true; house.intensity=160; houseFill.intensity=80; sheet.classList.remove('open'); state.sheet=null; $('#objective').hidden=true; $('#fail').hidden=false; voPlay('fail-1').then(ok=>{ if(ok) voPlay('fail-2'); }); }
+addEventListener('resize',()=>{ camera.aspect=innerWidth/innerHeight; camera.fov=innerWidth<innerHeight?76:52; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); if(state.view==='plan') flyTo(planView(),400); });
+
+applyLights(); refreshGuide();
+let lastSec=-1;
+$('#faceBtn').onclick=()=>{ yawT=0; pitchT=0; };
+renderer.setAnimationLoop(t=>{
+  if(anim){ const k=Math.min(1,(performance.now()-anim.t0)/anim.dur), e=ease(k); camera.position.lerpVectors(anim.fp,anim.tp,e); curLook.lerpVectors(anim.fl,anim.tl,e); if(k>=1) anim=null; }
+  else if(state.view==='home'){ yaw+= (yawT-yaw)*.08; pitch+=(pitchT-pitch)*.08; curLook.lerp(homeLook(),.2); const b=Math.sin(t*.00025)*.04; camera.position.set(HOME.pos.x+b,HOME.pos.y,HOME.pos.z); }
+  camera.lookAt(curLook);
+  $('#faceBtn').hidden = !(state.started && !state.done && state.view==='home' && !state.sheet && (Math.abs(yawT)>.3||Math.abs(pitchT)>.2));
+  for(const p of Object.values(pieces)) p.position.lerp(p.userData.target,.12);
+  const pulse=(L.markers==='next'?.085:.07)+Math.sin(t*.004)*.018; for(const m of Object.values(markers)) m.scale.setScalar(m.userData.dim ? .045 : pulse);
+  if(ghostLight.visible) ghostLight.intensity = 14*(0.94+Math.sin(t*.013)*.03+Math.sin(t*.031)*.03);
+  if(state.started && !state.done && !state.failed && $('#scene-card').hidden && $('#share').hidden){ const s=Math.floor(elapsed()); if(s!==lastSec){ lastSec=s; const tm=$('#timer');
+      if(L.clock){ const left=L.clock-s-state.penalty; tm.textContent='Curtain up in '+fmt(left); tm.classList.toggle('low',left<=120); if(left<=0) fail(); }
+      else tm.textContent=fmt(s); } }
+  renderer.render(scene,camera);
+});
+document.getElementById('loading').remove();
+</script>
+</body>
+</html>

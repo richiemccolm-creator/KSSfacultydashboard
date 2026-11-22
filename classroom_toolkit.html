@@ -665,6 +665,7 @@ body.embedded .side-left,body.embedded .side-right{top:var(--header-h);height:ca
 
   var ICONS = {
     lighting:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6l-1 6h-4z"/><path d="M8 9h8l-1.5 4h-5z"/><path d="M12 13v2M6 21l3-6h6l3 6"/></svg>',
+    escape:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V4a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v17M3 21h18"/><circle cx="12" cy="10" r="2"/><path d="M12 12v4"/></svg>',
     stage:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18v12H3z"/><path d="M3 5c3 0 4 3 4 6M21 5c-3 0-4 3-4 6"/><path d="M9 14h6M2 20h20"/></svg>',
     sound:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2"/></svg>',
     timer:'<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 1.5M9.5 2h5"/></svg>',
@@ -713,6 +714,12 @@ body.embedded .side-left,body.embedded .side-right{top:var(--header-h);height:ca
       // "live": the QR and poster are drawn from the Hub's own address, so they follow the deployment
       qr:"live", poster:"live", appIcon:"toolkit/stagefeed/icons/icon-512.png", tagline:"A private social media studio for theatre",
       desc:"Create fictional character accounts and theatre design portfolios. Posts, stories and messages stay on the device; export work for your teacher."},
+    // 3D escape room: its own tab and its own QR, like StageFeed. Not installable, nothing saved.
+    {id:"escape", name:"The Locked Theatre", cat:"Drama", hue:"amber", icon:"escape", live:true, external:true,
+      href:"toolkit/escape-room.html", span:"4",
+      qr:"live", poster:"live", tagline:"A 3D drama escape room", posterTip:"Works in any browser. No sign-up, and nothing is saved.",
+      qrNote:"Anyone can play from this link: no login needed, and nothing is saved.",
+      desc:"Escape a haunted theatre using stage areas, lighting and a ground plan. Three difficulty levels, with a voiced story."},
     // Standalone public app: opens in its own tab so it can be shared outside the hub (link / QR)
     {id:"sound",      name:"Sound Designer",   cat:"Drama",  hue:"coral",   icon:"sound",      live:true,  external:true,
       href:"https://sound-designer-one.vercel.app/", span:"4",
@@ -756,7 +763,7 @@ body.embedded .side-left,body.embedded .side-right{top:var(--header-h);height:ca
 
   var COLLECTIONS = [
     {id:"board", label:"On the board", hint:"Class screen", c:"var(--blue)", ids:["timer","quiz","busters","boards","lights","stimulus"]},
-    {id:"devices", label:"Pupil devices", hint:"QR join", c:"var(--cyan)", ids:["headsup","boards","lights","exit","stimulus","quiz","stagefeed"]},
+    {id:"devices", label:"Pupil devices", hint:"QR join", c:"var(--cyan)", ids:["headsup","boards","lights","exit","stimulus","quiz","stagefeed","escape"]},
     {id:"groups", label:"Groups", hint:"Names and seats", c:"var(--violet)", ids:["groups","picker","seats"]}
   ];
 
@@ -1062,7 +1069,7 @@ body.embedded .side-left,body.embedded .side-right{top:var(--header-h);height:ca
         + '<h1>'+escHtml(t.name)+'</h1><p class="sub">'+escHtml(t.tagline||"")+'</p>'
         + '<div class="qr"><img src="'+src+'" alt="QR code for '+escHtml(t.name)+'"></div>'
         + '<p class="scan">Scan with your iPad camera</p><p class="url">'+escHtml(shortUrl)+'</p>'
-        + '<p class="tip">Tip: in Safari, Share › Add to Home Screen to install. Your work stays on your own device.</p>'
+        + '<p class="tip">'+escHtml(t.posterTip||"Tip: in Safari, Share › Add to Home Screen to install. Your work stays on your own device.")+'</p>'
         + '<p class="foot">The Drama Classroom</p>'
         + '<script>window.onload=function(){setTimeout(function(){window.print()},250)}<\/script></body></html>');
       win.document.close();
@@ -1089,7 +1096,7 @@ body.embedded .side-left,body.embedded .side-right{top:var(--header-h);height:ca
       +   (t.poster==="live"?'<button type="button" data-qr-poster>Print poster (A4)</button>':t.poster?'<a href="'+t.poster+'" download>Download poster (A4)</a>':'')
       +   '<a href="'+url+'" target="_blank" rel="noopener">Open app</a>'
       + '</div>'
-      + '<p class="qr-note">Anyone can use it from this link: no login needed, and work is saved on their own device.</p>';
+      + '<p class="qr-note">'+escHtml(t.qrNote||"Anyone can use it from this link: no login needed, and work is saved on their own device.")+'</p>';
     document.body.appendChild(el);
     if(live){
       liveQr(url, 640).then(function(src){ var img=el.querySelector("[data-qr-img]"); if(img) img.src=src; })
