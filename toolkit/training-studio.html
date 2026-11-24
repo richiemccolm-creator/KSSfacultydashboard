@@ -1,0 +1,659 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Training Studio</title>
+<meta name="description" content="Explore a 3D theatre: tap the set, masking and lanterns to learn what they are, and light the stage from a virtual lighting desk.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#050407; --panel:rgba(18,15,20,.95); --panel-solid:#141017; --line:rgba(255,236,210,.14);
+  --ink:#f6eee3; --muted:#b9ab9b; --gold:#e9b864; --gold-deep:#a9772c; --cold:#6f9cff;
+  --serif:"Instrument Serif",Georgia,serif; --sans:"Instrument Sans",system-ui,-apple-system,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;overscroll-behavior:none;background:var(--bg);color:var(--ink);font-family:var(--sans);-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
+html{touch-action:manipulation}
+body{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+canvas#scene{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none;cursor:grab}
+canvas#scene.hot{cursor:pointer}
+button{font:inherit;color:inherit}
+button:focus-visible,.track:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+
+/* HUD */
+.hud{position:fixed;top:0;left:0;right:0;display:flex;align-items:center;gap:10px;padding:max(12px,env(safe-area-inset-top)) 16px 14px;z-index:10;pointer-events:none;background:linear-gradient(#050407e6,#05040700)}
+.hud > *{pointer-events:auto}
+.brand{font-family:var(--serif);font-size:24px;white-space:nowrap}
+.brand em{color:var(--gold)}
+.spacer{flex:1}
+.views{display:flex;border:1px solid var(--line);border-radius:999px;background:rgba(20,16,22,.75);padding:3px}
+.views button{border:0;background:transparent;border-radius:999px;padding:8px 14px;min-height:38px;font-size:14px;font-weight:600;cursor:pointer;color:var(--muted)}
+.views button[aria-pressed=true]{background:var(--gold);color:#24180a}
+.hbtn{border:1px solid var(--line);background:rgba(20,16,22,.75);border-radius:999px;padding:9px 14px;min-height:44px;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap}
+.hbtn[aria-pressed=true]{border-color:var(--gold);color:var(--gold)}
+.hbtn.desk{background:linear-gradient(#e9b864,#c99443);color:#24180a;border-color:var(--gold-deep)}
+@media (hover:hover){.hbtn:hover{border-color:var(--gold)}.views button:hover{color:var(--ink)}}
+.found{font-size:13px;color:var(--muted);white-space:nowrap;font-variant-numeric:tabular-nums}
+.found b{color:var(--gold);font-weight:700}
+@media (max-width:760px){.hud{flex-wrap:wrap;gap:8px}.brand{font-size:20px}.views{order:5;width:100%;justify-content:space-between}.views button{flex:1;padding:7px 8px}.found{display:none}}
+
+/* hint and tooltip */
+.hint{position:fixed;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:9;padding:10px 16px;border-radius:999px;background:rgba(20,16,22,.82);border:1px solid var(--line);font-size:14px;color:var(--muted);white-space:nowrap;pointer-events:none;transition:opacity .3s}
+.hint b{color:var(--ink)}
+.tip{position:fixed;z-index:11;pointer-events:none;padding:6px 10px;border-radius:8px;background:var(--panel-solid);border:1px solid var(--line);font-size:13px;font-weight:600;transform:translate(14px,14px);opacity:0;transition:opacity .15s}
+.tip.on{opacity:1}
+.toast{position:fixed;left:50%;top:90px;transform:translate(-50%,-10px);z-index:40;max-width:min(560px,calc(100vw - 32px));padding:12px 16px;border-radius:12px;background:var(--panel-solid);border:1px solid var(--gold-deep);font-size:15px;line-height:1.4;opacity:0;transition:opacity .25s,transform .25s;pointer-events:none}
+.toast.on{opacity:1;transform:translate(-50%,0)}
+.toast a{color:var(--gold);pointer-events:auto}
+
+/* floating labels */
+#labels{position:fixed;inset:0;pointer-events:none;z-index:5}
+.lbl{position:absolute;left:0;top:0;transform:translate(-50%,-50%);padding:4px 9px;border-radius:999px;background:rgba(14,11,16,.82);border:1px solid var(--line);font-size:12px;font-weight:700;white-space:nowrap;pointer-events:auto;cursor:pointer}
+.lbl.got{border-color:var(--gold-deep);color:var(--gold)}
+.lbl[hidden]{display:none}
+
+/* sheets */
+.sheet{position:fixed;z-index:20;background:var(--panel);border:1px solid var(--line);display:flex;flex-direction:column;transition:transform .45s cubic-bezier(.2,.8,.2,1),opacity .3s;opacity:0;pointer-events:none}
+.sheet.open{opacity:1;pointer-events:auto}
+.sheet.card{left:50%;bottom:16px;width:min(620px,calc(100vw - 24px));max-height:52vh;max-height:52dvh;border-radius:18px;transform:translate(-50%,40px)}
+.sheet.card.open{transform:translate(-50%,0)}
+.sheet.desk{right:16px;top:84px;bottom:16px;width:min(470px,calc(100vw - 32px));border-radius:18px;transform:translateX(110%)}
+.sheet.desk.open{transform:none}
+@media (max-width:820px){.sheet.desk{left:0;right:0;top:auto;bottom:0;width:auto;max-height:64vh;max-height:64dvh;border-radius:20px 20px 0 0;transform:translateY(100%);padding-bottom:env(safe-area-inset-bottom)}
+  .sheet.card{bottom:0;width:100%;border-radius:20px 20px 0 0;transform:translate(-50%,100%);padding-bottom:env(safe-area-inset-bottom)}}
+.sheet-head{display:flex;align-items:center;gap:12px;padding:14px 16px 10px;border-bottom:1px solid var(--line)}
+.sheet-head h2{margin:0;font-family:var(--serif);font-weight:400;font-size:30px;line-height:1.05}
+.kicker{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);font-weight:700}
+.x{margin-left:auto;flex:none;width:44px;height:44px;border-radius:50%;border:1px solid var(--line);background:transparent;cursor:pointer;font-size:18px}
+.sheet-body{padding:12px 16px 18px;overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;-webkit-user-select:text;user-select:text}
+.sheet-body p{margin:0 0 10px;font-size:16px;line-height:1.5}
+.sheet-body .say{color:var(--muted);font-size:14px;margin-top:-4px}
+.designer{border-left:3px solid var(--gold);padding:8px 12px;margin:12px 0;background:rgba(233,184,100,.07);border-radius:0 10px 10px 0}
+.designer h3{margin:0 0 4px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold)}
+.designer p{margin:0;font-size:15px}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.btn{border:1px solid var(--gold-deep);background:linear-gradient(#e9b864,#c99443);color:#24180a;font-weight:700;border-radius:10px;padding:10px 16px;min-height:44px;cursor:pointer}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line);font-weight:600}
+
+/* lighting desk */
+.lead{font-size:15px;line-height:1.45;color:var(--muted);margin:0 0 12px}
+.board{padding:12px;border-radius:14px;background:#0c0a0d;border:1px solid var(--line)}
+.faders{display:flex;justify-content:space-between;gap:6px}
+.fader{display:flex;flex-direction:column;align-items:center;gap:6px;flex:1;min-width:0;touch-action:none;cursor:ns-resize;padding:6px 2px;border-radius:10px;border:1px solid transparent}
+.fader.sel{border-color:var(--gold-deep);background:rgba(233,184,100,.06)}
+.fader .num{font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums}
+.track{position:relative;width:34px;height:150px;border-radius:6px;background:#1c1a1e;border:1px solid #2e2a30;touch-action:none}
+.track .fill{position:absolute;left:14px;right:14px;bottom:0;border-radius:3px;background:var(--gold);opacity:.7}
+.track .cap{position:absolute;left:-5px;right:-5px;height:18px;border-radius:4px;background:linear-gradient(#e8e2da,#9c958e);border:1px solid #000;transform:translateY(50%)}
+.fader .lvl{font-variant-numeric:tabular-nums;font-size:13px;color:var(--gold);font-weight:700}
+.fader .lab{font-size:12px;font-weight:700;text-align:center;line-height:1.15}
+.gelDot{width:22px;height:22px;border-radius:50%;border:2px solid #000;box-shadow:0 0 0 1px var(--line)}
+@media (max-width:640px){.track{height:112px;width:30px}.track .fill{left:12px;right:12px}}
+.section{margin-top:14px}
+.section h3{margin:0 0 8px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.swatches{display:flex;flex-wrap:wrap;gap:6px}
+.swatch{display:flex;align-items:center;gap:7px;border:1px solid var(--line);background:transparent;border-radius:999px;padding:7px 12px 7px 8px;min-height:40px;cursor:pointer;font-size:13px;font-weight:600}
+.swatch i{width:18px;height:18px;border-radius:50%;display:block}
+.swatch[aria-pressed=true]{border-color:var(--gold);color:var(--gold)}
+.cues{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.cue{border:1px solid var(--line);background:#16121a;border-radius:10px;padding:8px;min-height:52px;cursor:pointer;text-align:left}
+.cue small{display:block;font-size:11px;color:var(--muted);letter-spacing:.06em}
+.cue b{font-size:14px}
+.cue.run{border-color:var(--gold);box-shadow:inset 0 0 0 1px var(--gold)}
+.note{font-size:13px;color:var(--muted);line-height:1.45;margin:10px 0 0}
+
+/* intro */
+.intro{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:24px;background:radial-gradient(ellipse at 50% 30%,#2a0d12 0%,#050407 70%)}
+.intro[hidden]{display:none}
+.intro .box{max-width:520px;text-align:center}
+.intro h1{font-family:var(--serif);font-weight:400;font-size:clamp(44px,9vw,72px);margin:0 0 6px;line-height:1}
+.intro h1 em{color:var(--gold)}
+.intro p{font-size:17px;line-height:1.5;color:var(--muted);margin:0 0 10px}
+.intro ul{list-style:none;padding:0;margin:18px 0 24px;display:grid;gap:8px;text-align:left}
+.intro li{padding:10px 14px;border:1px solid var(--line);border-radius:12px;background:rgba(20,16,22,.6);font-size:15px}
+.intro li b{color:var(--gold)}
+.intro .btn{font-size:18px;padding:14px 30px}
+.loading{position:fixed;inset:0;display:grid;place-items:center;z-index:60;background:var(--bg);color:var(--muted);font-size:15px}
+</style>
+</head>
+<body>
+<canvas id="scene" aria-label="A 3D theatre. Tap things on the stage to learn what they are."></canvas>
+<div id="labels" aria-hidden="true"></div>
+
+<header class="hud">
+  <div class="brand">Training <em>Studio</em></div>
+  <div class="views" role="group" aria-label="Where to stand">
+    <button data-view="audience" aria-pressed="true">Audience</button>
+    <button data-view="stage" aria-pressed="false">On stage</button>
+    <button data-view="wings" aria-pressed="false">Wings</button>
+  </div>
+  <div class="spacer"></div>
+  <div class="found" id="found" aria-live="polite"></div>
+  <button class="hbtn" id="labelsBtn" aria-pressed="false">Labels</button>
+  <button class="hbtn desk" id="deskBtn">Lighting desk</button>
+</header>
+
+<div class="hint" id="hint">Drag to look around · <b>tap anything</b> to find out what it is</div>
+<div class="tip" id="tip"></div>
+<div class="toast" id="toast" role="status"></div>
+
+<section class="sheet card" id="card" aria-labelledby="cardTitle" role="dialog">
+  <div class="sheet-head"><div><div class="kicker" id="cardKicker"></div><h2 id="cardTitle"></h2></div><button class="x" id="cardClose" aria-label="Close">✕</button></div>
+  <div class="sheet-body" id="cardBody"></div>
+</section>
+
+<section class="sheet desk" id="desk" aria-labelledby="deskTitle" role="dialog">
+  <div class="sheet-head"><div><div class="kicker">Control box</div><h2 id="deskTitle">Lighting desk</h2></div><button class="x" id="deskClose" aria-label="Close the desk">✕</button></div>
+  <div class="sheet-body" id="deskBody"></div>
+</section>
+
+<div class="intro" id="intro">
+  <div class="box">
+    <h1>Training <em>Studio</em></h1>
+    <p>Step inside a theatre and learn how it works, before you design your own set and lighting.</p>
+    <ul>
+      <li><b>Look around</b> by dragging. Visit the audience, the stage and the wings.</li>
+      <li><b>Tap anything</b> to find out what it is and how designers use it.</li>
+      <li><b>Light the stage</b> yourself from the lighting desk.</li>
+    </ul>
+    <button class="btn" id="startBtn">Enter the theatre</button>
+  </div>
+</div>
+<div class="loading" id="loading">Building the theatre…</div>
+
+<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"}}</script>
+<script type="module">
+import * as THREE from 'three';
+const $ = s => document.querySelector(s);
+const el = html => { const d=document.createElement('div'); d.innerHTML=html.trim(); return d.firstElementChild; };
+const V = (x,y,z) => new THREE.Vector3(x,y,z);
+const store = { get(k,d){ try{ const v=localStorage.getItem('studio:'+k); return v==null?d:JSON.parse(v); }catch(e){ return d; } }, set(k,v){ try{ localStorage.setItem('studio:'+k,JSON.stringify(v)); }catch(e){} } };
+
+/* ---------- Renderer & scene ---------- */
+const canvas = $('#scene');
+let renderer;
+try { renderer = new THREE.WebGLRenderer({ canvas, antialias:true }); }
+catch(err){ $('#loading').textContent='This device can’t show 3D graphics. Try another browser or device.'; throw err; }
+const TOUCH = matchMedia('(pointer:coarse)').matches || navigator.maxTouchPoints>1;
+let PR_MAX = Math.min(devicePixelRatio,1.5), pr = Math.min(devicePixelRatio, TOUCH?1.25:1.5);
+renderer.setPixelRatio(pr); renderer.setSize(innerWidth,innerHeight);
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.autoUpdate = false;
+const shadowsDirty = () => { renderer.shadowMap.needsUpdate = true; };
+shadowsDirty();
+renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.35;
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x040305);
+scene.fog = new THREE.FogExp2(0x060408, 0.018);
+const BASE_FOV = () => innerWidth<innerHeight ? 74 : 52;
+const camera = new THREE.PerspectiveCamera(BASE_FOV(), innerWidth/innerHeight, 0.1, 80);
+
+const M = (color,o={}) => new THREE.MeshStandardMaterial({ color, roughness:.85, metalness:0, ...o });
+function box(w,h,d,mat,x=0,y=0,z=0,parent=scene){ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat); m.position.set(x,y,z); m.castShadow=m.receiveShadow=true; parent.add(m); return m; }
+function cyl(rt,rb,h,mat,x=0,y=0,z=0,parent=scene,seg=16){ const m=new THREE.Mesh(new THREE.CylinderGeometry(rt,rb,h,seg),mat); m.position.set(x,y,z); m.castShadow=m.receiveShadow=true; parent.add(m); return m; }
+function canvasTex(w,h,draw){ const c=document.createElement('canvas'); c.width=w; c.height=h; draw(c.getContext('2d'),w,h); const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=4; return t; }
+function drape(w,h,color,folds,rough=.95){
+  const g=new THREE.PlaneGeometry(w,h,Math.max(32,folds*10),1); const p=g.attributes.position;
+  for(let i=0;i<p.count;i++){ const x=p.getX(i); p.setZ(i,Math.sin((x/w)*folds*Math.PI*2)*0.1); }
+  g.computeVertexNormals();
+  const m=new THREE.Mesh(g,M(color,{roughness:rough,side:THREE.DoubleSide})); m.castShadow=m.receiveShadow=true; return m;
+}
+
+const plankTex = canvasTex(1024,512,(g,w,h)=>{
+  const rows=16, rh=h/rows;
+  for(let i=0;i<rows;i++){ g.fillStyle=`hsl(24,18%,${13+Math.random()*6}%)`; g.fillRect(0,i*rh,w,rh); g.fillStyle='rgba(0,0,0,.6)'; g.fillRect(0,i*rh,w,1.5); for(let k=0;k<2;k++) g.fillRect(Math.random()*w,i*rh,2,rh); }
+  for(let k=0;k<2600;k++){ g.fillStyle=`rgba(${Math.random()<.5?0:255},${Math.random()<.5?0:220},${Math.random()<.5?0:180},${Math.random()*.035})`; g.fillRect(Math.random()*w,Math.random()*h,10+Math.random()*90,1); }
+  for(let k=0;k<14;k++){ g.fillStyle=['#e9b86455','#ffffff40','#4f86ff40'][k%3]; g.fillRect(Math.random()*w,Math.random()*h,18,4); }
+});
+plankTex.wrapS = plankTex.wrapT = THREE.RepeatWrapping; plankTex.repeat.set(2,1.2);
+
+/* ---------- Things you can tap ---------- */
+// Each entry: what it is, how a designer uses it, an optional "try it" action, and where the camera goes.
+const ITEMS = {
+  tabs:{ name:'House tabs', cat:'Curtains', say:'House tabs',
+    what:'The <b>house tabs</b> are the main curtains across the front of the stage. They open to start the show and close at the interval and the end. Tabs that part in the middle and pull to the sides are called <b>draw tabs</b>.',
+    tip:'Opening the tabs is a big reveal. Some productions don’t use them at all, so the audience sees the set as they come in. That’s called an <b>open stage</b>.',
+    view:()=>({pos:V(0,3.6,12),look:V(0,4,3.5)}) },
+  legs:{ name:'Legs', cat:'Masking', say:'Legs',
+    what:'<b>Legs</b> are tall, narrow black curtains hung in pairs down each side of the stage. They hide the <b>wings</b>, so the audience can’t see actors waiting to come on. Hiding things like this is called <b>masking</b>.',
+    tip:'The gaps between the legs are <b>wing entrances</b>. Think about which gap each character enters from: it changes how they arrive.',
+    view:()=>({pos:V(2.6,3,5.4),look:V(5.9,3.4,-1.4)}) },
+  borders:{ name:'Borders', cat:'Masking', say:'Borders',
+    what:'<b>Borders</b> are short black curtains hung across the top of the stage. They hide the lighting bars and any scenery hanging in the <b>flies</b> (the space above the stage).',
+    tip:'Look up from the front row: if you can see a lighting bar, it needs another border. Designers check <b>sightlines</b> like this from the worst seats in the house.',
+    view:()=>({pos:V(0,2.4,6.2),look:V(0,7.2,-.5)}) },
+  cyc:{ name:'Cyclorama', cat:'Scenery', say:'Cyclorama. People call it the cyc, said syke.',
+    what:'The <b>cyclorama</b> (the <b>cyc</b>, said “syke”) is a big, plain, pale cloth at the back of the stage. Light it with colour and it becomes the sky, a sunset or a mood.',
+    tip:'Try the cyc in deep blue for night, orange for sunset, red for danger. A <b>groundrow</b> along the bottom hides the floods that light it.',
+    view:()=>({pos:V(0,3.8,7.5),look:V(0,4.4,-5.9)}),
+    tryIt:{ label:'Change its colour', run:()=>{ openDesk('cyc'); } } },
+  flat:{ name:'Flat', cat:'Scenery', say:'Flat',
+    what:'A <b>flat</b> is a lightweight wooden frame covered in canvas or board and painted to look like a wall. Flats join together to build a room, called a <b>box set</b>. They stand up with <b>stage braces</b> and <b>stage weights</b> behind them.',
+    tip:'A flat can be any finish: wallpaper, brick, stone, a painted forest. Ask what the walls tell the audience about the people who live there.',
+    view:()=>({pos:V(1.4,2.8,1.6),look:V(3.4,2.4,-3.2)}) },
+  doorflat:{ name:'Door flat', cat:'Scenery', say:'Door flat',
+    what:'A <b>door flat</b> is a flat with a working door built into it, so actors can make <b>entrances and exits</b> through the set. There are also <b>window flats</b> and <b>fireplace flats</b>.',
+    tip:'Where you put the door changes the play. An upstage door gives a strong entrance facing the audience. A side door is quieter.',
+    view:()=>({pos:V(-1.4,2.8,1.6),look:V(-3.4,2.2,-3.2)}),
+    tryIt:{ label:'Open the door', run:()=>{ state.doorOpen=!state.doorOpen; refreshTry(); } , labelFn:()=>state.doorOpen?'Close the door':'Open the door' } },
+  rostra:{ name:'Rostra and treads', cat:'Levels', say:'Rostra, and treads',
+    what:'A <b>rostrum</b> (more than one: <b>rostra</b>) is a strong, flat-topped platform that raises part of the stage. The steps up to it are called <b>treads</b>.',
+    tip:'Levels show <b>status</b>: a character standing higher often looks more powerful. Levels also stop actors hiding each other, so everyone can be seen.',
+    view:()=>{ const p=rostra.userData.target; return {pos:V(1.8,3.4,p.z+5.2),look:V(p.x,1.4,p.z)}; },
+    tryIt:{ label:'Move it downstage', run:()=>{ state.rostraDS=!state.rostraDS; rostra.userData.target.set(0,1,state.rostraDS?-.4:-3.9); flyTo(ITEMS.rostra.view(),900); refreshTry(); }, labelFn:()=>state.rostraDS?'Move it upstage':'Move it downstage' } },
+  fresnel:{ name:'Fresnel', cat:'Lantern', say:'Fresnel. Say it: frennel.',
+    what:'A <b>Fresnel</b> (say “fre-nel”) is a lantern with a ridged, stepped lens. It gives a <b>soft-edged</b> beam: the edge of the light fades gently, so several Fresnels blend into a smooth, even <b>wash</b>.',
+    tip:'Use Fresnels for general cover, lighting whole areas of the stage. Turn it on alone and look at the edge of the pool on the floor: no hard line.',
+    view:()=>({pos:V(.6,3.8,6.2),look:V(2.6,7.2,1.6)}),
+    tryIt:{ label:'Turn it on (on its own)', run:()=>solo('fresnel') } },
+  profile:{ name:'Profile spot', cat:'Lantern', say:'Profile spot',
+    what:'A <b>profile</b> gives a <b>hard, sharp-edged</b> beam. Its <b>shutters</b> can cut the light into shapes, and a <b>gobo</b> (a metal stencil) can throw a pattern, like leaves or a window.',
+    tip:'Use a profile for a <b>special</b>: one tight pool of light on one actor. Compare its sharp edge with the soft Fresnel.',
+    view:()=>({pos:V(-1.2,5.2,12.5),look:V(-2.6,8,7.2)}),
+    tryIt:{ label:'Turn it on (on its own)', run:()=>solo('profile') } },
+  par:{ name:'PAR can', cat:'Lantern', say:'Par can',
+    what:'A <b>PAR can</b> is a simple tube with a sealed lamp inside. It gives a strong, punchy beam with a slightly soft edge, great for bold colour. This one is a <b>backlight</b>: it shines down from behind the actors.',
+    tip:'Backlight makes actors stand out from the set with a bright rim around their head and shoulders. Try it in a strong colour.',
+    view:()=>({pos:V(1.4,3.2,2.4),look:V(0,7.2,-3.2)}),
+    tryIt:{ label:'Turn it on (on its own)', run:()=>solo('par') } },
+  flood:{ name:'Cyc floods', cat:'Lantern', say:'Cyc floods',
+    what:'A <b>flood</b> has no lens. It throws a wide, even spread of light, perfect for lighting a big surface like the cyc. These sit on the floor behind the <b>groundrow</b>, shining up the cloth.',
+    tip:'Floods are usually <b>gelled</b> (coloured). Three or four colours side by side let a designer mix any sky.',
+    view:()=>({pos:V(2.2,2.8,-1.6),look:V(0,1.4,-5.4)}),
+    tryIt:{ label:'Turn them on (on their own)', run:()=>solo('cyc') } },
+  desk:{ name:'Lighting desk', cat:'Control', say:'Lighting desk',
+    what:'The <b>lighting desk</b> (or <b>board</b>) controls every lantern. Each lantern is plugged into a <b>channel</b>, and each channel’s <b>fader</b> sets how bright it is. A <b>lighting state</b> is the look on stage at one moment; a <b>cue</b> fades from one state to the next.',
+    tip:'In a real show the operator presses <b>GO</b> when the stage manager calls the cue. Try the cues on the desk and watch the stage change.',
+    view:()=>VIEWS.audience(),
+    tryIt:{ label:'Open the desk', run:()=>{ closeCard(true); openDesk(); } } },
+  wings:{ name:'The wings', cat:'Backstage', say:'The wings',
+    what:'The <b>wings</b> are the hidden spaces at each side of the stage. Actors wait here before they go on, scenery is stored here, and the crew work here. <b>Stage right</b> is the actor’s right as they face the audience.',
+    tip:'Leave room in the wings! Big scenery needs somewhere to go when it comes off, and actors need a clear path to their entrance.',
+    view:()=>VIEWS.wings() },
+  props:{ name:'Props table', cat:'Backstage', say:'Props table',
+    what:'The <b>props table</b> sits in the wings. Every <b>prop</b> (the things actors carry and use) starts and ends the show here. Each one has its own space drawn round it, so the stage manager can spot at a glance if something is missing.',
+    tip:'Designers make a <b>props list</b> for each scene. The dim <b>blue light</b> lets the crew see without light spilling onto the stage.',
+    view:()=>({pos:V(-8.2,2.9,1.8),look:V(-7.4,1.2,-1)}) },
+};
+const IDS = Object.keys(ITEMS);
+const groups = {};     // id -> Object3D that a tap on it opens
+const anchors = {};    // id -> where its floating label sits
+function reg(id, obj, anchor){ obj.userData.item=id; (groups[id] ||= []).push(obj); if(anchor) anchors[id]=anchor; return obj; }
+
+/* ---------- Building ---------- */
+const black = M(0x0b0a0c,{roughness:.95}), wallMat = M(0x1b1418,{roughness:.95}), darkRed = M(0x3a0b10,{roughness:.9});
+const gilt = M(0xc9993f,{roughness:.35,metalness:.85});
+const wood = M(0x5b3a22,{roughness:.7}), woodDark = M(0x3a2414,{roughness:.75}), brass = M(0xc69a4a,{metalness:.8,roughness:.35});
+const steel = M(0x222222,{metalness:.7,roughness:.4}), lanternMat = M(0x161616,{metalness:.5,roughness:.5});
+
+// auditorium
+box(20,.1,16,M(0x1a1013,{roughness:1}),0,-.05,11.5);
+box(.3,10,16,wallMat,-10.15,5,11.5); box(.3,10,16,wallMat,10.15,5,11.5);
+box(20,10,.3,wallMat,0,5,19.6); box(20,.3,16.5,black,0,10,11.5);
+for(const s of [-1,1]) for(const z of [7.5,12,16.5]){
+  box(.05,4,2.6,darkRed,s*9.98,3.6,z);
+  const sc=new THREE.Mesh(new THREE.SphereGeometry(.16,16,12),new THREE.MeshStandardMaterial({color:0xffd9a0,emissive:0xffb766,emissiveIntensity:1.4})); sc.position.set(s*9.85,6.2,z); scene.add(sc);
+}
+// stage house: side walls, back wall, grid
+box(.3,10,10.4,wallMat,-9.3,5,-1.2); box(.3,10,10.4,wallMat,9.3,5,-1.2); box(18.6,10,.3,wallMat,0,5,-6.5); box(18.6,.3,10.4,black,0,10,-1.2);
+// proscenium
+const prosZ=3.9;
+box(4,10,.6,wallMat,-8,5,prosZ); box(4,10,.6,wallMat,8,5,prosZ); box(12,2.8,.6,wallMat,0,8.6,prosZ);
+box(.35,7.2,.25,gilt,-6.1,3.6,prosZ+.35); box(.35,7.2,.25,gilt,6.1,3.6,prosZ+.35); box(12.55,.4,.25,gilt,0,7.25,prosZ+.35); box(13.4,.12,.2,gilt,0,7.6,prosZ+.4);
+// stage floor
+const stageTop = M(0xffffff,{map:plankTex,roughness:.7});
+const stageMesh = new THREE.Mesh(new THREE.BoxGeometry(18,1,10.6),[black,black,stageTop,black,M(0x120c0e),black]);
+stageMesh.position.set(0,.5,-.9); stageMesh.receiveShadow=true; scene.add(stageMesh);
+box(12,.06,.05,gilt,0,1,4.41);
+
+// house tabs: two halves that open to the sides
+const TAB_CLOSED={w:6.25,x:3.05}, TAB_OPEN={w:1.8,x:5.15};
+const tabHalves=[-1,1].map(s=>{ const t=drape(TAB_CLOSED.w,7.1,0x6e0d16,14,.8); t.position.set(s*TAB_CLOSED.x,4.55,3.45); scene.add(t); reg('tabs',t); t.userData.side=s; return t; });
+const valance=drape(12.4,.9,0x6e0d16,24,.8); valance.position.set(0,6.75,3.5); scene.add(valance); reg('tabs',valance,V(-4.4,5.4,3.6));
+// legs and borders
+for(const s of [-1,1]) for(const z of [1.4,-1.4,-4.1]){ const leg=drape(1.7,7,0x0d0c0f,5); leg.position.set(s*5.9,4.5,z); leg.rotation.y=s*.06; scene.add(leg); reg('legs',leg); }
+anchors.legs=V(5.9,4.2,-1.4);
+for(const z of [2.6,0,-2.7]){ const b=drape(13,1.1,0x0d0c0f,18); b.position.set(0,7.6,z); scene.add(b); reg('borders',b); }
+anchors.borders=V(3.4,7.7,0);
+// cyclorama and groundrow
+const cycMat = new THREE.MeshStandardMaterial({color:0x8d8a88,roughness:1,emissive:0x000000});
+const cyc = new THREE.Mesh(new THREE.PlaneGeometry(14,7.5),cycMat); cyc.position.set(0,4.75,-5.9); cyc.receiveShadow=true; scene.add(cyc); reg('cyc',cyc,V(0,5.6,-5.9));
+box(12,.35,.25,black,0,1.18,-5.0);
+
+// flat (stage left, angled) and door flat (stage right, angled): together a corner of a box set
+const flatPaint = M(0x6f7d74,{roughness:.9});
+{ const g=new THREE.Group(); g.position.set(3.6,1,-3.3); g.rotation.y=-.42; scene.add(g);
+  box(2.4,3.6,.1,flatPaint,0,1.8,0,g); box(2.3,.08,.04,M(0x56625a),0,1.0,.07,g); // dado rail
+  for(const x of [-.8,.8]){ const br=box(.06,3.4,.06,woodDark,x,1.6,-.85,g); br.rotation.x=-.27; box(.3,.18,.3,M(0x2a2a2a,{metalness:.5}),x,.09,-1.7,g); } // brace and weight
+  reg('flat',g,V(3.5,3.4,-3.3)); }
+let doorLeaf;
+{ const g=new THREE.Group(); g.position.set(-3.6,1,-3.3); g.rotation.y=.42; scene.add(g);
+  box(.75,3.6,.1,flatPaint,-.825,1.8,0,g); box(.75,3.6,.1,flatPaint,.825,1.8,0,g); box(.9,.95,.1,flatPaint,0,3.125,0,g);
+  doorLeaf=new THREE.Group(); doorLeaf.position.set(-.45,0,.04); g.add(doorLeaf);
+  box(.9,2.6,.05,M(0x6b3f23,{roughness:.7}),.45,1.3,0,doorLeaf); box(.07,.07,.07,brass,.8,1.25,.05,doorLeaf);
+  for(const x of [-.8,.8]){ const br=box(.06,3.4,.06,woodDark,x,1.6,-.85,g); br.rotation.x=-.27; box(.3,.18,.3,M(0x2a2a2a,{metalness:.5}),x,.09,-1.7,g); }
+  reg('doorflat',g,V(-3.5,3.4,-3.3)); }
+
+// rostra with treads; it can move downstage
+const rostra=new THREE.Group(); rostra.position.set(0,1,-3.9); rostra.userData.target=rostra.position.clone(); scene.add(rostra);
+{ const top=M(0x2b2326,{roughness:.8}); box(3,.6,1.4,top,0,.3,0,rostra); box(3,.04,1.4,M(0x161214),0,.62,0,rostra);
+  for(let i=0;i<3;i++) box(1.1,.2*(i+1),.3,top,0,.1*(i+1),.85+(2-i)*.3,rostra); }
+reg('rostra',rostra);
+
+// wings, stage right: props table, blue working light and a sign
+{ const g=new THREE.Group(); g.position.set(-7.5,1,-.9); g.rotation.y=Math.PI/2; scene.add(g);
+  const paper=canvasTex(512,256,(c,w,h)=>{ c.fillStyle='#ece0c8'; c.fillRect(0,0,w,h); c.strokeStyle='#2a2018'; c.lineWidth=4; c.setLineDash([]);
+    const outl=[[40,60,90,90,'GOBLET'],[170,50,150,110,'LETTER'],[360,60,110,120,'DAGGER'],[60,170,140,60,'LANTERN']];
+    c.font='bold 18px Arial'; c.fillStyle='#2a2018'; for(const [x,y,ww,hh,t] of outl){ c.strokeRect(x,y,ww,hh); c.fillText(t,x+6,y+hh-8); } });
+  box(1.9,.08,.8,wood,0,.88,0,g); for(const [x,z] of [[-.85,-.33],[.85,-.33],[-.85,.33],[.85,.33]]) box(.06,.86,.06,woodDark,x,.43,z,g);
+  const top=new THREE.Mesh(new THREE.PlaneGeometry(1.86,.76),M(0xffffff,{map:paper,roughness:.95})); top.rotation.x=-Math.PI/2; top.position.y=.925; g.add(top);
+  cyl(.06,.04,.16,brass,-.62,1.0,-.12,g); // goblet
+  box(.26,.01,.18,M(0xf4ecd8),-.14,.93,-.14,g); // letter
+  box(.04,.03,.34,M(0x9aa0a8,{metalness:.8,roughness:.3}),.42,.95,-.1,g); // dagger
+  const lamp=new THREE.Mesh(new THREE.SphereGeometry(.06,12,8),new THREE.MeshStandardMaterial({color:0x3346aa,emissive:0x4f6dff,emissiveIntensity:3})); lamp.position.set(.82,1.35,.28); g.add(lamp); cyl(.012,.012,.42,steel,.82,1.12,.28,g);
+  reg('props',g,V(-7.5,2.4,-.9)); }
+const wingBlue=new THREE.PointLight(0x5a74ff,16,0,2); wingBlue.position.set(-7.2,2.8,-.4); scene.add(wingBlue);
+// an actor waiting in the wings for their entrance
+{ const g=new THREE.Group(); g.position.set(-6.3,1,0); g.rotation.y=-1.45; scene.add(g); const coat=M(0x4a3b5e,{roughness:.9}), skin=M(0xe7b892,{roughness:.8});
+  cyl(.2,.27,1.05,coat,0,.98,0,g); cyl(.17,.2,.45,coat,0,1.7,0,g); cyl(.07,.07,.12,skin,0,1.96,0,g);
+  const head=new THREE.Mesh(new THREE.SphereGeometry(.13,16,12),skin); head.position.y=2.1; head.castShadow=true; g.add(head);
+  for(const x of [-.09,.09]) cyl(.07,.07,.5,M(0x222222),x,.25,0,g);
+  reg('wings',g); }
+{ const signTex=canvasTex(512,160,(c,w,h)=>{ c.fillStyle='#1d1a1f'; c.fillRect(0,0,w,h); c.strokeStyle='#e9b864'; c.lineWidth=6; c.strokeRect(8,8,w-16,h-16); c.fillStyle='#f6eee3'; c.font='bold 54px Arial'; c.textAlign='center'; c.fillText('STAGE RIGHT',w/2,78); c.fillStyle='#b9ab9b'; c.font='28px Arial'; c.fillText('Wings · Quiet please',w/2,124); });
+  const s=new THREE.Mesh(new THREE.PlaneGeometry(2.2,.69),new THREE.MeshStandardMaterial({map:signTex,emissive:0xffffff,emissiveMap:signTex,emissiveIntensity:.25})); s.position.set(-9.13,3.3,-2.4); s.rotation.y=Math.PI/2; scene.add(s); reg('wings',s,V(-9,3.3,-2.4)); }
+
+// auditorium seats
+{ const seatGeo=new THREE.BoxGeometry(.58,.14,.5), backGeo=new THREE.BoxGeometry(.58,.72,.1); const pos=[];
+  for(let r=0;r<12;r++) for(let x=-8.6;x<=8.61;x+=.72){ if(Math.abs(x)<.75) continue; pos.push([x,6.2+r*1.05,r]); }
+  const mat=M(0x5c0f17,{roughness:.9}); const seats=new THREE.InstancedMesh(seatGeo,mat,pos.length), backs=new THREE.InstancedMesh(backGeo,mat,pos.length); const d=new THREE.Object3D();
+  pos.forEach(([x,z,r],i)=>{ const y=r*.16; d.position.set(x,.46+y,z); d.updateMatrix(); seats.setMatrixAt(i,d.matrix); d.position.set(x,.86+y,z+.24); d.updateMatrix(); backs.setMatrixAt(i,d.matrix); });
+  seats.receiveShadow=backs.receiveShadow=true; scene.add(seats,backs);
+  for(let r=0;r<12;r++) box(17.6,r*.16+.001,1.05,M(0x150d10,{roughness:1}),0,(r*.16)/2,6.2+r*1.05); }
+
+// production desk in the stalls
+{ const g=new THREE.Group(); g.position.set(-5.6,0,11.4); scene.add(g);
+  box(2.8,.07,1,M(0x2a221e,{roughness:.6}),0,1.32,0,g); box(1.6,.12,.62,M(0x1b1b1d,{roughness:.4,metalness:.3}),-.25,1.42,0,g);
+  for(let i=0;i<6;i++) box(.06,.05,.12,M(0xd8d2c8),-.75+i*.18,1.51,.1+(i%3)*.04,g);
+  const scr=new THREE.Mesh(new THREE.PlaneGeometry(.6,.36),new THREE.MeshStandardMaterial({color:0x0a1430,emissive:0x2a5cff,emissiveIntensity:.35})); scr.position.set(.85,1.72,-.15); scr.rotation.x=-.2; g.add(scr); box(.62,.4,.04,M(0x111111),.85,1.72,-.18,g);
+  reg('desk',g,V(-5.6,2.1,11.4)); }
+
+/* ---------- Lanterns ---------- */
+const ambient=new THREE.HemisphereLight(0x3a4560,0x0c0809,1); scene.add(ambient);
+// light on stage bounces off the floor and set, so a lit stage is never pitch black around the pools
+const bounce=new THREE.PointLight(0xffffff,0,0,2); bounce.position.set(0,4.5,1.5); scene.add(bounce);
+const house=new THREE.PointLight(0xffb070,70,0,2); house.position.set(0,8.5,11);
+const houseFill=new THREE.PointLight(0xffc890,40,0,2); houseFill.position.set(0,6,4.8); scene.add(house,houseFill);
+// bars: front of house over the stalls, LX1 behind the first border, LX2 further upstage
+box(15,.07,.07,steel,0,8.25,7.2); box(12,.07,.07,steel,0,7.45,1.6); box(12,.07,.07,steel,0,7.45,-3.2);
+
+const beamAlpha=canvasTex(4,128,(g,w,h)=>{ const gr=g.createLinearGradient(0,h,0,0); gr.addColorStop(0,'#000'); gr.addColorStop(.55,'#555'); gr.addColorStop(1,'#fff'); g.fillStyle=gr; g.fillRect(0,0,w,h); });
+beamAlpha.colorSpace=THREE.NoColorSpace;
+function makeBeam(from,to,angle){
+  const dir=new THREE.Vector3().subVectors(from,to), len=dir.length();
+  const m=new THREE.Mesh(new THREE.ConeGeometry(Math.tan(angle)*len*1.05,len,40,1,true),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0,alphaMap:beamAlpha,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,fog:false}));
+  m.position.copy(from).add(to).multiplyScalar(.5); m.quaternion.setFromUnitVectors(V(0,1,0),dir.normalize()); m.raycast=()=>{}; scene.add(m); return m;
+}
+const lensMat=()=>new THREE.MeshBasicMaterial({color:0x222222});
+function lanternGroup(from,to){ const g=new THREE.Group(); g.position.copy(from); g.lookAt(to); scene.add(g); return g; }
+function spot(from,to,angle,penumbra,max,shadow){
+  const L=new THREE.SpotLight(0xffffff,0,0,angle,penumbra,2); L.position.copy(from); L.target.position.copy(to); scene.add(L,L.target);
+  if(shadow){ L.castShadow=true; L.shadow.mapSize.set(512,512); L.shadow.bias=-.0015; L.shadow.camera.near=1; L.shadow.camera.far=22; }
+  return L;
+}
+// The three things that make a lantern look and behave like its type: body shape, beam spread, and edge (penumbra).
+const LX = {};
+{ // Fresnel: short body, ridged lens, wide soft beam (penumbra 1 = very soft edge)
+  const from=V(2.6,7.35,1.6), to=V(2.6,1,-1); const g=lanternGroup(from,to);
+  const b=new THREE.Mesh(new THREE.CylinderGeometry(.2,.2,.42,20),lanternMat); b.rotation.x=Math.PI/2; g.add(b);
+  const lens=new THREE.Mesh(new THREE.CircleGeometry(.18,24),lensMat()); lens.position.z=.215; g.add(lens);
+  for(const r of [.07,.12,.165]){ const t=new THREE.Mesh(new THREE.TorusGeometry(r,.008,6,28),M(0x444444,{metalness:.6})); t.position.z=.22; g.add(t); }
+  box(.04,.42,.04,lanternMat,0,.22,0,g);
+  reg('fresnel',g,V(2.6,6.8,1.6));
+  LX.fresnel={ L:spot(from,to,.4,1,650,true), beam:makeBeam(from,to,.4), lens, beamK:.10 }; }
+{ // Profile: long barrel, shutters, narrow beam with a hard edge (penumbra almost 0)
+  const from=V(-2.6,8.15,7.2), to=V(-2.3,1,.4); const g=lanternGroup(from,to);
+  const b=new THREE.Mesh(new THREE.CylinderGeometry(.13,.17,.85,18),lanternMat); b.rotation.x=Math.PI/2; g.add(b);
+  const lamp=box(.34,.34,.3,lanternMat,0,0,-.5,g);
+  for(const [x,y] of [[0,.18],[0,-.18],[.18,0],[-.18,0]]) box(x?.03:.16,y?.03:.16,.05,M(0x777777,{metalness:.6}),x,y,0,g); // shutter handles
+  const lens=new THREE.Mesh(new THREE.CircleGeometry(.12,20),lensMat()); lens.position.z=.43; g.add(lens);
+  box(.04,.45,.04,lanternMat,0,.24,-.1,g);
+  reg('profile',g,V(-2.6,7.6,7.2));
+  LX.profile={ L:spot(from,to,.13,.04,1500,true), beam:makeBeam(from,to,.13), lens, beamK:.16 }; }
+{ // PAR can: plain tube, medium beam, fairly soft edge. Hung upstage as a backlight.
+  const from=V(0,7.35,-3.2), to=V(0,1,.4); const g=lanternGroup(from,to);
+  const b=new THREE.Mesh(new THREE.CylinderGeometry(.15,.15,.5,20,1,true),M(0x1b1b1b,{metalness:.6,roughness:.4,side:THREE.DoubleSide})); b.rotation.x=Math.PI/2; g.add(b);
+  const back=new THREE.Mesh(new THREE.CircleGeometry(.15,20),lanternMat); back.position.z=-.25; back.rotation.y=Math.PI; g.add(back);
+  const lens=new THREE.Mesh(new THREE.CircleGeometry(.14,20),lensMat()); lens.position.z=.2; g.add(lens);
+  box(.04,.4,.04,lanternMat,0,.2,0,g);
+  reg('par',g,V(0,6.8,-3.2));
+  LX.par={ L:spot(from,to,.24,.35,900,false), beam:makeBeam(from,to,.24), lens, beamK:.13 }; }
+{ // Cyc floods: open-fronted boxes on the floor behind the groundrow, pointing up the cloth
+  const lenses=[];
+  for(const x of [-3.6,0,3.6]){ const g=new THREE.Group(); g.position.set(x,1.25,-5.45); g.rotation.x=-.55; scene.add(g);
+    box(.55,.4,.35,lanternMat,0,0,0,g); const face=new THREE.Mesh(new THREE.PlaneGeometry(.48,.33),lensMat()); face.position.z=.18; g.add(face); lenses.push(face);
+    reg('flood',g); }
+  anchors.flood=V(-3.6,1.75,-5.4);
+  LX.cyc={ L:spot(V(0,1.3,-4.6),V(0,4.6,-5.9),1.1,1,110,false), lenses, beamK:0 }; }
+
+/* ---------- Desk state ---------- */
+const GELS = {
+  open:{ name:'Open white', hex:0xfff2e0, css:'#fff2e0', t:1 },
+  straw:{ name:'Straw', hex:0xffbe5c, css:'#ffbe5c', t:.9 },
+  amber:{ name:'Amber', hex:0xff8a2a, css:'#ff8a2a', t:.8 },
+  pink:{ name:'Pink', hex:0xff6fb0, css:'#ff6fb0', t:.75 },
+  red:{ name:'Red', hex:0xff2525, css:'#ff2525', t:.6 },
+  green:{ name:'Green', hex:0x42f070, css:'#42f070', t:.7 },
+  blue:{ name:'Steel blue', hex:0x6f9cff, css:'#6f9cff', t:.8 },
+  night:{ name:'Deep blue', hex:0x2a3cff, css:'#2a3cff', t:.55 },
+};
+const CHANNELS = [
+  { id:'fresnel', num:1, lab:'Fresnel', gel:true },
+  { id:'profile', num:2, lab:'Profile', gel:true },
+  { id:'par', num:3, lab:'PAR', gel:true },
+  { id:'cyc', num:4, lab:'Cyc', gel:true },
+  { id:'house', num:5, lab:'House', gel:false },
+];
+const state = {
+  lv:{ fresnel:0, profile:0, par:0, cyc:35, house:85 },
+  gel:{ fresnel:'open', profile:'open', par:'open', cyc:'night' },
+  sel:'fresnel', tabsOpen:0, tabsTarget:0, doorOpen:false, doorAngle:0, rostraDS:false,
+  found:new Set(store.get('found',[]).filter(id=>ITEMS[id])),
+  labels:false, view:'audience', card:null, deskOpen:false, fade:null,
+};
+const CUES = [
+  { num:1, name:'Preshow', lv:{ fresnel:0, profile:0, par:0, cyc:35, house:85 }, gel:{ cyc:'night' } },
+  { num:2, name:'Daylight', lv:{ fresnel:85, profile:0, par:40, cyc:70, house:0 }, gel:{ fresnel:'straw', par:'open', cyc:'blue' } },
+  { num:3, name:'Night', lv:{ fresnel:25, profile:0, par:70, cyc:55, house:0 }, gel:{ fresnel:'night', par:'blue', cyc:'night' } },
+  { num:4, name:'Sunset', lv:{ fresnel:60, profile:0, par:55, cyc:90, house:0 }, gel:{ fresnel:'amber', par:'pink', cyc:'amber' } },
+  { num:5, name:'Spotlight', lv:{ fresnel:0, profile:100, par:0, cyc:0, house:0 }, gel:{ profile:'open' } },
+  { num:6, name:'Blackout', lv:{ fresnel:0, profile:0, par:0, cyc:0, house:0 }, gel:{} },
+];
+const curve = v => Math.pow(v/100,2);   // faders feel even to the eye: brightness rises slowly at the bottom
+const tmpC = new THREE.Color();
+function applyLights(){
+  for(const id of ['fresnel','profile','par','cyc']){
+    const lx=LX[id], k=curve(state.lv[id]), g=GELS[state.gel[id]]||GELS.open;
+    lx.L.color.setHex(g.hex); lx.L.intensity=({fresnel:650,profile:1500,par:900,cyc:110})[id]*k*g.t;
+    if(lx.beam){ lx.beam.material.color.setHex(g.hex); lx.beam.material.opacity=lx.beamK*k; }
+    for(const ln of (lx.lenses||[lx.lens])) ln.material.color.copy(tmpC.setHex(g.hex).multiplyScalar(.15+.85*Math.min(1,k*1.6)));
+  }
+  // the cyc glows evenly in its colour, as a lit cloth does
+  const gc=GELS[state.gel.cyc]; cycMat.emissive.setHex(gc.hex).multiplyScalar(curve(state.lv.cyc)*.62*gc.t);
+  const h=curve(state.lv.house); house.intensity=70*h; houseFill.intensity=40*h;
+  // bounce: a soft fill in the mix of the stage colours, as bright as the lanterns together
+  let sum=0; tmpC.setRGB(0,0,0); const mix=new THREE.Color();
+  for(const [id,w] of [['fresnel',1],['profile',.35],['par',.6],['cyc',.5]]){ const k=curve(state.lv[id])*w*GELS[state.gel[id]].t; sum+=k; mix.setHex(GELS[state.gel[id]].hex).multiplyScalar(k); tmpC.add(mix); }
+  if(sum>0) bounce.color.copy(tmpC.multiplyScalar(1/sum)); bounce.intensity=26*Math.min(1.4,sum);
+  ambient.intensity=.9+.7*Math.min(1,sum);
+}
+
+/* ---------- Camera ---------- */
+const VIEWS = {
+  audience:()=> innerWidth<innerHeight ? {pos:V(0,5,17),look:V(0,2.8,-1)} : {pos:V(0,4.6,15.5),look:V(0,2.7,-1)},
+  stage:()=>({pos:V(1.2,2.7,3),look:V(-.4,2.3,-4)}),
+  wings:()=>({pos:V(-8.4,3.1,3.3),look:V(-6.6,1.5,-2.2)}),
+};
+const UP=V(0,1,0);
+let base=VIEWS.audience(), anim=null, yaw=0, yawT=0, pitch=0, pitchT=0, fovT=BASE_FOV();
+const curLook=base.look.clone(); camera.position.copy(base.pos); camera.lookAt(curLook);
+const ease=k=>k<.5?4*k*k*k:1-Math.pow(-2*k+2,3)/2;
+function flyTo(v,dur=1000){ anim={t0:performance.now(),dur,fp:camera.position.clone(),tp:v.pos.clone(),fl:curLook.clone(),tl:v.look.clone()}; }
+function lookTarget(){ const d=base.look.clone().sub(base.pos); const right=new THREE.Vector3().crossVectors(d,UP).normalize(); d.applyAxisAngle(right,pitch).applyAxisAngle(UP,-yaw); return base.pos.clone().add(d); }
+function goView(name){
+  state.view=name; base=VIEWS[name](); yaw=yawT=pitch=pitchT=0; fovT=BASE_FOV(); flyTo(base,1100);
+  document.querySelectorAll('.views button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.view===name));
+}
+document.querySelectorAll('.views button').forEach(b=>b.onclick=()=>{ closeCard(true); goView(b.dataset.view); });
+
+/* ---------- Cards ---------- */
+const card=$('#card'), cardBody=$('#cardBody'), tip=$('#tip');
+function speak(text){ try{ const s=speechSynthesis; s.cancel(); const u=new SpeechSynthesisUtterance(text.replace(/<[^>]+>/g,'')); u.lang='en-GB'; const v=s.getVoices().find(v=>v.lang==='en-GB'); if(v) u.voice=v; u.rate=.95; s.speak(u); }catch(e){} }
+let tryBtn=null;
+function refreshTry(){ const it=ITEMS[state.card]; if(tryBtn && it?.tryIt?.labelFn) tryBtn.textContent=it.tryIt.labelFn(); }
+function openCard(id){
+  const it=ITEMS[id]; if(!it) return;
+  if(state.deskOpen) closeDesk();
+  state.card=id; state.cardBase=null; $('#hint').style.opacity=0; tip.classList.remove('on'); canvas.classList.remove('hot');
+  $('#cardKicker').textContent=it.cat; $('#cardTitle').textContent=it.name;
+  cardBody.innerHTML=''; cardBody.scrollTop=0;
+  cardBody.append(el(`<p>${it.what}</p>`), el(`<div class="designer"><h3>Designer’s eye</h3><p>${it.tip}</p></div>`));
+  const acts=el('<div class="actions"></div>');
+  if(it.tryIt){ tryBtn=el(`<button class="btn">${it.tryIt.labelFn?it.tryIt.labelFn():it.tryIt.label}</button>`); tryBtn.onclick=it.tryIt.run; acts.append(tryBtn); } else tryBtn=null;
+  const hear=el('<button class="btn ghost">🔊 Hear it</button>'); hear.onclick=()=>speak(it.say+'. '+it.what); acts.append(hear);
+  cardBody.append(acts);
+  card.classList.add('open');
+  flyTo(it.view(),1000);
+  if(!state.found.has(id)){ state.found.add(id); store.set('found',[...state.found]); drawFound();
+    if(state.found.size===IDS.length) setTimeout(()=>toast('You’ve found everything in the theatre! Now design your own: <a href="https://stage-designer-bay.vercel.app/" target="_blank" rel="noopener">open Stage Designer</a>.',9000),1200); }
+}
+// Closing a card goes back to where you were standing (audience, stage or wings)
+function closeCard(stay){ if(!state.card) return; state.card=null; tryBtn=null; card.classList.remove('open'); try{ speechSynthesis.cancel(); }catch(e){} base=VIEWS[state.view](); yaw=yawT=pitch=pitchT=0; if(!stay) flyTo(base,900); }
+$('#cardClose').onclick=()=>closeCard();
+function drawFound(){ $('#found').innerHTML=`Found <b>${state.found.size}</b> of ${IDS.length}`; for(const id of IDS) labelEls[id]?.classList.toggle('got',state.found.has(id)); }
+let toastTimer; function toast(msg,ms=4500){ const t=$('#toast'); t.innerHTML=msg; t.classList.add('on'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('on'),ms); }
+
+/* ---------- Lighting desk ---------- */
+const desk=$('#desk'), deskBody=$('#deskBody'); const faderRender={}; let gelRow, cueEls=[];
+function buildDesk(){
+  deskBody.innerHTML='';
+  deskBody.append(el('<p class="lead">Each fader is a <b>channel</b>. Push one up and watch the stage. Tap a channel’s colour dot, then pick a <b>gel</b>.</p>'));
+  const board=el('<div class="board"></div>'), fw=el('<div class="faders" role="group" aria-label="Channel faders"></div>');
+  for(const ch of CHANNELS){
+    const f=el(`<div class="fader"><span class="num">${ch.num}</span><div class="track" tabindex="0" role="slider" aria-label="Channel ${ch.num}, ${ch.lab}" aria-valuemin="0" aria-valuemax="100"><div class="fill"></div><div class="cap"></div></div><span class="lvl">0</span><span class="lab">${ch.lab}</span>${ch.gel?`<button class="gelDot" aria-label="Choose a colour for ${ch.lab}"></button>`:'<span style="height:22px"></span>'}</div>`);
+    const track=f.querySelector('.track'), cap=f.querySelector('.cap'), fill=f.querySelector('.fill'), lvl=f.querySelector('.lvl'), dot=f.querySelector('.gelDot');
+    const render=()=>{ const v=Math.round(state.lv[ch.id]); cap.style.bottom=v+'%'; fill.style.height=v+'%'; lvl.textContent=v; track.setAttribute('aria-valuenow',v); if(dot) dot.style.background=GELS[state.gel[ch.id]].css; f.classList.toggle('sel',state.sel===ch.id); };
+    const set=v=>{ state.fade=null; markCue(null); state.lv[ch.id]=Math.round(Math.max(0,Math.min(100,v))); render(); applyLights(); };
+    const fromY=e=>{ const r=track.getBoundingClientRect(); set((1-(e.clientY-r.top)/r.height)*100); };
+    f.addEventListener('pointerdown',e=>{ if(e.target===dot) return; try{ f.setPointerCapture(e.pointerId); }catch(err){} fromY(e); f.onpointermove=fromY; });
+    f.addEventListener('pointerup',()=>{ f.onpointermove=null; }); f.addEventListener('pointercancel',()=>{ f.onpointermove=null; });
+    track.addEventListener('keydown',e=>{ const step=e.shiftKey?1:10, v=state.lv[ch.id]; if(e.key==='ArrowUp'||e.key==='ArrowRight'){set(v+step);e.preventDefault();} if(e.key==='ArrowDown'||e.key==='ArrowLeft'){set(v-step);e.preventDefault();} if(e.key==='Home')set(0); if(e.key==='End')set(100); });
+    if(dot) dot.onclick=()=>{ state.sel=ch.id; renderAll(); drawGels(); };
+    faderRender[ch.id]=render; fw.append(f);
+  }
+  board.append(fw); deskBody.append(board);
+  const gs=el('<div class="section"><h3 id="gelTitle"></h3></div>'); gelRow=el('<div class="swatches"></div>'); gs.append(gelRow); deskBody.append(gs); drawGels();
+  const cs=el('<div class="section"><h3>Cues · press one to fade to that lighting state</h3></div>'), grid=el('<div class="cues"></div>');
+  cueEls=CUES.map(c=>{ const b=el(`<button class="cue"><small>Cue ${c.num}</small><b>${c.name}</b></button>`); b.onclick=()=>runCue(c); grid.append(b); return b; });
+  cs.append(grid); deskBody.append(cs);
+  deskBody.append(el('<p class="note">In a theatre, the stage manager calls “<b>Standby</b>”, then “<b>Go</b>”, and the operator presses GO to run the cue. A cue usually fades over a few seconds so the audience barely notices the change.</p>'));
+  renderAll();
+}
+function drawGels(){ const ch=CHANNELS.find(c=>c.id===state.sel); $('#gelTitle').textContent=`Gel (colour) for channel ${ch.num}, ${ch.lab}`; gelRow.innerHTML='';
+  for(const [k,g] of Object.entries(GELS)){ const s=el(`<button class="swatch" aria-pressed="${state.gel[state.sel]===k}"><i style="background:${g.css}"></i>${g.name}</button>`); s.onclick=()=>{ state.gel[state.sel]=k; drawGels(); renderAll(); applyLights(); }; gelRow.append(s); } }
+function renderAll(){ for(const id in faderRender) faderRender[id](); }
+function markCue(c){ cueEls.forEach((b,i)=>b.classList.toggle('run',CUES[i]===c)); }
+function runCue(c,dur=2600){ const from={...state.lv}; Object.assign(state.gel,c.gel); state.fade={c,from,to:{...state.lv,...c.lv},t0:performance.now(),dur}; markCue(c); applyLights(); if(state.deskOpen){ renderAll(); drawGels(); } }
+function solo(id){ state.cardBase=VIEWS.audience(); flyTo(state.cardBase,1100); const lv={ fresnel:0, profile:0, par:0, cyc:0, house:0 }; lv[id]=90; runCue({num:0,name:'Solo',lv,gel:{}},1400); state.gel[id]=state.gel[id]==='night'?'open':state.gel[id]; toast(`Only the <b>${ITEMS[id==='cyc'?'flood':id].name}</b> is on. Look at the edge of its light on the stage.`,4500); }
+function openDesk(ch){ if(state.card) closeCard(true); if(ch) state.sel=ch; state.deskOpen=true; buildDesk(); desk.classList.add('open'); $('#hint').style.opacity=0;
+  if(state.view!=='audience') goView('audience'); else flyTo(VIEWS.audience(),800);
+  if(!state.found.has('desk')){ state.found.add('desk'); store.set('found',[...state.found]); drawFound(); } }
+function closeDesk(){ state.deskOpen=false; desk.classList.remove('open'); }
+$('#deskBtn').onclick=()=>state.deskOpen?closeDesk():openDesk();
+$('#deskClose').onclick=closeDesk;
+
+/* ---------- Labels ---------- */
+const labelEls={}, labelsBox=$('#labels'), proj=new THREE.Vector3();
+for(const id of IDS){ if(!anchors[id]){ const b=new THREE.Box3(); for(const o of groups[id]) b.expandByObject(o); anchors[id]=b.getCenter(new THREE.Vector3()).setY(b.max.y+.25); }
+  const l=el(`<div class="lbl" hidden>${ITEMS[id].name}</div>`); l.onclick=()=>openCard(id); labelsBox.append(l); labelEls[id]=l; }
+$('#labelsBtn').onclick=()=>{ state.labels=!state.labels; $('#labelsBtn').setAttribute('aria-pressed',state.labels); if(!state.labels) for(const id of IDS) labelEls[id].hidden=true; };
+function drawLabels(){ if(!state.labels) return;
+  for(const id of IDS){ const a=id==='rostra'?proj.copy(rostra.position).setY(2.1):proj.copy(anchors[id]); a.project(camera); const l=labelEls[id];
+    const on=a.z<1 && Math.abs(a.x)<1.05 && Math.abs(a.y)<1.05; if(l.hidden===on) l.hidden=!on; if(on) l.style.transform=`translate(${(a.x+1)/2*innerWidth}px,${(1-a.y)/2*innerHeight}px) translate(-50%,-50%)`; } }
+
+/* ---------- Input: drag to look, pinch or scroll to zoom, tap to learn ---------- */
+const ray=new THREE.Raycaster(), ndc=new THREE.Vector2();
+const pickables=()=>IDS.flatMap(id=>groups[id]);
+function pick(e){ ndc.set(e.clientX/innerWidth*2-1,-(e.clientY/innerHeight)*2+1); ray.setFromCamera(ndc,camera);
+  for(const h of ray.intersectObjects(pickables(),true)){ let o=h.object; while(o && !o.userData.item) o=o.parent; if(o) return o.userData.item; } return null; }
+const pts=new Map(); let down=null, pinch=null;
+canvas.addEventListener('pointerdown',e=>{ pts.set(e.pointerId,{x:e.clientX,y:e.clientY}); try{ canvas.setPointerCapture(e.pointerId); }catch(err){}
+  if(pts.size===2){ const [a,b]=[...pts.values()]; pinch={d:Math.hypot(a.x-b.x,a.y-b.y),fov:fovT}; down=null; return; }
+  down={x:e.clientX,y:e.clientY,yaw:yawT,pitch:pitchT,moved:false}; });
+canvas.addEventListener('pointermove',e=>{
+  if(pts.has(e.pointerId)) pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(pinch && pts.size===2){ const [a,b]=[...pts.values()]; fovT=THREE.MathUtils.clamp(pinch.fov*pinch.d/Math.max(1,Math.hypot(a.x-b.x,a.y-b.y)),24,84); return; }
+  if(down){ const dx=e.clientX-down.x, dy=e.clientY-down.y; if(Math.hypot(dx,dy)>7) down.moved=true;
+    if(down.moved && !anim){ const k=fovT/BASE_FOV(); yawT=THREE.MathUtils.clamp(down.yaw-dx/innerWidth*2.6*k,-1.7,1.7); pitchT=THREE.MathUtils.clamp(down.pitch+dy/innerHeight*1.6*k,-.6,.7); tip.classList.remove('on'); return; } }
+  if(e.pointerType!=='mouse' || down) return;
+  const id=pick(e); canvas.classList.toggle('hot',!!id); if(id){ tip.textContent=ITEMS[id].name; tip.style.left=e.clientX+'px'; tip.style.top=e.clientY+'px'; tip.classList.add('on'); } else tip.classList.remove('on'); });
+const endPtr=e=>{ pts.delete(e.pointerId); if(pts.size<2) pinch=null; };
+canvas.addEventListener('pointercancel',e=>{ endPtr(e); down=null; });
+canvas.addEventListener('pointerup',e=>{ endPtr(e); const d=down; down=null; if(!d||d.moved||!started) return;
+  // looking around after a card: the camera rejoins the drag from where it is
+  const id=pick(e); if(id) openCard(id); else if(state.card) closeCard(); });
+canvas.addEventListener('wheel',e=>{ e.preventDefault(); fovT=THREE.MathUtils.clamp(fovT*Math.exp(e.deltaY*.0012),24,84); },{passive:false});
+addEventListener('keydown',e=>{ if(e.key==='Escape'){ if(state.card) closeCard(); else if(state.deskOpen) closeDesk(); } });
+addEventListener('resize',()=>{ camera.aspect=innerWidth/innerHeight; fovT=BASE_FOV(); camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); base=VIEWS[state.view](); });
+
+/* ---------- Start ---------- */
+let started=false;
+$('#startBtn').onclick=()=>{ $('#intro').hidden=true; started=true; state.tabsTarget=1; try{ speechSynthesis.getVoices(); }catch(e){}
+  setTimeout(()=>runCue(CUES[0]),200);
+  setTimeout(()=>toast('Curtain up! Drag to look around, and <b>tap anything</b> to find out what it is.',5500),900); };
+
+/* ---------- Loop ---------- */
+const follow=(rate,dt)=>1-Math.pow(1-rate,dt/16.7);
+let fWin=[], fLast=0, fGood=0; const loopStart=performance.now();
+function adaptResolution(now){ const dt=now-fLast; fLast=now; if(dt>250||now-loopStart<2500) return; fWin.push(dt); if(fWin.length<60) return;
+  fWin.sort((a,b)=>a-b); const med=fWin[30], p90=fWin[54]; fWin=[];
+  if((med>21||p90>28)&&pr>.75){ PR_MAX=pr-.25; pr=Math.max(.75,pr-.25); renderer.setPixelRatio(pr); renderer.setSize(innerWidth,innerHeight); fGood=0; }
+  else if(med<17.6&&p90<19&&pr<PR_MAX){ if(++fGood>=3){ pr=Math.min(PR_MAX,pr+.25); renderer.setPixelRatio(pr); renderer.setSize(innerWidth,innerHeight); fGood=0; } } else fGood=0; }
+applyLights(); drawFound();
+let lastT=0, offX=0, offY=0;
+renderer.setAnimationLoop(t=>{
+  const dt=Math.min(100,lastT?t-lastT:16.7); lastT=t; adaptResolution(t);
+  // camera
+  if(anim){ const k=Math.min(1,(performance.now()-anim.t0)/anim.dur), e=ease(k); camera.position.lerpVectors(anim.fp,anim.tp,e); curLook.lerpVectors(anim.fl,anim.tl,e); if(k>=1){ anim=null; if(state.card){ // drags now look around from the card's spot
+        const v=state.cardBase||ITEMS[state.card].view(); base={pos:v.pos.clone(),look:v.look.clone()}; yaw=yawT=pitch=pitchT=0; } else if(!state.card && camera.position.distanceTo(base.pos)>.05){ base=VIEWS[state.view](); } } }
+  else { const f=follow(.3,dt); yaw+=(yawT-yaw)*f; pitch+=(pitchT-pitch)*f; curLook.lerp(lookTarget(),follow(.45,dt)); camera.position.lerp(base.pos,follow(.2,dt)); }
+  camera.lookAt(curLook);
+  // Keep the stage in the part of the screen you can see: shift the picture up above a
+  // bottom sheet, or left of the desk when it sits at the side.
+  { let tx=0, ty=0; const r=(state.card?card:state.deskOpen?desk:null)?.getBoundingClientRect();
+    if(r && r.top<innerHeight){ if(r.left>innerWidth*.4) tx=(innerWidth-r.left)/2; else ty=Math.max(0,innerHeight-r.top)/2*.9; }
+    const f=follow(.18,dt); offX+=(tx-offX)*f; offY+=(ty-offY)*f;
+    if(Math.abs(offX)>.5||Math.abs(offY)>.5) camera.setViewOffset(innerWidth,innerHeight,offX,offY,innerWidth,innerHeight); else if(camera.view&&camera.view.enabled) camera.clearViewOffset(); }
+  if(Math.abs(camera.fov-fovT)>.05){ camera.fov+=(fovT-camera.fov)*follow(.25,dt); camera.updateProjectionMatrix(); }
+  // cue fades
+  if(state.fade){ const f=state.fade, k=Math.min(1,(performance.now()-f.t0)/f.dur), e=ease(k);
+    for(const id in f.to) state.lv[id]=f.from[id]+(f.to[id]-f.from[id])*e; applyLights(); if(state.deskOpen) renderAll(); if(k>=1) state.fade=null; }
+  // moving scenery
+  let moving=false;
+  if(Math.abs(state.tabsOpen-state.tabsTarget)>.001){ state.tabsOpen+=(state.tabsTarget-state.tabsOpen)*follow(.035,dt); moving=true;
+    const k=ease(state.tabsOpen), w=TAB_CLOSED.w+(TAB_OPEN.w-TAB_CLOSED.w)*k, x=TAB_CLOSED.x+(TAB_OPEN.x-TAB_CLOSED.x)*k; for(const h of tabHalves){ h.scale.x=w/TAB_CLOSED.w; h.position.x=h.userData.side*x; } }
+  const da=(state.doorOpen?-1.3:0)-state.doorAngle; if(Math.abs(da)>.002){ state.doorAngle+=da*follow(.1,dt); doorLeaf.rotation.y=state.doorAngle; moving=true; }
+  if(rostra.position.distanceToSquared(rostra.userData.target)>1e-6){ rostra.position.lerp(rostra.userData.target,follow(.08,dt)); moving=true; }
+  if(moving) shadowsDirty();
+  wingBlue.intensity=6*(.95+Math.sin(t*.002)*.05);
+  drawLabels();
+  renderer.render(scene,camera);
+});
+// The tabs' own card can open and close them
+ITEMS.tabs.tryIt={ label:'Close the tabs', labelFn:()=>state.tabsTarget>.5?'Close the tabs':'Open the tabs', run:()=>{ state.tabsTarget=state.tabsTarget>.5?0:1; refreshTry(); } };
+$('#loading').remove();
+</script>
+</body>
+</html>
