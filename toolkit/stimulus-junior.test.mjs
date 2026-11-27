@@ -16,7 +16,7 @@ const J = context.window.StimulusJunior;
 // Every story type has stories, and every story is complete
 for (const t of J.TYPES) {
   const pool = J.STORIES.filter(s => s.type === t.id);
-  assert.ok(pool.length >= 5, `${t.id} has at least 5 stories`);
+  assert.ok(pool.length >= 10, `${t.id} has at least 10 stories`);
 }
 const ids = new Set();
 for (const s of J.STORIES) {
@@ -48,8 +48,8 @@ assert.equal(anyType.characters.length, 4, 'default group of 4');
 
 // Avoid repeats the group has just had
 const pool = J.STORIES.filter(s => s.type === 'funny').map(s => s.id);
-const next = J.generate({ type: 'funny' }, { avoid: pool.slice(0, 4) });
-assert.equal(next.combo, pool[4]);
+const next = J.generate({ type: 'funny' }, { avoid: pool.slice(0, -1) });
+assert.equal(next.combo, pool[pool.length - 1]);
 
 // Climax and resolution must be chosen before they can be ticked; falling action follows the climax
 const st = J.generate({ type: 'adventure', cast: 4 }, { rng: () => 0 });
