@@ -17,6 +17,7 @@
 <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
 <script src="stimulus-banks.js"></script>
 <script src="stimulus-engine.js"></script>
+<script src="stimulus-junior.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -185,6 +186,33 @@ body.spotlight-on .top{opacity:.4}
   .host-grid{grid-template-columns:1fr}
 }
 
+/* Level switch and simple-mode (plot mountain) cards */
+.levels{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.level{
+  text-align:left;padding:14px 16px;border-radius:16px;border:1.5px solid var(--line);
+  background:rgba(255,255,255,.03);color:var(--text)
+}
+.level b{display:block;font:750 16px/1.2 var(--font-display)}
+.level span{display:block;margin-top:4px;color:var(--text-2);font:500 13px/1.4 var(--font)}
+.level.on{border-color:rgba(134,88,245,.7);background:rgba(134,88,245,.18);box-shadow:0 0 18px rgba(134,88,245,.2)}
+@media(max-width:620px){.levels{grid-template-columns:1fr}}
+.plot-mountain{display:block;width:100%;height:auto}
+.card .plot-mountain{margin:6px 0 2px}
+.card .prog{font:700 12.5px/1.2 var(--font);color:var(--text-2)}
+.card .prog b{color:#9FE7C8}
+.card.ready{border-color:rgba(53,199,150,.6)}
+.spot-mountain .plot-mountain{max-width:560px;margin:0 auto}
+.spot-mountain{padding:10px;border-radius:16px;border:1px solid var(--line);background:rgba(16,13,24,.6);margin:6px 0 14px}
+.spot-stages{display:grid;gap:8px;margin:0 0 6px}
+.spot-stage{padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:rgba(29,24,40,.7)}
+.spot-stage.done{border-color:rgba(53,199,150,.5)}
+.spot-stage h4{margin:0 0 4px;font:750 14px/1.2 var(--font-display);display:flex;gap:8px;align-items:center}
+.spot-stage h4 .st{margin-left:auto;font:700 11px/1 var(--font);letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.spot-stage.done h4 .st{color:#9FE7C8}
+.spot-stage p,.spot-stage ol{margin:0;color:var(--text-2);font:500 14px/1.45 var(--font)}
+.spot-stage ol{padding-left:20px}
+.spot-stage .pending{font-style:italic;color:var(--muted)}
+
 @media(prefers-reduced-motion:reduce){
   *,*::before,*::after{animation:none!important;transition:none!important}
 }
@@ -242,7 +270,9 @@ body.spotlight-on .top{opacity:.4}
     locks: {},
     spotlightId: null,
     feedSig: "",
-    setupError: ""
+    setupError: "",
+    level: "junior",
+    juniorType: ""
   };
 
   function esc(s) {
@@ -347,20 +377,51 @@ body.spotlight-on .top{opacity:.4}
     setTop("");
     var keptTitle = "";
     try { keptTitle = ($("edTitle") && $("edTitle").value) || ""; } catch (e) {}
+    var junior = state.level === "junior";
+    var J = window.StimulusJunior;
+    var typeRow = "";
+    if (junior && J) {
+      typeRow = '<div class="axis"><h3>Lock story type</h3><div class="chips">' +
+        '<button type="button" class="chip' + (!state.juniorType ? " on" : "") + '" data-jtype="">Open</button>' +
+        J.TYPES.map(function (t) {
+          return '<button type="button" class="chip' + (state.juniorType === t.id ? " on" : "") + '" data-jtype="' + t.id + '">' +
+            t.emoji + " " + esc(t.label) + "</button>";
+        }).join("") + "</div></div>";
+    }
     $("viewSetup").innerHTML =
       '<div class="hero"><div><h2>Stimulus Generator</h2>' +
-      "<p>Pupils scan a QR, pick genre, form, structure, style and cast — or leave any of them as Any — and get a unique drama starting point. Their scenario and characters appear on this board as they generate.</p></div>" +
+      "<p>Pupils scan a QR and get a drama starting point on their phone. What they make appears on this board as they go.</p></div>" +
       '<img class="hero-logo" src="stimulus-generator-logo.png" width="1276" height="485" alt="Stimulus Generator" decoding="async"></div>' +
       '<div class="form">' +
         (state.setupError ? '<p class="setup-error" role="alert">' + esc(state.setupError) + "</p>" : "") +
+        '<div class="axis"><h3>Level</h3><div class="levels">' +
+          '<button type="button" class="level' + (junior ? " on" : "") + '" data-level="junior"><b>S1–S2 · Story mountain</b>' +
+            "<span>Two simple choices: story type and group size. Groups get a story laid out as exposition, conflict, rising action, climax, falling action and resolution, choose their climax and ending, and tick off each stage as they plan it.</span></button>" +
+          '<button type="button" class="level' + (!junior ? " on" : "") + '" data-level="advanced"><b>S3+ · Advanced</b>' +
+            "<span>Pupils choose genre, form, structure, style, cast, setting, time and an extra. Best once they know those terms.</span></button>" +
+        "</div></div>" +
         '<div><label for="edTitle">Session title (optional)</label>' +
-        '<input id="edTitle" maxlength="80" placeholder="e.g. S2 devising — comedy week" value="' + esc(keptTitle) + '"></div>' +
-        LOCK_AXES.map(chipRow).join("") +
-        '<p class="hint">Locks are optional. Locked choices are pre-selected on pupil phones and cannot be changed. Leave as Open to let groups choose — or choose nothing and let the generator surprise them.</p>' +
+        '<input id="edTitle" maxlength="80" placeholder="' + (junior ? "e.g. S1 Drama: story mountains" : "e.g. S3 devising: comedy week") + '" value="' + esc(keptTitle) + '"></div>' +
+        (junior ? typeRow : LOCK_AXES.map(chipRow).join("")) +
+        '<p class="hint">' + (junior
+          ? "Lock a story type if you want the whole class working in one genre. Leave it Open to let each group choose."
+          : "Locks are optional. Locked choices are pre-selected on pupil phones and cannot be changed. Leave as Open to let groups choose, or choose nothing and let the generator surprise them.") + "</p>" +
         '<div><button type="button" class="btn btn-primary" id="btnLaunch">Launch live session</button></div>' +
       "</div>";
 
-    $("viewSetup").querySelectorAll(".chip").forEach(function (btn) {
+    $("viewSetup").querySelectorAll(".level").forEach(function (btn) {
+      btn.onclick = function () {
+        state.level = btn.getAttribute("data-level");
+        renderSetup();
+      };
+    });
+    $("viewSetup").querySelectorAll(".chip[data-jtype]").forEach(function (btn) {
+      btn.onclick = function () {
+        state.juniorType = btn.getAttribute("data-jtype") || "";
+        renderSetup();
+      };
+    });
+    $("viewSetup").querySelectorAll(".chip[data-axis]").forEach(function (btn) {
       btn.onclick = function () {
         var axis = btn.getAttribute("data-axis");
         var id = btn.getAttribute("data-id") || "";
@@ -372,7 +433,10 @@ body.spotlight-on .top{opacity:.4}
     $("btnLaunch").onclick = function () {
       var title = $("edTitle").value.trim() || "Stimulus Generator";
       state.setupError = "";
-      launchHost({ title: title, locks: cleanLocks(state.locks) });
+      var locks = junior
+        ? cleanLocks({ level: "junior", type: state.juniorType })
+        : cleanLocks(state.locks);
+      launchHost({ title: title, locks: locks });
     };
   }
 
@@ -579,8 +643,21 @@ body.spotlight-on .top{opacity:.4}
     var sig = results.map(function (r) { return r.player_id + ":" + r.updated_at; }).join("|");
     if (sig === state.feedSig && feed.childNodes.length) return;
     state.feedSig = sig;
+    var J = window.StimulusJunior;
     feed.innerHTML = results.length ? results.map(function (r) {
       var s = r.stimulus || {};
+      if (s.level === "junior" && J) {
+        var n = J.plannedCount(s);
+        return (
+          '<button type="button" class="card' + (n === 6 ? " ready" : "") + '" data-id="' + esc(r.player_id) + '">' +
+            '<div class="who">' + esc(r.nickname) + "</div>" +
+            "<h3>" + esc(s.title || "Story") + "</h3>" +
+            '<div class="tagrow"><span class="tag">' + esc(s.labels && s.labels.type) + '</span><span class="tag">' + esc(s.labels && s.labels.cast) + "</span></div>" +
+            J.mountainSvg(s, { compact: true }) +
+            '<div class="prog">' + (n === 6 ? "<b>All 6 stages planned</b>" : "<b>" + n + " of 6</b> stages planned") + "</div>" +
+          "</button>"
+        );
+      }
       return (
         '<button type="button" class="card" data-id="' + esc(r.player_id) + '">' +
           '<div class="who">' + esc(r.nickname) + "</div>" +
@@ -606,6 +683,10 @@ body.spotlight-on .top{opacity:.4}
     if (!row || !el) return;
     state.spotlightId = playerId;
     var s = row.stimulus || {};
+    if (s.level === "junior" && window.StimulusJunior) {
+      openJuniorSpotlight(row, el, quiet);
+      return;
+    }
     var chars = (s.characters || []).map(function (c) {
       return '<div class="char"><strong>' + esc(c.name) + '</strong><div class="role">' + esc(c.role) +
         '</div><p class="meta" style="margin:4px 0 0">Wants: ' + esc(c.want) + (c.note ? " — " + esc(c.note) : "") + "</p></div>";
@@ -621,6 +702,41 @@ body.spotlight-on .top{opacity:.4}
         '<p class="scenario">' + esc(s.scenario || "") + "</p>" +
         chars +
         (s.devising ? '<p class="devising">' + esc(s.devising) + "</p>" : "") +
+        '<button type="button" class="btn btn-primary" id="btnCloseSpot" style="margin-top:16px">Close spotlight</button>' +
+      "</div>";
+    $("btnCloseSpot").onclick = closeSpotlight;
+    if (!quiet) el.focus();
+  }
+
+  function openJuniorSpotlight(row, el, quiet) {
+    var J = window.StimulusJunior;
+    var s = row.stimulus || {};
+    var planned = s.planned || {};
+    var chars = (s.characters || []).map(function (c) {
+      return '<div class="char"><strong>' + esc(c.role) + '</strong><p class="meta" style="margin:2px 0 0">Wants ' + esc(c.want) + "</p></div>";
+    }).join("");
+    var stages = J.STAGES.map(function (st) {
+      var content = J.stageContent(s, st.id);
+      var body;
+      if (content.list) body = "<ol>" + content.list.map(function (b) { return "<li>" + esc(b) + "</li>"; }).join("") + "</ol>";
+      else if (content.text) body = "<p>" + esc(content.text) + "</p>";
+      else body = '<p class="pending">' + (st.id === "resolution" ? "Ending not chosen yet" : "Climax not chosen yet") + "</p>";
+      var done = !!planned[st.id];
+      return '<div class="spot-stage' + (done ? " done" : "") + '"><h4>' + esc(st.label) +
+        ' <span class="meta" style="font-weight:500">· ' + esc(st.plain) + '</span><span class="st">' + (done ? "✓ Planned" : "Not yet") + "</span></h4>" + body + "</div>";
+    }).join("");
+    el.hidden = false;
+    el.classList.remove("hidden");
+    document.body.classList.add("spotlight-on");
+    el.innerHTML =
+      '<div class="panel" role="dialog" aria-modal="true">' +
+        '<p class="meta">' + esc(row.nickname) + " · " + J.plannedCount(s) + " of 6 stages planned</p>" +
+        "<h2>" + esc(s.title || "Story") + "</h2>" +
+        '<div class="tagrow"><span class="tag">' + esc(s.labels && s.labels.type) + '</span><span class="tag">' + esc(s.labels && s.labels.cast) + "</span></div>" +
+        '<p class="scenario" style="margin-bottom:8px">📍 ' + esc(s.where || "") + "</p>" +
+        '<div class="spot-mountain">' + J.mountainSvg(s) + "</div>" +
+        '<div class="spot-stages">' + stages + "</div>" +
+        '<h3 style="margin:14px 0 8px">Characters</h3>' + chars +
         '<button type="button" class="btn btn-primary" id="btnCloseSpot" style="margin-top:16px">Close spotlight</button>' +
       "</div>";
     $("btnCloseSpot").onclick = closeSpotlight;
